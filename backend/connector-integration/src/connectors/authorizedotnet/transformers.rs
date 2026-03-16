@@ -13,7 +13,7 @@ use domain_types::{
     errors::ConnectorError,
     payment_method_data::{
         BankDebitData, DefaultPCIHolder, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
-        VaultTokenHolder,
+        VaultTokenHolder, WalletData,
     },
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -333,11 +333,35 @@ pub struct BankAccountDetails {
     name_on_account: Secret<String>,
 }
 
+#[derive(Serialize, Debug, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct WalletDetails {
+    pub data_descriptor: WalletMethod,
+    pub data_value: Secret<String>,
+}
+
+#[derive(Serialize, Debug, Deserialize, Clone)]
+pub enum WalletMethod {
+    #[serde(rename = "COMMON.GOOGLE.INAPP.PAYMENT")]
+    Googlepay,
+    #[serde(rename = "COMMON.APPLE.INAPP.PAYMENT")]
+    Applepay,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct PayPalDetails {
+    pub success_url: Option<String>,
+    pub cancel_url: Option<String>,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub enum PaymentDetails<T: PaymentMethodDataTypes> {
     CreditCard(CreditCardDetails<T>),
     BankAccount(BankAccountDetails),
+    OpaqueData(WalletDetails),
+    PayPal(PayPalDetails),
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -613,8 +637,6 @@ fn create_regular_transaction_request<
                     bank_holder_type,
                     ..
                 } => {
-                    // Get account holder name from bank_account_holder_name, card_holder_name,
-                    // or billing address
                     let name_on_account = bank_account_holder_name
                         .clone()
                         .or_else(|| card_holder_name.clone())
@@ -629,8 +651,6 @@ fn create_regular_transaction_request<
                             })
                         })?;
 
-                    // Map bank_type and bank_holder_type to AccountType
-                    // Business accounts with checking should use BusinessChecking
                     let account_type = match (bank_type, bank_holder_type) {
                         (Some(common_enums::BankType::Savings), _) => AccountType::Savings,
                         (_, Some(common_enums::BankHolderType::Business)) => {
@@ -659,7 +679,12 @@ fn create_regular_transaction_request<
                 }
             }
         }
-        _ => Err(error_stack::report!(ConnectorError::RequestEncodingFailed)),
+        PaymentMethodData::Wallet(wallet_data) => {
+            get_wallet_payment_details(wallet_data, &item.router_data.request.complete_authorize_url)
+        }
+        _ => Err(error_stack::report!(ConnectorError::NotImplemented(
+            "Payment method not supported for authorizedotnet".to_string(),
+        ))),
     }?;
 
     let transaction_type = match item.router_data.request.capture_method {
@@ -790,6 +815,71 @@ fn create_regular_transaction_request<
         subsequent_auth_information: None,
         ref_trans_id: None,
     })
+}
+
+fn get_wallet_payment_details<T: PaymentMethodDataTypes>(
+    wallet_data: &WalletData,
+    return_url: &Option<String>,
+) -> Result<PaymentDetails<T>, Error> {
+    match wallet_data {
+        WalletData::GooglePay(_) => {
+            let encoded_token = wallet_data
+                .get_encoded_wallet_token()
+                .change_context(ConnectorError::InvalidWalletToken {
+                    wallet_name: "Google Pay".to_string(),
+                })?;
+            Ok(PaymentDetails::OpaqueData(WalletDetails {
+                data_descriptor: WalletMethod::Googlepay,
+                data_value: Secret::new(encoded_token),
+            }))
+        }
+        WalletData::ApplePay(applepay_token) => {
+            let apple_pay_encrypted_data = applepay_token
+                .payment_data
+                .get_encrypted_apple_pay_payment_data_mandatory()
+                .change_context(ConnectorError::MissingRequiredField {
+                    field_name: "Apple Pay encrypted data",
+                })?;
+            Ok(PaymentDetails::OpaqueData(WalletDetails {
+                data_descriptor: WalletMethod::Applepay,
+                data_value: Secret::new(apple_pay_encrypted_data.clone()),
+            }))
+        }
+        WalletData::PaypalRedirect(_) => Ok(PaymentDetails::PayPal(PayPalDetails {
+            success_url: return_url.clone(),
+            cancel_url: return_url.clone(),
+        })),
+        WalletData::AliPayQr(_)
+        | WalletData::AliPayRedirect(_)
+        | WalletData::AliPayHkRedirect(_)
+        | WalletData::AmazonPayRedirect(_)
+        | WalletData::BluecodeRedirect {}
+        | WalletData::MomoRedirect(_)
+        | WalletData::KakaoPayRedirect(_)
+        | WalletData::GoPayRedirect(_)
+        | WalletData::GcashRedirect(_)
+        | WalletData::ApplePayRedirect(_)
+        | WalletData::ApplePayThirdPartySdk(_)
+        | WalletData::DanaRedirect {}
+        | WalletData::GooglePayRedirect(_)
+        | WalletData::GooglePayThirdPartySdk(_)
+        | WalletData::MbWayRedirect(_)
+        | WalletData::MobilePayRedirect(_)
+        | WalletData::PaypalSdk(_)
+        | WalletData::Paze(_)
+        | WalletData::SamsungPay(_)
+        | WalletData::TwintRedirect {}
+        | WalletData::VippsRedirect {}
+        | WalletData::TouchNGoRedirect(_)
+        | WalletData::WeChatPayRedirect(_)
+        | WalletData::WeChatPayQr(_)
+        | WalletData::CashappQr(_)
+        | WalletData::SwishQr(_)
+        | WalletData::Mifinity(_)
+        | WalletData::RevolutPay(_) => Err(error_stack::report!(ConnectorError::NotImplemented(
+            "Wallet payment method not supported for authorizedotnet".to_string(),
+        ))),
+    }
 }
 
 // RepeatPayment request structures
@@ -2684,11 +2774,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, error_stack::Report<ConnectorError>> {
-        let ccard = match &item.router_data.request.payment_method_data {
-            PaymentMethodData::Card(card) => card,
-            _ => return Err(error_stack::report!(ConnectorError::RequestEncodingFailed)),
-        };
-
         let merchant_authentication =
             AuthorizedotnetAuthType::try_from(&item.router_data.connector_config)?;
 
@@ -2722,24 +2807,65 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 country: address.country,
             });
 
-        // Create expiry date manually since we can't use the trait method generically
-        let expiry_month = ccard.card_exp_month.peek().clone();
-        let year = ccard.card_exp_year.peek().clone();
-        let expiry_year = if year.len() == 2 {
-            format!("20{year}")
-        } else {
-            year
-        };
-        let expiration_date = format!("{expiry_year}-{expiry_month}");
+        let payment_profile = match &item.router_data.request.payment_method_data {
+            PaymentMethodData::Card(ccard) => {
+                let expiry_month = ccard.card_exp_month.peek().clone();
+                let year = ccard.card_exp_year.peek().clone();
+                let expiry_year = if year.len() == 2 {
+                    format!("20{year}")
+                } else {
+                    year
+                };
+                let expiration_date = format!("{expiry_year}-{expiry_month}");
 
-        let payment_profile = PaymentProfile {
-            bill_to,
-            payment: PaymentDetails::CreditCard(CreditCardDetails {
-                card_number: ccard.card_number.clone(),
-                expiration_date: Secret::new(expiration_date),
-                card_code: Some(ccard.card_cvc.clone()),
-            }),
-        };
+                Ok(PaymentProfile {
+                    bill_to,
+                    payment: PaymentDetails::CreditCard(CreditCardDetails {
+                        card_number: ccard.card_number.clone(),
+                        expiration_date: Secret::new(expiration_date),
+                        card_code: Some(ccard.card_cvc.clone()),
+                    }),
+                })
+            }
+            PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                WalletData::GooglePay(_) => {
+                    let encoded_token = wallet_data
+                        .get_encoded_wallet_token()
+                        .change_context(ConnectorError::InvalidWalletToken {
+                            wallet_name: "Google Pay".to_string(),
+                        })?;
+                    Ok(PaymentProfile {
+                        bill_to,
+                        payment: PaymentDetails::OpaqueData(WalletDetails {
+                            data_descriptor: WalletMethod::Googlepay,
+                            data_value: Secret::new(encoded_token),
+                        }),
+                    })
+                }
+                WalletData::ApplePay(applepay_token) => {
+                    let apple_pay_encrypted_data = applepay_token
+                        .payment_data
+                        .get_encrypted_apple_pay_payment_data_mandatory()
+                        .change_context(ConnectorError::MissingRequiredField {
+                            field_name: "Apple Pay encrypted data",
+                        })?;
+                    Ok(PaymentProfile {
+                        bill_to,
+                        payment: PaymentDetails::OpaqueData(WalletDetails {
+                            data_descriptor: WalletMethod::Applepay,
+                            data_value: Secret::new(apple_pay_encrypted_data.clone()),
+                        }),
+                    })
+                }
+                _ => Err(error_stack::report!(ConnectorError::NotImplemented(
+                    "Selected wallet is not supported for SetupMandate in authorizedotnet"
+                        .to_string(),
+                ))),
+            },
+            _ => Err(error_stack::report!(ConnectorError::NotImplemented(
+                "Payment method not supported for SetupMandate in authorizedotnet".to_string(),
+            ))),
+        }?;
 
         Ok(Self {
             create_customer_payment_profile_request: AuthorizedotnetPaymentProfileRequest {
