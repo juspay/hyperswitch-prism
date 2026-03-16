@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use connector_service_ffi::bindings::uniffi as ffi_bindings;
-use connector_service_ffi::errors::UniffiError;
 use grpc_api_types::payments::{
     self, connector_specific_config, ConnectorSpecificConfig, Environment, FfiConnectorHttpRequest,
     FfiConnectorHttpResponse, FfiOptions, RequestError, ResponseError,
@@ -17,8 +16,8 @@ use crate::harness::{
     scenario_types::ScenarioError,
 };
 
-type RequestTransformer = fn(Vec<u8>, Vec<u8>) -> Result<Vec<u8>, UniffiError>;
-type ResponseTransformer = fn(Vec<u8>, Vec<u8>, Vec<u8>) -> Result<Vec<u8>, UniffiError>;
+type RequestTransformer = fn(Vec<u8>, Vec<u8>) -> Vec<u8>;
+type ResponseTransformer = fn(Vec<u8>, Vec<u8>, Vec<u8>) -> Vec<u8>;
 
 /// Returns whether a suite is currently wired for SDK/FFI execution.
 pub fn supports_sdk_suite(suite: &str) -> bool {
@@ -193,13 +192,7 @@ where
     let request_payload: Req = parse_sdk_payload(suite, scenario, connector, grpc_req)?;
     let request_bytes = request_payload.encode_to_vec();
 
-    let ffi_http_request_bytes = req_transformer(request_bytes.clone(), options_bytes.to_vec())
-        .map_err(|error| ScenarioError::SdkExecution {
-            message: format!(
-                "sdk request transformer invocation failed for '{}/{}': {:?}",
-                suite, scenario, error
-            ),
-        })?;
+    let ffi_http_request_bytes = req_transformer(request_bytes.clone(), options_bytes.to_vec());
 
     let ffi_http_request = FfiConnectorHttpRequest::decode(ffi_http_request_bytes.as_slice())
         .map_err(|decode_error| {
@@ -222,13 +215,7 @@ where
         ffi_http_response_bytes,
         request_bytes,
         options_bytes.to_vec(),
-    )
-    .map_err(|error| ScenarioError::SdkExecution {
-        message: format!(
-            "sdk response transformer invocation failed for '{}/{}': {:?}",
-            suite, scenario, error
-        ),
-    })?;
+    );
 
     let proto_response = Res::decode(proto_response_bytes.as_slice()).map_err(|decode_error| {
         if let Ok(response_error) = ResponseError::decode(proto_response_bytes.as_slice()) {

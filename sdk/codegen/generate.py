@@ -242,7 +242,7 @@ def render(template_name: str, output_path: Path, **kwargs) -> None:
 
 def gen_python(flows: list[dict], single_flows: list[dict]) -> None:
     render(
-        "python_flows.py.j2",
+        "python/flows.py.j2",
         SDK_ROOT / "python/src/payments/_generated_flows.py",
         groups=group_by_service(flows),
         single_groups=group_by_service(single_flows),
@@ -258,7 +258,7 @@ def gen_python_clients(flows: list[dict], single_flows: list[dict]) -> None:
         all_groups.setdefault(service, [])
 
     render(
-        "python_clients.py.j2",
+        "python/clients.py.j2",
         SDK_ROOT / "python/src/payments/_generated_service_clients.py",
         all_services=sorted(all_groups),
         groups=groups,
@@ -277,7 +277,7 @@ def gen_python_stub(flows: list[dict], single_flows: list[dict] = []) -> None:
         types.add(f["response"])
 
     render(
-        "python_stub.pyi.j2",
+        "python/stub.pyi.j2",
         SDK_ROOT / "python/src/payments/connector_client.pyi",
         imports=sorted(types),
         all_services=sorted(set(groups) | set(single_groups)),
@@ -298,7 +298,7 @@ def gen_flows_js(flows: list[dict], single_flows: list[dict]) -> None:
     max_len_s = max((len(f["name"]) for f in single_flows), default=0)
 
     render(
-        "js_flows.js.j2",
+        "javascript/flows.js.j2",
         SDK_ROOT / "javascript/src/payments/_generated_flows.js",
         flows=flows,
         single_flows=single_flows,
@@ -314,7 +314,7 @@ def gen_connector_client_ts(flows: list[dict], single_flows: list[dict]) -> None
     all_services = sorted(set(groups) | set(single_groups))
 
     render(
-        "ts_connector_client.ts.j2",
+        "javascript/connector_client.ts.j2",
         SDK_ROOT / "javascript/src/payments/_generated_connector_client_flows.ts",
         all_services=all_services,
         groups=groups,
@@ -325,7 +325,7 @@ def gen_connector_client_ts(flows: list[dict], single_flows: list[dict]) -> None
 def gen_uniffi_client_ts(flows: list[dict], single_flows: list[dict]) -> None:
     """Generate _generated_uniffi_client_flows.ts — UniffiClient subclass with typed flow methods."""
     render(
-        "ts_uniffi_client.ts.j2",
+        "javascript/uniffi_client.ts.j2",
         SDK_ROOT / "javascript/src/payments/_generated_uniffi_client_flows.ts",
         flows=flows,
         single_flows=single_flows,
@@ -338,7 +338,7 @@ def gen_kotlin(flows: list[dict], single_flows: list[dict] = []) -> None:
     all_services = sorted(set(groups) | set(single_groups))
 
     render(
-        "kotlin_flows.kt.j2",
+        "kotlin/flows.kt.j2",
         SDK_ROOT / "java/src/main/kotlin/GeneratedFlows.kt",
         flows=flows,
         single_flows=single_flows,
@@ -353,7 +353,7 @@ def gen_rust_handlers(flows: list[dict]) -> None:
     all_types = sorted({t for f in flows for t in (f["request"], f["response"])})
 
     render(
-        "rust_handlers.rs.j2",
+        "rust/handlers.rs.j2",
         RUST_HANDLERS_OUT,
         flows=flows,
         all_types=all_types,
@@ -365,7 +365,7 @@ def gen_rust_ffi_flows(flows: list[dict]) -> None:
     req_types = sorted({f["request"] for f in flows})
 
     render(
-        "rust_ffi_flows.rs.j2",
+        "rust/ffi_flows.rs.j2",
         RUST_FFI_FLOWS_OUT,
         flows=flows,
         req_types=req_types,
