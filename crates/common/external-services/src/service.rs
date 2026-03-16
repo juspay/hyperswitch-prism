@@ -34,12 +34,71 @@ use hyperswitch_masking::{ExposeInterface, Secret};
 #[cfg(feature = "injector-client")]
 use injector;
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
+use url::Url;
 
 /// Test context for mock server integration
 #[derive(Debug, Clone)]
 pub struct TestContext {
     pub session_id: String,
     pub mock_server_url: String,
+}
+
+/// Type of the vault connector
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum VaultConnectorType {
+    /// Proxy vault - forwards requests through a proxy (e.g., VGS forward proxy)
+    Proxy,
+    /// Transformation vault - transforms/tokenizes data (e.g., HyperswitchVault)
+    Transformation,
+}
+
+/// Authentication credentials for vault connectors
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct VaultConnectorAuth {
+    /// API key for authenticating with the vault connector
+    pub api_key: Secret<String>,
+    /// API secret for authenticating with the vault connector
+    pub api_secret: Secret<String>,
+}
+
+/// External Vault Proxy Related Metadata
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(untagged)]
+pub enum ExternalVaultProxyMetadata {
+    /// VGS proxy data variant
+    VgsMetadata(VgsMetadata),
+    /// HyperswitchVault data variant
+    HyperswitchVaultMetadata(HyperswitchVaultMetadata),
+}
+
+/// Complete external vault proxy configuration to be serialized and sent to UCS
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct ExternalVaultProxyConfig {
+    /// Type of the vault connector (e.g., Proxy or Transformation)
+    pub vault_connector_type: VaultConnectorType,
+    /// Name/ID of the vault connector (e.g., "vgs", "hyperswitch_vault")
+    pub vault_connector_id: Option<String>,
+    /// Metadata specific to the vault connector type
+    pub metadata: ExternalVaultProxyMetadata,
+}
+
+/// VGS proxy data
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct VgsMetadata {
+    /// External vault url
+    pub proxy_url: Url,
+    /// CA certificates to verify the vault server
+    pub certificate: Secret<String>,
+}
+
+/// HyperswitchVault proxy data
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct HyperswitchVaultMetadata {
+    /// External vault url
+    pub vault_endpoint: Url,
+    /// Authentication data for the vault connector
+    pub vault_auth_data: VaultConnectorAuth,
 }
 
 pub trait ConnectorRequestReference {
@@ -459,7 +518,8 @@ where
                             .expose()
                             .to_string();
 
-                        let headers = request
+                        // Collect connector request headers (excluding vault metadata)
+                        let headers: HashMap<String, Secret<String>> = request
                             .headers
                             .iter()
                             .map(|(key, value)| {
@@ -471,33 +531,25 @@ where
                                     }),
                                 )
                             })
-                            .chain(
-                                updated_router_data
-                                    .resource_common_data
-                                    .get_vault_headers()
-                                    .map(|headers| {
-                                        headers.iter().map(|(k, v)| (k.clone(), v.clone()))
-                                    })
-                                    .into_iter()
-                                    .flatten(),
-                            )
                             .collect();
 
-                        // Create injector request
-                        let injector_request = injector::InjectorRequest::new(
+                        // Parse vault metadata and build injector request
+                        let vault_headers = updated_router_data
+                            .resource_common_data
+                            .get_vault_headers();
+                        let backup_proxy_url = proxy
+                            .https_url
+                            .as_ref()
+                            .or(proxy.http_url.as_ref())
+                            .map(|url| Secret::new(url.clone()));
+                        let injector_request = build_injector_request(
                             request.url.clone(),
                             request.method.to_http_method(),
                             template,
                             token_data,
-                            Some(headers),
-                            proxy
-                                .https_url
-                                .as_ref()
-                                .or(proxy.http_url.as_ref())
-                                .map(|url| Secret::new(url.clone())),
-                            None,
-                            None,
-                            None,
+                            headers,
+                            backup_proxy_url,
+                            vault_headers,
                         );
 
                         // New injector handles HTTP request internally and returns enhanced response
@@ -796,7 +848,7 @@ pub async fn call_connector_api(
     test_mode: bool,
 ) -> CustomResult<Result<Response, Response>, ApiClientError> {
     let url =
-        reqwest::Url::parse(&request.url).change_context(ApiClientError::UrlEncodingFailed)?;
+        Url::parse(&request.url).change_context(ApiClientError::UrlEncodingFailed)?;
 
     let should_bypass_proxy = proxy.bypass_proxy_urls.contains(&url.to_string());
 
@@ -1341,6 +1393,108 @@ impl RequestBuilderExt for reqwest::RequestBuilder {
         self = self.headers(headers);
         self
     }
+}
+
+/// Parse the `x-external-vault-metadata` header from vault headers and return the config.
+fn parse_external_vault_config(
+    vault_headers: Option<&HashMap<String, Secret<String>>>,
+) -> Option<ExternalVaultProxyConfig> {
+    vault_headers
+        .and_then(|vh| vh.get(consts::X_EXTERNAL_VAULT_METADATA))
+        .and_then(|header_value| {
+            let json_str = header_value.clone().expose();
+            serde_json::from_str::<ExternalVaultProxyConfig>(&json_str)
+                .inspect_err(|e| {
+                    tracing::warn!("Failed to parse external vault metadata: {:?}", e);
+                })
+                .ok()
+        })
+}
+
+/// Apply parsed external vault proxy config to the injector request's connection config.
+fn apply_vault_config_to_injector(
+    injector_request: &mut injector::InjectorRequest,
+    vault_cfg: ExternalVaultProxyConfig,
+) {
+    tracing::info!(
+        vault_connector_type = ?vault_cfg.vault_connector_type,
+        vault_connector_id = ?vault_cfg.vault_connector_id,
+        "Applying external vault proxy config to injector request"
+    );
+
+    // Map local VaultConnectorType to injector's VaultConnectorType
+    injector_request.connection_config.vault_connector_type =
+        Some(match vault_cfg.vault_connector_type {
+            VaultConnectorType::Proxy => injector::VaultConnectorType::Proxy,
+            VaultConnectorType::Transformation => injector::VaultConnectorType::Transformation,
+        });
+
+    // Map vault_connector_id string to injector's VaultConnectors enum
+    injector_request.connection_config.vault_connector_id =
+        vault_cfg
+            .vault_connector_id
+            .as_deref()
+            .and_then(|id| match id.to_lowercase().as_str() {
+                "vgs" => Some(injector::VaultConnectors::VGS),
+                "hyperswitch_vault" | "hyperswitchvault" => {
+                    Some(injector::VaultConnectors::HyperswitchVault)
+                }
+                _ => {
+                    tracing::warn!("Unknown vault_connector_id: {}", id);
+                    None
+                }
+            });
+
+    // Apply metadata-specific config (proxy_url/ca_cert or vault_endpoint/auth)
+    match vault_cfg.metadata {
+        ExternalVaultProxyMetadata::VgsMetadata(vgs) => {
+            injector_request.connection_config.proxy_url =
+                Some(Secret::new(vgs.proxy_url.to_string()));
+            injector_request.connection_config.ca_cert = Some(vgs.certificate);
+        }
+        ExternalVaultProxyMetadata::HyperswitchVaultMetadata(hsv) => {
+            injector_request.connection_config.vault_endpoint =
+                Some(hsv.vault_endpoint.to_string());
+            injector_request.connection_config.vault_auth_data =
+                Some(injector::VaultConnectorAuth {
+                    api_key: hsv.vault_auth_data.api_key,
+                    api_secret: hsv.vault_auth_data.api_secret,
+                });
+        }
+    }
+}
+
+/// Build an `InjectorRequest` from connector request components and vault metadata.
+///
+/// Constructs the base request and enriches the `connection_config` with external vault
+/// proxy metadata (VGS proxy_url/ca_cert, or HyperswitchVault endpoint/auth) if the
+/// `x-external-vault-metadata` header is present in vault headers.
+fn build_injector_request(
+    endpoint: String,
+    http_method: HttpMethod,
+    template: String,
+    token_data: TokenData,
+    headers: HashMap<String, Secret<String>>,
+    backup_proxy_url: Option<Secret<String>>,
+    vault_headers: Option<&HashMap<String, Secret<String>>>,
+) -> injector::InjectorRequest {
+    let mut injector_request = injector::InjectorRequest::new(
+        endpoint,
+        http_method,
+        template,
+        token_data,
+        Some(headers),
+        backup_proxy_url,
+        None,
+        None,
+        None,
+    );
+
+    if let Some(vault_cfg) = parse_external_vault_config(vault_headers) {
+        apply_vault_config_to_injector(&mut injector_request, vault_cfg);
+    }
+
+    injector_request
 }
 
 #[derive(Debug, Default, serde::Deserialize, Clone, strum::EnumString)]

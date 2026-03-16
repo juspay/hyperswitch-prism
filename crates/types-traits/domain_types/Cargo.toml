@@ -12,7 +12,7 @@ config_patch_derive = { path = "../../common/config_patch_derive" }
 
 hyperswitch_masking = { version = "0.0.1", default-features = false, features = ["alloc", "serde", "time"] }
 # TODO! update to latest Hyperswitch Tag once hyperswitch_masking crate changes are merged to hyperswitch main
-router_derive = { git = "https://github.com/juspay/hyperswitch", branch = "solve-injector-masking-cyclic-dependency" }
+router_derive = { git = "https://github.com/juspay/hyperswitch", rev = "8f5f5a329e85df009d329fa436ec790b85a46cc3" }
 
 #third party dependencies
 thiserror = { workspace = true }

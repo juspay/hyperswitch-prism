@@ -40,7 +40,7 @@ common_utils = { path = "../common_utils", package = "ucs_common_utils", feature
 common_enums = { path = "../common_enums", package = "ucs_common_enums" }
 hyperswitch_masking = { version = "0.0.1", default-features = false, features = ["alloc", "serde", "time"] }
 # TODO! update to latest Hyperswitch Tag once hyperswitch_masking crate changes are merged to hyperswitch main
-injector = { git = "https://github.com/juspay/hyperswitch", branch = "solve-injector-masking-cyclic-dependency", optional = true }
+injector = { git = "https://github.com/juspay/hyperswitch", rev = "8f5f5a329e85df009d329fa436ec790b85a46cc3", optional = true }
 connector_request_kafka = { path = "../connector_request_kafka", optional = true }
 url = "2.5.0"
 chrono = "0.4.31"
