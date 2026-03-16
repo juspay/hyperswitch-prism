@@ -823,11 +823,11 @@ fn get_wallet_payment_details<T: PaymentMethodDataTypes>(
 ) -> Result<PaymentDetails<T>, Error> {
     match wallet_data {
         WalletData::GooglePay(_) => {
-            let encoded_token = wallet_data
-                .get_encoded_wallet_token()
-                .change_context(ConnectorError::InvalidWalletToken {
+            let encoded_token = wallet_data.get_encoded_wallet_token().change_context(
+                ConnectorError::InvalidWalletToken {
                     wallet_name: "Google Pay".to_string(),
-                })?;
+                },
+            )?;
             Ok(PaymentDetails::OpaqueData(WalletDetails {
                 data_descriptor: WalletMethod::Googlepay,
                 data_value: Secret::new(encoded_token),
@@ -2829,11 +2829,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
             PaymentMethodData::Wallet(wallet_data) => match wallet_data {
                 WalletData::GooglePay(_) => {
-                    let encoded_token = wallet_data
-                        .get_encoded_wallet_token()
-                        .change_context(ConnectorError::InvalidWalletToken {
+                    let encoded_token = wallet_data.get_encoded_wallet_token().change_context(
+                        ConnectorError::InvalidWalletToken {
                             wallet_name: "Google Pay".to_string(),
-                        })?;
+                        },
+                    )?;
                     Ok(PaymentProfile {
                         bill_to,
                         payment: PaymentDetails::OpaqueData(WalletDetails {
