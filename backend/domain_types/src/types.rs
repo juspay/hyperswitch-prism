@@ -3421,9 +3421,7 @@ impl
             payment_method: PaymentMethod::Card, //TODO
             address,
             auth_type: common_enums::AuthenticationType::default(),
-            connector_request_reference_id: extract_connector_request_reference_id(&Some(
-                value.connector_transaction_id,
-            )),
+            connector_request_reference_id: value.merchant_transaction_id.unwrap_or_default(),
             customer_id: None,
             connector_customer: None,
             description: None,
@@ -4970,7 +4968,7 @@ pub fn generate_payment_sync_response(
                 redirection_data,
                 connector_metadata: _,
                 network_txn_id,
-                connector_response_reference_id: _,
+                connector_response_reference_id,
                 incremental_authorization_allowed,
                 mandate_reference,
                 status_code,
@@ -4995,6 +4993,7 @@ pub fn generate_payment_sync_response(
                     connector_transaction_id: extract_connector_request_reference_id(
                         &grpc_resource_id,
                     ),
+                    merchant_transaction_id: connector_response_reference_id,
                     redirection_data: redirection_data
                         .map(|form| grpc_api_types::payments::RedirectForm::foreign_try_from(*form))
                         .transpose()?,
@@ -5050,6 +5049,7 @@ pub fn generate_payment_sync_response(
                 connector_transaction_id: extract_connector_request_reference_id(
                     &e.connector_transaction_id,
                 ),
+                merchant_transaction_id: None,
                 mandate_reference: None,
                 status: status as i32,
                 error: Some(grpc_api_types::payments::ErrorInfo {
@@ -5798,6 +5798,7 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
                     .transpose()?
                     .unwrap_or_default(),
             ),
+            merchant_transaction_id: value.connector_response_reference_id,
             status: status as i32,
             mandate_reference: mandate_reference_grpc,
             error: Some(grpc_api_types::payments::ErrorInfo {

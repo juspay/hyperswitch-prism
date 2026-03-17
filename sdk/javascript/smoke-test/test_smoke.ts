@@ -1,5 +1,5 @@
 /**
- * Multi-connector smoke test for hyperswitch-payments SDK.
+ * Multi-connector smoke test for hs-playlib SDK.
  * 
  * Loads connector credentials from external JSON file and runs authorize flow
  * for multiple connectors.
@@ -10,7 +10,7 @@
  *   npx ts-node test_smoke.ts --creds-file creds.json --all --dry-run
  */
 
-import { PaymentClient, types } from "hs-playlib";
+import { PaymentClient, types, NetworkError } from "hs-playlib";
 import * as fs from "fs";
 // @ts-ignore - protobuf generated files might not have types yet
 
@@ -220,6 +220,13 @@ async function testConnector(
         };
         result.status = "passed_with_error";
         result.error = e.errorMessage || `${types.PaymentStatus[e.status]}}` || String(e.statusCode) || String(e);
+      } else if (e instanceof NetworkError) {
+        result.roundTripTest = {
+          passed: true,
+          error: `${e.code}: ${e.message}`,
+        };
+        result.status = "passed_with_error";
+        result.error = `${e.code}: ${e.message}`;
       } else {
         result.roundTripTest = {
           passed: true,

@@ -4,8 +4,8 @@
     "module": "commonjs",
     "target": "ES2020",
     "paths": {
-      "hyperswitch-payments": ["./src/payments/index.js"],
-      "hyperswitch-payments/*": ["./src/payments/*"]
+      "hs-playlib": ["./src/payments/index.js"],
+      "hs-playlib/*": ["./src/payments/*"]
     }
   },
   "include": ["src/**/*", "*.js", "examples/**/*.js"]

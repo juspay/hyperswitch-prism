@@ -394,6 +394,7 @@ fn create_payment_get_request(transaction_id: &str) -> PaymentServiceGetRequest 
         encoded_data: None,
         capture_method: None,
         handle_response: None,
+        merchant_transaction_id: None,
         amount: Some(grpc_api_types::payments::Money {
             minor_amount: TEST_AMOUNT,
             currency: 146, // Currency value from working grpcurl

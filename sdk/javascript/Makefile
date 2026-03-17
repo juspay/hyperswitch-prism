@@ -1,4 +1,4 @@
-.PHONY: install-deps generate-bindings generate-proto generate-all \
+.PHONY: install-deps install-codegen-deps generate-bindings generate-proto generate-all \
         generate-flows build-ts pack-archive install test-package test-composite dist clean
 
 # SDK-specific paths (define BEFORE including common.mk)
@@ -30,6 +30,14 @@ install-deps:
 	@cd $(SDK_ROOT) && \
 		(echo "  → Installing npm dependencies..." && npm install)
 	@echo "All required tools present."
+
+# ---------------------------------------------------------------------------
+# install-codegen-deps
+# Ensures jinja2 etc. are installed before generate-flows (used by CI and local).
+# Delegates to sdk/Makefile install-deps (idempotent, skips if present).
+# ---------------------------------------------------------------------------
+install-codegen-deps:
+	@$(MAKE) -C $(REPO_ROOT)/sdk install-deps
 
 # ---------------------------------------------------------------------------
 # generate-bindings
@@ -78,8 +86,9 @@ generate-all: generate-proto generate-bindings generate-flows
 # generate-flows
 # Generates flow methods (authorize, capture, etc.) by running the SDK
 # codegen script. Assumes descriptor is already generated.
+# Depends on install-codegen-deps so jinja2 etc. are available (CI and local).
 # ---------------------------------------------------------------------------
-generate-flows:
+generate-flows: install-codegen-deps
 	@echo "Generating JavaScript flow methods..."
 	@cd $(REPO_ROOT)/sdk/codegen && python3 generate.py --lang javascript
 	@echo "JavaScript flow methods generated."

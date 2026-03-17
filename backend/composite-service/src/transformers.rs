@@ -183,6 +183,7 @@ impl
 
         Self {
             connector_transaction_id: item.connector_transaction_id.clone(),
+            merchant_transaction_id: item.merchant_transaction_id.clone(),
             encoded_data: item.encoded_data.clone(),
             capture_method: item.capture_method,
             handle_response: item.handle_response.clone(),

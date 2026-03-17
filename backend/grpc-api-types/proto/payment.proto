@@ -1452,7 +1452,8 @@ message PaymentServiceAuthorizeResponse {
 
 // Request message for synchronizing payment status
 message PaymentServiceGetRequest {
-
+  // Identification
+  optional string merchant_transaction_id = 1;
   string connector_transaction_id = 2;
 
   optional string encoded_data = 3;
@@ -1491,6 +1492,7 @@ message PaymentServiceGetRequest {
 message PaymentServiceGetResponse {
   // Identification
   string connector_transaction_id = 1;
+  optional string merchant_transaction_id = 28;
 
   // Status Information
   PaymentStatus status = 2;

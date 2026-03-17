@@ -174,3 +174,68 @@ message ResponseError {
   optional string error_code = 3;
   optional uint32 status_code = 4;
 }
+
+// Result type for FFI operations with explicit type discrimination
+// Replaces the heuristic error detection with explicit enum-based type checking
+message FfiResult {
+  enum Type {
+    HTTP_REQUEST = 0;
+    HTTP_RESPONSE = 1;
+    REQUEST_ERROR = 2;
+    RESPONSE_ERROR = 3;
+  }
+  
+  Type type = 1;
+  
+  oneof payload {
+    FfiConnectorHttpRequest http_request = 2;
+    FfiConnectorHttpResponse http_response = 3;
+    RequestError request_error = 4;
+    ResponseError response_error = 5;
+  }
+}
+// ============================================================
+// Network Error (HTTP transport layer)
+// ============================================================
+// Thrown by SDK HTTP clients when transport fails (timeouts, connection
+// failures, config errors). Unlike RequestError/ResponseError, this does
+// not cross the FFI boundary — it's thrown before/after the HTTP call.
+// The enum ensures consistent error codes across all SDK languages.
+
+enum NetworkErrorCode {
+  NETWORK_ERROR_CODE_UNSPECIFIED = 0;
+
+  // Connection to the remote host timed out before establishing.
+  CONNECT_TIMEOUT_EXCEEDED = 1;
+
+  // Remote host accepted connection but did not respond within the read timeout.
+  RESPONSE_TIMEOUT_EXCEEDED = 2;
+
+  // Entire request lifecycle exceeded total timeout.
+  TOTAL_TIMEOUT_EXCEEDED = 3;
+
+  // Generic network failure (e.g. DNS resolution, connection refused, TLS handshake).
+  // See error message for details.
+  NETWORK_FAILURE = 4;
+
+  // HTTP client failed to initialize (e.g. unsupported config, internal error).
+  CLIENT_INITIALIZATION_FAILURE = 6;
+
+  // Request URL is malformed or has unsupported scheme.
+  URL_PARSING_FAILED = 7;
+
+  // Response body could not be read or decoded.
+  RESPONSE_DECODING_FAILED = 8;
+
+  // Proxy URL or proxy configuration is invalid.
+  INVALID_PROXY_CONFIGURATION = 9;
+
+  // CA certificate (PEM/DER) is invalid or could not be loaded.
+  INVALID_CA_CERT = 10;
+}
+
+message NetworkError {
+  NetworkErrorCode code = 1;
+  optional string message = 2;
+  optional uint32 status_code = 3;
+}

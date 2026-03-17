@@ -265,6 +265,7 @@ fn create_payment_sync_request(transaction_id: &str) -> PaymentServiceGetRequest
             minor_amount: TEST_AMOUNT,
             currency: i32::from(Currency::Usd),
         }),
+        merchant_transaction_id: None,
         state: None,
         metadata: None,
         connector_feature_data: None,

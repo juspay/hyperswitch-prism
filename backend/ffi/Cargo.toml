@@ -35,6 +35,8 @@ uniffi = { version = "0.28", optional = true }
 prost = { workspace = true }
 bytes = { workspace = true }
 thiserror = { workspace = true }
+base64 = "0.22"
+tokio = { version = "1", features = ["full"] }
 
 [build-dependencies]
 prost-build = { workspace = true }

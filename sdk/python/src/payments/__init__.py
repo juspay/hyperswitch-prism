@@ -15,6 +15,7 @@ from payments.generated.connector_service_ffi import *
 
 # Exception classes - override protobuf message types with proper Exception classes
 from payments.connector_client import RequestError, ResponseError
+from payments.http_client import NetworkError, NetworkErrorCode
 
 # Expose proto modules for namespaced access (e.g., payments.Connector, configs.Environment)
 from payments.generated import payment_pb2 as payments

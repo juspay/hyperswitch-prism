@@ -182,6 +182,12 @@ jobs:
           [ "$count" -gt 0 ] || \
             (echo "ERROR: library missing uniffi scaffolding — was it built with --features uniffi?" && exit 1)
 
+      - name: Set up Python (for SDK codegen — Java, Python, JS all use generate.py)
+        if: matrix.target == 'aarch64-apple-darwin'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
       - name: Generate Java SDK (UniFFI Kotlin bindings + Java proto stubs)
         if: matrix.target == 'aarch64-apple-darwin'
         run: make -C sdk/java generate-all
@@ -199,12 +205,6 @@ jobs:
         with:
           name: generated-java-proto
           path: sdk/java/src/main/java/generated/
-
-      - name: Set up Python (for Python SDK generation)
-        if: matrix.target == 'aarch64-apple-darwin'
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
 
       - name: Generate Python SDK (UniFFI Python bindings + Python proto stubs)
         if: matrix.target == 'aarch64-apple-darwin'

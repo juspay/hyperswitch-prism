@@ -1,0 +1,287 @@
+{
+  "version": "1.5",
+  "scenarios": [
+    {
+      "id": "CASE_01_JSON_UNICODE",
+      "description": "Standard JSON POST with Unicode/Emojis.",
+      "request": {
+        "method": "POST",
+        "url": "http://localhost:8081/sanity/v1",
+        "headers": { "Content-Type": "application/json" },
+        "body": "{\"merchant\": \"Juspay 💰\", \"location\": \"Café\"}"
+      },
+      "expected_response": { "status_code": 200, "body": { "status": "ok" } }
+    },
+    {
+      "id": "CASE_02_URL_ENCODING",
+      "description": "GET with complex query encoding.",
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:8081/sanity/v1?ids[]=1&q=payment+gateway&encoded=café",
+        "headers": { "Accept": "application/json" },
+        "body": null
+      },
+      "expected_response": { "status_code": 200, "body": { "status": "ok" } }
+    },
+    {
+      "id": "CASE_03_FORM_URL_ENCODED",
+      "description": "Standard Form-URL POST.",
+      "request": {
+        "method": "POST",
+        "url": "http://localhost:8081/sanity/v1",
+        "headers": { "Content-Type": "application/x-www-form-urlencoded" },
+        "body": "amount=1000&currency=USD&capture=true"
+      },
+      "expected_response": { "status_code": 200, "body": { "status": "ok" } }
+    },
+    {
+      "id": "CASE_04_PUT_METHOD",
+      "description": "PUT method check.",
+      "request": {
+        "method": "PUT",
+        "url": "http://localhost:8081/sanity/v1/update",
+        "headers": { "Content-Type": "application/json" },
+        "body": "{\"status\": \"updated\"}"
+      },
+      "expected_response": { "status_code": 200, "body": { "status": "ok" } }
+    },
+    {
+      "id": "CASE_05_PATCH_METHOD",
+      "description": "PATCH method check.",
+      "request": {
+        "method": "PATCH",
+        "url": "http://localhost:8081/sanity/v1/partial",
+        "headers": { "Content-Type": "application/json" },
+        "body": "{\"part\": \"A\"}"
+      },
+      "expected_response": { "status_code": 200, "body": { "status": "ok" } }
+    },
+    {
+      "id": "CASE_06_DELETE_METHOD",
+      "description": "DELETE method check.",
+      "request": {
+        "method": "DELETE",
+        "url": "http://localhost:8081/sanity/v1/resource/123",
+        "headers": { "Accept": "*/*" },
+        "body": null
+      },
+      "expected_response": { "status_code": 204 }
+    },
+    {
+      "id": "CASE_07_POST_EMPTY_BODY",
+      "description": "POST with no body.",
+      "request": {
+        "method": "POST",
+        "url": "http://localhost:8081/sanity/v1/empty",
+        "headers": { "Content-Type": "application/json" },
+        "body": null
+      },
+      "expected_response": { "status_code": 200, "body": { "status": "ok" } }
+    },
+    {
+      "id": "CASE_08_XML_BODY",
+      "description": "XML/SOAP Body shipping.",
+      "request": {
+        "method": "POST",
+        "url": "http://localhost:8081/sanity/v1/soap",
+        "headers": { "Content-Type": "application/xml" },
+        "body": "<?xml version=\"1.0\"?><payment><amount>100</amount></payment>"
+      },
+      "expected_response": { "status_code": 200, "body": { "status": "ok" } }
+    },
+    {
+      "id": "CASE_09_MULTIPART_FORMDATA",
+      "description": "Multipart/Form-Data.",
+      "request": {
+        "method": "POST",
+        "url": "http://localhost:8081/sanity/v1/upload",
+        "headers": { "Accept": "*/*", "Content-Type": "multipart/form-data; boundary=SanityBoundary" },
+        "body": "-----SanityBoundary\r\nContent-Disposition: form-data; name=\"field1\"\r\n\r\nvalue1\r\n-----SanityBoundary--\r\n"
+      },
+      "expected_response": { "status_code": 200, "body": { "status": "ok" } }
+    },
+    {
+      "id": "CASE_10_RESPONSE_TIMEOUT",
+      "description": "Slow server (2s). SDK must timeout at 1s via response_timeout_ms.",
+      "skip_langs": ["rust", "python"],
+      "skip_reason_rust": "reqwest 0.11 has no read/response-phase timeout (read_timeout added in 0.12). response_timeout_ms is not supported; use total_timeout_ms instead.",
+      "skip_reason_python": "httpx response_timeout not yet verified for this scenario.",
+      "request": {
+        "method": "POST",
+        "url": "http://localhost:8081/sanity/v1/timeout",
+        "headers": { "Content-Type": "application/json" },
+        "body": "{\"action\": \"sync\"}"
+      },
+      "expected_error": "RESPONSE_TIMEOUT_EXCEEDED",
+      "client_response_timeout_ms": 1000,
+      "server_delay_ms": 2000,
+      "expected_response": { "status_code": 200, "body": { "status": "ok" } }
+    },
+    {
+      "id": "CASE_11_SERVER_ERROR_500",
+      "description": "Server returns 500.",
+      "request": {
+        "method": "POST",
+        "url": "http://localhost:8081/sanity/v1/error500",
+        "headers": { "Content-Type": "application/json" },
+        "body": "{\"trigger\": \"failure\"}"
+      },
+      "expected_response": { "status_code": 500, "body": { "error": "internal_server_error", "code": 500 } }
+    },
+    {
+      "id": "CASE_12_SERVER_ERROR_502",
+      "description": "Server returns 502 Bad Gateway.",
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:8081/sanity/v1/error502",
+        "headers": { "Accept": "application/json" },
+        "body": null
+      },
+      "expected_response": { "status_code": 502, "body": { "error": "bad_gateway", "code": 502 } }
+    },
+    {
+      "id": "CASE_13_SERVER_ERROR_503",
+      "description": "Server returns 503 Service Unavailable.",
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:8081/sanity/v1/error503",
+        "headers": { "Accept": "application/json" },
+        "body": null
+      },
+      "expected_response": { "status_code": 503, "body": { "error": "unavailable", "code": 503 } }
+    },
+    {
+      "id": "CASE_14_SERVER_ERROR_504",
+      "description": "Server returns 504 Gateway Timeout.",
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:8081/sanity/v1/error504",
+        "headers": { "Accept": "application/json" },
+        "body": null
+      },
+      "expected_response": { "status_code": 504, "body": { "error": "gateway_timeout", "code": 504 } }
+    },
+    {
+      "id": "CASE_15_BOM_UTF8",
+      "description": "Body with UTF-8 BOM.",
+      "request": {
+        "method": "POST",
+        "url": "http://localhost:8081/sanity/v1/bom",
+        "headers": { "Content-Type": "application/json" },
+        "body": "\uFEFF{\"key\": \"value_with_bom\"}"
+      },
+      "expected_response": { "status_code": 200, "body": { "status": "ok" } }
+    },
+    {
+      "id": "CASE_16_NO_CONTENT_204",
+      "description": "204 No Content check.",
+      "request": {
+        "method": "DELETE",
+        "url": "http://localhost:8081/sanity/v1/resource/123",
+        "headers": { "Accept": "*/*" },
+        "body": null
+      },
+      "expected_response": { "status_code": 204 }
+    },
+    {
+      "id": "CASE_17_REDIRECT",
+      "description": "302 Redirect handling.",
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:8081/sanity/v1/redirect",
+        "headers": { "Accept": "application/json" },
+        "body": null
+      },
+      "expected_response": { "status_code": 302, "headers": { "location": "http://localhost:8081/sanity/v1/target" } }
+    },
+    {
+      "id": "CASE_18_RAW_BYTES",
+      "description": "Binary Request Payload.",
+      "request": {
+        "method": "POST",
+        "url": "http://localhost:8081/sanity/v1/binary",
+        "headers": { "Content-Type": "application/octet-stream" },
+        "body": "base64:AAECAwQFBgcICQ=="
+      },
+      "expected_response": { "status_code": 200, "body": { "status": "ok" } }
+    },
+    {
+      "id": "CASE_19_MULTI_VALUE_HEADERS",
+      "description": "Multi-value Set-Cookie headers (OPTIONAL: UCS doesn't use cookies, tests HTTP client completeness).",
+      "optional": true,
+      "skip_reason": "Multi-value header support not critical for stateless UCS. SDKs may not expose all Set-Cookie values.",
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:8081/sanity/v1/multi-header",
+        "headers": { "Accept": "*/*" },
+        "body": null
+      },
+      "expected_response": {
+        "status_code": 200,
+        "headers": { "set-cookie": ["session=abc", "theme=dark"] }
+      }
+    },
+    {
+      "id": "CASE_20_POST_WITH_QUERY",
+      "description": "POST with URL Query.",
+      "request": {
+        "method": "POST",
+        "url": "http://localhost:8081/sanity/v1/hybrid?source=webhook&retry=1",
+        "headers": { "Content-Type": "application/json" },
+        "body": "{\"confirmed\": true}"
+      },
+      "expected_response": { "status_code": 200, "body": { "status": "ok" } }
+    },
+    {
+      "id": "CASE_21_FORM_UNICODE",
+      "description": "Form-URL Unicode Body.",
+      "request": {
+        "method": "POST",
+        "url": "http://localhost:8081/sanity/v1",
+        "headers": { "Content-Type": "application/x-www-form-urlencoded" },
+        "body": "customer_name=René Smith&emoji=💰&status=verified"
+      },
+      "expected_response": { "status_code": 200, "body": { "status": "ok" } }
+    },
+    {
+      "id": "CASE_ERR_INVALID_URL",
+      "description": "Invalid URL; SDK must fail before sending (e.g. URL_PARSING_FAILED).",
+      "request": {
+        "method": "GET",
+        "url": "not-a-valid-url",
+        "headers": { "Accept": "application/json" },
+        "body": null
+      },
+      "expected_error": "URL_PARSING_FAILED"
+    },
+    {
+      "id": "CASE_ERR_INVALID_PROXY",
+      "description": "Invalid proxy config; SDK must fail (e.g. INVALID_PROXY_CONFIGURATION).",
+      "skip_langs": ["python", "kotlin"],
+      "skip_reason_python": "httpx accepts malformed proxy URLs at client creation; the error surfaces only at request time as a generic transport failure that cannot be reliably classified as INVALID_PROXY_CONFIGURATION.",
+      "skip_reason_kotlin": "OkHttp accepts malformed proxy URLs at client creation; the error surfaces only at request time as a generic transport failure that cannot be reliably classified as INVALID_PROXY_CONFIGURATION.",
+      "proxy": { "http_url": "invalid://bad" },
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:8081/sanity/v1",
+        "headers": { "Accept": "application/json" },
+        "body": null
+      },
+      "expected_error": "INVALID_PROXY_CONFIGURATION"
+    },
+    {
+      "id": "CASE_PROXY_FORWARD",
+      "description": "Request sent via simple forward proxy (Makefile starts sdk/tests/client_sanity/simple_proxy.js).",
+      "skip_langs": ["node"],
+      "skip_reason_node": "Node SDK proxy handling to be fixed.",
+      "proxy": { "http_url": "http://localhost:9082" },
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:8081/sanity/v1/proxy",
+        "headers": { "Accept": "application/json" },
+        "body": null
+      },
+      "expected_response": { "status_code": 200, "body": { "status": "ok" } }
+    }
+  ]
+}

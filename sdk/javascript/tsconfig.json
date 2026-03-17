@@ -16,8 +16,8 @@
     "paths": {
       "@generated/*": ["src/payments/generated/*"],
       "@src/*": ["src/*"],
-      "hyperswitch-payments": ["./src/index"],
-      "hyperswitch-payments/dist/src/payments/generated/proto": ["./src/payments/generated/proto"]
+      "hs-playlib": ["./src/index"],
+      "hs-playlib/dist/src/payments/generated/proto": ["./src/payments/generated/proto"]
     }
   },
   "ts-node": {

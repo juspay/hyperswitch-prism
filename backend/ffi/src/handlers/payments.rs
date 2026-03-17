@@ -2,10 +2,11 @@ pub const EMBEDDED_DEVELOPMENT_CONFIG: &str = include_str!("../../../../config/d
 pub const EMBEDDED_PROD_CONFIG: &str = include_str!("../../../../config/production.toml");
 
 use crate::types::FfiRequestData;
-use domain_types::errors::ConnectorError;
+use domain_types::errors::{ApplicationErrorResponse, ConnectorError};
 use domain_types::payment_method_data::DefaultPCIHolder;
+use ucs_env::error::ErrorSwitch;
 
-use grpc_api_types::payments::{Environment, PaymentStatus, RequestError, ResponseError};
+use grpc_api_types::payments::{Environment, RequestError, ResponseError};
 fn get_config_for_req(
     environment: Option<Environment>,
 ) -> Result<std::sync::Arc<ucs_env::configs::Config>, RequestError> {
@@ -14,17 +15,9 @@ fn get_config_for_req(
     } else {
         EMBEDDED_DEVELOPMENT_CONFIG
     };
-    crate::utils::load_config(config_str).map_err(|err| {
-        let message = match err {
-            ConnectorError::GenericError { error_message, .. } => error_message,
-            other => format!("{other}"),
-        };
-        RequestError {
-            status: PaymentStatus::Pending.into(),
-            error_message: Some(message),
-            error_code: None,
-            status_code: Some(400),
-        }
+    crate::utils::load_config(config_str).map_err(|e: ConnectorError| {
+        let app_error: ApplicationErrorResponse = e.switch();
+        app_error.switch()
     })
 }
 
@@ -36,17 +29,9 @@ fn get_config_for_res(
     } else {
         EMBEDDED_DEVELOPMENT_CONFIG
     };
-    crate::utils::load_config(config_str).map_err(|err| {
-        let message = match err {
-            ConnectorError::GenericError { error_message, .. } => error_message,
-            other => format!("{other}"),
-        };
-        ResponseError {
-            status: PaymentStatus::Pending.into(),
-            error_message: Some(message),
-            error_code: None,
-            status_code: Some(400),
-        }
+    crate::utils::load_config(config_str).map_err(|e: ConnectorError| {
+        let app_error: ApplicationErrorResponse = e.switch();
+        app_error.switch()
     })
 }
 

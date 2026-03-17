@@ -14,6 +14,7 @@ domain_types = { path = "../../backend/domain_types" }
 cards = { path = "../../backend/cards", package = "ucs_cards" }
 
 # Third-party
+base64 = "0.22"
 serde = { workspace = true }
 thiserror = { workspace = true }
 bytes = { workspace = true }

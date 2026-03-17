@@ -166,6 +166,7 @@ fn create_payment_sync_request(transaction_id: &str, amount: i64) -> PaymentServ
         connector_transaction_id: transaction_id.to_string(),
         encoded_data: None,
         capture_method: None,
+        merchant_transaction_id: None,
         handle_response: None,
         amount: Some(grpc_api_types::payments::Money {
             minor_amount: amount,
@@ -503,6 +504,7 @@ async fn test_authorize_capture_refund_rsync() {
             encoded_data: None,
             capture_method: None,
             handle_response: None,
+            merchant_transaction_id: None,
             amount,
             state: None,
             metadata: None,

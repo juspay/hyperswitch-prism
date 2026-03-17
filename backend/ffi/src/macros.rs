@@ -57,7 +57,9 @@ macro_rules! req_transformer {
                 &connector_config,
                 config,
             )
-            .map_err(|e| <error_stack::Report<domain_types::errors::ApplicationErrorResponse> as domain_types::errors::ReportInto<grpc_api_types::payments::RequestError>>::report_into(e))?;
+            .map_err(|e: error_stack::Report<domain_types::errors::ApplicationErrorResponse>| {
+                ucs_env::error::ErrorSwitch::switch(e.current_context())
+            })?;
 
             let flow_data: $resource_common_data_type =
                 domain_types::utils::ForeignTryFrom::foreign_try_from((
@@ -65,11 +67,15 @@ macro_rules! req_transformer {
                     connectors,
                     metadata,
                 ))
-                .map_err(|e| <error_stack::Report<domain_types::errors::ApplicationErrorResponse> as domain_types::errors::ReportInto<grpc_api_types::payments::RequestError>>::report_into(e))?;
+                .map_err(|e: error_stack::Report<domain_types::errors::ApplicationErrorResponse>| {
+                    ucs_env::error::ErrorSwitch::switch(e.current_context())
+                })?;
 
             let payment_request_data: $request_data_type =
                 domain_types::utils::ForeignTryFrom::foreign_try_from(payload.clone())
-                .map_err(|e| <error_stack::Report<domain_types::errors::ApplicationErrorResponse> as domain_types::errors::ReportInto<grpc_api_types::payments::RequestError>>::report_into(e))?;
+                .map_err(|e: error_stack::Report<domain_types::errors::ApplicationErrorResponse>| {
+                    ucs_env::error::ErrorSwitch::switch(e.current_context())
+                })?;
 
             let router_data = domain_types::router_data_v2::RouterDataV2 {
                 flow: std::marker::PhantomData,
@@ -81,7 +87,10 @@ macro_rules! req_transformer {
 
             let connector_request = connector_integration
                 .build_request_v2(&router_data)
-                .map_err(|e| <error_stack::Report<domain_types::errors::ConnectorError> as domain_types::errors::ReportInto<grpc_api_types::payments::RequestError>>::report_into(e))?;
+                .map_err(|e: error_stack::Report<domain_types::errors::ConnectorError>| {
+                    let app_error: domain_types::errors::ApplicationErrorResponse = ucs_env::error::ErrorSwitch::switch(e.current_context());
+                    ucs_env::error::ErrorSwitch::switch(&app_error)
+                })?;
 
             Ok(connector_request)
         }
@@ -146,7 +155,9 @@ macro_rules! res_transformer {
                 &connector_config,
                 config,
             )
-            .map_err(|e| <error_stack::Report<domain_types::errors::ApplicationErrorResponse> as domain_types::errors::ReportInto<grpc_api_types::payments::ResponseError>>::report_into(e))?;
+            .map_err(|e: error_stack::Report<domain_types::errors::ApplicationErrorResponse>| {
+                ucs_env::error::ErrorSwitch::switch(e.current_context())
+            })?;
 
             let flow_data: $resource_common_data_type =
                 domain_types::utils::ForeignTryFrom::foreign_try_from((
@@ -154,11 +165,15 @@ macro_rules! res_transformer {
                     connectors,
                     metadata,
                 ))
-                .map_err(|e| <error_stack::Report<domain_types::errors::ApplicationErrorResponse> as domain_types::errors::ReportInto<grpc_api_types::payments::ResponseError>>::report_into(e))?;
+                .map_err(|e: error_stack::Report<domain_types::errors::ApplicationErrorResponse>| {
+                    ucs_env::error::ErrorSwitch::switch(e.current_context())
+                })?;
 
             let payment_request_data: $request_data_type =
                 domain_types::utils::ForeignTryFrom::foreign_try_from(payload.clone())
-                .map_err(|e| <error_stack::Report<domain_types::errors::ApplicationErrorResponse> as domain_types::errors::ReportInto<grpc_api_types::payments::ResponseError>>::report_into(e))?;
+                .map_err(|e: error_stack::Report<domain_types::errors::ApplicationErrorResponse>| {
+                    ucs_env::error::ErrorSwitch::switch(e.current_context())
+                })?;
 
             let router_data = domain_types::router_data_v2::RouterDataV2 {
                 flow: std::marker::PhantomData,
@@ -184,10 +199,15 @@ macro_rules! res_transformer {
                 "".to_string(),
                 None,
             )
-            .map_err(|e| <error_stack::Report<domain_types::errors::ConnectorError> as domain_types::errors::ReportInto<grpc_api_types::payments::ResponseError>>::report_into(e))?;
+            .map_err(|e: error_stack::Report<domain_types::errors::ConnectorError>| {
+                let app_error: domain_types::errors::ApplicationErrorResponse = ucs_env::error::ErrorSwitch::switch(e.current_context());
+                ucs_env::error::ErrorSwitch::switch(&app_error)
+            })?;
 
             domain_types::types::$generate_response_fn(response)
-                .map_err(|e| <error_stack::Report<domain_types::errors::ApplicationErrorResponse> as domain_types::errors::ReportInto<grpc_api_types::payments::ResponseError>>::report_into(e))
+                .map_err(|e: error_stack::Report<domain_types::errors::ApplicationErrorResponse>| {
+                    ucs_env::error::ErrorSwitch::switch(e.current_context())
+                })
         }
     };
 }

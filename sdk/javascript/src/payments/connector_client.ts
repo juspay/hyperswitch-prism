@@ -14,7 +14,7 @@
 
 import { Dispatcher } from "undici";
 import { UniffiClient } from "./uniffi_client";
-import { execute, createDispatcher, HttpRequest, ConnectorError } from "../http_client";
+import { execute, createDispatcher, HttpRequest, NetworkError } from "../http_client";
 // @ts-ignore - protobuf generated files might not have types yet
 import { types } from "./generated/proto";
 
@@ -46,10 +46,10 @@ export class ConnectorClient {
       && Object.values(config.connectorConfig).some((value) => value != null);
 
     if (!hasConnectorVariant) {
-      throw new ConnectorError(
+      throw new NetworkError(
         "connectorConfig with a connector variant is required in ConnectorConfig",
-        400,
-        "CLIENT_INITIALIZATION"
+        types.NetworkErrorCode.CLIENT_INITIALIZATION_FAILURE,
+        400
       );
     }
 

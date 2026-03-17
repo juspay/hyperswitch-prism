@@ -112,6 +112,7 @@ message CompositeAuthorizeResponse {
 message CompositeGetRequest {
   // Identification
   string connector_transaction_id = 1; // The connector transaction ID to synchronize
+  optional string merchant_transaction_id = 16; // The merchant's reference ID
 
   // State Information
   optional ConnectorState state = 2; // State data for access token storage and other connector-specific state

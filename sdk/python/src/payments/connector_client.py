@@ -29,7 +29,7 @@ from typing import Optional, Any
 
 from .generated import connector_service_ffi as _ffi
 from ._generated_flows import SERVICE_FLOWS
-from .http_client import execute, HttpRequest, create_client
+from .http_client import execute, HttpRequest, create_client, merge_http_config, DEFAULT_HTTP_CONFIG
 from .generated.sdk_config_pb2 import (
     ConnectorConfig,
     RequestConfig,
@@ -39,6 +39,7 @@ from .generated.sdk_config_pb2 import (
     HttpConfig,
     RequestError as RequestErrorProto,
     ResponseError as ResponseErrorProto,
+    FfiResult,
 )
 
 
@@ -73,81 +74,68 @@ class ResponseError(Exception):
 
 
 
-def _check_req_error(result_bytes: bytes, success_cls: Any) -> Any:
+def check_req(result_bytes: bytes) -> Any:
     """
-    Parse FFI req_transformer bytes as either a success proto or a RequestError.
-
-    Parse as RequestError first; if parsing succeeds AND status is non-default,
-    treat it as an actual error and raise it. Otherwise, parse as success message.
+    Parse FFI req_transformer bytes using FfiResult proto with enum-based type checking.
 
     Args:
         result_bytes: Raw bytes returned by the req_transformer FFI call.
-        success_cls: Protobuf message class for the expected success type.
 
     Returns:
-        Decoded success proto on success.
+        FfiConnectorHttpRequest on success (HTTP_REQUEST type).
 
     Raises:
-        RequestError: If the bytes represent a transformer error.
+        RequestError: If the result type is REQUEST_ERROR.
+        ResponseError: If the result type is RESPONSE_ERROR.
+        ValueError: If the result type is unknown or invalid.
     """
-    # Try to parse as RequestErrorProto first
-    try:
-        error_proto = RequestErrorProto()
-        error_proto.ParseFromString(result_bytes)
-
-        # If status is non-default, treat it as an actual error
-        if error_proto.status != 0:
-            raise RequestError(error_proto)
-    except RequestError:
-        # Re-raise our custom exception
-        raise
-    except Exception:
-        # Parsing failed or status is zero, try success parsing
-        pass
-
-    # Parse as success message
-    success = success_cls()
-    success.ParseFromString(result_bytes)
-    return success
+    result = FfiResult()
+    result.ParseFromString(result_bytes)
+    
+    # Use enum-based type checking
+    result_type = result.type
+    
+    if result_type == FfiResult.HTTP_REQUEST:
+        # Return the typed HTTP request directly
+        return result.http_request
+    elif result_type == FfiResult.REQUEST_ERROR:
+        raise RequestError(result.request_error)
+    elif result_type == FfiResult.RESPONSE_ERROR:
+        raise ResponseError(result.response_error)
+    else:
+        raise ValueError(f"Unknown result type: {result_type}")
 
 
-def _check_res_error(result_bytes: bytes, success_cls: Any) -> Any:
+def check_res(result_bytes: bytes) -> Any:
     """
-    Parse FFI res_transformer bytes as either a success proto or a ResponseError.
-
-    Parse as ResponseError first; if parsing succeeds AND status is non-default,
-    treat it as an actual error and raise it. Otherwise, parse as success message.
+    Parse FFI res_transformer bytes using FfiResult proto with enum-based type checking.
 
     Args:
         result_bytes: Raw bytes returned by the res_transformer FFI call.
-        success_cls: Protobuf message class for the expected success type.
 
     Returns:
-        Decoded success proto on success.
+        FfiConnectorHttpResponse on success (HTTP_RESPONSE type).
 
     Raises:
-        ResponseError: If the bytes represent a transformer error.
+        ResponseError: If the result type is RESPONSE_ERROR.
+        RequestError: If the result type is REQUEST_ERROR.
+        ValueError: If the result type is unknown or invalid.
     """
-    # Try to parse as ResponseErrorProto first
-    try:
-        error_proto = ResponseErrorProto()
-        error_proto.ParseFromString(result_bytes)
-
-        # If status is non-default, treat it as an actual error
-        if error_proto.status != 0:
-            raise ResponseError(error_proto)
-    except ResponseError:
-        # Re-raise our custom exception
-        raise
-    except Exception:
-        # Parsing failed or status is zero, try success parsing
-        pass
-
-    # Parse as success message
-    success = success_cls()
-    success.ParseFromString(result_bytes)
-    return success
-
+    result = FfiResult()
+    result.ParseFromString(result_bytes)
+    
+    # Use enum-based type checking
+    result_type = result.type
+    
+    if result_type == FfiResult.HTTP_RESPONSE:
+        # Return the typed HTTP response directly
+        return result.http_response
+    elif result_type == FfiResult.RESPONSE_ERROR:
+        raise ResponseError(result.response_error)
+    elif result_type == FfiResult.REQUEST_ERROR:
+        raise RequestError(result.request_error)
+    else:
+        raise ValueError(f"Unknown result type: {result_type}")
 
 class _ConnectorClientBase:
     """Base class for per-service connector clients. Do not instantiate directly."""
@@ -168,33 +156,26 @@ class _ConnectorClientBase:
         """
         self.config = config
         self.defaults = defaults or RequestConfig()
-        # Instance-level cache: create the primary asynchronous connection pool at startup
-        self.client = create_client(
-            self.defaults.http if self.defaults.HasField("http") else None
-        )
+        # Client default: proto defaults + optional client config (merged at init, stored)
+        client_http = self.defaults.http if self.defaults.HasField("http") else None
+        self._default_http = merge_http_config(DEFAULT_HTTP_CONFIG, client_http)
+        self.client = create_client(self._default_http)
 
     def _resolve_config(
         self, options: Optional[RequestConfig] = None
-    ) -> tuple[FfiOptions, Optional[HttpConfig]]:
+    ) -> tuple[FfiOptions, HttpConfig]:
         """
-        Merges request-level options with client defaults.
-        Environment comes from ConnectorConfig.options. Connector identity comes from
-        ConnectorConfig.connector_config. HTTP/vault from defaults + request override.
+        Per-request override falls back to client default (stored at init).
         """
-        environment = self.config.options.environment
-        connector_config = self.config.connector_config
-
-        # HTTP: request override > client defaults
-        http_config = (
-            options.http
-            if (options and options.HasField("http"))
-            else (self.defaults.http if self.defaults.HasField("http") else None)
-        )
+        environment = self.config.environment
+        override_http = options.http if (options and options.HasField("http")) else None
+        http_config = merge_http_config(self._default_http, override_http)
 
         # Resolve FFI Context
         ffi = FfiOptions(
             environment=environment,
-            connector_config=connector_config,
+            connector=self.config.connector,
+            auth=self.config.auth,
         )
 
         return ffi, http_config
@@ -237,7 +218,7 @@ class _ConnectorClientBase:
         # 2. Build connector HTTP request via FFI
         #    Parse result bytes as FfiConnectorHttpRequest; if that fails, parse as RequestError.
         result_bytes = req_transformer(request_bytes, options_bytes)
-        connector_req = _check_req_error(result_bytes, FfiConnectorHttpRequest)
+        connector_req = check_req(result_bytes)
 
         connector_request = HttpRequest(
             url=connector_req.url,
@@ -246,10 +227,13 @@ class _ConnectorClientBase:
             body=connector_req.body if connector_req.HasField("body") else None,
         )
 
-        # 3. Execute the HTTP request using the instance-owned AsyncClient
-        response = await execute(
-            connector_request, self.client, http_config=http_config
+        # 3. Execute (http_config is always complete; pass ms, convert to sec inside)
+        resolved_ms = (
+            http_config.total_timeout_ms,
+            http_config.connect_timeout_ms,
+            http_config.response_timeout_ms,
         )
+        response = await execute(connector_request, self.client, resolved_ms)
 
         # 4. Encode HTTP response for FFI
         res_proto = FfiConnectorHttpResponse(
@@ -262,7 +246,7 @@ class _ConnectorClientBase:
         # 5. Parse connector response via FFI
         #    Parse result bytes as response_cls; if that fails, parse as ResponseError.
         result_bytes_res = res_transformer(res_bytes, request_bytes, options_bytes)
-        return _check_res_error(result_bytes_res, response_cls)
+        return check_res(result_bytes_res)
 
 
     def _execute_direct(
@@ -301,7 +285,7 @@ class _ConnectorClientBase:
         result_bytes = transformer(request_bytes, options_bytes)
 
         # Parse result bytes as response_cls; if that fails, parse as ResponseError.
-        return _check_res_error(result_bytes, response_cls)
+        return check_res(result_bytes)
 
     async def close(self):
         """Close the underlying asynchronous connection pool."""

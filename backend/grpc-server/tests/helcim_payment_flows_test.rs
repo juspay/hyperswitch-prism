@@ -264,6 +264,7 @@ fn create_payment_sync_request(
         encoded_data: None,
         capture_method: None,
         handle_response: None,
+        merchant_transaction_id: None,
         amount: Some(grpc_api_types::payments::Money {
             minor_amount: amount,
             currency: i32::from(Currency::Usd),

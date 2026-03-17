@@ -420,6 +420,8 @@ gen/**
 
 sdk/**/generated
 sdk/**/node_modules
+tests/node_modules
+sdk/tests/node_modules
 sdk/**/.gradle
 sdk/**/resources/native
 sdk/**/*.tgz
@@ -429,3 +431,6 @@ sdk/java/smoke-test/gradle*
 sdk/java/bin
 
 artifacts/
+sdk/tests/client_sanity/artifacts/
+
+.claude

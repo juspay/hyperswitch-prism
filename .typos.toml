@@ -16,6 +16,7 @@ extend-exclude = [
 ede = "ede" # Encrypt-Decrypt-Encrypt (Triple DES EDE mode)
 Hashi = "Hashi" # HashiCorp brand name token
 HashiCorp = "HashiCorp" # HashiCorp company name
+caf = "caf" # part of café (URL-encoding / Unicode examples)
 
 [default.extend-identifiers]
 ACI = "ACI" # Name of a connector

@@ -21,6 +21,31 @@ dependencies {
     implementation("org.json:json:20240303")
 }
 
+// Create a separate source set for the sanity runner
+sourceSets {
+    create("sanity") {
+        kotlin.srcDir("tests")
+        compileClasspath += sourceSets["main"].output + sourceSets["main"].compileClasspath
+        runtimeClasspath += sourceSets["main"].output + sourceSets["main"].runtimeClasspath
+    }
+}
+
+// Compile the sanity runner
+tasks.named<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>("compileSanityKotlin") {
+    dependsOn("compileKotlin")
+}
+
+tasks.register<JavaExec>("runClientSanity") {
+    group = "verification"
+    description = "Run client sanity certification runner"
+    mainClass.set("ClientSanityRunnerKt")
+    classpath = sourceSets["sanity"].runtimeClasspath
+    standardInput = System.`in`
+    systemProperty("jna.library.path",
+        file("src/main/resources/native").absolutePath)
+    dependsOn("compileSanityKotlin")
+}
+
 publishing {
     publications {
         create<MavenPublication>("maven") {
