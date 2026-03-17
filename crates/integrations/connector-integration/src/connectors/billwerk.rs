@@ -208,10 +208,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
     fn should_do_payment_method_token(
         &self,
-        _payment_method: common_enums::PaymentMethod,
-        _payment_method_type: Option<common_enums::PaymentMethodType>,
+        payment_method: common_enums::PaymentMethod,
+        payment_method_type: Option<common_enums::PaymentMethodType>,
     ) -> bool {
-        true
+        // GooglePay uses CRYPTOGRAM_3DS and passes the encrypted token directly
+        // to the charge endpoint, so we don't need a separate tokenization step
+        if payment_method == common_enums::PaymentMethod::Wallet {
+            if let Some(pm_type) = payment_method_type {
+                if pm_type == common_enums::PaymentMethodType::GooglePay {
+                    return false;
+                }
+            }
+        }
+        // Cards require tokenization
+        payment_method == common_enums::PaymentMethod::Card
     }
 }
 
