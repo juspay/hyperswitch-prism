@@ -113,6 +113,7 @@ pub struct ClientRiskInformationRules {
 pub type BarclaycardAuthorizeResponse = BarclaycardPaymentsResponse;
 pub type BarclaycardCaptureResponse = BarclaycardPaymentsResponse;
 pub type BarclaycardVoidResponse = BarclaycardPaymentsResponse;
+pub type BarclaycardRepeatPaymentResponse = BarclaycardPaymentsResponse;
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
