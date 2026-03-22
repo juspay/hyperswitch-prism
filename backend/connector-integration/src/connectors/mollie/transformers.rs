@@ -12,7 +12,9 @@ use domain_types::{
         ResponseId,
     },
     errors,
-    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
+    payment_method_data::{
+        BankDebitData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
+    },
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
@@ -98,6 +100,8 @@ pub struct MolliePaymentsRequest {
 pub enum MolliePaymentMethodData {
     #[serde(rename = "creditcard")]
     CreditCard(Box<CreditCardMethodData>),
+    #[serde(rename = "directdebit")]
+    DirectDebit(Box<DirectDebitMethodData>),
 }
 
 // Credit Card Method Data
@@ -107,6 +111,14 @@ pub struct CreditCardMethodData {
     pub card_token: Option<Secret<String>>,
     pub billing_address: Option<MollieAddress>,
     pub shipping_address: Option<MollieAddress>,
+}
+
+// Direct Debit (SEPA) Method Data
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DirectDebitMethodData {
+    pub consumer_name: Secret<String>,
+    pub consumer_account: Secret<String>,
 }
 
 // Mollie Address structure
@@ -211,9 +223,35 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     shipping_address: None,
                 }))
             }
+            PaymentMethodData::BankDebit(bank_debit_data) => match bank_debit_data {
+                BankDebitData::SepaBankDebit {
+                    iban,
+                    bank_account_holder_name,
+                } => {
+                    let consumer_name = bank_account_holder_name.clone().ok_or(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "bank_account_holder_name",
+                        },
+                    )?;
+                    MolliePaymentMethodData::DirectDebit(Box::new(DirectDebitMethodData {
+                        consumer_name,
+                        consumer_account: iban.clone(),
+                    }))
+                }
+                BankDebitData::AchBankDebit { .. }
+                | BankDebitData::BecsBankDebit { .. }
+                | BankDebitData::BacsBankDebit { .. }
+                | BankDebitData::SepaGuaranteedBankDebit { .. } => {
+                    return Err(errors::ConnectorError::NotSupported {
+                        message: "Bank debit type".to_string(),
+                        connector: "mollie",
+                    }
+                    .into());
+                }
+            },
             _ => {
                 return Err(errors::ConnectorError::NotSupported {
-                    message: "Payment method ".to_string(),
+                    message: "Payment method".to_string(),
                     connector: "mollie",
                 }
                 .into());
