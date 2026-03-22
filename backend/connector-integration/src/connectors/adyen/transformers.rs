@@ -762,6 +762,7 @@ pub enum PaymentMethod<
     AdyenMandatePaymentMethod(Box<AdyenMandate>),
 }
 
+#[serde_with::skip_serializing_none]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenMandate {
