@@ -23,3 +23,6 @@ reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
 tokio = { version = "1", features = ["full"] }
 serde_json = { workspace = true }
 hyperswitch_masking = { version = "0.0.1", default-features = false, features = ["alloc", "serde", "time"] }
+
+[dev-dependencies]
+cucumber = { version = "0.21", features = ["macros"] }

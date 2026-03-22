@@ -64,8 +64,6 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
         &self,
         _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
     ) -> CustomResult<String, domain_types::errors::ConnectorError> {
-        // metrics::UNIMPLEMENTED_FLOW
-        //     .add(1, router_env::metric_attributes!(("connector", self.id()))); // TODO: discuss env
         Ok(String::new())
     }
 
@@ -177,13 +175,6 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
         })
     }
 
-    // whenever capture sync is implemented at the connector side, this method should be overridden
-    /// retunes the capture sync method
-    // fn get_multiple_capture_sync_method(
-    //     &self,
-    // ) -> CustomResult<api::CaptureSyncMethod, domain_types::errors::ConnectorError> {
-    //     Err(domain_types::errors::ConnectorError::NotImplemented("multiple capture sync".into()).into())
-    // }
     /// returns certificate string
     fn get_certificate(
         &self,

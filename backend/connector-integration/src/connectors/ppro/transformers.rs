@@ -554,7 +554,7 @@ impl TryFrom<PproWebhookType> for EventType {
 }
 
 impl TryFrom<PproWebhookType> for IncomingWebhookEvent {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<errors::WebhookError>;
 
     fn try_from(event_type: PproWebhookType) -> Result<Self, Self::Error> {
         match event_type {

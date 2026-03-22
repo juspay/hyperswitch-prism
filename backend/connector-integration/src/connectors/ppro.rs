@@ -1074,7 +1074,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + Serialize + 'static> Inco
     fn get_webhook_source_verification_algorithm(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn VerifySignature + Send>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn VerifySignature + Send>, errors::WebhookError> {
         Ok(Box::new(PproWebhookSignature))
     }
 
@@ -1082,13 +1082,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + Serialize + 'static> Inco
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
         _connector_webhook_secrets: &ConnectorWebhookSecrets,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<u8>, errors::WebhookError> {
         let header_value = request
             .headers
             .get("Webhook-Signature")
-            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?
+            .ok_or(errors::WebhookError::WebhookSignatureNotFound)?
             .to_str()
-            .change_context(errors::ConnectorError::WebhookDecodingFailed)?;
+            .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
         Ok(header_value.as_bytes().to_vec())
     }
@@ -1098,18 +1098,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + Serialize + 'static> Inco
         request: &IncomingWebhookRequestDetails<'_>,
         _merchant_id: &common_utils::id_type::MerchantId,
         _connector_webhook_secrets: &ConnectorWebhookSecrets,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<u8>, errors::WebhookError> {
         Ok(request.body.to_vec())
     }
 
     fn get_webhook_event_type(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
+    ) -> CustomResult<IncomingWebhookEvent, errors::WebhookError> {
         let event: PproWebhookEvent = request
             .body
             .parse_struct("PproWebhookEvent")
-            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+            .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
         IncomingWebhookEvent::try_from(event.r#type)
     }
@@ -1117,12 +1117,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + Serialize + 'static> Inco
     fn get_webhook_resource_object(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::WebhookError>
     {
         let event: PproWebhookEvent = request
             .body
             .parse_struct("PproWebhookEvent")
-            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+            .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
         match event.data {
             PproWebhookData::Charge { charge } => Ok(Box::new(charge)),

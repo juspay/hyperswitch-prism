@@ -35,7 +35,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
     fn get_webhook_body_decoding_algorithm(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn crypto::DecodeMessage + Send>, domain_types::errors::ConnectorError>
+    ) -> CustomResult<Box<dyn crypto::DecodeMessage + Send>, domain_types::errors::WebhookError>
     {
         Ok(Box::new(crypto::NoAlgorithm))
     }
@@ -44,7 +44,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
     fn get_webhook_body_decoding_message(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Vec<u8>, domain_types::errors::ConnectorError> {
+    ) -> CustomResult<Vec<u8>, domain_types::errors::WebhookError> {
         Ok(request.body.to_vec())
     }
 
@@ -55,12 +55,12 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         merchant_id: &common_utils::id_type::MerchantId,
         connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
         connector_name: &str,
-    ) -> CustomResult<Vec<u8>, domain_types::errors::ConnectorError> {
+    ) -> CustomResult<Vec<u8>, domain_types::errors::WebhookError> {
         let algorithm = self.get_webhook_body_decoding_algorithm(request)?;
 
         let message = self
             .get_webhook_body_decoding_message(request)
-            .change_context(domain_types::errors::ConnectorError::WebhookBodyDecodingFailed)?;
+            .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)?;
         let secret = self
             .get_webhook_source_verification_merchant_secret(
                 merchant_id,
@@ -69,19 +69,19 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
             )
             .await
             .change_context(
-                domain_types::errors::ConnectorError::WebhookSourceVerificationFailed,
+                domain_types::errors::WebhookError::WebhookSourceVerificationFailed,
             )?;
 
         algorithm
             .decode_message(&secret.secret, message.into())
-            .change_context(domain_types::errors::ConnectorError::WebhookBodyDecodingFailed)
+            .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)
     }
 
     /// fn get_webhook_source_verification_algorithm
     fn get_webhook_source_verification_algorithm(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, domain_types::errors::ConnectorError>
+    ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, domain_types::errors::WebhookError>
     {
         Ok(Box::new(crypto::NoAlgorithm))
     }
@@ -92,7 +92,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         merchant_id: &common_utils::id_type::MerchantId,
         connector_name: &str,
         connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
-    ) -> CustomResult<ConnectorWebhookSecrets, domain_types::errors::ConnectorError> {
+    ) -> CustomResult<ConnectorWebhookSecrets, domain_types::errors::WebhookError> {
         let debug_suffix =
             format!("For merchant_id: {merchant_id:?}, and connector_name: {connector_name}");
         let default_secret = "default_secret".to_string();
@@ -103,7 +103,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
                         "MerchantConnectorWebhookDetails",
                     )
                     .change_context_lazy(|| {
-                        domain_types::errors::ConnectorError::WebhookSourceVerificationFailed
+                        domain_types::errors::WebhookError::WebhookSourceVerificationFailed
                     })
                     .attach_printable_lazy(|| {
                         format!(
@@ -137,7 +137,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
         _connector_webhook_secrets: &ConnectorWebhookSecrets,
-    ) -> CustomResult<Vec<u8>, domain_types::errors::ConnectorError> {
+    ) -> CustomResult<Vec<u8>, domain_types::errors::WebhookError> {
         Ok(Vec::new())
     }
 
@@ -147,7 +147,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         _request: &IncomingWebhookRequestDetails<'_>,
         _merchant_id: &common_utils::id_type::MerchantId,
         _connector_webhook_secrets: &ConnectorWebhookSecrets,
-    ) -> CustomResult<Vec<u8>, domain_types::errors::ConnectorError> {
+    ) -> CustomResult<Vec<u8>, domain_types::errors::WebhookError> {
         Ok(Vec::new())
     }
 
@@ -159,11 +159,11 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
         _connector_account_details: crypto::Encryptable<Secret<serde_json::Value>>,
         connector_name: &str,
-    ) -> CustomResult<bool, domain_types::errors::ConnectorError> {
+    ) -> CustomResult<bool, domain_types::errors::WebhookError> {
         let algorithm = self
             .get_webhook_source_verification_algorithm(request)
             .change_context(
-                domain_types::errors::ConnectorError::WebhookSourceVerificationFailed,
+                domain_types::errors::WebhookError::WebhookSourceVerificationFailed,
             )?;
 
         let connector_webhook_secrets = self
@@ -174,13 +174,13 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
             )
             .await
             .change_context(
-                domain_types::errors::ConnectorError::WebhookSourceVerificationFailed,
+                domain_types::errors::WebhookError::WebhookSourceVerificationFailed,
             )?;
 
         let signature = self
             .get_webhook_source_verification_signature(request, &connector_webhook_secrets)
             .change_context(
-                domain_types::errors::ConnectorError::WebhookSourceVerificationFailed,
+                domain_types::errors::WebhookError::WebhookSourceVerificationFailed,
             )?;
 
         let message = self
@@ -190,19 +190,19 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
                 &connector_webhook_secrets,
             )
             .change_context(
-                domain_types::errors::ConnectorError::WebhookSourceVerificationFailed,
+                domain_types::errors::WebhookError::WebhookSourceVerificationFailed,
             )?;
 
         algorithm
             .verify_signature(&connector_webhook_secrets.secret, &signature, &message)
-            .change_context(domain_types::errors::ConnectorError::WebhookSourceVerificationFailed)
+            .change_context(domain_types::errors::WebhookError::WebhookSourceVerificationFailed)
     }
 
     /// fn get_webhook_event_type
     fn get_webhook_event_type(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<IncomingWebhookEvent, domain_types::errors::ConnectorError>;
+    ) -> CustomResult<IncomingWebhookEvent, domain_types::errors::WebhookError>;
 
     /// fn get_webhook_resource_object
     fn get_webhook_resource_object(
@@ -210,7 +210,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         _request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<
         Box<dyn hyperswitch_masking::ErasedMaskSerialize>,
-        domain_types::errors::ConnectorError,
+        domain_types::errors::WebhookError,
     >;
 
     /// fn get_webhook_api_response
@@ -218,7 +218,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
         _error_kind: Option<IncomingWebhookFlowError>,
-    ) -> CustomResult<ApplicationResponse<serde_json::Value>, domain_types::errors::ConnectorError>
+    ) -> CustomResult<ApplicationResponse<serde_json::Value>, domain_types::errors::WebhookError>
     {
         Ok(ApplicationResponse::StatusOk)
     }
@@ -227,11 +227,8 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
     fn get_dispute_details(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<crate::disputes::DisputePayload, domain_types::errors::ConnectorError> {
-        Err(domain_types::errors::ConnectorError::NotImplemented(
-            "get_dispute_details method".to_string(),
-        )
-        .into())
+    ) -> CustomResult<crate::disputes::DisputePayload, domain_types::errors::WebhookError> {
+        Err(domain_types::errors::WebhookError::WebhooksNotImplemented.into())
     }
 
     /// fn get_external_authentication_details
@@ -240,12 +237,9 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         _request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<
         crate::authentication::ExternalAuthenticationPayload,
-        domain_types::errors::ConnectorError,
+        domain_types::errors::WebhookError,
     > {
-        Err(domain_types::errors::ConnectorError::NotImplemented(
-            "get_external_authentication_details method".to_string(),
-        )
-        .into())
+        Err(domain_types::errors::WebhookError::WebhooksNotImplemented.into())
     }
 
     /// fn get_mandate_details
@@ -254,7 +248,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         _request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<
         Option<domain_types::router_flow_types::ConnectorMandateDetails>,
-        domain_types::errors::ConnectorError,
+        domain_types::errors::WebhookError,
     > {
         Ok(None)
     }
@@ -265,7 +259,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         _request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<
         Option<domain_types::router_flow_types::ConnectorNetworkTxnId>,
-        domain_types::errors::ConnectorError,
+        domain_types::errors::WebhookError,
     > {
         Ok(None)
     }

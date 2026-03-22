@@ -1,0 +1,1529 @@
+diff --git a/.gitignore b/.gitignore
+index a5bbe9acb..4d9c55f11 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -433,4 +433,5 @@ sdk/java/bin
+ artifacts/
+ sdk/tests/client_sanity/artifacts/
+ 
+-.claude
+\ No newline at end of file
++.claude
++scripts/generators/code/services.desc
+\ No newline at end of file
+diff --git a/backend/ffi/src/bindings/macros.rs b/backend/ffi/src/bindings/macros.rs
+index f45b57091..8c7ea294c 100644
+--- a/backend/ffi/src/bindings/macros.rs
++++ b/backend/ffi/src/bindings/macros.rs
+@@ -9,8 +9,8 @@
+ /// # Arguments
+ /// - `$flow`        — snake_case flow name (used as identifier prefix)
+ /// - `$req_type`    — protobuf request type to decode from bytes
+-/// - `$req_handler` — handler fn: `(FfiRequestData<Req>, Option<Environment>) -> Result<Option<Request>, RequestError>`
+-/// - `$res_handler` — handler fn: `(FfiRequestData<Req>, Response, Option<Environment>) -> Result<Res, ResponseError>`
++/// - `$req_handler` — handler fn: `(FfiRequestData<Req>, Option<Environment>) -> Result<Option<Request>, IntegrationError>`
++/// - `$res_handler` — handler fn: `(FfiRequestData<Req>, Response, Option<Environment>) -> Result<Res, ConnectorResponseTransformationError>`
+ #[macro_export]
+ macro_rules! define_ffi_flow {
+     ($flow:ident, $req_type:ty, $req_handler:path, $res_handler:path) => {
+diff --git a/backend/ffi/src/bindings/uniffi.rs b/backend/ffi/src/bindings/uniffi.rs
+index 4fcdbadbc..5db8b51be 100644
+--- a/backend/ffi/src/bindings/uniffi.rs
++++ b/backend/ffi/src/bindings/uniffi.rs
+@@ -12,8 +12,8 @@ mod uniffi_bindings_inner {
+     use domain_types::router_response_types::Response;
+     use grpc_api_types::payments::Environment;
+     use grpc_api_types::payments::{
+-        ffi_result, FfiConnectorHttpRequest, FfiConnectorHttpResponse, FfiResult, PaymentStatus,
+-        RequestError, ResponseError,
++        ffi_result, ConnectorResponseTransformationError, FfiConnectorHttpRequest,
++        FfiConnectorHttpResponse, FfiResult, IntegrationError,
+     };
+     use prost::Message;
+     use std::collections::HashMap;
+@@ -28,14 +28,14 @@ mod uniffi_bindings_inner {
+ 
+     /// Decode `request_bytes` as `Req`, build `FfiRequestData`, call `handler`,
+     /// and encode the resulting connector HTTP request as Result proto.
+-    /// If the handler returns an error, encode the RequestError in Result.
++    /// If the handler returns an error, encode the IntegrationError in Result.
+     pub fn run_req_transformer<Req>(
+         request_bytes: Vec<u8>,
+         options_bytes: Vec<u8>,
+         handler: impl Fn(
+             crate::types::FfiRequestData<Req>,
+             Option<Environment>,
+-        ) -> Result<Option<Request>, RequestError>,
++        ) -> Result<Option<Request>, IntegrationError>,
+     ) -> Vec<u8>
+     where
+         Req: Message + Default,
+@@ -44,12 +44,12 @@ mod uniffi_bindings_inner {
+             Ok(p) => p,
+             Err(e) => {
+                 return FfiResult {
+-                    r#type: ffi_result::Type::RequestError.into(),
+-                    payload: Some(ffi_result::Payload::RequestError(RequestError {
+-                        status: PaymentStatus::Pending.into(),
+-                        error_message: Some(format!("Request payload decode failed: {e}")),
+-                        error_code: None,
+-                        status_code: Some(400),
++                    r#type: ffi_result::Type::IntegrationError.into(),
++                    payload: Some(ffi_result::Payload::IntegrationError(IntegrationError {
++                        error_message: format!("Request payload decode failed: {e}"),
++                        error_code: "DECODE_FAILED".to_string(),
++                        suggested_action: None,
++                        doc_url: None,
+                     })),
+                 }
+                 .encode_to_vec();
+@@ -60,8 +60,8 @@ mod uniffi_bindings_inner {
+             Ok(o) => o,
+             Err(e) => {
+                 return FfiResult {
+-                    r#type: ffi_result::Type::RequestError.into(),
+-                    payload: Some(ffi_result::Payload::RequestError(e)),
++                    r#type: ffi_result::Type::IntegrationError.into(),
++                    payload: Some(ffi_result::Payload::IntegrationError(e)),
+                 }
+                 .encode_to_vec()
+             }
+@@ -71,8 +71,8 @@ mod uniffi_bindings_inner {
+             Ok(m) => m,
+             Err(e) => {
+                 return FfiResult {
+-                    r#type: ffi_result::Type::RequestError.into(),
+-                    payload: Some(ffi_result::Payload::RequestError(e)),
++                    r#type: ffi_result::Type::IntegrationError.into(),
++                    payload: Some(ffi_result::Payload::IntegrationError(e)),
+                 }
+                 .encode_to_vec()
+             }
+@@ -90,8 +90,8 @@ mod uniffi_bindings_inner {
+             Ok(r) => r,
+             Err(e) => {
+                 return FfiResult {
+-                    r#type: ffi_result::Type::RequestError.into(),
+-                    payload: Some(ffi_result::Payload::RequestError(e)),
++                    r#type: ffi_result::Type::IntegrationError.into(),
++                    payload: Some(ffi_result::Payload::IntegrationError(e)),
+                 }
+                 .encode_to_vec()
+             }
+@@ -101,12 +101,12 @@ mod uniffi_bindings_inner {
+             Some(r) => r,
+             None => {
+                 return FfiResult {
+-                    r#type: ffi_result::Type::RequestError.into(),
+-                    payload: Some(ffi_result::Payload::RequestError(RequestError {
+-                        status: PaymentStatus::Pending.into(),
+-                        error_message: Some("Request encoding failed".to_string()),
+-                        error_code: None,
+-                        status_code: Some(400),
++                    r#type: ffi_result::Type::IntegrationError.into(),
++                    payload: Some(ffi_result::Payload::IntegrationError(IntegrationError {
++                        error_message: "Request encoding failed".to_string(),
++                        error_code: "ENCODING_FAILED".to_string(),
++                        suggested_action: None,
++                        doc_url: None,
+                     })),
+                 }
+                 .encode_to_vec();
+@@ -121,19 +121,19 @@ mod uniffi_bindings_inner {
+                 }
+                 .encode_to_vec(),
+                 Err(e) => FfiResult {
+-                    r#type: ffi_result::Type::RequestError.into(),
+-                    payload: Some(ffi_result::Payload::RequestError(RequestError {
+-                        status: PaymentStatus::Pending.into(),
+-                        error_message: Some(format!("Request re-decode failed: {e}")),
+-                        error_code: None,
+-                        status_code: Some(500),
++                    r#type: ffi_result::Type::IntegrationError.into(),
++                    payload: Some(ffi_result::Payload::IntegrationError(IntegrationError {
++                        error_message: format!("Request re-decode failed: {e}"),
++                        error_code: "RE_DECODE_FAILED".to_string(),
++                        suggested_action: None,
++                        doc_url: None,
+                     })),
+                 }
+                 .encode_to_vec(),
+             },
+             Err(e) => FfiResult {
+-                r#type: ffi_result::Type::RequestError.into(),
+-                payload: Some(ffi_result::Payload::RequestError(e)),
++                r#type: ffi_result::Type::IntegrationError.into(),
++                payload: Some(ffi_result::Payload::IntegrationError(e)),
+             }
+             .encode_to_vec(),
+         }
+@@ -141,7 +141,7 @@ mod uniffi_bindings_inner {
+ 
+     /// Decode `response_bytes` as the domain `Response` and `request_bytes` as `Req`,
+     /// call `handler`, and encode the result as Result proto.
+-    /// If the handler returns an error, encode the ResponseError in Result.
++    /// If the handler returns an error, encode the ConnectorResponseTransformationError in Result.
+     pub fn run_res_transformer<Req, Res>(
+         response_bytes: Vec<u8>,
+         request_bytes: Vec<u8>,
+@@ -150,7 +150,7 @@ mod uniffi_bindings_inner {
+             crate::types::FfiRequestData<Req>,
+             Response,
+             Option<Environment>,
+-        ) -> Result<Res, ResponseError>,
++        ) -> Result<Res, ConnectorResponseTransformationError>,
+     ) -> Vec<u8>
+     where
+         Req: Message + Default,
+@@ -160,8 +160,8 @@ mod uniffi_bindings_inner {
+             Ok(r) => r,
+             Err(e) => {
+                 return FfiResult {
+-                    r#type: ffi_result::Type::ResponseError.into(),
+-                    payload: Some(ffi_result::Payload::ResponseError(e)),
++                    r#type: ffi_result::Type::ConnectorResponseTransformationError.into(),
++                    payload: Some(ffi_result::Payload::ConnectorResponseTransformationError(e)),
+                 }
+                 .encode_to_vec()
+             }
+@@ -171,13 +171,14 @@ mod uniffi_bindings_inner {
+             Ok(p) => p,
+             Err(e) => {
+                 return FfiResult {
+-                    r#type: ffi_result::Type::ResponseError.into(),
+-                    payload: Some(ffi_result::Payload::ResponseError(ResponseError {
+-                        status: PaymentStatus::Pending.into(),
+-                        error_message: Some(format!("Request payload decode failed: {e}")),
+-                        error_code: None,
+-                        status_code: Some(400),
+-                    })),
++                    r#type: ffi_result::Type::ConnectorResponseTransformationError.into(),
++                    payload: Some(ffi_result::Payload::ConnectorResponseTransformationError(
++                        ConnectorResponseTransformationError {
++                            error_message: format!("Request payload decode failed: {e}"),
++                            error_code: "DECODE_FAILED".to_string(),
++                            http_status_code: None,
++                        },
++                    )),
+                 }
+                 .encode_to_vec();
+             }
+@@ -187,8 +188,8 @@ mod uniffi_bindings_inner {
+             Ok(o) => o,
+             Err(e) => {
+                 return FfiResult {
+-                    r#type: ffi_result::Type::ResponseError.into(),
+-                    payload: Some(ffi_result::Payload::ResponseError(e)),
++                    r#type: ffi_result::Type::ConnectorResponseTransformationError.into(),
++                    payload: Some(ffi_result::Payload::ConnectorResponseTransformationError(e)),
+                 }
+                 .encode_to_vec()
+             }
+@@ -198,8 +199,8 @@ mod uniffi_bindings_inner {
+             Ok(m) => m,
+             Err(e) => {
+                 return FfiResult {
+-                    r#type: ffi_result::Type::ResponseError.into(),
+-                    payload: Some(ffi_result::Payload::ResponseError(e)),
++                    r#type: ffi_result::Type::ConnectorResponseTransformationError.into(),
++                    payload: Some(ffi_result::Payload::ConnectorResponseTransformationError(e)),
+                 }
+                 .encode_to_vec()
+             }
+@@ -246,8 +247,8 @@ mod uniffi_bindings_inner {
+                 .encode_to_vec()
+             }
+             Err(e) => FfiResult {
+-                r#type: ffi_result::Type::ResponseError.into(),
+-                payload: Some(ffi_result::Payload::ResponseError(e)),
++                r#type: ffi_result::Type::ConnectorResponseTransformationError.into(),
++                payload: Some(ffi_result::Payload::ConnectorResponseTransformationError(e)),
+             }
+             .encode_to_vec(),
+         }
+@@ -275,15 +276,14 @@ mod uniffi_bindings_inner {
+             Ok(p) => p,
+             Err(e) => {
+                 return FfiResult {
+-                    r#type: ffi_result::Type::ResponseError.into(),
+-                    payload: Some(ffi_result::Payload::ResponseError(ResponseError {
+-                        status: PaymentStatus::Pending.into(),
+-                        error_message: Some(format!(
+-                            "EventServiceHandleRequest decode failed: {e}"
+-                        )),
+-                        error_code: None,
+-                        status_code: Some(400),
+-                    })),
++                    r#type: ffi_result::Type::ConnectorResponseTransformationError.into(),
++                    payload: Some(ffi_result::Payload::ConnectorResponseTransformationError(
++                        ConnectorResponseTransformationError {
++                            error_message: format!("EventServiceHandleRequest decode failed: {e}"),
++                            error_code: "DECODE_FAILED".to_string(),
++                            http_status_code: None,
++                        },
++                    )),
+                 }
+                 .encode_to_vec();
+             }
+@@ -293,8 +293,8 @@ mod uniffi_bindings_inner {
+             Ok(o) => o,
+             Err(e) => {
+                 return FfiResult {
+-                    r#type: ffi_result::Type::ResponseError.into(),
+-                    payload: Some(ffi_result::Payload::ResponseError(e)),
++                    r#type: ffi_result::Type::ConnectorResponseTransformationError.into(),
++                    payload: Some(ffi_result::Payload::ConnectorResponseTransformationError(e)),
+                 }
+                 .encode_to_vec()
+             }
+@@ -304,8 +304,8 @@ mod uniffi_bindings_inner {
+             Ok(m) => m,
+             Err(e) => {
+                 return FfiResult {
+-                    r#type: ffi_result::Type::ResponseError.into(),
+-                    payload: Some(ffi_result::Payload::ResponseError(e)),
++                    r#type: ffi_result::Type::ConnectorResponseTransformationError.into(),
++                    payload: Some(ffi_result::Payload::ConnectorResponseTransformationError(e)),
+                 }
+                 .encode_to_vec()
+             }
+@@ -336,8 +336,8 @@ mod uniffi_bindings_inner {
+                 .encode_to_vec()
+             }
+             Err(e) => FfiResult {
+-                r#type: ffi_result::Type::ResponseError.into(),
+-                payload: Some(ffi_result::Payload::ResponseError(e)),
++                r#type: ffi_result::Type::ConnectorResponseTransformationError.into(),
++                payload: Some(ffi_result::Payload::ConnectorResponseTransformationError(e)),
+             }
+             .encode_to_vec(),
+         }
+diff --git a/backend/ffi/src/bindings/utils.rs b/backend/ffi/src/bindings/utils.rs
+index 40464bb30..f17054e33 100644
+--- a/backend/ffi/src/bindings/utils.rs
++++ b/backend/ffi/src/bindings/utils.rs
+@@ -11,8 +11,8 @@ use domain_types::router_response_types::Response;
+ use domain_types::utils::ForeignTryFrom;
+ use error_stack::Report;
+ use grpc_api_types::payments::{
+-    FfiConnectorHttpRequest, FfiConnectorHttpResponse, FfiOptions, PaymentStatus, RequestError,
+-    ResponseError,
++    ConnectorResponseTransformationError, FfiConnectorHttpRequest, FfiConnectorHttpResponse,
++    FfiOptions, IntegrationError,
+ };
+ use http::header::{HeaderMap, HeaderName, HeaderValue};
+ use prost::Message;
+@@ -21,18 +21,18 @@ use ucs_env::error::ErrorSwitch;
+ /// Helper to convert internal Request to Protobuf FfiConnectorHttpRequest bytes.
+ pub fn build_ffi_request_bytes(
+     request: &common_utils::request::Request,
+-) -> Result<Vec<u8>, RequestError> {
++) -> Result<Vec<u8>, IntegrationError> {
+     let mut headers = request.get_headers_map();
+     let (body, boundary) = request
+         .body
+         .as_ref()
+         .map(|b| b.get_body_bytes())
+         .transpose()
+-        .map_err(|e| RequestError {
+-            status: PaymentStatus::Pending.into(),
+-            error_message: Some(format!("Body encoding failed: {e}")),
+-            error_code: None,
+-            status_code: Some(400),
++        .map_err(|e| IntegrationError {
++            error_message: format!("Body encoding failed: {e}"),
++            error_code: "BODY_ENCODING_FAILED".to_string(),
++            suggested_action: None,
++            doc_url: None,
+         })?
+         .unwrap_or((None, None));
+ 
+@@ -54,13 +54,14 @@ pub fn build_ffi_request_bytes(
+ }
+ 
+ /// Helper to convert Protobuf FfiConnectorHttpResponse bytes to internal Response.
+-pub fn build_domain_response(response_bytes: Vec<u8>) -> Result<Response, ResponseError> {
++pub fn build_domain_response(
++    response_bytes: Vec<u8>,
++) -> Result<Response, ConnectorResponseTransformationError> {
+     let response = FfiConnectorHttpResponse::decode(Bytes::from(response_bytes)).map_err(|e| {
+-        ResponseError {
+-            status: PaymentStatus::Pending.into(),
+-            error_message: Some(format!("ConnectorHttpResponse decode failed: {e}")),
+-            error_code: None,
+-            status_code: Some(400),
++        ConnectorResponseTransformationError {
++            error_message: format!("ConnectorHttpResponse decode failed: {e}"),
++            error_code: "DECODE_FAILED".to_string(),
++            http_status_code: None,
+         }
+     })?;
+ 
+@@ -81,50 +82,53 @@ pub fn build_domain_response(response_bytes: Vec<u8>) -> Result<Response, Respon
+             Some(header_map)
+         },
+         response: Bytes::from(response.body),
+-        status_code: response.status_code.try_into().map_err(|e| ResponseError {
+-            status: PaymentStatus::Pending.into(),
+-            error_message: Some(format!("Invalid HTTP status code: {e}")),
+-            error_code: None,
+-            status_code: Some(400),
++        status_code: response.status_code.try_into().map_err(|e| {
++            ConnectorResponseTransformationError {
++                error_message: format!("Invalid HTTP status code: {e}"),
++                error_code: "INVALID_STATUS_CODE".to_string(),
++                http_status_code: None,
++            }
+         })?,
+     })
+ }
+ 
+ /// refactor later
+ /// Parse FfiOptions from optional bytes (for request path).
+-pub fn parse_ffi_options_for_req(options_bytes: Vec<u8>) -> Result<FfiOptions, RequestError> {
++pub fn parse_ffi_options_for_req(options_bytes: Vec<u8>) -> Result<FfiOptions, IntegrationError> {
+     if options_bytes.is_empty() {
+-        return Err(RequestError {
+-            status: PaymentStatus::Pending.into(),
+-            error_message: Some("Empty options bytes".to_string()),
+-            error_code: None,
+-            status_code: Some(400),
++        return Err(IntegrationError {
++            error_message: "Empty options bytes".to_string(),
++            error_code: "EMPTY_OPTIONS".to_string(),
++            suggested_action: None,
++            doc_url: None,
+         });
+     }
+-    FfiOptions::decode(Bytes::from(options_bytes)).map_err(|e| RequestError {
+-        status: PaymentStatus::Pending.into(),
+-        error_message: Some(format!("Options decode failed: {e}")),
+-        error_code: None,
+-        status_code: Some(400),
++    FfiOptions::decode(Bytes::from(options_bytes)).map_err(|e| IntegrationError {
++        error_message: format!("Options decode failed: {e}"),
++        error_code: "DECODE_FAILED".to_string(),
++        suggested_action: None,
++        doc_url: None,
+     })
+ }
+ 
+ /// refactor later
+ /// Parse FfiOptions from optional bytes (for response path).
+-pub fn parse_ffi_options_for_res(options_bytes: Vec<u8>) -> Result<FfiOptions, ResponseError> {
++pub fn parse_ffi_options_for_res(
++    options_bytes: Vec<u8>,
++) -> Result<FfiOptions, ConnectorResponseTransformationError> {
+     if options_bytes.is_empty() {
+-        return Err(ResponseError {
+-            status: PaymentStatus::Pending.into(),
+-            error_message: Some("Empty options bytes".to_string()),
+-            error_code: None,
+-            status_code: Some(400),
++        return Err(ConnectorResponseTransformationError {
++            error_message: "Empty options bytes".to_string(),
++            error_code: "EMPTY_OPTIONS".to_string(),
++            http_status_code: None,
+         });
+     }
+-    FfiOptions::decode(Bytes::from(options_bytes)).map_err(|e| ResponseError {
+-        status: PaymentStatus::Pending.into(),
+-        error_message: Some(format!("Options decode failed: {e}")),
+-        error_code: None,
+-        status_code: Some(400),
++    FfiOptions::decode(Bytes::from(options_bytes)).map_err(|e| {
++        ConnectorResponseTransformationError {
++            error_message: format!("Options decode failed: {e}"),
++            error_code: "DECODE_FAILED".to_string(),
++            http_status_code: None,
++        }
+     })
+ }
+ 
+@@ -133,25 +137,28 @@ pub fn parse_ffi_options_for_res(options_bytes: Vec<u8>) -> Result<FfiOptions, R
+ /// The connector identity is inferred from which ConnectorSpecificConfig variant is set.
+ pub fn parse_metadata_for_req(
+     options: &FfiOptions,
+-) -> Result<crate::types::FfiMetadataPayload, RequestError> {
++) -> Result<crate::types::FfiMetadataPayload, IntegrationError> {
+     // 1. Resolve ConnectorSpecificConfig from FfiOptions
+     let proto_config = options
+         .connector_config
+         .as_ref()
+-        .ok_or_else(|| RequestError {
+-            status: PaymentStatus::Pending.into(),
+-            error_message: Some("Missing connector_config".to_string()),
+-            error_code: None,
+-            status_code: Some(400),
++        .ok_or_else(|| IntegrationError {
++            error_message: "Missing connector_config".to_string(),
++            error_code: "MISSING_CONNECTOR_CONFIG".to_string(),
++            suggested_action: None,
++            doc_url: None,
+         })?;
+ 
+     // 2. Infer connector from which oneof variant is set
+-    let config_variant = proto_config.config.as_ref().ok_or_else(|| RequestError {
+-        status: PaymentStatus::Pending.into(),
+-        error_message: Some("Missing connector_config.config".to_string()),
+-        error_code: None,
+-        status_code: Some(400),
+-    })?;
++    let config_variant = proto_config
++        .config
++        .as_ref()
++        .ok_or_else(|| IntegrationError {
++            error_message: "Missing connector_config.config".to_string(),
++            error_code: "MISSING_CONNECTOR_CONFIG_VARIANT".to_string(),
++            suggested_action: None,
++            doc_url: None,
++        })?;
+ 
+     let connector = ConnectorEnum::foreign_try_from(config_variant.clone())
+         .map_err(|e: Report<ApplicationErrorResponse>| e.current_context().switch())?;
+@@ -173,25 +180,28 @@ pub fn parse_metadata_for_req(
+ /// Build FfiMetadataPayload from FfiOptions (for response path).
+ pub fn parse_metadata_for_res(
+     options: &FfiOptions,
+-) -> Result<crate::types::FfiMetadataPayload, ResponseError> {
++) -> Result<crate::types::FfiMetadataPayload, ConnectorResponseTransformationError> {
+     // 1. Resolve ConnectorSpecificConfig from FfiOptions
+-    let proto_config = options
+-        .connector_config
+-        .as_ref()
+-        .ok_or_else(|| ResponseError {
+-            status: PaymentStatus::Pending.into(),
+-            error_message: Some("Missing connector_config".to_string()),
+-            error_code: None,
+-            status_code: Some(400),
+-        })?;
++    let proto_config =
++        options
++            .connector_config
++            .as_ref()
++            .ok_or_else(|| ConnectorResponseTransformationError {
++                error_message: "Missing connector_config".to_string(),
++                error_code: "MISSING_CONNECTOR_CONFIG".to_string(),
++                http_status_code: None,
++            })?;
+ 
+     // 2. Infer connector from which oneof variant is set
+-    let config_variant = proto_config.config.as_ref().ok_or_else(|| ResponseError {
+-        status: PaymentStatus::Pending.into(),
+-        error_message: Some("Missing connector_config.config".to_string()),
+-        error_code: None,
+-        status_code: Some(400),
+-    })?;
++    let config_variant =
++        proto_config
++            .config
++            .as_ref()
++            .ok_or_else(|| ConnectorResponseTransformationError {
++                error_message: "Missing connector_config.config".to_string(),
++                error_code: "MISSING_CONNECTOR_CONFIG_VARIANT".to_string(),
++                http_status_code: None,
++            })?;
+ 
+     let connector = ConnectorEnum::foreign_try_from(config_variant.clone())
+         .map_err(|e: Report<ApplicationErrorResponse>| e.current_context().switch())?;
+diff --git a/backend/ffi/src/handlers/payments.rs b/backend/ffi/src/handlers/payments.rs
+index 6222d1270..55649b4b7 100644
+--- a/backend/ffi/src/handlers/payments.rs
++++ b/backend/ffi/src/handlers/payments.rs
+@@ -6,10 +6,12 @@ use domain_types::errors::{ApplicationErrorResponse, ConnectorError};
+ use domain_types::payment_method_data::DefaultPCIHolder;
+ use ucs_env::error::ErrorSwitch;
+ 
+-use grpc_api_types::payments::{Environment, RequestError, ResponseError};
++use grpc_api_types::payments::{
++    ConnectorResponseTransformationError, Environment, IntegrationError,
++};
+ fn get_config_for_req(
+     environment: Option<Environment>,
+-) -> Result<std::sync::Arc<ucs_env::configs::Config>, RequestError> {
++) -> Result<std::sync::Arc<ucs_env::configs::Config>, IntegrationError> {
+     let config_str = if environment == Some(Environment::Production) {
+         EMBEDDED_PROD_CONFIG
+     } else {
+@@ -23,7 +25,7 @@ fn get_config_for_req(
+ 
+ fn get_config_for_res(
+     environment: Option<Environment>,
+-) -> Result<std::sync::Arc<ucs_env::configs::Config>, ResponseError> {
++) -> Result<std::sync::Arc<ucs_env::configs::Config>, ConnectorResponseTransformationError> {
+     let config_str = if environment == Some(Environment::Production) {
+         EMBEDDED_PROD_CONFIG
+     } else {
+@@ -52,7 +54,7 @@ macro_rules! impl_flow_handlers {
+             pub fn [<$flow _req_handler>](
+                 request: FfiRequestData<$req_type>,
+                 environment: Option<Environment>,
+-            ) -> Result<Option<common_utils::request::Request>, grpc_api_types::payments::RequestError> {
++            ) -> Result<Option<common_utils::request::Request>, grpc_api_types::payments::IntegrationError> {
+                 let config = get_config_for_req(environment)?;
+                 $req_svc::<DefaultPCIHolder>(
+                     request.payload,
+@@ -67,7 +69,7 @@ macro_rules! impl_flow_handlers {
+                 request: FfiRequestData<$req_type>,
+                 response: domain_types::router_response_types::Response,
+                 environment: Option<Environment>,
+-            ) -> Result<$res_type, grpc_api_types::payments::ResponseError> {
++            ) -> Result<$res_type, grpc_api_types::payments::ConnectorResponseTransformationError> {
+                 let config = get_config_for_res(environment)?;
+                 $res_svc::<DefaultPCIHolder>(
+                     request.payload,
+@@ -98,7 +100,10 @@ include!("_generated_flow_registrations.rs");
+ pub fn handle_event_handler(
+     request: FfiRequestData<grpc_api_types::payments::EventServiceHandleRequest>,
+     environment: Option<Environment>,
+-) -> Result<grpc_api_types::payments::EventServiceHandleResponse, ResponseError> {
++) -> Result<
++    grpc_api_types::payments::EventServiceHandleResponse,
++    ConnectorResponseTransformationError,
++> {
+     let config = get_config_for_res(environment)?;
+     crate::services::payments::handle_event_transformer(
+         request.payload,
+diff --git a/backend/ffi/src/macros.rs b/backend/ffi/src/macros.rs
+index 74ac6675a..f9f75dc33 100644
+--- a/backend/ffi/src/macros.rs
++++ b/backend/ffi/src/macros.rs
+@@ -40,7 +40,7 @@ macro_rules! req_transformer {
+             connector: domain_types::connector_types::ConnectorEnum,
+             connector_config: domain_types::router_data::ConnectorSpecificConfig,
+             metadata: &common_utils::metadata::MaskedMetadata,
+-        ) -> Result<Option<common_utils::request::Request>, grpc_api_types::payments::RequestError> {
++        ) -> Result<Option<common_utils::request::Request>, grpc_api_types::payments::IntegrationError> {
+ 
+             let connector_data: connector_integration::types::ConnectorData<T> =
+                 connector_integration::types::ConnectorData::get_connector_by_name(&connector);
+@@ -139,7 +139,7 @@ macro_rules! res_transformer {
+             connector_config: domain_types::router_data::ConnectorSpecificConfig,
+             metadata: &common_utils::metadata::MaskedMetadata,
+             response: domain_types::router_response_types::Response,
+-        ) -> Result<$response_type, grpc_api_types::payments::ResponseError> {
++        ) -> Result<$response_type, grpc_api_types::payments::ConnectorResponseTransformationError> {
+             let connector_data: connector_integration::types::ConnectorData<T> =
+                 connector_integration::types::ConnectorData::get_connector_by_name(&connector);
+ 
+diff --git a/backend/ffi/src/services/payments.rs b/backend/ffi/src/services/payments.rs
+index 4493938fe..c4fe9b033 100644
+--- a/backend/ffi/src/services/payments.rs
++++ b/backend/ffi/src/services/payments.rs
+@@ -1,5 +1,5 @@
+ use external_services;
+-use grpc_api_types::payments::ResponseError;
++use grpc_api_types::payments::ConnectorResponseTransformationError;
+ use grpc_api_types::payments::{
+     CustomerServiceCreateRequest, CustomerServiceCreateResponse, DisputeServiceAcceptRequest,
+     DisputeServiceAcceptResponse, DisputeServiceDefendRequest, DisputeServiceDefendResponse,
+@@ -478,31 +478,34 @@ pub fn handle_event_transformer(
+     connector: domain_types::connector_types::ConnectorEnum,
+     connector_config: domain_types::router_data::ConnectorSpecificConfig,
+     _metadata: &common_utils::metadata::MaskedMetadata,
+-) -> Result<EventServiceHandleResponse, ResponseError> {
++) -> Result<EventServiceHandleResponse, ConnectorResponseTransformationError> {
+     use domain_types::utils::ForeignTryFrom as _;
+ 
+-    let request_details = payload.request_details.ok_or_else(|| ResponseError {
+-        status: grpc_api_types::payments::PaymentStatus::Pending.into(),
+-        error_message: Some("Missing required field: request_details".to_string()),
+-        error_code: None,
+-        status_code: Some(400),
+-    })?;
+     let request_details =
+-        RequestDetails::foreign_try_from(request_details).map_err(|e| ResponseError {
+-            status: grpc_api_types::payments::PaymentStatus::Pending.into(),
+-            error_message: Some(format!("ForeignTryFrom failed: {e}")),
+-            error_code: None,
+-            status_code: Some(400),
+-        })?;
++        payload
++            .request_details
++            .ok_or_else(|| ConnectorResponseTransformationError {
++                error_message: "Missing required field: request_details".to_string(),
++                error_code: "MISSING_REQUIRED_FIELD".to_string(),
++                http_status_code: None,
++            })?;
++    let request_details = RequestDetails::foreign_try_from(request_details).map_err(|e| {
++        ConnectorResponseTransformationError {
++            error_message: format!("ForeignTryFrom failed: {e}"),
++            error_code: "CONVERSION_FAILED".to_string(),
++            http_status_code: None,
++        }
++    })?;
+ 
+     let webhook_secrets = payload
+         .webhook_secrets
+         .map(|ws| {
+-            ConnectorWebhookSecrets::foreign_try_from(ws).map_err(|e| ResponseError {
+-                status: grpc_api_types::payments::PaymentStatus::Pending.into(),
+-                error_message: Some(format!("ForeignTryFrom failed: {e}")),
+-                error_code: None,
+-                status_code: Some(400),
++            ConnectorWebhookSecrets::foreign_try_from(ws).map_err(|e| {
++                ConnectorResponseTransformationError {
++                    error_message: format!("ForeignTryFrom failed: {e}"),
++                    error_code: "CONVERSION_FAILED".to_string(),
++                    http_status_code: None,
++                }
+             })
+         })
+         .transpose()?;
+@@ -529,11 +532,12 @@ pub fn handle_event_transformer(
+         source_verified,
+     )
+     .map_err(
+-        |e: error_stack::Report<domain_types::errors::ApplicationErrorResponse>| ResponseError {
+-            status: grpc_api_types::payments::PaymentStatus::Pending.into(),
+-            error_message: Some(format!("Error in Processing webhook events: {e}")),
+-            error_code: None,
+-            status_code: Some(400),
++        |e: error_stack::Report<domain_types::errors::ApplicationErrorResponse>| {
++            ConnectorResponseTransformationError {
++                error_message: format!("Error in Processing webhook events: {e}"),
++                error_code: "WEBHOOK_PROCESSING_ERROR".to_string(),
++                http_status_code: None,
++            }
+         },
+     )
+ }
+diff --git a/backend/ffi/src/utils.rs b/backend/ffi/src/utils.rs
+index a5ce97a1d..6d0c4ccdd 100644
+--- a/backend/ffi/src/utils.rs
++++ b/backend/ffi/src/utils.rs
+@@ -1,6 +1,6 @@
+ use common_utils::metadata::{HeaderMaskingConfig, MaskedMetadata};
+ use domain_types::errors::ConnectorError;
+-use grpc_api_types::payments::RequestError;
++use grpc_api_types::payments::IntegrationError;
+ use std::collections::HashMap;
+ use std::sync::Arc;
+ use ucs_env::configs::Config;
+@@ -9,26 +9,26 @@ use ucs_env::configs::Config;
+ /// Delegates to the shared `headers_to_masked_metadata` implementation.
+ pub fn ffi_headers_to_masked_metadata(
+     headers: &HashMap<String, String>,
+-) -> Result<MaskedMetadata, RequestError> {
++) -> Result<MaskedMetadata, IntegrationError> {
+     ucs_interface_common::headers::headers_to_masked_metadata(
+         headers,
+         HeaderMaskingConfig::default(),
+     )
+     .map_err(|e| match e {
+         ucs_interface_common::error::InterfaceError::MissingRequiredHeader { key } => {
+-            RequestError {
+-                status: grpc_api_types::payments::PaymentStatus::Pending.into(),
+-                error_message: Some(format!("Missing required header: {}", key)),
+-                error_code: None,
+-                status_code: Some(400),
++            IntegrationError {
++                error_message: format!("Missing required header: {}", key),
++                error_code: "MISSING_REQUIRED_HEADER".to_string(),
++                suggested_action: None,
++                doc_url: None,
+             }
+         }
+         ucs_interface_common::error::InterfaceError::InvalidHeaderValue { key, reason } => {
+-            RequestError {
+-                status: grpc_api_types::payments::PaymentStatus::Pending.into(),
+-                error_message: Some(format!("{}: {}", key, reason)),
+-                error_code: None,
+-                status_code: Some(400),
++            IntegrationError {
++                error_message: format!("{}: {}", key, reason),
++                error_code: "INVALID_HEADER_VALUE".to_string(),
++                suggested_action: None,
++                doc_url: None,
+             }
+         }
+     })
+diff --git a/backend/field-probe/src/probe_engine.rs b/backend/field-probe/src/probe_engine.rs
+index a23313efa..d07762f3c 100644
+--- a/backend/field-probe/src/probe_engine.rs
++++ b/backend/field-probe/src/probe_engine.rs
+@@ -110,7 +110,7 @@ where
+         Req,
+     ) -> Result<
+         Option<common_utils::request::Request>,
+-        grpc_api_types::payments::RequestError,
++        grpc_api_types::payments::IntegrationError,
+     >,
+ {
+     let mut required_fields: Vec<String> = Vec::new();
+@@ -154,7 +154,7 @@ where
+         Req,
+     ) -> Result<
+         Option<common_utils::request::Request>,
+-        grpc_api_types::payments::RequestError,
++        grpc_api_types::payments::IntegrationError,
+     >,
+ {
+     match call(req.clone()) {
+@@ -171,7 +171,7 @@ where
+         }
+         Ok(None) => ProbeAttemptResult::NotImplemented,
+         Err(e) => {
+-            let msg = e.error_message.unwrap_or_default();
++            let msg = e.error_message;
+             ProbeAttemptResult::Error(msg)
+         }
+     }
+diff --git a/backend/grpc-api-types/proto/sdk_config.proto b/backend/grpc-api-types/proto/sdk_config.proto
+index bca83f3d7..e9dfe9f40 100644
+--- a/backend/grpc-api-types/proto/sdk_config.proto
++++ b/backend/grpc-api-types/proto/sdk_config.proto
+@@ -196,17 +196,17 @@ message FfiResult {
+   enum Type {
+     HTTP_REQUEST = 0;
+     HTTP_RESPONSE = 1;
+-    REQUEST_ERROR = 2;
+-    RESPONSE_ERROR = 3;
++    INTEGRATION_ERROR = 2;
++    CONNECTOR_RESPONSE_TRANSFORMATION_ERROR = 3;
+   }
+-  
++
+   Type type = 1;
+-  
++
+   oneof payload {
+     FfiConnectorHttpRequest http_request = 2;
+     FfiConnectorHttpResponse http_response = 3;
+-    RequestError request_error = 4;
+-    ResponseError response_error = 5;
++    IntegrationError integration_error = 4;
++    ConnectorResponseTransformationError connector_response_transformation_error = 5;
+   }
+ }
+ // ============================================================
+diff --git a/backend/ucs_env/src/error.rs b/backend/ucs_env/src/error.rs
+index d870ba96e..0f38f6478 100644
+--- a/backend/ucs_env/src/error.rs
++++ b/backend/ucs_env/src/error.rs
+@@ -335,28 +335,29 @@ impl From<PaymentAuthorizationError> for PaymentServiceAuthorizeResponse {
+     }
+ }
+ 
+-/// Convert ApplicationErrorResponse to proto RequestError
+-impl ErrorSwitch<grpc_api_types::payments::RequestError> for ApplicationErrorResponse {
+-    fn switch(&self) -> grpc_api_types::payments::RequestError {
++/// Convert ApplicationErrorResponse to proto IntegrationError
++impl ErrorSwitch<grpc_api_types::payments::IntegrationError> for ApplicationErrorResponse {
++    fn switch(&self) -> grpc_api_types::payments::IntegrationError {
+         let api_error = self.get_api_error();
+-        grpc_api_types::payments::RequestError {
+-            status: grpc_api_types::payments::PaymentStatus::Pending.into(),
+-            error_message: Some(api_error.error_message.clone()),
+-            error_code: Some(api_error.sub_code.clone()),
+-            status_code: Some(api_error.error_identifier.into()),
++        grpc_api_types::payments::IntegrationError {
++            error_message: api_error.error_message.clone(),
++            error_code: api_error.sub_code.clone(),
++            suggested_action: None,
++            doc_url: None,
+         }
+     }
+ }
+ 
+-/// Convert ApplicationErrorResponse to proto ResponseError
+-impl ErrorSwitch<grpc_api_types::payments::ResponseError> for ApplicationErrorResponse {
+-    fn switch(&self) -> grpc_api_types::payments::ResponseError {
++/// Convert ApplicationErrorResponse to proto ConnectorResponseTransformationError
++impl ErrorSwitch<grpc_api_types::payments::ConnectorResponseTransformationError>
++    for ApplicationErrorResponse
++{
++    fn switch(&self) -> grpc_api_types::payments::ConnectorResponseTransformationError {
+         let api_error = self.get_api_error();
+-        grpc_api_types::payments::ResponseError {
+-            status: grpc_api_types::payments::PaymentStatus::Pending.into(),
+-            error_message: Some(api_error.error_message.clone()),
+-            error_code: Some(api_error.sub_code.clone()),
+-            status_code: Some(api_error.error_identifier.into()),
++        grpc_api_types::payments::ConnectorResponseTransformationError {
++            error_message: api_error.error_message.clone(),
++            error_code: api_error.sub_code.clone(),
++            http_status_code: Some(api_error.error_identifier.into()),
+         }
+     }
+ }
+diff --git a/scripts/generators/code/services.desc b/scripts/generators/code/services.desc
+index 0efa2ae81..b2fdd5719 100644
+Binary files a/scripts/generators/code/services.desc and b/scripts/generators/code/services.desc differ
+diff --git a/sdk/java/smoke-test/src/main/kotlin/SmokeTest.kt b/sdk/java/smoke-test/src/main/kotlin/SmokeTest.kt
+index 9df0799f3..a4bb8d9f1 100644
+--- a/sdk/java/smoke-test/src/main/kotlin/SmokeTest.kt
++++ b/sdk/java/smoke-test/src/main/kotlin/SmokeTest.kt
+@@ -21,6 +21,8 @@ import payments.ConnectorConfig
+ import payments.ConnectorSpecificConfig
+ import payments.SdkOptions
+ import payments.Environment
++import payments.IntegrationError
++import payments.ConnectorResponseTransformationError
+ import java.io.File
+ import java.lang.reflect.InvocationTargetException
+ 
+@@ -219,9 +221,18 @@ fun testConnectorScenarios(
+         } catch (e: InvocationTargetException) {
+             // Unwrap: InvocationTargetException wraps the real exception from the called method
+             val cause = e.cause ?: e
+-            val detail = "${cause.javaClass.simpleName}: ${cause.message}"
+-            println(yellow("~ connector error") + grey(" — $detail"))
+-            result.scenarios[scenarioKey] = ScenarioResult(passed = true, connectorError = detail)
++            when (cause) {
++                is IntegrationError, is ConnectorResponseTransformationError -> {
++                    val detail = "${cause.javaClass.simpleName}: ${cause.message}"
++                    println(yellow("~ connector error") + grey(" — $detail"))
++                    result.scenarios[scenarioKey] = ScenarioResult(passed = true, connectorError = detail)
++                }
++                else -> {
++                    val detail = "${cause.javaClass.simpleName}: ${cause.message}"
++                    println(yellow("~ connector error") + grey(" — $detail"))
++                    result.scenarios[scenarioKey] = ScenarioResult(passed = true, connectorError = detail)
++                }
++            }
+         } catch (e: Exception) {
+             val detail = "${e.javaClass.simpleName}: ${e.message}"
+             println(red("✗ FAILED") + " — $detail")
+diff --git a/sdk/java/src/main/kotlin/ConnectorClient.kt b/sdk/java/src/main/kotlin/ConnectorClient.kt
+index 711e8e2e0..4344e02ec 100644
+--- a/sdk/java/src/main/kotlin/ConnectorClient.kt
++++ b/sdk/java/src/main/kotlin/ConnectorClient.kt
+@@ -18,16 +18,16 @@ import com.google.protobuf.MessageLite
+ import com.google.protobuf.Parser
+ 
+ /**
+- * Exception raised when req_transformer fails.
+- * Wraps RequestError and provides access to proto fields.
++ * Exception raised when req_transformer fails (integration error).
++ * Wraps IntegrationError and provides access to proto fields.
+  */
+-class RequestError(val proto: types.SdkConfig.RequestError) : Exception(proto.getErrorMessage())
++class IntegrationError(val proto: types.SdkConfig.IntegrationError) : Exception(proto.getErrorMessage())
+ 
+ /**
+- * Exception raised when res_transformer fails.
+- * Wraps ResponseError and provides access to proto fields.
++ * Exception raised when res_transformer fails (response transformation error).
++ * Wraps ConnectorResponseTransformationError and provides access to proto fields.
+  */
+-class ResponseError(val proto: types.SdkConfig.ResponseError) : Exception(proto.getErrorMessage())
++class ConnectorResponseTransformationError(val proto: types.SdkConfig.ConnectorResponseTransformationError) : Exception(proto.getErrorMessage())
+ 
+ open class ConnectorClient(
+     val config: ConnectorConfig,
+@@ -76,16 +76,16 @@ open class ConnectorClient(
+      *
+      * @param resultBytes Raw bytes returned by the req_transformer FFI call
+      * @return FfiConnectorHttpRequest on success (HTTP_REQUEST type)
+-     * @throws RequestError if result type is REQUEST_ERROR
+-     * @throws ResponseError if result type is RESPONSE_ERROR
++     * @throws IntegrationError if result type is INTEGRATION_ERROR
++     * @throws ConnectorResponseTransformationError if result type is CONNECTOR_RESPONSE_TRANSFORMATION_ERROR
+      * @throws IllegalStateException if result type is unknown
+      */
+     private fun checkReq(resultBytes: ByteArray): FfiConnectorHttpRequest {
+         val result = types.SdkConfig.FfiResult.parseFrom(resultBytes)
+         return when (result.getType()) {
+             types.SdkConfig.FfiResult.Type.HTTP_REQUEST -> result.getHttpRequest()
+-            types.SdkConfig.FfiResult.Type.REQUEST_ERROR -> throw RequestError(result.getRequestError())
+-            types.SdkConfig.FfiResult.Type.RESPONSE_ERROR -> throw ResponseError(result.getResponseError())
++            types.SdkConfig.FfiResult.Type.INTEGRATION_ERROR -> throw IntegrationError(result.getIntegrationError())
++            types.SdkConfig.FfiResult.Type.CONNECTOR_RESPONSE_TRANSFORMATION_ERROR -> throw ConnectorResponseTransformationError(result.getConnectorResponseTransformationError())
+             else -> throw IllegalStateException("Unknown result type: ${result.getType()}")
+         }
+     }
+@@ -95,16 +95,16 @@ open class ConnectorClient(
+      *
+      * @param resultBytes Raw bytes returned by the res_transformer FFI call
+      * @return FfiConnectorHttpResponse on success (HTTP_RESPONSE type)
+-     * @throws ResponseError if result type is RESPONSE_ERROR
+-     * @throws RequestError if result type is REQUEST_ERROR
++     * @throws ConnectorResponseTransformationError if result type is CONNECTOR_RESPONSE_TRANSFORMATION_ERROR
++     * @throws IntegrationError if result type is INTEGRATION_ERROR
+      * @throws IllegalStateException if result type is unknown
+      */
+     private fun checkRes(resultBytes: ByteArray): FfiConnectorHttpResponse {
+         val result = types.SdkConfig.FfiResult.parseFrom(resultBytes)
+         return when (result.getType()) {
+             types.SdkConfig.FfiResult.Type.HTTP_RESPONSE -> result.getHttpResponse()
+-            types.SdkConfig.FfiResult.Type.RESPONSE_ERROR -> throw ResponseError(result.getResponseError())
+-            types.SdkConfig.FfiResult.Type.REQUEST_ERROR -> throw RequestError(result.getRequestError())
++            types.SdkConfig.FfiResult.Type.CONNECTOR_RESPONSE_TRANSFORMATION_ERROR -> throw ConnectorResponseTransformationError(result.getConnectorResponseTransformationError())
++            types.SdkConfig.FfiResult.Type.INTEGRATION_ERROR -> throw IntegrationError(result.getIntegrationError())
+             else -> throw IllegalStateException("Unknown result type: ${result.getType()}")
+         }
+     }
+diff --git a/sdk/java/src/main/kotlin/HttpClient.kt b/sdk/java/src/main/kotlin/HttpClient.kt
+index 3f91b9370..35786490f 100644
+--- a/sdk/java/src/main/kotlin/HttpClient.kt
++++ b/sdk/java/src/main/kotlin/HttpClient.kt
+@@ -31,7 +31,7 @@ class NetworkError(
+     val code: NetworkErrorCode = NetworkErrorCode.NETWORK_ERROR_CODE_UNSPECIFIED,
+     val statusCode: Int? = null
+ ) : Exception(message) {
+-    /** String error code for parity with RequestError/ResponseError (e.g. "CONNECT_TIMEOUT"). */
++    /** String error code for parity with IntegrationError/ConnectorResponseTransformationError (e.g. "CONNECT_TIMEOUT"). */
+     val errorCode: String get() = code.name
+ }
+ 
+diff --git a/sdk/java/src/main/kotlin/payments/Configs.kt b/sdk/java/src/main/kotlin/payments/Configs.kt
+index ef990c6c3..1d1effb26 100644
+--- a/sdk/java/src/main/kotlin/payments/Configs.kt
++++ b/sdk/java/src/main/kotlin/payments/Configs.kt
+@@ -27,5 +27,5 @@ typealias FfiConnectorHttpResponse = SdkConfig.FfiConnectorHttpResponse
+ typealias HttpDefault = SdkConfig.HttpDefault
+ typealias NetworkErrorCode = SdkConfig.NetworkErrorCode
+ typealias FfiResult = SdkConfig.FfiResult
+-typealias RequestErrorProto = SdkConfig.RequestError
+-typealias ResponseErrorProto = SdkConfig.ResponseError
++typealias IntegrationErrorProto = SdkConfig.IntegrationError
++typealias ConnectorResponseTransformationErrorProto = SdkConfig.ConnectorResponseTransformationError
+diff --git a/sdk/javascript/smoke-test/test_smoke.ts b/sdk/javascript/smoke-test/test_smoke.ts
+index 9aa530f63..efdb75498 100644
+--- a/sdk/javascript/smoke-test/test_smoke.ts
++++ b/sdk/javascript/smoke-test/test_smoke.ts
+@@ -10,11 +10,11 @@
+  *   node test_smoke.js --creds-file creds.json --all --dry-run
+  */
+ 
+-import { PaymentClient, types, NetworkError } from "hs-playlib";
++import { PaymentClient, types, NetworkError, IntegrationError, ConnectorResponseTransformationError } from "hs-playlib";
+ import * as fs from "fs";
+ import * as path from "path";
+ 
+-const { ConnectorConfig, ConnectorSpecificConfig, SdkOptions, Environment, RequestError, ResponseError } = types;
++const { ConnectorConfig, ConnectorSpecificConfig, SdkOptions, Environment } = types;
+ 
+ // ── ANSI color helpers ──────────────────────────────────────────────────────
+ const _NO_COLOR = !process.stdout.isTTY || !!process.env["NO_COLOR"];
+@@ -185,12 +185,24 @@ async function testConnectorScenarios(
+                 result.scenarios[scenarioKey] = { passed: true, result: response };
+             }
+         } catch (e: any) {
+-            const isConnectorError =
+-                e instanceof (RequestError as any) || e instanceof (ResponseError as any) ||
+-                e?.constructor?.name === "RequestError" || e?.constructor?.name === "ResponseError" ||
+-                // FFI-level panics (e.g. HandlerError, InvalidWalletToken) surface as a plain
+-                // Error with a "Rust panic: ..." message — treat them as connector errors.
+-                (typeof e?.message === "string" && e.message.startsWith("Rust panic:"));
++            const errorName = e?.constructor?.name;
++            const errorMessage = e?.message;
++            
++            let isConnectorError = false;
++            switch (errorName) {
++                case "IntegrationError":
++                case "ConnectorResponseTransformationError":
++                    isConnectorError = true;
++                    break;
++                default:
++                    // FFI-level panics (e.g. HandlerError, InvalidWalletToken) surface as a plain
++                    // Error with a "Rust panic: ..." message — treat them as connector errors.
++                    if (typeof errorMessage === "string" && errorMessage.startsWith("Rust panic:")) {
++                        isConnectorError = true;
++                    }
++                    break;
++            }
++            
+             if (isConnectorError) {
+                 const msg = e.errorMessage || e.message || String(e);
+                 const code = e.errorCode;
+diff --git a/sdk/javascript/smoke-test/test_smoke_composite.ts b/sdk/javascript/smoke-test/test_smoke_composite.ts
+index 4cc3d3c2f..e653dac39 100644
+--- a/sdk/javascript/smoke-test/test_smoke_composite.ts
++++ b/sdk/javascript/smoke-test/test_smoke_composite.ts
+@@ -25,8 +25,8 @@ const {
+   SecretString,
+   AccessToken,
+   ConnectorState,
+-  RequestError,
+-  ResponseError,
++  IntegrationError,
++  ConnectorResponseTransformationError,
+ } = types;
+ 
+ const { ConnectorConfig, RequestConfig, Environment } = types;
+@@ -105,12 +105,12 @@ async function testAccessTokenFlow(): Promise<void> {
+       );
+     }
+   } catch (e: any) {
+-    if (e instanceof RequestError) {
+-      console.log(`  RequestError: ${e.errorCode} - ${e.errorMessage}`);
++    if (e instanceof IntegrationError) {
++      console.log(`  IntegrationError: ${e.errorCode} - ${e.errorMessage}`);
+       console.log("  This might be expected if credentials are not valid");
+       return;
+-    } else if (e instanceof ResponseError) {
+-      console.log(`  ResponseError: ${e.errorCode} - ${e.errorMessage}`);
++    } else if (e instanceof ConnectorResponseTransformationError) {
++      console.log(`  ConnectorResponseTransformationError: ${e.errorCode} - ${e.errorMessage}`);
+       console.log("  This might be expected if credentials are not valid");
+       return;
+     } else if (e instanceof NetworkError) {
+@@ -174,11 +174,11 @@ async function testAccessTokenFlow(): Promise<void> {
+     console.log(`  Payment status: ${authorizeResponse.status}`);
+     console.log("  PASSED");
+   } catch (e: any) {
+-    if (e instanceof RequestError) {
+-      console.log(`  RequestError: ${e.errorCode} - ${e.errorMessage}`);
++    if (e instanceof IntegrationError) {
++      console.log(`  IntegrationError: ${e.errorCode} - ${e.errorMessage}`);
+       console.log("  PASSED (round-trip completed, error is from PayPal)");
+-    } else if (e instanceof ResponseError) {
+-      console.log(`  ResponseError: ${e.errorCode} - ${e.errorMessage}`);
++    } else if (e instanceof ConnectorResponseTransformationError) {
++      console.log(`  ConnectorResponseTransformationError: ${e.errorCode} - ${e.errorMessage}`);
+       console.log("  PASSED (round-trip completed, error is from PayPal)");
+     } else if (e instanceof NetworkError) {
+       console.log(`  NetworkError: ${e.code} - ${e.message}`);
+diff --git a/sdk/javascript/src/http_client.ts b/sdk/javascript/src/http_client.ts
+index 9b2e2a13b..7ba402c5f 100644
+--- a/sdk/javascript/src/http_client.ts
++++ b/sdk/javascript/src/http_client.ts
+@@ -29,7 +29,7 @@ export const NetworkErrorCode = types.NetworkErrorCode;
+ 
+ /**
+  * Network error for HTTP transport failures (timeouts, connection errors, config).
+- * Uses proto-generated NetworkErrorCode for cross-SDK parity with RequestError/ResponseError.
++ * Uses proto-generated NetworkErrorCode for cross-SDK parity with IntegrationError/ConnectorResponseTransformationError.
+  */
+ export class NetworkError extends Error {
+   constructor(
+@@ -44,7 +44,7 @@ export class NetworkError extends Error {
+   }
+ 
+   /**
+-   * String error code for parity with RequestError/ResponseError (e.g. "CONNECT_TIMEOUT").
++   * String error code for parity with IntegrationError/ConnectorResponseTransformationError (e.g. "CONNECT_TIMEOUT").
+    * Use for logging, display, and simple comparisons.
+    */
+   get errorCode(): string {
+diff --git a/sdk/javascript/src/index.ts b/sdk/javascript/src/index.ts
+index fda57ce08..7c87d4679 100644
+--- a/sdk/javascript/src/index.ts
++++ b/sdk/javascript/src/index.ts
+@@ -5,6 +5,9 @@ export type { RustBuffer, RustCallStatus } from "./payments/uniffi_client";
+ export * from "./http_client";
+ export * from './payments/generated/proto';
+ 
++// Export error classes
++export { IntegrationError, ConnectorResponseTransformationError } from './payments/connector_client';
++
+ // ---------------------------------------------------------------------------
+ // Domain namespaces — runtime values
+ // Usage: import { payments, payment_methods, configs } from '@juspay/connector-service-sdk';
+diff --git a/sdk/javascript/src/payments/connector_client.ts b/sdk/javascript/src/payments/connector_client.ts
+index db170a6f5..933c381db 100644
+--- a/sdk/javascript/src/payments/connector_client.ts
++++ b/sdk/javascript/src/payments/connector_client.ts
+@@ -20,6 +20,28 @@ import { types } from "./generated/proto";
+ 
+ const v2 = types;
+ 
++/**
++ * Exception raised when req_transformer fails (integration error).
++ * Wraps IntegrationError and provides access to proto fields.
++ */
++export class IntegrationError extends Error {
++  constructor(public proto: any) {
++    super(proto.errorMessage || proto.error_message);
++    this.name = 'IntegrationError';
++  }
++}
++
++/**
++ * Exception raised when res_transformer fails (response transformation error).
++ * Wraps ConnectorResponseTransformationError and provides access to proto fields.
++ */
++export class ConnectorResponseTransformationError extends Error {
++  constructor(public proto: any) {
++    super(proto.errorMessage || proto.error_message);
++    this.name = 'ConnectorResponseTransformationError';
++  }
++}
++
+ export class ConnectorClient {
+   private uniffi: UniffiClient;
+   private config: types.ConnectorConfig;
+diff --git a/sdk/javascript/src/payments/index.d.ts b/sdk/javascript/src/payments/index.d.ts
+index 8ee46565a..cb74792ea 100644
+--- a/sdk/javascript/src/payments/index.d.ts
++++ b/sdk/javascript/src/payments/index.d.ts
+@@ -1,2 +1,3 @@
+ export { PaymentClient, MerchantAuthenticationClient } from "./_generated_connector_client_flows";
+ export { UniffiClient } from "./_generated_uniffi_client_flows";
++export { IntegrationError, ConnectorResponseTransformationError } from "./connector_client";
+diff --git a/sdk/javascript/src/payments/uniffi_client.ts b/sdk/javascript/src/payments/uniffi_client.ts
+index 92797b98f..0e092f0b0 100644
+--- a/sdk/javascript/src/payments/uniffi_client.ts
++++ b/sdk/javascript/src/payments/uniffi_client.ts
+@@ -114,7 +114,7 @@ function checkCallStatus(ffi: FfiFunctions, status: RustCallStatus): void {
+   if (status.code === 0) return;
+ 
+   // Only Rust panics should reach here now (status.code === 2)
+-  // Normal errors are encoded as protobuf RequestError/ResponseError in returned bytes
++  // Normal errors are encoded as protobuf IntegrationError/ConnectorResponseTransformationError in returned bytes
+   if (status.error_buf.len > 0n) {
+     const msg = liftString(status.error_buf);
+     freeRustBuffer(ffi, status.error_buf);
+@@ -209,16 +209,16 @@ export class UniffiClient {
+             throw new Error("Expected httpRequest in FfiResult, but got null/undefined");
+           }
+           return Buffer.from(types.FfiConnectorHttpRequest.encode(resultMsg.httpRequest).finish());
+-        case types.FfiResult.Type.REQUEST_ERROR:
+-          if (!resultMsg.requestError) {
+-            throw new Error("Expected requestError in FfiResult, but got null/undefined");
++        case types.FfiResult.Type.INTEGRATION_ERROR:
++          if (!resultMsg.integrationError) {
++            throw new Error("Expected integrationError in FfiResult, but got null/undefined");
+           }
+-          throw resultMsg.requestError;
+-        case types.FfiResult.Type.RESPONSE_ERROR:
+-          if (!resultMsg.responseError) {
+-            throw new Error("Expected responseError in FfiResult, but got null/undefined");
++          throw resultMsg.integrationError;
++        case types.FfiResult.Type.CONNECTOR_RESPONSE_TRANSFORMATION_ERROR:
++          if (!resultMsg.connectorResponseTransformationError) {
++            throw new Error("Expected connectorResponseTransformationError in FfiResult, but got null/undefined");
+           }
+-          throw resultMsg.responseError;
++          throw resultMsg.connectorResponseTransformationError;
+         default:
+           throw new Error(`Unknown result type: ${resultMsg.type}`);
+       }
+@@ -260,16 +260,16 @@ export class UniffiClient {
+             throw new Error("Expected httpResponse in FfiResult, but got null/undefined");
+           }
+           return Buffer.from(types.FfiConnectorHttpResponse.encode(resultMsg.httpResponse).finish());
+-        case types.FfiResult.Type.RESPONSE_ERROR:
+-          if (!resultMsg.responseError) {
+-            throw new Error("Expected responseError in FfiResult, but got null/undefined");
++        case types.FfiResult.Type.CONNECTOR_RESPONSE_TRANSFORMATION_ERROR:
++          if (!resultMsg.connectorResponseTransformationError) {
++            throw new Error("Expected connectorResponseTransformationError in FfiResult, but got null/undefined");
+           }
+-          throw resultMsg.responseError;
+-        case types.FfiResult.Type.REQUEST_ERROR:
+-          if (!resultMsg.requestError) {
+-            throw new Error("Expected requestError in FfiResult, but got null/undefined");
++          throw resultMsg.connectorResponseTransformationError;
++        case types.FfiResult.Type.INTEGRATION_ERROR:
++          if (!resultMsg.integrationError) {
++            throw new Error("Expected integrationError in FfiResult, but got null/undefined");
+           }
+-          throw resultMsg.requestError;
++          throw resultMsg.integrationError;
+         default:
+           throw new Error(`Unknown result type: ${resultMsg.type}`);
+       }
+@@ -309,16 +309,16 @@ export class UniffiClient {
+             throw new Error("Expected httpResponse in FfiResult, but got null/undefined");
+           }
+           return Buffer.from(types.FfiConnectorHttpResponse.encode(resultMsg.httpResponse).finish());
+-        case types.FfiResult.Type.RESPONSE_ERROR:
+-          if (!resultMsg.responseError) {
+-            throw new Error("Expected responseError in FfiResult, but got null/undefined");
++        case types.FfiResult.Type.CONNECTOR_RESPONSE_TRANSFORMATION_ERROR:
++          if (!resultMsg.connectorResponseTransformationError) {
++            throw new Error("Expected connectorResponseTransformationError in FfiResult, but got null/undefined");
+           }
+-          throw resultMsg.responseError;
+-        case types.FfiResult.Type.REQUEST_ERROR:
+-          if (!resultMsg.requestError) {
+-            throw new Error("Expected requestError in FfiResult, but got null/undefined");
++          throw resultMsg.connectorResponseTransformationError;
++        case types.FfiResult.Type.INTEGRATION_ERROR:
++          if (!resultMsg.integrationError) {
++            throw new Error("Expected integrationError in FfiResult, but got null/undefined");
+           }
+-          throw resultMsg.requestError;
++          throw resultMsg.integrationError;
+         default:
+           throw new Error(`Unknown result type: ${resultMsg.type}`);
+       }
+diff --git a/sdk/python/smoke-test/test_smoke.py b/sdk/python/smoke-test/test_smoke.py
+index de4c10e79..efea3cca2 100644
+--- a/sdk/python/smoke-test/test_smoke.py
++++ b/sdk/python/smoke-test/test_smoke.py
+@@ -50,8 +50,8 @@ def _bold(t: str)   -> str: return _c("1",  t)
+         ConnectorSpecificConfig,
+         SdkOptions,
+         Environment,
+-        RequestError,
+-        ResponseError,
++        IntegrationError,
++        ConnectorResponseTransformationError,
+     )
+     from payments.generated.connector_service_ffi import InternalError
+ except ImportError as e:
+@@ -241,9 +241,9 @@ async def test_connector_scenarios(
+                     response_display = f"<{type(response).__name__}>"
+                 print(_green(f"    [{scenario_key}] OK") + f" — {response_display}", flush=True)
+                 result["scenarios"][scenario_key] = {"passed": True, "result": response}
+-        except (RequestError, ResponseError, InternalError) as e:
++        except (IntegrationError, ConnectorResponseTransformationError, InternalError) as e:
+             # Connector rejected our test data — SDK round-trip succeeded.
+-            # RequestError/ResponseError: FFI completed a full cycle, connector returned error.
++            # IntegrationError/ConnectorResponseTransformationError: FFI completed a full cycle, connector returned error.
+             # UniffiError (e.g. HandlerError): FFI-level connector rejection before HTTP
+             # (e.g. InvalidWalletToken — bad probe token rejected during request building).
+             msg = getattr(e, 'error_message', None) or str(e)
+diff --git a/sdk/python/smoke-test/test_smoke_composite.py b/sdk/python/smoke-test/test_smoke_composite.py
+index 7bffd1e15..f6942c22d 100644
+--- a/sdk/python/smoke-test/test_smoke_composite.py
++++ b/sdk/python/smoke-test/test_smoke_composite.py
+@@ -35,8 +35,8 @@
+         AccessToken,
+         ConnectorState,
+         PaymentAddress,
+-        RequestError,
+-        ResponseError,
++        IntegrationError,
++        ConnectorResponseTransformationError,
+     )
+ except ImportError as e:
+     print(f"Error importing payments package: {e}")
+@@ -109,12 +109,12 @@ async def test_access_token_flow() -> None:
+             print("  WARNING: No access token in response")
+             print(f"  Full response: {access_token_response}")
+ 
+-    except RequestError as e:
+-        print(f"  RequestError: {e.error_code} - {e.error_message}")
++    except IntegrationError as e:
++        print(f"  IntegrationError: {e.error_code} - {e.error_message}")
+         print("  This might be expected if credentials are not valid")
+         return
+-    except ResponseError as e:
+-        print(f"  ResponseError: {e.error_code} - {e.error_message}")
++    except ConnectorResponseTransformationError as e:
++        print(f"  ConnectorResponseTransformationError: {e.error_code} - {e.error_message}")
+         print("  This might be expected if credentials are not valid")
+         return
+     except Exception as e:
+@@ -168,11 +168,11 @@ async def test_access_token_flow() -> None:
+         print(f"  Response type: {type(authorize_response).__name__}")
+         print(f"  Payment status: {authorize_response.status}")
+         print("  PASSED")
+-    except RequestError as e:
+-        print(f"  RequestError: {e.error_code} - {e.error_message}")
++    except IntegrationError as e:
++        print(f"  IntegrationError: {e.error_code} - {e.error_message}")
+         print("  PASSED (round-trip completed, error is from PayPal)")
+-    except ResponseError as e:
+-        print(f"  ResponseError: {e.error_code} - {e.error_message}")
++    except ConnectorResponseTransformationError as e:
++        print(f"  ConnectorResponseTransformationError: {e.error_code} - {e.error_message}")
+         print("  PASSED (round-trip completed, error is from PayPal)")
+     except Exception as e:
+         print(f"  Error during authorize: {e}")
+diff --git a/sdk/python/src/payments/__init__.py b/sdk/python/src/payments/__init__.py
+index 1b92b3fa8..23e02a546 100644
+--- a/sdk/python/src/payments/__init__.py
++++ b/sdk/python/src/payments/__init__.py
+@@ -3,7 +3,7 @@
+ # Export structure:
+ #   - PaymentClient, MerchantAuthenticationClient (per-service high-level API)
+ #   - Direct imports via wildcard from generated proto files
+-#   - Exception classes (RequestError, ResponseError) from connector_client
++#   - Exception classes (IntegrationError, ConnectorResponseTransformationError) from connector_client
+ 
+ from payments._generated_service_clients import (
+     CustomerClient,
+@@ -22,7 +22,7 @@
+ from payments.generated.connector_service_ffi import *
+ 
+ # Exception classes - override protobuf message types with proper Exception classes
+-from payments.connector_client import RequestError, ResponseError
++from payments.connector_client import IntegrationError, ConnectorResponseTransformationError
+ from payments.http_client import NetworkError, NetworkErrorCode
+ 
+ # Expose proto modules for namespaced access (e.g., payments.Connector, configs.Environment)
+diff --git a/sdk/python/src/payments/connector_client.py b/sdk/python/src/payments/connector_client.py
+index 8494382c4..116f6c8c5 100644
+--- a/sdk/python/src/payments/connector_client.py
++++ b/sdk/python/src/payments/connector_client.py
+@@ -13,15 +13,15 @@
+ 
+ Error Handling:
+   FFI transformers return raw bytes that may represent either a success proto or an
+-  error proto (RequestError for req_transformer, ResponseError for res_transformer).
+-  On error, the decoded proto (RequestError or ResponseError) is raised directly.
++  error proto (IntegrationError for req_transformer, ConnectorResponseTransformationError for res_transformer).
++  On error, the decoded proto (IntegrationError or ConnectorResponseTransformationError) is raised directly.
+   Callers can catch the specific error type:
+ 
+       try:
+           response = await client.authorize(request)
+-      except RequestError as e:
++      except IntegrationError as e:
+           print(e.error_code, e.error_message)
+-      except ResponseError as e:
++      except ConnectorResponseTransformationError as e:
+           print(e.error_code, e.error_message)
+ """
+ 
+@@ -37,19 +37,19 @@
+     FfiConnectorHttpRequest,
+     FfiConnectorHttpResponse,
+     HttpConfig,
+-    RequestError as RequestErrorProto,
+-    ResponseError as ResponseErrorProto,
++    IntegrationError as IntegrationErrorProto,
++    ConnectorResponseTransformationError as ConnectorResponseTransformationErrorProto,
+     FfiResult,
+ )
+ 
+ 
+-class RequestError(Exception):
+-    """Exception raised when req_transformer fails.
++class IntegrationError(Exception):
++    """Exception raised when req_transformer fails (request integration error).
+ 
+-    Wraps RequestErrorProto and provides transparent access to proto fields.
++    Wraps IntegrationError proto and provides transparent access to proto fields.
+     """
+ 
+-    def __init__(self, proto: RequestErrorProto):
++    def __init__(self, proto: IntegrationErrorProto):
+         super().__init__(proto.error_message)
+         self._proto = proto
+ 
+@@ -58,13 +58,13 @@ def __getattr__(self, name: str):
+         return getattr(self._proto, name)
+ 
+ 
+-class ResponseError(Exception):
+-    """Exception raised when res_transformer fails.
++class ConnectorResponseTransformationError(Exception):
++    """Exception raised when res_transformer fails (response transformation error).
+ 
+-    Wraps ResponseErrorProto and provides transparent access to proto fields.
++    Wraps ConnectorResponseTransformationError proto and provides transparent access to proto fields.
+     """
+ 
+-    def __init__(self, proto: ResponseErrorProto):
++    def __init__(self, proto: ConnectorResponseTransformationErrorProto):
+         super().__init__(proto.error_message)
+         self._proto = proto
+ 
+@@ -85,8 +85,8 @@ def check_req(result_bytes: bytes) -> Any:
+         FfiConnectorHttpRequest on success (HTTP_REQUEST type).
+ 
+     Raises:
+-        RequestError: If the result type is REQUEST_ERROR.
+-        ResponseError: If the result type is RESPONSE_ERROR.
++        IntegrationError: If the result type is INTEGRATION_ERROR.
++        ConnectorResponseTransformationError: If the result type is CONNECTOR_RESPONSE_TRANSFORMATION_ERROR.
+         ValueError: If the result type is unknown or invalid.
+     """
+     result = FfiResult()
+@@ -98,10 +98,10 @@ def check_req(result_bytes: bytes) -> Any:
+     if result_type == FfiResult.HTTP_REQUEST:
+         # Return the typed HTTP request directly
+         return result.http_request
+-    elif result_type == FfiResult.REQUEST_ERROR:
+-        raise RequestError(result.request_error)
+-    elif result_type == FfiResult.RESPONSE_ERROR:
+-        raise ResponseError(result.response_error)
++    elif result_type == FfiResult.INTEGRATION_ERROR:
++        raise IntegrationError(result.integration_error)
++    elif result_type == FfiResult.CONNECTOR_RESPONSE_TRANSFORMATION_ERROR:
++        raise ConnectorResponseTransformationError(result.connector_response_transformation_error)
+     else:
+         raise ValueError(f"Unknown result type: {result_type}")
+ 
+@@ -117,8 +117,8 @@ def check_res(result_bytes: bytes) -> Any:
+         FfiConnectorHttpResponse on success (HTTP_RESPONSE type).
+ 
+     Raises:
+-        ResponseError: If the result type is RESPONSE_ERROR.
+-        RequestError: If the result type is REQUEST_ERROR.
++        ConnectorResponseTransformationError: If the result type is CONNECTOR_RESPONSE_TRANSFORMATION_ERROR.
++        IntegrationError: If the result type is INTEGRATION_ERROR.
+         ValueError: If the result type is unknown or invalid.
+     """
+     result = FfiResult()
+@@ -130,10 +130,10 @@ def check_res(result_bytes: bytes) -> Any:
+     if result_type == FfiResult.HTTP_RESPONSE:
+         # Return the typed HTTP response directly
+         return result.http_response
+-    elif result_type == FfiResult.RESPONSE_ERROR:
+-        raise ResponseError(result.response_error)
+-    elif result_type == FfiResult.REQUEST_ERROR:
+-        raise RequestError(result.request_error)
++    elif result_type == FfiResult.CONNECTOR_RESPONSE_TRANSFORMATION_ERROR:
++        raise ConnectorResponseTransformationError(result.connector_response_transformation_error)
++    elif result_type == FfiResult.INTEGRATION_ERROR:
++        raise IntegrationError(result.integration_error)
+     else:
+         raise ValueError(f"Unknown result type: {result_type}")
+ 
+@@ -190,7 +190,7 @@ async def _execute_flow(
+         """
+         Execute a full payment flow round-trip asynchronously.
+ 
+-        Errors from the FFI layer are raised as RequestError or ResponseError directly.
++        Errors from the FFI layer are raised as IntegrationError or ConnectorResponseTransformationError directly.
+ 
+         Args:
+             flow: Flow name matching the FFI transformer prefix (e.g. "authorize").
+@@ -202,8 +202,8 @@ async def _execute_flow(
+             Decoded domain response proto.
+ 
+         Raises:
+-            RequestError: On req_transformer failures.
+-            ResponseError: On res_transformer failures.
++            IntegrationError: On req_transformer failures.
++            ConnectorResponseTransformationError: On res_transformer failures.
+         """
+         req_transformer = getattr(_ffi, f"{flow}_req_transformer")
+         res_transformer = getattr(_ffi, f"{flow}_res_transformer")
+@@ -215,7 +215,7 @@ async def _execute_flow(
+         options_bytes = ffi_options.SerializeToString()
+ 
+         # 2. Build connector HTTP request via FFI
+-        #    Parse result bytes as FfiConnectorHttpRequest; if that fails, parse as RequestError.
++        #    Parse result bytes as FfiConnectorHttpRequest; if that fails, parse as IntegrationError.
+         result_bytes = req_transformer(request_bytes, options_bytes)
+         connector_req = check_req(result_bytes)
+ 
+@@ -243,7 +243,7 @@ async def _execute_flow(
+         res_bytes = res_proto.SerializeToString()
+ 
+         # 5. Parse connector response via FFI
+-        #    Parse result bytes as response_cls; if that fails, parse as ResponseError.
++        #    Parse result bytes as response_cls; if that fails, parse as ConnectorResponseTransformationError.
+         result_bytes_res = res_transformer(res_bytes, request_bytes, options_bytes)
+         http_response = check_res(result_bytes_res)
+         
+@@ -264,7 +264,7 @@ def _execute_direct(
+         Execute a single-step flow: FFI transformer called directly, no HTTP round-trip.
+ 
+         Used for inbound flows like webhook processing where the connector sends
+-        data to us. Errors are raised as ResponseError directly.
++        data to us. Errors are raised as ConnectorResponseTransformationError directly.
+ 
+         Args:
+             flow: Flow name matching the FFI transformer (e.g. "handle_event").
+@@ -276,7 +276,7 @@ def _execute_direct(
+             Decoded domain response proto.
+ 
+         Raises:
+-            ResponseError: On FFI transformer failures.
++            ConnectorResponseTransformationError: On FFI transformer failures.
+         """
+         transformer = getattr(_ffi, f"{flow}_transformer")
+ 
+diff --git a/sdk/python/src/payments/http_client.py b/sdk/python/src/payments/http_client.py
+index 5975d4bb8..4a13ec7b4 100644
+--- a/sdk/python/src/payments/http_client.py
++++ b/sdk/python/src/payments/http_client.py
+@@ -49,7 +49,7 @@ def __init__(
+ 
+     @property
+     def error_code(self) -> str:
+-        """String error code for parity with RequestError/ResponseError (e.g. 'CONNECT_TIMEOUT')."""
++        """String error code for parity with IntegrationError/ConnectorResponseTransformationError (e.g. 'CONNECT_TIMEOUT')."""
+         names = {
+             sdk_config_pb2.NetworkErrorCode.CONNECT_TIMEOUT_EXCEEDED: "CONNECT_TIMEOUT_EXCEEDED",
+             sdk_config_pb2.NetworkErrorCode.RESPONSE_TIMEOUT_EXCEEDED: "RESPONSE_TIMEOUT_EXCEEDED",

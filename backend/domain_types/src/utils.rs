@@ -13,7 +13,7 @@ use serde_json::Value;
 use time::PrimitiveDateTime;
 
 use crate::{
-    errors::{self, ApiError, ApplicationErrorResponse, ParsingError},
+    errors::{self, ConnectorRequestError, ParsingError},
     payment_method_data::{Card, PaymentMethodData, PaymentMethodDataTypes},
     router_data::ErrorResponse,
     router_response_types::Response,
@@ -295,7 +295,7 @@ pub fn convert_amount<T>(
     amount_convertor: &dyn AmountConvertor<Output = T>,
     amount: MinorUnit,
     currency: common_enums::Currency,
-) -> core::result::Result<T, Error> {
+) -> core::result::Result<T, error_stack::Report<errors::ConnectorError>> {
     amount_convertor
         .convert(amount, currency)
         .change_context(errors::ConnectorError::AmountConversionFailed)
@@ -376,19 +376,16 @@ static CARD_REGEX: LazyLock<HashMap<CardIssuer, core::result::Result<Regex, rege
 /// header is missing, a default ID is auto-generated.
 pub fn extract_merchant_id_from_metadata(
     metadata: &MaskedMetadata,
-) -> Result<common_utils::id_type::MerchantId, ApplicationErrorResponse> {
+) -> Result<common_utils::id_type::MerchantId, ConnectorRequestError> {
     let merchant_id_str = common_utils::metadata::merchant_id_or_default(
         metadata.get_raw(consts::X_MERCHANT_ID).as_deref(),
     );
     Ok(merchant_id_str
         .parse::<common_utils::id_type::MerchantId>()
-        .map_err(|e| {
-            ApplicationErrorResponse::BadRequest(ApiError {
-                sub_code: "INVALID_MERCHANT_ID".to_owned(),
-                error_identifier: 400,
-                error_message: format!("Failed to parse merchant ID from header: {e}"),
-                error_object: None,
-            })
+        .map_err(|_| {
+            ConnectorRequestError::InvalidDataFormat {
+                field_name: "x-merchant-id",
+            }
         })?)
 }
 
