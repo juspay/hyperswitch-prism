@@ -52,7 +52,8 @@ use transformers::{
     BillwerkPaymentsResponse as BillwerkPaymentsSyncResponse,
     BillwerkPaymentsResponse as BillwerkPaymentsVoidResponse,
     BillwerkPaymentsResponse as BillwerkCaptureResponse, BillwerkRefundRequest,
-    BillwerkTokenRequest, BillwerkTokenResponse, RefundResponse as BillwerkRefundResponse,
+    BillwerkRepeatPaymentRequest, BillwerkRepeatPaymentResponse, BillwerkTokenRequest,
+    BillwerkTokenResponse, RefundResponse as BillwerkRefundResponse,
     RefundResponse as BillwerkRSyncResponse,
 };
 
@@ -247,16 +248,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
-        RepeatPayment,
-        PaymentFlowData,
-        RepeatPaymentData<T>,
-        PaymentsResponseData,
-    > for Billwerk<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
         CreateOrder,
         PaymentFlowData,
         PaymentCreateOrderData,
@@ -381,6 +372,12 @@ macros::create_all_prerequisites!(
             request_body: BillwerkPaymentsRequest,
             response_body: BillwerkPaymentsResponse,
             router_data: RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: RepeatPayment,
+            request_body: BillwerkRepeatPaymentRequest,
+            response_body: BillwerkRepeatPaymentResponse,
+            router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         ),
         (
             flow: PSync,
@@ -557,6 +554,34 @@ macros::macro_connector_implementation!(
         fn get_url(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, errors::ConnectorError> {
+            Ok(format!("{}v1/charge", self.connector_base_url_payments(req)))
+        }
+    }
+);
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Billwerk,
+    curl_request: Json(BillwerkRepeatPaymentRequest),
+    curl_response: BillwerkRepeatPaymentResponse,
+    flow_name: RepeatPayment,
+    resource_common_data: PaymentFlowData,
+    flow_request: RepeatPaymentData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, errors::ConnectorError> {
             Ok(format!("{}v1/charge", self.connector_base_url_payments(req)))
         }

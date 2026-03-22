@@ -9,11 +9,12 @@ use common_utils::{
 use crate::{connectors::billwerk::BillwerkRouterData, types::ResponseRouterData, utils};
 
 use domain_types::{
-    connector_flow::{Authorize, Capture, PaymentMethodToken, RSync},
+    connector_flow::{Authorize, Capture, PaymentMethodToken, RSync, RepeatPayment},
     connector_types::{
-        PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
-        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
+        MandateReferenceId, PaymentFlowData, PaymentMethodTokenResponse,
+        PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsResponseData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
+        RepeatPaymentData, ResponseId,
     },
     errors::ConnectorError,
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
@@ -79,7 +80,9 @@ pub struct BillwerkPaymentsRequest {
     amount: MinorUnit,
     source: Secret<String>,
     currency: common_enums::Currency,
-    customer: BillwerkCustomerObject,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    customer: Option<BillwerkCustomerObject>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     metadata: Option<common_utils::pii::SecretSerdeValue>,
     settle: bool,
 }
@@ -258,7 +261,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             amount: item.router_data.request.amount,
             source,
             currency: item.router_data.request.currency,
-            customer: BillwerkCustomerObject {
+            customer: Some(BillwerkCustomerObject {
                 handle: item.router_data.resource_common_data.customer_id.clone(),
                 email: item.router_data.request.email.clone(),
                 address: item
@@ -285,7 +288,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .router_data
                     .resource_common_data
                     .get_optional_billing_last_name(),
-            },
+            }),
             metadata: item.router_data.request.metadata.clone(),
             settle: item.router_data.request.is_auto_capture()?,
         })
@@ -481,3 +484,116 @@ impl TryFrom<ResponseRouterData<RefundResponse, Self>>
         })
     }
 }
+
+// RepeatPayment (MIT) flow types - reuse the same charge endpoint and response
+pub type BillwerkRepeatPaymentRequest = BillwerkPaymentsRequest;
+pub type BillwerkRepeatPaymentResponse = BillwerkPaymentsResponse;
+
+// RepeatPayment (MIT) request transformer
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        BillwerkRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for BillwerkRepeatPaymentRequest
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: BillwerkRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        // Extract the stored payment method reference (connector_mandate_id) as the source
+        let source = match &item.router_data.request.mandate_reference {
+            MandateReferenceId::ConnectorMandateId(connector_mandate_ref) => {
+                let mandate_id = connector_mandate_ref.get_connector_mandate_id().ok_or(
+                    ConnectorError::MissingRequiredField {
+                        field_name: "connector_mandate_id",
+                    },
+                )?;
+                Secret::new(mandate_id)
+            }
+            MandateReferenceId::NetworkMandateId(_) => {
+                return Err(ConnectorError::NotImplemented(
+                    "Network mandate ID not supported for repeat payments in billwerk".to_string(),
+                )
+                .into());
+            }
+            MandateReferenceId::NetworkTokenWithNTI(_) => {
+                return Err(ConnectorError::NotImplemented(
+                    "Network token with NTI not supported for repeat payments in billwerk"
+                        .to_string(),
+                )
+                .into());
+            }
+        };
+
+        // For MIT, only include customer object if we have a customer handle.
+        // The source (ca_...) already identifies both the customer and payment method.
+        // Sending customer.handle=null causes Billwerk to fail with "Payment method not found".
+        let customer = item
+            .router_data
+            .resource_common_data
+            .customer_id
+            .as_ref()
+            .map(|_| BillwerkCustomerObject {
+                handle: item.router_data.resource_common_data.customer_id.clone(),
+                email: item.router_data.request.get_optional_email(),
+                address: item
+                    .router_data
+                    .resource_common_data
+                    .get_optional_billing_line1(),
+                address2: item
+                    .router_data
+                    .resource_common_data
+                    .get_optional_billing_line2(),
+                city: item
+                    .router_data
+                    .resource_common_data
+                    .get_optional_billing_city(),
+                country: item
+                    .router_data
+                    .resource_common_data
+                    .get_optional_billing_country(),
+                first_name: item
+                    .router_data
+                    .resource_common_data
+                    .get_optional_billing_first_name(),
+                last_name: item
+                    .router_data
+                    .resource_common_data
+                    .get_optional_billing_last_name(),
+            });
+
+        Ok(Self {
+            handle: item
+                .router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
+            amount: item.router_data.request.minor_amount,
+            source,
+            currency: item.router_data.request.currency,
+            customer,
+            metadata: item.router_data.request.metadata.clone(),
+            settle: item.router_data.request.is_auto_capture()?,
+        })
+    }
+}
+
+// RepeatPayment (MIT) response: reuses the generic `impl<F, T> TryFrom<ResponseRouterData<BillwerkPaymentsResponse, Self>>
+// for RouterDataV2<F, PaymentFlowData, T, PaymentsResponseData>` defined above, since
+// BillwerkRepeatPaymentResponse is an alias for BillwerkPaymentsResponse.
