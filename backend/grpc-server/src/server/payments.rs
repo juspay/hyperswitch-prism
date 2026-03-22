@@ -28,7 +28,7 @@ use domain_types::{
         RefundsData, RefundsResponseData, RepeatPaymentData, SessionTokenRequestData,
         SessionTokenResponseData, SetupMandateRequestData, VerifyWebhookSourceFlowData,
     },
-    errors::ApplicationErrorResponse,
+    errors::{ApplicationErrorResponse, ConnectorFlowError, ConnectorRequestError},
     payment_method_data::{DefaultPCIHolder, PaymentMethodDataTypes, VaultTokenHolder},
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -1018,7 +1018,7 @@ impl Payments {
         )
         .await
         .map_err(
-            |e: error_stack::Report<domain_types::errors::ConnectorError>| {
+            |e: error_stack::Report<ConnectorFlowError>| {
                 PaymentAuthorizationError::new(
                     grpc_api_types::payments::PaymentStatus::Pending,
                     Some(format!("Order creation failed: {e}")),
@@ -2707,7 +2707,7 @@ impl MerchantAuthentication {
         event_params: EventParams<'_>,
     ) -> Result<SessionTokenResponseData, PaymentAuthorizationError>
     where
-        SessionTokenRequestData: ForeignTryFrom<P, Error = ApplicationErrorResponse>,
+        SessionTokenRequestData: ForeignTryFrom<P, Error = ConnectorRequestError>,
     {
         // Get connector integration
         let connector_integration: BoxedConnectorIntegrationV2<
@@ -2843,7 +2843,7 @@ impl MerchantAuthentication {
     ) -> Result<AccessTokenResponseData, PaymentAuthorizationError>
     where
         AccessTokenRequestData:
-            for<'a> ForeignTryFrom<&'a ConnectorSpecificConfig, Error = ApplicationErrorResponse>,
+            for<'a> ForeignTryFrom<&'a ConnectorSpecificConfig, Error = ConnectorRequestError>,
     {
         // Get connector integration for CreateAccessToken flow
         let connector_integration: BoxedConnectorIntegrationV2<

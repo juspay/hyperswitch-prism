@@ -1,0 +1,3 @@
+# Codegen dependencies for generate.py (jinja2 templates, protobuf descriptor parsing)
+jinja2>=3.0
+protobuf>=4.0

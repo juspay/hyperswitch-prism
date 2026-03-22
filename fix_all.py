@@ -1,0 +1,29 @@
+import sys
+import re
+
+file_path = 'backend/domain_types/src/types.rs'
+with open(file_path, 'r') as f:
+    content = f.read()
+
+# 1. Correct the common broken patterns where extra parentheses were added by regex
+# Match: report!(ConnectorRequestError::MissingRequiredField { ... }))),
+# Should be: report!(ConnectorRequestError::MissingRequiredField { field_name: "amount" })
+content = re.sub(r'report!\(ConnectorRequestError::MissingRequiredField \{ field_name: "(.*?)" \}\)\)\)',
+                 r'report!(ConnectorRequestError::MissingRequiredField { field_name: "\1" })', content)
+
+# 2. Fix nested report!
+content = content.replace('report!(report!(', 'report!(')
+
+# 3. Fix the specific Email parsing block corruption
+# Change: .map_err(|_| { error_stack::Report::new(report!(...)) })))
+# To: .map_err(|_| { report!(...) })
+content = re.sub(r'error_stack::Report::new\(report!\(ConnectorRequestError::(?:MissingRequiredField|InvalidDataFormat)\s*\{\s*field_name:\s*"(.*?)"\s*\}\s*\)\s*\)',
+                 r'report!(ConnectorRequestError::InvalidDataFormat { field_name: "\1" })', content, flags=re.DOTALL)
+
+# 4. Correct common corrupted endings of ForeignTryFrom
+content = content.replace('}))\n        }?;', '}))?;')
+content = content.replace('})) )?', '))?')
+content = content.replace('})) )', '))')
+
+with open(file_path, 'w') as f:
+    f.write(content)

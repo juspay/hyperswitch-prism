@@ -1,4 +1,7 @@
-use domain_types::errors::{ApiClientError, ApiError, ApplicationErrorResponse, ConnectorError};
+use domain_types::errors::{
+    ApiClientError, ApiError, ApplicationErrorResponse, ConnectorError, ConnectorFlowError,
+    ConnectorRequestError, ConnectorResponseError, WebhookError,
+};
 use grpc_api_types::payments::PaymentServiceAuthorizeResponse;
 use tonic::Status;
 
@@ -37,22 +40,6 @@ pub trait ErrorSwitch<T> {
     fn switch(&self) -> T;
 }
 
-/// Allow [error_stack::Report] to convert between error types
-/// This serves as an alternative to [ErrorSwitch]
-pub trait ErrorSwitchFrom<T> {
-    /// Convert to an error type that the source can be escalated into
-    /// This does not consume the source error since we need to keep it in context
-    fn switch_from(error: &T) -> Self;
-}
-
-impl<T, S> ErrorSwitch<T> for S
-where
-    T: ErrorSwitchFrom<Self>,
-{
-    fn switch(&self) -> T {
-        T::switch_from(self)
-    }
-}
 pub trait IntoGrpcStatus {
     fn into_grpc_status(self) -> Status;
 }
@@ -86,6 +73,174 @@ pub enum ConfigurationError {
     ServerError(#[from] tonic::transport::Error),
     #[error("IO error: {0}")]
     IoError(#[from] std::io::Error),
+}
+
+impl IntoGrpcStatus for error_stack::Report<ConnectorRequestError> {
+    fn into_grpc_status(self) -> Status {
+        logger::error!(error=?self);
+        match self.current_context() {
+            ConnectorRequestError::MissingRequiredField { .. }
+            | ConnectorRequestError::MissingRequiredFields { .. }
+            | ConnectorRequestError::InvalidDataFormat { .. }
+            | ConnectorRequestError::InvalidWallet
+            | ConnectorRequestError::MissingPaymentMethodType
+            | ConnectorRequestError::MismatchedPaymentData
+            | ConnectorRequestError::MandatePaymentDataMismatch { .. }
+            | ConnectorRequestError::MissingApplePayTokenData
+            | ConnectorRequestError::MissingConnectorTransactionID
+            | ConnectorRequestError::MissingConnectorRefundID
+            | ConnectorRequestError::MissingConnectorMandateID
+            | ConnectorRequestError::MissingConnectorMandateMetadata
+            | ConnectorRequestError::MissingConnectorRelatedTransactionID { .. } => {
+                Status::invalid_argument(self.to_string())
+            }
+            ConnectorRequestError::NotSupported { .. }
+            | ConnectorRequestError::FlowNotSupported { .. }
+            | ConnectorRequestError::NotImplemented(_)
+            | ConnectorRequestError::CaptureMethodNotSupported => {
+                Status::unimplemented(self.to_string())
+            }
+            ConnectorRequestError::CurrencyNotSupported { .. }
+            | ConnectorRequestError::InvalidConnectorConfig { .. } => {
+                Status::failed_precondition(self.to_string())
+            }
+            _ => Status::internal(self.to_string()),
+        }
+    }
+}
+
+impl IntoGrpcStatus for error_stack::Report<ConnectorResponseError> {
+    fn into_grpc_status(self) -> Status {
+        logger::error!(error=?self);
+        Status::internal(self.to_string())
+    }
+}
+
+impl IntoGrpcStatus for error_stack::Report<ApiClientError> {
+    fn into_grpc_status(self) -> Status {
+        logger::error!(error=?self);
+        match self.current_context() {
+            ApiClientError::RequestTimeoutReceived | ApiClientError::GatewayTimeoutReceived => {
+                Status::deadline_exceeded(self.to_string())
+            }
+            _ => Status::unavailable(self.to_string()),
+        }
+    }
+}
+
+impl IntoGrpcStatus for error_stack::Report<ConnectorError> {
+    fn into_grpc_status(self) -> Status {
+        logger::error!(error=?self);
+        let ctx = self.current_context().clone();
+        let app = <ConnectorError as ErrorSwitch<ApplicationErrorResponse>>::switch(&ctx);
+        self.change_context(app).into_grpc_status()
+    }
+}
+
+impl IntoGrpcStatus for error_stack::Report<WebhookError> {
+    fn into_grpc_status(self) -> Status {
+        logger::error!(error=?self);
+        match self.current_context() {
+            WebhookError::WebhookSourceVerificationFailed
+            | WebhookError::WebhookSignatureNotFound
+            | WebhookError::WebhookVerificationSecretNotFound
+            | WebhookError::WebhookVerificationSecretInvalid => Status::unauthenticated(self.to_string()),
+            WebhookError::WebhookBodyDecodingFailed
+            | WebhookError::WebhookReferenceIdNotFound
+            | WebhookError::WebhookEventTypeNotFound
+            | WebhookError::WebhookResourceObjectNotFound => Status::invalid_argument(self.to_string()),
+            WebhookError::WebhooksNotImplemented => Status::unimplemented(self.to_string()),
+            _ => Status::internal(self.to_string()),
+        }
+    }
+}
+
+impl IntoGrpcStatus for error_stack::Report<ConnectorFlowError> {
+    fn into_grpc_status(self) -> Status {
+        match self.current_context().clone() {
+            ConnectorFlowError::Request(e) => self.change_context(e).into_grpc_status(),
+            ConnectorFlowError::Client(e) => self.change_context(e).into_grpc_status(),
+            ConnectorFlowError::Response(e) => self.change_context(e).into_grpc_status(),
+        }
+    }
+}
+
+impl ErrorSwitch<ApplicationErrorResponse> for ConnectorRequestError {
+    fn switch(&self) -> ApplicationErrorResponse {
+        <ConnectorError as ErrorSwitch<ApplicationErrorResponse>>::switch(&ConnectorError::from(
+            self.clone(),
+        ))
+    }
+}
+
+impl ErrorSwitch<ApplicationErrorResponse> for ConnectorResponseError {
+    fn switch(&self) -> ApplicationErrorResponse {
+        <ConnectorError as ErrorSwitch<ApplicationErrorResponse>>::switch(&ConnectorError::from(
+            self.clone(),
+        ))
+    }
+}
+
+impl ErrorSwitch<ApplicationErrorResponse> for ConnectorFlowError {
+    fn switch(&self) -> ApplicationErrorResponse {
+        match self {
+            Self::Request(e) => e.switch(),
+            Self::Client(e) => e.switch(),
+            Self::Response(e) => e.switch(),
+        }
+    }
+}
+
+/// Map a connector error report to a proto `IntegrationError` (single [`ErrorSwitch`] target for [`ConnectorError`]).
+pub fn connector_error_report_to_integration(
+    report: error_stack::Report<ConnectorError>,
+) -> grpc_api_types::payments::IntegrationError {
+    let app = <ConnectorError as ErrorSwitch<ApplicationErrorResponse>>::switch(report.current_context());
+    ErrorSwitch::switch(&app)
+}
+
+/// Map a request-phase connector error report to `IntegrationError`.
+pub fn connector_request_error_report_to_integration(
+    report: error_stack::Report<ConnectorRequestError>,
+) -> grpc_api_types::payments::IntegrationError {
+    let ctx = report.current_context().clone();
+    connector_error_report_to_integration(report.change_context(ConnectorError::from(ctx)))
+}
+
+/// Map a connector error report to `ConnectorResponseTransformationError`.
+pub fn connector_error_report_to_response_transformation(
+    report: error_stack::Report<ConnectorError>,
+) -> grpc_api_types::payments::ConnectorResponseTransformationError {
+    let app = <ConnectorError as ErrorSwitch<ApplicationErrorResponse>>::switch(report.current_context());
+    ErrorSwitch::switch(&app)
+}
+
+/// Map a request-phase connector error report to `ConnectorResponseTransformationError`.
+pub fn connector_request_error_report_to_response_transformation(
+    report: error_stack::Report<ConnectorRequestError>,
+) -> grpc_api_types::payments::ConnectorResponseTransformationError {
+    let ctx = report.current_context().clone();
+    connector_error_report_to_response_transformation(report.change_context(ConnectorError::from(ctx)))
+}
+
+/// Map a connector response error report to `ConnectorResponseTransformationError`.
+pub fn connector_response_error_report_to_response_transformation(
+    report: error_stack::Report<ConnectorResponseError>,
+) -> grpc_api_types::payments::ConnectorResponseTransformationError {
+    let app =
+        <ConnectorResponseError as ErrorSwitch<ApplicationErrorResponse>>::switch(report.current_context());
+    ErrorSwitch::switch(&app)
+}
+
+/// Map a report whose context converts to [`ConnectorError`] into `ConnectorResponseTransformationError`.
+pub fn report_connector_context_to_response_transformation<E>(
+    report: error_stack::Report<E>,
+) -> grpc_api_types::payments::ConnectorResponseTransformationError
+where
+    E: Clone + Into<ConnectorError> + error_stack::Context,
+{
+    let ctx: ConnectorError = report.current_context().clone().into();
+    connector_error_report_to_response_transformation(report.change_context(ctx))
 }
 
 impl ErrorSwitch<ApplicationErrorResponse> for ConnectorError {
