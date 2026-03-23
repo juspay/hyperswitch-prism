@@ -1084,7 +1084,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     })
                 };
 
-                Ok(RouterDataV2 {
+                Ok(Self {
                     response,
                     resource_common_data: PaymentFlowData {
                         status,
@@ -1113,7 +1113,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     None,
                 );
 
-                Ok(RouterDataV2 {
+                Ok(Self {
                     response: Err(ErrorResponse {
                         code: error_response
                             .error_information
