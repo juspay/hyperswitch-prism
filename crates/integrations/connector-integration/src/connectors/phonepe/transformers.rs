@@ -6,9 +6,10 @@ use common_utils::{
     types::MinorUnit,
 };
 use domain_types::{
-    connector_flow::{Authorize, PSync, TriggerOtpForWallet},
+    connector_flow::{Authorize, PSync, RefreshWalletBalance, TriggerOtpForWallet},
     connector_types::{
-        PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData, ResponseId,
+        PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData,
+        RefreshWalletBalanceData, RefreshWalletBalanceResponseData, ResponseId,
         TriggerOtpForWalletData, TriggerOtpForWalletResponseData,
     },
     errors,
@@ -1319,6 +1320,259 @@ impl TryFrom<ResponseRouterData<PhonepeTriggerOtpResponse, Self>>
 
             tracing::warn!(
                 "PhonePe TriggerOTP failed - Code: {}, Message: {}, Status: {}",
+                error_code,
+                error_message,
+                item.http_code
+            );
+
+            let attempt_status = get_phonepe_error_status(&error_code);
+
+            Ok(Self {
+                response: Err(domain_types::router_data::ErrorResponse {
+                    code: error_code,
+                    message: error_message.clone(),
+                    reason: Some(error_message),
+                    status_code: item.http_code,
+                    attempt_status,
+                    connector_transaction_id: None,
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                }),
+                ..item.router_data
+            })
+        }
+    }
+}
+
+// ===== REFRESH WALLET BALANCE =====
+
+/// Inner payload for wallet balance check request (serialized to JSON then base64 encoded)
+#[derive(Debug, Serialize)]
+struct GetWalletBalancePayload {
+    #[serde(rename = "merchantId")]
+    merchant_id: Secret<String>,
+    #[serde(rename = "userAuthToken")]
+    user_auth_token: Secret<String>,
+    #[serde(rename = "txnAmount")]
+    txn_amount: i64,
+    #[serde(rename = "topupWorkFlowType")]
+    topup_workflow_type: String,
+    #[serde(rename = "deviceContext", skip_serializing_if = "Option::is_none")]
+    device_context: Option<PhonepeDeviceContext>,
+}
+
+/// API request for balance check (sent as JSON body with base64-encoded request field)
+#[derive(Debug, Serialize)]
+pub struct PhonepeRefreshWalletBalanceRequest {
+    request: Secret<String>,
+    #[serde(skip)]
+    pub checksum: String,
+    #[serde(skip)]
+    pub device_id: Option<String>,
+}
+
+/// Success response from wallet balance check API
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PhonepeRefreshWalletBalanceResponse {
+    pub success: bool,
+    pub code: String,
+    pub message: String,
+    pub data: Option<WalletBalanceBlock>,
+}
+
+/// Data block in wallet balance success response
+#[derive(Debug, Deserialize, Serialize)]
+pub struct WalletBalanceBlock {
+    #[serde(rename = "responseType")]
+    pub response_type: Option<String>,
+    pub wallet: WalletBlock,
+    #[serde(rename = "userIdHash")]
+    pub user_id_hash: Option<String>,
+    #[serde(rename = "responseCode")]
+    pub response_code: Option<String>,
+    #[serde(rename = "responseCodeDescription")]
+    pub response_code_description: Option<String>,
+}
+
+/// Wallet balance details
+#[derive(Debug, Deserialize, Serialize)]
+pub struct WalletBlock {
+    #[serde(rename = "availableBalance")]
+    pub available_balance: i64,
+    #[serde(rename = "usableBalance")]
+    pub usable_balance: i64,
+    #[serde(rename = "maxTopupAllowed")]
+    pub max_topup_allowed: i64,
+    #[serde(rename = "debitPossible")]
+    pub debit_possible: Option<bool>,
+    #[serde(rename = "topupPossible")]
+    pub topup_possible: Option<bool>,
+}
+
+// TryFrom implementation for owned PhonepeRouterData wrapper (RefreshWalletBalance)
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        PhonepeRouterData<
+            RouterDataV2<
+                RefreshWalletBalance,
+                PaymentFlowData,
+                RefreshWalletBalanceData,
+                RefreshWalletBalanceResponseData,
+            >,
+            T,
+        >,
+    > for PhonepeRefreshWalletBalanceRequest
+{
+    type Error = Error;
+
+    fn try_from(
+        wrapper: PhonepeRouterData<
+            RouterDataV2<
+                RefreshWalletBalance,
+                PaymentFlowData,
+                RefreshWalletBalanceData,
+                RefreshWalletBalanceResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &wrapper.router_data;
+        let auth = PhonepeAuthType::try_from(&router_data.connector_config)?;
+
+        let txn_amount = router_data.request.txn_amount.unwrap_or(0);
+        let topup_workflow_type = if router_data.request.txn_amount.is_some() {
+            "TRANSACTIONAL".to_string()
+        } else {
+            "NON_TRANSACTIONAL".to_string()
+        };
+
+        let payload = GetWalletBalancePayload {
+            merchant_id: auth.merchant_id.clone(),
+            user_auth_token: router_data.request.user_auth_token.clone(),
+            txn_amount,
+            topup_workflow_type,
+            device_context: None,
+        };
+
+        let json_payload = Encode::encode_to_string_of_json(&payload)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
+        let base64_payload = base64::engine::general_purpose::STANDARD.encode(&json_payload);
+
+        let api_path = format!("/{}", constants::API_WALLET_BALANCE_ENDPOINT);
+        let checksum =
+            generate_phonepe_checksum(&base64_payload, &api_path, &auth.salt_key, &auth.key_index)?;
+
+        Ok(Self {
+            request: Secret::new(base64_payload),
+            checksum,
+            device_id: router_data.request.device_id.clone(),
+        })
+    }
+}
+
+// TryFrom implementation for borrowed PhonepeRouterData wrapper (RefreshWalletBalance header generation)
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        &PhonepeRouterData<
+            &RouterDataV2<
+                RefreshWalletBalance,
+                PaymentFlowData,
+                RefreshWalletBalanceData,
+                RefreshWalletBalanceResponseData,
+            >,
+            T,
+        >,
+    > for PhonepeRefreshWalletBalanceRequest
+{
+    type Error = Error;
+
+    fn try_from(
+        item: &PhonepeRouterData<
+            &RouterDataV2<
+                RefreshWalletBalance,
+                PaymentFlowData,
+                RefreshWalletBalanceData,
+                RefreshWalletBalanceResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = item.router_data;
+        let auth = PhonepeAuthType::try_from(&router_data.connector_config)?;
+
+        let txn_amount = router_data.request.txn_amount.unwrap_or(0);
+        let topup_workflow_type = if router_data.request.txn_amount.is_some() {
+            "TRANSACTIONAL".to_string()
+        } else {
+            "NON_TRANSACTIONAL".to_string()
+        };
+
+        let payload = GetWalletBalancePayload {
+            merchant_id: auth.merchant_id.clone(),
+            user_auth_token: router_data.request.user_auth_token.clone(),
+            txn_amount,
+            topup_workflow_type,
+            device_context: None,
+        };
+
+        let json_payload = Encode::encode_to_string_of_json(&payload)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
+        let base64_payload = base64::engine::general_purpose::STANDARD.encode(&json_payload);
+
+        let api_path = format!("/{}", constants::API_WALLET_BALANCE_ENDPOINT);
+        let checksum =
+            generate_phonepe_checksum(&base64_payload, &api_path, &auth.salt_key, &auth.key_index)?;
+
+        Ok(Self {
+            request: Secret::new(base64_payload),
+            checksum,
+            device_id: router_data.request.device_id.clone(),
+        })
+    }
+}
+
+// ===== REFRESH WALLET BALANCE RESPONSE HANDLING =====
+
+impl TryFrom<ResponseRouterData<PhonepeRefreshWalletBalanceResponse, Self>>
+    for RouterDataV2<
+        RefreshWalletBalance,
+        PaymentFlowData,
+        RefreshWalletBalanceData,
+        RefreshWalletBalanceResponseData,
+    >
+{
+    type Error = Error;
+
+    fn try_from(
+        item: ResponseRouterData<PhonepeRefreshWalletBalanceResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = &item.response;
+
+        if response.success {
+            if let Some(data) = &response.data {
+                Ok(Self {
+                    response: Ok(RefreshWalletBalanceResponseData {
+                        available_balance: data.wallet.available_balance,
+                        usable_balance: data.wallet.usable_balance,
+                        max_topup_allowed: data.wallet.max_topup_allowed,
+                        debit_possible: data.wallet.debit_possible,
+                        topup_possible: data.wallet.topup_possible,
+                        status_code: item.http_code,
+                    }),
+                    ..item.router_data
+                })
+            } else {
+                Err(errors::ConnectorError::ResponseDeserializationFailed.into())
+            }
+        } else {
+            let error_message = response.message.clone();
+            let error_code = response.code.clone();
+
+            tracing::warn!(
+                "PhonePe RefreshWalletBalance failed - Code: {}, Message: {}, Status: {}",
                 error_code,
                 error_message,
                 item.http_code

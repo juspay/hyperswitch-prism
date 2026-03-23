@@ -9,8 +9,12 @@
 
 use crate::connectors::*;
 use domain_types::{
+    connector_flow::RefreshWalletBalance,
     connector_flow::TriggerOtpForWallet,
-    connector_types::{PaymentFlowData, TriggerOtpForWalletData, TriggerOtpForWalletResponseData},
+    connector_types::{
+        PaymentFlowData, RefreshWalletBalanceData, RefreshWalletBalanceResponseData,
+        TriggerOtpForWalletData, TriggerOtpForWalletResponseData,
+    },
 };
 use domain_types::{
     connector_flow::VerifyWebhookSource, connector_types::VerifyWebhookSourceFlowData,
@@ -19,6 +23,7 @@ use domain_types::{
     router_response_types::VerifyWebhookSourceResponseData,
 };
 use interfaces::connector_integration_v2::ConnectorIntegrationV2;
+use interfaces::connector_types::RefreshWalletBalanceV2;
 use interfaces::connector_types::TriggerOtpForWalletV2;
 use interfaces::connector_types::VerifyWebhookSourceV2;
 
@@ -163,6 +168,111 @@ macro_rules! default_impl_trigger_otp_for_wallet_v2 {
 // Generate default (empty) implementations for all connectors except PhonePe
 // PhonePe has its own implementation in phonepe.rs
 default_impl_trigger_otp_for_wallet_v2!(
+    Adyen,
+    Aci,
+    Airwallex,
+    Authipay,
+    Authorizedotnet,
+    Bambora,
+    Bamboraapac,
+    Bankofamerica,
+    Barclaycard,
+    Billwerk,
+    Bluesnap,
+    Braintree,
+    Calida,
+    Cashfree,
+    Cashtocode,
+    Celero,
+    Checkout,
+    Cryptopay,
+    Cybersource,
+    Datatrans,
+    Dlocal,
+    Elavon,
+    Fiserv,
+    Fiservemea,
+    Fiuu,
+    Forte,
+    Getnet,
+    Gigadat,
+    Globalpay,
+    Helcim,
+    Hipay,
+    Hyperpg,
+    Iatapay,
+    Jpmorgan,
+    Loonio,
+    Mifinity,
+    Mollie,
+    Multisafepay,
+    Nexinets,
+    Nexixpay,
+    Nmi,
+    Noon,
+    Novalnet,
+    Nuvei,
+    Paybox,
+    Payload,
+    Payme,
+    Paysafe,
+    Paytm,
+    Payu,
+    Paypal,
+    Peachpayments,
+    Placetopay,
+    Powertranz,
+    Rapyd,
+    Razorpay,
+    RazorpayV2,
+    Redsys,
+    Revolut,
+    Revolv3,
+    Finix,
+    Shift4,
+    Silverflow,
+    Stax,
+    Stripe,
+    Truelayer,
+    Trustpay,
+    Trustpayments,
+    Tsys,
+    Volt,
+    Wellsfargo,
+    Worldpay,
+    Worldpayvantiv,
+    Worldpayxml,
+    Xendit,
+    Zift,
+    Ppro
+);
+
+/// Macro to generate empty implementations of RefreshWalletBalanceV2 for connectors
+/// that don't support wallet balance refresh.
+#[macro_export]
+macro_rules! default_impl_refresh_wallet_balance_v2 {
+    ($($connector:ident),*) => {
+        $(
+            impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + serde::Serialize>
+                RefreshWalletBalanceV2 for $connector<T>
+            {
+            }
+
+            impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + serde::Serialize>
+                ConnectorIntegrationV2<
+                    RefreshWalletBalance,
+                    PaymentFlowData,
+                    RefreshWalletBalanceData,
+                    RefreshWalletBalanceResponseData,
+                > for $connector<T>
+            {
+            }
+
+        )*
+    };
+}
+
+default_impl_refresh_wallet_balance_v2!(
     Adyen,
     Aci,
     Airwallex,

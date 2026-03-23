@@ -130,6 +130,10 @@ service PaymentService {
   // registered mobile number for wallet payment verification.
   rpc TriggerOtpForWallet(PaymentServiceTriggerOtpForWalletRequest) returns (PaymentServiceTriggerOtpForWalletResponse);
 
+  // Refresh wallet balance. Queries the connector for the current wallet balance
+  // using the user's authentication token.
+  rpc RefreshWalletBalance(PaymentServiceRefreshWalletBalanceRequest) returns (PaymentServiceRefreshWalletBalanceResponse);
+
   // Setup a recurring payment instruction for future payments/ debits. This could be
   // for SaaS subscriptions, monthly bill payments, insurance payments and similar use cases.
   rpc SetupRecurring(PaymentServiceSetupRecurringRequest) returns (PaymentServiceSetupRecurringResponse);

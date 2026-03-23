@@ -8,8 +8,9 @@ use domain_types::{
     connector_flow::{
         Accept, Authenticate, Authorize, Capture, CreateAccessToken, CreateConnectorCustomer,
         CreateOrder, CreateSessionToken, DefendDispute, IncrementalAuthorization, MandateRevoke,
-        PSync, PaymentMethodToken, PostAuthenticate, PreAuthenticate, RSync, Refund, RepeatPayment,
-        SdkSessionToken, SetupMandate, SubmitEvidence, TriggerOtpForWallet, Void, VoidPC,
+        PSync, PaymentMethodToken, PostAuthenticate, PreAuthenticate, RSync, RefreshWalletBalance,
+        Refund, RepeatPayment, SdkSessionToken, SetupMandate, SubmitEvidence, TriggerOtpForWallet,
+        Void, VoidPC,
     },
     connector_types::{
         AcceptDisputeData, AccessTokenRequestData, AccessTokenResponseData, ConnectorCustomerData,
@@ -20,10 +21,10 @@ use domain_types::{
         PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
         PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
         PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSdkSessionTokenData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        RepeatPaymentData, SessionTokenRequestData, SessionTokenResponseData,
-        SetupMandateRequestData, SubmitEvidenceData, TriggerOtpForWalletData,
-        TriggerOtpForWalletResponseData,
+        PaymentsSyncData, RefreshWalletBalanceData, RefreshWalletBalanceResponseData,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        SessionTokenRequestData, SessionTokenResponseData, SetupMandateRequestData,
+        SubmitEvidenceData, TriggerOtpForWalletData, TriggerOtpForWalletResponseData,
     },
     errors,
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, UpiData},
@@ -42,7 +43,8 @@ use serde::Serialize;
 use transformers as phonepe;
 
 use self::transformers::{
-    PhonepePaymentsRequest, PhonepePaymentsResponse, PhonepeSyncRequest, PhonepeSyncResponse,
+    PhonepePaymentsRequest, PhonepePaymentsResponse, PhonepeRefreshWalletBalanceRequest,
+    PhonepeRefreshWalletBalanceResponse, PhonepeSyncRequest, PhonepeSyncResponse,
     PhonepeTriggerOtpRequest, PhonepeTriggerOtpResponse,
 };
 use super::macros;
@@ -178,6 +180,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    connector_types::RefreshWalletBalanceV2 for Phonepe<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentTokenV2<T> for Phonepe<T>
 {
 }
@@ -209,6 +216,12 @@ macros::create_all_prerequisites!(
             request_body: PhonepeTriggerOtpRequest,
             response_body: PhonepeTriggerOtpResponse,
             router_data: RouterDataV2<TriggerOtpForWallet, PaymentFlowData, TriggerOtpForWalletData, TriggerOtpForWalletResponseData>,
+        ),
+        (
+            flow: RefreshWalletBalance,
+            request_body: PhonepeRefreshWalletBalanceRequest,
+            response_body: PhonepeRefreshWalletBalanceResponse,
+            router_data: RouterDataV2<RefreshWalletBalance, PaymentFlowData, RefreshWalletBalanceData, RefreshWalletBalanceResponseData>,
         )
     ],
     amount_converters: [
@@ -504,6 +517,63 @@ macros::macro_connector_implementation!(
                     config: "secondary_base_url",
                 })?;
             Ok(format!("{}{}", secondary_base_url, constants::API_OTP_SEND_ENDPOINT))
+        }
+    }
+);
+
+// RefreshWalletBalance flow implementation using macros
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Phonepe,
+    curl_request: Json(PhonepeRefreshWalletBalanceRequest),
+    curl_response: PhonepeRefreshWalletBalanceResponse,
+    flow_name: RefreshWalletBalance,
+    resource_common_data: PaymentFlowData,
+    flow_request: RefreshWalletBalanceData,
+    flow_response: RefreshWalletBalanceResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<RefreshWalletBalance, PaymentFlowData, RefreshWalletBalanceData, RefreshWalletBalanceResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+            let mut headers = vec![
+                (
+                    headers::CONTENT_TYPE.to_string(),
+                    "application/json".to_string().into(),
+                ),
+            ];
+
+            let connector_router_data = PhonepeRouterData {
+                connector: self.clone(),
+                router_data: req,
+            };
+            let connector_req = PhonepeRefreshWalletBalanceRequest::try_from(&connector_router_data)?;
+            headers.push((headers::X_VERIFY.to_string(), connector_req.checksum.into()));
+
+            if let Some(device_id) = &connector_req.device_id {
+                headers.push(("X-DEVICE-ID".to_string(), device_id.clone().into()));
+            }
+
+            Ok(headers)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<RefreshWalletBalance, PaymentFlowData, RefreshWalletBalanceData, RefreshWalletBalanceResponseData>,
+        ) -> CustomResult<String, errors::ConnectorError> {
+            let secondary_base_url = req
+                .resource_common_data
+                .connectors
+                .phonepe
+                .secondary_base_url
+                .as_ref()
+                .ok_or(errors::ConnectorError::InvalidConnectorConfig {
+                    config: "secondary_base_url",
+                })?;
+            Ok(format!("{}{}", secondary_base_url, constants::API_WALLET_BALANCE_ENDPOINT))
         }
     }
 );

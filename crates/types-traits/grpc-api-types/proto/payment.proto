@@ -3352,6 +3352,48 @@ message PaymentServiceTriggerOtpForWalletResponse {
   optional SecretString raw_connector_request = 7;
 }
 
+// Request message for refreshing wallet balance
+message PaymentServiceRefreshWalletBalanceRequest {
+  // User authentication token for the wallet
+  SecretString user_auth_token = 1;
+
+  // Merchant identifier
+  SecretString merchant_id = 2;
+
+  // Transaction amount in minor units (optional, defaults to 0 for non-transactional)
+  optional int64 txn_amount = 3;
+
+  // Device identifier (optional)
+  optional string device_id = 4;
+}
+
+// Response message for refreshing wallet balance
+message PaymentServiceRefreshWalletBalanceResponse {
+  // Available balance in minor units (paise)
+  int64 available_balance = 1;
+
+  // Usable balance in minor units (paise)
+  int64 usable_balance = 2;
+
+  // Maximum topup amount allowed in minor units
+  int64 max_topup_allowed = 3;
+
+  // Whether debit is possible on this wallet
+  optional bool debit_possible = 4;
+
+  // Whether topup is possible on this wallet
+  optional bool topup_possible = 5;
+
+  // Status Information
+  optional ErrorInfo error = 6;
+  uint32 status_code = 7;
+  map<string, string> response_headers = 8;
+
+  // Raw Request/Response for debugging
+  optional SecretString raw_connector_response = 9;
+  optional SecretString raw_connector_request = 10;
+}
+
 // ConnectorSpecificConfig message with oneof containing all connector configurations.
 // Comment above each field (e.g. "// PAYPAL = 62") is the Connector enum value from this file;
 message ConnectorSpecificConfig {

@@ -13,8 +13,8 @@ use domain_types::connector_types::{
     PaymentVoidData, PaymentsAuthenticateData, PaymentsAuthorizeData,
     PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
     PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsSdkSessionTokenData,
-    PaymentsSyncData, RefundSyncData, RefundsData, RepeatPaymentData, SessionTokenRequestData,
-    SetupMandateRequestData, SubmitEvidenceData, TriggerOtpForWalletData,
+    PaymentsSyncData, RefreshWalletBalanceData, RefundSyncData, RefundsData, RepeatPaymentData,
+    SessionTokenRequestData, SetupMandateRequestData, SubmitEvidenceData, TriggerOtpForWalletData,
 };
 use domain_types::router_request_types::VerifyWebhookSourceRequestData;
 use domain_types::{
@@ -26,10 +26,10 @@ use domain_types::{
         IncrementalAuthorizationIntegrityObject, MandateRevokeIntegrityObject,
         PaymentMethodTokenIntegrityObject, PaymentSynIntegrityObject, PaymentVoidIntegrityObject,
         PaymentVoidPostCaptureIntegrityObject, PostAuthenticateIntegrityObject,
-        PreAuthenticateIntegrityObject, RefundIntegrityObject, RefundSyncIntegrityObject,
-        RepeatPaymentIntegrityObject, SessionTokenIntegrityObject, SetupMandateIntegrityObject,
-        SubmitEvidenceIntegrityObject, TriggerOtpForWalletIntegrityObject,
-        VerifyWebhookSourceIntegrityObject,
+        PreAuthenticateIntegrityObject, RefreshWalletBalanceIntegrityObject, RefundIntegrityObject,
+        RefundSyncIntegrityObject, RepeatPaymentIntegrityObject, SessionTokenIntegrityObject,
+        SetupMandateIntegrityObject, SubmitEvidenceIntegrityObject,
+        TriggerOtpForWalletIntegrityObject, VerifyWebhookSourceIntegrityObject,
     },
 };
 
@@ -175,6 +175,7 @@ impl_check_integrity!(PaymentsIncrementalAuthorizationData);
 impl_check_integrity!(MandateRevokeRequestData);
 impl_check_integrity!(VerifyWebhookSourceRequestData);
 impl_check_integrity!(TriggerOtpForWalletData);
+impl_check_integrity!(RefreshWalletBalanceData);
 
 // ========================================================================
 // GET INTEGRITY OBJECT IMPLEMENTATIONS
@@ -432,6 +433,16 @@ impl GetIntegrityObject<TriggerOtpForWalletIntegrityObject> for TriggerOtpForWal
 
     fn get_request_integrity_object(&self) -> TriggerOtpForWalletIntegrityObject {
         TriggerOtpForWalletIntegrityObject {}
+    }
+}
+
+impl GetIntegrityObject<RefreshWalletBalanceIntegrityObject> for RefreshWalletBalanceData {
+    fn get_response_integrity_object(&self) -> Option<RefreshWalletBalanceIntegrityObject> {
+        None // Wallet balance responses don't have integrity objects
+    }
+
+    fn get_request_integrity_object(&self) -> RefreshWalletBalanceIntegrityObject {
+        RefreshWalletBalanceIntegrityObject {}
     }
 }
 
@@ -1001,6 +1012,18 @@ impl FlowIntegrity for TriggerOtpForWalletIntegrityObject {
         _connector_transaction_id: Option<String>,
     ) -> Result<(), IntegrityCheckError> {
         Ok(()) // No integrity fields to compare for OTP triggering
+    }
+}
+
+impl FlowIntegrity for RefreshWalletBalanceIntegrityObject {
+    type IntegrityObject = Self;
+
+    fn compare(
+        _req_integrity_object: Self,
+        _res_integrity_object: Self,
+        _connector_transaction_id: Option<String>,
+    ) -> Result<(), IntegrityCheckError> {
+        Ok(()) // No integrity fields to compare for wallet balance refresh
     }
 }
 

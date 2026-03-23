@@ -15,7 +15,8 @@ use domain_types::{
         PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
         PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSdkSessionTokenData,
-        PaymentsSyncData, RedirectDetailsResponse, RefundFlowData, RefundSyncData,
+        PaymentsSyncData, RedirectDetailsResponse, RefreshWalletBalanceData,
+        RefreshWalletBalanceResponseData, RefundFlowData, RefundSyncData,
         RefundWebhookDetailsResponse, RefundsData, RefundsResponseData, RepeatPaymentData,
         RequestDetails, SessionTokenRequestData, SessionTokenResponseData, SetupMandateRequestData,
         SubmitEvidenceData, TriggerOtpForWalletData, TriggerOtpForWalletResponseData,
@@ -65,6 +66,7 @@ pub trait ConnectorServiceTrait<T: PaymentMethodDataTypes>:
     + MandateRevokeV2
     + VerifyWebhookSourceV2
     + TriggerOtpForWalletV2
+    + RefreshWalletBalanceV2
     + VerifyRedirectResponse
 {
 }
@@ -344,6 +346,16 @@ pub trait TriggerOtpForWalletV2:
     PaymentFlowData,
     TriggerOtpForWalletData,
     TriggerOtpForWalletResponseData,
+>
+{
+}
+
+pub trait RefreshWalletBalanceV2:
+    ConnectorIntegrationV2<
+    connector_flow::RefreshWalletBalance,
+    PaymentFlowData,
+    RefreshWalletBalanceData,
+    RefreshWalletBalanceResponseData,
 >
 {
 }

@@ -30,6 +30,7 @@ use grpc_api_types::payments::{
     PaymentServiceAuthorizeResponse, PaymentServiceCaptureResponse,
     PaymentServiceCreateOrderResponse, PaymentServiceGetResponse,
     PaymentServiceIncrementalAuthorizationRequest, PaymentServiceIncrementalAuthorizationResponse,
+    PaymentServiceRefreshWalletBalanceRequest, PaymentServiceRefreshWalletBalanceResponse,
     PaymentServiceReverseResponse, PaymentServiceSetupRecurringRequest,
     PaymentServiceSetupRecurringResponse, PaymentServiceTriggerOtpForWalletRequest,
     PaymentServiceTriggerOtpForWalletResponse, PaymentServiceVoidRequest,
@@ -234,8 +235,9 @@ use crate::{
     connector_flow::{
         Accept, Authenticate, Authorize, Capture, CreateAccessToken, CreateConnectorCustomer,
         CreateOrder, CreateSessionToken, DefendDispute, IncrementalAuthorization, PSync,
-        PaymentMethodToken, PostAuthenticate, PreAuthenticate, RSync, Refund, RepeatPayment,
-        SdkSessionToken, SetupMandate, SubmitEvidence, TriggerOtpForWallet, Void, VoidPC,
+        PaymentMethodToken, PostAuthenticate, PreAuthenticate, RSync, RefreshWalletBalance, Refund,
+        RepeatPayment, SdkSessionToken, SetupMandate, SubmitEvidence, TriggerOtpForWallet, Void,
+        VoidPC,
     },
     connector_types::{
         AcceptDisputeData, AccessTokenRequestData, AccessTokenResponseData, ApplePayPaymentRequest,
@@ -251,11 +253,11 @@ use crate::{
         PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
         PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSdkSessionTokenData,
         PaymentsSyncData, PaypalFlow, PaypalTransactionInfo, RawConnectorRequestResponse,
-        RedirectDetailsResponse, RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse,
-        RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId, SessionToken,
-        SessionTokenRequestData, SessionTokenResponseData, SetupMandateRequestData,
-        SubmitEvidenceData, TaxInfo, TriggerOtpForWalletData, TriggerOtpForWalletResponseData,
-        WebhookDetailsResponse,
+        RedirectDetailsResponse, RefreshWalletBalanceData, RefreshWalletBalanceResponseData,
+        RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse, RefundsData,
+        RefundsResponseData, RepeatPaymentData, ResponseId, SessionToken, SessionTokenRequestData,
+        SessionTokenResponseData, SetupMandateRequestData, SubmitEvidenceData, TaxInfo,
+        TriggerOtpForWalletData, TriggerOtpForWalletResponseData, WebhookDetailsResponse,
     },
     errors::{ApiError, ApplicationErrorResponse},
     mandates::{self, MandateData},
@@ -11373,6 +11375,148 @@ pub fn generate_trigger_otp_for_wallet_response(
         Err(e) => Ok(PaymentServiceTriggerOtpForWalletResponse {
             otp_token: String::new(),
             merchant_id: String::new(),
+            error: Some(grpc_api_types::payments::ErrorInfo {
+                unified_details: None,
+                connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
+                    code: Some(e.code),
+                    message: Some(e.message.clone()),
+                    reason: e.reason.clone(),
+                }),
+                issuer_details: None,
+            }),
+            status_code: e.status_code.into(),
+            response_headers,
+            raw_connector_response,
+            raw_connector_request,
+        }),
+    }
+}
+
+// ============================================================================
+// REFRESH WALLET BALANCE - Proto to Domain Conversions
+// ============================================================================
+
+impl ForeignTryFrom<PaymentServiceRefreshWalletBalanceRequest> for RefreshWalletBalanceData {
+    type Error = ApplicationErrorResponse;
+
+    fn foreign_try_from(
+        value: PaymentServiceRefreshWalletBalanceRequest,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        Ok(Self {
+            user_auth_token: value
+                .user_auth_token
+                .ok_or(ApplicationErrorResponse::missing_required_field(
+                    "user_auth_token",
+                ))
+                .attach_printable("user_auth_token is required for RefreshWalletBalance")?,
+            merchant_id: value
+                .merchant_id
+                .ok_or(ApplicationErrorResponse::missing_required_field(
+                    "merchant_id",
+                ))
+                .attach_printable("merchant_id is required for RefreshWalletBalance")?,
+            txn_amount: value.txn_amount,
+            device_id: value.device_id,
+        })
+    }
+}
+
+impl
+    ForeignTryFrom<(
+        PaymentServiceRefreshWalletBalanceRequest,
+        Connectors,
+        &MaskedMetadata,
+    )> for PaymentFlowData
+{
+    type Error = ApplicationErrorResponse;
+
+    fn foreign_try_from(
+        (_value, connectors, metadata): (
+            PaymentServiceRefreshWalletBalanceRequest,
+            Connectors,
+            &MaskedMetadata,
+        ),
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let merchant_id_from_header = extract_merchant_id_from_metadata(metadata)?;
+
+        Ok(Self {
+            merchant_id: merchant_id_from_header,
+            payment_id: "REFRESH_WALLET_BALANCE_ID".to_string(),
+            attempt_id: "REFRESH_WALLET_BALANCE_ATTEMPT_ID".to_string(),
+            status: common_enums::AttemptStatus::Pending,
+            payment_method: common_enums::PaymentMethod::Wallet,
+            address: PaymentAddress::default(),
+            auth_type: common_enums::AuthenticationType::default(),
+            connector_request_reference_id: extract_connector_request_reference_id(&None),
+            customer_id: None,
+            connector_customer: None,
+            description: Some("Refresh wallet balance operation".to_string()),
+            return_url: None,
+            connector_feature_data: None,
+            amount_captured: None,
+            minor_amount_captured: None,
+            access_token: None,
+            session_token: None,
+            reference_id: None,
+            payment_method_token: None,
+            preprocessing_id: None,
+            connector_api_version: None,
+            test_mode: None,
+            connector_http_status_code: None,
+            external_latency: None,
+            connectors,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            connector_response_headers: None,
+            vault_headers: None,
+            minor_amount_capturable: None,
+            connector_response: None,
+            recurring_mandate_payment_data: None,
+            order_details: None,
+            minor_amount_authorized: None,
+            l2_l3_data: None,
+        })
+    }
+}
+
+pub fn generate_refresh_wallet_balance_response(
+    router_data_v2: RouterDataV2<
+        RefreshWalletBalance,
+        PaymentFlowData,
+        RefreshWalletBalanceData,
+        RefreshWalletBalanceResponseData,
+    >,
+) -> Result<PaymentServiceRefreshWalletBalanceResponse, error_stack::Report<ApplicationErrorResponse>>
+{
+    let balance_response = router_data_v2.response;
+    let raw_connector_response = router_data_v2
+        .resource_common_data
+        .get_raw_connector_response();
+    let raw_connector_request = router_data_v2
+        .resource_common_data
+        .get_raw_connector_request();
+    let response_headers = router_data_v2
+        .resource_common_data
+        .get_connector_response_headers_as_map();
+    match balance_response {
+        Ok(response) => Ok(PaymentServiceRefreshWalletBalanceResponse {
+            available_balance: response.available_balance,
+            usable_balance: response.usable_balance,
+            max_topup_allowed: response.max_topup_allowed,
+            debit_possible: response.debit_possible,
+            topup_possible: response.topup_possible,
+            error: None,
+            status_code: response.status_code.into(),
+            response_headers,
+            raw_connector_response,
+            raw_connector_request,
+        }),
+        Err(e) => Ok(PaymentServiceRefreshWalletBalanceResponse {
+            available_balance: 0,
+            usable_balance: 0,
+            max_topup_allowed: 0,
+            debit_possible: None,
+            topup_possible: None,
             error: Some(grpc_api_types::payments::ErrorInfo {
                 unified_details: None,
                 connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
