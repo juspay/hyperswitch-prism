@@ -1128,7 +1128,7 @@ impl TryFrom<&common_enums::PaymentMethodType> for PaymentType {
             common_enums::PaymentMethodType::Ach => Ok(Self::AchDirectDebit),
 
             common_enums::PaymentMethodType::Paypal => Ok(Self::Paypal),
-            common_enums::PaymentMethodType::Pix => Ok(Self::Pix),
+            common_enums::PaymentMethodType::PixQr => Ok(Self::Pix),
             common_enums::PaymentMethodType::Givex => Ok(Self::Giftcard),
             common_enums::PaymentMethodType::PaySafeCard => Ok(Self::PaySafeCard),
             _ => Err(errors::ConnectorError::NotImplemented(
@@ -1767,7 +1767,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             BankTransferData::MandiriVaBankTransfer {} => {
                 Ok(Self::MandiriVa(Box::new(DokuBankData::try_from(item)?)))
             }
-            BankTransferData::Pix { .. } => Ok(Self::Pix),
+            BankTransferData::PixQr { .. } => Ok(Self::Pix),
             BankTransferData::AchBankTransfer {}
             | BankTransferData::SepaBankTransfer {}
             | BankTransferData::BacsBankTransfer {}
@@ -2640,7 +2640,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Extract Pix-specific fields (session_validity and social_security_number)
         // This aligns with Hyperswitch implementation for Adyen Pix payments
         let (session_validity, social_security_number) = match bank_transfer_data {
-            BankTransferData::Pix {
+            BankTransferData::PixQr {
                 cpf,
                 cnpj,
                 expiry_date,
@@ -3704,7 +3704,7 @@ fn get_adyen_payment_status(
         // Pix returns Pending status but requires customer action (QR code)
         // so we map it to AuthenticationPending like Hyperswitch does
         AdyenStatus::Pending => match pmt {
-            Some(common_enums::PaymentMethodType::Pix) => AttemptStatus::AuthenticationPending,
+            Some(common_enums::PaymentMethodType::PixQr) => AttemptStatus::AuthenticationPending,
             _ => AttemptStatus::Pending,
         },
     }

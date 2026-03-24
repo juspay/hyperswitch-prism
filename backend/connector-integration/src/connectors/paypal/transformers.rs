@@ -1209,7 +1209,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | BankTransferData::CimbVaBankTransfer { .. }
             | BankTransferData::DanamonVaBankTransfer { .. }
             | BankTransferData::MandiriVaBankTransfer { .. }
-            | BankTransferData::Pix { .. }
+            | BankTransferData::PixQr { .. }
             | BankTransferData::Pse {}
             | BankTransferData::InstantBankTransfer {}
             | BankTransferData::InstantBankTransferFinland {}

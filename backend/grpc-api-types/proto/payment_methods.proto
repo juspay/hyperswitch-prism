@@ -110,7 +110,7 @@ message PaymentMethod {
     MultibancoBankTransfer multibanco_bank_transfer = 94;      // Multibanco - Portuguese payment method
     InstantBankTransferFinland instant_bank_transfer_finland = 95;         // Finland's instant bank transfer
     InstantBankTransferPoland instant_bank_transfer_poland = 96;           // Poland's instant bank transfer
-    PixPayment pix = 97;                                       // PIX - Brazilian instant payment
+    PixPayment pix_qr = 97;                                       // PIX - Brazilian instant payment
     PermataBankTransfer permata_bank_transfer = 130;           // Permata Bank transfer in Indonesia
     BCABankTransfer bca_bank_transfer = 131;                   // BCA Bank transfer in Indonesia
     BNIVaBankTransfer bni_va_bank_transfer = 132;              // BNI VA Bank transfer in Indonesia
@@ -171,7 +171,7 @@ message RTPPaymentMethodType {
   oneof rtp_type {
     UPI upi_collect = 1;                   // UPI Collect - Indian real-time payment system (collect flow)
     UPI upi_intent = 2;                    // UPI Intent - Indian real-time payment system (intent flow)
-    PIX pix = 3;                           // PIX - Brazilian instant payment system
+    PIXQr pix_qr = 3;                           // PIX - Brazilian instant payment system
     PromptPay prompt_pay = 4;              // PromptPay - Thai QR code payment system
     VietQR viet_qr = 5;                    // VietQR - Vietnamese QR code payment system
   }

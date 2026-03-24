@@ -672,7 +672,7 @@ enum PaymentMethodType {
   OPEN_BANKING_UK = 62;
   PAY_BRIGHT = 63;
   PAZE = 64;
-  PIX = 65;
+  PIX_QR = 65;
   PAY_SAFE_CARD = 66;
   PRZELEWY24 = 67;
   PROMPT_PAY = 68;
