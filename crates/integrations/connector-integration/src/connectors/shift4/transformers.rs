@@ -10,7 +10,7 @@ use domain_types::{
     },
     errors,
     payment_method_data::{
-        BankRedirectData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
+        BankRedirectData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData,
     },
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
@@ -74,6 +74,7 @@ pub struct Shift4PaymentsRequest<T: PaymentMethodDataTypes> {
 pub enum Shift4PaymentMethod<T: PaymentMethodDataTypes> {
     Card(Shift4CardPayment<T>),
     BankRedirect(Shift4BankRedirectPayment),
+    GooglePay(Shift4GooglePayPayment),
 }
 
 #[derive(Debug, Serialize)]
@@ -89,6 +90,15 @@ pub struct Shift4CardData<T: PaymentMethodDataTypes> {
     pub exp_month: Secret<String>,
     pub exp_year: Secret<String>,
     pub cardholder_name: Secret<String>,
+}
+
+// GooglePay Payment Structures
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Shift4GooglePayPayment {
+    #[serde(rename = "type")]
+    pub payment_type: String,
+    pub token: Secret<String>,
 }
 
 // BankRedirect Payment Structures
@@ -270,6 +280,28 @@ impl<T: PaymentMethodDataTypes>
                     flow: Some(Shift4FlowRequest { return_url }),
                 })
             }
+            PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                WalletData::GooglePay(google_pay_data) => {
+                    // Get the encrypted GooglePay token using the wallet method
+                    let token_data = google_pay_data
+                        .tokenization_data
+                        .get_encrypted_google_pay_payment_data_mandatory()
+                        .change_context(errors::ConnectorError::MissingRequiredField {
+                            field_name: "google_pay.tokenization_data",
+                        })?;
+
+                    Shift4PaymentMethod::GooglePay(Shift4GooglePayPayment {
+                        payment_type: "googlepay".to_string(),
+                        token: Secret::new(token_data.token.clone()),
+                    })
+                }
+                _ => {
+                    return Err(error_stack::report!(errors::ConnectorError::NotSupported {
+                        message: "Wallet payment method not supported".to_string(),
+                        connector: "Shift4",
+                    }))
+                }
+            },
             _ => {
                 return Err(error_stack::report!(errors::ConnectorError::NotSupported {
                     message: "Payment method".to_string(),
