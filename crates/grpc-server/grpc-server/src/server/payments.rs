@@ -247,6 +247,130 @@ pub struct PaymentMethod;
 #[derive(Clone)]
 pub struct Events;
 
+#[tonic::async_trait]
+impl grpc_api_types::payments::event_service_server::EventService for Events {
+    #[tracing::instrument(
+        name = "incoming_webhook",
+        fields(
+            name = common_utils::consts::NAME,
+            service_name = common_utils::consts::PAYMENT_SERVICE_NAME,
+            service_method = FlowName::IncomingWebhook.as_str(),
+            request_body = tracing::field::Empty,
+            response_body = tracing::field::Empty,
+            error_message = tracing::field::Empty,
+            merchant_id = tracing::field::Empty,
+            gateway = tracing::field::Empty,
+            request_id = tracing::field::Empty,
+            status_code = tracing::field::Empty,
+            message_ = "Golden Log Line (incoming)",
+            response_time = tracing::field::Empty,
+            tenant_id = tracing::field::Empty,
+            flow = FlowName::IncomingWebhook.as_str(),
+            flow_specific_fields.status = tracing::field::Empty,
+        )
+        skip(self, request)
+    )]
+    async fn handle_event(
+        &self,
+        request: tonic::Request<EventServiceHandleRequest>,
+    ) -> Result<tonic::Response<EventServiceHandleResponse>, tonic::Status> {
+        let service_name = request
+            .extensions()
+            .get::<String>()
+            .cloned()
+            .unwrap_or_else(|| "PaymentService".to_string());
+        let config = get_config_from_request(&request)?;
+        grpc_logging_wrapper(
+            request,
+            &service_name,
+            config.clone(),
+            FlowName::IncomingWebhook,
+            |request_data| {
+                let service_name_clone = service_name.clone();
+                async move {
+                    let payload = request_data.payload;
+                    let metadata_payload = request_data.extracted_metadata;
+                    let connector = metadata_payload.connector;
+                    let _request_id = &metadata_payload.request_id;
+                    let connector_config = &metadata_payload.connector_config;
+                    let request_details = payload
+                        .request_details
+                        .map(domain_types::connector_types::RequestDetails::foreign_try_from)
+                        .ok_or_else(|| {
+                            tonic::Status::invalid_argument("missing request_details in the payload")
+                        })?
+                        .map_err(|e| e.into_grpc_status())?;
+                    let webhook_secrets = payload
+                        .webhook_secrets
+                        .clone()
+                        .map(|details| {
+                            domain_types::connector_types::ConnectorWebhookSecrets::foreign_try_from(
+                                details,
+                            )
+                            .map_err(|e| e.into_grpc_status())
+                        })
+                        .transpose()?;
+                    //get connector data
+                    let connector_data: ConnectorData<DefaultPCIHolder> =
+                        ConnectorData::get_connector_by_name(&connector);
+
+                    let requires_external_verification = connector_data
+                        .connector
+                        .requires_external_webhook_verification(config
+                            .webhook_source_verification_call
+                            .connectors_with_webhook_source_verification_call
+                            .as_ref());
+
+                    let source_verified = if requires_external_verification {
+                        verify_webhook_source_external(
+                            config.as_ref(),
+                            &connector_data,
+                            &request_details,
+                            webhook_secrets.clone(),
+                            connector_config,
+                            &metadata_payload,
+                            &service_name_clone,
+                        )
+                        .await?
+                     } else {
+                        match connector_data
+                            .connector
+                            .verify_webhook_source(
+                                request_details.clone(),
+                                webhook_secrets.clone(),
+                                Some(connector_config.clone()),
+                            )
+                        {
+                            Ok(result) => result,
+                            Err(err) => {
+                                tracing::warn!(
+                                    target: "webhook",
+                                    "{:?}",
+                                    err
+                                );
+                                false
+                            }
+                        }
+                    };
+
+                    let response =
+                        connector_integration::webhook_utils::process_webhook_event(
+                            connector_data,
+                            request_details,
+                            webhook_secrets,
+                            Some(connector_config.clone()),
+                            source_verified,
+                        )
+                        .into_grpc_status()?;
+
+                    Ok(tonic::Response::new(response))
+                }
+            },
+        )
+        .await
+    }
+}
+
 #[derive(Clone)]
 pub struct Payments {
     pub merchant_authentication_service: MerchantAuthentication,

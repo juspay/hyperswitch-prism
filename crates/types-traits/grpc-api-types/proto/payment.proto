@@ -490,7 +490,7 @@ enum Connector {
   SILVERFLOW = 98; CELERO = 99; TRUSTPAYMENTS = 100; PAYSAFE = 101; BARCLAYCARD = 102;
   WORLDPAYXML = 103; REVOLUT = 104; LOONIO = 105; GIGADAT = 106; HYPERPG = 107; ZIFT = 108; REVOLV3 = 109; TRUELAYER = 110; FINIX = 111;
   PEACHPAYMENTS = 112; PPRO = 113;
-  FISERVCOMMERCEHUB = 114;
+  FISERVCOMMERCEHUB = 114;  TRUSTLY = 115;
 }
 
 // Payment method types
@@ -512,7 +512,7 @@ enum PaymentMethodType {
   OPEN_BANKING_UK = 62; PAY_BRIGHT = 63; PAZE = 64; PIX = 65; PAY_SAFE_CARD = 66;
   PRZELEWY24 = 67; PROMPT_PAY = 68; PSE = 69; RED_COMPRA = 70; RED_PAGOS = 71;
   SAMSUNG_PAY = 72; SEPA = 73; SEPA_BANK_TRANSFER = 74; SOFORT = 75; SWISH = 76;
-  TOUCH_N_GO = 77; TRUSTLY = 78; TWINT = 79; UPI_COLLECT = 80; UPI_INTENT = 81;
+  TOUCH_N_GO = 77; TRUSTLY_BANK_REDIRECT = 78; TWINT = 79; UPI_COLLECT = 80; UPI_INTENT = 81;
   UPI_QR = 82; VIPPS = 83; VIET_QR = 84; VENMO = 85; WALLEY = 86;
   WE_CHAT_PAY = 87; SEVEN_ELEVEN = 88; LAWSON = 89; MINI_STOP = 90; FAMILY_MART = 91;
   SEICOMART = 92; PAY_EASY = 93; LOCAL_BANK_TRANSFER = 94; OPEN_BANKING_PIS = 95;
@@ -3321,6 +3321,13 @@ message PaypalConfig {
   optional string base_url = 50;
 }
 
+message TrustlyConfig {
+  SecretString username = 1;
+  SecretString password = 2;
+  SecretString private_key = 3;
+  optional string base_url = 50;
+}
+
 // ConnectorSpecificConfig message with oneof containing all connector configurations.
 // Comment above each field (e.g. "// PAYPAL = 62") is the Connector enum value from this file;
 message ConnectorSpecificConfig {
@@ -3546,5 +3553,8 @@ message ConnectorSpecificConfig {
 
     // PAYPAL = 62
     PaypalConfig paypal = 110;
+
+    // TRUSTLY = 114
+    TrustlyConfig trustly = 111;
   }
 }

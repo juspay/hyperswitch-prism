@@ -366,6 +366,7 @@ pub struct Connectors {
     pub truelayer: ConnectorParams,
     pub peachpayments: ConnectorParams,
     pub finix: ConnectorParams,
+    pub trustly: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
@@ -2638,7 +2639,7 @@ impl<
             payment_experience: None,
             customer_id: value
                 .customer
-                .and_then(|customer| customer.connector_customer_id)
+                .and_then(|customer| customer.id)
                 .map(|customer_id| CustomerId::try_from(Cow::from(customer_id)))
                 .transpose()
                 .change_context(ApplicationErrorResponse::BadRequest(ApiError {
@@ -5314,7 +5315,9 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             grpc_api_types::payments::PaymentMethodType::BancontactCard => Ok(Self::BankRedirect),
             grpc_api_types::payments::PaymentMethodType::Ideal => Ok(Self::BankRedirect),
             grpc_api_types::payments::PaymentMethodType::Sofort => Ok(Self::BankRedirect),
-            grpc_api_types::payments::PaymentMethodType::Trustly => Ok(Self::BankRedirect),
+            grpc_api_types::payments::PaymentMethodType::TrustlyBankRedirect => {
+                Ok(Self::BankRedirect)
+            }
             grpc_api_types::payments::PaymentMethodType::Giropay => Ok(Self::BankRedirect),
             grpc_api_types::payments::PaymentMethodType::Eps => Ok(Self::BankRedirect),
             grpc_api_types::payments::PaymentMethodType::Przelewy24 => Ok(Self::BankRedirect),
