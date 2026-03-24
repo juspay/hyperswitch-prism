@@ -18,7 +18,8 @@ use domain_types::{
         PaymentsSyncData, RedirectDetailsResponse, RefundFlowData, RefundSyncData,
         RefundWebhookDetailsResponse, RefundsData, RefundsResponseData, RepeatPaymentData,
         RequestDetails, SessionTokenRequestData, SessionTokenResponseData, SetupMandateRequestData,
-        SubmitEvidenceData, VerifyWebhookSourceFlowData, WebhookDetailsResponse,
+        SubmitEvidenceData, TriggerOtpForWalletData, TriggerOtpForWalletResponseData,
+        VerifyWebhookSourceFlowData, WebhookDetailsResponse,
     },
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
     router_data::ConnectorSpecificConfig,
@@ -63,6 +64,7 @@ pub trait ConnectorServiceTrait<T: PaymentMethodDataTypes>:
     + PaymentIncrementalAuthorization
     + MandateRevokeV2
     + VerifyWebhookSourceV2
+    + TriggerOtpForWalletV2
     + VerifyRedirectResponse
 {
 }
@@ -332,6 +334,16 @@ pub trait VerifyWebhookSourceV2:
     VerifyWebhookSourceFlowData,
     VerifyWebhookSourceRequestData,
     VerifyWebhookSourceResponseData,
+>
+{
+}
+
+pub trait TriggerOtpForWalletV2:
+    ConnectorIntegrationV2<
+    connector_flow::TriggerOtpForWallet,
+    PaymentFlowData,
+    TriggerOtpForWalletData,
+    TriggerOtpForWalletResponseData,
 >
 {
 }

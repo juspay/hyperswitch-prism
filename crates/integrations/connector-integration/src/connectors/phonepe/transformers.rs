@@ -6,9 +6,10 @@ use common_utils::{
     types::MinorUnit,
 };
 use domain_types::{
-    connector_flow::{Authorize, PSync},
+    connector_flow::{Authorize, PSync, TriggerOtpForWallet},
     connector_types::{
         PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData, ResponseId,
+        TriggerOtpForWalletData, TriggerOtpForWalletResponseData,
     },
     errors,
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, UpiData, UpiSource},
@@ -1120,4 +1121,225 @@ fn extract_bin_from_masked_account_number(masked_account_number: Option<&str>) -
             .filter(|bin| bin.chars().all(|c| c.is_ascii_digit()))
             .map(str::to_string)
     })
+}
+
+// ===== TRIGGER OTP FOR WALLET =====
+
+/// Inner payload for TriggerOTP request (serialized to JSON then base64 encoded)
+#[derive(Debug, Serialize)]
+struct TriggerOtpPayload {
+    #[serde(rename = "merchantId")]
+    merchant_id: Secret<String>,
+    #[serde(rename = "mobileNumber")]
+    phone_number: Secret<String>,
+    #[serde(rename = "requestType")]
+    request_type: String,
+    #[serde(rename = "email", skip_serializing_if = "Option::is_none")]
+    email: Option<String>,
+    #[serde(rename = "shortName", skip_serializing_if = "Option::is_none")]
+    short_name: Option<String>,
+}
+
+/// API request for TriggerOTP (sent as JSON body)
+#[derive(Debug, Serialize)]
+pub struct PhonepeTriggerOtpRequest {
+    request: Secret<String>,
+    #[serde(skip)]
+    pub checksum: String,
+}
+
+/// Success response from TriggerOTP API
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PhonepeTriggerOtpResponse {
+    pub success: bool,
+    pub code: String,
+    pub message: String,
+    pub data: Option<TriggerOtpBlock>,
+}
+
+/// Data block in TriggerOTP success response
+#[derive(Debug, Deserialize, Serialize)]
+pub struct TriggerOtpBlock {
+    #[serde(rename = "merchantId")]
+    pub merchant_id: String,
+    #[serde(rename = "otpToken")]
+    pub otp_token: String,
+}
+
+// TryFrom implementation for owned PhonepeRouterData wrapper (TriggerOtpForWallet)
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        PhonepeRouterData<
+            RouterDataV2<
+                TriggerOtpForWallet,
+                PaymentFlowData,
+                TriggerOtpForWalletData,
+                TriggerOtpForWalletResponseData,
+            >,
+            T,
+        >,
+    > for PhonepeTriggerOtpRequest
+{
+    type Error = Error;
+
+    fn try_from(
+        wrapper: PhonepeRouterData<
+            RouterDataV2<
+                TriggerOtpForWallet,
+                PaymentFlowData,
+                TriggerOtpForWalletData,
+                TriggerOtpForWalletResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &wrapper.router_data;
+        let auth = PhonepeAuthType::try_from(&router_data.connector_config)?;
+
+        // Build the inner payload
+        let payload = TriggerOtpPayload {
+            merchant_id: auth.merchant_id.clone(),
+            phone_number: router_data.request.phone_number.clone(),
+            request_type: "WALLET".to_string(),
+            email: None,
+            short_name: None,
+        };
+
+        // Convert to JSON and encode
+        let json_payload = Encode::encode_to_string_of_json(&payload)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
+        // Base64 encode the payload
+        let base64_payload = base64::engine::general_purpose::STANDARD.encode(&json_payload);
+
+        // Generate checksum: SHA256(base64Payload + "/" + endpoint + saltKey) + "###" + keyIndex
+        let api_path = format!("/{}", constants::API_OTP_SEND_ENDPOINT);
+        let checksum =
+            generate_phonepe_checksum(&base64_payload, &api_path, &auth.salt_key, &auth.key_index)?;
+
+        Ok(Self {
+            request: Secret::new(base64_payload),
+            checksum,
+        })
+    }
+}
+
+// TryFrom implementation for borrowed PhonepeRouterData wrapper (TriggerOtpForWallet header generation)
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        &PhonepeRouterData<
+            &RouterDataV2<
+                TriggerOtpForWallet,
+                PaymentFlowData,
+                TriggerOtpForWalletData,
+                TriggerOtpForWalletResponseData,
+            >,
+            T,
+        >,
+    > for PhonepeTriggerOtpRequest
+{
+    type Error = Error;
+
+    fn try_from(
+        item: &PhonepeRouterData<
+            &RouterDataV2<
+                TriggerOtpForWallet,
+                PaymentFlowData,
+                TriggerOtpForWalletData,
+                TriggerOtpForWalletResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = item.router_data;
+        let auth = PhonepeAuthType::try_from(&router_data.connector_config)?;
+
+        // Build the inner payload
+        let payload = TriggerOtpPayload {
+            merchant_id: auth.merchant_id.clone(),
+            phone_number: router_data.request.phone_number.clone(),
+            request_type: "WALLET".to_string(),
+            email: None,
+            short_name: None,
+        };
+
+        // Convert to JSON and encode
+        let json_payload = Encode::encode_to_string_of_json(&payload)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
+        // Base64 encode the payload
+        let base64_payload = base64::engine::general_purpose::STANDARD.encode(&json_payload);
+
+        // Generate checksum
+        let api_path = format!("/{}", constants::API_OTP_SEND_ENDPOINT);
+        let checksum =
+            generate_phonepe_checksum(&base64_payload, &api_path, &auth.salt_key, &auth.key_index)?;
+
+        Ok(Self {
+            request: Secret::new(base64_payload),
+            checksum,
+        })
+    }
+}
+
+// ===== TRIGGER OTP RESPONSE HANDLING =====
+
+impl TryFrom<ResponseRouterData<PhonepeTriggerOtpResponse, Self>>
+    for RouterDataV2<
+        TriggerOtpForWallet,
+        PaymentFlowData,
+        TriggerOtpForWalletData,
+        TriggerOtpForWalletResponseData,
+    >
+{
+    type Error = Error;
+
+    fn try_from(
+        item: ResponseRouterData<PhonepeTriggerOtpResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = &item.response;
+
+        if response.success {
+            if let Some(data) = &response.data {
+                Ok(Self {
+                    response: Ok(TriggerOtpForWalletResponseData {
+                        otp_token: data.otp_token.clone(),
+                        merchant_id: data.merchant_id.clone(),
+                        status_code: item.http_code,
+                    }),
+                    ..item.router_data
+                })
+            } else {
+                Err(errors::ConnectorError::ResponseDeserializationFailed.into())
+            }
+        } else {
+            // Error response
+            let error_message = response.message.clone();
+            let error_code = response.code.clone();
+
+            tracing::warn!(
+                "PhonePe TriggerOTP failed - Code: {}, Message: {}, Status: {}",
+                error_code,
+                error_message,
+                item.http_code
+            );
+
+            let attempt_status = get_phonepe_error_status(&error_code);
+
+            Ok(Self {
+                response: Err(domain_types::router_data::ErrorResponse {
+                    code: error_code,
+                    message: error_message.clone(),
+                    reason: Some(error_message),
+                    status_code: item.http_code,
+                    attempt_status,
+                    connector_transaction_id: None,
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                }),
+                ..item.router_data
+            })
+        }
+    }
 }

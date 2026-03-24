@@ -1656,6 +1656,19 @@ pub struct MandateRevokeResponseData {
     pub status_code: u16,
 }
 
+#[derive(Debug, Clone)]
+pub struct TriggerOtpForWalletData {
+    pub phone_number: Secret<String>,
+    pub merchant_id: Secret<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct TriggerOtpForWalletResponseData {
+    pub otp_token: String,
+    pub merchant_id: String,
+    pub status_code: u16,
+}
+
 #[derive(Debug, Default, Clone)]
 pub struct RefundSyncData {
     pub connector_transaction_id: String,

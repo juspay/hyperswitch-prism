@@ -376,6 +376,7 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             salt_key: k(),
             salt_index: Secret::new("1".to_string()),
             base_url: None,
+            secondary_base_url: None,
         },
         ConnectorEnum::Redsys => ConnectorSpecificConfig::Redsys {
             merchant_id: m(),

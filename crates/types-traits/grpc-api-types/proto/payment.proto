@@ -3200,6 +3200,7 @@ message PhonepeConfig {
   SecretString salt_key = 2;
   SecretString salt_index = 3;
   optional string base_url = 50;
+  optional string secondary_base_url = 51;
 }
 
 // Four field auth types
@@ -3319,6 +3320,37 @@ message PaypalConfig {
   SecretString client_secret = 2;
   optional SecretString payer_id = 3;
   optional string base_url = 50;
+}
+
+// ============================================================================
+// TRIGGER OTP FOR WALLET MESSAGES
+// ============================================================================
+
+// Request message for triggering OTP for wallet-based payment
+message PaymentServiceTriggerOtpForWalletRequest {
+  // Customer's phone number for OTP delivery
+  SecretString phone_number = 1;
+
+  // Merchant identifier
+  SecretString merchant_id = 2;
+}
+
+// Response message for triggering OTP for wallet-based payment
+message PaymentServiceTriggerOtpForWalletResponse {
+  // OTP token returned by the connector
+  string otp_token = 1;
+
+  // Merchant identifier echoed back
+  string merchant_id = 2;
+
+  // Status Information
+  optional ErrorInfo error = 3;
+  uint32 status_code = 4;
+  map<string, string> response_headers = 5;
+
+  // Raw Request/Response for debugging
+  optional SecretString raw_connector_response = 6;
+  optional SecretString raw_connector_request = 7;
 }
 
 // ConnectorSpecificConfig message with oneof containing all connector configurations.

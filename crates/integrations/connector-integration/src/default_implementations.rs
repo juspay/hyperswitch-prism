@@ -9,12 +9,17 @@
 
 use crate::connectors::*;
 use domain_types::{
+    connector_flow::TriggerOtpForWallet,
+    connector_types::{PaymentFlowData, TriggerOtpForWalletData, TriggerOtpForWalletResponseData},
+};
+use domain_types::{
     connector_flow::VerifyWebhookSource, connector_types::VerifyWebhookSourceFlowData,
     payment_method_data::PaymentMethodDataTypes,
     router_request_types::VerifyWebhookSourceRequestData,
     router_response_types::VerifyWebhookSourceResponseData,
 };
 use interfaces::connector_integration_v2::ConnectorIntegrationV2;
+use interfaces::connector_types::TriggerOtpForWalletV2;
 use interfaces::connector_types::VerifyWebhookSourceV2;
 
 /// Macro to generate empty implementations of VerifyWebhookSourceV2 for connectors
@@ -127,3 +132,113 @@ default_impl_verify_webhook_source_v2!(
     Ppro
 );
 // PayPal has its own implementation in paypal.rs
+
+/// Macro to generate empty implementations of TriggerOtpForWalletV2 for connectors
+/// that don't support wallet OTP triggering.
+///
+/// Usage: When a new connector is added, add it to the macro invocation below.
+/// Connectors with real implementation (like PhonePe) implement it in their own file.
+#[macro_export]
+macro_rules! default_impl_trigger_otp_for_wallet_v2 {
+    ($($connector:ident),*) => {
+        $(
+            impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + serde::Serialize>
+                TriggerOtpForWalletV2 for $connector<T>
+            {
+            }
+
+            impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + serde::Serialize>
+                ConnectorIntegrationV2<
+                    TriggerOtpForWallet,
+                    PaymentFlowData,
+                    TriggerOtpForWalletData,
+                    TriggerOtpForWalletResponseData,
+                > for $connector<T>
+            {
+            }
+
+        )*
+    };
+}
+
+// Generate default (empty) implementations for all connectors except PhonePe
+// PhonePe has its own implementation in phonepe.rs
+default_impl_trigger_otp_for_wallet_v2!(
+    Adyen,
+    Aci,
+    Airwallex,
+    Authipay,
+    Authorizedotnet,
+    Bambora,
+    Bamboraapac,
+    Bankofamerica,
+    Barclaycard,
+    Billwerk,
+    Bluesnap,
+    Braintree,
+    Calida,
+    Cashfree,
+    Cashtocode,
+    Celero,
+    Checkout,
+    Cryptopay,
+    Cybersource,
+    Datatrans,
+    Dlocal,
+    Elavon,
+    Fiserv,
+    Fiservemea,
+    Fiuu,
+    Forte,
+    Getnet,
+    Gigadat,
+    Globalpay,
+    Helcim,
+    Hipay,
+    Hyperpg,
+    Iatapay,
+    Jpmorgan,
+    Loonio,
+    Mifinity,
+    Mollie,
+    Multisafepay,
+    Nexinets,
+    Nexixpay,
+    Nmi,
+    Noon,
+    Novalnet,
+    Nuvei,
+    Paybox,
+    Payload,
+    Payme,
+    Paysafe,
+    Paytm,
+    Payu,
+    Paypal,
+    Peachpayments,
+    Placetopay,
+    Powertranz,
+    Rapyd,
+    Razorpay,
+    RazorpayV2,
+    Redsys,
+    Revolut,
+    Revolv3,
+    Finix,
+    Shift4,
+    Silverflow,
+    Stax,
+    Stripe,
+    Truelayer,
+    Trustpay,
+    Trustpayments,
+    Tsys,
+    Volt,
+    Wellsfargo,
+    Worldpay,
+    Worldpayvantiv,
+    Worldpayxml,
+    Xendit,
+    Zift,
+    Ppro
+);

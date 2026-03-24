@@ -31,8 +31,9 @@ use grpc_api_types::payments::{
     PaymentServiceCreateOrderResponse, PaymentServiceGetResponse,
     PaymentServiceIncrementalAuthorizationRequest, PaymentServiceIncrementalAuthorizationResponse,
     PaymentServiceReverseResponse, PaymentServiceSetupRecurringRequest,
-    PaymentServiceSetupRecurringResponse, PaymentServiceVoidRequest, PaymentServiceVoidResponse,
-    RecurringPaymentServiceRevokeRequest, RefundResponse,
+    PaymentServiceSetupRecurringResponse, PaymentServiceTriggerOtpForWalletRequest,
+    PaymentServiceTriggerOtpForWalletResponse, PaymentServiceVoidRequest,
+    PaymentServiceVoidResponse, RecurringPaymentServiceRevokeRequest, RefundResponse,
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -234,7 +235,7 @@ use crate::{
         Accept, Authenticate, Authorize, Capture, CreateAccessToken, CreateConnectorCustomer,
         CreateOrder, CreateSessionToken, DefendDispute, IncrementalAuthorization, PSync,
         PaymentMethodToken, PostAuthenticate, PreAuthenticate, RSync, Refund, RepeatPayment,
-        SdkSessionToken, SetupMandate, SubmitEvidence, Void, VoidPC,
+        SdkSessionToken, SetupMandate, SubmitEvidence, TriggerOtpForWallet, Void, VoidPC,
     },
     connector_types::{
         AcceptDisputeData, AccessTokenRequestData, AccessTokenResponseData, ApplePayPaymentRequest,
@@ -253,7 +254,8 @@ use crate::{
         RedirectDetailsResponse, RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse,
         RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId, SessionToken,
         SessionTokenRequestData, SessionTokenResponseData, SetupMandateRequestData,
-        SubmitEvidenceData, TaxInfo, WebhookDetailsResponse,
+        SubmitEvidenceData, TaxInfo, TriggerOtpForWalletData, TriggerOtpForWalletResponseData,
+        WebhookDetailsResponse,
     },
     errors::{ApiError, ApplicationErrorResponse},
     mandates::{self, MandateData},
@@ -11253,4 +11255,138 @@ pub fn generate_payment_post_authenticate_response<T: PaymentMethodDataTypes>(
         }
     };
     Ok(response)
+}
+
+// ============================================================================
+// TRIGGER OTP FOR WALLET - Proto to Domain Conversions
+// ============================================================================
+
+impl ForeignTryFrom<PaymentServiceTriggerOtpForWalletRequest> for TriggerOtpForWalletData {
+    type Error = ApplicationErrorResponse;
+
+    fn foreign_try_from(
+        value: PaymentServiceTriggerOtpForWalletRequest,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        Ok(Self {
+            phone_number: value
+                .phone_number
+                .ok_or(ApplicationErrorResponse::missing_required_field(
+                    "phone_number",
+                ))
+                .attach_printable("phone_number is required for TriggerOtpForWallet")?,
+            merchant_id: value
+                .merchant_id
+                .ok_or(ApplicationErrorResponse::missing_required_field(
+                    "merchant_id",
+                ))
+                .attach_printable("merchant_id is required for TriggerOtpForWallet")?,
+        })
+    }
+}
+
+impl
+    ForeignTryFrom<(
+        PaymentServiceTriggerOtpForWalletRequest,
+        Connectors,
+        &MaskedMetadata,
+    )> for PaymentFlowData
+{
+    type Error = ApplicationErrorResponse;
+
+    fn foreign_try_from(
+        (_value, connectors, metadata): (
+            PaymentServiceTriggerOtpForWalletRequest,
+            Connectors,
+            &MaskedMetadata,
+        ),
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let merchant_id_from_header = extract_merchant_id_from_metadata(metadata)?;
+
+        Ok(Self {
+            merchant_id: merchant_id_from_header,
+            payment_id: "TRIGGER_OTP_WALLET_ID".to_string(),
+            attempt_id: "TRIGGER_OTP_WALLET_ATTEMPT_ID".to_string(),
+            status: common_enums::AttemptStatus::Pending,
+            payment_method: common_enums::PaymentMethod::Wallet,
+            address: PaymentAddress::default(),
+            auth_type: common_enums::AuthenticationType::default(),
+            connector_request_reference_id: extract_connector_request_reference_id(&None),
+            customer_id: None,
+            connector_customer: None,
+            description: Some("Trigger OTP for wallet operation".to_string()),
+            return_url: None,
+            connector_feature_data: None,
+            amount_captured: None,
+            minor_amount_captured: None,
+            access_token: None,
+            session_token: None,
+            reference_id: None,
+            payment_method_token: None,
+            preprocessing_id: None,
+            connector_api_version: None,
+            test_mode: None,
+            connector_http_status_code: None,
+            external_latency: None,
+            connectors,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            connector_response_headers: None,
+            vault_headers: None,
+            minor_amount_capturable: None,
+            connector_response: None,
+            recurring_mandate_payment_data: None,
+            order_details: None,
+            minor_amount_authorized: None,
+            l2_l3_data: None,
+        })
+    }
+}
+
+pub fn generate_trigger_otp_for_wallet_response(
+    router_data_v2: RouterDataV2<
+        TriggerOtpForWallet,
+        PaymentFlowData,
+        TriggerOtpForWalletData,
+        TriggerOtpForWalletResponseData,
+    >,
+) -> Result<PaymentServiceTriggerOtpForWalletResponse, error_stack::Report<ApplicationErrorResponse>>
+{
+    let trigger_otp_response = router_data_v2.response;
+    let raw_connector_response = router_data_v2
+        .resource_common_data
+        .get_raw_connector_response();
+    let raw_connector_request = router_data_v2
+        .resource_common_data
+        .get_raw_connector_request();
+    let response_headers = router_data_v2
+        .resource_common_data
+        .get_connector_response_headers_as_map();
+    match trigger_otp_response {
+        Ok(response) => Ok(PaymentServiceTriggerOtpForWalletResponse {
+            otp_token: response.otp_token,
+            merchant_id: response.merchant_id,
+            error: None,
+            status_code: response.status_code.into(),
+            response_headers,
+            raw_connector_response,
+            raw_connector_request,
+        }),
+        Err(e) => Ok(PaymentServiceTriggerOtpForWalletResponse {
+            otp_token: String::new(),
+            merchant_id: String::new(),
+            error: Some(grpc_api_types::payments::ErrorInfo {
+                unified_details: None,
+                connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
+                    code: Some(e.code),
+                    message: Some(e.message.clone()),
+                    reason: e.reason.clone(),
+                }),
+                issuer_details: None,
+            }),
+            status_code: e.status_code.into(),
+            response_headers,
+            raw_connector_response,
+            raw_connector_request,
+        }),
+    }
 }

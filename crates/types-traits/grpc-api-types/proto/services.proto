@@ -126,6 +126,10 @@ service PaymentService {
   // redirect-based payment completions to prevent fraud and tampering.
   rpc VerifyRedirectResponse(PaymentServiceVerifyRedirectResponseRequest) returns (PaymentServiceVerifyRedirectResponseResponse);
 
+  // Trigger OTP for wallet-based payment. Sends OTP to the customer's
+  // registered mobile number for wallet payment verification.
+  rpc TriggerOtpForWallet(PaymentServiceTriggerOtpForWalletRequest) returns (PaymentServiceTriggerOtpForWalletResponse);
+
   // Setup a recurring payment instruction for future payments/ debits. This could be
   // for SaaS subscriptions, monthly bill payments, insurance payments and similar use cases.
   rpc SetupRecurring(PaymentServiceSetupRecurringRequest) returns (PaymentServiceSetupRecurringResponse);

@@ -474,3 +474,8 @@ pub struct VerifyWebhookSourceRequestData {
 pub struct VerifyWebhookSourceIntegrityObject {
     pub webhook_id: String,
 }
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct TriggerOtpForWalletIntegrityObject {
+    // No integrity fields needed for OTP triggering - it's a fire-and-forget operation
+}

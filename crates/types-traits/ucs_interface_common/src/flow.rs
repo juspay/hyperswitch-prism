@@ -3,7 +3,7 @@ use domain_types::connector_flow::{
     Accept, Authenticate, Authorize, Capture, CreateOrder, CreateSessionToken, DefendDispute,
     IncrementalAuthorization, MandateRevoke, PSync, PaymentMethodToken, PostAuthenticate,
     PreAuthenticate, RSync, Refund, RepeatPayment, SdkSessionToken, SetupMandate, SubmitEvidence,
-    Void, VoidPC,
+    TriggerOtpForWallet, Void, VoidPC,
 };
 use ucs_env::configs;
 
@@ -63,6 +63,8 @@ where
         FlowName::IncrementalAuthorization
     } else if type_id == std::any::TypeId::of::<MandateRevoke>() {
         FlowName::MandateRevoke
+    } else if type_id == std::any::TypeId::of::<TriggerOtpForWallet>() {
+        FlowName::TriggerOtpForWallet
     } else {
         tracing::warn!("Unknown flow marker type: {}", std::any::type_name::<F>());
         FlowName::Unknown

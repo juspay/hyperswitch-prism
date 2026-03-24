@@ -534,6 +534,7 @@ pub enum ConnectorSpecificConfig {
         salt_key: Secret<String>,
         salt_index: Secret<String>,
         base_url: Option<String>,
+        secondary_base_url: Option<String>,
     },
     Redsys {
         merchant_id: Secret<String>,
@@ -1007,6 +1008,9 @@ impl ConnectorSpecificConfig {
                 secondary_base_url, ..
             }
             | Self::Mollie {
+                secondary_base_url, ..
+            }
+            | Self::Phonepe {
                 secondary_base_url, ..
             }
             | Self::Truelayer {
@@ -1651,6 +1655,7 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 salt_key: phonepe.salt_key.ok_or_else(err)?,
                 salt_index: phonepe.salt_index.ok_or_else(err)?,
                 base_url: phonepe.base_url,
+                secondary_base_url: phonepe.secondary_base_url,
             }),
             AuthType::Cashfree(cashfree) => Ok(Self::Cashfree {
                 app_id: cashfree.app_id.ok_or_else(err)?,
@@ -2430,6 +2435,7 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorEnum)>
                     salt_key: key1.clone(),
                     salt_index: api_secret.clone(),
                     base_url: None,
+                    secondary_base_url: None,
                 }),
                 _ => Err(err().into()),
             },

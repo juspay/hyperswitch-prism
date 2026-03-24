@@ -3,6 +3,7 @@
 // ===== API ENDPOINTS =====
 pub const API_PAY_ENDPOINT: &str = "pg/v1/pay";
 pub const API_STATUS_ENDPOINT: &str = "pg/v1/status";
+pub const API_OTP_SEND_ENDPOINT: &str = "v3/merchant/otp/send";
 
 // ===== IRCTC MERCHANT-BASED ENDPOINTS =====
 pub const API_IRCTC_PAY_ENDPOINT: &str = "pg/v1/irctc-pay";
