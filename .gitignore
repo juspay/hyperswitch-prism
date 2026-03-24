@@ -437,3 +437,6 @@ sdk/tests/client_sanity/artifacts/
 
 # Generated proto descriptor files
 scripts/generators/code/services.desc
+
+# Credentials file
+creds.json

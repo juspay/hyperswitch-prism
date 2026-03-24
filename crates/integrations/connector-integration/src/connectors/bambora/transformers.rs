@@ -83,14 +83,19 @@ pub struct BamboraPaymentsRequest<T: PaymentMethodDataTypes> {
     pub order_number: String,
     pub amount: FloatMajorUnit,
     pub payment_method: PaymentMethodType,
-    pub card: BamboraCard<T>,
-    pub billing: BamboraBillingAddress,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card: Option<BamboraCard<T>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub google_pay: Option<BamboraGooglePay>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub billing: Option<BamboraBillingAddress>,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodType {
     Card,
+    GooglePay,
 }
 
 #[derive(Debug, Serialize)]
@@ -101,6 +106,23 @@ pub struct BamboraCard<T: PaymentMethodDataTypes> {
     pub expiry_year: Secret<String>,
     pub cvd: Secret<String>,
     pub complete: bool, // true for auto-capture, false for manual capture
+}
+
+/// Google Pay payment data for Bambora
+/// As per tech spec section 9.1, the google_pay object contains:
+/// - name: cardholder name
+/// - 3d_secure: 3D secure data for PAN_ONLY transactions
+/// - transaction_payload: encrypted Google payment token (required)
+/// - complete: transaction type flag (true = Purchase, false = Pre-Authorization)
+#[derive(Debug, Serialize)]
+pub struct BamboraGooglePay {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "3d_secure")]
+    pub three_d_secure: Option<serde_json::Value>,
+    pub transaction_payload: String,
+    pub complete: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -249,9 +271,20 @@ impl<T: PaymentMethodDataTypes>
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        // Extract card data
+        // Determine if this should be auto-capture or authorization
+        let is_auto_capture = !crate::utils::is_manual_capture(item.request.capture_method);
+
+        // Convert amount from minor units to major units using FloatMajorUnitForConnector
+        let converter = FloatMajorUnitForConnector;
+        let amount = converter
+            .convert(item.request.minor_amount, item.request.currency)
+            .change_context(errors::ConnectorError::AmountConversionFailed)
+            .attach_printable("Failed to convert amount from minor to major units")?;
+
+        // Extract payment method data and build appropriate request
         let payment_method_data = &item.request.payment_method_data;
-        let card = match payment_method_data {
+
+        match payment_method_data {
             PaymentMethodData::Card(card_data) => {
                 // Get cardholder name - prefer billing full name, fallback to customer name
                 let cardholder_name = item
@@ -262,23 +295,116 @@ impl<T: PaymentMethodDataTypes>
                         field_name: "billing.first_name or customer_name",
                     })?;
 
-                // Determine if this should be auto-capture or authorization
-                let is_auto_capture = !crate::utils::is_manual_capture(item.request.capture_method);
-
                 // Get 2-digit expiry year using utility function
                 let expiry_year = card_data.get_card_expiry_year_2_digit()?;
 
-                BamboraCard {
+                let card = BamboraCard {
                     name: cardholder_name,
                     number: card_data.card_number.clone(),
                     expiry_month: card_data.card_exp_month.clone(),
                     expiry_year,
                     cvd: card_data.card_cvc.clone(),
                     complete: is_auto_capture,
+                };
+
+                // Extract billing address - mandatory field for card payments
+                let payment_billing = item
+                    .resource_common_data
+                    .address
+                    .get_payment_billing()
+                    .ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "billing",
+                    })?;
+
+                let billing_address = payment_billing.address.as_ref().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "billing.address",
+                    },
+                )?;
+
+                // Bambora requires province/state for US and CA addresses in 2-letter format
+                let province = billing_address.state.clone().and_then(|state| {
+                    crate::utils::get_state_code_for_country(&state, billing_address.country)
+                });
+
+                let billing = BamboraBillingAddress {
+                    name: billing_address
+                        .first_name
+                        .clone()
+                        .or(billing_address.last_name.clone()),
+                    address_line1: billing_address.line1.clone(),
+                    address_line2: billing_address.line2.clone(),
+                    city: billing_address.city.clone().map(|s| s.expose()),
+                    province,
+                    country: billing_address.country,
+                    postal_code: billing_address.zip.clone(),
+                    phone_number: payment_billing
+                        .phone
+                        .as_ref()
+                        .and_then(|p| p.number.clone()),
+                    email_address: payment_billing.email.clone(),
+                };
+
+                Ok(Self {
+                    order_number: item
+                        .resource_common_data
+                        .connector_request_reference_id
+                        .clone(),
+                    amount,
+                    payment_method: PaymentMethodType::Card,
+                    card: Some(card),
+                    google_pay: None,
+                    billing: Some(billing),
+                })
+            }
+            PaymentMethodData::Wallet(wallet_data) => {
+                match wallet_data {
+                    domain_types::payment_method_data::WalletData::GooglePay(google_pay_data) => {
+                        // Extract Google Pay token data using the tokenization_data field
+                        // The transaction_payload contains the encrypted Google payment token
+                        let transaction_payload = google_pay_data
+                            .tokenization_data
+                            .get_encrypted_google_pay_token()
+                            .change_context(errors::ConnectorError::MissingRequiredField {
+                                field_name: "google_pay.tokenization_data.token",
+                            })?;
+
+                        // Get cardholder name from billing address or customer name
+                        let name = item
+                            .resource_common_data
+                            .get_optional_billing_full_name()
+                            .map(|n| n.expose())
+                            .or_else(|| item.request.customer_name.clone());
+
+                        let google_pay = BamboraGooglePay {
+                            name,
+                            three_d_secure: None, // Can be extended for 3DS support
+                            transaction_payload,
+                            complete: is_auto_capture,
+                        };
+
+                        Ok(Self {
+                            order_number: item
+                                .resource_common_data
+                                .connector_request_reference_id
+                                .clone(),
+                            amount,
+                            payment_method: PaymentMethodType::GooglePay,
+                            card: None,
+                            google_pay: Some(google_pay),
+                            billing: None, // Google Pay doesn't require separate billing
+                        })
+                    }
+                    _ => {
+                        return Err(errors::ConnectorError::NotSupported {
+                            message: "Selected wallet type".to_string(),
+                            connector: "bambora",
+                        }
+                        .into());
+                    }
                 }
             }
-            PaymentMethodData::Wallet(_)
-            | PaymentMethodData::CardRedirect(_)
+            PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::PayLater(_)
             | PaymentMethodData::BankRedirect(_)
             | PaymentMethodData::BankDebit(_)
@@ -301,64 +427,7 @@ impl<T: PaymentMethodDataTypes>
                 }
                 .into());
             }
-        };
-
-        // Extract billing address - mandatory field
-        let payment_billing = item
-            .resource_common_data
-            .address
-            .get_payment_billing()
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "billing",
-            })?;
-
-        let billing_address = payment_billing.address.as_ref().ok_or(
-            errors::ConnectorError::MissingRequiredField {
-                field_name: "billing.address",
-            },
-        )?;
-
-        // Bambora requires province/state for US and CA addresses in 2-letter format
-        // Convert full state names (e.g., "California", "New York") to 2-letter codes (e.g., "CA", "NY")
-        let province = billing_address.state.clone().and_then(|state| {
-            crate::utils::get_state_code_for_country(&state, billing_address.country)
-        });
-
-        let billing = BamboraBillingAddress {
-            name: billing_address
-                .first_name
-                .clone()
-                .or(billing_address.last_name.clone()),
-            address_line1: billing_address.line1.clone(),
-            address_line2: billing_address.line2.clone(),
-            city: billing_address.city.clone().map(|s| s.expose()),
-            province,
-            country: billing_address.country,
-            postal_code: billing_address.zip.clone(),
-            phone_number: payment_billing
-                .phone
-                .as_ref()
-                .and_then(|p| p.number.clone()),
-            email_address: payment_billing.email.clone(),
-        };
-
-        // Convert amount from minor units to major units using FloatMajorUnitForConnector
-        let converter = FloatMajorUnitForConnector;
-        let amount = converter
-            .convert(item.request.minor_amount, item.request.currency)
-            .change_context(errors::ConnectorError::AmountConversionFailed)
-            .attach_printable("Failed to convert amount from minor to major units")?;
-
-        Ok(Self {
-            order_number: item
-                .resource_common_data
-                .connector_request_reference_id
-                .clone(),
-            amount,
-            payment_method: PaymentMethodType::Card,
-            card,
-            billing,
-        })
+        }
     }
 }
 
