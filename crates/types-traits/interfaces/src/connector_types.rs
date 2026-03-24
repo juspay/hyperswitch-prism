@@ -9,7 +9,8 @@ use domain_types::{
         AcceptDisputeData, AccessTokenRequestData, AccessTokenResponseData, ConnectorCustomerData,
         ConnectorCustomerResponse, ConnectorEnum, ConnectorSpecifications, ConnectorWebhookSecrets,
         DisputeDefendData, DisputeFlowData, DisputeResponseData, DisputeWebhookDetailsResponse,
-        EventType, MandateRevokeRequestData, MandateRevokeResponseData, PaymentCreateOrderData,
+        EventType, MandateRevokeRequestData, MandateRevokeResponseData,
+        MandateStatusCheckRequestData, MandateStatusCheckResponseData, PaymentCreateOrderData,
         PaymentCreateOrderResponse, PaymentFlowData, PaymentMethodTokenResponse,
         PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthenticateData,
         PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
@@ -62,6 +63,7 @@ pub trait ConnectorServiceTrait<T: PaymentMethodDataTypes>:
     + SdkSessionTokenV2
     + PaymentIncrementalAuthorization
     + MandateRevokeV2
+    + MandateStatusCheckV2
     + VerifyWebhookSourceV2
     + VerifyRedirectResponse
 {
@@ -252,6 +254,16 @@ pub trait MandateRevokeV2:
     PaymentFlowData,
     MandateRevokeRequestData,
     MandateRevokeResponseData,
+>
+{
+}
+
+pub trait MandateStatusCheckV2:
+    ConnectorIntegrationV2<
+    connector_flow::MandateStatusCheck,
+    PaymentFlowData,
+    MandateStatusCheckRequestData,
+    MandateStatusCheckResponseData,
 >
 {
 }

@@ -931,7 +931,7 @@ impl TryFrom<ResponseRouterData<PhonepeSyncResponse, Self>>
     }
 }
 
-fn generate_phonepe_sync_checksum(
+pub fn generate_phonepe_sync_checksum(
     api_path: &str,
     salt_key: &Secret<String>,
     key_index: &str,
@@ -1120,4 +1120,49 @@ fn extract_bin_from_masked_account_number(masked_account_number: Option<&str>) -
             .filter(|bin| bin.chars().all(|c| c.is_ascii_digit()))
             .map(str::to_string)
     })
+}
+
+// =============================================================================
+// MandateStatusCheck types
+// =============================================================================
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PhonepeMandateStatusCheckResponse {
+    pub success: bool,
+    pub code: String,
+    #[serde(default = "default_mandate_status_message")]
+    pub message: String,
+    pub data: Option<PhonepeMandateStatusCheckData>,
+}
+
+fn default_mandate_status_message() -> String {
+    "Mandate status check failed".to_string()
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PhonepeMandateStatusCheckData {
+    pub subscription_id: String,
+    pub state: String,
+    pub pay_response_code: Option<String>,
+    pub pay_response_code_description: Option<String>,
+}
+
+/// Maps PhonePe subscription state to MandateStatus
+pub fn map_phonepe_mandate_status(
+    state: &str,
+    current_status: &common_enums::MandateStatus,
+) -> common_enums::MandateStatus {
+    match state {
+        "CREATED" => common_enums::MandateStatus::Created,
+        "ACTIVE" => common_enums::MandateStatus::Active,
+        "PAUSED" => common_enums::MandateStatus::Paused,
+        "CANCEL_IN_PROGRESS" => current_status.clone(),
+        "CANCELLED" => common_enums::MandateStatus::Revoked,
+        "FAILED" => common_enums::MandateStatus::Failed,
+        "EXPIRED" => common_enums::MandateStatus::Revoked,
+        "REVOKED" => common_enums::MandateStatus::Revoked,
+        _ => current_status.clone(),
+    }
 }

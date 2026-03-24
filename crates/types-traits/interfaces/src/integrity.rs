@@ -9,12 +9,13 @@ use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 // Domain type imports
 use domain_types::connector_types::{
     AcceptDisputeData, AccessTokenRequestData, ConnectorCustomerData, DisputeDefendData,
-    MandateRevokeRequestData, PaymentCreateOrderData, PaymentMethodTokenizationData,
-    PaymentVoidData, PaymentsAuthenticateData, PaymentsAuthorizeData,
-    PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
-    PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsSdkSessionTokenData,
-    PaymentsSyncData, RefundSyncData, RefundsData, RepeatPaymentData, SessionTokenRequestData,
-    SetupMandateRequestData, SubmitEvidenceData,
+    MandateRevokeRequestData, MandateStatusCheckRequestData, PaymentCreateOrderData,
+    PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthenticateData,
+    PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
+    PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
+    PaymentsPreAuthenticateData, PaymentsSdkSessionTokenData, PaymentsSyncData, RefundSyncData,
+    RefundsData, RepeatPaymentData, SessionTokenRequestData, SetupMandateRequestData,
+    SubmitEvidenceData,
 };
 use domain_types::router_request_types::VerifyWebhookSourceRequestData;
 use domain_types::{
@@ -24,7 +25,8 @@ use domain_types::{
         AuthoriseIntegrityObject, CaptureIntegrityObject, CreateConnectorCustomerIntegrityObject,
         CreateOrderIntegrityObject, DefendDisputeIntegrityObject,
         IncrementalAuthorizationIntegrityObject, MandateRevokeIntegrityObject,
-        PaymentMethodTokenIntegrityObject, PaymentSynIntegrityObject, PaymentVoidIntegrityObject,
+        MandateStatusCheckIntegrityObject, PaymentMethodTokenIntegrityObject,
+        PaymentSynIntegrityObject, PaymentVoidIntegrityObject,
         PaymentVoidPostCaptureIntegrityObject, PostAuthenticateIntegrityObject,
         PreAuthenticateIntegrityObject, RefundIntegrityObject, RefundSyncIntegrityObject,
         RepeatPaymentIntegrityObject, SessionTokenIntegrityObject, SetupMandateIntegrityObject,
@@ -172,6 +174,7 @@ impl_check_integrity!(ConnectorCustomerData);
 impl_check_integrity!(PaymentsSdkSessionTokenData);
 impl_check_integrity!(PaymentsIncrementalAuthorizationData);
 impl_check_integrity!(MandateRevokeRequestData);
+impl_check_integrity!(MandateStatusCheckRequestData);
 impl_check_integrity!(VerifyWebhookSourceRequestData);
 
 // ========================================================================
@@ -371,6 +374,18 @@ impl GetIntegrityObject<MandateRevokeIntegrityObject> for MandateRevokeRequestDa
     fn get_request_integrity_object(&self) -> MandateRevokeIntegrityObject {
         MandateRevokeIntegrityObject {
             mandate_id: self.mandate_id.clone(),
+        }
+    }
+}
+
+impl GetIntegrityObject<MandateStatusCheckIntegrityObject> for MandateStatusCheckRequestData {
+    fn get_response_integrity_object(&self) -> Option<MandateStatusCheckIntegrityObject> {
+        None // Mandate status check responses don't have integrity objects
+    }
+
+    fn get_request_integrity_object(&self) -> MandateStatusCheckIntegrityObject {
+        MandateStatusCheckIntegrityObject {
+            connector_mandate_id: self.connector_mandate_id.clone(),
         }
     }
 }
@@ -909,6 +924,28 @@ impl FlowIntegrity for MandateRevokeIntegrityObject {
                 "mandate_id",
                 &req_integrity_object.mandate_id.expose(),
                 &res_integrity_object.mandate_id.expose(),
+            ));
+        }
+
+        check_integrity_result(mismatched_fields, connector_transaction_id)
+    }
+}
+
+impl FlowIntegrity for MandateStatusCheckIntegrityObject {
+    type IntegrityObject = Self;
+
+    fn compare(
+        req_integrity_object: Self,
+        res_integrity_object: Self,
+        connector_transaction_id: Option<String>,
+    ) -> Result<(), IntegrityCheckError> {
+        let mut mismatched_fields = Vec::new();
+
+        if req_integrity_object.connector_mandate_id != res_integrity_object.connector_mandate_id {
+            mismatched_fields.push(format_mismatch(
+                "connector_mandate_id",
+                &req_integrity_object.connector_mandate_id.expose(),
+                &res_integrity_object.connector_mandate_id.expose(),
             ));
         }
 

@@ -12,21 +12,22 @@ use domain_types::connector_types::ConnectorEnum;
 use domain_types::{
     connector_flow::{
         Authenticate, Authorize, Capture, CreateAccessToken, CreateConnectorCustomer, CreateOrder,
-        CreateSessionToken, IncrementalAuthorization, MandateRevoke, PSync, PaymentMethodToken,
-        PostAuthenticate, PreAuthenticate, Refund, RepeatPayment, SdkSessionToken, SetupMandate,
-        VerifyWebhookSource, Void, VoidPC,
+        CreateSessionToken, IncrementalAuthorization, MandateRevoke, MandateStatusCheck, PSync,
+        PaymentMethodToken, PostAuthenticate, PreAuthenticate, Refund, RepeatPayment,
+        SdkSessionToken, SetupMandate, VerifyWebhookSource, Void, VoidPC,
     },
     connector_types::{
         AccessTokenRequestData, AccessTokenResponseData, ConnectorCustomerData,
         ConnectorCustomerResponse, ConnectorResponseHeaders, MandateRevokeRequestData,
-        MandateRevokeResponseData, PaymentCreateOrderData, PaymentCreateOrderResponse,
-        PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
-        PaymentVoidData, PaymentsAuthenticateData, PaymentsAuthorizeData,
-        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
-        PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsResponseData,
-        PaymentsSdkSessionTokenData, PaymentsSyncData, RawConnectorRequestResponse, RefundFlowData,
-        RefundsData, RefundsResponseData, RepeatPaymentData, SessionTokenRequestData,
-        SessionTokenResponseData, SetupMandateRequestData, VerifyWebhookSourceFlowData,
+        MandateRevokeResponseData, MandateStatusCheckRequestData, MandateStatusCheckResponseData,
+        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData,
+        PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
+        PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
+        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
+        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSdkSessionTokenData,
+        PaymentsSyncData, RawConnectorRequestResponse, RefundFlowData, RefundsData,
+        RefundsResponseData, RepeatPaymentData, SessionTokenRequestData, SessionTokenResponseData,
+        SetupMandateRequestData, VerifyWebhookSourceFlowData,
     },
     errors::ApplicationErrorResponse,
     payment_method_data::{DefaultPCIHolder, PaymentMethodDataTypes, VaultTokenHolder},
@@ -75,7 +76,8 @@ use grpc_api_types::payments::{
     PaymentServiceVerifyRedirectResponseRequest, PaymentServiceVerifyRedirectResponseResponse,
     PaymentServiceVoidRequest, PaymentServiceVoidResponse, PayoutMethodEligibilityRequest,
     PayoutMethodEligibilityResponse, RecurringPaymentServiceChargeRequest,
-    RecurringPaymentServiceChargeResponse, RecurringPaymentServiceRevokeRequest,
+    RecurringPaymentServiceChargeResponse, RecurringPaymentServiceGetMandateStatusRequest,
+    RecurringPaymentServiceGetMandateStatusResponse, RecurringPaymentServiceRevokeRequest,
     RecurringPaymentServiceRevokeResponse, RefundResponse,
 };
 use hyperswitch_masking::ExposeInterface;
@@ -220,6 +222,11 @@ trait RecurringPaymentOperational {
         &self,
         request: RequestData<RecurringPaymentServiceRevokeRequest>,
     ) -> Result<tonic::Response<RecurringPaymentServiceRevokeResponse>, tonic::Status>;
+
+    async fn internal_mandate_status_check(
+        &self,
+        request: RequestData<RecurringPaymentServiceGetMandateStatusRequest>,
+    ) -> Result<tonic::Response<RecurringPaymentServiceGetMandateStatusResponse>, tonic::Status>;
 }
 
 trait MerchantAuthenticationOperational {
@@ -3334,6 +3341,21 @@ impl RecurringPaymentOperational for RecurringPayments {
         generate_response_fn: generate_mandate_revoke_response,
         all_keys_required: None
     );
+
+    implement_connector_operation!(
+        fn_name: internal_mandate_status_check,
+        log_prefix: "MANDATE_STATUS_CHECK",
+        request_type: RecurringPaymentServiceGetMandateStatusRequest,
+        response_type: RecurringPaymentServiceGetMandateStatusResponse,
+        flow_marker: MandateStatusCheck,
+        resource_common_data_type: PaymentFlowData,
+        request_data_type: MandateStatusCheckRequestData,
+        response_data_type: MandateStatusCheckResponseData,
+        request_data_constructor: MandateStatusCheckRequestData::foreign_try_from,
+        common_flow_data_constructor: PaymentFlowData::foreign_try_from,
+        generate_response_fn: generate_mandate_status_check_response,
+        all_keys_required: None
+    );
 }
 
 #[tonic::async_trait]
@@ -3519,6 +3541,48 @@ impl RecurringPaymentService for RecurringPayments {
             config.clone(),
             FlowName::Authenticate,
             |request_data| async move { self.internal_mandate_revoke(request_data).await },
+        )
+        .await
+    }
+
+    #[tracing::instrument(
+        name = "get_mandate_status",
+        fields(
+            name = common_utils::consts::NAME,
+            service_name = common_utils::consts::PAYMENT_SERVICE_NAME,
+            service_method = FlowName::MandateStatusCheck.as_str(),
+            request_body = tracing::field::Empty,
+            response_body = tracing::field::Empty,
+            error_message = tracing::field::Empty,
+            merchant_id = tracing::field::Empty,
+            gateway = tracing::field::Empty,
+            request_id = tracing::field::Empty,
+            status_code = tracing::field::Empty,
+            message_ = "Golden Log Line (incoming)",
+            response_time = tracing::field::Empty,
+            tenant_id = tracing::field::Empty,
+            flow = FlowName::MandateStatusCheck.as_str(),
+            flow_specific_fields.status = tracing::field::Empty,
+        )
+        skip(self, request)
+    )]
+    async fn get_mandate_status(
+        &self,
+        request: tonic::Request<RecurringPaymentServiceGetMandateStatusRequest>,
+    ) -> Result<tonic::Response<RecurringPaymentServiceGetMandateStatusResponse>, tonic::Status>
+    {
+        let service_name = request
+            .extensions()
+            .get::<String>()
+            .cloned()
+            .unwrap_or_else(|| "PaymentService".to_string());
+        let config = get_config_from_request(&request)?;
+        grpc_logging_wrapper(
+            request,
+            &service_name,
+            config.clone(),
+            FlowName::MandateStatusCheck,
+            |request_data| async move { self.internal_mandate_status_check(request_data).await },
         )
         .await
     }
@@ -3838,21 +3902,7 @@ pub fn generate_mandate_revoke_response(
         .get_connector_response_headers_as_map();
     match mandate_revoke_response {
         Ok(response) => Ok(RecurringPaymentServiceRevokeResponse {
-            status: match response.mandate_status {
-                common_enums::MandateStatus::Active => {
-                    grpc_api_types::payments::MandateStatus::Active
-                }
-                common_enums::MandateStatus::Inactive => {
-                    grpc_api_types::payments::MandateStatus::MandateInactive
-                }
-                common_enums::MandateStatus::Pending => {
-                    grpc_api_types::payments::MandateStatus::MandatePending
-                }
-                common_enums::MandateStatus::Revoked => {
-                    grpc_api_types::payments::MandateStatus::Revoked
-                }
-            }
-            .into(),
+            status: domain_mandate_status_to_proto(response.mandate_status).into(),
             error: None,
             status_code: response.status_code.into(),
             response_headers,
@@ -3876,6 +3926,81 @@ pub fn generate_mandate_revoke_response(
             response_headers,
             network_transaction_id: None,
             merchant_revoke_id: e.connector_transaction_id,
+            raw_connector_response,
+            raw_connector_request,
+        }),
+    }
+}
+
+fn domain_mandate_status_to_proto(
+    status: common_enums::MandateStatus,
+) -> grpc_api_types::payments::MandateStatus {
+    match status {
+        common_enums::MandateStatus::Active => grpc_api_types::payments::MandateStatus::Active,
+        common_enums::MandateStatus::Inactive => {
+            grpc_api_types::payments::MandateStatus::MandateInactive
+        }
+        common_enums::MandateStatus::Pending => {
+            grpc_api_types::payments::MandateStatus::MandatePending
+        }
+        common_enums::MandateStatus::Revoked => grpc_api_types::payments::MandateStatus::Revoked,
+        common_enums::MandateStatus::Created => {
+            grpc_api_types::payments::MandateStatus::MandateCreated
+        }
+        common_enums::MandateStatus::Failed => grpc_api_types::payments::MandateStatus::Failed,
+        common_enums::MandateStatus::Paused => {
+            grpc_api_types::payments::MandateStatus::MandatePaused
+        }
+    }
+}
+
+pub fn generate_mandate_status_check_response(
+    router_data_v2: RouterDataV2<
+        MandateStatusCheck,
+        PaymentFlowData,
+        MandateStatusCheckRequestData,
+        MandateStatusCheckResponseData,
+    >,
+) -> Result<
+    RecurringPaymentServiceGetMandateStatusResponse,
+    error_stack::Report<ApplicationErrorResponse>,
+> {
+    let mandate_status_response = router_data_v2.response;
+    let raw_connector_response = router_data_v2
+        .resource_common_data
+        .get_raw_connector_response();
+    let raw_connector_request = router_data_v2
+        .resource_common_data
+        .get_raw_connector_request();
+    let response_headers = router_data_v2
+        .resource_common_data
+        .get_connector_response_headers_as_map();
+    match mandate_status_response {
+        Ok(response) => Ok(RecurringPaymentServiceGetMandateStatusResponse {
+            status: domain_mandate_status_to_proto(response.mandate_status).into(),
+            error: None,
+            status_code: 200,
+            response_headers,
+            pg_error_code: response.pg_error_code,
+            pg_error_message: response.pg_error_message,
+            raw_connector_response,
+            raw_connector_request,
+        }),
+        Err(e) => Ok(RecurringPaymentServiceGetMandateStatusResponse {
+            status: grpc_api_types::payments::MandateStatus::Failed.into(),
+            error: Some(grpc_api_types::payments::ErrorInfo {
+                unified_details: None,
+                connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
+                    code: Some(e.code),
+                    message: Some(e.message.clone()),
+                    reason: e.reason.clone(),
+                }),
+                issuer_details: None,
+            }),
+            status_code: e.status_code.into(),
+            response_headers,
+            pg_error_code: None,
+            pg_error_message: None,
             raw_connector_response,
             raw_connector_request,
         }),

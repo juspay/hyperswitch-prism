@@ -241,6 +241,9 @@ enum MandateStatus {
   MANDATE_INACTIVE = 3;
   REVOKED = 4;
   MANDATE_REVOKE_FAILED = 5;
+  MANDATE_CREATED = 6;
+  MANDATE_STATUS_FAILED = 7;
+  MANDATE_PAUSED = 8;
 }
 
 // Method for capturing a payment
@@ -2606,6 +2609,31 @@ message RecurringPaymentServiceRevokeResponse {
   // Transaction Details
   optional string network_transaction_id = 5;
   optional string merchant_revoke_id = 6;
+
+  // Raw Response/Request for debugging
+  optional SecretString raw_connector_response = 7;
+  optional SecretString raw_connector_request = 8;
+}
+
+// Request message for a mandate status check operation
+message RecurringPaymentServiceGetMandateStatusRequest {
+  // Mandate Details
+  string connector_mandate_id = 1;
+  string connector_customer_id = 2;
+  MandateStatus current_mandate_status = 3;
+}
+
+// Response message for a mandate status check operation
+message RecurringPaymentServiceGetMandateStatusResponse {
+  // Status Information
+  MandateStatus status = 1;
+  optional ErrorInfo error = 2;
+  uint32 status_code = 3;
+  map<string, string> response_headers = 4;
+
+  // Error Details from PG
+  optional string pg_error_code = 5;
+  optional string pg_error_message = 6;
 
   // Raw Response/Request for debugging
   optional SecretString raw_connector_response = 7;

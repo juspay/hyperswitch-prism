@@ -32,7 +32,8 @@ use grpc_api_types::payments::{
     PaymentServiceIncrementalAuthorizationRequest, PaymentServiceIncrementalAuthorizationResponse,
     PaymentServiceReverseResponse, PaymentServiceSetupRecurringRequest,
     PaymentServiceSetupRecurringResponse, PaymentServiceVoidRequest, PaymentServiceVoidResponse,
-    RecurringPaymentServiceRevokeRequest, RefundResponse,
+    RecurringPaymentServiceGetMandateStatusRequest, RecurringPaymentServiceRevokeRequest,
+    RefundResponse,
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -243,10 +244,10 @@ use crate::{
         CustomerInfo, DisputeDefendData, DisputeFlowData, DisputeResponseData,
         DisputeWebhookDetailsResponse, GpayAllowedPaymentMethods, GpayBillingAddressFormat,
         GpaySessionTokenResponse, L2L3Data, MandateReferenceId, MandateRevokeRequestData,
-        MultipleCaptureRequestData, NetworkTokenWithNTIRef, NextActionCall, OrderInfo,
-        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData,
-        PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
-        PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCaptureData,
+        MandateStatusCheckRequestData, MultipleCaptureRequestData, NetworkTokenWithNTIRef,
+        NextActionCall, OrderInfo, PaymentCreateOrderData, PaymentCreateOrderResponse,
+        PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
+        PaymentVoidData, PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
         PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSdkSessionTokenData,
         PaymentsSyncData, PaypalFlow, PaypalTransactionInfo, RawConnectorRequestResponse,
@@ -10740,6 +10741,105 @@ impl
             customer_id: None,
             connector_customer: None,
             description: Some("Mandate revoke operation".to_string()),
+            return_url: None,
+            connector_feature_data: None,
+            amount_captured: None,
+            minor_amount_captured: None,
+            access_token: None,
+            session_token: None,
+            reference_id: None,
+            payment_method_token: None,
+            preprocessing_id: None,
+            connector_api_version: None,
+            test_mode: None,
+            connector_http_status_code: None,
+            external_latency: None,
+            connectors,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            connector_response_headers: None,
+            vault_headers: None,
+            minor_amount_capturable: None,
+            connector_response: None,
+            recurring_mandate_payment_data: None,
+            order_details: None,
+            minor_amount_authorized: None,
+            l2_l3_data: None,
+        })
+    }
+}
+
+// Conversion implementations for MandateStatusCheck flow
+fn proto_mandate_status_to_domain(
+    status: grpc_api_types::payments::MandateStatus,
+) -> common_enums::MandateStatus {
+    match status {
+        grpc_api_types::payments::MandateStatus::Active => common_enums::MandateStatus::Active,
+        grpc_api_types::payments::MandateStatus::MandateInactive => {
+            common_enums::MandateStatus::Inactive
+        }
+        grpc_api_types::payments::MandateStatus::MandatePending => {
+            common_enums::MandateStatus::Pending
+        }
+        grpc_api_types::payments::MandateStatus::Revoked => common_enums::MandateStatus::Revoked,
+        grpc_api_types::payments::MandateStatus::MandateCreated => {
+            common_enums::MandateStatus::Created
+        }
+        grpc_api_types::payments::MandateStatus::Failed => common_enums::MandateStatus::Failed,
+        grpc_api_types::payments::MandateStatus::MandatePaused => {
+            common_enums::MandateStatus::Paused
+        }
+        _ => common_enums::MandateStatus::Pending,
+    }
+}
+
+impl ForeignTryFrom<RecurringPaymentServiceGetMandateStatusRequest>
+    for MandateStatusCheckRequestData
+{
+    type Error = ApplicationErrorResponse;
+
+    fn foreign_try_from(
+        value: RecurringPaymentServiceGetMandateStatusRequest,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let current_mandate_status = proto_mandate_status_to_domain(value.current_mandate_status());
+        Ok(Self {
+            connector_mandate_id: Secret::new(value.connector_mandate_id),
+            connector_customer_id: Secret::new(value.connector_customer_id),
+            current_mandate_status,
+        })
+    }
+}
+
+impl
+    ForeignTryFrom<(
+        RecurringPaymentServiceGetMandateStatusRequest,
+        Connectors,
+        &MaskedMetadata,
+    )> for PaymentFlowData
+{
+    type Error = ApplicationErrorResponse;
+
+    fn foreign_try_from(
+        (_value, connectors, metadata): (
+            RecurringPaymentServiceGetMandateStatusRequest,
+            Connectors,
+            &MaskedMetadata,
+        ),
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let merchant_id_from_header = extract_merchant_id_from_metadata(metadata)?;
+
+        Ok(Self {
+            merchant_id: merchant_id_from_header,
+            payment_id: "MANDATE_STATUS_CHECK_ID".to_string(),
+            attempt_id: "MANDATE_STATUS_CHECK_ATTEMPT_ID".to_string(),
+            status: common_enums::AttemptStatus::Pending,
+            payment_method: common_enums::PaymentMethod::Card,
+            address: PaymentAddress::default(),
+            auth_type: common_enums::AuthenticationType::default(),
+            connector_request_reference_id: "MANDATE_STATUS_CHECK_REF".to_string(),
+            customer_id: None,
+            connector_customer: None,
+            description: Some("Mandate status check operation".to_string()),
             return_url: None,
             connector_feature_data: None,
             amount_captured: None,

@@ -1656,6 +1656,20 @@ pub struct MandateRevokeResponseData {
     pub status_code: u16,
 }
 
+#[derive(Debug, Clone)]
+pub struct MandateStatusCheckRequestData {
+    pub connector_mandate_id: Secret<String>,
+    pub connector_customer_id: Secret<String>,
+    pub current_mandate_status: common_enums::MandateStatus,
+}
+
+#[derive(Debug, Clone)]
+pub struct MandateStatusCheckResponseData {
+    pub mandate_status: common_enums::MandateStatus,
+    pub pg_error_code: Option<String>,
+    pub pg_error_message: Option<String>,
+}
+
 #[derive(Debug, Default, Clone)]
 pub struct RefundSyncData {
     pub connector_transaction_id: String,

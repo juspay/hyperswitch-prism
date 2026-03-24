@@ -148,6 +148,10 @@ service RecurringPaymentService {
   // Cancel an existing recurring payment mandate. Stops future automatic
   // charges on customer's stored consent for subscription cancellations.
   rpc Revoke(RecurringPaymentServiceRevokeRequest) returns (RecurringPaymentServiceRevokeResponse);
+
+  // Check the current status of a mandate with the payment processor.
+  // Retrieves the latest mandate status for lifecycle tracking.
+  rpc GetMandateStatus(RecurringPaymentServiceGetMandateStatusRequest) returns (RecurringPaymentServiceGetMandateStatusResponse);
 }
 
 // ============================================================================

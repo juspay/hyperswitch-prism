@@ -3,22 +3,25 @@ pub mod headers;
 pub mod transformers;
 
 use common_enums as enums;
-use common_utils::{errors::CustomResult, events, ext_traits::BytesExt, types::MinorUnit};
+use common_utils::{
+    errors::CustomResult, events, ext_traits::BytesExt, request::Method, types::MinorUnit,
+};
 use domain_types::{
     connector_flow::{
         Accept, Authenticate, Authorize, Capture, CreateAccessToken, CreateConnectorCustomer,
         CreateOrder, CreateSessionToken, DefendDispute, IncrementalAuthorization, MandateRevoke,
-        PSync, PaymentMethodToken, PostAuthenticate, PreAuthenticate, RSync, Refund, RepeatPayment,
-        SdkSessionToken, SetupMandate, SubmitEvidence, Void, VoidPC,
+        MandateStatusCheck, PSync, PaymentMethodToken, PostAuthenticate, PreAuthenticate, RSync,
+        Refund, RepeatPayment, SdkSessionToken, SetupMandate, SubmitEvidence, Void, VoidPC,
     },
     connector_types::{
         AcceptDisputeData, AccessTokenRequestData, AccessTokenResponseData, ConnectorCustomerData,
         ConnectorCustomerResponse, ConnectorSpecifications, DisputeDefendData, DisputeFlowData,
         DisputeResponseData, MandateRevokeRequestData, MandateRevokeResponseData,
-        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData,
-        PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
-        PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
-        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
+        MandateStatusCheckRequestData, MandateStatusCheckResponseData, PaymentCreateOrderData,
+        PaymentCreateOrderResponse, PaymentFlowData, PaymentMethodTokenResponse,
+        PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthenticateData,
+        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
+        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
         PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSdkSessionTokenData,
         PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
         RepeatPaymentData, SessionTokenRequestData, SessionTokenResponseData,
@@ -41,10 +44,11 @@ use serde::Serialize;
 use transformers as phonepe;
 
 use self::transformers::{
-    PhonepePaymentsRequest, PhonepePaymentsResponse, PhonepeSyncRequest, PhonepeSyncResponse,
+    PhonepeMandateStatusCheckResponse, PhonepePaymentsRequest, PhonepePaymentsResponse,
+    PhonepeSyncRequest, PhonepeSyncResponse,
 };
 use super::macros;
-use crate::types::ResponseRouterData;
+use crate::{types::ResponseRouterData, with_response_body};
 
 // Trait implementations with generic type parameters
 
@@ -177,6 +181,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     connector_types::MandateRevokeV2 for Phonepe<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    connector_types::MandateStatusCheckV2 for Phonepe<T>
 {
 }
 
@@ -649,6 +658,189 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         MandateRevokeResponseData,
     > for Phonepe<T>
 {
+}
+
+// MandateStatusCheck flow implementation for PhonePe
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    ConnectorIntegrationV2<
+        MandateStatusCheck,
+        PaymentFlowData,
+        MandateStatusCheckRequestData,
+        MandateStatusCheckResponseData,
+    > for Phonepe<T>
+{
+    fn get_http_method(&self) -> Method {
+        Method::Get
+    }
+
+    fn get_headers(
+        &self,
+        req: &RouterDataV2<
+            MandateStatusCheck,
+            PaymentFlowData,
+            MandateStatusCheckRequestData,
+            MandateStatusCheckResponseData,
+        >,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        let auth = phonepe::PhonepeAuthType::try_from(&req.connector_config)?;
+        let mandate_id = req.request.connector_mandate_id.peek();
+
+        // Build checksum: SHA256("/v3/recurring/subscription/status/{merchantId}/{mandateId}" + saltKey) + "###" + saltIndex
+        let api_path = format!(
+            "/{}/{}/{}",
+            constants::API_SUBSCRIPTION_STATUS_ENDPOINT,
+            auth.merchant_id.peek(),
+            mandate_id
+        );
+        let checksum =
+            phonepe::generate_phonepe_sync_checksum(&api_path, &auth.salt_key, &auth.key_index)?;
+
+        Ok(vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                "application/json".to_string().into(),
+            ),
+            (headers::X_VERIFY.to_string(), checksum.into()),
+            (
+                headers::X_MERCHANT_ID.to_string(),
+                auth.merchant_id.peek().to_string().into(),
+            ),
+        ])
+    }
+
+    fn get_url(
+        &self,
+        req: &RouterDataV2<
+            MandateStatusCheck,
+            PaymentFlowData,
+            MandateStatusCheckRequestData,
+            MandateStatusCheckResponseData,
+        >,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        // Use recurring base URL (secondary_base_url), NOT the regular PhonePe base URL
+        let recurring_base_url = req
+            .resource_common_data
+            .connectors
+            .phonepe
+            .secondary_base_url
+            .as_deref()
+            .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
+
+        let auth = phonepe::PhonepeAuthType::try_from(&req.connector_config)?;
+        let merchant_id = auth.merchant_id.peek();
+        let mandate_id = req.request.connector_mandate_id.peek();
+
+        Ok(format!(
+            "{}{}/{}/{}",
+            recurring_base_url,
+            constants::API_SUBSCRIPTION_STATUS_ENDPOINT,
+            merchant_id,
+            mandate_id
+        ))
+    }
+
+    fn handle_response_v2(
+        &self,
+        data: &RouterDataV2<
+            MandateStatusCheck,
+            PaymentFlowData,
+            MandateStatusCheckRequestData,
+            MandateStatusCheckResponseData,
+        >,
+        event_builder: Option<&mut events::Event>,
+        res: Response,
+    ) -> CustomResult<
+        RouterDataV2<
+            MandateStatusCheck,
+            PaymentFlowData,
+            MandateStatusCheckRequestData,
+            MandateStatusCheckResponseData,
+        >,
+        errors::ConnectorError,
+    > {
+        // Handle empty response body (HTTP 204) — treat as subscription not found
+        if res.response.is_empty() {
+            return Ok(RouterDataV2 {
+                response: Ok(MandateStatusCheckResponseData {
+                    mandate_status: enums::MandateStatus::Revoked,
+                    pg_error_code: Some("SUBSCRIPTION_NOT_FOUND".to_string()),
+                    pg_error_message: Some(
+                        "Empty response from PhonePe — subscription not found".to_string(),
+                    ),
+                }),
+                ..data.clone()
+            });
+        }
+
+        let response: PhonepeMandateStatusCheckResponse = res
+            .response
+            .parse_struct("PhonepeMandateStatusCheckResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        with_response_body!(event_builder, response);
+
+        if response.success {
+            // Successful response — map the subscription state to MandateStatus
+            let mandate_status = match &response.data {
+                Some(data_inner) => phonepe::map_phonepe_mandate_status(
+                    &data_inner.state,
+                    &data.request.current_mandate_status,
+                ),
+                None => data.request.current_mandate_status.clone(),
+            };
+
+            Ok(RouterDataV2 {
+                response: Ok(MandateStatusCheckResponseData {
+                    mandate_status,
+                    pg_error_code: Some(response.code),
+                    pg_error_message: Some(response.message),
+                }),
+                ..data.clone()
+            })
+        } else if response.code == "SUBSCRIPTION_NOT_FOUND" {
+            // Special case: SUBSCRIPTION_NOT_FOUND → treat as Revoked, not an error
+            Ok(RouterDataV2 {
+                response: Ok(MandateStatusCheckResponseData {
+                    mandate_status: enums::MandateStatus::Revoked,
+                    pg_error_code: Some(response.code),
+                    pg_error_message: Some(response.message),
+                }),
+                ..data.clone()
+            })
+        } else {
+            // Other failure responses — return as error
+            Ok(RouterDataV2 {
+                response: Err(ErrorResponse {
+                    code: response.code,
+                    message: response.message.clone(),
+                    reason: Some(response.message),
+                    status_code: res.status_code,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                }),
+                ..data.clone()
+            })
+        }
+    }
+
+    fn get_error_response_v2(
+        &self,
+        res: Response,
+        event_builder: Option<&mut events::Event>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+
+    fn get_5xx_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut events::Event>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
 }
 
 // Stub implementations for missing flows
