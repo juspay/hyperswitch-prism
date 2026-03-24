@@ -1,0 +1,170 @@
+{
+  "forte": [
+    "https://developers.forte.net/digital-wallet-payment/",
+    "https://developers.forte.net/introduction-rest-api/",
+    "https://developers.forte.net/rest-api-endpoints/",
+    "https://developers.forte.net/using-webhooks/",
+    "https://developers.forte.net/transaction-codes/",
+    "https://developers.forte.net/set-up-a-rest-api-integration/"
+  ],
+  "Paypal": [
+    "https://developer.paypal.com/docs/checkout/apm/google-pay/",
+    "https://developer.paypal.com/docs/api/orders/v2/",
+    "https://developer.paypal.com/api/rest/authentication/",
+    "https://developer.paypal.com/api/webhooks/v1/",
+    "https://developer.paypal.com/api/rest/webhooks/event-names/",
+    "https://developer.paypal.com/api/rest/reference/idempotency/",
+    "https://developer.paypal.com/api/rest/reference/orders/v2/errors/",
+    "https://developer.paypal.com/docs/checkout/apm/test-cards/google-pay/",
+    "https://developer.paypal.com/api/rest/production/"
+  ],
+  "worldpay": [
+    "https://docs.worldpay.com/access/products/payments/google-pay",
+    "https://docs.worldpay.com/access/products/payments/openapi",
+    "https://docs.worldpay.com/access/products/events",
+    "https://docs.worldpay.com/access/products/events/signature",
+    "https://docs.worldpay.com/access/products/reference/worldpay-error-responses",
+    "https://docs.worldpay.com/access/products/payments/testing",
+    "https://docs.worldpay.com/access/products/reference/api-principles"
+  ],
+  "wellsfargo": [],
+  "Finix": [
+    "https://docs.finix.com/guides/online-payments/digital-wallets/google-pay/google-pay-on-web",
+    "https://docs.finix.com/guides/online-payments/digital-wallets/google-pay",
+    "https://docs.finix.com/api/payment-instruments/createpaymentinstrument",
+    "https://docs.finix.com/api/transfers",
+    "https://docs.finix.com/api/authorizations",
+    "https://docs.finix.com/api/webhooks",
+    "https://docs.finix.com/additional-resources/developers/implementation-and-testing/error-codes/",
+    "https://docs.finix.com/api"
+  ],
+  "bambora": [
+    "https://docs.na.worldline-solutions.com/build-your-integration/payment-apis/google-pay",
+    "https://docs.na.worldline-solutions.com/build-your-integration/payment-apis/payment-api",
+    "https://docs.na.worldline-solutions.com/api-reference",
+    "https://docs.na.worldline-solutions.com/build-your-integration/payment-apis/payment-api/payment-api-response-codes",
+    "https://docs.na.worldline-solutions.com/plan-your-integration/create-a-test-account",
+    "https://docs.na.worldline-solutions.com/plan-your-integration/merchant-integration-guide/calling-apis",
+    "https://docs.na.worldline-solutions.com/build-your-integration/security-and-fraud-APIs/3ds-20",
+    "https://docs.na.worldline-solutions.com/plan-your-integration/create-a-test-account/encode-api-passcode"
+  ],
+  "bamboraapac": [
+    "https://docs.na.worldline-solutions.com/build-your-integration/payment-apis/google-pay",
+    "https://docs.na.worldline-solutions.com/build-your-integration/payment-apis/payment-api",
+    "https://docs.na.worldline-solutions.com/api-reference",
+    "https://docs.na.worldline-solutions.com/build-your-integration/payment-apis/payment-api/payment-api-response-codes",
+    "https://docs.na.worldline-solutions.com/plan-your-integration/create-a-test-account",
+    "https://docs.na.worldline-solutions.com/plan-your-integration/merchant-integration-guide/calling-apis",
+    "https://docs.na.worldline-solutions.com/build-your-integration/security-and-fraud-APIs/3ds-20",
+    "https://docs.na.worldline-solutions.com/plan-your-integration/create-a-test-account/encode-api-passcode"
+  ],
+  "trustpayments": [
+    "https://help.trustpayments.com/hc/en-us/articles/18398837911697-Google-Pay-direct-AUTH-integration",
+    "https://help.trustpayments.com/hc/en-us/sections/360005821218-Webservices-API",
+    "https://help.trustpayments.com/hc/en-us/articles/4402755159569-AUTH",
+    "https://help.trustpayments.com/hc/en-us/articles/4402897300625",
+    "https://webapp.securetrading.net/errorcodes.html",
+    "https://help.trustpayments.com/hc/en-us/sections/360005821378-Testing-centre",
+    "https://help.trustpayments.com/hc/en-us/articles/4402329196433",
+    "https://help.trustpayments.com/hc/en-us/articles/4403248026001-Getting-started-with-TRU-Connect"
+  ],
+  "globalpay": [
+    "https://developer.globalpayments.com/docs/payments/payment-methods/digital-wallets/google-pay",
+    "https://developer.globalpayments.com/ecommerce/api/digital-wallets",
+    "https://developer.globalpayments.com/api/access-token",
+    "https://developer.globalpayments.com/api/card-payments",
+    "https://developer.globalpayments.com/api/definitions/webhooks",
+    "https://developer.globalpayments.com/docs/getting-started/testing",
+    "https://developer.globalpayments.com/resources/test-card-numbers"
+  ],
+  "paysafe": [
+    "https://developer.paysafe.com/en/api-docs/payments-api/add-payment-methods/google-pay/",
+    "https://developer.paysafe.com/en/api-docs/payments-api/add-payment-methods/google-pay/pass-decrypted-card-data/",
+    "https://developer.paysafe.com/en/api-docs/payments-api/add-payment-methods/google-pay/test-cards/",
+    "https://developer.paysafe.com/en/api-docs/payments-api/overview/",
+    "https://developer.paysafe.com/en/api-docs/payments-api/get-started/",
+    "https://developer.paysafe.com/en/api-docs/payments-api/configure-webhooks/",
+    "https://developer.paysafe.com/en/payments-api/#/"
+  ],
+  "stax": [
+    "https://docs.staxpayments.com/docs/using-apple-or-google-pay",
+    "https://docs.staxpayments.com/docs/enabling-google-and-apple-pay",
+    "https://docs.staxpayments.com/reference/charge-a-payment-method",
+    "https://docs.staxpayments.com/reference/create-a-payment-method",
+    "https://docs.staxpayments.com/docs/idempotency",
+    "https://docs.staxpayments.com/reference/merchant-webhooks",
+    "https://docs.staxpayments.com/docs/setting-up-your-webhooks",
+    "https://docs.staxpayments.com/docs/merchant-webhooks",
+    "https://docs.staxpayments.com/reference/overview",
+    "https://docs.staxpayments.com/reference/merchant-api-keys",
+    "https://docs.staxpayments.com/docs/accessing-and-creating-api-keys",
+    "https://docs.staxpayments.com/docs/test-environments",
+    "https://docs.staxpayments.com/reference/ach-error-codes",
+    "https://docs.staxpayments.com/reference/storing-payment-methods"
+  ],
+  "Mollie": [
+    "https://docs.mollie.com/docs/google-pay",
+    "https://docs.mollie.com/reference/create-payment",
+    "https://docs.mollie.com/reference/get-payment",
+    "https://docs.mollie.com/reference/authentication",
+    "https://docs.mollie.com/reference/webhooks",
+    "https://docs.mollie.com/reference/api-idempotency",
+    "https://docs.mollie.com/reference/handling-errors",
+    "https://docs.mollie.com/reference/testing"
+  ],
+  "Nuvei": [
+    "https://docs.nuvei.com/documentation/digital-wallets/google-pay/",
+    "https://docs.nuvei.com/documentation/digital-wallets/google-pay/google-pay-integration/google-pay-integration-3ds/",
+    "https://docs.nuvei.com/api/main/indexMain_v1_0.html",
+    "https://docs.nuvei.com/documentation/integration/webhooks/",
+    "https://docs.nuvei.com/documentation/integration/response-handling/",
+    "https://docs.nuvei.com/documentation/integration/testing/testing-cards/"
+  ],
+  "Airwallex": [
+    "https://www.airwallex.com/docs/payments/payment-methods/global/google-paytm",
+    "https://www.airwallex.com/docs/payments/payment-methods/global/google-paytm/native-api",
+    "https://www.airwallex.com/docs/payments/online-payments/native-api",
+    "https://www.airwallex.com/docs/payments/online-payments/native-api/device-fingerprinting",
+    "https://www.airwallex.com/docs/payments/reference/payments-webhooks",
+    "https://www.airwallex.com/docs/payments/troubleshooting/error-response-codes",
+    "https://www.airwallex.com/docs/payments/test-and-go-live/test-card-numbers",
+    "https://www.airwallex.com/docs/developer-tools/api",
+    "https://www.airwallex.com/docs/developer-tools/webhooks/listen-for-webhook-events"
+  ],
+  "Shift4": [
+    "https://docs.shift4.com/apis/payments-platform-rest/openapi",
+    "https://docs.shift4.com/apis/payments-platform-rest/openapi/transactions/transactionsauthorization",
+    "https://docs.shift4.com/apis/payments-platform-rest/openapi/credentials",
+    "https://docs.shift4.com/guides/quickstart",
+    "https://docs.shift4.com/guides/appendices/error-codes",
+    "https://docs.shift4.com/guides/appendices/test-card-numbers",
+    "https://docs.shift4.com/guides/alternative-payments",
+    "https://docs.shift4.com/guides/core-concepts/understanding-card-tokens"
+  ],
+  "Paybox": [],
+  "Nmi": [
+    "https://docs.nmi.com/docs/digital-wallet-setup",
+    "https://docs.nmi.com/docs/adding-digital-wallet-data-to-the-customer-vault",
+    "https://docs.nmi.com/docs/custom-checkout",
+    "https://docs.nmi.com/reference/create-sale-v5",
+    "https://docs.nmi.com/reference/authentication",
+    "https://docs.nmi.com/reference/response-codes",
+    "https://docs.nmi.com/reference/overview",
+    "https://docs.nmi.com/reference/transaction-events",
+    "https://docs.nmi.com/docs/getting-your-api-keys"
+  ],
+  "Barclaycard": [],
+  "jpmorgan": [
+    "https://developer.payments.jpmorgan.com/api/llm-content?path=en%2Fdocs%2Fcommerce%2Fonline-payments%2Fcapabilities%2Fonline-payments%2Fpayment-methods%2Fgoogle-pay.md",
+    "https://developer.payments.jpmorgan.com/api/llm-content?path=en%2Fdocs%2Fcommerce%2Foptimization-protection%2Fcapabilities%2Fwallet-decryption%2Fhow-to%2Fdecrypt-a-google-pay-bundle.md",
+    "https://developer.payments.jpmorgan.com/api/llm-content?path=en%2Fdocs%2Fcommerce%2Fonline-payments%2Fcapabilities%2Fonline-payments%2Fhow-to%2Fauthorize-and-capture-a-payment.md",
+    "https://developer.payments.jpmorgan.com/api/llm-content?path=en%2Fdocs%2Fcommerce%2Fonline-payments%2Ftesting.md",
+    "https://developer.payments.jpmorgan.com/api/llm-content?path=en%2Fdocs%2Fcommerce%2Foptimization-protection%2Fcapabilities%2Fnotifications%2Foverview.md",
+    "https://developer.payments.jpmorgan.com/api/oauth",
+    "https://developer.payments.jpmorgan.com/api/response-codes",
+    "https://developer.payments.jpmorgan.com/api/llm-content?path=en%2Fdocs%2Fcommerce%2Foptimization-protection%2Fcapabilities%2Fnotifications%2Fnotification-types.md",
+    "https://developer.payments.jpmorgan.com/api/home",
+    "https://developer.payments.jpmorgan.com/docs/commerce/online-payments",
+    "https://developer.payments.jpmorgan.com/docs/home"
+  ]
+}

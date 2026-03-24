@@ -1,0 +1,110 @@
+{
+  "Paypal": {
+    "googlepay": {
+      "integration_doc_url": "https://developer.paypal.com/docs/checkout/apm/google-pay/",
+      "notes": "valid. Score: 8.5/10. Comprehensive documentation covering Orders API v2 for Google Pay integration, authentication via OAuth2, webhook management, idempotency, and error references. Good curl examples throughout. Minor gaps: Webhook signature verification details are spread across multiple pages. Verified 2026-03-17."
+    }
+  },
+  "worldpay": {
+    "googlepay": {
+      "integration_doc_url": "https://docs.worldpay.com/access/products/payments/google-pay",
+      "notes": "valid. Score: 9/10. Comprehensive documentation covering Google Pay integration via Payments API. API endpoint (POST /api/payments) clearly documented with authentication (Basic Auth), request/response schemas, Google Pay-specific parameters (walletToken, encrypted payload), webhook signature verification (HMAC), error responses, and testing scenarios. Includes curl examples and code samples in multiple languages. Minor gap: Explicit idempotency header documentation not clearly separated but transactionReference acts as unique identifier. Verified 2026-03-17."
+    }
+  },
+  "wellsfargo": {
+    "googlepay": {
+      "integration_doc_url": null,
+      "notes": "insufficient. Score: 0/10. Wells Fargo developer portal (https://developer.wellsfargo.com) is a single-page application with no accessible API documentation URLs. All attempts to find Google Pay API reference, endpoints, authentication docs, or integration guides returned 404 or the same shell page without content. No backend API documentation found for Google Pay. The connector uses signature-based authentication (HMAC-SHA256) but documentation is not publicly accessible. Verified 2026-03-17."
+    }
+  },
+  "Finix": {
+    "googlepay": {
+      "integration_doc_url": "https://docs.finix.com/guides/online-payments/digital-wallets/google-pay/google-pay-on-web",
+      "notes": "valid. Score: 10/10. Comprehensive documentation covering Google Pay integration via Finix API. API endpoints (/payment_instruments, /transfers, /authorizations) clearly documented with authentication (HTTP Basic Auth with username:password and Finix-Version header), request/response schemas, Google Pay-specific parameters (third_party_token, type: GOOGLE_PAY), webhook configuration, idempotency support (idempotency_id), error codes (HTTP codes and failure codes), and extensive curl examples. Documentation covers both web and Android integration paths with step-by-step backend API flow. Verified 2026-03-17."
+    }
+  },
+  "bambora": {
+    "googlepay": {
+      "integration_doc_url": "https://docs.na.worldline-solutions.com/build-your-integration/payment-apis/google-pay",
+      "notes": "valid. Score: 9/10. Comprehensive documentation covering Google Pay integration via Worldline NAM (formerly Bambora) Payment APIs. API endpoint (POST /v1/payments) clearly documented with Passcode-based authentication (Base64 encoded merchant_id:passcode), request/response schemas, Google Pay-specific parameters (payment_method: google_pay, transaction_payload, 3d_secure browser data), support for 3DS 2.0, extensive error codes for multiple processors, test card documentation, and curl examples. Documentation covers both hosted checkout and API-only integration paths. Minor gaps: No explicit idempotency documentation found, webhook documentation is limited to reporting APIs rather than payment notifications. Verified 2026-03-18."
+    }
+  },
+  "bamboraapac": {
+    "googlepay": {
+      "integration_doc_url": "https://docs.na.worldline-solutions.com/build-your-integration/payment-apis/google-pay",
+      "notes": "valid. Score: 9/10. Comprehensive documentation covering Google Pay integration via Worldline NAM (formerly Bambora) Payment APIs. API endpoint (POST /v1/payments) clearly documented with Passcode-based authentication (Base64 encoded merchant_id:passcode), request/response schemas, Google Pay-specific parameters (payment_method: google_pay, transaction_payload, 3d_secure browser data), support for 3DS 2.0, extensive error codes for multiple processors, test card documentation, and curl examples. Documentation covers both hosted checkout and API-only integration paths. Minor gaps: No explicit idempotency documentation found, webhook documentation is limited to reporting APIs rather than payment notifications. Verified 2026-03-17."
+    }
+  },
+  "trustpayments": {
+    "googlepay": {
+      "integration_doc_url": "https://help.trustpayments.com/hc/en-us/articles/18398837911697-Google-Pay-direct-AUTH-integration",
+      "notes": "valid. Score: 9/10. Comprehensive documentation covering Google Pay direct AUTH integration via Trust Payments Webservices API. API endpoint (<DOMAIN>/json/) clearly documented with authentication (HTTP Basic Auth with username:password), complete request/response schemas for both PAN_ONLY and CRYPTOGRAM_3DS authentication methods, Google Pay-specific parameters (walletsource, walletdisplayname, tokentype, tavv, tokenisedpayment), 3DS integration (cavv, eci, threedversion, threeddirectorytransactionreference), extensive error codes reference, testing documentation, and curl examples. Documentation covers both authentication methods with detailed field specifications. Minor gaps: No explicit idempotency header documented, webhook configuration documentation is more focused on frontend integration than backend notification handling. Verified 2026-03-17."
+    }
+  },
+  "globalpay": {
+    "googlepay": {
+      "integration_doc_url": "https://developer.globalpayments.com/docs/payments/payment-methods/digital-wallets/google-pay",
+      "notes": "valid. Score: 9/10. Comprehensive documentation covering Google Pay integration via Global Payments REST API and XML API. API endpoints (POST /ucp/transactions, POST /ucp/accesstoken) clearly documented with Bearer Token authentication (OAuth2 client credentials), request/response schemas, Google Pay-specific parameters (digital_wallet.provider=PAY_BY_GOOGLE, payment_token with signature/protocolVersion/signedMessage), webhook signature verification (SHA512 with X-GP-Signature header), error responses, and extensive testing documentation with test cards and amount-based scenarios. Includes curl examples for both REST and XML APIs. Minor gaps: No explicit idempotency header documented, though timestamp/nonce provide uniqueness. Verified 2026-03-17."
+    }
+  },
+  "paysafe": {
+    "googlepay": {
+      "integration_doc_url": "https://developer.paysafe.com/en/api-docs/payments-api/add-payment-methods/google-pay/",
+      "notes": "valid. Score: 9/10. Comprehensive documentation covering Google Pay integration via Paysafe Payments API. API endpoints (POST /paymenthub/v1/singleusepaymenthandles, POST /paymenthub/v1/payments) clearly documented with HTTP Basic authentication, request/response schemas, Google Pay-specific parameters (googlePay.googlePayPaymentToken with PAN_ONLY/CRYPTOGRAM_3DS support), 3DS authentication flows, webhook configuration with signature verification (HMAC_SHA256), error responses, and extensive test card documentation. Includes code examples for both encrypted token and decrypted card data flows. Minor gaps: No explicit idempotency mechanism documented for payment handle creation, though merchantRefNum can serve as unique identifier. Verified 2026-03-17."
+    }
+  },
+  "stax": {
+    "googlepay": {
+      "integration_doc_url": "https://docs.staxpayments.com/docs/using-apple-or-google-pay",
+      "notes": "problematic. Score: 5/10. Stax supports Google Pay but requires Stax.js frontend SDK for tokenization. No documented backend API-only path for Google Pay tokens. The flow requires: (1) Frontend uses Stax.js to render Google Pay button and handle tokenization, (2) Stax.js converts Google Pay token to Stax payment_method_id, (3) Backend charges using standard POST /charge endpoint. Backend API documentation covers: Authentication (Bearer token), Idempotency (idempotency_id), Webhooks (event types), ACH Error Codes. Missing: Direct Google Pay token acceptance, Google Pay-specific parameters, Response schemas for digital wallet payments, curl examples for Google Pay flows, Testing documentation for Google Pay. Documentation is primarily frontend-focused with limited backend API details for digital wallets. Verified 2026-03-18."
+    }
+  },
+  "Mollie": {
+    "googlepay": {
+      "integration_doc_url": "https://docs.mollie.com/docs/google-pay",
+      "notes": "insufficient. Score: 2/10. Mollie Google Pay is ONLY available via Mollie Hosted Checkout - no backend API-only integration exists. Documentation confirms Google Pay appears automatically on hosted checkout when device/browser compatible. Payment method uses 'creditcard' API method name. Core API infrastructure documented (POST /v2/payments endpoint, Bearer token authentication, webhook support, idempotency support, error handling, testing guides) but NO Google Pay-specific backend API documentation exists - no token handling, no encrypted payload parameters, no Google Pay-specific request/response schemas. This is a hosted checkout-only integration. Verified 2026-03-18."
+    }
+  },
+  "Airwallex": {
+    "googlepay": {
+      "integration_doc_url": "https://www.airwallex.com/docs/payments/payment-methods/global/google-paytm/native-api",
+      "notes": "valid. Score: 9.5/10. Comprehensive documentation covering Google Pay integration via Airwallex Native API. API endpoints (POST /api/v1/pa/payment_intents, POST /api/v1/pa/payment_intents/{id}/confirm) clearly documented with Bearer Token authentication (OAuth2), complete request/response schemas, Google Pay-specific parameters (payment_method.type='googlepay', payment_data_type='encrypted_payment_token', encrypted_payment_token with protocolVersion/signature/intermediateSigningKey/signedMessage), webhook signature verification (HMAC-SHA256 with x-signature header), error responses, and extensive testing documentation. Includes curl examples for both one-time payments and recurring payments (PaymentConsent). Supports both PAN_ONLY and CRYPTOGRAM_3DS modes, 3DS integration, and device fingerprinting. Minor gap: Idempotency not explicitly documented but request_id parameter provides unique request identification. Verified 2026-03-18."
+    }
+  },
+  "Paybox": {
+    "googlepay": {
+      "integration_doc_url": null,
+      "notes": "not_applicable. Score: 0/10. Paybox (Verifone) does not support Google Pay as a payment method. While Paybox supports Apple Pay (documented separately), no Google Pay integration documentation exists. Paybox Direct API is designed for traditional card processing (card number, expiry, CVV) and does not have parameters for digital wallet tokens. The connector is implemented for card payments via PPPS (Paybox Payment Processing Service) API. Verified 2026-03-18."
+    }
+  },
+  "Shift4": {
+    "googlepay": {
+      "integration_doc_url": "https://docs.shift4.com/apis/payments-platform-rest/openapi",
+      "notes": "problematic. Score: 5/10. Shift4 supports Google Pay via their REST API. Documentation confirms Google Pay as a JSON body schema option for online/in-app transactions. API endpoints (POST /transactions/authorization, POST /transactions/sale) documented with Access Token authentication (Client GUID + Auth Token exchange). Complete request/response schemas provided. Error codes and test card numbers documented. However, critical gaps exist: No dedicated Google Pay integration guide, no Google Pay-specific request parameters documented, no webhook event types or signature verification details, no explicit idempotency mechanism for transactions, no curl examples for Google Pay flows, invoice number serves as implicit unique identifier. The documentation mentions Google Pay support but vendors are responsible for obtaining Google Pay data. Verified 2026-03-18."
+    }
+  },
+  "Nmi": {
+    "googlepay": {
+      "integration_doc_url": "https://docs.nmi.com/docs/digital-wallet-setup",
+      "notes": "valid. Score: 8/10. Comprehensive documentation covering Google Pay integration via NMI v5 Payments API. API endpoint (POST /api/v5/payments/sale) clearly documented with Bearer Token authentication via security_key header, complete request/response schemas, Google Pay-specific parameters (googlepay_payment_data, payment_token, decrypted_googlepay_data with CRYPTOGRAM_3DS/PAN_ONLY support), webhook configuration with transaction events, extensive curl examples throughout, Customer Vault integration for storing wallet data, and testing documentation. Documentation covers both encrypted and decrypted token flows, 3DS integration, and subscriptions. Minor gaps: No explicit idempotency header documented, though order_id can serve as unique identifier. Note: Mixed frontend/backend content - includes Collect.js frontend integration examples. Verified 2026-03-18."
+    }
+  },
+  "Barclaycard": {
+    "googlepay": {
+      "integration_doc_url": null,
+      "notes": "insufficient. Score: 0/10. Extensive search across all standard developer documentation patterns (developer.barclaycard.com, docs.barclaycard.com, api.barclaycard.com, barclaycard.readme.io, etc.) returned no publicly accessible API documentation. Barclaycard operates as a traditional merchant acquirer providing Smartpay Gateway solutions (Smartpay, Smartpay Fuse, Smartpay Advance) but all technical documentation appears to be behind merchant login walls or only available through dedicated account managers. No Google Pay-specific API endpoints, authentication methods, request/response schemas, or webhook documentation found. Barclaycard likely only supports Google Pay via hosted checkout pages or SDK integrations, not backend API-only integration. Verified 2026-03-18."
+    }
+  },
+  "forte": {
+    "googlepay": {
+      "integration_doc_url": "https://developers.forte.net/digital-wallet-payment/",
+      "notes": "valid. Score: 8.5/10. Comprehensive documentation covering Google Pay integration via Forte REST API v3. API endpoint (POST /organizations/{orgID}/locations/{locID}/transactions) clearly documented with Basic Auth authentication (API Access ID + API Secure Key encoded in Base64), complete request/response schemas, Google Pay-specific parameters (wallet_type, wallet_source, wallet_cryptogram, wallet_encrypted_token, cof_transaction_type), support for both PAN_ONLY and CRYPTOGRAM_3DS methods, webhook configuration with signature verification (HMAC-SHA256 with X-Forte-Signature header), extensive error codes (U32-U59 for wallet-specific errors, A01 for approval), testing documentation with sandbox URLs, and curl examples. Documentation covers both encrypted token and decrypted payload flows, 3DS integration, and Merchant Initiated Transaction (MIT) support. Minor gap: No explicit idempotency mechanism documented, though merchant_transaction_id can serve as unique identifier. Verified 2026-03-18."
+    }
+  },
+  "jpmorgan": {
+    "googlepay": {
+      "integration_doc_url": "https://developer.payments.jpmorgan.com/api/llm-content?path=en%2Fdocs%2Fcommerce%2Fonline-payments%2Fcapabilities%2Fonline-payments%2Fpayment-methods%2Fgoogle-pay.md",
+      "notes": "valid. Score: 9.5/10. Comprehensive documentation covering Google Pay integration via J.P. Morgan Online Payments API. API endpoint (POST /payments) clearly documented with OAuth 2.0 authentication (JWT-signed assertions), complete request/response schemas, Google Pay-specific parameters (encryptedPaymentBundle with protocolVersion, signature, ephemeralPublicKey, encryptedPayload), Wallet Decryption API available for token-only flow (/wallet-decryptions), webhook configuration with security preferences and signature verification, extensive error codes for Online Payments API, comprehensive testing documentation with test card data by region, and curl examples throughout. Documentation covers all capture methods (NOW, DELAYED, MANUAL), partial authorization, 3DS integration, and token mappings from Google Pay API. Minor gaps: No explicit idempotency header documented, though requestId provides unique request identification. Verified 2026-03-18."
+    }
+  }
+}

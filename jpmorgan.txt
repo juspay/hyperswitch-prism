@@ -1,0 +1,11 @@
+https://developer.payments.jpmorgan.com/api/llm-content?path=en%2Fdocs%2Fcommerce%2Fonline-payments%2Fcapabilities%2Fonline-payments%2Fpayment-methods%2Fgoogle-pay.md
+https://developer.payments.jpmorgan.com/api/llm-content?path=en%2Fdocs%2Fcommerce%2Foptimization-protection%2Fcapabilities%2Fwallet-decryption%2Fhow-to%2Fdecrypt-a-google-pay-bundle.md
+https://developer.payments.jpmorgan.com/api/llm-content?path=en%2Fdocs%2Fcommerce%2Fonline-payments%2Fcapabilities%2Fonline-payments%2Fhow-to%2Fauthorize-and-capture-a-payment.md
+https://developer.payments.jpmorgan.com/api/llm-content?path=en%2Fdocs%2Fcommerce%2Fonline-payments%2Ftesting.md
+https://developer.payments.jpmorgan.com/api/llm-content?path=en%2Fdocs%2Fcommerce%2Foptimization-protection%2Fcapabilities%2Fnotifications%2Foverview.md
+https://developer.payments.jpmorgan.com/api/oauth
+https://developer.payments.jpmorgan.com/api/response-codes
+https://developer.payments.jpmorgan.com/api/llm-content?path=en%2Fdocs%2Fcommerce%2Foptimization-protection%2Fcapabilities%2Fnotifications%2Fnotification-types.md
+https://developer.payments.jpmorgan.com/api/home
+https://developer.payments.jpmorgan.com/docs/commerce/online-payments
+https://developer.payments.jpmorgan.com/docs/home
