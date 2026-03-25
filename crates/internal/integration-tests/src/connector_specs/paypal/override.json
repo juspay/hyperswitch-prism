@@ -1,0 +1,44 @@
+{
+  "authorize": {
+    "threeds_manual_capture_credit_card": {
+      "assert": {
+        "status": {
+          "one_of": [
+            "AUTHENTICATION_PENDING",
+            "PENDING"
+          ]
+        },
+        "connector_transaction_id": null,
+        "redirection_data.form.endpoint": {
+          "must_exist": true
+        },
+        "redirection_data.form.form_fields.redirect_uri": {
+          "must_exist": true
+        }
+      }
+    }
+  },
+  "recurring_charge": {
+    "recurring_charge": {
+      "grpc_req": {
+        "payment_method_type": "CREDIT",
+        "connector_customer_id": null,
+        "customer": null
+      }
+    },
+    "recurring_charge_low_amount": {
+      "grpc_req": {
+        "payment_method_type": "CREDIT",
+        "connector_customer_id": null,
+        "customer": null
+      }
+    },
+    "recurring_charge_with_order_context": {
+      "grpc_req": {
+        "payment_method_type": "CREDIT",
+        "connector_customer_id": null,
+        "customer": null
+      }
+    }
+  }
+}

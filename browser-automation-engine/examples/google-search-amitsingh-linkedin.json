@@ -1,0 +1,46 @@
+{
+  "url": "https://www.google.com/ncr",
+  "rules": [
+    {
+      "action": "waitFor",
+      "selector": "textarea[name='q']",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "fill",
+      "selector": "textarea[name='q']",
+      "value": "amitsingh tanwar linkedin juspay"
+    },
+    {
+      "action": "press",
+      "selector": "textarea[name='q']",
+      "key": "Enter"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#search",
+      "timeoutMs": 20000
+    },
+    {
+      "action": "waitFor",
+      "selector": "#search a[href*='linkedin.com']",
+      "timeoutMs": 20000
+    },
+    {
+      "action": "extractAll",
+      "selector": "#search a[href*='linkedin.com']",
+      "attribute": "href",
+      "as": "linkedinLinks"
+    },
+    {
+      "action": "screenshot",
+      "as": "googleResults"
+    }
+  ],
+  "options": {
+    "headless": false,
+    "slowMoMs": 200,
+    "defaultTimeoutMs": 10000,
+    "navigationTimeoutMs": 30000
+  }
+}

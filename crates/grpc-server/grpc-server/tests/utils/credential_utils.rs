@@ -1,7 +1,7 @@
 //! Common credential loading utilities for test files
 //!
 //! This module provides a generic way to load connector credentials from
-//! the JSON configuration file (.github/test/creds.json)
+//! the JSON configuration file (creds.json at the repo root)
 
 #![allow(dead_code)]
 
@@ -13,8 +13,7 @@ use std::{collections::HashMap, fs};
 
 // Path to the credentials file - use environment variable if set (for CI), otherwise use relative path (for local)
 fn get_creds_file_path() -> String {
-    std::env::var("CONNECTOR_AUTH_FILE_PATH")
-        .unwrap_or_else(|_| "../../.github/test/creds.json".to_string())
+    std::env::var("CONNECTOR_AUTH_FILE_PATH").unwrap_or_else(|_| "../../creds.json".to_string())
 }
 
 /// Generic credential structure that can deserialize any connector's credentials

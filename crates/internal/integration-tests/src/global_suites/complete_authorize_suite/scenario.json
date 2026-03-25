@@ -1,0 +1,152 @@
+{
+  "threeds_complete_authorize_credit_card": {
+    "grpc_req": {
+      "merchant_order_id": "auto_generate",
+      "merchant_transaction_id": "auto_generate",
+      "amount": {
+        "minor_amount": 6000,
+        "currency": "USD"
+      },
+      "order_tax_amount": 0,
+      "shipping_cost": 0,
+      "payment_method": {
+        "card": {
+          "card_number": {
+            "value": "4111111111111111"
+          },
+          "card_exp_month": {
+            "value": "08"
+          },
+          "card_exp_year": {
+            "value": "30"
+          },
+          "card_cvc": {
+            "value": "999"
+          },
+          "card_holder_name": {
+            "value": "auto_generate"
+          },
+          "card_type": "credit"
+        }
+      },
+      "capture_method": "MANUAL",
+      "customer": {
+        "name": "auto_generate",
+        "email": {
+          "value": "auto_generate"
+        },
+        "id": "auto_generate",
+        "phone_number": "auto_generate",
+        "connector_customer_id": ""
+      },
+      "state": {
+        "access_token": {
+          "token": {
+            "value": ""
+          },
+          "token_type": "",
+          "expires_in_seconds": 0
+        }
+      },
+      "address": {
+        "shipping_address": {
+          "first_name": {
+            "value": "auto_generate"
+          },
+          "last_name": {
+            "value": "auto_generate"
+          },
+          "line1": {
+            "value": "auto_generate"
+          },
+          "line2": {
+            "value": "auto_generate"
+          },
+          "line3": {
+            "value": "auto_generate"
+          },
+          "city": {
+            "value": "auto_generate"
+          },
+          "state": {
+            "value": "CA"
+          },
+          "zip_code": {
+            "value": "auto_generate"
+          },
+          "country_alpha2_code": "US",
+          "email": {
+            "value": "auto_generate"
+          },
+          "phone_number": {
+            "value": "auto_generate"
+          },
+          "phone_country_code": "+91"
+        },
+        "billing_address": {
+          "first_name": {
+            "value": "auto_generate"
+          },
+          "last_name": {
+            "value": "auto_generate"
+          },
+          "line1": {
+            "value": "auto_generate"
+          },
+          "line2": {
+            "value": "auto_generate"
+          },
+          "line3": {
+            "value": "auto_generate"
+          },
+          "city": {
+            "value": "auto_generate"
+          },
+          "state": {
+            "value": "CA"
+          },
+          "zip_code": {
+            "value": "auto_generate"
+          },
+          "country_alpha2_code": "US",
+          "email": {
+            "value": "auto_generate"
+          },
+          "phone_number": {
+            "value": "auto_generate"
+          },
+          "phone_country_code": "+91"
+        }
+      },
+      "auth_type": "THREE_DS",
+      "enrolled_for_3ds": true,
+      "return_url": "https://example.com/payment/return",
+      "webhook_url": "https://example.com/payment/webhook",
+      "complete_authorize_url": "https://example.com/payment/complete",
+      "order_category": "physical",
+      "setup_future_usage": "ON_SESSION",
+      "off_session": false,
+      "description": "3DS complete authorize card payment",
+      "payment_channel": "ECOMMERCE",
+      "test_mode": true,
+      "locale": "en-US"
+    },
+    "assert": {
+      "status": {
+        "one_of": [
+          "CHARGED",
+          "AUTHORIZED",
+          "PENDING",
+          "AUTHENTICATION_PENDING"
+        ]
+      },
+      "connector_transaction_id": {
+        "must_exist": true
+      },
+      "error": {
+        "must_not_exist": true
+      }
+    },
+    "is_default": true
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "revoke_active_mandate": {
+    "grpc_req": {
+      "merchant_revoke_id": "auto_generate",
+      "mandate_id": "auto_generate",
+      "connector_mandate_id": "auto_generate"
+    },
+    "assert": {
+      "status": {
+        "one_of": [
+          "REVOKED",
+          "INACTIVE"
+        ]
+      },
+      "error": {
+        "must_not_exist": true
+      }
+    },
+    "is_default": true
+  },
+  "revoke_with_reason": {
+    "grpc_req": {
+      "merchant_revoke_id": "auto_generate",
+      "mandate_id": "auto_generate",
+      "connector_mandate_id": "auto_generate"
+    },
+    "assert": {
+      "status": {
+        "one_of": [
+          "REVOKED",
+          "INACTIVE"
+        ]
+      },
+      "error": {
+        "must_not_exist": true
+      }
+    }
+  },
+  "revoke_fail_invalid_mandate_id": {
+    "grpc_req": {
+      "merchant_revoke_id": "auto_generate",
+      "mandate_id": "invalid_mandate_12345",
+      "connector_mandate_id": "invalid_connector_mandate_12345"
+    },
+    "assert": {
+      "status": {
+        "one_of": [
+          "FAILED",
+          "PROCESSING_ERROR"
+        ]
+      },
+      "error": {
+        "must_exist": true
+      }
+    }
+  }
+}

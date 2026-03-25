@@ -1,0 +1,11 @@
+{
+  "gateway": "cybersource",
+  "gatewayMerchantId": "mpptiscity1",
+  "merchantName": "getin_sandbox",
+  "merchantId": "getin_sandbox",
+  "amount": "10.00",
+  "currency": "USD",
+  "countryCode": "US",
+  "cardNetworks": ["VISA", "MASTERCARD", "AMEX", "DISCOVER", "INTERAC", "JCB"],
+  "authMethods": ["PAN_ONLY", "CRYPTOGRAM_3DS"]
+}

@@ -3755,6 +3755,8 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             )),
             AuthType::Revolv3(_) => Ok(Self::Revolv3),
             AuthType::Authorizedotnet(_) => Ok(Self::Authorizedotnet),
+            AuthType::Aci(_) => Ok(Self::Aci),
+            AuthType::Checkout(_) => Ok(Self::Checkout),
         }
     }
 }

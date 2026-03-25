@@ -1,0 +1,10 @@
+{
+  "connector": "datatrans",
+  "supported_suites": [
+    "authorize",
+    "capture",
+    "get",
+    "refund",
+    "void"
+  ]
+}

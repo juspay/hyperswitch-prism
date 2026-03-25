@@ -1,0 +1,7 @@
+{
+  "authorize": {
+    "no3ds_auto_capture_google_pay_encrypted": {
+      "grpc_req": {}
+    }
+  }
+}

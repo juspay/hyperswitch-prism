@@ -1,0 +1,20 @@
+# Connector `worldpayvantiv` / Suite `capture`
+
+- Service: `PaymentService/Capture`
+- Pass Rate: `0.0%` (`0` / `3`)
+
+[Back to Overview](../../test_overview.md)
+
+## Scenario Matrix
+
+| Scenario | PM | PMT | Result | Prerequisites |
+|:---------|:--:|:---:|:------:|:--------------|
+| [`capture_full_amount`](./capture/capture-full-amount.md) | - | - | `FAIL` | `authorize(no3ds_manual_capture_credit_card)` (PASS) |
+| [`capture_partial_amount`](./capture/capture-partial-amount.md) | - | - | `FAIL` | `authorize(no3ds_manual_capture_credit_card)` (PASS) |
+| [`capture_with_merchant_order_id`](./capture/capture-with-merchant-order-id.md) | - | - | `FAIL` | `authorize(no3ds_manual_capture_credit_card)` (PASS) |
+
+## Failed Scenarios
+
+- [`capture_full_amount`](./capture/capture-full-amount.md) — assertion failed for field 'status': expected one of ["CHARGED", "PENDING"], got "CAPTURE_INITIATED"
+- [`capture_partial_amount`](./capture/capture-partial-amount.md) — assertion failed for field 'status': expected one of ["CHARGED", "PENDING"], got "CAPTURE_INITIATED"
+- [`capture_with_merchant_order_id`](./capture/capture-with-merchant-order-id.md) — assertion failed for field 'status': expected one of ["CHARGED", "PENDING"], got "CAPTURE_INITIATED"

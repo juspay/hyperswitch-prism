@@ -1,0 +1,20 @@
+# Connector `airwallex` / Suite `void`
+
+- Service: `PaymentService/Void`
+- Pass Rate: `0.0%` (`0` / `3`)
+
+[Back to Overview](../../test_overview.md)
+
+## Scenario Matrix
+
+| Scenario | PM | PMT | Result | Prerequisites |
+|:---------|:--:|:---:|:------:|:--------------|
+| [`void_authorized_payment`](./void/void-authorized-payment.md) | - | - | `FAIL` | `authorize(no3ds_manual_capture_credit_card)` (FAIL) |
+| [`void_with_amount`](./void/void-with-amount.md) | - | - | `FAIL` | `authorize(no3ds_manual_capture_credit_card)` (FAIL) |
+| [`void_without_cancellation_reason`](./void/void-without-cancellation-reason.md) | - | - | `FAIL` | `authorize(no3ds_manual_capture_credit_card)` (FAIL) |
+
+## Failed Scenarios
+
+- [`void_authorized_payment`](./void/void-authorized-payment.md) — assertion failed for field 'connector_transaction_id': expected field to exist
+- [`void_with_amount`](./void/void-with-amount.md) — assertion failed for field 'connector_transaction_id': expected field to exist
+- [`void_without_cancellation_reason`](./void/void-without-cancellation-reason.md) — assertion failed for field 'connector_transaction_id': expected field to exist

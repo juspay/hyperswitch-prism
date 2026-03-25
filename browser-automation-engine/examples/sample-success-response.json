@@ -1,0 +1,14 @@
+{
+  "success": true,
+  "data": {
+    "username": "Amit"
+  },
+  "steps": [
+    { "index": 0, "action": "fill", "status": "ok", "durationMs": 230 },
+    { "index": 1, "action": "fill", "status": "ok", "durationMs": 210 },
+    { "index": 2, "action": "click", "status": "ok", "durationMs": 180 },
+    { "index": 3, "action": "waitFor", "status": "ok", "durationMs": 1100 },
+    { "index": 4, "action": "extract", "status": "ok", "durationMs": 90 }
+  ],
+  "durationMs": 4200
+}
