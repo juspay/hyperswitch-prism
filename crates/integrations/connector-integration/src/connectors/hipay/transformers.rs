@@ -1048,3 +1048,198 @@ impl GetFormData for HipayRefundRequest {
         build_form_from_struct(self).unwrap_or_else(|_| MultipartData::new())
     }
 }
+
+// ========================================================================================
+// REPEAT PAYMENT (MIT) FLOW
+// ========================================================================================
+
+use domain_types::connector_flow::RepeatPayment;
+use domain_types::connector_types::{MandateReferenceId, RepeatPaymentData};
+
+// Type aliases for MIT (RepeatPayment) flow - same structure as Authorize
+pub type HipayRepeatPaymentRequest = HipayPaymentsRequest;
+pub type HipayRepeatPaymentResponse = HipayAuthorizeResponse;
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        HipayRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for HipayRepeatPaymentRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: HipayRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        // Get mandate reference for MIT
+        let (token, payment_product) = match &item.router_data.request.mandate_reference {
+            MandateReferenceId::ConnectorMandateId(connector_mandate_ref) => {
+                let token = connector_mandate_ref.get_connector_mandate_id().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "connector_mandate_id",
+                    },
+                )?;
+                // Payment product is embedded in mandate_reference_id format as "product:token"
+                // We split it to extract both parts
+                let parts: Vec<&str> = token.split(':').collect();
+                if parts.len() == 2 {
+                    (parts[1].to_string(), parts[0].to_string())
+                } else {
+                    // Fallback: token without product prefix
+                    (token, "visa".to_string())
+                }
+            }
+            MandateReferenceId::NetworkMandateId(_) => {
+                return Err(errors::ConnectorError::NotImplemented(
+                    "NetworkMandateId not supported in RepeatPayment".to_string(),
+                )
+                .into())
+            }
+            MandateReferenceId::NetworkTokenWithNTI(_) => {
+                return Err(errors::ConnectorError::NotImplemented(
+                    "NetworkTokenWithNTI not supported in RepeatPayment".to_string(),
+                )
+                .into())
+            }
+        };
+
+        // Convert amount to StringMajorUnit
+        let amount = item
+            .connector
+            .amount_converter
+            .convert(
+                item.router_data.request.minor_amount,
+                item.router_data.request.currency,
+            )
+            .change_context(errors::ConnectorError::AmountConversionFailed)?;
+
+        // Determine operation based on capture method
+        let operation = match item.router_data.request.capture_method {
+            Some(common_enums::CaptureMethod::Manual) => Operation::Authorization,
+            _ => Operation::Sale,
+        };
+
+        // Build callback URLs
+        let base_url = item.router_data.request.router_return_url.clone();
+        let redirect_base =
+            base_url.map(|url| url.replace("/redirect/complete/hipay", "/redirect/response/hipay"));
+
+        let accept_url = redirect_base.clone();
+        let decline_url = redirect_base.clone();
+        let pending_url = redirect_base.clone();
+        let cancel_url = redirect_base.clone();
+        let notify_url = redirect_base;
+
+        // Use description from resource_common_data or default
+        let description = item
+            .router_data
+            .resource_common_data
+            .description
+            .clone()
+            .unwrap_or_else(|| "MIT Payment".to_string());
+
+        Ok(Self {
+            payment_product,
+            orderid: item
+                .router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
+            operation,
+            description,
+            currency: item.router_data.request.currency,
+            amount,
+            cardtoken: Some(token),
+            accept_url,
+            decline_url,
+            pending_url,
+            cancel_url,
+            notify_url,
+            authentication_indicator: None, // Not needed for MIT
+            iban: None,
+            firstname: None,
+            lastname: None,
+            // MIT specific parameters from HiPay tech spec:
+            // eci: 9 for MIT, recurring_payment: 1
+            eci: Some("9".to_string()),
+            recurring_payment: Some("1".to_string()),
+        })
+    }
+}
+
+// RepeatPayment Response Implementation - same as Authorize
+impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<HipayRepeatPaymentResponse, Self>>
+    for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<HipayRepeatPaymentResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        // Convert HipayPaymentStatus enum directly to AttemptStatus using From trait
+        let status = AttemptStatus::from(item.response.status.clone());
+
+        // Check if status is failure to return error response
+        let response = if status == AttemptStatus::Failure {
+            Err(domain_types::router_data::ErrorResponse {
+                code: "DECLINED".to_string(),
+                message: item.response.message.clone(),
+                reason: Some(item.response.message.clone()),
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: Some(item.response.transaction_reference.clone()),
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+            })
+        } else {
+            // Check if redirection is needed (for 3DS flows)
+            let redirection_data = if !item.response.forward_url.is_empty() {
+                Some(Box::new(
+                    domain_types::router_response_types::RedirectForm::Uri {
+                        uri: item.response.forward_url.clone(),
+                    },
+                ))
+            } else {
+                None
+            };
+
+            Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(
+                    item.response.transaction_reference.clone(),
+                ),
+                redirection_data,
+                mandate_reference: None,
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: Some(item.response.order.id.clone()),
+                incremental_authorization_allowed: None,
+                status_code: item.http_code,
+            })
+        };
+
+        Ok(Self {
+            response,
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
+    }
+}

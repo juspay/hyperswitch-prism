@@ -44,8 +44,8 @@ use serde::Serialize;
 use transformers::{
     self as hipay, HipayAuthorizeResponse, HipayCaptureRequest, HipayCaptureResponse,
     HipayPSyncResponse, HipayPaymentsRequest, HipayRSyncResponse, HipayRefundRequest,
-    HipayRefundResponse, HipayTokenRequest, HipayTokenResponse, HipayVoidRequest,
-    HipayVoidResponse,
+    HipayRefundResponse, HipayRepeatPaymentRequest, HipayRepeatPaymentResponse, HipayTokenRequest,
+    HipayTokenResponse, HipayVoidRequest, HipayVoidResponse,
 };
 
 use super::macros;
@@ -265,6 +265,12 @@ macros::create_all_prerequisites!(
             request_body: HipayRefundRequest,
             response_body: HipayRefundResponse,
             router_data: RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
+        ),
+        (
+            flow: RepeatPayment,
+            request_body: HipayRepeatPaymentRequest,
+            response_body: HipayRepeatPaymentResponse,
+            router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -680,6 +686,47 @@ macros::macro_connector_implementation!(
     }
 );
 
+// RepeatPayment (MIT) flow - FormData (multipart/form-data), uses base_url
+// MIT payments use same endpoint as Authorize with eci=9 and recurring_payment=1
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_error_response_v2],
+    connector: Hipay,
+    curl_request: FormData(HipayRepeatPaymentRequest),
+    curl_response: HipayRepeatPaymentResponse,
+    flow_name: RepeatPayment,
+    resource_common_data: PaymentFlowData,
+    flow_request: RepeatPaymentData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+            // Do NOT set Content-Type header manually for FormData - reqwest sets it with boundary
+            let mut header = vec![(
+                headers::ACCEPT.to_string(),
+                constants::JSON_CONTENT_TYPE.to_string().into(),
+            )];
+            let mut auth_header = self.get_auth_header(&req.connector_config)?;
+            header.append(&mut auth_header);
+            Ok(header)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, ConnectorError> {
+            Ok(format!(
+                "{}/v1/order",
+                self.connector_base_url_payments(req).trim_end_matches('/')
+            ))
+        }
+    }
+);
+
 // RSync flow - Manual implementation with custom handle_response_v2
 // Uses JSON deserialization from v3 API (same as PSync)
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -767,16 +814,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         SetupMandate,
         PaymentFlowData,
         SetupMandateRequestData<T>,
-        PaymentsResponseData,
-    > for Hipay<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        RepeatPayment,
-        PaymentFlowData,
-        RepeatPaymentData<T>,
         PaymentsResponseData,
     > for Hipay<T>
 {
