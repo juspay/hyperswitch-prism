@@ -1,10 +1,10 @@
 use common_utils::{pii, request::Method, FloatMajorUnit};
 use domain_types::{
-    connector_flow::{self, Authorize},
+    connector_flow::{self, Authorize, RepeatPayment},
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId,
+        MandateReferenceId, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
+        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
     },
     errors::ConnectorError,
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
@@ -236,6 +236,164 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         })
     }
 }
+// RepeatPayment (MIT) flow types
+
+#[derive(Debug, Serialize, Clone, Eq, PartialEq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum StoredCredentialType {
+    CardOnFile,
+    Subscription,
+    UnscheduledCardOnFile,
+    Installments,
+}
+
+impl From<Option<common_enums::MitCategory>> for StoredCredentialType {
+    fn from(category: Option<common_enums::MitCategory>) -> Self {
+        match category {
+            Some(common_enums::MitCategory::Recurring) => Self::Subscription,
+            Some(common_enums::MitCategory::Installment) => Self::Installments,
+            Some(common_enums::MitCategory::Unscheduled) => Self::UnscheduledCardOnFile,
+            Some(common_enums::MitCategory::Resubmission) => Self::UnscheduledCardOnFile,
+            None => Self::CardOnFile,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Clone, Eq, PartialEq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum StoredCredentialUsage {
+    Used,
+}
+
+#[derive(Debug, Serialize)]
+pub struct DlocalRepeatPaymentCard {
+    pub card_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub capture: Option<String>,
+    pub stored_credential_type: StoredCredentialType,
+    pub stored_credential_usage: StoredCredentialUsage,
+}
+
+#[derive(Debug, Serialize)]
+pub struct DlocalRepeatPaymentRequest {
+    pub amount: FloatMajorUnit,
+    pub currency: common_enums::Currency,
+    pub country: common_enums::CountryAlpha2,
+    pub payment_method_id: PaymentMethodId,
+    pub payment_method_flow: PaymentMethodFlow,
+    pub payer: Payer,
+    pub card: DlocalRepeatPaymentCard,
+    pub order_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub notification_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        DlocalRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for DlocalRepeatPaymentRequest
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: DlocalRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+
+        // Extract connector_mandate_id (card_id from a prior CIT)
+        let card_id = match &router_data.request.mandate_reference {
+            MandateReferenceId::ConnectorMandateId(connector_mandate_ref) => connector_mandate_ref
+                .get_connector_mandate_id()
+                .ok_or(ConnectorError::MissingRequiredField {
+                    field_name: "connector_mandate_id",
+                })?,
+            MandateReferenceId::NetworkMandateId(_)
+            | MandateReferenceId::NetworkTokenWithNTI(_) => {
+                return Err(ConnectorError::NotImplemented(
+                    "Network mandate ID not supported for repeat payments in dlocal".to_string(),
+                )
+                .into());
+            }
+        };
+
+        let address = router_data.resource_common_data.get_billing_address()?;
+        let country = *address.get_country()?;
+        let name = address.get_full_name()?;
+
+        let email =
+            router_data
+                .request
+                .email
+                .clone()
+                .ok_or(ConnectorError::MissingRequiredField {
+                    field_name: "email",
+                })?;
+
+        let amount = utils::convert_amount(
+            item.connector.amount_converter,
+            router_data.request.minor_amount,
+            router_data.request.currency,
+        )?;
+
+        let order_id = router_data
+            .resource_common_data
+            .connector_request_reference_id
+            .clone();
+
+        let should_capture = matches!(
+            router_data.request.capture_method,
+            Some(common_enums::CaptureMethod::Automatic)
+                | Some(common_enums::CaptureMethod::SequentialAutomatic)
+                | None
+        );
+
+        let stored_credential_type =
+            StoredCredentialType::from(router_data.request.mit_category.clone());
+
+        Ok(Self {
+            amount,
+            currency: router_data.request.currency,
+            country,
+            payment_method_id: PaymentMethodId::Card,
+            payment_method_flow: PaymentMethodFlow::Direct,
+            payer: Payer {
+                name,
+                email,
+                document: get_doc_from_currency(country.to_string()),
+            },
+            card: DlocalRepeatPaymentCard {
+                card_id,
+                capture: Some(should_capture.to_string()),
+                stored_credential_type,
+                stored_credential_usage: StoredCredentialUsage::Used,
+            },
+            order_id,
+            notification_url: router_data.request.webhook_url.clone(),
+            description: router_data.resource_common_data.description.clone(),
+        })
+    }
+}
+
+// RepeatPayment response - reuses DlocalPaymentsResponse (generic TryFrom covers this)
+pub type DlocalRepeatPaymentResponse = DlocalPaymentsResponse;
+
 // Auth Struct
 pub struct DlocalAuthType {
     pub(super) x_login: Secret<String>,
