@@ -1,6 +1,10 @@
 use crate::types::ResponseRouterData;
 use common_enums::{AttemptStatus, Currency, RefundStatus};
-use common_utils::{pii, request::Method, types::MinorUnit};
+use common_utils::{
+    pii,
+    request::Method,
+    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, MinorUnit},
+};
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund},
     connector_types::{
@@ -10,7 +14,7 @@ use domain_types::{
     },
     errors,
     payment_method_data::{
-        BankRedirectData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
+        BankDebitData, BankRedirectData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
     },
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
@@ -23,6 +27,22 @@ use url::Url;
 
 // Import the connector's RouterData wrapper type created by the macro
 use super::Shift4RouterData;
+
+/// Convert epoch days (days since 1970-01-01) to (year, month, day)
+fn epoch_days_to_date(days: u64) -> (u64, u64, u64) {
+    // Algorithm based on civil_from_days
+    let z = days + 719468;
+    let era = z / 146097;
+    let doe = z - era * 146097;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    let y = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = if m <= 2 { y + 1 } else { y };
+    (y, m, d)
+}
 
 #[derive(Debug, Clone)]
 pub struct Shift4AuthType {
@@ -56,8 +76,17 @@ pub struct ApiErrorResponse {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum Shift4PaymentsRequest<T: PaymentMethodDataTypes> {
+    /// Card/BankRedirect/Wallet payments via /charges endpoint
+    Standard(Shift4StandardPaymentsRequest<T>),
+    /// ACH Bank Debit payments via /ach/sale endpoint
+    AchSale(Shift4AchSaleRequest),
+}
+
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Shift4PaymentsRequest<T: PaymentMethodDataTypes> {
+pub struct Shift4StandardPaymentsRequest<T: PaymentMethodDataTypes> {
     pub amount: MinorUnit,
     pub currency: Currency,
     pub captured: bool,
@@ -74,6 +103,96 @@ pub struct Shift4PaymentsRequest<T: PaymentMethodDataTypes> {
 pub enum Shift4PaymentMethod<T: PaymentMethodDataTypes> {
     Card(Shift4CardPayment<T>),
     BankRedirect(Shift4BankRedirectPayment),
+}
+
+// ===== ACH BANK DEBIT (SALE) STRUCTURES =====
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Shift4AchSaleRequest {
+    pub date_time: String,
+    pub amount: Shift4AchAmount,
+    pub transaction: Shift4AchTransaction,
+    pub ach: Shift4AchDetails,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_ip: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct Shift4AchAmount {
+    pub total: FloatMajorUnit,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Shift4AchTransaction {
+    pub invoice: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Shift4AchDetails {
+    pub account_number: Secret<String>,
+    pub routing_number: Secret<String>,
+    pub account_type: String,
+    pub account_holder_name: Secret<String>,
+}
+
+// ===== ACH SALE RESPONSE STRUCTURES =====
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct Shift4AchSaleResponse {
+    pub result: Vec<Shift4AchSaleResultItem>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Shift4AchSaleResultItem {
+    pub date_time: Option<String>,
+    pub amount: Option<Shift4AchResponseAmount>,
+    pub merchant: Option<Shift4AchMerchant>,
+    pub token: Option<Shift4AchToken>,
+    pub transaction: Option<Shift4AchTransactionResponse>,
+    pub notification_id: Option<String>,
+    pub ach: Option<Shift4AchResponseDetails>,
+    pub server: Option<Shift4AchServer>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct Shift4AchResponseAmount {
+    pub total: Option<f64>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct Shift4AchMerchant {
+    pub mid: Option<i64>,
+    pub name: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct Shift4AchToken {
+    pub value: Option<String>,
+    #[serde(rename = "type")]
+    pub token_type: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Shift4AchTransactionResponse {
+    pub auth_source: Option<String>,
+    pub invoice: Option<String>,
+    pub response_code: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Shift4AchResponseDetails {
+    pub balance_verification_result: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct Shift4AchServer {
+    pub name: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -208,6 +327,106 @@ impl<T: PaymentMethodDataTypes>
     }
 }
 
+/// Helper function to build an ACH Sale request for Shift4 BankDebit payments
+fn build_ach_sale_request<T: PaymentMethodDataTypes>(
+    item: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+    bank_debit_data: &BankDebitData,
+) -> Result<Shift4PaymentsRequest<T>, error_stack::Report<errors::ConnectorError>> {
+    match bank_debit_data {
+        BankDebitData::AchBankDebit {
+            account_number,
+            routing_number,
+            bank_account_holder_name,
+            bank_type,
+            bank_holder_type,
+            ..
+        } => {
+            // Convert amount from minor units to major unit float (e.g., 13587 cents -> 135.87)
+            let converter = FloatMajorUnitForConnector;
+            let total = converter
+                .convert(item.request.minor_amount, item.request.currency)
+                .change_context(errors::ConnectorError::AmountConversionFailed)?;
+
+            // Determine account type: PC (Personal Checking), PS (Personal Savings),
+            // CC (Corporate Checking), CS (Corporate Savings)
+            let account_type = match (bank_holder_type, bank_type) {
+                (
+                    Some(common_enums::BankHolderType::Personal),
+                    Some(common_enums::BankType::Savings),
+                ) => "PS",
+                (
+                    Some(common_enums::BankHolderType::Business),
+                    Some(common_enums::BankType::Checking),
+                ) => "CC",
+                (
+                    Some(common_enums::BankHolderType::Business),
+                    Some(common_enums::BankType::Savings),
+                ) => "CS",
+                // Default to Personal Checking
+                _ => "PC",
+            };
+
+            // Get account holder name, fallback to billing name
+            let account_holder_name = bank_account_holder_name
+                .clone()
+                .or_else(|| {
+                    item.resource_common_data
+                        .address
+                        .get_payment_method_billing()
+                        .and_then(|billing| billing.get_optional_full_name())
+                })
+                .ok_or_else(|| {
+                    error_stack::report!(errors::ConnectorError::MissingRequiredField {
+                        field_name: "bank_account_holder_name"
+                    })
+                })?;
+
+            // Use current UTC time in ISO 8601 format
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default();
+            let secs = now.as_secs();
+            // Simple ISO 8601 UTC format: YYYY-MM-DDTHH:MM:SS.000+00:00
+            let days = secs / 86400;
+            let day_secs = secs % 86400;
+            let hours = day_secs / 3600;
+            let minutes = (day_secs % 3600) / 60;
+            let seconds = day_secs % 60;
+            // Approximate date calculation from epoch days
+            let (year, month, day) = epoch_days_to_date(days);
+            let date_time = format!(
+                "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}.000+00:00",
+                year, month, day, hours, minutes, seconds
+            );
+
+            // Use connector_request_reference_id as invoice number (max 10 chars)
+            let invoice = item
+                .resource_common_data
+                .connector_request_reference_id
+                .chars()
+                .take(10)
+                .collect::<String>();
+
+            Ok(Shift4PaymentsRequest::AchSale(Shift4AchSaleRequest {
+                date_time,
+                amount: Shift4AchAmount { total },
+                transaction: Shift4AchTransaction { invoice },
+                ach: Shift4AchDetails {
+                    account_number: account_number.clone(),
+                    routing_number: routing_number.clone(),
+                    account_type: account_type.to_string(),
+                    account_holder_name,
+                },
+                source_ip: None,
+            }))
+        }
+        _ => Err(error_stack::report!(errors::ConnectorError::NotSupported {
+            message: "Only ACH Bank Debit is supported for Shift4".to_string(),
+            connector: "Shift4",
+        })),
+    }
+}
+
 impl<T: PaymentMethodDataTypes>
     TryFrom<
         &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
@@ -223,6 +442,12 @@ impl<T: PaymentMethodDataTypes>
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
+        // Route BankDebit payments to the ACH Sale request builder
+        if let PaymentMethodData::BankDebit(ref bank_debit_data) = item.request.payment_method_data
+        {
+            return build_ach_sale_request(item, bank_debit_data);
+        }
+
         let captured = item
             .request
             .is_auto_capture()
@@ -278,19 +503,28 @@ impl<T: PaymentMethodDataTypes>
             }
         };
 
-        Ok(Self {
+        Ok(Self::Standard(Shift4StandardPaymentsRequest {
             amount: item.request.minor_amount,
             currency: item.request.currency,
             captured,
             description: item.resource_common_data.description.clone(),
             metadata: item.request.metadata.clone().expose_option(),
             payment_method,
-        })
+        }))
     }
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct Shift4PaymentsResponse {
+#[serde(untagged)]
+pub enum Shift4PaymentsResponse {
+    /// Standard card/redirect/wallet response from /charges endpoint
+    Standard(Shift4StandardPaymentsResponse),
+    /// ACH Sale response from /ach/sale endpoint
+    AchSale(Shift4AchSaleResponse),
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct Shift4StandardPaymentsResponse {
     pub id: String,
     pub currency: Currency,
     pub amount: MinorUnit,
@@ -329,6 +563,70 @@ pub enum Shift4PaymentStatus {
     Failed,
 }
 
+/// Helper: map a standard (card/redirect/wallet) Shift4 response to status + transaction ID + redirection
+fn map_standard_response(
+    response: &Shift4StandardPaymentsResponse,
+) -> (AttemptStatus, String, Option<Box<RedirectForm>>) {
+    let status = match response.status {
+        Shift4PaymentStatus::Successful => {
+            if response.captured {
+                AttemptStatus::Charged
+            } else {
+                AttemptStatus::Authorized
+            }
+        }
+        Shift4PaymentStatus::Failed => AttemptStatus::Failure,
+        Shift4PaymentStatus::Pending => {
+            match response
+                .flow
+                .as_ref()
+                .and_then(|flow| flow.next_action.as_ref())
+            {
+                Some(NextAction::Redirect) => AttemptStatus::AuthenticationPending,
+                Some(NextAction::Wait) | Some(NextAction::None) | None => AttemptStatus::Pending,
+            }
+        }
+    };
+
+    let redirection_data = response
+        .flow
+        .as_ref()
+        .and_then(|flow| flow.redirect.as_ref())
+        .and_then(|redirect| {
+            Url::parse(&redirect.redirect_url)
+                .ok()
+                .map(|url| Box::new(RedirectForm::from((url, Method::Get))))
+        });
+
+    (status, response.id.clone(), redirection_data)
+}
+
+/// Helper: map an ACH Sale response to status + transaction ID
+fn map_ach_sale_response(response: &Shift4AchSaleResponse) -> (AttemptStatus, String) {
+    let result = response.result.first();
+
+    let status = result
+        .and_then(|r| r.transaction.as_ref())
+        .and_then(|t| t.response_code.as_ref())
+        .map(|code| match code.as_str() {
+            // A = Approved, S = Success
+            "A" | "S" => AttemptStatus::Charged,
+            // P = Pending
+            "P" => AttemptStatus::Pending,
+            // D = Declined, anything else = failure
+            _ => AttemptStatus::Failure,
+        })
+        .unwrap_or(AttemptStatus::Failure);
+
+    // Use notification_id or token value as the transaction ID
+    let transaction_id = result
+        .and_then(|r| r.notification_id.clone())
+        .or_else(|| result.and_then(|r| r.token.as_ref().and_then(|t| t.value.clone())))
+        .unwrap_or_else(|| "unknown".to_string());
+
+    (status, transaction_id)
+}
+
 impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4PaymentsResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
@@ -337,51 +635,25 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4PaymentsRespons
     fn try_from(
         item: ResponseRouterData<Shift4PaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        // Match Hyperswitch status mapping logic exactly
-        let status = match item.response.status {
-            Shift4PaymentStatus::Successful => {
-                if item.response.captured {
-                    AttemptStatus::Charged
-                } else {
-                    AttemptStatus::Authorized
-                }
+        let (status, transaction_id, redirection_data) = match &item.response {
+            Shift4PaymentsResponse::Standard(standard) => {
+                let (s, id, rd) = map_standard_response(standard);
+                (s, id, rd)
             }
-            Shift4PaymentStatus::Failed => AttemptStatus::Failure,
-            Shift4PaymentStatus::Pending => {
-                match item
-                    .response
-                    .flow
-                    .as_ref()
-                    .and_then(|flow| flow.next_action.as_ref())
-                {
-                    Some(NextAction::Redirect) => AttemptStatus::AuthenticationPending,
-                    Some(NextAction::Wait) | Some(NextAction::None) | None => {
-                        AttemptStatus::Pending
-                    }
-                }
+            Shift4PaymentsResponse::AchSale(ach) => {
+                let (s, id) = map_ach_sale_response(ach);
+                (s, id, None)
             }
         };
 
-        // Extract redirect URL from flow if present
-        let redirection_data = item
-            .response
-            .flow
-            .as_ref()
-            .and_then(|flow| flow.redirect.as_ref())
-            .and_then(|redirect| {
-                Url::parse(&redirect.redirect_url)
-                    .ok()
-                    .map(|url| Box::new(RedirectForm::from((url, Method::Get))))
-            });
-
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
+                resource_id: ResponseId::ConnectorTransactionId(transaction_id.clone()),
                 redirection_data,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: Some(item.response.id),
+                connector_response_reference_id: Some(transaction_id),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
             }),
@@ -403,39 +675,22 @@ impl TryFrom<ResponseRouterData<Shift4PaymentsResponse, Self>>
     fn try_from(
         item: ResponseRouterData<Shift4PaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        // Match Hyperswitch status mapping logic exactly
-        let status = match item.response.status {
-            Shift4PaymentStatus::Successful => {
-                if item.response.captured {
-                    AttemptStatus::Charged
-                } else {
-                    AttemptStatus::Authorized
-                }
+        let (status, transaction_id) = match &item.response {
+            Shift4PaymentsResponse::Standard(standard) => {
+                let (s, id, _) = map_standard_response(standard);
+                (s, id)
             }
-            Shift4PaymentStatus::Failed => AttemptStatus::Failure,
-            Shift4PaymentStatus::Pending => {
-                match item
-                    .response
-                    .flow
-                    .as_ref()
-                    .and_then(|flow| flow.next_action.as_ref())
-                {
-                    Some(NextAction::Redirect) => AttemptStatus::AuthenticationPending,
-                    Some(NextAction::Wait) | Some(NextAction::None) | None => {
-                        AttemptStatus::Pending
-                    }
-                }
-            }
+            Shift4PaymentsResponse::AchSale(ach) => map_ach_sale_response(ach),
         };
 
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
+                resource_id: ResponseId::ConnectorTransactionId(transaction_id.clone()),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: Some(item.response.id),
+                connector_response_reference_id: Some(transaction_id),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
             }),
@@ -457,39 +712,22 @@ impl TryFrom<ResponseRouterData<Shift4PaymentsResponse, Self>>
     fn try_from(
         item: ResponseRouterData<Shift4PaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        // Match Hyperswitch status mapping logic exactly
-        let status = match item.response.status {
-            Shift4PaymentStatus::Successful => {
-                if item.response.captured {
-                    AttemptStatus::Charged
-                } else {
-                    AttemptStatus::Authorized
-                }
+        let (status, transaction_id) = match &item.response {
+            Shift4PaymentsResponse::Standard(standard) => {
+                let (s, id, _) = map_standard_response(standard);
+                (s, id)
             }
-            Shift4PaymentStatus::Failed => AttemptStatus::Failure,
-            Shift4PaymentStatus::Pending => {
-                match item
-                    .response
-                    .flow
-                    .as_ref()
-                    .and_then(|flow| flow.next_action.as_ref())
-                {
-                    Some(NextAction::Redirect) => AttemptStatus::AuthenticationPending,
-                    Some(NextAction::Wait) | Some(NextAction::None) | None => {
-                        AttemptStatus::Pending
-                    }
-                }
-            }
+            Shift4PaymentsResponse::AchSale(ach) => map_ach_sale_response(ach),
         };
 
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
+                resource_id: ResponseId::ConnectorTransactionId(transaction_id.clone()),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: Some(item.response.id),
+                connector_response_reference_id: Some(transaction_id),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
             }),

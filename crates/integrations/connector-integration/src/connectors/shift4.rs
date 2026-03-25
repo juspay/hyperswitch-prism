@@ -283,6 +283,14 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, errors::ConnectorError> {
             let base_url = self.connector_base_url_payments(req);
+            // Route BankDebit (ACH) payments to the Shift4 Payments Platform ACH Sale endpoint
+            // The ACH API is hosted at a different base URL than the card Gateway API
+            if req.resource_common_data.payment_method == common_enums::PaymentMethod::BankDebit {
+                // Use the connector base URL with /ach/sale path.
+                // If the base URL is set to the Payments Platform URL (api.shift4test.com/api/rest/v1),
+                // this will work correctly. Otherwise fall through to the Gateway URL.
+                return Ok(format!("{base_url}/ach/sale"));
+            }
             Ok(format!("{base_url}/charges"))
         }
     }
