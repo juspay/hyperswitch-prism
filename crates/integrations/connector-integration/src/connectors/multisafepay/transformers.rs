@@ -60,6 +60,8 @@ pub enum Gateway {
     DirectBank,
     #[serde(rename = "MBWAY")]
     MbWay,
+    #[serde(rename = "DIRDEB")]
+    DirectDebit,
 }
 
 // ===== HELPER FUNCTIONS =====
@@ -141,8 +143,8 @@ fn get_order_type_from_payment_method<T: PaymentMethodDataTypes>(
             .attach_printable("Bank redirect payment method not supported")?,
         },
         PaymentMethodData::PayLater(_) => Type::Redirect,
-        PaymentMethodData::BankDebit(_)
-        | PaymentMethodData::BankTransfer(_)
+        PaymentMethodData::BankDebit(_) => Type::Direct,
+        PaymentMethodData::BankTransfer(_)
         | PaymentMethodData::Crypto(_)
         | PaymentMethodData::Reward
         | PaymentMethodData::RealTimePayment(_)
@@ -302,9 +304,25 @@ fn get_gateway_from_payment_method<T: PaymentMethodDataTypes>(
             ))
             .attach_printable("Wallet payment method not supported")?,
         },
+        PaymentMethodData::BankDebit(ref bank_debit_data) => {
+            use domain_types::payment_method_data::BankDebitData;
+            match bank_debit_data {
+                BankDebitData::SepaBankDebit { .. } => Gateway::DirectDebit,
+                BankDebitData::AchBankDebit { .. }
+                | BankDebitData::BecsBankDebit { .. }
+                | BankDebitData::BacsBankDebit { .. }
+                | BankDebitData::SepaGuaranteedBankDebit { .. } => {
+                    Err(errors::ConnectorError::NotImplemented(
+                        crate::utils::get_unimplemented_payment_method_error_message(
+                            "multisafepay",
+                        ),
+                    ))
+                    .attach_printable("Only SEPA bank debit is supported by MultiSafepay")?
+                }
+            }
+        }
         PaymentMethodData::MandatePayment
         | PaymentMethodData::PayLater(_)
-        | PaymentMethodData::BankDebit(_)
         | PaymentMethodData::BankTransfer(_)
         | PaymentMethodData::Crypto(_)
         | PaymentMethodData::Reward
@@ -346,6 +364,77 @@ fn get_card_number_string<T: PaymentMethodDataTypes>(
         .map(|s| s.to_string())
         .ok_or(errors::ConnectorError::RequestEncodingFailed)
         .attach_printable("Card number is not a valid string")
+}
+
+/// Builds the gateway_info field based on the payment method type
+/// For card payments: populates card details (card_number, expiry, cvc)
+/// For SEPA direct debit: populates IBAN and account holder name
+fn build_gateway_info<T: PaymentMethodDataTypes>(
+    order_type: &Type,
+    payment_method_data: &domain_types::payment_method_data::PaymentMethodData<T>,
+) -> Result<Option<MultisafepayGatewayInfo<T>>, error_stack::Report<errors::ConnectorError>> {
+    use domain_types::payment_method_data::{BankDebitData, PaymentMethodData};
+    use error_stack::ResultExt;
+
+    match (order_type, payment_method_data) {
+        (Type::Direct, PaymentMethodData::Card(card_data)) => {
+            // Build gateway_info with card details
+            // Format card expiry as YYMM (2-digit year + 2-digit month) as integer
+            let card_exp_year_str = card_data.card_exp_year.peek();
+            let card_exp_year_2digit = if card_exp_year_str.len() == 4 {
+                &card_exp_year_str[2..]
+            } else {
+                card_exp_year_str
+            };
+
+            let card_expiry_str = format!(
+                "{}{}",
+                card_exp_year_2digit,
+                card_data.card_exp_month.peek()
+            );
+
+            let card_expiry_date: i64 = card_expiry_str
+                .parse::<i64>()
+                .change_context(errors::ConnectorError::RequestEncodingFailed)
+                .attach_printable("Failed to parse card expiry date as integer")?;
+
+            Ok(Some(MultisafepayGatewayInfo::Card(GatewayInfo {
+                card_number: card_data.card_number.clone(),
+                card_expiry_date,
+                card_cvc: card_data.card_cvc.clone(),
+                card_holder_name: None,
+                flexible_3d: None,
+                moto: None,
+                term_url: None,
+            })))
+        }
+        (Type::Direct, PaymentMethodData::BankDebit(bank_debit_data)) => match bank_debit_data {
+            BankDebitData::SepaBankDebit {
+                iban,
+                bank_account_holder_name,
+            } => {
+                let account_holder = bank_account_holder_name
+                    .clone()
+                    .ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "bank_account_holder_name",
+                    })
+                    .attach_printable("Account holder name is required for SEPA direct debit")?;
+
+                Ok(Some(MultisafepayGatewayInfo::DirectDebit(
+                    DirectDebitGatewayInfo {
+                        account_id: iban.clone(),
+                        account_holder_name: account_holder,
+                        account_holder_iban: Some(iban.clone()),
+                        emandate: None,
+                    },
+                )))
+            }
+            _ => Err(errors::ConnectorError::NotImplemented(
+                crate::utils::get_unimplemented_payment_method_error_message("multisafepay"),
+            ))?,
+        },
+        _ => Ok(None),
+    }
 }
 
 // ===== STATUS ENUMS =====
@@ -455,6 +544,17 @@ pub struct GatewayInfo<T: PaymentMethodDataTypes> {
     pub term_url: Option<String>,
 }
 
+/// Gateway info for SEPA Direct Debit transactions
+#[derive(Debug, Serialize)]
+pub struct DirectDebitGatewayInfo {
+    pub account_id: Secret<String>,
+    pub account_holder_name: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub account_holder_iban: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub emandate: Option<String>,
+}
+
 #[derive(Debug, Serialize)]
 pub struct DeliveryObject {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -475,6 +575,14 @@ pub struct DeliveryObject {
 
 // ===== PAYMENT REQUEST STRUCTURES =====
 
+/// Unified gateway info enum that can hold either card or direct debit data
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum MultisafepayGatewayInfo<T: PaymentMethodDataTypes> {
+    Card(GatewayInfo<T>),
+    DirectDebit(DirectDebitGatewayInfo),
+}
+
 #[derive(Debug, Serialize)]
 pub struct MultisafepayPaymentsRequest<T: PaymentMethodDataTypes> {
     #[serde(rename = "type")]
@@ -488,7 +596,7 @@ pub struct MultisafepayPaymentsRequest<T: PaymentMethodDataTypes> {
     pub payment_options: PaymentOptions,
     pub customer: CustomerInfo,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub gateway_info: Option<GatewayInfo<T>>,
+    pub gateway_info: Option<MultisafepayGatewayInfo<T>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub delivery: Option<DeliveryObject>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -524,48 +632,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        use domain_types::payment_method_data::PaymentMethodData;
         use error_stack::ResultExt;
 
         let item = &wrapper.router_data;
         let order_type = get_order_type_from_payment_method(&item.request.payment_method_data)?;
         let gateway = get_gateway_from_payment_method(&item.request.payment_method_data)?;
 
-        // Build gateway_info only for card payments (direct transactions with cards)
-        let gateway_info = match (&order_type, &item.request.payment_method_data) {
-            (Type::Direct, PaymentMethodData::Card(card_data)) => {
-                // Build gateway_info with card details
-                // Format card expiry as YYMM (2-digit year + 2-digit month) as integer
-                let card_exp_year_str = card_data.card_exp_year.peek();
-                let card_exp_year_2digit = if card_exp_year_str.len() == 4 {
-                    &card_exp_year_str[2..]
-                } else {
-                    card_exp_year_str
-                };
-
-                let card_expiry_str = format!(
-                    "{}{}",
-                    card_exp_year_2digit,
-                    card_data.card_exp_month.peek()
-                );
-
-                let card_expiry_date: i64 = card_expiry_str
-                    .parse::<i64>()
-                    .change_context(errors::ConnectorError::RequestEncodingFailed)
-                    .attach_printable("Failed to parse card expiry date as integer")?;
-
-                Some(GatewayInfo {
-                    card_number: card_data.card_number.clone(),
-                    card_expiry_date,
-                    card_cvc: card_data.card_cvc.clone(),
-                    card_holder_name: None,
-                    flexible_3d: None,
-                    moto: None,
-                    term_url: None,
-                })
-            }
-            _ => None,
-        };
+        // Build gateway_info based on payment method type
+        let gateway_info = build_gateway_info(&order_type, &item.request.payment_method_data)?;
 
         // Build customer info
         let customer = CustomerInfo {
@@ -660,47 +734,13 @@ impl<T: PaymentMethodDataTypes>
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        use domain_types::payment_method_data::PaymentMethodData;
         use error_stack::ResultExt;
 
         let order_type = get_order_type_from_payment_method(&item.request.payment_method_data)?;
         let gateway = get_gateway_from_payment_method(&item.request.payment_method_data)?;
 
-        // Build gateway_info only for card payments (direct transactions with cards)
-        let gateway_info = match (&order_type, &item.request.payment_method_data) {
-            (Type::Direct, PaymentMethodData::Card(card_data)) => {
-                // Build gateway_info with card details
-                // Format card expiry as YYMM (2-digit year + 2-digit month) as integer
-                let card_exp_year_str = card_data.card_exp_year.peek();
-                let card_exp_year_2digit = if card_exp_year_str.len() == 4 {
-                    &card_exp_year_str[2..]
-                } else {
-                    card_exp_year_str
-                };
-
-                let card_expiry_str = format!(
-                    "{}{}",
-                    card_exp_year_2digit,
-                    card_data.card_exp_month.peek()
-                );
-
-                let card_expiry_date: i64 = card_expiry_str
-                    .parse::<i64>()
-                    .change_context(errors::ConnectorError::RequestEncodingFailed)
-                    .attach_printable("Failed to parse card expiry date as integer")?;
-
-                Some(GatewayInfo {
-                    card_number: card_data.card_number.clone(),
-                    card_expiry_date,
-                    card_cvc: card_data.card_cvc.clone(),
-                    card_holder_name: None,
-                    flexible_3d: None,
-                    moto: None,
-                    term_url: None,
-                })
-            }
-            _ => None,
-        };
+        // Build gateway_info based on payment method type
+        let gateway_info = build_gateway_info(&order_type, &item.request.payment_method_data)?;
 
         // Build customer info
         let customer = CustomerInfo {
