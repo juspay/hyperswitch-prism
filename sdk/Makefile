@@ -6,9 +6,9 @@
 SHELL := /bin/bash
 
 .PHONY: help build build-all build-macos build-linux clean check-cargo generate install-deps \
-        generate-rust generate-flows-python generate-flows-javascript generate-flows-java \
-        test test-rust test-grpc test-python test-javascript test-java \
-        dist dist-python dist-javascript dist-java \
+        generate-rust generate-flows-python generate-flows-javascript generate-flows-java generate-php \
+        test test-rust test-grpc test-python test-javascript test-java test-php \
+        dist dist-python dist-javascript dist-java dist-php \
         publish-check-python publish-check-javascript publish-check-java publish-check
 
 # Default target
@@ -140,6 +140,8 @@ generate-kotlin: ## Regenerate Kotlin SDK client (proto stubs + flows + bindings
 	@$(MAKE) -C $(MAKEFILE_DIR)java generate-proto generate-bindings generate-flows
 
 
+generate-php: ## Regenerate PHP SDK client (flows)
+	@$(MAKE) -C $(MAKEFILE_DIR)php generate-flows
 
 # ---------------------------------------------------------------------------
 # generate-client-python
@@ -188,7 +190,6 @@ generate: install-deps ## Auto-discover flows and regenerate all SDK clients (pa
 # ---------------------------------------------------------------------------
 # Test targets - delegate to SDK-specific test-package
 # ---------------------------------------------------------------------------
-
 test: build-ffi-lib ## Run all SDK smoke tests (builds FFI, runs sequentially)
 	@if [ ! -f $(REPO_ROOT)/sdk/generated/flows.json ]; then \
 		echo "Generating flows.json..."; \
@@ -196,13 +197,15 @@ test: build-ffi-lib ## Run all SDK smoke tests (builds FFI, runs sequentially)
 	fi
 	@echo "Running FFI smoke tests for all SDKs..."
 	@echo; echo "═══ Rust FFI ═══"; echo
-	@$(MAKE) -C $(REPO_ROOT)/sdk/rust test-package CONNECTORS=$(CONNECTORS) GITHUB_ACTIONS=$(GITHUB_ACTIONS) 2>&1 
+	@$(MAKE) -C $(REPO_ROOT)/sdk/rust test-package CONNECTORS=$(CONNECTORS) GITHUB_ACTIONS=$(GITHUB_ACTIONS) 2>&1
 	@echo; echo "═══ Python FFI ═══"; echo
-	@$(MAKE) -C $(REPO_ROOT)/sdk/python test-package CONNECTORS=$(CONNECTORS) 2>&1 
+	@$(MAKE) -C $(REPO_ROOT)/sdk/python test-package CONNECTORS=$(CONNECTORS) 2>&1
 	@echo; echo "═══ JavaScript FFI ═══"; echo
-	@$(MAKE) -C $(REPO_ROOT)/sdk/javascript test-package CONNECTORS=$(CONNECTORS) 2>&1 
+	@$(MAKE) -C $(REPO_ROOT)/sdk/javascript test-package CONNECTORS=$(CONNECTORS) 2>&1
 	@echo; echo "═══ Kotlin FFI ═══"; echo
-	@$(MAKE) -C $(REPO_ROOT)/sdk/java test-package CONNECTORS=$(CONNECTORS) 2>&1 
+	@$(MAKE) -C $(REPO_ROOT)/sdk/java test-package CONNECTORS=$(CONNECTORS) 2>&1
+	@echo; echo "═══ PHP FFI ═══"; echo
+	@$(MAKE) -C $(REPO_ROOT)/sdk/php test-package CONNECTORS=$(CONNECTORS) 2>&1
 	@echo; echo "All SDK smoke tests passed."
 
 test-rust: build-ffi-lib ## Run Rust FFI smoke test
@@ -309,6 +312,10 @@ test-grpc: _cleanup-grpc ## Run gRPC smoke tests for all SDKs (Rust + JS + Pytho
 		exit $$TOTAL; \
 	}
 
+test-php: build-ffi-lib ## Build FFI → Run PHP smoke test
+	@$(MAKE) -C $(REPO_ROOT)/sdk/php test-package CONNECTORS=$(CONNECTORS)
+
+
 test-python: build-ffi-lib ## Build FFI → Run Python smoke test
 	@$(MAKE) -C $(REPO_ROOT)/sdk/python test-package CONNECTORS=$(CONNECTORS)
 
@@ -317,6 +324,7 @@ test-javascript: build-ffi-lib ## Build FFI → Run JavaScript smoke test
 
 test-java: build-ffi-lib ## Build FFI → Run Java smoke test
 	@$(MAKE) -C $(REPO_ROOT)/sdk/java test-package CONNECTORS=$(CONNECTORS)
+
 
 # ---------------------------------------------------------------------------
 # Test Mock targets - run smoke tests in mock mode (no real HTTP)
@@ -336,7 +344,7 @@ test-mock: build-ffi-lib ## Run all SDK smoke tests in MOCK mode (verifies req_t
 # ---------------------------------------------------------------------------
 # Distribution targets - delegate to SDK-specific dist
 # ---------------------------------------------------------------------------
-dist: dist-python dist-javascript dist-java ## Build all SDK distribution packages
+dist: dist-python dist-javascript dist-java dist-php ## Build all SDK distribution packages
 
 dist-python: build-ffi-lib ## Build FFI → Build Python wheel
 	@$(MAKE) -C $(REPO_ROOT)/sdk/python dist
@@ -346,6 +354,9 @@ dist-javascript: build-ffi-lib ## Build FFI → Build JS npm package
 
 dist-java: build-ffi-lib ## Build FFI → Build Java JAR
 	@$(MAKE) -C $(REPO_ROOT)/sdk/java dist
+
+dist-php: build-ffi-lib ## Build FFI → Build PHP Composer archive
+	@$(MAKE) -C $(REPO_ROOT)/sdk/php dist
 
 # ---------------------------------------------------------------------------
 # Pre-publish check targets - delegate to SDK-specific publish-check
@@ -374,4 +385,5 @@ clean: ## Clean all build artifacts
 	@$(MAKE) -C $(REPO_ROOT)/sdk/python clean
 	@$(MAKE) -C $(REPO_ROOT)/sdk/javascript clean
 	@$(MAKE) -C $(REPO_ROOT)/sdk/java clean
+	@$(MAKE) -C $(REPO_ROOT)/sdk/php clean
 	@echo "Clean complete."

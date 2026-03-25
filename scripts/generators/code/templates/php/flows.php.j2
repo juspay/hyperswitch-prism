@@ -1,0 +1,44 @@
+<?php
+
+// AUTO-GENERATED — do not edit by hand.
+// Source: services.proto ∩ bindings/uniffi.rs  |  Regenerate: make generate
+
+declare(strict_types=1);
+
+namespace Payments;
+
+class GeneratedFlows
+{
+    /**
+     * Standard flows: req_transformer → HTTP → res_transformer.
+     *
+     * @var array<string, array{request: string, response: string}>
+     */
+    const FLOWS = [
+{% for f in flows %}
+        // {{ f.name }}: {{ f.service }}.{{ f.rpc }} — {{ f.description }}
+        '{{ f.name }}'{{ " " * (max_len - f.name|length + 1) }}=> ['request' => '{{ f.request }}', 'response' => '{{ f.response }}'],
+
+{% endfor %}
+    ];
+{% if single_flows %}
+
+    /**
+     * Single-step flows: transformer called directly, no HTTP round-trip.
+     * Used for inbound flows such as webhook processing.
+     *
+     * @var array<string, array{request: string, response: string}>
+     */
+    const SINGLE_FLOWS = [
+{% for f in single_flows %}
+        // {{ f.name }}: {{ f.service }}.{{ f.rpc }} — {{ f.description }}
+        '{{ f.name }}'{{ " " * (max_len_s - f.name|length + 1) }}=> ['request' => '{{ f.request }}', 'response' => '{{ f.response }}'],
+
+{% endfor %}
+    ];
+{% else %}
+
+    /** @var array<string, array{request: string, response: string}> */
+    const SINGLE_FLOWS = [];
+{% endif %}
+}
