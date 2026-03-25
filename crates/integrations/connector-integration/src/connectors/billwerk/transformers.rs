@@ -16,13 +16,14 @@ use domain_types::{
         RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
     errors::ConnectorError,
-    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
+    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData},
     router_data::{
         ConnectorSpecificConfig, ErrorResponse, PaymentMethodToken as PaymentMethodTokenFlow,
     },
     router_data_v2::RouterDataV2,
 };
 
+use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, Secret};
 
 use serde::{Deserialize, Serialize};
@@ -186,6 +187,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     strong_authentication_rule: None,
                 })
             }
+            PaymentMethodData::Wallet(WalletData::GooglePay(_)) => {
+                // GooglePay uses CRYPTOGRAM_3DS and doesn't require tokenization
+                // The encrypted token is passed directly to the charge endpoint
+                Err(ConnectorError::NotSupported {
+                    message: "GooglePay does not require tokenization - use token directly in Authorize flow".to_string(),
+                    connector: "billwerk",
+                }
+                .into())
+            }
             PaymentMethodData::Wallet(_)
             | PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::PayLater(_)
@@ -245,10 +255,29 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             )
             .into());
         };
-        let PaymentMethodTokenFlow::Token(source) = item
-            .router_data
-            .resource_common_data
-            .get_payment_method_token()?;
+
+        // Get the source based on payment method type
+        let source = match &item.router_data.request.payment_method_data {
+            PaymentMethodData::Wallet(WalletData::GooglePay(google_pay_data)) => {
+                // For GooglePay, extract the encrypted token directly
+                let token_data = google_pay_data
+                    .tokenization_data
+                    .get_encrypted_google_pay_payment_data_mandatory()
+                    .change_context(ConnectorError::MissingRequiredField {
+                        field_name: "google_pay.tokenization_data",
+                    })?;
+                Secret::new(token_data.token.clone())
+            }
+            _ => {
+                // For cards and other methods, use the payment method token from tokenization flow
+                let PaymentMethodTokenFlow::Token(token) = item
+                    .router_data
+                    .resource_common_data
+                    .get_payment_method_token()?;
+                token
+            }
+        };
+
         Ok(Self {
             handle: item
                 .router_data
