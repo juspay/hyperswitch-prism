@@ -711,6 +711,11 @@ pub enum ConnectorSpecificConfig {
         client_secret: Secret<String>,
         base_url: Option<String>,
     },
+    PinelabsOnline {
+        client_id: Secret<String>,
+        client_secret: Secret<String>,
+        base_url: Option<String>,
+    },
 }
 
 impl ConnectorSpecificConfig {
@@ -1010,7 +1015,11 @@ impl ConnectorSpecificConfig {
             Itaubank {
                 client_id,
                 client_secret
-            }
+            },
+            PinelabsOnline {
+                client_id,
+                client_secret
+            },
         )
     }
 
@@ -1396,6 +1405,10 @@ impl ConnectorSpecificConfig {
                     private_key
                 },
                 Itaubank {
+                    client_id,
+                    client_secret
+                },
+                PinelabsOnline {
                     client_id,
                     client_secret
                 }
@@ -1901,6 +1914,11 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 api_key: ppro.api_key.ok_or_else(err)?,
                 merchant_id: ppro.merchant_id.ok_or_else(err)?,
                 base_url: ppro.base_url,
+            }),
+            AuthType::PinelabsOnline(pinelabs_online) => Ok(Self::PinelabsOnline {
+                client_id: pinelabs_online.client_id.ok_or_else(err)?,
+                client_secret: pinelabs_online.client_secret.ok_or_else(err)?,
+                base_url: pinelabs_online.base_url,
             }),
         }
     }
@@ -2890,6 +2908,14 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorEnum)>
             },
             ConnectorEnum::Itaubank => match auth {
                 ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Itaubank {
+                    client_id: api_key.clone(),
+                    client_secret: key1.clone(),
+                    base_url: None,
+                }),
+                _ => Err(err().into()),
+            },
+            ConnectorEnum::PinelabsOnline => match auth {
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::PinelabsOnline {
                     client_id: api_key.clone(),
                     client_secret: key1.clone(),
                     base_url: None,
