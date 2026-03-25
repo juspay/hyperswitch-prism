@@ -6,7 +6,9 @@ use domain_types::{
         RefundFlowData, RefundsData, RefundsResponseData, ResponseId,
     },
     errors::ConnectorError,
-    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData},
+    payment_method_data::{
+        BankDebitData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData,
+    },
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
@@ -163,18 +165,46 @@ pub struct PaymentMethodOptions {
 pub struct PaymentMethod<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> {
     #[serde(rename = "type")]
     pub pm_type: String,
-    pub fields: Option<PaymentFields<T>>,
+    pub fields: Option<RapydPaymentFields<T>>,
     pub address: Option<Address>,
     pub digital_wallet: Option<RapydWallet>,
 }
 
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum RapydPaymentFields<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> {
+    Card(CardPaymentFields<T>),
+    BankDebit(BankDebitPaymentFields),
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Default
+    for RapydPaymentFields<T>
+{
+    fn default() -> Self {
+        Self::BankDebit(BankDebitPaymentFields::default())
+    }
+}
+
 #[derive(Default, Debug, Serialize)]
-pub struct PaymentFields<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> {
+pub struct CardPaymentFields<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+{
     pub number: RawCardNumber<T>,
     pub expiration_month: Secret<String>,
     pub expiration_year: Secret<String>,
     pub name: Secret<String>,
     pub cvv: Secret<String>,
+}
+
+#[derive(Default, Debug, Serialize)]
+pub struct BankDebitPaymentFields {
+    pub proof_of_authorization: bool,
+    pub routing_number: Secret<String>,
+    pub account_number: Secret<String>,
+    pub payment_purpose: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub first_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_name: Option<Secret<String>>,
 }
 
 #[derive(Default, Debug, Serialize)]
@@ -249,7 +279,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentMethodData::Card(ref ccard) => {
                 Some(PaymentMethod {
                     pm_type: "in_amex_card".to_owned(), //[#369] Map payment method type based on country
-                    fields: Some(PaymentFields {
+                    fields: Some(RapydPaymentFields::Card(CardPaymentFields {
                         number: ccard.card_number.to_owned(),
                         expiration_month: ccard.card_exp_month.to_owned(),
                         expiration_year: ccard.card_exp_year.to_owned(),
@@ -260,7 +290,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             .to_owned()
                             .unwrap_or(Secret::new("".to_string())),
                         cvv: ccard.card_cvc.to_owned(),
-                    }),
+                    })),
                     address: None,
                     digital_wallet: None,
                 })
@@ -299,6 +329,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     digital_wallet,
                 })
             }
+            PaymentMethodData::BankDebit(ref bank_debit_data) => {
+                build_rapyd_bank_debit_payment_method(bank_debit_data, &item.router_data)?
+            }
             _ => None,
         }
         .get_required_value("payment_method not implemented")
@@ -328,6 +361,59 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             error_payment_url: Some(return_url.clone()),
             complete_payment_url: Some(return_url),
         })
+    }
+}
+
+fn build_rapyd_bank_debit_payment_method<
+    T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
+>(
+    bank_debit_data: &BankDebitData,
+    router_data: &RouterDataV2<
+        Authorize,
+        PaymentFlowData,
+        PaymentsAuthorizeData<T>,
+        PaymentsResponseData,
+    >,
+) -> Result<Option<PaymentMethod<T>>, error_stack::Report<ConnectorError>> {
+    match bank_debit_data {
+        BankDebitData::AchBankDebit {
+            account_number,
+            routing_number,
+            bank_account_holder_name,
+            ..
+        } => {
+            let billing_first_name = router_data
+                .resource_common_data
+                .get_optional_billing_first_name();
+            let billing_last_name = router_data
+                .resource_common_data
+                .get_optional_billing_last_name();
+
+            let first_name = billing_first_name.or(bank_account_holder_name.clone());
+            let last_name = billing_last_name;
+
+            Ok(Some(PaymentMethod {
+                pm_type: "us_ach_bank".to_string(),
+                fields: Some(RapydPaymentFields::BankDebit(BankDebitPaymentFields {
+                    proof_of_authorization: true,
+                    routing_number: routing_number.clone(),
+                    account_number: account_number.clone(),
+                    payment_purpose: "PAYMENT".to_string(),
+                    first_name,
+                    last_name,
+                })),
+                address: None,
+                digital_wallet: None,
+            }))
+        }
+        BankDebitData::SepaBankDebit { .. }
+        | BankDebitData::SepaGuaranteedBankDebit { .. }
+        | BankDebitData::BecsBankDebit { .. }
+        | BankDebitData::BacsBankDebit { .. } => {
+            Err(error_stack::report!(ConnectorError::NotImplemented(
+                domain_types::utils::get_unimplemented_payment_method_error_message("rapyd")
+            )))
+        }
     }
 }
 
