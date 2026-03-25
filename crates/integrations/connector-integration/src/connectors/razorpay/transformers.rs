@@ -1652,3 +1652,42 @@ pub fn json_value_to_string(value: &serde_json::Value) -> String {
         _ => value.to_string(), // For Number, Bool, Null, Object, Array - serialize as JSON
     }
 }
+
+// ============ Mandate Revoke (Delete Token) ============
+
+/// Razorpay response when deleting a customer token
+/// Success: `{"deleted": true}`
+/// The `deleted` field indicates whether the token was successfully removed.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RazorpayDeleteTokenResponse {
+    pub deleted: bool,
+}
+
+impl ForeignTryFrom<(RazorpayDeleteTokenResponse, Self, u16)>
+    for RouterDataV2<
+        domain_types::connector_flow::MandateRevoke,
+        PaymentFlowData,
+        domain_types::connector_types::MandateRevokeRequestData,
+        domain_types::connector_types::MandateRevokeResponseData,
+    >
+{
+    type Error = errors::ConnectorError;
+
+    fn foreign_try_from(
+        (response, data, http_code): (RazorpayDeleteTokenResponse, Self, u16),
+    ) -> Result<Self, Self::Error> {
+        let mandate_status = if response.deleted {
+            common_enums::MandateStatus::Revoked
+        } else {
+            common_enums::MandateStatus::Active
+        };
+
+        Ok(Self {
+            response: Ok(domain_types::connector_types::MandateRevokeResponseData {
+                mandate_status,
+                status_code: http_code,
+            }),
+            ..data
+        })
+    }
+}
