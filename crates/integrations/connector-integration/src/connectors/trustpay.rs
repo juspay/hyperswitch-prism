@@ -54,7 +54,7 @@ use transformers::{
     TrustpayAuthUpdateRequest, TrustpayAuthUpdateResponse, TrustpayCreateIntentRequest,
     TrustpayCreateIntentResponse, TrustpayErrorResponse, TrustpayPaymentsRequest,
     TrustpayPaymentsResponse as TrustpayPaymentsSyncResponse, TrustpayPaymentsResponse,
-    TrustpayRefundRequest,
+    TrustpayRefundRequest, TrustpayRepeatPaymentRequest, TrustpayRepeatPaymentResponse,
 };
 
 use super::macros::{self, ContentTypeSelector};
@@ -474,6 +474,12 @@ macros::create_all_prerequisites!(
             flow: RSync,
             response_body: RefundSyncResponse,
             router_data: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        ),
+        (
+            flow: RepeatPayment,
+            request_body: TrustpayRepeatPaymentRequest,
+            response_body: TrustpayRepeatPaymentResponse,
+            router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -1020,6 +1026,41 @@ macros::macro_connector_implementation!(
     }
 );
 
+// Macro implementation for RepeatPayment flow (MIT - Merchant Initiated Transaction)
+// Per TrustPay spec: Uses Card payment method with Recurring: true and OriginalPaymentRequestId
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Trustpay,
+    curl_request: Json(TrustpayRepeatPaymentRequest),
+    curl_response: TrustpayRepeatPaymentResponse,
+    flow_name: RepeatPayment,
+    resource_common_data: PaymentFlowData,
+    flow_request: RepeatPaymentData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+            self.build_headers_for_payments(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, errors::ConnectorError> {
+            // MIT payments use the bank redirects API with OAuth authentication
+            Ok(format!(
+                "{}{}",
+                self.connector_base_url_bank_redirects_payments(req),
+                "api/Payments/Payment"
+            ))
+        }
+    }
+);
+
 // Implementation for empty stubs - these will need to be properly implemented later
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -1151,13 +1192,4 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 }
 
 // We already have an implementation for ValidationTrait above
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        RepeatPayment,
-        PaymentFlowData,
-        RepeatPaymentData<T>,
-        PaymentsResponseData,
-    > for Trustpay<T>
-{
-}
+// Note: RepeatPayment ConnectorIntegrationV2 is implemented by macro_connector_implementation! macro
