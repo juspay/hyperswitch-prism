@@ -14,12 +14,14 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Authenticate, Authorize, Capture, PSync, PreAuthenticate, RSync, Refund, Void,
+        Authenticate, Authorize, Capture, PSync, PreAuthenticate, RSync, Refund, RepeatPayment,
+        Void,
     },
     connector_types::{
         self, PaymentFlowData, PaymentVoidData, PaymentsAuthenticateData, PaymentsAuthorizeData,
         PaymentsCaptureData, PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        ResponseId,
     },
     errors,
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
@@ -334,6 +336,17 @@ impl SignatureCalculationData for requests::RedsysPaymentRequest {
 }
 
 impl SignatureCalculationData for requests::RedsysOperationRequest {
+    fn get_merchant_parameters(&self) -> Result<String, Error> {
+        self.encode_to_string_of_json()
+            .change_context(errors::ConnectorError::RequestEncodingFailed)
+    }
+
+    fn get_order_id(&self) -> String {
+        self.ds_merchant_order.clone()
+    }
+}
+
+impl SignatureCalculationData for requests::RedsysMitRequest {
     fn get_merchant_parameters(&self) -> Result<String, Error> {
         self.encode_to_string_of_json()
             .change_context(errors::ConnectorError::RequestEncodingFailed)
@@ -1876,5 +1889,172 @@ impl TryFrom<ResponseRouterData<responses::RedsysSyncResponse, Self>>
             response,
             ..item.router_data
         })
+    }
+}
+
+// RepeatPayment (MIT - Merchant Initiated Transaction)
+
+fn get_cof_type_from_mit_category(
+    mit_category: Option<common_enums::MitCategory>,
+) -> requests::RedsysCofType {
+    match mit_category {
+        Some(common_enums::MitCategory::Recurring) => requests::RedsysCofType::Recurring,
+        Some(common_enums::MitCategory::Installment) => requests::RedsysCofType::Installments,
+        Some(common_enums::MitCategory::Unscheduled) => requests::RedsysCofType::Reauthorisation,
+        Some(common_enums::MitCategory::Resubmission) => requests::RedsysCofType::Resubmission,
+        None => requests::RedsysCofType::Recurring, // Default to recurring
+    }
+}
+
+impl<T>
+    TryFrom<
+        RedsysRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for requests::RedsysRepeatPaymentRequest
+where
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+{
+    type Error = Error;
+
+    fn try_from(
+        item: RedsysRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let auth = RedsysAuthType::try_from(&router_data.connector_config)?;
+
+        // Extract mandate reference (identifier) from the request
+        let identifier = router_data.request.connector_mandate_id().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "mandate_reference",
+            },
+        )?;
+
+        // Get COF type from MIT category
+        let cof_type = get_cof_type_from_mit_category(router_data.request.mit_category);
+
+        // Get the original transaction ID for COF_TXNID (optional)
+        // Note: COF_TXNID is the transaction ID from the initial COF operation
+        // For now, we leave it as None since RecurringMandatePaymentData
+        // doesn't expose original_payment_id directly
+        let cof_txnid: Option<String> = None;
+
+        let is_auto_capture = router_data.request.is_auto_capture()?;
+        let ds_merchant_transactiontype = if is_auto_capture {
+            requests::RedsysTransactionType::Payment
+        } else {
+            requests::RedsysTransactionType::Preauthorization
+        };
+
+        let connector_request_reference_id = router_data
+            .resource_common_data
+            .connector_request_reference_id
+            .clone();
+
+        let ds_merchant_order = if connector_request_reference_id.len() <= 12 {
+            Ok(connector_request_reference_id)
+        } else {
+            Err(errors::ConnectorError::MaxFieldLengthViolated {
+                connector: "Redsys".to_string(),
+                field_name: "ds_merchant_order".to_string(),
+                max_length: 12,
+                received_length: connector_request_reference_id.len(),
+            })
+        }?;
+
+        let mit_request = requests::RedsysMitRequest {
+            ds_merchant_amount: RedsysAmountConvertor::convert(
+                router_data.request.minor_amount,
+                router_data.request.currency,
+            )?,
+            ds_merchant_currency: router_data.request.currency.iso_4217().to_owned(),
+            ds_merchant_cof_ini: "N".to_string(), // Subsequent transaction
+            ds_merchant_cof_txnid: cof_txnid,
+            ds_merchant_cof_type: cof_type,
+            ds_merchant_direct_payment: "true".to_string(),
+            ds_merchant_excep_sca: "MIT".to_string(),
+            ds_merchant_identifier: identifier,
+            ds_merchant_merchantcode: auth.merchant_id.clone(),
+            ds_merchant_order,
+            ds_merchant_terminal: auth.terminal_id.clone(),
+            ds_merchant_transactiontype,
+        };
+
+        let transaction = Self::try_from((&mit_request, &auth))?;
+        Ok(transaction)
+    }
+}
+
+impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<responses::RedsysResponse, Self>>
+    for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
+{
+    type Error = Error;
+
+    fn try_from(
+        item: ResponseRouterData<responses::RedsysResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        match item.response {
+            responses::RedsysResponse::RedsysResponse(ref transaction) => {
+                let response_data: responses::RedsysPaymentsResponse = to_connector_response_data(
+                    &transaction.ds_merchant_parameters.clone().expose(),
+                )?;
+
+                let auth_data = item.router_data.request.authentication_data.clone();
+
+                let (repeat_response, status, ds_order) = get_payments_response(
+                    response_data,
+                    item.router_data.request.capture_method,
+                    auth_data,
+                    item.http_code,
+                    true,
+                )?;
+
+                Ok(Self {
+                    resource_common_data: PaymentFlowData {
+                        status,
+                        connector_feature_data: item
+                            .router_data
+                            .resource_common_data
+                            .connector_feature_data,
+                        reference_id: Some(ds_order),
+                        ..item.router_data.resource_common_data
+                    },
+                    response: repeat_response,
+                    ..item.router_data
+                })
+            }
+            responses::RedsysResponse::RedsysErrorResponse(ref err) => Ok(Self {
+                resource_common_data: PaymentFlowData {
+                    status: common_enums::AttemptStatus::Failure,
+                    ..item.router_data.resource_common_data
+                },
+                response: Err(domain_types::router_data::ErrorResponse {
+                    code: err.error_code.clone(),
+                    message: err.error_code_description.clone(),
+                    reason: Some(err.error_code.clone()),
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                }),
+                ..item.router_data
+            }),
+        }
     }
 }
