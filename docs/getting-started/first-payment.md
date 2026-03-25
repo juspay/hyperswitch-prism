@@ -1,8 +1,10 @@
-# First Payment with Error Handling
+# First Payment
 
-You will have `payment_method_id` from Stripe if you depend on your processor for PCI compliance. Alternatively if your Stripe API keys are enabled to accept PCI compliant raw card data, that will suffice to make the first payment.
+In the next few steps you will authorize the payment, handle errors, capture funds, and process refunds. And then you will be ready to send payment to any payment processor, without writing specialized code for each.
 
-Int he next few steps you will authorize the payment, handle errors, capture funds, and process refunds. And then you will be ready to send payment to any payment processor, without writing specialized code for each.
+You will have a `payment_method_id` if you depend on your processor for PCI compliance. Use this to [Authorize with Payment Method ID](#authorize-with-payment-method-id).
+
+Alternatively if your Payment processor API keys are enabled to accept PCI compliant raw card data, that will suffice to make the first payment. Jump to [Authorize with Raw Card Details](#authorize-with-raw-card-details-pci-compliant).
 
 ## Authorize with Payment Method ID
 
@@ -23,14 +25,14 @@ async function authorizePayment(paymentMethodId) {
     });
 
     try {
-        // Authorize using the payment_method_id from Stripe.js
+        // Authorize using the payment_method_id from Stripe or Adyen
         const auth = await client.payments.authorize({
             amount: { minorAmount: 1000, currency: Currency.USD },
             merchantOrderId: 'order-456',
             paymentMethod: {
                 paymentMethodId: paymentMethodId  // e.g., 'pm_1234...'
             },
-            captureMethod: CaptureMethod.MANUAL  // Authorize only, capture later
+            captureMethod: CaptureMethod.AUTOMATIC  // Authorize only, capture later
         });
 
         console.log('Authorized:', auth.paymentId, auth.status);  // AUTHORIZED

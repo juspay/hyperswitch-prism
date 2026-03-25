@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py --all-connectors-doc
 
 This document provides a comprehensive overview of payment method support
 across all connectors for each payment flow. Flow names follow the gRPC
-service definitions from `backend/grpc-api-types/proto/services.proto`.
+service definitions from `crates/types-traits/grpc-api-types/proto/services.proto`.
 
 ## Summary
 
@@ -1691,7 +1691,7 @@ Concede dispute and accepts chargeback loss. Acknowledges liability and stops di
 
 ## Payment Methods
 
-Payment methods probed for authorize flow (configured in `backend/field-probe/probe-config.toml`):
+Payment methods probed for authorize flow (configured in `crates/internal/field-probe/probe-config.toml`):
 
 | Key | Display Name | Description |
 |-----|--------------|-------------|
@@ -1713,7 +1713,7 @@ Payment methods probed for authorize flow (configured in `backend/field-probe/pr
 
 ## Services Reference
 
-Flow definitions are derived from `backend/grpc-api-types/proto/services.proto`:
+Flow definitions are derived from `crates/types-traits/grpc-api-types/proto/services.proto`:
 
 | Service | Description |
 |---------|-------------|

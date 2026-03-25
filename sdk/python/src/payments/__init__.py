@@ -14,6 +14,7 @@ from payments._generated_service_clients import (
     PaymentMethodClient,
     RecurringPaymentClient,
 )
+from payments.grpc_client import GrpcClient, GrpcConfig
 
 # Direct access to all types via wildcard imports
 from payments.generated.payment_pb2 import *

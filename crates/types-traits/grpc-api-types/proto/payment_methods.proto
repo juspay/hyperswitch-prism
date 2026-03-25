@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package types;
 
-option go_package = "github.com/juspay/connector-service/backend/grpc-api-types/proto;proto";
+option go_package = "github.com/juspay/connector-service/crates/types-traits/grpc-api-types/proto;proto";
 
 // ============================================================================
 // COMMON MESSAGES

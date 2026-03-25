@@ -1,0 +1,207 @@
+// AUTO-GENERATED — do not edit by hand.
+// Source: services.proto  |  Regenerate: make generate  (or: python3 scripts/generators/code/generate.py --lang javascript)
+
+import koffi from "koffi";
+import path from "path";
+// @ts-ignore - generated CommonJS module
+import { types } from "./generated/proto.js";
+
+// Standard Node.js __dirname
+declare const __dirname: string;
+const _dirname = __dirname;
+
+// ── Config ────────────────────────────────────────────────────────────────────
+
+/**
+ * Connection configuration for the gRPC client.
+ * Field names must be snake_case — they are serialised to JSON and sent to the
+ * Rust FFI layer which deserialises them into GrpcConfigInput.
+ * 
+ * The connector_config field should contain the connector-specific authentication
+ * and configuration in the format expected by the server:
+ * {"config": {"ConnectorName": {"api_key": "...", ...}}}
+ */
+export interface GrpcConfig {
+  endpoint: string;
+  connector: string;
+  connector_config: Record<string, unknown>;
+}
+
+// ── koffi FFI bindings ────────────────────────────────────────────────────────
+
+interface GrpcFfi {
+  call: (
+    method:    string,
+    configPtr: Buffer,
+    configLen: number,
+    reqPtr:    Buffer,
+    reqLen:    number,
+    outLen:    number[],
+  ) => unknown; // opaque koffi pointer
+  free: (ptr: unknown, len: number) => void;
+}
+
+function loadGrpcFfi(libPath?: string): GrpcFfi {
+  if (!libPath) {
+    const ext = process.platform === "darwin" ? "dylib" : "so";
+    libPath = path.join(_dirname, "generated", `libhyperswitch_grpc_ffi.${ext}`);
+  }
+
+  const lib = koffi.load(libPath);
+
+  const call = lib.func("hyperswitch_grpc_call",
+    koffi.pointer("uint8"),
+    [
+      "str",                               // method (null-terminated C string)
+      koffi.pointer("uint8"),              // config_ptr
+      "uint32",                            // config_len
+      koffi.pointer("uint8"),              // req_ptr
+      "uint32",                            // req_len
+      koffi.out(koffi.pointer("uint32")), // out_len (written by callee)
+    ],
+  );
+
+  const free = lib.func("hyperswitch_grpc_free", "void", [
+    koffi.pointer("uint8"),
+    "uint32",
+  ]);
+
+  return { call, free };
+}
+
+// ── SecretString field normalization ─────────────────────────────────────────
+// protobufjs fromObject requires SecretString fields to be {value: "..."} objects,
+// but the field-probe JSON stores them as plain strings (Secret<String> serde format).
+// These maps (generated from the proto descriptor) drive a type-aware pre-pass
+// that wraps those strings before fromObject is called.
+
+const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
+{% for msg, fields in secret_string_fields.items() %}
+  {{ msg }}: [{{ fields | map("tojson") | join(", ") }}],
+{% endfor %}
+};
+
+// {MessageName: {camelFieldName: NestedMessageTypeName}} — for recursive traversal
+const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
+{% for msg, fields in msg_field_types.items() %}
+  {{ msg }}: { {% for fname, tname in fields.items() %}{{ fname | tojson }}: {{ tname | tojson }}{% if not loop.last %}, {% endif %}{% endfor %} },
+{% endfor %}
+};
+
+/**
+ * Recursively pre-process a proto request object so that SecretString fields
+ * (which the field-probe serialises as plain strings) are wrapped as {value: "..."}
+ * before being handed to protobufjs fromObject.
+ *
+ * @param obj      - The (potentially plain-string) value to process.
+ * @param msgName  - The protobuf message name for this level (e.g. "Ach").
+ */
+function _wrapSecretStrings(obj: unknown, msgName: string): unknown {
+  if (typeof obj !== "object" || obj === null) return obj;
+  if (Array.isArray(obj)) return (obj as unknown[]).map(item => _wrapSecretStrings(item, msgName));
+
+  const secretSet = new Set(_SECRET_STRING_FIELDS[msgName] ?? []);
+  const fieldTypes = _MSG_FIELD_TYPES[msgName] ?? {};
+  const result: Record<string, unknown> = {};
+
+  for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
+    if (secretSet.has(k) && typeof v === "string") {
+      // SecretString / CardNumberType / NetworkTokenType field stored as plain string → wrap
+      result[k] = { value: v };
+    } else if (typeof v === "string") {
+      const nestedType = fieldTypes[k];
+      if (nestedType) {
+        // A message-type field received a plain string: this happens when
+        // flatten_oneof_wrappers collapses e.g. {token: {token: SecretString}} → {token: "..."}
+        // Re-expand: find the sole SecretString field of the nested message and wrap.
+        const nestedSecrets = _SECRET_STRING_FIELDS[nestedType];
+        if (nestedSecrets && nestedSecrets.length === 1) {
+          result[k] = { [nestedSecrets[0]]: { value: v } };
+        } else {
+          result[k] = v;
+        }
+      } else {
+        result[k] = v;
+      }
+    } else if (typeof v === "object" && v !== null && !Array.isArray(v)) {
+      const nestedType = fieldTypes[k];
+      result[k] = nestedType ? _wrapSecretStrings(v, nestedType) : v;
+    } else {
+      result[k] = v;
+    }
+  }
+  return result;
+}
+
+// ── Dispatch helper ───────────────────────────────────────────────────────────
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function callGrpc(ffi: GrpcFfi, config: GrpcConfig, method: string, req: any, ReqType: any, ResType: any): unknown {
+  const configBuf = Buffer.from(JSON.stringify(config));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const normalized = _wrapSecretStrings(req, (ReqType as any).name as string);
+  const reqBuf    = Buffer.from(ReqType.encode(ReqType.fromObject(normalized)).finish());
+  const outLen    = [0];
+
+  const ptr = ffi.call(method, configBuf, configBuf.length, reqBuf, reqBuf.length, outLen);
+  const len = outLen[0];
+  const rawBytes = Buffer.from(koffi.decode(ptr, "uint8", len) as Uint8Array);
+  ffi.free(ptr, len);
+
+  if (rawBytes[0] === 1) {
+    throw new Error(`gRPC error (${method}): ${rawBytes.slice(1).toString("utf-8")}`);
+  }
+
+  return ResType.decode(rawBytes.slice(1));
+}
+
+// ── Sub-clients (one per proto service) ──────────────────────────────────────
+
+{% for service in services %}
+// {{ service }}
+export class {{ service_to_grpc_struct(service) }} {
+  constructor(private ffi: GrpcFfi, private config: GrpcConfig) {}
+
+{% for f in groups[service] %}
+  /** {{ f.service }}.{{ f.rpc }} — {{ f.description }} */
+  async {{ to_camel(f.name) }}(req: unknown): Promise<unknown> {
+    return callGrpc(this.ffi, this.config, "{{ grpc_method_path(service, f.name) }}",
+      req, types.{{ f.request }}, types.{{ f.response }});
+  }
+
+{% endfor %}
+}
+
+{% endfor %}
+// ── Top-level GrpcClient ──────────────────────────────────────────────────────
+
+/**
+ * Top-level gRPC client for the connector-service.
+ *
+ * Each sub-client corresponds to one proto service.  Auth headers from
+ * `GrpcConfig` are injected automatically on every call via the Rust FFI layer.
+ *
+ * Example:
+ * ```ts
+ * const client = new GrpcClient({
+ *   endpoint: "http://localhost:8000",
+ *   connector: "stripe",
+ *   connector_config: {"config": {"Stripe": {"api_key": "sk_test_..."}}},
+ * });
+{% for service in services[:4] %}
+ * const res = await client.{{ service_to_grpc_js_field(service) }}.{{ to_camel(groups[service][0].name) }}({ ... });
+{% endfor %}
+ * ```
+ */
+export class GrpcClient {
+{% for service in services %}
+  public {{ service_to_grpc_js_field(service) }}: {{ service_to_grpc_struct(service) }};
+{% endfor %}
+
+  constructor(config: GrpcConfig, libPath?: string) {
+    const ffi = loadGrpcFfi(libPath);
+{% for service in services %}
+    this.{{ service_to_grpc_js_field(service) }} = new {{ service_to_grpc_struct(service) }}(ffi, config);
+{% endfor %}
+  }
+}

@@ -1,9 +1,25 @@
 # GitBook Configuration
 # This file controls what appears in the published GitBook at docs.hyperswitch.io
 
+# Root directory for Prism documentation
+root: .
+
+# Structure: This defines the sidebar navigation
+structure:
+  readme: README.md
+  summary: SUMMARY.md
+
 # Ignore patterns - these files/directories won't appear in GitBook
 ignore:
   - rules/**
-  - plans/**
+  - rfcs/**
   - CODE_OF_CONDUCT.md
   - specs-self-managing-documentation-system.md
+  - docs-strategy.md
+  - "*.yml"
+  - "*.yaml"
+
+# Frontmatter defaults for Prism section
+variables:
+  product: Prism
+  version: 1.2.x

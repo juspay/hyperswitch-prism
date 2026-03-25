@@ -1,5 +1,5 @@
 .PHONY: install-deps install-codegen-deps generate-bindings generate-proto generate-all \
-        generate-flows pack-archive install test-package test-composite dist clean
+        generate-flows pack-archive install test-package test-composite test-grpc dist clean
 	#
 # SDK-specific paths (define BEFORE including common.mk)
 MAKEFILE_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
@@ -177,6 +177,44 @@ test-composite: generate-all pack-archive
 	@cd /tmp/test-hyperswitch-py-composite && python3 test_smoke_composite.py
 	@rm -rf /tmp/test-hyperswitch-py-composite
 	@echo "Composite flow test passed."
+
+# ---------------------------------------------------------------------------
+# test-grpc
+# End-to-end gRPC smoke test: builds both FFI libraries, packs the wheel,
+# installs it in an isolated temp directory, then runs test_smoke_grpc.py.
+# ---------------------------------------------------------------------------
+GRPC_PROFILE    ?= release-fast
+GRPC_SERVER_BIN := $(REPO_ROOT)/target/$(GRPC_PROFILE)/grpc-server
+
+test-grpc: build-ffi-lib build-grpc-ffi-lib generate-all pack-archive
+	@echo "Building grpc-server ($(GRPC_PROFILE))..."
+	@cd $(REPO_ROOT) && cargo build -p grpc-server --profile $(GRPC_PROFILE) 2>&1
+	@echo "Starting gRPC server..."
+	@pkill -KILL -f grpc-server 2>/dev/null || true
+	@sleep 1
+	@cd $(REPO_ROOT) && $(GRPC_SERVER_BIN) > /tmp/grpc-server-py.log 2>&1 &
+	@sleep 2
+	@echo "Testing gRPC flows in isolation..."
+	@rm -rf /tmp/test-hyperswitch-py-grpc
+	@mkdir -p /tmp/test-hyperswitch-py-grpc
+	@python3 -m pip install \
+		--target /tmp/test-hyperswitch-py-grpc \
+		$(PACKAGE_DIR)/hyperswitch_payments-0.1.0-py3-none-any.whl \
+		--force-reinstall
+	@cp -f $(GRPC_FFI_LIBRARY) /tmp/test-hyperswitch-py-grpc/payments/generated/
+	@cp $(SDK_ROOT)/smoke-test/test_smoke_grpc.py /tmp/test-hyperswitch-py-grpc/
+	@if [ -f $(REPO_ROOT)/creds.json ]; then \
+		cp $(REPO_ROOT)/creds.json /tmp/test-hyperswitch-py-grpc/; \
+	else \
+		echo "  Note: no creds.json found, test will use placeholder credentials"; \
+	fi
+	@cd /tmp/test-hyperswitch-py-grpc && PYTHONPATH=/tmp/test-hyperswitch-py-grpc FORCE_COLOR=1 \
+		python3 test_smoke_grpc.py \
+		--connectors $(CONNECTORS) --examples-dir $(REPO_ROOT)/examples; \
+		EXIT=$$?; \
+		pkill -f grpc-server 2>/dev/null || true; \
+		rm -rf /tmp/test-hyperswitch-py-grpc; \
+		exit $$EXIT
 
 # ---------------------------------------------------------------------------
 # dist

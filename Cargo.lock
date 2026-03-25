@@ -3643,6 +3643,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "hyperswitch-grpc-ffi"
+version = "0.1.0"
+dependencies = [
+ "grpc-api-types",
+ "prost 0.14.3",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tonic 0.14.5",
+]
+
+[[package]]
 name = "hyperswitch-payments-client"
 version = "0.1.0"
 dependencies = [
@@ -3659,6 +3671,7 @@ dependencies = [
  "serde_json",
  "thiserror 1.0.69",
  "tokio",
+ "tonic 0.14.5",
  "ucs_cards",
  "ucs_common_utils",
  "ucs_env",
@@ -3674,6 +3687,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "tonic 0.14.5",
 ]
 
 [[package]]

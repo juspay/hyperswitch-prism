@@ -22,10 +22,9 @@
 ---
 
 
-## 🎯 Why Prism?
+## 🎯 What is Prism?
 
-
-Today, integrating multiple payment processors either makes developers running in circles with AI agents to recreate integrations from specs, or developers spending months of engineering effort. 
+Today, integrating multiple payment processors either makes developers running in circles with AI agents to recreate integrations from specs, or developers spending months of engineering effort.
 
 Because every payment processor has diverse APIs, error codes, authentication methods, pdf documents to read, and above all - different behaviour in the actual environment when compared to documented specs. All this rests as tribal or undocumented knowledge making it harder AI agents which are very good at implementing clearly documented specification.
 
@@ -33,7 +32,7 @@ Because every payment processor has diverse APIs, error codes, authentication me
 
 **Prism offers hardened transformation through testing on payment processor environment & iterative bug fixing**
 
-**Prism can be embedded in you server application with its wide range of multi-language SDKs, or run as a rRPC microservice**
+**Prism can be embedded in your server application with its wide range of multi-language SDKs, or run as a gRPC microservice**
 
 
 | ❌ Without Prism | ✅ With Prism |
@@ -61,6 +60,11 @@ Because every payment processor has diverse APIs, error codes, authentication me
 
 ## 🏗️ Architecture
 
+The Prism library is compliant for payment processing by design. It is:
+- **Stateless** — Hence, no PII or PCI data stored
+- **Credential free** — The API keys are never logged nor exposed
+- **Payment compliance outsourcing supported** — You can continue to outsource your PCI compliance to third party vaults, or payment processor without having to handle credit card data. 
+
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -70,7 +74,7 @@ Because every payment processor has diverse APIs, error codes, authentication me
                                 ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                         Prism Library                           │
-│                 (Type-safe, idiomatic interface)                │
+│     (Type-safe, idiomatic interface, Multi-language SDK)        │
 └────────────────────────────────┬────────────────────────────────┘
                                  │
                                  ▼
@@ -81,48 +85,6 @@ Because every payment processor has diverse APIs, error codes, authentication me
    └──────────┘           └──────────┘           └──────────┘           └──────────┘
 ```
 
-
-### Payment & Capture Flow Sequence
-
-```mermaid
-%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#B3D9F2', 'primaryTextColor': '#333333', 'primaryBorderColor': '#5B9BD5', 'lineColor': '#666666', 'secondaryColor': '#C5E8C0', 'tertiaryColor': '#F9B872'}}}%%
-sequenceDiagram
-   autonumber
-   participant App as Your App
-   participant SDK as Prism
-   participant PSP as Payment Service Provider (PSP)
-   
-   Note over App,PSP: Payment Authorization
-   App->>SDK: paymentservice.authorize(amount, currency, payment_method)
-   activate SDK
-   SDK->>PSP: Provider-specific Authorize API call
-   activate PSP
-   PSP-->>SDK: Provider-specific response
-   deactivate PSP
-   SDK-->>App: Unified authorize response
-   deactivate SDK
-
-   Note over App,PSP: Payment Capture
-   App->>SDK: paymentservice.capture(payment_id, amount)
-   activate SDK
-   SDK->>PSP: Provider-specific Capture API call
-   activate PSP
-   PSP-->>SDK: Provider-specific Capture response
-   deactivate PSP
-   SDK-->>App: Unified capture response
-   deactivate SDK
-
-   Note over App,PSP: Event Service (Webhooks)
-   PSP->>App: webhook(event_payload)
-   activate App
-   App->>SDK: eventservice.handle(unified_event)
-   activate SDK
-   SDK->>App: Unified event payload
-   deactivate SDK
-   deactivate App
-
-```
-
 ---
 
 
@@ -130,18 +92,19 @@ sequenceDiagram
 
 ### Install the Prism Library
 
+Start by installing the library in the language of your choice.
 <!-- tabs:start -->
 
 #### **Node.js**
 
 ```bash
-npm install @juspay-tech/hyperswitch-prism
+npm install hs-playlib
 ```
 
 #### **Python**
 
 ```bash
-pip install hyperswitch-prism
+pip install payments
 ```
 
 #### **Java**
@@ -150,8 +113,8 @@ Add to your `pom.xml`:
 
 ```xml
 <dependency>
-    <groupId>com.juspay</groupId>
-    <artifactId>hyperswitch-prism</artifactId>
+    <groupId>com.juspay.hyperswitch</groupId>
+    <artifactId>prism</artifactId>
     <version>1.0.0</version>
 </dependency>
 ```
@@ -161,8 +124,6 @@ Add to your `pom.xml`:
 ```bash
 composer require juspay/hyperswitch-prism
 ```
-
-<!-- tabs:end -->
 
 For detailed installation instructions, see [Installation Guide](./getting-started/installation.md).
 
@@ -175,114 +136,92 @@ For detailed installation instructions, see [Installation Guide](./getting-start
 #### **Node.js**
 
 ```javascript
-const { ConnectorClient, Currency } = require('@juspay/hyperswitch-prism');
+const { PaymentClient } = require('hyperswitch-prism');
+const { ConnectorConfig, ConnectorSpecificConfig, SdkOptions, Environment } = require('hyperswitch-prism').types;
 
 async function main() {
-  const client = new ConnectorClient({
-    connectors: {
-      stripe: { apiKey: process.env.STRIPE_API_KEY }
+  // Configure Stripe client (Primary payment processor)
+  const stripeConfig = ConnectorConfig.create({
+    options: SdkOptions.create({ environment: Environment.SANDBOX }),
+  });
+  stripeConfig.connectorConfig = ConnectorSpecificConfig.create({
+    stripe: { apiKey: { value: process.env.STRIPE_API_KEY } }
+  });
+  const stripeClient = new PaymentClient(stripeConfig);
+
+  // Configure Adyen client (Secondary payment processor)
+  const adyenConfig = ConnectorConfig.create({
+    options: SdkOptions.create({ environment: Environment.SANDBOX }),
+  });
+  adyenConfig.connectorConfig = ConnectorSpecificConfig.create({
+    adyen: {
+      apiKey: { value: process.env.ADYEN_API_KEY },
+      merchantAccount: process.env.ADYEN_MERCHANT_ACCOUNT
     }
   });
+  const adyenClient = new PaymentClient(adyenConfig);
 
-  const order = await client.payments.createOrder({
+  const order = await stripeClient.createOrder({
+    merchantOrderId: 'order-123',
     amount: {
-      minorAmount: 1000,  // $10.00
-      currency: Currency.USD
+      minorAmount: 1000,
+      currency: "USD"
     },
-    merchantOrderId: 'order-123'
+    orderType: 'PAYMENT',
+    description: 'Test order'
   });
-
   console.log('Order ID:', order.connectorOrderId);
-  console.log('Client Secret:', order.sessionToken.clientSecret);
 }
 
 main().catch(console.error);
 ```
 
-
-#### **Java**
-
-
-```java
-import com.juspay.hyperswitchprism.*;
-
-public class Example {
-    public static void main(String[] args) {
-        ConnectorClient client = ConnectorClient.builder()
-            .connector("stripe", StripeConfig.builder()
-                .apiKey(System.getenv("STRIPE_API_KEY"))
-                .build())
-            .build();
-
-        CreateOrderResponse order = client.payments().createOrder(
-            CreateOrderRequest.builder()
-                .amount(Amount.of(1000, Currency.USD))
-                .merchantOrderId("order-123")
-                .build()
-        );
-
-        System.out.println("Order ID: " + order.getConnectorOrderId());
-        System.out.println("Client Secret: " + order.getSessionToken().getClientSecret());
-    }
-}
-```
-<!-- tabs:end -->
-
-
 ---
 
-
-## 🔄 Switching Providers
+## 🔄 Routing between Payment Providers
 
 Once the basic plumbing is implemented you can leverage Prism's core benefit - **switch payment providers by changing one line**.
 
 
 ```javascript
-// Before: Using Stripe
-const client = new ConnectorClient({
-    connectors: {
-        stripe: { apiKey: process.env.STRIPE_API_KEY }
-    }
-});
+  // Routing rule: EUR -> Adyen, USD -> Stripe
+  const currency = 'USD';
+  const client = currency === 'EUR' ? adyenClient : stripeClient;
 
-const order = await client.payments.createOrder({
-    amount: { minorAmount: 1000, currency: Currency.USD },
-    merchantOrderId: 'order-123'
-});
+  const order = await client.createOrder({
+    merchantOrderId: 'order-123',
+    amount: {
+      minorAmount: 1000,
+      currency: EUR
+    },
+    orderType: 'PAYMENT',
+    description: 'Test order'
+  });
 
-// After: Switching to Braintree
-const client = new ConnectorClient({
-    connectors: {
-        braintree: {
-            publicKey: process.env.BRAINTREE_PUBLIC_KEY,
-            privateKey: process.env.BRAINTREE_PRIVATE_KEY,
-            merchantAccountId: process.env.BRAINTREE_MERCHANT_ID
-        }
-    }
-});
+  console.log(`Order created with ${currency === 'EUR' ? 'Adyen' : 'Stripe'}`);
 
-// The createOrder call stays exactly the same!
-const order = await client.payments.createOrder({
-    amount: { minorAmount: 1000, currency: Currency.USD },
-    merchantOrderId: 'order-123'
-});
+// EUR goes to Adyen
+createOrder('order-456', 'EUR', 2500);
+
+// USD goes to Stripe
+createOrder('order-123', 'USD', 1000);
 ```
 
 **One integration pattern. Any service category.**
 
-No rewriting. No re-architecting. Just swap the connector.
+No rewriting. No re-architecting. Just swap the client with rules.
 Each flow uses the same unified schema regardless of the underlying processor's API differences. No custom code per provider.
+
+You can learn more about [intelligent routing](https://docs.hyperswitch.io/explore-hyperswitch/workflows/intelligent-routing) and [smart retries](https://docs.hyperswitch.io/explore-hyperswitch/workflows/smart-retries) to add more intelligence. It can help configure and manage diverse payment acceptance setup, as well as improve conversion rates.
 
 ---
 
 ## 🛠️ Development
 
-
 ### Prerequisites
 
 - Rust 1.70+
 - Protocol Buffers (protoc)
-
 
 ### Building from Source
 
@@ -291,10 +230,8 @@ Each flow uses the same unified schema regardless of the underlying processor's 
 git clone https://github.com/manojradhakrishnan/connector-service.git
 cd connector-service
 
-
 # Build
 cargo build --release
-
 
 # Run tests
 cargo test
@@ -302,30 +239,13 @@ cargo test
 
 ---
 
-
-## 🔒 Security
-
-- **Stateless by design** — No PII or PCI data stored
-- **Memory-safe** — Built in Rust, no buffer overflows
-- **Encrypted credentials** — API keys never logged or exposed
-
-
 ### Reporting Vulnerabilities
-
-
 Please report security issues to [security@juspay.in](mailto:security@juspay.in).
-
 
 ---
 
-
 <div align="center">
 
-
-**[⬆ Back to Top](#connector-service)**
-
-
 Built and maintained by [Juspay hyperswitch](https://hyperswitch.io)
-
 
 </div>

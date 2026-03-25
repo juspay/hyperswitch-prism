@@ -40,7 +40,7 @@ make dist
 
 ## How it works
 
-1. `make build-lib` — builds `backend/ffi` with `--features uniffi`
+1. `make build-lib` — builds `crates/ffi/ffi` with `--features uniffi`
 2. `make generate-bindings` — runs `uniffi-bindgen` to produce `generated/connector_service_ffi.py`
 3. `make generate-proto` — runs `grpc_tools.protoc` to produce `generated/payment_pb2.py`
 4. `make pack-archive` — runs `pip wheel` to produce the installable `.whl`

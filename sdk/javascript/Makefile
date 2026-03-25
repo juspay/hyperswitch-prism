@@ -1,5 +1,6 @@
-.PHONY: install-deps install-codegen-deps generate-bindings generate-proto generate-all \
-        generate-flows build-ts pack-archive install test-package test-composite dist clean
+.PHONY: install-deps install-codegen-deps generate-bindings generate-grpc-bindings \
+        generate-proto generate-all generate-flows build-ts pack-archive install \
+        test-package test-composite test-grpc dist clean
 
 # SDK-specific paths (define BEFORE including common.mk)
 MAKEFILE_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
@@ -75,6 +76,20 @@ generate-proto: install-deps
 	@echo "Proto TS generated: $(GENERATED_OUT)/proto.d.ts"
 
 # ---------------------------------------------------------------------------
+# generate-grpc-bindings
+# Copies the pre-built gRPC FFI native library into the generated output
+# directory so it is bundled with the npm package.
+# Requires: build-grpc-ffi-lib to have been run first.
+# ---------------------------------------------------------------------------
+generate-grpc-bindings:
+	@[ -f "$(GRPC_FFI_LIBRARY)" ] || \
+		(echo "Error: gRPC FFI library not found at $(GRPC_FFI_LIBRARY). Run 'make build-grpc-ffi-lib' first." && exit 1)
+	@echo "Copying gRPC FFI library to $(GENERATED_OUT)/..."
+	@mkdir -p $(GENERATED_OUT)
+	@cp -f $(GRPC_FFI_LIBRARY) $(GENERATED_OUT)/
+	@echo "gRPC library copied to $(GENERATED_OUT)/"
+
+# ---------------------------------------------------------------------------
 # generate-all
 # Runs all code-generation steps: copies the native library and generates the
 # protobuf JS/TS module. Proto depends on install-deps; both can run in any
@@ -88,10 +103,27 @@ generate-all: generate-proto generate-bindings generate-flows
 # codegen script. Assumes descriptor is already generated.
 # Depends on install-codegen-deps so jinja2 etc. are available (CI and local).
 # ---------------------------------------------------------------------------
-generate-flows: install-codegen-deps
+generate-flows: install-codegen-deps generate-descriptor
 	@echo "Generating JavaScript flow methods..."
 	@python3 $(REPO_ROOT)/scripts/generators/code/generate.py --lang javascript
 	@echo "JavaScript flow methods generated."
+
+# ---------------------------------------------------------------------------
+# generate-descriptor
+# Generates the proto descriptor file used by all SDK codegen scripts.
+# ---------------------------------------------------------------------------
+generate-descriptor:
+	@echo "Generating proto descriptor..."
+	@mkdir -p $(REPO_ROOT)/scripts/generators/code
+	@protoc \
+		--proto_path=$(REPO_ROOT)/crates/types-traits/grpc-api-types/proto \
+		--descriptor_set_out=$(REPO_ROOT)/scripts/generators/code/services.desc \
+		--include_source_info \
+		$(REPO_ROOT)/crates/types-traits/grpc-api-types/proto/services.proto \
+		$(REPO_ROOT)/crates/types-traits/grpc-api-types/proto/payment.proto \
+		$(REPO_ROOT)/crates/types-traits/grpc-api-types/proto/payment_methods.proto \
+		$(REPO_ROOT)/crates/types-traits/grpc-api-types/proto/sdk_config.proto
+	@echo "Descriptor written to scripts/generators/code/services.desc"
 
 # ---------------------------------------------------------------------------
 # build-ts
@@ -200,6 +232,42 @@ dist:
 	@$(MAKE) -C $(SDK_ROOT) build-ts
 	@$(MAKE) -C $(SDK_ROOT) pack-archive
 	@echo "Distribution tarball created in $(PACKAGE_DIR)/"
+
+# ---------------------------------------------------------------------------
+# test-grpc
+# End-to-end gRPC smoke test: builds both FFI libraries, packs the tarball,
+# installs it in an isolated temp project, then runs test_smoke_grpc.ts.
+# ---------------------------------------------------------------------------
+GRPC_PROFILE    ?= release-fast
+GRPC_SERVER_BIN := $(REPO_ROOT)/target/$(GRPC_PROFILE)/grpc-server
+
+test-grpc: build-ffi-lib build-grpc-ffi-lib generate-all generate-grpc-bindings build-ts pack-archive
+	@echo "Building grpc-server ($(GRPC_PROFILE))…"
+	@cd $(REPO_ROOT) && cargo build -p grpc-server --profile $(GRPC_PROFILE) 2>&1
+	@echo "Starting gRPC server…"
+	@pkill -KILL -f grpc-server 2>/dev/null || true
+	@sleep 1
+	@cd $(REPO_ROOT) && $(GRPC_SERVER_BIN) > /tmp/grpc-server-js.log 2>&1 &
+	@echo "Testing gRPC flows in isolation..."
+	@rm -rf /tmp/test-hyperswitch-js-grpc
+	@mkdir -p /tmp/test-hyperswitch-js-grpc
+	@test -f $(JS_TARBALL) || (echo "Error: Tarball not found: $(JS_TARBALL)" && exit 1)
+	@cd /tmp/test-hyperswitch-js-grpc && npm init -y --silent && \
+		npm install $(JS_TARBALL) typescript @types/node --silent
+	@cp $(SDK_ROOT)/smoke-test/test_smoke_grpc.ts /tmp/test-hyperswitch-js-grpc/
+	@cp $(SDK_ROOT)/smoke-test/tsconfig.json      /tmp/test-hyperswitch-js-grpc/
+	@if [ -f $(REPO_ROOT)/creds.json ]; then \
+		cp $(REPO_ROOT)/creds.json /tmp/test-hyperswitch-js-grpc/; \
+	else \
+		echo "  Note: no creds.json found, test will use placeholder credentials"; \
+	fi
+	@cd /tmp/test-hyperswitch-js-grpc && npx tsc && \
+		NODE_PATH=/tmp/test-hyperswitch-js-grpc/node_modules FORCE_COLOR=1 node test_smoke_grpc.js \
+		--connectors $(CONNECTORS) --examples-dir $(REPO_ROOT)/examples; \
+		EXIT=$$?; \
+		pkill -f grpc-server 2>/dev/null || true; \
+		rm -rf /tmp/test-hyperswitch-js-grpc; \
+		exit $$EXIT
 
 clean:
 	@rm -rf $(GENERATED_OUT) node_modules

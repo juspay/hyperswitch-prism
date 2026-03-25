@@ -37,7 +37,7 @@ Generate a connector scaffold from an OpenAPI spec:
 grace generate \
   --spec ./adyen-openapi.json \
   --connector adyen \
-  --output ./backend/connector-integration/src/connectors/adyen/
+  --output ./crates/integrations/connector-integration/src/connectors/adyen/
 
 # Generate with custom LLM model
 grace generate \
@@ -45,7 +45,7 @@ grace generate \
   --connector adyen \
   --model gpt-4 \
   --api-key $OPENAI_API_KEY \
-  --output ./backend/connector-integration/src/connectors/adyen/
+  --output ./crates/integrations/connector-integration/src/connectors/adyen/
 ```
 
 The CLI produces:
@@ -156,7 +156,7 @@ Grace validates generated code:
 ```bash
 # Validate generated connector
 grace validate \
-  --connector ./backend/connector-integration/src/connectors/adyen/
+  --connector ./crates/integrations/connector-integration/src/connectors/adyen/
 ```
 
 ## Adding a New Connector

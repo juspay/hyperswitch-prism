@@ -69,7 +69,7 @@ fn main() {
 
 ### Updating API Definitions
 
-- Update the `grpc-api-types` crate in the shared `../../backend/grpc-api-types` path.
+- Update the `grpc-api-types` crate in the shared `../../crates/types-traits/grpc-api-types` path.
 - Rebuild the project to integrate changes:
 
    ```bash

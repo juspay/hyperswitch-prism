@@ -41,7 +41,7 @@ make dist
 
 ## How it works
 
-1. `make build-lib` — builds `backend/ffi` with `--features uniffi`
+1. `make build-lib` — builds `crates/ffi/ffi` with `--features uniffi`
 2. `make generate-bindings` — runs `uniffi-bindgen --language kotlin` to produce `generated/connector_service_ffi.kt`
 3. `make generate-proto` — runs `protoc --java_out` to produce Java protobuf stubs (callable from Kotlin)
 4. `make pack-archive` — runs `./gradlew jar` and copies the JAR to `artifacts/sdk-java/`

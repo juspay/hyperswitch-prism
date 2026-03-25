@@ -1254,10 +1254,10 @@
     "FfiResult": {
       "comments": {},
       "field_types": {
+        "connector_response_transformation_error": "ConnectorResponseTransformationError",
         "http_request": "FfiConnectorHttpRequest",
         "http_response": "FfiConnectorHttpResponse",
-        "request_error": "RequestError",
-        "response_error": "ResponseError",
+        "integration_error": "IntegrationError",
         "type": "Type"
       }
     },

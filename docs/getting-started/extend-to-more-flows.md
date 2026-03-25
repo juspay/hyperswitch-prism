@@ -1,12 +1,12 @@
 # Extending to More Flows
 
-YOu have implemmented the basic plumbing for routing payment processor agnostic APIs. All methods work the same way with the single interface regardless of which payment processor you use. That's the power you get with the library.
+You have implemented the basic plumbing for routing payment processor agnostic APIs. All methods work the same way with the single interface regardless of which payment processor you use. That's the power you get with the library.
 
 Beyond the basic authorization and capture, the library handles complex payment scenarios in a processor agnostic manner. This includes recurring payments, incremental authorization, void, reverse, refund and more.
 
 ## Payment Flows Overview
 
-Below are some sample use cases to try out quickly, followed by some real world scenarios.
+Below are some sample real world scenarios to try out quickly.
 
 | Flow | Use Case | Key Operations |
 |------|----------|----------------|
@@ -16,12 +16,12 @@ Below are some sample use cases to try out quickly, followed by some real world 
 | **Incremental Authorization** | Hotel check-in, car rental | [`authorize`](../../api-reference/services/payment-service/authorize.md), [`incrementalAuthorization`](../../api-reference/services/payment-service/incremental-authorization.md) |
 | **Partial Capture** | Multi-shipment orders | [`capture`](../../api-reference/services/payment-service/capture.md) with partial amount |
 | **Refunds** | Customer returns | [`refund`](../../api-reference/services/payment-service/refund.md) |
-| **Reucrring Payments** | SaaS billing and rer | [`setupMandate`](../../api-reference/services/payment-service/setup-recurring.md), [`charge`](../../api-reference/services/recurring-payment-service/charge.md) |
+| **Recurring Payments** | SaaS billing and more | [`setupRecurring`](../../api-reference/services/payment-service/setup-recurring.md), [`charge`](../../api-reference/services/recurring-payment-service/charge.md) |
 
 
 ## Incremental Authorization
 
-Hotels and car rentals need to increase authorization amounts after the initial charge:
+Let's take hotels and car rentals. Such businesses will need to make an initial charge (like a security deposit) and then need to increase authorization amounts after the initial charge. When you use hyperswitch-prism the flow will work like this.
 
 ```javascript
 // 1. Initial authorization: $100 hold
@@ -47,28 +47,28 @@ See: [`incrementalAuthorization` API Reference](../../api-reference/services/pay
 
 ## Subscription / Recurring Payments
 
-Store a payment method and charge it later:
+Let's take subscription businesses like an email subscription or an AI subscription. Such businesses would want to store a payment method of a customer against a particular subscription plan, and charge it later:
 
 ```javascript
-// 1. Set up mandate (store payment method)
-const mandate = await client.payments.setupMandate({
+// 1. Set up recurring (store payment method)
+const recurring = await client.payments.setupRecurring({
     customerId: 'cus_xyz789',
     paymentMethod: { card: { ... } }
 });
 
 // 2. Charge the stored method monthly
 const charge = await client.recurringPayments.charge({
-    mandateId: mandate.mandateId,
+    connectorRecurringPaymentId: recurring.connectorRecurringPaymentId,
     amount: { minorAmount: 2900, currency: Currency.USD }
 });
+```
 
-
-See: [`setupMandate`](../../api-reference/services/payment-service/setup-recurring.md), [`charge`](../../api-reference/services/recurring-payment-service/charge.md), [`revoke`](../../api-reference/services/recurring-payment-service/revoke.md)
+See: [`setupRecurring`](../../api-reference/services/payment-service/setup-recurring.md), [`charge`](../../api-reference/services/recurring-payment-service/charge.md), [`revoke`](../../api-reference/services/recurring-payment-service/revoke.md)
 
 
 ## Partial Capture
 
-Capture less than authorized amount (multi-shipment orders):
+Let's take e-commerce businesses with multi-shipment orders. Such businesses may need to capture partial amounts as each shipment is fulfilled, rather than capturing the full authorized amount at once. When you use hyperswitch-prism the flow will work like this.
 
 ```javascript
 // Authorized $100
@@ -94,7 +94,7 @@ See: [`capture`](../../api-reference/services/payment-service/capture.md)
 
 ## Void (Cancel Authorization)
 
-Release held funds without charging:
+Let's take scenarios where a customer cancels an order before it ships, or inventory issues prevent fulfillment. Such businesses need to release the held funds without charging the customer. When you use hyperswitch-prism the flow will work like this.
 
 ```javascript
 // Customer cancels order before shipment
@@ -109,7 +109,7 @@ See: [`void`](../../api-reference/services/payment-service/void.md)
 
 ## Reverse (Refund Without Reference)
 
-Refund when you only have the connector transaction ID:
+Let's take scenarios where you need to refund a payment but don't have the original payment reference stored in your system. Such businesses may only have the connector transaction ID from a webhook or external system. When you use hyperswitch-prism the flow will work like this.
 
 ```javascript
 await client.payments.reverse({
@@ -122,7 +122,7 @@ See: [`reverse`](../../api-reference/services/payment-service/reverse.md)
 
 ## Webhook Handling
 
-Process events from payment processors:
+Let's take businesses that need to process asynchronous payment events from multiple processors. Such businesses need a unified way to handle webhooks for payment status updates, refunds, disputes and more. When you use hyperswitch-prism the flow will work like this.
 
 ```javascript
 // Express route for webhooks
@@ -153,7 +153,7 @@ See: [`handle`](../../api-reference/services/event-service/handle.md)
 
 ## Dispute Handling
 
-When customers dispute charges:
+Let's take scenarios where a customer disputes a charge with their bank or credit card company. Such businesses need to either accept the dispute and issue a refund, or defend it by providing evidence. When you use hyperswitch-prism the flow will work like this.
 
 ```javascript
 // Accept the dispute (refund immediately)

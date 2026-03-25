@@ -133,7 +133,7 @@ def load_probe_data(probe_path: Optional[Path]) -> dict[str, dict]:
         connector_names = manifest.get("connectors", [])
 
         # Load proto type map for wrapper-type detection (SecretString, CardNumberType, etc.)
-        proto_dir = probe_dir.parent.parent / "backend" / "grpc-api-types" / "proto"
+        proto_dir = probe_dir.parent.parent / "crates" / "types-traits" / "grpc-api-types" / "proto"
         if proto_dir.exists():
             snippets.load_proto_type_map(proto_dir)
 
@@ -421,8 +421,10 @@ def generate_scenario_files(
     if not scenarios_with_payloads:
         return [], {}, {}
 
-    scenario_keys = {s.key for s, _ in scenarios_with_payloads}
-    flow_items    = _collect_flow_items(probe_connector, scenario_keys)
+    # Collect ALL flows for standalone function generation (don't exclude scenario keys)
+    # This ensures flows like "refund" that are both scenarios AND standalone flows
+    # get their standalone functions generated in Python/JS
+    flow_items    = _collect_flow_items(probe_connector, exclude_keys=set())
     written: list[Path] = []
     # scenario_lines[scenario_key][sdk] = 1-based line number of process_* function
     scenario_lines: dict[str, dict[str, int]] = {}
@@ -738,19 +740,25 @@ def generate_connector_doc(
                 )
             )
             if has_payload:
-                fl = flow_line_numbers.get(f, {})
-                sl = scenario_line_numbers.get(f, {})  # fallback: scenario covers this flow
                 base_py = f"../../examples/{connector_name}/python/{connector_name}.py"
                 base_js = f"../../examples/{connector_name}/javascript/{connector_name}.js"
                 base_kt = f"../../examples/{connector_name}/kotlin/{connector_name}.kt"
                 base_rs = f"../../examples/{connector_name}/rust/{connector_name}.rs"
-                py_line = fl.get("python")     or sl.get("python")
-                js_line = fl.get("javascript") or sl.get("javascript")
-                py_path = base_py + (f"#L{py_line}" if py_line else "")
-                js_path = base_js + (f"#L{js_line}" if js_line else "")
-                kt_path = base_kt + (f"#L{fl['kotlin']}" if fl.get("kotlin") else "")
-                rs_path = base_rs + (f"#L{fl['rust']}"   if fl.get("rust")   else "")
-                a(f"**Examples:** [Python]({py_path}) · [JavaScript]({js_path}) · [Kotlin]({kt_path}) · [Rust]({rs_path})")
+                
+                # Get line numbers from flow_line_numbers
+                flow_lines = flow_line_numbers.get(f, {}) if flow_line_numbers else {}
+                ln_py = flow_lines.get("python", 0)
+                ln_js = flow_lines.get("javascript", 0)
+                ln_kt = flow_lines.get("kotlin", 0)
+                ln_rs = flow_lines.get("rust", 0)
+                
+                # Build links with line numbers when available
+                py_link = f"{base_py}#L{ln_py}" if ln_py else base_py
+                js_link = f"{base_js}#L{ln_js}" if ln_js else base_js
+                kt_link = f"{base_kt}#L{ln_kt}" if ln_kt else base_kt
+                rs_link = f"{base_rs}#L{ln_rs}" if ln_rs else base_rs
+                
+                a(f"**Examples:** [Python]({py_link}) · [JavaScript]({js_link}) · [Kotlin]({kt_link}) · [Rust]({rs_link})")
                 a("")
 
     return "\n".join(out)

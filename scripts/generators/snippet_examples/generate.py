@@ -43,6 +43,11 @@ from pathlib import Path
 # {message_name: {field_name: proto_type_name}}  — all messages across all protos
 _PROTO_FIELD_TYPES: dict[str, dict[str, str]] = {}
 
+# Maps message name -> set of field names that are `repeated` in proto.
+# These map to Vec<T> in prost+serde which require the key to be present in
+# JSON (no #[serde(default)] generated), so we must always emit "field": [].
+_PROTO_REPEATED_FIELDS: dict[str, set[str]] = {}
+
 # Set of message type names that are "scalar wrappers" (single `value` field).
 # These are stored as plain scalars in probe data but must be sent as
 # {"value": ...} dicts in ParseDict calls.
@@ -59,11 +64,12 @@ _ONEOF_WRAPPER_FIELD: dict[str, str] = {
 
 def load_proto_type_map(proto_dir: Path) -> None:
     """Parse all *.proto files in proto_dir to build _PROTO_FIELD_TYPES and _PROTO_WRAPPER_TYPES."""
-    global _PROTO_FIELD_TYPES, _PROTO_WRAPPER_TYPES
+    global _PROTO_FIELD_TYPES, _PROTO_WRAPPER_TYPES, _PROTO_REPEATED_FIELDS
 
     type_map: dict[str, dict[str, str]] = {}
+    repeated_map: dict[str, set[str]] = {}
     _FIELD_RE = re.compile(
-        r"^\s*(?:optional\s+|repeated\s+)?(\w+)\s+(\w+)\s*=\s*\d+"
+        r"^\s*(repeated\s+)?(?:optional\s+)?(\w+)\s+(\w+)\s*=\s*\d+"
     )
     _SKIP_KEYWORDS = frozenset(
         ["message", "enum", "oneof", "reserved", "option", "extensions",
@@ -97,6 +103,7 @@ def load_proto_type_map(proto_dir: Path) -> None:
 
             # Extract only top-level lines (not inside nested { })
             fields: dict[str, str] = {}
+            repeated_fields: set[str] = set()
             inner_depth = 0
             for line in body.splitlines():
                 inner_depth += line.count("{") - line.count("}")
@@ -104,14 +111,18 @@ def load_proto_type_map(proto_dir: Path) -> None:
                     continue
                 fm = _FIELD_RE.match(line)
                 if fm:
-                    ftype, fname = fm.group(1), fm.group(2)
+                    is_repeated, ftype, fname = fm.group(1), fm.group(2), fm.group(3)
                     if ftype not in _SKIP_KEYWORDS and fname not in _SKIP_KEYWORDS:
                         fields[fname] = ftype
+                        if is_repeated:
+                            repeated_fields.add(fname)
 
             type_map[msg_name] = fields
+            repeated_map[msg_name] = repeated_fields
             pos = pos + m.start() + 1  # advance past this message keyword
 
     _PROTO_FIELD_TYPES = type_map
+    _PROTO_REPEATED_FIELDS = repeated_map
     # Wrapper types: messages whose only field is named "value"
     _PROTO_WRAPPER_TYPES = frozenset(
         name for name, fields in type_map.items()
@@ -1383,6 +1394,70 @@ def _js_builder_fn(flow_key: str, proto_req: dict, grpc_req: str, db: "_SchemaDB
     return "\n".join(lines)
 
 
+def _py_builder_fn_no_param(flow_key: str, proto_req: dict, grpc_req: str, db: "_SchemaDB") -> str:
+    """Return a Python private builder function with no dynamic parameter (arg: none flows)."""
+    items = list(proto_req.items())
+    lines: list[str] = [f"def _build_{flow_key}_request():"]
+    lines.append("    return ParseDict(")
+    lines.append("        {")
+    for idx, (key, val) in enumerate(items):
+        trailing  = "," if idx < len(items) - 1 else ""
+        comment   = db.get_comment(grpc_req, key)
+        child_msg = db.get_type(grpc_req, key)
+        cmt_part  = f"  # {comment}" if comment else ""
+        if isinstance(val, dict):
+            lines.append(f'            "{key}": {{{cmt_part}')
+            lines.extend(_annotate_inline_lines(val, child_msg, db, indent=4, cmt="#"))
+            lines.append(f'            }}{trailing}')
+        elif child_msg and db.is_wrapper(child_msg):
+            lines.append(f'            "{key}": {{"value": {_json_scalar(val)}}}{trailing}{cmt_part}')
+        elif child_msg and not isinstance(val, (dict, list)):
+            inner_key = db.single_field_wrapper_key(child_msg)
+            if inner_key:
+                lines.append(f'            "{key}": {{"{inner_key}": {{"value": {_json_scalar(val)}}}}}{trailing}{cmt_part}')
+            else:
+                lines.append(f'            "{key}": {_json_scalar(val)}{trailing}{cmt_part}')
+        else:
+            lines.append(f'            "{key}": {_json_scalar(val)}{trailing}{cmt_part}')
+    lines.append("        },")
+    if grpc_req:
+        lines.append(f"        payment_pb2.{grpc_req}(),")
+    lines.append("    )")
+    return "\n".join(lines)
+
+
+def _js_builder_fn_no_param(flow_key: str, proto_req: dict, grpc_req: str, db: "_SchemaDB") -> str:
+    """Return a JavaScript private builder function with no dynamic parameter (arg: none flows)."""
+    fn_name = "_build" + "".join(w.title() for w in flow_key.split("_")) + "Request"
+    items   = list(proto_req.items())
+    lines: list[str] = [f"function {fn_name}() {{"]
+    lines.append("    return {")
+    for idx, (key, val) in enumerate(items):
+        trailing  = "," if idx < len(items) - 1 else ""
+        comment   = db.get_comment(grpc_req, key)
+        child_msg = db.get_type(grpc_req, key)
+        cmt_part  = f"  // {comment}" if comment else ""
+        js_key    = _to_camel(key)
+        if isinstance(val, dict):
+            lines.append(f'        "{js_key}": {{{cmt_part}')
+            lines.extend(_annotate_inline_lines(val, child_msg, db, indent=3, cmt="//", camel_keys=True))
+            lines.append(f'        }}{trailing}')
+        elif child_msg and db.is_wrapper(child_msg):
+            lines.append(f'        "{js_key}": {{"value": {_json_scalar(val, js=True)}}}{trailing}{cmt_part}')
+        elif child_msg and not isinstance(val, (dict, list)):
+            sfwk      = db.single_field_wrapper_key(child_msg)
+            inner_key = _to_camel(sfwk) if sfwk else None
+            if inner_key:
+                lines.append(f'        "{js_key}": {{"{inner_key}": {{"value": {_json_scalar(val, js=True)}}}}}{trailing}{cmt_part}')
+            else:
+                lines.append(f'        "{js_key}": {_json_scalar(val, js=True)}{trailing}{cmt_part}')
+        else:
+            lines.append(f'        "{js_key}": {_json_scalar(val, js=True)}{trailing}{cmt_part}')
+    lines.append("    };")
+    lines.append("}")
+    return "\n".join(lines)
+
+
 def _kt_builder_fn(flow_key: str, proto_req: dict, grpc_req: str, message_schemas: dict) -> str:
     """Return a Kotlin private builder function for the given flow."""
     param_name  = _FLOW_BUILDER_EXTRA_PARAM[flow_key][0]  # snake_case
@@ -1438,17 +1513,39 @@ def render_consolidated_python(
     func_blocks: list[str] = []
     func_names:  list[str] = []
 
-    # Build private builder functions (one per flow that has a dynamic param)
+    # Build private builder functions for ALL supported gRPC flows — both standalone
+    # flow_items AND flows that only appear inside multi-step scenarios (e.g. refund,
+    # create_customer, tokenize, setup_recurring, recurring_charge).
     builder_fns:  list[str] = []
     has_builder:  set[str]  = set()
+
+    # Pass 1: flows from flow_items (standalone flow examples).
     for flow_key, proto_req, _ in (flow_items or []):
-        if flow_key not in _FLOW_BUILDER_EXTRA_PARAM:
-            continue
         grpc_req_b = flow_metadata.get(flow_key, {}).get("grpc_request", "")
         if not grpc_req_b:
             continue
-        builder_fns.append(_py_builder_fn(flow_key, proto_req, grpc_req_b, db))
+        if flow_key in _FLOW_BUILDER_EXTRA_PARAM:
+            builder_fns.append(_py_builder_fn(flow_key, proto_req, grpc_req_b, db))
+        else:
+            builder_fns.append(_py_builder_fn_no_param(flow_key, proto_req, grpc_req_b, db))
         has_builder.add(flow_key)
+
+    # Pass 2: flows from scenarios not already covered by flow_items.
+    for scenario, flow_payloads in scenarios_with_payloads:
+        for fk in scenario.flows:
+            if fk in has_builder:
+                continue
+            grpc_req_b = flow_metadata.get(fk, {}).get("grpc_request", "")
+            if not grpc_req_b:
+                continue
+            proto_req = flow_payloads.get(fk, {})
+            if not proto_req:
+                continue
+            if fk in _FLOW_BUILDER_EXTRA_PARAM:
+                builder_fns.append(_py_builder_fn(fk, proto_req, grpc_req_b, db))
+            else:
+                builder_fns.append(_py_builder_fn_no_param(fk, proto_req, grpc_req_b, db))
+            has_builder.add(fk)
 
     def _py_step_with_builder(scenario_key: str, flow_key: str, step_num: int,
                                payload: dict, client_var: str, method: str,
@@ -1554,9 +1651,12 @@ def render_consolidated_python(
 
         body_lines: list[str] = [f"    {client_var} = {client_cls}(config)", ""]
         if flow_key in has_builder:
-            param_name  = _FLOW_BUILDER_EXTRA_PARAM[flow_key][0]
-            default_val = proto_req.get(param_name, "AUTOMATIC" if param_name == "capture_method" else "probe_connector_txn_001")
-            body_lines.append(f'    {resp_var} = await {client_var}.{method}(_build_{flow_key}_request("{default_val}"))')
+            if flow_key in _FLOW_BUILDER_EXTRA_PARAM:
+                param_name  = _FLOW_BUILDER_EXTRA_PARAM[flow_key][0]
+                default_val = proto_req.get(param_name, "AUTOMATIC" if param_name == "capture_method" else "probe_connector_txn_001")
+                body_lines.append(f'    {resp_var} = await {client_var}.{method}(_build_{flow_key}_request("{default_val}"))')
+            else:
+                body_lines.append(f'    {resp_var} = await {client_var}.{method}(_build_{flow_key}_request())')
             body_lines.append("")
         else:
             body_lines.extend(_scenario_step_python("_standalone_", flow_key, 1, proto_req, grpc_req, client_var, db))
@@ -1645,17 +1745,42 @@ def render_consolidated_javascript(
     func_blocks:   list[str] = []
     func_names_js: list[str] = []
 
-    # Build private builder functions (one per flow that has a dynamic param)
+    # Build private builder functions (one per gRPC flow with a supported proto_request).
+    # We need builders for ALL supported gRPC flows — both those in flow_items AND those
+    # that appear only in multi-step scenarios (e.g. refund, create_customer, tokenize).
+    # Builders let the gRPC smoke test call connector code directly without grpc_* wrappers.
     js_builder_fns: list[str] = []
     js_has_builder: set[str]  = set()
+
+    # Pass 1: flows from flow_items (standalone flow examples).
     for flow_key, proto_req, _ in (flow_items or []):
-        if flow_key not in _FLOW_BUILDER_EXTRA_PARAM:
-            continue
         grpc_req_b = flow_metadata.get(flow_key, {}).get("grpc_request", "")
         if not grpc_req_b:
             continue
-        js_builder_fns.append(_js_builder_fn(flow_key, proto_req, grpc_req_b, db))
+        if flow_key in _FLOW_BUILDER_EXTRA_PARAM:
+            js_builder_fns.append(_js_builder_fn(flow_key, proto_req, grpc_req_b, db))
+        else:
+            js_builder_fns.append(_js_builder_fn_no_param(flow_key, proto_req, grpc_req_b, db))
         js_has_builder.add(flow_key)
+
+    # Pass 2: flows from scenarios that don't have a standalone flow item.
+    # This ensures refund, create_customer, tokenize, setup_recurring, recurring_charge, etc.
+    # all get builder functions even when they only appear inside multi-step scenarios.
+    for scenario, flow_payloads in scenarios_with_payloads:
+        for fk in scenario.flows:
+            if fk in js_has_builder:
+                continue
+            grpc_req_b = flow_metadata.get(fk, {}).get("grpc_request", "")
+            if not grpc_req_b:
+                continue
+            proto_req = flow_payloads.get(fk, {})
+            if not proto_req:
+                continue
+            if fk in _FLOW_BUILDER_EXTRA_PARAM:
+                js_builder_fns.append(_js_builder_fn(fk, proto_req, grpc_req_b, db))
+            else:
+                js_builder_fns.append(_js_builder_fn_no_param(fk, proto_req, grpc_req_b, db))
+            js_has_builder.add(fk)
 
     _js_var_defaults = {k: _to_camel(v.replace("_response", "Response")) for k, v in _FLOW_VAR_NAME.items()}
 
@@ -1769,14 +1894,18 @@ def render_consolidated_javascript(
         pm_part    = f" ({pm_label})" if pm_label else ""
 
         if flow_key in js_has_builder:
-            param_name  = _FLOW_BUILDER_EXTRA_PARAM[flow_key][0]
-            fn_name     = "_build" + "".join(w.title() for w in flow_key.split("_")) + "Request"
-            default_val = proto_req.get(param_name, "AUTOMATIC" if param_name == "capture_method" else "probe_connector_txn_001")
-            method      = _to_camel(_FLOW_KEY_TO_METHOD.get(flow_key, flow_key))
+            fn_name = "_build" + "".join(w.title() for w in flow_key.split("_")) + "Request"
+            method  = _to_camel(_FLOW_KEY_TO_METHOD.get(flow_key, flow_key))
+            if flow_key in _FLOW_BUILDER_EXTRA_PARAM:
+                param_name  = _FLOW_BUILDER_EXTRA_PARAM[flow_key][0]
+                default_val = proto_req.get(param_name, "AUTOMATIC" if param_name == "capture_method" else "probe_connector_txn_001")
+                call_expr   = f"{fn_name}('{default_val}')"
+            else:
+                call_expr   = f"{fn_name}()"
             body_lines  = [
                 f"    const {client_var} = new {cls}(config);",
                 "",
-                f"    const {var_name} = await {client_var}.{method}({fn_name}('{default_val}'));",
+                f"    const {var_name} = await {client_var}.{method}({call_expr});",
                 "",
             ]
         else:
@@ -1797,7 +1926,12 @@ def render_consolidated_javascript(
             f"}}"
         )
 
-    exports          = ", ".join(func_names_js)
+    # Also export _build*Request helpers so the gRPC smoke test can call them directly.
+    builder_export_names = [
+        "_build" + "".join(w.title() for w in fk.split("_")) + "Request"
+        for fk in sorted(js_has_builder)
+    ]
+    exports          = ", ".join(func_names_js + builder_export_names)
     js_builders_text = "\n\n".join(js_builder_fns)
     js_builders_section = f"\n\n{js_builders_text}\n" if js_builder_fns else ""
     funcs_text       = "\n\n".join(func_blocks)
@@ -1809,7 +1943,7 @@ def render_consolidated_javascript(
 // Regenerate: python3 scripts/generate-connector-docs.py {connector_name}
 //
 // {connector_name.title()} — all integration scenarios and flows in one file.
-// Run a scenario:  node {connector_name}.js checkout_card
+// Run a scenario:  node {connector_name}.js {first_scenario}
 'use strict';
 
 const {{ {client_imports} }} = require('hs-playlib');
@@ -1823,6 +1957,8 @@ const _defaultConfig = ConnectorConfig.create({{
 //     {connector_name}: {{ apiKey: {{ value: 'YOUR_API_KEY' }} }}
 // }});
 {js_builders_section}
+
+// ANCHOR: scenario_functions
 {funcs_text}
 
 
@@ -1914,16 +2050,27 @@ def render_scenario_section(
             a(f"| `{status}` | {action} |")
         a("")
 
-    ln = line_numbers or {}
+    # Link to example files with line numbers if available
+    scenario_key = scenario.key
+    camel_scenario = "".join(w.capitalize() for w in scenario_key.split("_"))
     base_py = f"../../examples/{connector_name}/python/{connector_name}.py"
     base_js = f"../../examples/{connector_name}/javascript/{connector_name}.js"
     base_kt = f"../../examples/{connector_name}/kotlin/{connector_name}.kt"
     base_rs = f"../../examples/{connector_name}/rust/{connector_name}.rs"
-    py_path = base_py + (f"#L{ln['python']}"     if ln.get("python")     else "")
-    js_path = base_js + (f"#L{ln['javascript']}" if ln.get("javascript") else "")
-    kt_path = base_kt + (f"#L{ln['kotlin']}"     if ln.get("kotlin")     else "")
-    rs_path = base_rs + (f"#L{ln['rust']}"       if ln.get("rust")       else "")
-    a(f"**Examples:** [Python]({py_path}) · [JavaScript]({js_path}) · [Kotlin]({kt_path}) · [Rust]({rs_path})")
+    
+    # Get line numbers from the generated files
+    ln_py = line_numbers.get("python", 0) if line_numbers else 0
+    ln_js = line_numbers.get("javascript", 0) if line_numbers else 0
+    ln_kt = line_numbers.get("kotlin", 0) if line_numbers else 0
+    ln_rs = line_numbers.get("rust", 0) if line_numbers else 0
+    
+    # Build links with line numbers when available
+    py_link = f"{base_py}#L{ln_py}" if ln_py else base_py
+    js_link = f"{base_js}#L{ln_js}" if ln_js else base_js
+    kt_link = f"{base_kt}#L{ln_kt}" if ln_kt else base_kt
+    rs_link = f"{base_rs}#L{ln_rs}" if ln_rs else base_rs
+    
+    a(f"**Examples:** [Python]({py_link}) · [JavaScript]({js_link}) · [Kotlin]({kt_link}) · [Rust]({rs_link})")
     a("")
 
     return out
@@ -2466,6 +2613,15 @@ def _rust_json_lines(
         else:
             lines.append(f"{pad}// {json_key}: {json.dumps(val)}{cmt_part}")
 
+    # prost+serde does not add #[serde(default)] to repeated (Vec<T>) fields,
+    # so serde_json::from_value requires them to be present even when empty.
+    # Emit "field": [] for any repeated fields not already in obj.
+    msg_repeated = _PROTO_REPEATED_FIELDS.get(msg_name, set())
+    for rep_field in sorted(msg_repeated - set(obj.keys())):
+        comment  = db.get_comment(msg_name, rep_field)
+        cmt_part = f"  // {comment}" if comment else ""
+        lines.append(f'{pad}"{rep_field}": []{cmt_part}')
+
     return lines
 
 
@@ -2869,28 +3025,78 @@ def render_consolidated_rust(
 
     # ── Build private request builder functions ────────────────────────────────
     builder_fns: list[str] = []
-    has_builder: set[str] = set()
+    has_builder: set[str] = set()        # flows with a dynamic param builder
+    has_no_param_builder: set[str] = set()  # flows with a no-param builder
 
+    # Pass 1: flows from flow_items
     for flow_key, proto_req, pm_label in flow_items:
-        if flow_key not in _FLOW_BUILDER_EXTRA_PARAM:
-            continue
-        param_name, param_type = _FLOW_BUILDER_EXTRA_PARAM[flow_key]
         grpc_req_b = flow_metadata.get(flow_key, {}).get("grpc_request", "")
         if not grpc_req_b:
             continue
-        json_lines_b = _rust_json_lines(
-            proto_req, grpc_req_b, message_schemas, indent=1,
-            variable_fields=frozenset({param_name}),
-        )
-        json_body_b = "\n".join(json_lines_b)
-        builder_fns.append(
-            f"fn build_{flow_key}_request({param_name}: {param_type}) -> {grpc_req_b} {{\n"
-            f"    serde_json::from_value::<{grpc_req_b}>(serde_json::json!({{\n"
-            f"{json_body_b}\n"
-            f"    }})).unwrap_or_default()\n"
-            f"}}"
-        )
-        has_builder.add(flow_key)
+        if flow_key in _FLOW_BUILDER_EXTRA_PARAM:
+            param_name, param_type = _FLOW_BUILDER_EXTRA_PARAM[flow_key]
+            json_lines_b = _rust_json_lines(
+                proto_req, grpc_req_b, message_schemas, indent=1,
+                variable_fields=frozenset({param_name}),
+            )
+            json_body_b = "\n".join(json_lines_b)
+            builder_fns.append(
+                f"pub fn build_{flow_key}_request({param_name}: {param_type}) -> {grpc_req_b} {{\n"
+                f"    serde_json::from_value::<{grpc_req_b}>(serde_json::json!({{\n"
+                f"{json_body_b}\n"
+                f"    }})).unwrap_or_default()\n"
+                f"}}"
+            )
+            has_builder.add(flow_key)
+        else:
+            json_lines_b = _rust_json_lines(proto_req, grpc_req_b, message_schemas, indent=1)
+            json_body_b = "\n".join(json_lines_b)
+            builder_fns.append(
+                f"pub fn build_{flow_key}_request() -> {grpc_req_b} {{\n"
+                f"    serde_json::from_value::<{grpc_req_b}>(serde_json::json!({{\n"
+                f"{json_body_b}\n"
+                f"    }})).unwrap_or_default()\n"
+                f"}}"
+            )
+            has_no_param_builder.add(flow_key)
+
+    # Pass 2: flows from scenarios not already covered by Pass 1
+    for scenario, flow_payloads in (scenarios_with_payloads or []):
+        for fk in scenario.flows:
+            if fk in has_builder or fk in has_no_param_builder:
+                continue
+            grpc_req_b = flow_metadata.get(fk, {}).get("grpc_request", "")
+            if not grpc_req_b:
+                continue
+            proto_req = flow_payloads.get(fk, {})
+            if not proto_req:
+                continue
+            if fk in _FLOW_BUILDER_EXTRA_PARAM:
+                param_name, param_type = _FLOW_BUILDER_EXTRA_PARAM[fk]
+                json_lines_b = _rust_json_lines(
+                    proto_req, grpc_req_b, message_schemas, indent=1,
+                    variable_fields=frozenset({param_name}),
+                )
+                json_body_b = "\n".join(json_lines_b)
+                builder_fns.append(
+                    f"pub fn build_{fk}_request({param_name}: {param_type}) -> {grpc_req_b} {{\n"
+                    f"    serde_json::from_value::<{grpc_req_b}>(serde_json::json!({{\n"
+                    f"{json_body_b}\n"
+                    f"    }})).unwrap_or_default()\n"
+                    f"}}"
+                )
+                has_builder.add(fk)
+            else:
+                json_lines_b = _rust_json_lines(proto_req, grpc_req_b, message_schemas, indent=1)
+                json_body_b = "\n".join(json_lines_b)
+                builder_fns.append(
+                    f"pub fn build_{fk}_request() -> {grpc_req_b} {{\n"
+                    f"    serde_json::from_value::<{grpc_req_b}>(serde_json::json!({{\n"
+                    f"{json_body_b}\n"
+                    f"    }})).unwrap_or_default()\n"
+                    f"}}"
+                )
+                has_no_param_builder.add(fk)
 
     func_blocks: list[str] = []
     func_names:  list[str] = []
@@ -3021,6 +3227,15 @@ def render_consolidated_rust(
                 f"{status_block}\n"
                 f"}}"
             )
+        elif flow_key in has_no_param_builder:
+            func_blocks.append(
+                f"// Flow: {svc}.{rpc_name}{pm_part}\n"
+                f"#[allow(dead_code)]\n"
+                f"pub async fn {flow_key}(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {{\n"
+                f"    let response = client.{flow_key}(build_{flow_key}_request(), &HashMap::new(), None).await?;\n"
+                f"{status_block}\n"
+                f"}}"
+            )
         else:
             json_lines = _rust_json_lines(proto_req, grpc_req, message_schemas, indent=1)
             json_body  = "\n".join(json_lines)
@@ -3066,7 +3281,6 @@ fn build_client() -> ConnectorClient {{
 }}{builders_section}
 
 {funcs_text}
-
 
 #[allow(dead_code)]
 #[tokio::main]

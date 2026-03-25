@@ -15,6 +15,7 @@ members = [
   "crates/types-traits/cards",
   "sdk/rust",
   "sdk/rust/smoke-test",
+  "sdk/grpc-ffi",
   "crates/internal/composite-service",
   "crates/common/ucs_env",
   "crates/types-traits/ucs_interface_common",

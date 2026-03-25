@@ -5,7 +5,7 @@
 title: Refund
 description: Initiate a refund to customer's payment method - return funds for returns, cancellations, or service adjustments after original payment
 last_updated: 2026-03-11
-generated_from: backend/grpc-api-types/proto/services.proto
+generated_from: crates/types-traits/grpc-api-types/proto/services.proto
 auto_generated: true
 reviewed_by: ''
 reviewed_at: ''

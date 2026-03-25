@@ -37,6 +37,11 @@ PROTO_DESCRIPTOR = Path(__file__).parent / "services.desc"
 
 RUST_HANDLERS_OUT = REPO_ROOT / "crates/ffi/ffi/src/handlers/_generated_flow_registrations.rs"
 RUST_FFI_FLOWS_OUT = REPO_ROOT / "crates/ffi/ffi/src/bindings/_generated_ffi_flows.rs"
+RUST_GRPC_CLIENT_OUT       = SDK_ROOT  / "rust/src/_generated_grpc_client.rs"
+JS_GRPC_CLIENT_OUT         = SDK_ROOT  / "javascript/src/payments/_generated_grpc_client.ts"
+JS_GRPC_EXAMPLE_FLOWS_OUT  = REPO_ROOT / "examples/_generated_grpc_example_flows.js"
+PY_GRPC_CLIENT_OUT         = SDK_ROOT  / "python/src/payments/_generated_grpc_client.py"
+KOTLIN_GRPC_CLIENT_OUT     = SDK_ROOT  / "java/src/main/kotlin/payments/GrpcClient.kt"
 
 # ── Jinja2 environment ──────────────────────────────────────────────────────
 
@@ -233,9 +238,56 @@ def to_camel(snake: str) -> str:
     return re.sub(r"_([a-z])", lambda m: m.group(1).upper(), snake)
 
 
+def service_to_tonic_mod(service: str) -> str:
+    """'PaymentService' -> 'payment_service_client'"""
+    return to_snake_case(service) + "_client"
+
+
+def service_to_grpc_struct(service: str) -> str:
+    """'PaymentService' -> 'GrpcPaymentClient'"""
+    base = service[:-7] if service.endswith("Service") else service
+    return f"Grpc{base}Client"
+
+
+def service_to_grpc_field(service: str) -> str:
+    """'PaymentService' -> 'payment'  |  'RecurringPaymentService' -> 'recurring_payment'"""
+    base = service[:-7] if service.endswith("Service") else service
+    return to_snake_case(base)
+
+
+def service_to_grpc_js_field(service: str) -> str:
+    """'RecurringPaymentService' -> 'recurringPayment' (camelCase JS field on GrpcClient)"""
+    return to_camel(service_to_grpc_field(service))
+
+
+def grpc_method_path(service: str, rpc_name: str) -> str:
+    """{service_field}/{rpc_name} — matches the Rust FFI dispatch table."""
+    return f"{service_to_grpc_field(service)}/{rpc_name}"
+
+
+# Special-case grpc_* function names for flows where the bare RPC name is
+# ambiguous or non-descriptive (e.g. CustomerService.Create → "create_customer").
+_GRPC_EXAMPLE_FN_OVERRIDES: dict[tuple[str, str], str] = {
+    ("CustomerService",        "create"): "create_customer",
+    ("RecurringPaymentService", "charge"): "recurring_charge",
+}
+
+
+def grpc_example_fn_name(service: str, rpc_name: str) -> str:
+    """Canonical grpc_* smoke-test function suffix for a (service, rpc) pair."""
+    return _GRPC_EXAMPLE_FN_OVERRIDES.get((service, rpc_name), rpc_name)
+
+
 # Register helpers as Jinja2 globals so templates can call them directly.
-env.globals["service_to_client_name"] = service_to_client_name
-env.globals["to_camel"] = to_camel
+env.globals["service_to_client_name"]    = service_to_client_name
+env.globals["service_to_tonic_mod"]      = service_to_tonic_mod
+env.globals["service_to_grpc_struct"]    = service_to_grpc_struct
+env.globals["service_to_grpc_field"]     = service_to_grpc_field
+env.globals["service_to_grpc_js_field"]  = service_to_grpc_js_field
+env.globals["grpc_method_path"]          = grpc_method_path
+env.globals["grpc_example_fn_name"]      = grpc_example_fn_name
+env.globals["to_camel"]                  = to_camel
+env.globals["to_snake_case"]             = to_snake_case
 
 
 # ── Generators ───────────────────────────────────────────────────────────────
@@ -297,6 +349,7 @@ def gen_javascript(flows: list[dict], single_flows: list[dict]) -> None:
     gen_flows_js(flows, single_flows)
     gen_connector_client_ts(flows, single_flows)
     gen_uniffi_client_ts(flows, single_flows)
+    gen_javascript_grpc_client()
 
 
 def gen_flows_js(flows: list[dict], single_flows: list[dict]) -> None:
@@ -339,7 +392,55 @@ def gen_uniffi_client_ts(flows: list[dict], single_flows: list[dict]) -> None:
     )
 
 
+KOTLIN_UNIFFI_BINDINGS = SDK_ROOT / "java/src/main/kotlin/generated/uniffi/connector_service_ffi/connector_service_ffi.kt"
+
+
+def _available_uniffi_transformers() -> set[str] | None:
+    """
+    Parse the generated uniffi Kotlin bindings to find which transformer
+    functions are actually available. Returns None if the file doesn't exist
+    (treated as "all available" — don't filter).
+    """
+    if not KOTLIN_UNIFFI_BINDINGS.exists():
+        return None
+    text = KOTLIN_UNIFFI_BINDINGS.read_text()
+    found: set[str] = set()
+    # Matches both standard flows (foo_req_transformer) and single-step flows (foo_transformer)
+    for m in re.finditer(r"fn_func_(\w+_transformer)\b", text):
+        found.add(m.group(1))
+    return found
+
+
 def gen_kotlin(flows: list[dict], single_flows: list[dict] = []) -> None:
+    available = _available_uniffi_transformers()
+
+    if available is not None:
+        filtered_flows = []
+        for f in flows:
+            symbol = f"{f['name']}_req_transformer"
+            if symbol in available:
+                filtered_flows.append(f)
+            else:
+                print(
+                    f"  WARNING: '{symbol}' not in uniffi bindings — skipping '{f['name']}' "
+                    "from Kotlin SDK. Run 'make -C sdk/java generate-bindings' to include it.",
+                    file=sys.stderr,
+                )
+        flows = filtered_flows
+
+        filtered_single = []
+        for f in single_flows:
+            symbol = f"{f['name']}_transformer"
+            if symbol in available:
+                filtered_single.append(f)
+            else:
+                print(
+                    f"  WARNING: '{symbol}' not in uniffi bindings — skipping '{f['name']}' "
+                    "from Kotlin SDK. Run 'make -C sdk/java generate-bindings' to include it.",
+                    file=sys.stderr,
+                )
+        single_flows = filtered_single
+
     groups = group_by_service(flows)
     single_groups = group_by_service(single_flows)
     all_services = sorted(set(groups) | set(single_groups))
@@ -406,6 +507,150 @@ def gen_rust_ffi_flows(flows: list[dict]) -> None:
     )
 
 
+def _grpc_groups() -> tuple[list[str], dict[str, list[dict]]]:
+    """Shared helper: all proto RPCs grouped by service (used by JS + Rust gRPC generators).
+    
+    Returns only unique RPCs (simple names, not prefixed duplicates like 'payment_authorize').
+    """
+    all_rpcs = parse_proto_rpcs(PROTO_DESCRIPTOR)
+    groups: dict[str, list[dict]] = {}
+    for flow_name, meta in sorted(all_rpcs.items(), key=lambda kv: kv[1]["service"]):
+        # Filter out prefixed duplicates - keep only simple RPC names
+        # e.g., keep 'authorize' but skip 'payment_authorize'
+        rpc_simple_name = to_snake_case(meta["rpc"])
+        if flow_name != rpc_simple_name:
+            continue
+        groups.setdefault(meta["service"], []).append({"name": flow_name, **meta})
+    return list(groups.keys()), groups
+
+
+def gen_python_grpc_client() -> None:
+    """Generate _generated_grpc_client.py — Python gRPC sub-clients and GrpcClient from proto RPCs."""
+    services, groups = _grpc_groups()
+    render(
+        "python/grpc_client.py.j2",
+        PY_GRPC_CLIENT_OUT,
+        services=services,
+        groups=groups,
+    )
+
+
+def gen_kotlin_grpc_client() -> None:
+    """Generate GrpcClient.kt — Kotlin gRPC sub-clients and GrpcClient from proto RPCs."""
+    services, groups = _grpc_groups()
+    render(
+        "kotlin/grpc_client.kt.j2",
+        KOTLIN_GRPC_CLIENT_OUT,
+        services=services,
+        groups=groups,
+    )
+
+
+# All proto message types that serialize as plain strings in Rust serde but need
+# {value: "..."} wrapping for protobufjs fromObject.
+_VALUE_WRAPPER_TYPES = frozenset([
+    ".types.SecretString",
+    ".types.CardNumberType",
+    ".types.NetworkTokenType",
+])
+
+
+def _collect_proto_field_maps(
+    desc_file: Path,
+) -> tuple[dict[str, list[str]], dict[str, dict[str, str]]]:
+    """
+    Parse proto descriptor in one pass and return:
+      secret_fields:  {MessageName: [camelCaseFieldName]}  — fields typed SecretString
+      msg_field_types:{MessageName: {camelCaseFieldName: NestedTypeName}} — other message fields
+    Both maps are keyed by short message name (e.g. "Ach", not ".types.Ach").
+    """
+    from google.protobuf.descriptor_pb2 import FileDescriptorSet, FieldDescriptorProto
+
+    with open(desc_file, "rb") as f:
+        desc_set = FileDescriptorSet.FromString(f.read())
+
+    secret_fields: dict[str, list[str]] = {}
+    msg_field_types: dict[str, dict[str, str]] = {}
+
+    def collect(message_type) -> None:
+        secrets: list[str] = []
+        nested_msgs: dict[str, str] = {}
+        for field in message_type.field:
+            if field.type != FieldDescriptorProto.TYPE_MESSAGE:
+                continue
+            camel = to_camel(field.name)
+            if field.type_name in _VALUE_WRAPPER_TYPES:
+                # SecretString, CardNumberType, NetworkTokenType — all {value: string} wrappers
+                secrets.append(camel)
+            else:
+                # Short name: ".types.Ach" → "Ach"
+                nested_msgs[camel] = field.type_name.split(".")[-1]
+        if secrets:
+            secret_fields[message_type.name] = secrets
+        if nested_msgs:
+            msg_field_types[message_type.name] = nested_msgs
+        for nested in message_type.nested_type:
+            collect(nested)
+
+    for file_desc in desc_set.file:
+        for message_type in file_desc.message_type:
+            collect(message_type)
+
+    return secret_fields, msg_field_types
+
+
+def gen_javascript_grpc_client() -> None:
+    """Generate _generated_grpc_client.ts — JS gRPC sub-clients and GrpcClient from proto RPCs."""
+    services, groups = _grpc_groups()
+    all_types = sorted({t for flows in groups.values() for f in flows for t in (f["request"], f["response"])})
+    secret_string_fields, msg_field_types = _collect_proto_field_maps(PROTO_DESCRIPTOR)
+    render(
+        "javascript/grpc_client.ts.j2",
+        JS_GRPC_CLIENT_OUT,
+        services=services,
+        groups=groups,
+        all_types=all_types,
+        secret_string_fields=secret_string_fields,
+        msg_field_types=msg_field_types,
+    )
+
+
+def gen_javascript_grpc_example_flows() -> None:
+    """Generate examples/_generated_grpc_example_flows.js — generic grpc_* smoke-test functions."""
+    services, groups = _grpc_groups()
+    render(
+        "javascript/grpc_example_flows.js.j2",
+        JS_GRPC_EXAMPLE_FLOWS_OUT,
+        services=services,
+        groups=groups,
+    )
+
+
+def gen_rust_grpc_client() -> None:
+    """Generate _generated_grpc_client.rs from all proto RPCs (not filtered by FFI impl)."""
+    import subprocess
+
+    services, groups = _grpc_groups()
+    all_types = sorted({t for flows in groups.values() for f in flows for t in (f["request"], f["response"])})
+
+    render(
+        "rust/grpc_client.rs.j2",
+        RUST_GRPC_CLIENT_OUT,
+        services=services,
+        groups=groups,
+        all_types=all_types,
+    )
+
+    # Format with rustfmt so the file matches `cargo fmt` output exactly.
+    result = subprocess.run(
+        ["rustfmt", "--edition", "2021", str(RUST_GRPC_CLIENT_OUT)],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        print(f"  warning: rustfmt failed: {result.stderr.strip()}")
+
+
 # ── Entry point ──────────────────────────────────────────────────────────────
 
 def main() -> None:
@@ -416,7 +661,7 @@ def main() -> None:
 
     parser.add_argument(
         "--lang",
-        choices=["python", "javascript", "kotlin", "rust", "all"],
+        choices=["python", "javascript", "kotlin", "rust", "grpc", "all"],
         default="all",
         help="Which language/SDK to generate (default: all)"
     )
@@ -440,11 +685,22 @@ def main() -> None:
         gen_rust_handlers(flows)
         gen_rust_ffi_flows(flows)
 
+    if args.lang in ("grpc", "all"):
+        print("Generating Rust gRPC client...")
+        gen_rust_grpc_client()
+        print("Generating JavaScript gRPC client...")
+        gen_javascript_grpc_client()
+        print("Generating Python gRPC client...")
+        gen_python_grpc_client()
+        print("Generating Kotlin gRPC client...")
+        gen_kotlin_grpc_client()
+
     if args.lang in ("python", "all"):
         print("Generating Python SDK...")
         gen_python(flows, single_flows)
         gen_python_stub(flows, single_flows)
         gen_python_clients(flows, single_flows)
+        gen_python_grpc_client()
 
     if args.lang in ("javascript", "all"):
         print("Generating JavaScript SDK...")

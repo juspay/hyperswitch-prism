@@ -5,7 +5,7 @@
 [files]
 extend-exclude = [
     "data/field_probe/*.json",     # Generated probe output with base64 signatures
-    "docs/all_connector.md",       # Generated summary with truncated error messages
+    "docs-generated/all_connector.md",       # Generated summary with truncated error messages
     "crates/internal/ucs-connector-tests/**",
 ]
 

@@ -5,7 +5,7 @@
 title: IncrementalAuthorization
 description: Increase authorized amount if still in authorized state - allows adding charges for hospitality, tips, or incremental services
 last_updated: 2026-03-11
-generated_from: backend/grpc-api-types/proto/services.proto
+generated_from: crates/types-traits/grpc-api-types/proto/services.proto
 auto_generated: true
 reviewed_by: ''
 reviewed_at: ''

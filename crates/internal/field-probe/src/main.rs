@@ -99,6 +99,7 @@ fn main() {
         Path::new(&manifest_dir)
             .parent()
             .and_then(|p| p.parent())
+            .and_then(|p| p.parent())
             .map(|p| p.join("data/field_probe"))
             .unwrap_or_else(|| Path::new("data/field_probe").to_path_buf())
     } else {

@@ -5,7 +5,7 @@
 title: Get
 description: Retrieve dispute status and evidence submission state from the payment processor
 last_updated: 2026-03-11
-generated_from: backend/grpc-api-types/proto/services.proto
+generated_from: crates/types-traits/grpc-api-types/proto/services.proto
 auto_generated: false
 reviewed_by: engineering
 reviewed_at: 2026-03-05

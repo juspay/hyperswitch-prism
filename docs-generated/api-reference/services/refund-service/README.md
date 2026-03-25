@@ -5,7 +5,7 @@
 title: Refund Service
 description: Retrieve and synchronize refund statuses across payment processors for accurate customer communication
 last_updated: 2026-03-05
-generated_from: backend/grpc-api-types/proto/services.proto
+generated_from: crates/types-traits/grpc-api-types/proto/services.proto
 auto_generated: false
 reviewed_by: engineering
 reviewed_at: 2026-03-05
