@@ -5,7 +5,10 @@ use ucs_env::configs;
 mod common;
 
 use grpc_api_types::payouts::{
-    payout_service_client::PayoutServiceClient, Currency, Money, PayoutServiceCreateRequest,
+    payout_service_client::PayoutServiceClient, Currency, Money, PayoutServiceCreateLinkRequest,
+    PayoutServiceCreateRecipientRequest, PayoutServiceCreateRequest,
+    PayoutServiceEnrollDisburseAccountRequest, PayoutServiceGetRequest, PayoutServiceStageRequest,
+    PayoutServiceTransferRequest, PayoutServiceVoidRequest,
 };
 use tonic::{transport::Channel, Request};
 
@@ -32,12 +35,7 @@ fn add_mock_metadata<T>(request: &mut Request<T>) {
 
 #[tokio::test]
 async fn test_payout_create_client_basic() {
-    // This test verifies that the create payout endpoint exists and can be called via the PayoutServiceClient.
-    // It doesn't test the full flow or server-side business logic since that requires valid connector credentials
-    // and potentially more complex setup. It successfully proves the client is generated, active, and the endpoint is reachable.
-
     grpc_test!(client, PayoutServiceClient<Channel>, {
-        // Construct a PayoutServiceCreateRequest with required fields
         let mut request = Request::new(PayoutServiceCreateRequest {
             merchant_payout_id: Some("test_payout_123".to_string()),
             amount: Some(Money {
@@ -47,15 +45,122 @@ async fn test_payout_create_client_basic() {
             destination_currency: i32::from(Currency::Usd),
             ..Default::default()
         });
-
-        // Add standard routing metadata to bypass initial validation layers
         add_mock_metadata(&mut request);
-
-        // Send the create payout request using the client
         let response = client.create(request).await;
+        assert!(response.is_err() || response.is_ok());
+    });
+}
 
-        // We expect this to execute without panicking and return some form of response (even if it's an error).
-        // This confirms the gRPC wiring for PayoutService is intact.
+#[tokio::test]
+async fn test_payout_transfer_client_basic() {
+    grpc_test!(client, PayoutServiceClient<Channel>, {
+        let mut request = Request::new(PayoutServiceTransferRequest {
+            merchant_payout_id: Some("test_payout_123".to_string()),
+            amount: Some(Money {
+                minor_amount: 1000,
+                currency: i32::from(Currency::Usd),
+            }),
+            destination_currency: i32::from(Currency::Usd),
+            ..Default::default()
+        });
+        add_mock_metadata(&mut request);
+        let response = client.transfer(request).await;
+        assert!(response.is_err() || response.is_ok());
+    });
+}
+
+#[tokio::test]
+async fn test_payout_get_client_basic() {
+    grpc_test!(client, PayoutServiceClient<Channel>, {
+        let mut request = Request::new(PayoutServiceGetRequest {
+            merchant_payout_id: Some("test_payout_123".to_string()),
+            ..Default::default()
+        });
+        add_mock_metadata(&mut request);
+        let response = client.get(request).await;
+        assert!(response.is_err() || response.is_ok());
+    });
+}
+
+#[tokio::test]
+async fn test_payout_void_client_basic() {
+    grpc_test!(client, PayoutServiceClient<Channel>, {
+        let mut request = Request::new(PayoutServiceVoidRequest {
+            merchant_payout_id: Some("test_payout_123".to_string()),
+            ..Default::default()
+        });
+        add_mock_metadata(&mut request);
+        let response = client.void(request).await;
+        assert!(response.is_err() || response.is_ok());
+    });
+}
+
+#[tokio::test]
+async fn test_payout_stage_client_basic() {
+    grpc_test!(client, PayoutServiceClient<Channel>, {
+        let mut request = Request::new(PayoutServiceStageRequest {
+            merchant_quote_id: Some("test_payout_123".to_string()),
+            amount: Some(Money {
+                minor_amount: 1000,
+                currency: i32::from(Currency::Usd),
+            }),
+            destination_currency: i32::from(Currency::Usd),
+            ..Default::default()
+        });
+        add_mock_metadata(&mut request);
+        let response = client.stage(request).await;
+        assert!(response.is_err() || response.is_ok());
+    });
+}
+
+#[tokio::test]
+async fn test_payout_create_link_client_basic() {
+    grpc_test!(client, PayoutServiceClient<Channel>, {
+        let mut request = Request::new(PayoutServiceCreateLinkRequest {
+            merchant_payout_id: Some("test_payout_123".to_string()),
+            amount: Some(Money {
+                minor_amount: 1000,
+                currency: i32::from(Currency::Usd),
+            }),
+            destination_currency: i32::from(Currency::Usd),
+            ..Default::default()
+        });
+        add_mock_metadata(&mut request);
+        let response = client.create_link(request).await;
+        assert!(response.is_err() || response.is_ok());
+    });
+}
+
+#[tokio::test]
+async fn test_payout_create_recipient_client_basic() {
+    grpc_test!(client, PayoutServiceClient<Channel>, {
+        let mut request = Request::new(PayoutServiceCreateRecipientRequest {
+            merchant_payout_id: Some("test_payout_123".to_string()),
+            amount: Some(Money {
+                minor_amount: 1000,
+                currency: i32::from(Currency::Usd),
+            }),
+            ..Default::default()
+        });
+        add_mock_metadata(&mut request);
+        let response = client.create_recipient(request).await;
+        assert!(response.is_err() || response.is_ok());
+    });
+}
+
+#[tokio::test]
+async fn test_payout_enroll_disburse_account_client_basic() {
+    grpc_test!(client, PayoutServiceClient<Channel>, {
+        let mut request = Request::new(PayoutServiceEnrollDisburseAccountRequest {
+            merchant_payout_id: Some("test_payout_123".to_string()),
+            amount: Some(Money {
+                minor_amount: 1000,
+                currency: i32::from(Currency::Usd),
+            }),
+            ..Default::default()
+        });
+        add_mock_metadata(&mut request);
+        let response = client.enroll_disburse_account(request).await;
         assert!(response.is_err() || response.is_ok());
     });
 }

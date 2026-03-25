@@ -23,7 +23,14 @@ use grpc_api_types::payments::{
     RecurringPaymentServiceChargeRequest,
 };
 use grpc_api_types::payouts::{
+    PayoutServiceCreateLinkRequest,
+    PayoutServiceCreateRecipientRequest,
     PayoutServiceCreateRequest,
+    PayoutServiceEnrollDisburseAccountRequest,
+    PayoutServiceGetRequest,
+    PayoutServiceStageRequest,
+    PayoutServiceTransferRequest,
+    PayoutServiceVoidRequest,
 };
 
 use crate::handlers::payments::{
@@ -39,6 +46,13 @@ use crate::handlers::payments::{
     defend_req_handler, defend_res_handler,
     get_req_handler, get_res_handler,
     payout_create_req_handler, payout_create_res_handler,
+    payout_create_link_req_handler, payout_create_link_res_handler,
+    payout_create_recipient_req_handler, payout_create_recipient_res_handler,
+    payout_enroll_disburse_account_req_handler, payout_enroll_disburse_account_res_handler,
+    payout_get_req_handler, payout_get_res_handler,
+    payout_stage_req_handler, payout_stage_res_handler,
+    payout_transfer_req_handler, payout_transfer_res_handler,
+    payout_void_req_handler, payout_void_res_handler,
     post_authenticate_req_handler, post_authenticate_res_handler,
     pre_authenticate_req_handler, pre_authenticate_res_handler,
     refund_req_handler, refund_res_handler,
@@ -73,6 +87,20 @@ define_ffi_flow!(defend, DisputeServiceDefendRequest, defend_req_handler, defend
 define_ffi_flow!(get, PaymentServiceGetRequest, get_req_handler, get_res_handler);
 // payout_create: PayoutService.Create — Creates a payout.
 define_ffi_flow!(payout_create, PayoutServiceCreateRequest, payout_create_req_handler, payout_create_res_handler);
+// payout_create_link: PayoutService.CreateLink — Creates a link between the recipient and the payout.
+define_ffi_flow!(payout_create_link, PayoutServiceCreateLinkRequest, payout_create_link_req_handler, payout_create_link_res_handler);
+// payout_create_recipient: PayoutService.CreateRecipient — Create payout recipient.
+define_ffi_flow!(payout_create_recipient, PayoutServiceCreateRecipientRequest, payout_create_recipient_req_handler, payout_create_recipient_res_handler);
+// payout_enroll_disburse_account: PayoutService.EnrollDisburseAccount — Enroll disburse account.
+define_ffi_flow!(payout_enroll_disburse_account, PayoutServiceEnrollDisburseAccountRequest, payout_enroll_disburse_account_req_handler, payout_enroll_disburse_account_res_handler);
+// payout_get: PayoutService.Get — Retrieve payout details.
+define_ffi_flow!(payout_get, PayoutServiceGetRequest, payout_get_req_handler, payout_get_res_handler);
+// payout_stage: PayoutService.Stage — Stage the payout.
+define_ffi_flow!(payout_stage, PayoutServiceStageRequest, payout_stage_req_handler, payout_stage_res_handler);
+// payout_transfer: PayoutService.Transfer — Creates a payout fund transfer.
+define_ffi_flow!(payout_transfer, PayoutServiceTransferRequest, payout_transfer_req_handler, payout_transfer_res_handler);
+// payout_void: PayoutService.Void — Void a payout.
+define_ffi_flow!(payout_void, PayoutServiceVoidRequest, payout_void_req_handler, payout_void_res_handler);
 // post_authenticate: PaymentMethodAuthenticationService.PostAuthenticate — Validate authentication results with the issuing bank. Processes bank's authentication decision to determine if payment can proceed.
 define_ffi_flow!(post_authenticate, PaymentMethodAuthenticationServicePostAuthenticateRequest, post_authenticate_req_handler, post_authenticate_res_handler);
 // pre_authenticate: PaymentMethodAuthenticationService.PreAuthenticate — Initiate 3DS flow before payment authorization. Collects device data and prepares authentication context for frictionless or challenge-based verification.

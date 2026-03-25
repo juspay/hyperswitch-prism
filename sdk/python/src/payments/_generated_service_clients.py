@@ -108,6 +108,34 @@ class PayoutClient(_ConnectorClientBase):
         """PayoutService.Create — Creates a payout."""
         return self._execute_flow("payout_create", request, _pb2.PayoutServiceCreateResponse, options)
 
+    def payout_create_link(self, request, options=None):
+        """PayoutService.CreateLink — Creates a link between the recipient and the payout."""
+        return self._execute_flow("payout_create_link", request, _pb2.PayoutServiceCreateLinkResponse, options)
+
+    def payout_create_recipient(self, request, options=None):
+        """PayoutService.CreateRecipient — Create payout recipient."""
+        return self._execute_flow("payout_create_recipient", request, _pb2.PayoutServiceCreateRecipientResponse, options)
+
+    def payout_enroll_disburse_account(self, request, options=None):
+        """PayoutService.EnrollDisburseAccount — Enroll disburse account."""
+        return self._execute_flow("payout_enroll_disburse_account", request, _pb2.PayoutServiceEnrollDisburseAccountResponse, options)
+
+    def payout_get(self, request, options=None):
+        """PayoutService.Get — Retrieve payout details."""
+        return self._execute_flow("payout_get", request, _pb2.PayoutServiceGetResponse, options)
+
+    def payout_stage(self, request, options=None):
+        """PayoutService.Stage — Stage the payout."""
+        return self._execute_flow("payout_stage", request, _pb2.PayoutServiceStageResponse, options)
+
+    def payout_transfer(self, request, options=None):
+        """PayoutService.Transfer — Creates a payout fund transfer."""
+        return self._execute_flow("payout_transfer", request, _pb2.PayoutServiceTransferResponse, options)
+
+    def payout_void(self, request, options=None):
+        """PayoutService.Void — Void a payout."""
+        return self._execute_flow("payout_void", request, _pb2.PayoutServiceVoidResponse, options)
+
 class RecurringPaymentClient(_ConnectorClientBase):
     """RecurringPaymentService flows"""
 

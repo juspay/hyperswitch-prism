@@ -73,6 +73,27 @@ pub struct VerifyWebhookSource;
 #[derive(Debug, Clone)]
 pub struct PayoutCreate;
 
+#[derive(Debug, Clone)]
+pub struct PayoutTransfer;
+
+#[derive(Debug, Clone)]
+pub struct PayoutGet;
+
+#[derive(Debug, Clone)]
+pub struct PayoutVoid;
+
+#[derive(Debug, Clone)]
+pub struct PayoutStage;
+
+#[derive(Debug, Clone)]
+pub struct PayoutCreateLink;
+
+#[derive(Debug, Clone)]
+pub struct PayoutCreateRecipient;
+
+#[derive(Debug, Clone)]
+pub struct PayoutEnrollDisburseAccount;
+
 #[derive(strum::Display)]
 #[strum(serialize_all = "snake_case")]
 pub enum FlowName {
@@ -102,4 +123,11 @@ pub enum FlowName {
     IncrementalAuthorization,
     MandateRevoke,
     PayoutCreate,
+    PayoutTransfer,
+    PayoutGet,
+    PayoutVoid,
+    PayoutStage,
+    PayoutCreateLink,
+    PayoutCreateRecipient,
+    PayoutEnrollDisburseAccount,
 }

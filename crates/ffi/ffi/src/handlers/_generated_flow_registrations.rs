@@ -42,8 +42,22 @@ use grpc_api_types::payments::{
     RefundResponse,
 };
 use grpc_api_types::payouts::{
+    PayoutServiceCreateLinkRequest,
+    PayoutServiceCreateLinkResponse,
+    PayoutServiceCreateRecipientRequest,
+    PayoutServiceCreateRecipientResponse,
     PayoutServiceCreateRequest,
     PayoutServiceCreateResponse,
+    PayoutServiceEnrollDisburseAccountRequest,
+    PayoutServiceEnrollDisburseAccountResponse,
+    PayoutServiceGetRequest,
+    PayoutServiceGetResponse,
+    PayoutServiceStageRequest,
+    PayoutServiceStageResponse,
+    PayoutServiceTransferRequest,
+    PayoutServiceTransferResponse,
+    PayoutServiceVoidRequest,
+    PayoutServiceVoidResponse,
 };
 
 use crate::services::payments::{
@@ -69,6 +83,13 @@ use crate::services::payments::{
 };
 use crate::services::payouts::{
     payout_create_req_transformer, payout_create_res_transformer,
+    payout_create_link_req_transformer, payout_create_link_res_transformer,
+    payout_create_recipient_req_transformer, payout_create_recipient_res_transformer,
+    payout_enroll_disburse_account_req_transformer, payout_enroll_disburse_account_res_transformer,
+    payout_get_req_transformer, payout_get_res_transformer,
+    payout_stage_req_transformer, payout_stage_res_transformer,
+    payout_transfer_req_transformer, payout_transfer_res_transformer,
+    payout_void_req_transformer, payout_void_res_transformer,
 };
 
 // accept: DisputeService.Accept — Concede dispute and accepts chargeback loss. Acknowledges liability and stops dispute defense process when evidence is insufficient.
@@ -95,6 +116,20 @@ impl_flow_handlers!(defend, DisputeServiceDefendRequest, DisputeServiceDefendRes
 impl_flow_handlers!(get, PaymentServiceGetRequest, PaymentServiceGetResponse, get_req_transformer, get_res_transformer);
 // payout_create: PayoutService.Create — Creates a payout.
 impl_flow_handlers!(payout_create, PayoutServiceCreateRequest, PayoutServiceCreateResponse, payout_create_req_transformer, payout_create_res_transformer);
+// payout_create_link: PayoutService.CreateLink — Creates a link between the recipient and the payout.
+impl_flow_handlers!(payout_create_link, PayoutServiceCreateLinkRequest, PayoutServiceCreateLinkResponse, payout_create_link_req_transformer, payout_create_link_res_transformer);
+// payout_create_recipient: PayoutService.CreateRecipient — Create payout recipient.
+impl_flow_handlers!(payout_create_recipient, PayoutServiceCreateRecipientRequest, PayoutServiceCreateRecipientResponse, payout_create_recipient_req_transformer, payout_create_recipient_res_transformer);
+// payout_enroll_disburse_account: PayoutService.EnrollDisburseAccount — Enroll disburse account.
+impl_flow_handlers!(payout_enroll_disburse_account, PayoutServiceEnrollDisburseAccountRequest, PayoutServiceEnrollDisburseAccountResponse, payout_enroll_disburse_account_req_transformer, payout_enroll_disburse_account_res_transformer);
+// payout_get: PayoutService.Get — Retrieve payout details.
+impl_flow_handlers!(payout_get, PayoutServiceGetRequest, PayoutServiceGetResponse, payout_get_req_transformer, payout_get_res_transformer);
+// payout_stage: PayoutService.Stage — Stage the payout.
+impl_flow_handlers!(payout_stage, PayoutServiceStageRequest, PayoutServiceStageResponse, payout_stage_req_transformer, payout_stage_res_transformer);
+// payout_transfer: PayoutService.Transfer — Creates a payout fund transfer.
+impl_flow_handlers!(payout_transfer, PayoutServiceTransferRequest, PayoutServiceTransferResponse, payout_transfer_req_transformer, payout_transfer_res_transformer);
+// payout_void: PayoutService.Void — Void a payout.
+impl_flow_handlers!(payout_void, PayoutServiceVoidRequest, PayoutServiceVoidResponse, payout_void_req_transformer, payout_void_res_transformer);
 // post_authenticate: PaymentMethodAuthenticationService.PostAuthenticate — Validate authentication results with the issuing bank. Processes bank's authentication decision to determine if payment can proceed.
 impl_flow_handlers!(post_authenticate, PaymentMethodAuthenticationServicePostAuthenticateRequest, PaymentMethodAuthenticationServicePostAuthenticateResponse, post_authenticate_req_transformer, post_authenticate_res_transformer);
 // pre_authenticate: PaymentMethodAuthenticationService.PreAuthenticate — Initiate 3DS flow before payment authorization. Collects device data and prepares authentication context for frictionless or challenge-based verification.

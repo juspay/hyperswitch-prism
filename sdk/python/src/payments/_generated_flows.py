@@ -52,6 +52,20 @@ SERVICE_FLOWS = {
     "PayoutClient": {
         # payout_create: PayoutService.Create — Creates a payout.
         "payout_create": "PayoutServiceCreateResponse",
+        # payout_create_link: PayoutService.CreateLink — Creates a link between the recipient and the payout.
+        "payout_create_link": "PayoutServiceCreateLinkResponse",
+        # payout_create_recipient: PayoutService.CreateRecipient — Create payout recipient.
+        "payout_create_recipient": "PayoutServiceCreateRecipientResponse",
+        # payout_enroll_disburse_account: PayoutService.EnrollDisburseAccount — Enroll disburse account.
+        "payout_enroll_disburse_account": "PayoutServiceEnrollDisburseAccountResponse",
+        # payout_get: PayoutService.Get — Retrieve payout details.
+        "payout_get": "PayoutServiceGetResponse",
+        # payout_stage: PayoutService.Stage — Stage the payout.
+        "payout_stage": "PayoutServiceStageResponse",
+        # payout_transfer: PayoutService.Transfer — Creates a payout fund transfer.
+        "payout_transfer": "PayoutServiceTransferResponse",
+        # payout_void: PayoutService.Void — Void a payout.
+        "payout_void": "PayoutServiceVoidResponse",
     },
     "PaymentMethodClient": {
         # tokenize: PaymentMethodService.Tokenize — Tokenize payment method for secure storage. Replaces raw card details with secure token for one-click payments and recurring billing.

@@ -89,7 +89,126 @@ pub struct PayoutCreateResponse {
     pub merchant_payout_id: Option<String>,
     pub payout_status: common_enums::PayoutStatus,
     pub connector_payout_id: Option<String>,
-    pub error_code: Option<String>,
-    pub error_message: Option<String>,
+    pub status_code: u16,
+}
+
+#[derive(Debug, Clone)]
+pub struct PayoutTransferRequest {
+    pub merchant_payout_id: Option<String>,
+    pub connector_quote_id: Option<String>,
+    pub connector_payout_id: Option<String>,
+    pub amount: common_utils::types::MinorUnit,
+    pub source_currency: common_enums::Currency,
+    pub destination_currency: common_enums::Currency,
+    pub priority: Option<common_enums::PayoutPriority>,
+    pub connector_payout_method_id: Option<String>,
+    pub webhook_url: Option<String>,
+    pub payout_method_data: Option<PayoutMethodData>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PayoutTransferResponse {
+    pub merchant_payout_id: Option<String>,
+    pub payout_status: common_enums::PayoutStatus,
+    pub connector_payout_id: Option<String>,
+    pub status_code: u16,
+}
+
+#[derive(Debug, Clone)]
+pub struct PayoutGetRequest {
+    pub merchant_payout_id: Option<String>,
+    pub connector_payout_id: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PayoutGetResponse {
+    pub merchant_payout_id: Option<String>,
+    pub payout_status: common_enums::PayoutStatus,
+    pub connector_payout_id: Option<String>,
+    pub status_code: u16,
+}
+
+#[derive(Debug, Clone)]
+pub struct PayoutStageRequest {
+    pub merchant_quote_id: Option<String>,
+    pub amount: common_utils::types::MinorUnit,
+    pub source_currency: common_enums::Currency,
+    pub destination_currency: common_enums::Currency,
+}
+
+#[derive(Debug, Clone)]
+pub struct PayoutStageResponse {
+    pub merchant_payout_id: Option<String>,
+    pub payout_status: common_enums::PayoutStatus,
+    pub connector_payout_id: Option<String>,
+    pub status_code: u16,
+}
+
+#[derive(Debug, Clone)]
+pub struct PayoutVoidRequest {
+    pub merchant_payout_id: Option<String>,
+    pub connector_payout_id: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PayoutVoidResponse {
+    pub merchant_payout_id: Option<String>,
+    pub payout_status: common_enums::PayoutStatus,
+    pub connector_payout_id: Option<String>,
+    pub status_code: u16,
+}
+
+#[derive(Debug, Clone)]
+pub struct PayoutCreateLinkRequest {
+    pub merchant_payout_id: Option<String>,
+    pub connector_quote_id: Option<String>,
+    pub connector_payout_id: Option<String>,
+    pub amount: common_utils::types::MinorUnit,
+    pub source_currency: common_enums::Currency,
+    pub destination_currency: common_enums::Currency,
+    pub priority: Option<common_enums::PayoutPriority>,
+    pub connector_payout_method_id: Option<String>,
+    pub webhook_url: Option<String>,
+    pub payout_method_data: Option<PayoutMethodData>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PayoutCreateLinkResponse {
+    pub merchant_payout_id: Option<String>,
+    pub payout_status: common_enums::PayoutStatus,
+    pub connector_payout_id: Option<String>,
+    pub status_code: u16,
+}
+
+#[derive(Debug, Clone)]
+pub struct PayoutCreateRecipientRequest {
+    pub merchant_payout_id: Option<String>,
+    pub amount: common_utils::types::MinorUnit,
+    pub source_currency: common_enums::Currency,
+    pub payout_method_data: Option<PayoutMethodData>,
+    pub recipient_type: common_enums::PayoutRecipientType,
+}
+
+#[derive(Debug, Clone)]
+pub struct PayoutCreateRecipientResponse {
+    pub merchant_payout_id: Option<String>,
+    pub payout_status: common_enums::PayoutStatus,
+    pub connector_payout_id: Option<String>,
+    pub status_code: u16,
+}
+
+#[derive(Debug, Clone)]
+pub struct PayoutEnrollDisburseAccountRequest {
+    pub merchant_payout_id: Option<String>,
+    pub amount: common_utils::types::MinorUnit,
+    pub source_currency: common_enums::Currency,
+    pub payout_method_data: Option<PayoutMethodData>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PayoutEnrollDisburseAccountResponse {
+    pub merchant_payout_id: Option<String>,
+    pub payout_status: common_enums::PayoutStatus,
+    pub connector_payout_id: Option<String>,
     pub status_code: u16,
 }

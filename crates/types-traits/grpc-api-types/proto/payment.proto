@@ -3637,6 +3637,14 @@ message ZiftConfig {
   optional string base_url = 50;
 }
 
+message FiservcommercehubConfig {
+  SecretString api_key = 1;
+  SecretString secret = 2;
+  SecretString merchant_id = 3;
+  SecretString terminal_id = 4;
+  optional string base_url = 50;
+}
+
 message GigadatConfig {
   SecretString campaign_id = 1;
   SecretString access_token = 2;
@@ -4032,5 +4040,8 @@ message ConnectorSpecificConfig {
 
     // TRUELAYER = 110
     TruelayerConfig truelayer = 111;
+
+    // FISERVCOMMERCEHUB = 114
+    FiservcommercehubConfig fiservcommercehub = 112;
   }
 }

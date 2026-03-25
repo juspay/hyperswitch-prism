@@ -1850,6 +1850,13 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 base_url: truelayer.base_url,
                 secondary_base_url: truelayer.secondary_base_url,
             }),
+            AuthType::Fiservcommercehub(fiservcommercehub) => Ok(Self::Fiservcommercehub {
+                api_key: fiservcommercehub.api_key.ok_or_else(err)?,
+                secret: fiservcommercehub.secret.ok_or_else(err)?,
+                merchant_id: fiservcommercehub.merchant_id.ok_or_else(err)?,
+                terminal_id: fiservcommercehub.terminal_id.ok_or_else(err)?,
+                base_url: fiservcommercehub.base_url,
+            }),
         }
     }
 }

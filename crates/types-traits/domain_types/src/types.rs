@@ -4186,41 +4186,6 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
     Ok(response)
 }
 
-pub fn generate_payout_create_response(
-    router_data_v2: crate::router_data_v2::RouterDataV2<
-        crate::connector_flow::PayoutCreate,
-        crate::payouts::payouts_types::PayoutFlowData,
-        crate::payouts::payouts_types::PayoutCreateRequest,
-        crate::payouts::payouts_types::PayoutCreateResponse,
-    >,
-) -> Result<
-    grpc_api_types::payouts::PayoutServiceCreateResponse,
-    error_stack::Report<ApplicationErrorResponse>,
-> {
-    match router_data_v2.response {
-        Ok(response) => Ok(grpc_api_types::payouts::PayoutServiceCreateResponse::from(
-            response,
-        )),
-        Err(err) => Ok(grpc_api_types::payouts::PayoutServiceCreateResponse {
-            merchant_payout_id: Some(router_data_v2.resource_common_data.payout_id),
-            payout_status: Some(
-                grpc_api_types::payouts::payout_enums::PayoutStatus::Pending as i32,
-            ),
-            connector_payout_id: err.connector_transaction_id.clone(),
-            error: Some(grpc_api_types::payouts::ErrorInfo {
-                unified_details: None,
-                connector_details: Some(grpc_api_types::payouts::ConnectorErrorDetails {
-                    code: Some(err.code.clone()),
-                    message: Some(err.message.clone()),
-                    reason: err.reason.clone(),
-                }),
-                issuer_details: None,
-            }),
-            status_code: u32::from(err.status_code),
-        }),
-    }
-}
-
 // ForeignTryFrom for PaymentMethod gRPC enum to internal enum
 impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
     type Error = ApplicationErrorResponse;
