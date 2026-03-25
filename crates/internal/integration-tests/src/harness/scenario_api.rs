@@ -752,6 +752,7 @@ fn browser_automation_engine_dir() -> Result<PathBuf, ScenarioError> {
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("..")
             .join("..")
+            .join("..")
             .join("browser-automation-engine")
     };
 
@@ -768,6 +769,41 @@ fn browser_automation_engine_dir() -> Result<PathBuf, ScenarioError> {
     }
 
     Ok(resolved)
+}
+
+fn connector_has_google_pay_metadata(connector: &str) -> Result<bool, ScenarioError> {
+    let creds_path = creds_file_path();
+    let content = std::fs::read_to_string(&creds_path).map_err(|error| {
+        ScenarioError::GrpcurlExecution {
+            message: format!(
+                "failed to read credentials file '{}': {error}",
+                creds_path.display()
+            ),
+        }
+    })?;
+    let json: Value = serde_json::from_str(&content).map_err(|error| ScenarioError::GrpcurlExecution {
+        message: format!(
+            "failed to parse credentials file '{}': {error}",
+            creds_path.display()
+        ),
+    })?;
+
+    let Some(connector_value) = json.get(connector) else {
+        return Ok(false);
+    };
+
+    let base = match connector_value {
+        Value::Array(entries) => match entries.first() {
+            Some(entry) => entry,
+            None => return Ok(false),
+        },
+        other => other,
+    };
+
+    Ok(base
+        .get("metadata")
+        .and_then(|metadata| metadata.get("google_pay"))
+        .is_some())
 }
 
 fn env_bool(name: &str, default: bool) -> bool {
@@ -800,6 +836,24 @@ fn execute_google_pay_token_generation(
         return Err(ScenarioError::Skipped {
             reason: "GPAY_HOSTED_URL not set".to_string(),
         });
+    }
+
+    if !connector_has_google_pay_metadata(connector)? {
+        let creds_path = creds_file_path()
+            .canonicalize()
+            .unwrap_or_else(|_| creds_file_path());
+        let reason = format!(
+            "credentials for connector '{connector}' do not include metadata.google_pay; \
+             add a `metadata.google_pay` block under `{connector}` in '{}'. \
+             Refer to `browser-automation-engine/src/gpay-token-gen.ts` for the expected shape \
+             and use any existing connector entry in `creds.json` that already has \
+             `metadata.google_pay` as a template",
+            creds_path.display()
+        );
+        eprintln!(
+            "[google_pay_token_gen] {connector}/{suite}/{scenario}: skipping — {reason}"
+        );
+        return Err(ScenarioError::Skipped { reason });
     }
 
     // 2. Resolve creds path and temp output file.

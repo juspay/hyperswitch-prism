@@ -179,6 +179,8 @@ Then update it with your real connector credentials:
 
 See `.github/test/template_creds.json` for the full structure.
 
+For Google Pay encrypted-token scenarios, the connector entry in `creds.json` must also include a `metadata.google_pay` block. The expected shape is documented in `browser-automation-engine/src/gpay-token-gen.ts`, and the easiest way to add it is to copy the `metadata.google_pay` block from another connector in your local `creds.json` that already has Google Pay configured, then replace the gateway-specific values for your connector.
+
 ## Project Structure
 
 ```
@@ -283,6 +285,12 @@ export CONNECTOR_AUTH_FILE_PATH="$PWD/creds.json"
 ```bash
 # Verify Netlify URL is set
 cat .env.connector-tests | grep GPAY_HOSTED_URL
+
+# If the skip mentions missing metadata.google_pay,
+# add metadata.google_pay under that connector in creds.json.
+# Refer to browser-automation-engine/src/gpay-token-gen.ts
+# for the expected shape and copy an existing configured connector
+# entry in creds.json as a starting point.
 
 # Re-run Netlify deployment
 cd browser-automation-engine
