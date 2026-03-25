@@ -8,7 +8,7 @@ use domain_types::{
     },
     errors,
     payment_method_data::{
-        BankTransferData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
+        BankDebitData, BankTransferData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
     },
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
@@ -659,6 +659,42 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     alternative_payment_method: None,
                 }
             }
+            PaymentMethodData::BankDebit(bank_debit_data) => {
+                match bank_debit_data {
+                    BankDebitData::AchBankDebit {
+                        account_number,
+                        routing_number,
+                        bank_account_holder_name: _,
+                        bank_holder_type,
+                        ..
+                    } => {
+                        // Determine SEC code based on bank_holder_type
+                        // CCD = Corporate Credit or Debit (Business)
+                        // WEB = Internet-Initiated entries (Personal/Consumer)
+                        let sec_code = match bank_holder_type {
+                            Some(common_enums::BankHolderType::Business) => Some("CCD".to_string()),
+                            _ => Some("WEB".to_string()),
+                        };
+
+                        NuveiPaymentOption {
+                            card: None,
+                            alternative_payment_method: Some(NuveiAlternativePaymentMethod {
+                                payment_method: "apmgw_ACH".to_string(),
+                                account_number: Secret::new(account_number.peek().to_string()),
+                                routing_number: Secret::new(routing_number.peek().to_string()),
+                                sec_code,
+                            }),
+                        }
+                    }
+                    other => {
+                        return Err(errors::ConnectorError::NotSupported {
+                            message: format!("{:?} is not supported for Nuvei", other),
+                            connector: "nuvei",
+                        }
+                        .into())
+                    }
+                }
+            }
             PaymentMethodData::BankTransfer(bank_transfer_data) => {
                 match bank_transfer_data.as_ref() {
                     BankTransferData::AchBankTransfer {} => {
@@ -732,6 +768,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .ok_or(errors::ConnectorError::MissingRequiredField {
                 field_name: "billing_address.email",
             })?;
+
+        // Nuvei requires userTokenId - use customer email as the unique identifier
+        let user_token_id = email.peek().to_string();
 
         let country = router_data
             .resource_common_data
@@ -859,7 +898,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             client_request_id,
             amount,
             currency,
-            user_token_id: None,
+            user_token_id: Some(user_token_id),
             client_unique_id: Some(
                 router_data
                     .resource_common_data
