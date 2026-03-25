@@ -43,7 +43,8 @@ use super::macros;
 use crate::{
     connectors::mifinity::transformers::{
         auth_headers, MifinityAuthType, MifinityErrorResponse, MifinityPaymentsRequest,
-        MifinityPaymentsResponse, MifinityPsyncResponse,
+        MifinityPaymentsResponse, MifinityPsyncResponse, MifinityRepeatPaymentRequest,
+        MifinityRepeatPaymentResponse,
     },
     types::ResponseRouterData,
     utils,
@@ -202,6 +203,12 @@ macros::create_all_prerequisites!(
             flow: PSync,
             response_body: MifinityPsyncResponse,
             router_data: RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
+        ),
+        (
+            flow: RepeatPayment,
+            request_body: MifinityRepeatPaymentRequest,
+            response_body: MifinityRepeatPaymentResponse,
+            router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -300,6 +307,41 @@ macros::macro_connector_implementation!(
                 merchant_id.get_string_repr(),
                 payment_id
             ))
+        }
+    }
+);
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Mifinity,
+    curl_request: Json(MifinityRepeatPaymentRequest),
+    curl_response: MifinityRepeatPaymentResponse,
+    flow_name: RepeatPayment,
+    resource_common_data: PaymentFlowData,
+    flow_request: RepeatPaymentData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, ConnectorError> {
+            Ok(format!("{}pegasus-ci/api/gateway/init-iframe", self.connector_base_url_payments(req)))
+        }
+        fn get_5xx_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut events::Event>,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            self.build_error_response(res, event_builder)
         }
     }
 );
@@ -451,16 +493,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 // SourceVerification implementations for all flows
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        RepeatPayment,
-        PaymentFlowData,
-        RepeatPaymentData<T>,
-        PaymentsResponseData,
-    > for Mifinity<T>
-{
-}
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<

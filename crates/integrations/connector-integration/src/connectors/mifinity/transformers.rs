@@ -1,9 +1,10 @@
 use common_enums::{enums, Currency};
 use common_utils::{pii::Email, types::StringMajorUnit};
 use domain_types::{
-    connector_flow::Authorize,
+    connector_flow::{Authorize, RepeatPayment},
     connector_types::{
-        PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData, ResponseId,
+        MandateReferenceId, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData,
+        PaymentsSyncData, RepeatPaymentData, ResponseId,
     },
     errors::ConnectorError,
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, WalletData},
@@ -474,4 +475,256 @@ pub struct MifinityErrorList {
     pub error_code: String,
     pub message: String,
     pub field: Option<String>,
+}
+
+// RepeatPayment (MIT) flow types and transformers
+
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct MifinityRepeatPaymentRequest {
+    money: Money,
+    client: MifinityClient,
+    address: MifinityAddress,
+    validation_key: String,
+    client_reference: common_utils::id_type::CustomerId,
+    trace_id: String,
+    description: String,
+    destination_account_number: Secret<String>,
+    brand_id: Secret<String>,
+    return_url: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    language_preference: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    source_account_number: Option<Secret<String>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MifinityRepeatPaymentResponse {
+    payload: Vec<MifinityPayload>,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        MifinityRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for MifinityRepeatPaymentRequest
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: MifinityRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let metadata: MifinityConnectorMetadataObject = utils::to_connector_meta_from_secret(
+            item.router_data
+                .resource_common_data
+                .connector_feature_data
+                .clone(),
+        )
+        .change_context(ConnectorError::InvalidConnectorConfig {
+            config: "merchant_connector_account.metadata",
+        })?;
+
+        // Extract mandate reference - for repeat payments, we need the source account number
+        // This would be stored from the original payment's destination account
+        let source_account_number =
+            extract_mandate_reference(&item.router_data.request.mandate_reference)?;
+
+        // For MIT, we use the billing details from the resource_common_data
+        let phone_details = item.router_data.resource_common_data.get_billing_phone()?;
+        let billing_country = item
+            .router_data
+            .resource_common_data
+            .get_billing_country()?;
+
+        // Get email from resource_common_data
+        let email_address = item.router_data.resource_common_data.get_billing_email()?;
+
+        let client = MifinityClient {
+            first_name: item
+                .router_data
+                .resource_common_data
+                .get_billing_first_name()?,
+            last_name: item
+                .router_data
+                .resource_common_data
+                .get_billing_last_name()?,
+            phone: phone_details.get_number()?,
+            dialing_code: phone_details.get_country_code()?,
+            nationality: billing_country,
+            email_address,
+            dob: Secret::new(
+                Date::from_calendar_date(1990, time::Month::January, 1)
+                    .map_err(|_| ConnectorError::RequestEncodingFailed)?,
+            ),
+        };
+
+        let money = Money {
+            amount: item
+                .connector
+                .amount_converter
+                .convert(
+                    item.router_data.request.minor_amount,
+                    item.router_data.request.currency,
+                )
+                .change_context(ConnectorError::RequestEncodingFailed)?,
+            currency: item.router_data.request.currency,
+        };
+
+        let address = MifinityAddress {
+            address_line1: item.router_data.resource_common_data.get_billing_line1()?,
+            country_code: billing_country,
+            city: item.router_data.resource_common_data.get_billing_city()?,
+        };
+
+        let validation_key = format!(
+            "payment_validation_key_{}_{}",
+            item.router_data
+                .resource_common_data
+                .merchant_id
+                .get_string_repr(),
+            item.router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone()
+        );
+
+        // For MIT, we use customer_id from resource_common_data if available
+        // Otherwise, create a CustomerId from the merchant_id string
+        let client_reference = item
+            .router_data
+            .resource_common_data
+            .customer_id
+            .clone()
+            .unwrap_or_else(|| {
+                use std::str::FromStr;
+                common_utils::id_type::CustomerId::from_str(
+                    item.router_data
+                        .resource_common_data
+                        .merchant_id
+                        .get_string_repr(),
+                )
+                .unwrap_or_default()
+            });
+
+        let trace_id = item
+            .router_data
+            .resource_common_data
+            .connector_request_reference_id
+            .clone();
+
+        let destination_account_number = metadata.destination_account_number;
+        let brand_id = metadata.brand_id;
+
+        // Get return_url from request's router_return_url
+        let return_url = item
+            .router_data
+            .request
+            .router_return_url
+            .clone()
+            .unwrap_or_else(|| "https://example.com/return".to_string());
+
+        Ok(Self {
+            money,
+            client,
+            address,
+            validation_key,
+            client_reference,
+            trace_id: trace_id.clone(),
+            description: trace_id.clone(),
+            destination_account_number,
+            brand_id,
+            return_url,
+            language_preference: None,
+            source_account_number: Some(Secret::new(source_account_number)),
+        })
+    }
+}
+
+impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<MifinityRepeatPaymentResponse, Self>>
+    for RouterDataV2<F, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<MifinityRepeatPaymentResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let payload = item.response.payload.first();
+        match payload {
+            Some(payload) => {
+                let trace_id = payload.trace_id.clone();
+                let initialization_token = payload.initialization_token.clone();
+                Ok(Self {
+                    response: Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(trace_id.clone()),
+                        redirection_data: Some(Box::new(RedirectForm::Mifinity {
+                            initialization_token: initialization_token.expose(),
+                        })),
+                        mandate_reference: None,
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        connector_response_reference_id: Some(trace_id),
+                        incremental_authorization_allowed: None,
+                        status_code: item.http_code,
+                    }),
+                    resource_common_data: PaymentFlowData {
+                        status: enums::AttemptStatus::AuthenticationPending,
+                        ..item.router_data.resource_common_data
+                    },
+                    ..item.router_data
+                })
+            }
+            None => Ok(Self {
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::NoResponseId,
+                    redirection_data: None,
+                    mandate_reference: None,
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
+                    status_code: item.http_code,
+                }),
+                resource_common_data: PaymentFlowData {
+                    status: enums::AttemptStatus::AuthenticationPending,
+                    ..item.router_data.resource_common_data
+                },
+                ..item.router_data
+            }),
+        }
+    }
+}
+
+// Helper function to extract mandate reference
+fn extract_mandate_reference(
+    mandate_reference: &MandateReferenceId,
+) -> Result<String, error_stack::Report<ConnectorError>> {
+    match mandate_reference {
+        MandateReferenceId::ConnectorMandateId(connector_mandate_ref) => connector_mandate_ref
+            .get_connector_mandate_id()
+            .ok_or_else(|| {
+                error_stack::Report::new(ConnectorError::MissingRequiredField {
+                    field_name: "connector_mandate_id",
+                })
+            }),
+        MandateReferenceId::NetworkMandateId(network_txn_id) => Ok(network_txn_id.clone()),
+        MandateReferenceId::NetworkTokenWithNTI(_) => {
+            Err(error_stack::Report::new(ConnectorError::NotImplemented(
+                "Network token with NTI not supported for Mifinity".to_string(),
+            )))
+        }
+    }
 }
