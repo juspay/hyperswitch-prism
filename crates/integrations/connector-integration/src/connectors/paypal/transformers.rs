@@ -8,6 +8,7 @@ use cards;
 use common_enums;
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
+    ext_traits::StringExt,
     types::StringMajorUnit,
     CustomResult, Method,
 };
@@ -549,6 +550,58 @@ pub struct ContextStruct {
     shipping_preference: ShippingPreference,
 }
 
+#[derive(Debug, Serialize)]
+pub struct GooglePayRequest {
+    pub name: Secret<String>,
+    pub card: GooglePayCard,
+    pub billing_address: Option<Address>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct GooglePayCard {
+    pub name: Secret<String>,
+    pub number: Secret<String>,
+    pub expiry: Secret<String>,
+    pub security_code: Secret<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GpayEncryptedPaymentToken {
+    pub payment_method_details: GpayPaymentMethodDetails,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GpayPaymentMethodDetails {
+    pub card_info: GpayCardInfo,
+    #[serde(rename = "pan")]
+    pub pan: Secret<String>,
+    #[serde(rename = "cardExpMonth")]
+    pub card_exp_month: String,
+    #[serde(rename = "cardExpYear")]
+    pub card_exp_year: String,
+    #[serde(
+        rename = "paymentAccountReference",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub payment_account_reference: Option<Secret<String>>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GpayCardInfo {
+    pub billing_address: Option<GpayBillingAddress>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GpayBillingAddress {
+    pub name: String,
+    pub address1: Option<String>,
+    pub address2: Option<String>,
+    pub locality: Option<String>,
+    pub administrative_area: Option<String>,
+    pub postal_code: Option<String>,
+    pub country_code: Option<common_enums::CountryAlpha2>,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub enum UserAction {
     #[serde(rename = "PAY_NOW")]
@@ -637,6 +690,7 @@ pub enum PaymentSourceItem<
 > {
     Card(CardRequest<T>),
     Paypal(PaypalRedirectionRequest),
+    GooglePay(GooglePayRequest),
     IDeal(RedirectRequest),
     Eps(RedirectRequest),
     Giropay(RedirectRequest),
@@ -1051,6 +1105,94 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         payment_source,
                     })
                 }
+                WalletData::GooglePay(gpay_data) => {
+                    // Handle encrypted GooglePay token - extract encrypted token for PayPal API
+                    let encrypted_token = gpay_data
+                        .tokenization_data
+                        .get_encrypted_google_pay_token()
+                        .change_context(ConnectorError::InvalidWalletToken {
+                            wallet_name: "Google Pay".to_string(),
+                        })?;
+
+                    // Parse the encrypted token to extract payment method details
+                    let gpay_token: GpayEncryptedPaymentToken = encrypted_token
+                        .parse_struct("GpayEncryptedPaymentToken")
+                        .change_context(ConnectorError::InvalidWalletToken {
+                            wallet_name: "Google Pay".to_string(),
+                        })?;
+
+                    let payment_source = Some(PaymentSourceItem::GooglePay(GooglePayRequest {
+                        name: Secret::new(
+                            gpay_token
+                                .payment_method_details
+                                .card_info
+                                .billing_address
+                                .as_ref()
+                                .map(|addr| addr.name.clone())
+                                .unwrap_or_default(),
+                        ),
+                        card: GooglePayCard {
+                            name: Secret::new(
+                                gpay_token
+                                    .payment_method_details
+                                    .card_info
+                                    .billing_address
+                                    .as_ref()
+                                    .map(|addr| addr.name.clone())
+                                    .unwrap_or_default(),
+                            ),
+                            number: gpay_token.payment_method_details.pan.clone(),
+                            expiry: Secret::new(format!(
+                                "{:02}/{}",
+                                gpay_token
+                                    .payment_method_details
+                                    .card_exp_month
+                                    .parse::<i32>()
+                                    .unwrap_or_default(),
+                                gpay_token
+                                    .payment_method_details
+                                    .card_exp_year
+                                    .parse::<i32>()
+                                    .unwrap_or_default()
+                            )),
+                            security_code: gpay_token
+                                .payment_method_details
+                                .payment_account_reference
+                                .clone()
+                                .unwrap_or_else(|| Secret::new("000".to_string())),
+                        },
+                        billing_address: gpay_token
+                            .payment_method_details
+                            .card_info
+                            .billing_address
+                            .as_ref()
+                            .map(|addr| Address {
+                                address_line_1: addr
+                                    .address1
+                                    .as_ref()
+                                    .map(|s: &String| Secret::new(s.clone())),
+                                admin_area_2: addr
+                                    .administrative_area
+                                    .as_ref()
+                                    .map(|s: &String| Secret::new(s.clone())),
+                                postal_code: addr
+                                    .postal_code
+                                    .as_ref()
+                                    .map(|s: &String| Secret::new(s.clone())),
+                                country_code: addr
+                                    .country_code
+                                    .as_ref()
+                                    .copied()
+                                    .unwrap_or(common_enums::CountryAlpha2::US),
+                            }),
+                    }));
+
+                    Ok(Self {
+                        intent,
+                        purchase_units,
+                        payment_source,
+                    })
+                }
                 WalletData::AliPayQr(_)
                 | WalletData::AliPayRedirect(_)
                 | WalletData::AliPayHkRedirect(_)
@@ -1063,7 +1205,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::ApplePayRedirect(_)
                 | WalletData::ApplePayThirdPartySdk(_)
                 | WalletData::DanaRedirect {}
-                | WalletData::GooglePay(_)
                 | WalletData::BluecodeRedirect {}
                 | WalletData::GooglePayRedirect(_)
                 | WalletData::GooglePayThirdPartySdk(_)
