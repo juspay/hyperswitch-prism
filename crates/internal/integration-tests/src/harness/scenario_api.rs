@@ -773,20 +773,20 @@ fn browser_automation_engine_dir() -> Result<PathBuf, ScenarioError> {
 
 fn connector_has_google_pay_metadata(connector: &str) -> Result<bool, ScenarioError> {
     let creds_path = creds_file_path();
-    let content = std::fs::read_to_string(&creds_path).map_err(|error| {
-        ScenarioError::GrpcurlExecution {
+    let content =
+        std::fs::read_to_string(&creds_path).map_err(|error| ScenarioError::GrpcurlExecution {
             message: format!(
                 "failed to read credentials file '{}': {error}",
                 creds_path.display()
             ),
-        }
-    })?;
-    let json: Value = serde_json::from_str(&content).map_err(|error| ScenarioError::GrpcurlExecution {
-        message: format!(
-            "failed to parse credentials file '{}': {error}",
-            creds_path.display()
-        ),
-    })?;
+        })?;
+    let json: Value =
+        serde_json::from_str(&content).map_err(|error| ScenarioError::GrpcurlExecution {
+            message: format!(
+                "failed to parse credentials file '{}': {error}",
+                creds_path.display()
+            ),
+        })?;
 
     let Some(connector_value) = json.get(connector) else {
         return Ok(false);
@@ -850,9 +850,7 @@ fn execute_google_pay_token_generation(
              `metadata.google_pay` as a template",
             creds_path.display()
         );
-        eprintln!(
-            "[google_pay_token_gen] {connector}/{suite}/{scenario}: skipping — {reason}"
-        );
+        eprintln!("[google_pay_token_gen] {connector}/{suite}/{scenario}: skipping — {reason}");
         return Err(ScenarioError::Skipped { reason });
     }
 
