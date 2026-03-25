@@ -16,7 +16,9 @@ use domain_types::{
         RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
     errors::ConnectorError,
-    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
+    payment_method_data::{
+        BankDebitData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData,
+    },
     router_data::{
         ConnectorSpecificConfig, ErrorResponse, PaymentMethodToken as PaymentMethodTokenFlow,
     },
@@ -53,8 +55,17 @@ pub enum BillwerkStrongAuthRule {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum BillwerkTokenRequest<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+> {
+    CardToken(BillwerkCardTokenRequest<T>),
+    SepaImport(BillwerkSepaImportRequest),
+}
+
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct BillwerkTokenRequest<
+pub struct BillwerkCardTokenRequest<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 > {
     number: RawCardNumber<T>,
@@ -65,6 +76,19 @@ pub struct BillwerkTokenRequest<
     recurring: Option<bool>,
     intent: Option<BillwerkTokenRequestIntent>,
     strong_authentication_rule: Option<BillwerkStrongAuthRule>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct BillwerkSepaImportCustomer {
+    pub customer_handle: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct BillwerkSepaImportRequest {
+    pub customer: BillwerkSepaImportCustomer,
+    pub creditor_country: common_enums::CountryAlpha2,
+    pub debtor_iban: Secret<String>,
+    pub debtor_name: Secret<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -175,7 +199,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentMethodData::Card(ccard) => {
                 let connector_auth = &item.router_data.connector_config;
                 let auth_type = BillwerkAuthType::try_from(connector_auth)?;
-                Ok(Self {
+                Ok(Self::CardToken(BillwerkCardTokenRequest {
                     number: ccard.card_number.clone(),
                     month: ccard.card_exp_month.clone(),
                     year: ccard.get_card_expiry_year_2_digit()?,
@@ -184,13 +208,57 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     recurring: None,
                     intent: None,
                     strong_authentication_rule: None,
-                })
+                }))
             }
+            PaymentMethodData::BankDebit(BankDebitData::SepaBankDebit {
+                ref iban,
+                ref bank_account_holder_name,
+            }) => {
+                let debtor_name = bank_account_holder_name
+                    .clone()
+                    .or_else(|| {
+                        item.router_data
+                            .resource_common_data
+                            .get_optional_billing_full_name()
+                    })
+                    .ok_or(ConnectorError::MissingRequiredField {
+                        field_name: "bank_account_holder_name or billing name",
+                    })?;
+                let country = item
+                    .router_data
+                    .resource_common_data
+                    .get_optional_billing_country()
+                    .unwrap_or(common_enums::CountryAlpha2::DE);
+                let customer_handle = item
+                    .router_data
+                    .resource_common_data
+                    .connector_request_reference_id
+                    .clone();
+                Ok(Self::SepaImport(BillwerkSepaImportRequest {
+                    customer: BillwerkSepaImportCustomer { customer_handle },
+                    creditor_country: country,
+                    debtor_iban: iban.clone(),
+                    debtor_name,
+                }))
+            }
+            PaymentMethodData::Wallet(WalletData::GooglePay(_)) => {
+                // GooglePay uses CRYPTOGRAM_3DS and doesn't require tokenization
+                // The encrypted token is passed directly to the charge endpoint
+                Err(ConnectorError::NotSupported {
+                    message: "GooglePay does not require tokenization - use token directly in Authorize flow".to_string(),
+                    connector: "billwerk",
+                }
+                .into())
+            }
+            PaymentMethodData::BankDebit(_) => Err(ConnectorError::NotSupported {
+                message: "Only SEPA bank debit is supported through Billwerk".to_string(),
+                connector: "billwerk",
+            }
+            .into()),
             PaymentMethodData::Wallet(_)
             | PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::PayLater(_)
             | PaymentMethodData::BankRedirect(_)
-            | PaymentMethodData::BankDebit(_)
             | PaymentMethodData::BankTransfer(_)
             | PaymentMethodData::Crypto(_)
             | PaymentMethodData::MandatePayment

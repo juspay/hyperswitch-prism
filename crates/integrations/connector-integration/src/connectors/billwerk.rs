@@ -211,7 +211,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _payment_method: common_enums::PaymentMethod,
         _payment_method_type: Option<common_enums::PaymentMethodType>,
     ) -> bool {
-        true
+        // GooglePay uses CRYPTOGRAM_3DS and passes the encrypted token directly
+        // to the charge endpoint, so we don't need a separate tokenization step
+        if _payment_method == common_enums::PaymentMethod::Wallet {
+            if let Some(pm_type) = _payment_method_type {
+                if pm_type == common_enums::PaymentMethodType::GooglePay {
+                    return false;
+                }
+            }
+        }
+        // Cards require tokenization, BankDebit (SEPA) requires import_sepa to get a payment method ID
+        matches!(
+            _payment_method,
+            common_enums::PaymentMethod::Card | common_enums::PaymentMethod::BankDebit
+        )
     }
 }
 
@@ -526,12 +539,19 @@ macros::macro_connector_implementation!(
         &self,
         req: &RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>,
     ) -> CustomResult<String, errors::ConnectorError> {
-
-        let base_url = req.resource_common_data.connectors.billwerk
-            .secondary_base_url
-            .as_ref()
-            .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
-        Ok(format!("{base_url}v1/token"))
+        match req.resource_common_data.payment_method {
+            common_enums::PaymentMethod::BankDebit => {
+                let base_url = self.connector_base_url_payments(req);
+                Ok(format!("{base_url}v1/payment_method/import_sepa"))
+            }
+            _ => {
+                let base_url = req.resource_common_data.connectors.billwerk
+                    .secondary_base_url
+                    .as_ref()
+                    .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
+                Ok(format!("{base_url}v1/token"))
+            }
+        }
     }}
 );
 
