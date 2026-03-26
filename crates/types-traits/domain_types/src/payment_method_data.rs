@@ -233,6 +233,7 @@ pub enum PaymentMethodData<T: PaymentMethodDataTypes> {
     OpenBanking(OpenBankingData),
     NetworkToken(NetworkTokenData),
     MobilePayment(MobilePaymentData),
+    Netbanking(NetbankingData),
 }
 
 impl<T: PaymentMethodDataTypes> PaymentMethodData<T> {
@@ -265,6 +266,12 @@ pub enum MobilePaymentData {
         /// Unique user identifier
         client_uid: Option<String>,
     },
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct NetbankingData {
+    pub bank_code: String,
+    pub bank_name: Option<String>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]

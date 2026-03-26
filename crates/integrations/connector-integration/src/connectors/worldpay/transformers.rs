@@ -208,6 +208,7 @@ fn fetch_payment_instrument<
         | PaymentMethodData::Reward
         | PaymentMethodData::RealTimePayment(_)
         | PaymentMethodData::MobilePayment(_)
+        | PaymentMethodData::Netbanking(_)
         | PaymentMethodData::Upi(_)
         | PaymentMethodData::Voucher(_)
         | PaymentMethodData::CardRedirect(_)

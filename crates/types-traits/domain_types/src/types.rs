@@ -1897,6 +1897,15 @@ impl<
                     ))))
                 }
 
+                grpc_api_types::payments::payment_method::PaymentMethod::Netbanking(nb) => {
+                    Ok(Self::Netbanking(
+                        crate::payment_method_data::NetbankingData {
+                            bank_code: nb.bank_code,
+                            bank_name: nb.bank_name,
+                        },
+                    ))
+                }
+
                 _ => Err(report!(ApplicationErrorResponse::BadRequest(ApiError {
                     sub_code: "UNSUPPORTED_PAYMENT_METHOD".to_owned(),
                     error_identifier: 400,
@@ -2032,6 +2041,9 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for Option<Paym
                 Ok(Some(PaymentMethodType::Satispay))
             }
             grpc_api_types::payments::PaymentMethodType::Wero => Ok(Some(PaymentMethodType::Wero)),
+            grpc_api_types::payments::PaymentMethodType::Netbanking => {
+                Ok(Some(PaymentMethodType::Netbanking))
+            }
             _ => Err(ApplicationErrorResponse::BadRequest(ApiError {
                 sub_code: "INVALID_PAYMENT_METHOD_TYPE".to_owned(),
                 error_identifier: 400,
@@ -2269,6 +2281,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                 grpc_api_types::payments::payment_method::PaymentMethod::CimbVaBankTransfer(_) => Ok(Some(PaymentMethodType::CimbVa)),
                 grpc_api_types::payments::payment_method::PaymentMethod::DanamonVaBankTransfer(_) => Ok(Some(PaymentMethodType::DanamonVa)),
                 grpc_api_types::payments::payment_method::PaymentMethod::MandiriVaBankTransfer(_) => Ok(Some(PaymentMethodType::MandiriVa)),
+                grpc_api_types::payments::payment_method::PaymentMethod::Netbanking(_) => Ok(Some(PaymentMethodType::Netbanking)),
             },
             None => Err(ApplicationErrorResponse::BadRequest(ApiError {
                 sub_code: "INVALID_PAYMENT_METHOD_DATA".to_owned(),
@@ -4530,6 +4543,10 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
                 payment_method:
                     Some(grpc_api_types::payments::payment_method::PaymentMethod::SepaGuaranteedDebit(_)),
             } => Ok(Self::BankDebit),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::Netbanking(_)),
+            } => Ok(Self::Netbanking),
             _ => Err(report!(ApplicationErrorResponse::BadRequest(ApiError {
                 sub_code: "UNSUPPORTED_PAYMENT_METHOD".to_owned(),
                 error_identifier: 400,
@@ -5475,6 +5492,8 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             grpc_api_types::payments::PaymentMethodType::Knet => Ok(Self::CardRedirect),
             grpc_api_types::payments::PaymentMethodType::Benefit => Ok(Self::CardRedirect),
             grpc_api_types::payments::PaymentMethodType::MomoAtm => Ok(Self::CardRedirect),
+
+            grpc_api_types::payments::PaymentMethodType::Netbanking => Ok(Self::Netbanking),
 
             _ => Err(ApplicationErrorResponse::BadRequest(ApiError {
                 sub_code: "UNSUPPORTED_PAYMENT_METHOD_TYPE".to_owned(),
@@ -8610,6 +8629,7 @@ pub enum PaymentMethodDataType {
     Wero,
     SepaGuaranteedBankDebit,
     IndonesianBankTransfer,
+    Netbanking,
 }
 
 impl ForeignTryFrom<String> for Secret<time::Date> {

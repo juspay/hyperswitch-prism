@@ -733,6 +733,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
             | PaymentMethodData::MobilePayment(_)
+            | PaymentMethodData::Netbanking(_)
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::Upi(_)

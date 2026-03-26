@@ -648,6 +648,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::Crypto(_)
             | PaymentMethodData::MandatePayment
             | PaymentMethodData::MobilePayment(_)
+            | PaymentMethodData::Netbanking(_)
             | PaymentMethodData::Reward
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)

@@ -1036,6 +1036,7 @@ pub enum PaymentMethodType {
     Walley,
     WeChatPay,
     Wero,
+    Netbanking,
     SevenEleven,
     Lawson,
     MiniStop,
@@ -1468,6 +1469,7 @@ pub enum PaymentMethod {
     OpenBanking,
     MobilePayment,
     NetworkToken,
+    Netbanking,
 }
 
 /// Specifies the type of cardholder authentication to be applied for a payment.
