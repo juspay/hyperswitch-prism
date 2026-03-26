@@ -1196,6 +1196,17 @@ static RAZORPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             },
         );
 
+        razorpay_supported_payment_methods.add(
+            PaymentMethod::Wallet,
+            PaymentMethodType::RazorpayWallet,
+            PaymentMethodDetails {
+                mandates: FeatureStatus::NotSupported,
+                refunds: FeatureStatus::Supported,
+                supported_capture_methods: vec![CaptureMethod::Automatic],
+                specific_features: None,
+            },
+        );
+
         razorpay_supported_payment_methods
     });
 

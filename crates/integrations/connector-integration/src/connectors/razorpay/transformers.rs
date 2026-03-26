@@ -11,7 +11,7 @@ use domain_types::{
         RefundsResponseData, ResponseId,
     },
     errors,
-    payment_method_data::{Card, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
+    payment_method_data::{Card, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData},
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
@@ -145,6 +145,7 @@ pub struct BrowserInfo {
     pub language: Option<String>,
 }
 
+#[serde_with::skip_serializing_none]
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub struct RazorpayPaymentRequest<
@@ -156,7 +157,7 @@ pub struct RazorpayPaymentRequest<
     pub email: Email,
     pub order_id: String,
     pub method: PaymentMethodType,
-    pub card: PaymentMethodSpecificData<T>,
+    pub card: Option<PaymentMethodSpecificData<T>>,
     pub authentication: Option<AuthenticationDetails>,
     pub browser: Option<BrowserInfo>,
     pub ip: Secret<String>,
@@ -170,6 +171,7 @@ pub enum PaymentMethodSpecificData<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 > {
     Card(CardDetails<T>),
+    Wallet,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -286,8 +288,15 @@ fn extract_payment_method_and_data<
 
             Ok((PaymentMethodType::Card, card))
         }
+        PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+            WalletData::RazorpayWalletRedirect(_) => {
+                Ok((PaymentMethodType::Wallet, PaymentMethodSpecificData::Wallet))
+            }
+            _ => Err(errors::ConnectorError::NotImplemented(
+                "This wallet type is not supported for Razorpay".to_string(),
+            )),
+        },
         PaymentMethodData::CardRedirect(_)
-        | PaymentMethodData::Wallet(_)
         | PaymentMethodData::PayLater(_)
         | PaymentMethodData::BankRedirect(_)
         | PaymentMethodData::BankDebit(_)
@@ -305,7 +314,7 @@ fn extract_payment_method_and_data<
         | PaymentMethodData::NetworkToken(_)
         | PaymentMethodData::MobilePayment(_)
         | PaymentMethodData::OpenBanking(_) => Err(errors::ConnectorError::NotImplemented(
-            "Only Card payment method is supported for Razorpay".to_string(),
+            "Only Card and Wallet payment methods are supported for Razorpay".to_string(),
         )),
     }
 }
@@ -339,6 +348,34 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         ),
     ) -> Result<Self, Self::Error> {
         let (item, _card_data) = value;
+        Self::try_from(item)
+    }
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        &RazorpayRouterData<
+            &RouterDataV2<
+                Authorize,
+                PaymentFlowData,
+                PaymentsAuthorizeData<T>,
+                PaymentsResponseData,
+            >,
+        >,
+    > for RazorpayPaymentRequest<T>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: &RazorpayRouterData<
+            &RouterDataV2<
+                Authorize,
+                PaymentFlowData,
+                PaymentsAuthorizeData<T>,
+                PaymentsResponseData,
+            >,
+        >,
+    ) -> Result<Self, Self::Error> {
         let amount = item.amount;
         let currency = item.router_data.request.currency.to_string();
 
@@ -376,10 +413,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 field_name: "order_id",
             })?;
 
-        let (method, card) = extract_payment_method_and_data(
+        let (method, payment_method_data) = extract_payment_method_and_data(
             &item.router_data.request.payment_method_data,
             item.router_data.request.customer_name.clone(),
         )?;
+
+        let card = match payment_method_data {
+            PaymentMethodSpecificData::Card(_) => Some(payment_method_data),
+            PaymentMethodSpecificData::Wallet => None,
+        };
 
         let browser_info_opt = item.router_data.request.browser_info.as_ref();
 
@@ -441,40 +483,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             referer,
             user_agent,
         })
-    }
-}
-
-impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
-    TryFrom<
-        &RazorpayRouterData<
-            &RouterDataV2<
-                Authorize,
-                PaymentFlowData,
-                PaymentsAuthorizeData<T>,
-                PaymentsResponseData,
-            >,
-        >,
-    > for RazorpayPaymentRequest<T>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-
-    fn try_from(
-        item: &RazorpayRouterData<
-            &RouterDataV2<
-                Authorize,
-                PaymentFlowData,
-                PaymentsAuthorizeData<T>,
-                PaymentsResponseData,
-            >,
-        >,
-    ) -> Result<Self, Self::Error> {
-        match &item.router_data.request.payment_method_data {
-            PaymentMethodData::Card(card) => Self::try_from((item, card)),
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "Only card payments are supported".into(),
-            )
-            .into()),
-        }
     }
 }
 

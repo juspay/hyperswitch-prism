@@ -36,6 +36,11 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             api_key: k(),
             base_url: None,
         },
+        ConnectorEnum::Amazonpay => ConnectorSpecificConfig::Amazonpay {
+            api_key: k(),
+            api_secret: None,
+            base_url: None,
+        },
         ConnectorEnum::Calida => ConnectorSpecificConfig::Calida {
             api_key: k(),
             base_url: None,

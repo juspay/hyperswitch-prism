@@ -1,5 +1,7 @@
 pub mod adyen;
 
+pub mod amazonpay;
+
 pub mod razorpay;
 
 pub mod authorizedotnet;
@@ -7,8 +9,8 @@ pub mod fiserv;
 pub mod razorpayv2;
 
 pub use self::{
-    adyen::Adyen, authorizedotnet::Authorizedotnet, fiserv::Fiserv, mifinity::Mifinity,
-    razorpay::Razorpay, razorpayv2::RazorpayV2,
+    adyen::Adyen, amazonpay::Amazonpay, authorizedotnet::Authorizedotnet, fiserv::Fiserv,
+    mifinity::Mifinity, razorpay::Razorpay, razorpayv2::RazorpayV2,
 };
 
 pub mod elavon;
