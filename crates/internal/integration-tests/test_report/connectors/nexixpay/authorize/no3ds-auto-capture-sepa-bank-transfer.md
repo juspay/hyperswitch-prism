@@ -1,6 +1,7 @@
-# Connector `nexixpay` / Suite `authorize` / Scenario `no3ds_auto_capture_sepa_bank_transfer`
+# Connector `nexixpay` / Suite `authorize` / Scenario `SEPA Bank Transfer | No 3DS | Automatic Capture`
 
 - Service: `PaymentService/Authorize`
+- Scenario Key: `no3ds_auto_capture_sepa_bank_transfer`
 - PM / PMT: `sepa_bank_transfer` / `-`
 - Result: `FAIL`
 

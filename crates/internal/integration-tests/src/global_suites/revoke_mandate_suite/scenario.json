@@ -16,7 +16,8 @@
         "must_not_exist": true
       }
     },
-    "is_default": true
+    "is_default": true,
+    "display_name": "Revoke Mandate | Revoke Active Mandate"
   },
   "revoke_with_reason": {
     "grpc_req": {
@@ -34,7 +35,8 @@
       "error": {
         "must_not_exist": true
       }
-    }
+    },
+    "display_name": "Revoke Mandate | Revoke With Reason"
   },
   "revoke_fail_invalid_mandate_id": {
     "grpc_req": {
@@ -52,6 +54,7 @@
       "error": {
         "must_exist": true
       }
-    }
+    },
+    "display_name": "Revoke Mandate | Revoke Fail Invalid Mandate ID"
   }
 }

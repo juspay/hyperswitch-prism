@@ -1,6 +1,7 @@
-# Connector `fiserv` / Suite `capture` / Scenario `capture_with_merchant_order_id`
+# Connector `fiserv` / Suite `capture` / Scenario `Capture | Merchant Order ID Reference`
 
 - Service: `PaymentService/Capture`
+- Scenario Key: `capture_with_merchant_order_id`
 - PM / PMT: `-` / `-`
 - Result: `PASS`
 
@@ -60,7 +61,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US",
     "color_depth": 24,
     "screen_height": 1080,
@@ -212,9 +213,7 @@ Response contents:
     "x-xss-protection": "1; mode=block"
   },
   "rawConnectorResponse": "***MASKED***"
-  },
-  "rawConnectorRequest": "***MASKED***"
-  }
+  
 }
 
 Response trailers received:
@@ -247,7 +246,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US",
     "color_depth": 24,
     "screen_height": 1080,
@@ -320,8 +319,7 @@ Response contents:
   },
   "merchantCaptureId": "CHG014110716aed088298e91e0f5e38c047ae",
   "rawConnectorRequest": "***MASKED***"
-  }
-}
+
 
 Response trailers received:
 (empty)

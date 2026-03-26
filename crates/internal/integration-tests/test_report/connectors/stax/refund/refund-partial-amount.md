@@ -1,6 +1,7 @@
-# Connector `stax` / Suite `refund` / Scenario `refund_partial_amount`
+# Connector `stax` / Suite `refund` / Scenario `Refund | Partial Amount`
 
 - Service: `PaymentService/Refund`
+- Scenario Key: `refund_partial_amount`
 - PM / PMT: `-` / `-`
 - Result: `FAIL`
 
@@ -445,7 +446,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US",
     "color_depth": 24,
     "screen_height": 1080,
@@ -512,8 +513,7 @@ Response contents:
     "connectorCustomerId": "1d4a621a-70ff-45f3-b733-ce809813262c"
   },
   "rawConnectorResponse": "***MASKED***"
-  "rawConnectorRequest": "***MASKED***"
-  }
+  
 }
 
 Response trailers received:
@@ -598,8 +598,7 @@ Response contents:
     "x-powered-by": "PHP/8.3.11"
   },
   "rawConnectorResponse": "***MASKED***"
-  "rawConnectorRequest": "***MASKED***"
-  }
+  
 }
 
 Response trailers received:

@@ -9,8 +9,8 @@
 
 | Scenario | PM | PMT | Result | Prerequisites |
 |:---------|:--:|:---:|:------:|:--------------|
-| [`create_customer`](./create-customer/create-customer.md) | - | - | `FAIL` | None |
+| [`Create Customer`](./create-customer/create-customer.md) | - | - | `FAIL` | None |
 
 ## Failed Scenarios
 
-- [`create_customer`](./create-customer/create-customer.md) — Resolved method descriptor:
+- [`Create Customer`](./create-customer/create-customer.md) — Resolved method descriptor:

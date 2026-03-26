@@ -1,6 +1,7 @@
-# Connector `checkout` / Suite `capture` / Scenario `capture_partial_amount`
+# Connector `checkout` / Suite `capture` / Scenario `Capture | Partial Amount`
 
 - Service: `PaymentService/Capture`
+- Scenario Key: `capture_partial_amount`
 - PM / PMT: `-` / `-`
 - Result: `PASS`
 
@@ -60,7 +61,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US",
     "color_depth": 24,
     "screen_height": 1080,
@@ -196,9 +197,7 @@ Response contents:
   },
   "networkTransactionId": "341402334057826",
   "rawConnectorResponse": "***MASKED***"
-  },
-  "rawConnectorRequest": "***MASKED***"
-  },
+  
   "capturableAmount": "6000",
   "connectorResponse": {
     "additionalPaymentMethodData": {
@@ -241,7 +240,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US",
     "color_depth": 24,
     "screen_height": 1080,
@@ -294,8 +293,7 @@ Response contents:
     "date": "Mon, 23 Mar 2026 18:39:13 GMT",
     "strict-transport-security": "max-age=16000000; includeSubDomains; preload;"
   },
-  "rawConnectorRequest": "***MASKED***"
-  },
+  "rawConnectorRequest": "***MASKED***",
   "capturedAmount": "3000",
   "connectorFeatureData": {
     "value": "{\"psync_flow\":\"Capture\"}"

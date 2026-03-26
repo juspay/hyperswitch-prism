@@ -1,6 +1,7 @@
-# Connector `rapyd` / Suite `get` / Scenario `sync_payment`
+# Connector `rapyd` / Suite `get` / Scenario `Get | Sync Payment`
 
 - Service: `PaymentService/Get`
+- Scenario Key: `sync_payment`
 - PM / PMT: `-` / `-`
 - Result: `PASS`
 
@@ -60,7 +61,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US",
     "color_depth": 24,
     "screen_height": 1080,
@@ -198,9 +199,7 @@ Response contents:
     "transfer-encoding": "chunked"
   },
   "rawConnectorResponse": "***MASKED***"
-  },
-  "rawConnectorRequest": "***MASKED***"
-  }
+  
 }
 
 Response trailers received:
@@ -274,9 +273,7 @@ Response contents:
     "transfer-encoding": "chunked"
   },
   "rawConnectorResponse": "***MASKED***"
-  },
-  "rawConnectorRequest": "***MASKED***"
-  },
+  
   "merchantTransactionId": "mti_68727a7e71424a97a59bd5f471d78497"
 }
 

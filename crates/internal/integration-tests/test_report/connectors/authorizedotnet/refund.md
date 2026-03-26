@@ -9,6 +9,6 @@
 
 | Scenario | PM | PMT | Result | Prerequisites |
 |:---------|:--:|:---:|:------:|:--------------|
-| [`refund_full_amount`](./refund/refund-full-amount.md) | - | - | `PASS` | `create_customer(create_customer)` (PASS) -> `authorize(no3ds_auto_capture_credit_card)` (PASS) |
-| [`refund_partial_amount`](./refund/refund-partial-amount.md) | - | - | `PASS` | `create_customer(create_customer)` (PASS) -> `authorize(no3ds_auto_capture_credit_card)` (PASS) |
-| [`refund_with_reason`](./refund/refund-with-reason.md) | - | - | `PASS` | `create_customer(create_customer)` (PASS) -> `authorize(no3ds_auto_capture_credit_card)` (PASS) |
+| [`Refund \| Full Amount`](./refund/refund-full-amount.md) | - | - | `PASS` | `create_customer(create_customer)` (PASS) -> `authorize(no3ds_auto_capture_credit_card)` (PASS) |
+| [`Refund \| Partial Amount`](./refund/refund-partial-amount.md) | - | - | `PASS` | `create_customer(create_customer)` (PASS) -> `authorize(no3ds_auto_capture_credit_card)` (PASS) |
+| [`Refund \| Reason`](./refund/refund-with-reason.md) | - | - | `PASS` | `create_customer(create_customer)` (PASS) -> `authorize(no3ds_auto_capture_credit_card)` (PASS) |

@@ -9,12 +9,12 @@
 
 | Scenario | PM | PMT | Result | Prerequisites |
 |:---------|:--:|:---:|:------:|:--------------|
-| [`void_authorized_payment`](./void/void-authorized-payment.md) | - | - | `FAIL` | `create_customer(create_customer)` (FAIL) -> `authorize(no3ds_manual_capture_credit_card)` (FAIL) |
-| [`void_with_amount`](./void/void-with-amount.md) | - | - | `FAIL` | `create_customer(create_customer)` (FAIL) -> `authorize(no3ds_manual_capture_credit_card)` (FAIL) |
-| [`void_without_cancellation_reason`](./void/void-without-cancellation-reason.md) | - | - | `FAIL` | `create_customer(create_customer)` (FAIL) -> `authorize(no3ds_manual_capture_credit_card)` (FAIL) |
+| [`Void \| Authorized Payment`](./void/void-authorized-payment.md) | - | - | `FAIL` | `create_customer(create_customer)` (FAIL) -> `authorize(no3ds_manual_capture_credit_card)` (FAIL) |
+| [`Void \| Amount`](./void/void-with-amount.md) | - | - | `FAIL` | `create_customer(create_customer)` (FAIL) -> `authorize(no3ds_manual_capture_credit_card)` (FAIL) |
+| [`Void \| Without Cancellation Reason`](./void/void-without-cancellation-reason.md) | - | - | `FAIL` | `create_customer(create_customer)` (FAIL) -> `authorize(no3ds_manual_capture_credit_card)` (FAIL) |
 
 ## Failed Scenarios
 
-- [`void_authorized_payment`](./void/void-authorized-payment.md) — sdk call failed: sdk HTTP request failed for 'void'/'void_authorized_payment': builder error
-- [`void_with_amount`](./void/void-with-amount.md) — sdk call failed: sdk HTTP request failed for 'void'/'void_with_amount': builder error
-- [`void_without_cancellation_reason`](./void/void-without-cancellation-reason.md) — sdk call failed: sdk HTTP request failed for 'void'/'void_without_cancellation_reason': builder error
+- [`Void | Authorized Payment`](./void/void-authorized-payment.md) — sdk call failed: sdk HTTP request failed for 'void'/'void_authorized_payment': builder error
+- [`Void | Amount`](./void/void-with-amount.md) — sdk call failed: sdk HTTP request failed for 'void'/'void_with_amount': builder error
+- [`Void | Without Cancellation Reason`](./void/void-without-cancellation-reason.md) — sdk call failed: sdk HTTP request failed for 'void'/'void_without_cancellation_reason': builder error

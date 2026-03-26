@@ -1,6 +1,7 @@
-# Connector `nexixpay` / Suite `authorize` / Scenario `no3ds_auto_capture_afterpay_clearpay`
+# Connector `nexixpay` / Suite `authorize` / Scenario `Afterpay/Clearpay | No 3DS | Automatic Capture`
 
 - Service: `PaymentService/Authorize`
+- Scenario Key: `no3ds_auto_capture_afterpay_clearpay`
 - PM / PMT: `afterpay_clearpay` / `-`
 - Result: `FAIL`
 

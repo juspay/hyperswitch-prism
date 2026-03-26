@@ -1,6 +1,7 @@
-# Connector `fiservemea` / Suite `refund_sync` / Scenario `refund_sync`
+# Connector `fiservemea` / Suite `refund_sync` / Scenario `Refund Sync`
 
 - Service: `RefundService/Get`
+- Scenario Key: `refund_sync`
 - PM / PMT: `-` / `-`
 - Result: `PASS`
 
@@ -60,7 +61,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US",
     "color_depth": 24,
     "screen_height": 1080,
@@ -209,9 +210,7 @@ Response contents:
   },
   "networkTransactionId": "acI2tWYIDXYTnyNnphjNsgAAAYY",
   "rawConnectorResponse": "***MASKED***"
-  },
-  "rawConnectorRequest": "***MASKED***"
-  },
+  
   "connectorFeatureData": {
     "value": "{\"token_reusable\":\"true\"}"
   }
@@ -307,9 +306,7 @@ Response contents:
   },
   "connectorTransactionId": "84649326313",
   "rawConnectorResponse": "***MASKED***"
-  },
-  "rawConnectorRequest": "***MASKED***"
-  }
+  
 }
 
 Response trailers received:
@@ -395,9 +392,7 @@ Response contents:
   },
   "connectorTransactionId": "84649326313",
   "rawConnectorResponse": "***MASKED***"
-  },
-  "rawConnectorRequest": "***MASKED***"
-  }
+  
 }
 
 Response trailers received:

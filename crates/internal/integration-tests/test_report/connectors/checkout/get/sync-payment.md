@@ -1,6 +1,7 @@
-# Connector `checkout` / Suite `get` / Scenario `sync_payment`
+# Connector `checkout` / Suite `get` / Scenario `Get | Sync Payment`
 
 - Service: `PaymentService/Get`
+- Scenario Key: `sync_payment`
 - PM / PMT: `-` / `-`
 - Result: `PASS`
 
@@ -60,7 +61,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US",
     "color_depth": 24,
     "screen_height": 1080,
@@ -196,9 +197,7 @@ Response contents:
   },
   "networkTransactionId": "374615850647786",
   "rawConnectorResponse": "***MASKED***"
-  },
-  "rawConnectorRequest": "***MASKED***"
-  },
+  
   "capturedAmount": "6000",
   "connectorResponse": {
     "additionalPaymentMethodData": {
@@ -288,8 +287,7 @@ Response contents:
     }
   },
   "rawConnectorResponse": "***MASKED***"
-  },
-  "rawConnectorRequest": "***MASKED***"
+  
   },
   "merchantTransactionId": "mti_e453fbb0d4994cfd9649d6e1"
 }

@@ -1,6 +1,7 @@
-# Connector `adyen` / Suite `authorize` / Scenario `no3ds_auto_capture_debit_card`
+# Connector `adyen` / Suite `authorize` / Scenario `Debit Card | No 3DS | Automatic Capture`
 
 - Service: `PaymentService/Authorize`
+- Scenario Key: `no3ds_auto_capture_debit_card`
 - PM / PMT: `card` / `debit`
 - Result: `PASS`
 
@@ -199,9 +200,7 @@ Response contents:
   },
   "networkTransactionId": "5JHNWPNS40324",
   "rawConnectorResponse": "***MASKED***"
-  },
-  "rawConnectorRequest": "***MASKED***"
-  },
+  
   "capturedAmount": "6000",
   "connectorResponse": {
     "additionalPaymentMethodData": {

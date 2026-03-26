@@ -1,6 +1,7 @@
-# Connector `wellsfargo` / Suite `authorize` / Scenario `no3ds_fail_payment`
+# Connector `wellsfargo` / Suite `authorize` / Scenario `Payment Failure | No 3DS`
 
 - Service: `PaymentService/Authorize`
+- Scenario Key: `no3ds_fail_payment`
 - PM / PMT: `card` / `credit`
 - Result: `FAIL`
 
@@ -50,14 +51,14 @@ _Response trace not available._
   "shipping_cost": 0,
   "payment_method": {
     "card": {
-      "card_number": "***MASKED***",
+      "card_number": ***MASKED***"
       "card_exp_month": {
         "value": "01"
       },
       "card_exp_year": {
         "value": "35"
       },
-      "card_cvc": "***MASKED***",
+      "card_cvc": ***MASKED***"
       "card_holder_name": {
         "value": "Liam Wilson"
       },
@@ -182,7 +183,7 @@ _Response trace not available._
     "v-c-correlation-id": "46a92279-ebca-47bb-b9d1-eb7617fbc103"
   },
   "network_transaction_id": "016150703802094",
-  "incremental_authorization_allowed": "***MASKED***",
+  "incremental_authorization_allowed": ***MASKED***"
   "raw_connector_response": "***MASKED***",
   "connector_response": {
     "additional_payment_method_data": {

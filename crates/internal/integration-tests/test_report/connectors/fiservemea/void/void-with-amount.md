@@ -1,6 +1,7 @@
-# Connector `fiservemea` / Suite `void` / Scenario `void_with_amount`
+# Connector `fiservemea` / Suite `void` / Scenario `Void | Amount`
 
 - Service: `PaymentService/Void`
+- Scenario Key: `void_with_amount`
 - PM / PMT: `-` / `-`
 - Result: `PASS`
 
@@ -60,7 +61,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US",
     "color_depth": 24,
     "screen_height": 1080,
@@ -209,9 +210,7 @@ Response contents:
   },
   "networkTransactionId": "acI2omYIDXYTnyNnphjNdQAAAYw",
   "rawConnectorResponse": "***MASKED***"
-  },
-  "rawConnectorRequest": "***MASKED***"
-  },
+  
   "connectorFeatureData": {
     "value": "{\"token_reusable\":\"true\"}"
   }
@@ -247,7 +246,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US",
     "color_depth": 24,
     "screen_height": 1080,
@@ -317,8 +316,7 @@ Response contents:
   },
   "merchantVoidId": "bcfd455a-e8a6-44da-ae3e-2b74a0142ee6",
   "rawConnectorRequest": "***MASKED***"
-  },
-  "connectorFeatureData": {
+  
     "value": "{\"token_reusable\":\"true\"}"
   }
 }

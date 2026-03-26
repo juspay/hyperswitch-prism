@@ -1,6 +1,7 @@
-# Connector `novalnet` / Suite `void` / Scenario `void_with_amount`
+# Connector `novalnet` / Suite `void` / Scenario `Void | Amount`
 
 - Service: `PaymentService/Void`
+- Scenario Key: `void_with_amount`
 - PM / PMT: `-` / `-`
 - Result: `FAIL`
 
@@ -59,14 +60,14 @@ assertion failed for field 'connector_transaction_id': expected field to exist
   "shipping_cost": 0,
   "payment_method": {
     "card": {
-      "card_number": "***MASKED***",
+      "card_number": ***MASKED***"
       "card_exp_month": {
         "value": "08"
       },
       "card_exp_year": {
         "value": "30"
       },
-      "card_cvc": "***MASKED***",
+      "card_cvc": ***MASKED***"
       "card_holder_name": {
         "value": "Noah Wilson"
       },
@@ -209,7 +210,7 @@ assertion failed for field 'connector_transaction_id': expected field to exist
     }
   },
   "raw_connector_response": "***MASKED***"
-}
+
 ```
 
 </details>

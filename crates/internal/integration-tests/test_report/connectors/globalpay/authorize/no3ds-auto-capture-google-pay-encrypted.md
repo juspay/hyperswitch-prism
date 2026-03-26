@@ -1,6 +1,7 @@
-# Connector `globalpay` / Suite `authorize` / Scenario `no3ds_auto_capture_google_pay_encrypted`
+# Connector `globalpay` / Suite `authorize` / Scenario `Google Pay (Encrypted Token) | No 3DS | Automatic Capture`
 
 - Service: `PaymentService/Authorize`
+- Scenario Key: `no3ds_auto_capture_google_pay_encrypted`
 - PM / PMT: `google_pay` / `CARD`
 - Result: `SKIP`
 

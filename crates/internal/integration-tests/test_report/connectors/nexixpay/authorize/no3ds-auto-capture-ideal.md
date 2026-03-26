@@ -1,6 +1,7 @@
-# Connector `nexixpay` / Suite `authorize` / Scenario `no3ds_auto_capture_ideal`
+# Connector `nexixpay` / Suite `authorize` / Scenario `iDEAL | No 3DS | Automatic Capture`
 
 - Service: `PaymentService/Authorize`
+- Scenario Key: `no3ds_auto_capture_ideal`
 - PM / PMT: `ideal` / `-`
 - Result: `FAIL`
 

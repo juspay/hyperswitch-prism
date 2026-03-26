@@ -1,6 +1,7 @@
-# Connector `cybersource` / Suite `capture` / Scenario `capture_partial_amount`
+# Connector `cybersource` / Suite `capture` / Scenario `Capture | Partial Amount`
 
 - Service: `PaymentService/Capture`
+- Scenario Key: `capture_partial_amount`
 - PM / PMT: `-` / `-`
 - Result: `PASS`
 
@@ -47,14 +48,14 @@ _Response trace not available._
   "shipping_cost": 0,
   "payment_method": {
     "card": {
-      "card_number": "***MASKED***",
+      "card_number": ***MASKED***"
       "card_exp_month": {
         "value": "08"
       },
       "card_exp_year": {
         "value": "30"
       },
-      "card_cvc": "***MASKED***",
+      "card_cvc": ***MASKED***"
       "card_holder_name": {
         "value": "Ethan Brown"
       },
@@ -185,7 +186,7 @@ _Response trace not available._
     "v-c-correlation-id": "23e7e881-0149-46ea-843c-f140157453af"
   },
   "network_transaction_id": "016150703802094",
-  "incremental_authorization_allowed": "***MASKED***",
+  "incremental_authorization_allowed": ***MASKED***"
   "raw_connector_response": "***MASKED***",
   "connector_response": {
     "additional_payment_method_data": {
@@ -312,7 +313,7 @@ _Response trace not available._
     "connection": "keep-alive"
   },
   "merchant_capture_id": "mci_cd27c726abc94be98bbdbb7d025e1895",
-  "incremental_authorization_allowed": "***MASKED***"
+  "incremental_authorization_allowed": ***MASKED***"
 }
 ```
 

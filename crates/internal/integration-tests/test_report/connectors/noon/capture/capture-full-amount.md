@@ -1,6 +1,7 @@
-# Connector `noon` / Suite `capture` / Scenario `capture_full_amount`
+# Connector `noon` / Suite `capture` / Scenario `Capture | Full Amount`
 
 - Service: `PaymentService/Capture`
+- Scenario Key: `capture_full_amount`
 - PM / PMT: `-` / `-`
 - Result: `FAIL`
 
@@ -59,14 +60,14 @@ assertion failed for field 'connector_transaction_id': expected field to exist
   "shipping_cost": 0,
   "payment_method": {
     "card": {
-      "card_number": "***MASKED***",
+      "card_number": ***MASKED***"
       "card_exp_month": {
         "value": "08"
       },
       "card_exp_year": {
         "value": "30"
       },
-      "card_cvc": "***MASKED***",
+      "card_cvc": ***MASKED***"
       "card_holder_name": {
         "value": "Ava Smith"
       },
@@ -207,7 +208,7 @@ assertion failed for field 'connector_transaction_id': expected field to exist
     "server-timing": "ak_p; desc=\"1774268280979_1752377261_278613176_26867_6969_8_20_-\";dur=1"
   },
   "raw_connector_response": "***MASKED***"
-}
+
 ```
 
 </details>

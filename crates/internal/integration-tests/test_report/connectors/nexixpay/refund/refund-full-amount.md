@@ -1,6 +1,7 @@
-# Connector `nexixpay` / Suite `refund` / Scenario `refund_full_amount`
+# Connector `nexixpay` / Suite `refund` / Scenario `Refund | Full Amount`
 
 - Service: `PaymentService/Refund`
+- Scenario Key: `refund_full_amount`
 - PM / PMT: `-` / `-`
 - Result: `FAIL`
 

@@ -9,12 +9,12 @@
 
 | Scenario | PM | PMT | Result | Prerequisites |
 |:---------|:--:|:---:|:------:|:--------------|
-| [`capture_full_amount`](./capture/capture-full-amount.md) | - | - | `FAIL` | `create_customer(create_customer)` (FAIL) -> `authorize(no3ds_manual_capture_credit_card)` (FAIL) |
-| [`capture_partial_amount`](./capture/capture-partial-amount.md) | - | - | `FAIL` | `create_customer(create_customer)` (FAIL) -> `authorize(no3ds_manual_capture_credit_card)` (FAIL) |
-| [`capture_with_merchant_order_id`](./capture/capture-with-merchant-order-id.md) | - | - | `FAIL` | `create_customer(create_customer)` (FAIL) -> `authorize(no3ds_manual_capture_credit_card)` (FAIL) |
+| [`Capture \| Full Amount`](./capture/capture-full-amount.md) | - | - | `FAIL` | `create_customer(create_customer)` (FAIL) -> `authorize(no3ds_manual_capture_credit_card)` (FAIL) |
+| [`Capture \| Partial Amount`](./capture/capture-partial-amount.md) | - | - | `FAIL` | `create_customer(create_customer)` (FAIL) -> `authorize(no3ds_manual_capture_credit_card)` (FAIL) |
+| [`Capture \| Merchant Order ID Reference`](./capture/capture-with-merchant-order-id.md) | - | - | `FAIL` | `create_customer(create_customer)` (FAIL) -> `authorize(no3ds_manual_capture_credit_card)` (FAIL) |
 
 ## Failed Scenarios
 
-- [`capture_full_amount`](./capture/capture-full-amount.md) — assertion failed for field 'connector_transaction_id': expected field to exist
-- [`capture_partial_amount`](./capture/capture-partial-amount.md) — assertion failed for field 'connector_transaction_id': expected field to exist
-- [`capture_with_merchant_order_id`](./capture/capture-with-merchant-order-id.md) — assertion failed for field 'connector_transaction_id': expected field to exist
+- [`Capture | Full Amount`](./capture/capture-full-amount.md) — assertion failed for field 'connector_transaction_id': expected field to exist
+- [`Capture | Partial Amount`](./capture/capture-partial-amount.md) — assertion failed for field 'connector_transaction_id': expected field to exist
+- [`Capture | Merchant Order ID Reference`](./capture/capture-with-merchant-order-id.md) — assertion failed for field 'connector_transaction_id': expected field to exist

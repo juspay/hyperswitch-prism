@@ -1,6 +1,7 @@
-# Connector `nexixpay` / Suite `capture` / Scenario `capture_partial_amount`
+# Connector `nexixpay` / Suite `capture` / Scenario `Capture | Partial Amount`
 
 - Service: `PaymentService/Capture`
+- Scenario Key: `capture_partial_amount`
 - PM / PMT: `-` / `-`
 - Result: `FAIL`
 

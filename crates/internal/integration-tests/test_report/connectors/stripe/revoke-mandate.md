@@ -9,12 +9,12 @@
 
 | Scenario | PM | PMT | Result | Prerequisites |
 |:---------|:--:|:---:|:------:|:--------------|
-| [`revoke_active_mandate`](./revoke-mandate/revoke-active-mandate.md) | - | - | `FAIL` | `setup_recurring(setup_recurring)` (PASS) |
-| [`revoke_fail_invalid_mandate_id`](./revoke-mandate/revoke-fail-invalid-mandate-id.md) | - | - | `FAIL` | `setup_recurring(setup_recurring)` (PASS) |
-| [`revoke_with_reason`](./revoke-mandate/revoke-with-reason.md) | - | - | `FAIL` | `setup_recurring(setup_recurring)` (PASS) |
+| [`Revoke Mandate \| Revoke Active Mandate`](./revoke-mandate/revoke-active-mandate.md) | - | - | `FAIL` | `setup_recurring(setup_recurring)` (PASS) |
+| [`Revoke Mandate \| Revoke Fail Invalid Mandate ID`](./revoke-mandate/revoke-fail-invalid-mandate-id.md) | - | - | `FAIL` | `setup_recurring(setup_recurring)` (PASS) |
+| [`Revoke Mandate \| Revoke With Reason`](./revoke-mandate/revoke-with-reason.md) | - | - | `FAIL` | `setup_recurring(setup_recurring)` (PASS) |
 
 ## Failed Scenarios
 
-- [`revoke_active_mandate`](./revoke-mandate/revoke-active-mandate.md) — Resolved method descriptor:
-- [`revoke_fail_invalid_mandate_id`](./revoke-mandate/revoke-fail-invalid-mandate-id.md) — Resolved method descriptor:
-- [`revoke_with_reason`](./revoke-mandate/revoke-with-reason.md) — Resolved method descriptor:
+- [`Revoke Mandate | Revoke Active Mandate`](./revoke-mandate/revoke-active-mandate.md) — Resolved method descriptor:
+- [`Revoke Mandate | Revoke Fail Invalid Mandate ID`](./revoke-mandate/revoke-fail-invalid-mandate-id.md) — Resolved method descriptor:
+- [`Revoke Mandate | Revoke With Reason`](./revoke-mandate/revoke-with-reason.md) — Resolved method descriptor:

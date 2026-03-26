@@ -1,6 +1,7 @@
-# Connector `nexixpay` / Suite `capture` / Scenario `capture_with_merchant_order_id`
+# Connector `nexixpay` / Suite `capture` / Scenario `Capture | Merchant Order ID Reference`
 
 - Service: `PaymentService/Capture`
+- Scenario Key: `capture_with_merchant_order_id`
 - PM / PMT: `-` / `-`
 - Result: `FAIL`
 

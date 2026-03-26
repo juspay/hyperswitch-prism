@@ -10,7 +10,9 @@
       }
     },
     "assert": {
-      "source_verified": { "equals": true },
+      "source_verified": {
+        "equals": true
+      },
       "connector_transaction_id": {
         "must_exist": true
       },
@@ -18,7 +20,8 @@
         "must_not_exist": true
       }
     },
-    "is_default": true
+    "is_default": true,
+    "display_name": "Verify Redirect Response | Verify Redirect Basic"
   },
   "verify_redirect_with_params": {
     "grpc_req": {
@@ -31,14 +34,17 @@
       }
     },
     "assert": {
-      "source_verified": { "equals": true },
+      "source_verified": {
+        "equals": true
+      },
       "connector_transaction_id": {
         "must_exist": true
       },
       "error": {
         "must_not_exist": true
       }
-    }
+    },
+    "display_name": "Verify Redirect Response | Verify Redirect With Params"
   },
   "verify_redirect_fail_tampered": {
     "grpc_req": {
@@ -51,10 +57,13 @@
       }
     },
     "assert": {
-      "source_verified": { "equals": false },
+      "source_verified": {
+        "equals": false
+      },
       "error": {
         "must_exist": true
       }
-    }
+    },
+    "display_name": "Verify Redirect Response | Verify Redirect Fail Tampered"
   }
 }

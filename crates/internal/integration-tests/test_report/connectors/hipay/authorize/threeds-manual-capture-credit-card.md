@@ -1,6 +1,7 @@
-# Connector `hipay` / Suite `authorize` / Scenario `threeds_manual_capture_credit_card`
+# Connector `hipay` / Suite `authorize` / Scenario `Credit Card | 3DS | Manual Capture`
 
 - Service: `PaymentService/Authorize`
+- Scenario Key: `threeds_manual_capture_credit_card`
 - PM / PMT: `card` / `credit`
 - Result: `FAIL`
 
@@ -65,7 +66,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US",
     "color_depth": 24,
     "screen_height": 1080,
@@ -209,9 +210,7 @@ Response contents:
     "pragma": "no-cache"
   },
   "rawConnectorResponse": "***MASKED***"
-  },
-  "rawConnectorRequest": "***MASKED***"
-  }
+  
 }
 
 Response trailers received:

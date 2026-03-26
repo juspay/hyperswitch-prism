@@ -1,6 +1,7 @@
-# Connector `wellsfargo` / Suite `post_authenticate` / Scenario `threeds_card_post_authenticate`
+# Connector `wellsfargo` / Suite `post_authenticate` / Scenario `Card Post Authenticate | 3DS`
 
 - Service: `PaymentMethodAuthenticationService/PostAuthenticate`
+- Scenario Key: `threeds_card_post_authenticate`
 - PM / PMT: `card` / `credit`
 - Result: `FAIL`
 

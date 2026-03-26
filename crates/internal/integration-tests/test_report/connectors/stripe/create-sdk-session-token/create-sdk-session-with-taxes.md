@@ -1,6 +1,7 @@
-# Connector `stripe` / Suite `create_sdk_session_token` / Scenario `create_sdk_session_with_taxes`
+# Connector `stripe` / Suite `create_sdk_session_token` / Scenario `Create SDK Session Token | Create SDK Session With Taxes`
 
 - Service: `Unknown`
+- Scenario Key: `create_sdk_session_with_taxes`
 - PM / PMT: `-` / `-`
 - Result: `FAIL`
 
@@ -37,7 +38,7 @@ grpcurl -plaintext \
   -H "x-connector-config: ***MASKED***" \
   -d @ localhost:50051 types.MerchantAuthenticationService/CreateSdkSessionToken <<'JSON'
 {
-  "merchant_sdk_session_id": "gen_821079",
+  "merchant_sdk_session_id": "gen_818245",
   "amount": {
     "minor_amount": 15000,
     "currency": "USD"
@@ -47,9 +48,9 @@ grpcurl -plaintext \
   "payment_method_type": "APPLE_PAY",
   "country_alpha2_code": "US",
   "customer": {
-    "name": "Liam Smith",
+    "name": "Mia Brown",
     "email": {
-      "value": "alex.4733@testmail.io"
+      "value": "alex.5507@testmail.io"
     }
   },
   "test_mode": true

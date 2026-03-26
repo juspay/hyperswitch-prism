@@ -1,6 +1,7 @@
-# Connector `trustpay` / Suite `get` / Scenario `sync_payment_with_handle_response`
+# Connector `trustpay` / Suite `get` / Scenario `Get | Sync Payment With Handle Response`
 
 - Service: `PaymentService/Get`
+- Scenario Key: `sync_payment_with_handle_response`
 - PM / PMT: `-` / `-`
 - Result: `FAIL`
 
@@ -232,7 +233,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US",
     "color_depth": 24,
     "screen_height": 1080,
@@ -370,9 +371,7 @@ Response contents:
     "transfer-encoding": "chunked"
   },
   "rawConnectorResponse": "***MASKED***"
-  },
-  "rawConnectorRequest": "***MASKED***"
-  }
+  
 }
 
 Response trailers received:
@@ -449,9 +448,7 @@ Response contents:
     "transfer-encoding": "chunked"
   },
   "rawConnectorResponse": "***MASKED***"
-  },
-  "rawConnectorRequest": "***MASKED***"
-  }
+  
 }
 
 Response trailers received:

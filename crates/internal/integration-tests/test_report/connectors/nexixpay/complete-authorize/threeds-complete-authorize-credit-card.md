@@ -1,6 +1,7 @@
-# Connector `nexixpay` / Suite `complete_authorize` / Scenario `threeds_complete_authorize_credit_card`
+# Connector `nexixpay` / Suite `complete_authorize` / Scenario `Credit Card | 3DS`
 
 - Service: `PaymentService/Authorize`
+- Scenario Key: `threeds_complete_authorize_credit_card`
 - PM / PMT: `card` / `credit`
 - Result: `FAIL`
 
@@ -171,7 +172,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US"
   },
   "description": "3DS pre-authenticate card payment",
@@ -377,7 +378,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US"
   },
   "redirection_response": {

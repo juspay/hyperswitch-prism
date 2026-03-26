@@ -1,6 +1,7 @@
-# Connector `adyen` / Suite `refund` / Scenario `refund_with_reason`
+# Connector `adyen` / Suite `refund` / Scenario `Refund | Reason`
 
 - Service: `PaymentService/Refund`
+- Scenario Key: `refund_with_reason`
 - PM / PMT: `-` / `-`
 - Result: `PASS`
 
@@ -201,9 +202,7 @@ Response contents:
   },
   "networkTransactionId": "IBIGC61QU0324",
   "rawConnectorResponse": "***MASKED***"
-  },
-  "rawConnectorRequest": "***MASKED***"
-  },
+  
   "capturedAmount": "6000",
   "connectorResponse": {
     "additionalPaymentMethodData": {
@@ -290,9 +289,7 @@ Response contents:
   },
   "connectorTransactionId": "WCB4G6SDF9Q94875",
   "rawConnectorResponse": "***MASKED***"
-  },
-  "rawConnectorRequest": "***MASKED***"
-  }
+  
 }
 
 Response trailers received:

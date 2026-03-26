@@ -23,7 +23,8 @@
         "must_not_exist": true
       }
     },
-    "is_default": true
+    "is_default": true,
+    "display_name": "Create Order | Basic"
   },
   "create_order_with_metadata": {
     "grpc_req": {
@@ -51,7 +52,8 @@
       "error": {
         "must_not_exist": true
       }
-    }
+    },
+    "display_name": "Create Order | Metadata"
   },
   "create_order_with_payment_method_type": {
     "grpc_req": {
@@ -80,7 +82,8 @@
       "error": {
         "must_not_exist": true
       }
-    }
+    },
+    "display_name": "Create Order | Payment Method Type"
   },
   "create_order_fail_invalid_currency": {
     "grpc_req": {
@@ -102,7 +105,8 @@
       "error": {
         "must_exist": true
       }
-    }
+    },
+    "display_name": "Create Order | Fail Invalid Currency"
   },
   "create_order_fail_zero_amount": {
     "grpc_req": {
@@ -124,6 +128,7 @@
       "error": {
         "must_exist": true
       }
-    }
+    },
+    "display_name": "Create Order | Fail Zero Amount"
   }
 }

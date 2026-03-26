@@ -1,6 +1,7 @@
-# Connector `stripe` / Suite `create_sdk_session_token` / Scenario `create_sdk_session_fail_invalid_country`
+# Connector `stripe` / Suite `create_sdk_session_token` / Scenario `Create SDK Session Token | Create SDK Session Fail Invalid Country`
 
 - Service: `Unknown`
+- Scenario Key: `create_sdk_session_fail_invalid_country`
 - PM / PMT: `-` / `-`
 - Result: `FAIL`
 
@@ -37,7 +38,7 @@ grpcurl -plaintext \
   -H "x-connector-config: ***MASKED***" \
   -d @ localhost:50051 types.MerchantAuthenticationService/CreateSdkSessionToken <<'JSON'
 {
-  "merchant_sdk_session_id": "gen_620786",
+  "merchant_sdk_session_id": "gen_830908",
   "amount": {
     "minor_amount": 10000,
     "currency": "USD"

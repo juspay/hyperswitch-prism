@@ -9,12 +9,12 @@
 
 | Scenario | PM | PMT | Result | Prerequisites |
 |:---------|:--:|:---:|:------:|:--------------|
-| [`refund_full_amount`](./refund/refund-full-amount.md) | - | - | `FAIL` | `authorize(no3ds_auto_capture_credit_card)` (FAIL) |
-| [`refund_partial_amount`](./refund/refund-partial-amount.md) | - | - | `FAIL` | `authorize(no3ds_auto_capture_credit_card)` (FAIL) |
-| [`refund_with_reason`](./refund/refund-with-reason.md) | - | - | `FAIL` | `authorize(no3ds_auto_capture_credit_card)` (FAIL) |
+| [`Refund \| Full Amount`](./refund/refund-full-amount.md) | - | - | `FAIL` | `authorize(no3ds_auto_capture_credit_card)` (FAIL) |
+| [`Refund \| Partial Amount`](./refund/refund-partial-amount.md) | - | - | `FAIL` | `authorize(no3ds_auto_capture_credit_card)` (FAIL) |
+| [`Refund \| Reason`](./refund/refund-with-reason.md) | - | - | `FAIL` | `authorize(no3ds_auto_capture_credit_card)` (FAIL) |
 
 ## Failed Scenarios
 
-- [`refund_full_amount`](./refund/refund-full-amount.md) — assertion failed for field 'connector_refund_id': expected field to exist
-- [`refund_partial_amount`](./refund/refund-partial-amount.md) — assertion failed for field 'connector_refund_id': expected field to exist
-- [`refund_with_reason`](./refund/refund-with-reason.md) — assertion failed for field 'connector_refund_id': expected field to exist
+- [`Refund | Full Amount`](./refund/refund-full-amount.md) — assertion failed for field 'connector_refund_id': expected field to exist
+- [`Refund | Partial Amount`](./refund/refund-partial-amount.md) — assertion failed for field 'connector_refund_id': expected field to exist
+- [`Refund | Reason`](./refund/refund-with-reason.md) — assertion failed for field 'connector_refund_id': expected field to exist

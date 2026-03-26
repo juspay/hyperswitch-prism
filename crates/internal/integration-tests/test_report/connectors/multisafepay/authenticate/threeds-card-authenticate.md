@@ -1,6 +1,7 @@
-# Connector `multisafepay` / Suite `authenticate` / Scenario `threeds_card_authenticate`
+# Connector `multisafepay` / Suite `authenticate` / Scenario `Card Authenticate | 3DS`
 
 - Service: `PaymentMethodAuthenticationService/Authenticate`
+- Scenario Key: `threeds_card_authenticate`
 - PM / PMT: `card` / `credit`
 - Result: `FAIL`
 
@@ -194,7 +195,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US"
   },
   "description": "3DS pre-authenticate card payment",
@@ -367,7 +368,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US"
   },
   "capture_method": "MANUAL",

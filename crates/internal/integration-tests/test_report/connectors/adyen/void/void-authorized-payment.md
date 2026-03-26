@@ -1,6 +1,7 @@
-# Connector `adyen` / Suite `void` / Scenario `void_authorized_payment`
+# Connector `adyen` / Suite `void` / Scenario `Void | Authorized Payment`
 
 - Service: `PaymentService/Void`
+- Scenario Key: `void_authorized_payment`
 - PM / PMT: `-` / `-`
 - Result: `PASS`
 
@@ -201,9 +202,7 @@ Response contents:
   },
   "networkTransactionId": "5YRUD622D0324",
   "rawConnectorResponse": "***MASKED***"
-  },
-  "rawConnectorRequest": "***MASKED***"
-  },
+  
   "connectorResponse": {
     "additionalPaymentMethodData": {
       "card": {
@@ -296,8 +295,7 @@ Response contents:
   },
   "merchantVoidId": "mvi_1ef6a5e7cccf4a949c1e5b1d",
   "rawConnectorRequest": "***MASKED***"
-  }
-}
+
 
 Response trailers received:
 (empty)

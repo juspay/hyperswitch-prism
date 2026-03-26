@@ -9,12 +9,12 @@
 
 | Scenario | PM | PMT | Result | Prerequisites |
 |:---------|:--:|:---:|:------:|:--------------|
-| [`tokenize_credit_card`](./tokenize-payment-method/tokenize-credit-card.md) | card | - | `PASS` | None |
-| [`tokenize_debit_card`](./tokenize-payment-method/tokenize-debit-card.md) | card | - | `PASS` | None |
-| [`tokenize_fail_expired_card`](./tokenize-payment-method/tokenize-fail-expired-card.md) | card | - | `FAIL` | None |
-| [`tokenize_fail_invalid_card_number`](./tokenize-payment-method/tokenize-fail-invalid-card-number.md) | card | - | `PASS` | None |
-| [`tokenize_with_metadata`](./tokenize-payment-method/tokenize-with-metadata.md) | card | - | `PASS` | None |
+| [`Tokenize Payment Method \| Tokenize Credit Card`](./tokenize-payment-method/tokenize-credit-card.md) | card | - | `PASS` | None |
+| [`Tokenize Payment Method \| Tokenize Debit Card`](./tokenize-payment-method/tokenize-debit-card.md) | card | - | `PASS` | None |
+| [`Tokenize Payment Method \| Tokenize Fail Expired Card`](./tokenize-payment-method/tokenize-fail-expired-card.md) | card | - | `FAIL` | None |
+| [`Tokenize Payment Method \| Tokenize Fail Invalid Card Number`](./tokenize-payment-method/tokenize-fail-invalid-card-number.md) | card | - | `PASS` | None |
+| [`Tokenize Payment Method \| Tokenize With Metadata`](./tokenize-payment-method/tokenize-with-metadata.md) | card | - | `PASS` | None |
 
 ## Failed Scenarios
 
-- [`tokenize_fail_expired_card`](./tokenize-payment-method/tokenize-fail-expired-card.md) — assertion failed for field 'error': expected field to exist
+- [`Tokenize Payment Method | Tokenize Fail Expired Card`](./tokenize-payment-method/tokenize-fail-expired-card.md) — assertion failed for field 'error': expected field to exist

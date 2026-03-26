@@ -1,6 +1,7 @@
-# Connector `adyen` / Suite `capture` / Scenario `capture_full_amount`
+# Connector `adyen` / Suite `capture` / Scenario `Capture | Full Amount`
 
 - Service: `PaymentService/Capture`
+- Scenario Key: `capture_full_amount`
 - PM / PMT: `-` / `-`
 - Result: `PASS`
 
@@ -201,9 +202,7 @@ Response contents:
   },
   "networkTransactionId": "VUVHM0H1R0324",
   "rawConnectorResponse": "***MASKED***"
-  },
-  "rawConnectorRequest": "***MASKED***"
-  },
+  
   "connectorResponse": {
     "additionalPaymentMethodData": {
       "card": {
@@ -299,8 +298,7 @@ Response contents:
   },
   "merchantCaptureId": "mci_1a30b94d9a2a4badbf7d7f8e",
   "rawConnectorRequest": "***MASKED***"
-  }
-}
+
 
 Response trailers received:
 (empty)

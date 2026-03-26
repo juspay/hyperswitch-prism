@@ -1,6 +1,7 @@
-# Connector `nexixpay` / Suite `get` / Scenario `sync_payment`
+# Connector `nexixpay` / Suite `get` / Scenario `Get | Sync Payment`
 
 - Service: `PaymentService/Get`
+- Scenario Key: `sync_payment`
 - PM / PMT: `-` / `-`
 - Result: `FAIL`
 

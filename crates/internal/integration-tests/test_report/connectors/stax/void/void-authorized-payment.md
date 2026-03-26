@@ -1,6 +1,7 @@
-# Connector `stax` / Suite `void` / Scenario `void_authorized_payment`
+# Connector `stax` / Suite `void` / Scenario `Void | Authorized Payment`
 
 - Service: `PaymentService/Void`
+- Scenario Key: `void_authorized_payment`
 - PM / PMT: `-` / `-`
 - Result: `FAIL`
 
@@ -445,7 +446,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US",
     "color_depth": 24,
     "screen_height": 1080,
@@ -512,8 +513,7 @@ Response contents:
     "connectorCustomerId": "951480b8-636f-4530-93da-d5e90084d34d"
   },
   "rawConnectorResponse": "***MASKED***"
-  "rawConnectorRequest": "***MASKED***"
-  }
+  
 }
 
 Response trailers received:
@@ -541,7 +541,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US",
     "color_depth": 24,
     "screen_height": 1080,
@@ -606,8 +606,7 @@ Response contents:
     "x-powered-by": "PHP/8.3.11"
   },
   "rawConnectorRequest": "***MASKED***"
-  }
-}
+
 
 Response trailers received:
 (empty)

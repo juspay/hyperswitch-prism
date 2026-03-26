@@ -1,6 +1,7 @@
-# Connector `worldpayxml` / Suite `refund` / Scenario `refund_partial_amount`
+# Connector `worldpayxml` / Suite `refund` / Scenario `Refund | Partial Amount`
 
 - Service: `PaymentService/Refund`
+- Scenario Key: `refund_partial_amount`
 - PM / PMT: `-` / `-`
 - Result: `PASS`
 
@@ -66,7 +67,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US",
     "color_depth": 24,
     "screen_height": 1080,
@@ -208,8 +209,7 @@ Response contents:
   },
   "networkTransactionId": "872599",
   "rawConnectorResponse": "***MASKED***"
-  "rawConnectorRequest": "***MASKED***"
-  }
+  
 }
 
 Response trailers received:
@@ -289,8 +289,7 @@ Response contents:
   },
   "connectorTransactionId": "mti_229cd7576c8743f4b8917ed7",
   "rawConnectorResponse": "***MASKED***"
-  "rawConnectorRequest": "***MASKED***"
-  }
+  
 }
 
 Response trailers received:

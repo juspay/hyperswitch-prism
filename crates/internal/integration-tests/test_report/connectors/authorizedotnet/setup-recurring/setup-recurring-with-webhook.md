@@ -1,6 +1,7 @@
-# Connector `authorizedotnet` / Suite `setup_recurring` / Scenario `setup_recurring_with_webhook`
+# Connector `authorizedotnet` / Suite `setup_recurring` / Scenario `Setup Recurring | Webhook`
 
 - Service: `PaymentService/SetupRecurring`
+- Scenario Key: `setup_recurring_with_webhook`
 - PM / PMT: `card` / `credit`
 - Result: `PASS`
 
@@ -205,7 +206,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US",
     "color_depth": 24,
     "screen_height": 1080,
@@ -315,8 +316,7 @@ Response contents:
     "connectorCustomerId": "525968126"
   },
   "rawConnectorRequest": "***MASKED***"
-  }
-}
+
 
 Response trailers received:
 (empty)

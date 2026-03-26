@@ -1,6 +1,7 @@
-# Connector `authorizedotnet` / Suite `recurring_charge` / Scenario `recurring_charge_low_amount`
+# Connector `authorizedotnet` / Suite `recurring_charge` / Scenario `Recurring Charge | Low Amount`
 
 - Service: `RecurringPaymentService/Charge`
+- Scenario Key: `recurring_charge_low_amount`
 - PM / PMT: `-` / `-`
 - Result: `PASS`
 
@@ -208,7 +209,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US",
     "color_depth": 24,
     "screen_height": 1080,
@@ -316,8 +317,7 @@ Response contents:
     "connectorCustomerId": "525968128"
   },
   "rawConnectorRequest": "***MASKED***"
-  }
-}
+
 
 Response trailers received:
 (empty)
@@ -415,9 +415,7 @@ Response contents:
     "connectorCustomerId": "525968128"
   },
   "rawConnectorResponse": "***MASKED***"
-  },
-  "rawConnectorRequest": "***MASKED***"
-  },
+  
   "connectorResponse": {
     "additionalPaymentMethodData": {
       "card": {

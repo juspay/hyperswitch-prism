@@ -1,6 +1,7 @@
-# Connector `helcim` / Suite `refund_sync` / Scenario `refund_sync`
+# Connector `helcim` / Suite `refund_sync` / Scenario `Refund Sync`
 
 - Service: `RefundService/Get`
+- Scenario Key: `refund_sync`
 - PM / PMT: `-` / `-`
 - Result: `FAIL`
 

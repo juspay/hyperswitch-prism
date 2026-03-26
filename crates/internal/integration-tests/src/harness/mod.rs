@@ -13,6 +13,7 @@ pub mod metadata;
 pub mod report;
 pub mod scenario_api;
 pub mod scenario_assert;
+pub mod scenario_display_name;
 pub mod scenario_loader;
 pub mod scenario_types;
 pub mod sdk_executor;

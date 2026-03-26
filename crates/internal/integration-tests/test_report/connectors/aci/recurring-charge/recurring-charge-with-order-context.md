@@ -1,6 +1,7 @@
-# Connector `aci` / Suite `recurring_charge` / Scenario `recurring_charge_with_order_context`
+# Connector `aci` / Suite `recurring_charge` / Scenario `Recurring Charge | Order Context`
 
 - Service: `RecurringPaymentService/Charge`
+- Scenario Key: `recurring_charge_with_order_context`
 - PM / PMT: `-` / `-`
 - Result: `FAIL`
 
@@ -69,7 +70,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US",
     "color_depth": 24,
     "screen_height": 1080,
@@ -173,8 +174,7 @@ Response contents:
     "x-xss-protection": "1; mode=block"
   },
   "rawConnectorRequest": "***MASKED***"
-  }
-}
+
 
 Response trailers received:
 (empty)
@@ -273,8 +273,7 @@ Response contents:
     "connectorCustomerId": ""
   },
   "rawConnectorRequest": "***MASKED***"
-  }
-}
+
 
 Response trailers received:
 (empty)

@@ -1,6 +1,7 @@
-# Connector `wellsfargo` / Suite `refund_sync` / Scenario `refund_sync`
+# Connector `wellsfargo` / Suite `refund_sync` / Scenario `Refund Sync`
 
 - Service: `RefundService/Get`
+- Scenario Key: `refund_sync`
 - PM / PMT: `-` / `-`
 - Result: `FAIL`
 
@@ -53,14 +54,14 @@ _Response trace not available._
   "shipping_cost": 0,
   "payment_method": {
     "card": {
-      "card_number": "***MASKED***",
+      "card_number": ***MASKED***"
       "card_exp_month": {
         "value": "08"
       },
       "card_exp_year": {
         "value": "30"
       },
-      "card_cvc": "***MASKED***",
+      "card_cvc": ***MASKED***"
       "card_holder_name": {
         "value": "Noah Brown"
       },
@@ -185,7 +186,7 @@ _Response trace not available._
     "cache-control": "no-cache, no-store, must-revalidate"
   },
   "network_transaction_id": "016150703802094",
-  "incremental_authorization_allowed": "***MASKED***",
+  "incremental_authorization_allowed": ***MASKED***"
   "raw_connector_response": "***MASKED***",
   "connector_response": {
     "additional_payment_method_data": {

@@ -1,6 +1,7 @@
-# Connector `aci` / Suite `setup_recurring` / Scenario `setup_recurring_with_webhook`
+# Connector `aci` / Suite `setup_recurring` / Scenario `Setup Recurring | Webhook`
 
 - Service: `PaymentService/SetupRecurring`
+- Scenario Key: `setup_recurring_with_webhook`
 - PM / PMT: `card` / `credit`
 - Result: `FAIL`
 
@@ -61,7 +62,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US",
     "color_depth": 24,
     "screen_height": 1080,
@@ -167,8 +168,7 @@ Response contents:
     "x-xss-protection": "1; mode=block"
   },
   "rawConnectorRequest": "***MASKED***"
-  }
-}
+
 
 Response trailers received:
 (empty)

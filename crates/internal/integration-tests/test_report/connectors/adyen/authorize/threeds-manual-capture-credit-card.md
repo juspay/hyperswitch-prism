@@ -1,6 +1,7 @@
-# Connector `adyen` / Suite `authorize` / Scenario `threeds_manual_capture_credit_card`
+# Connector `adyen` / Suite `authorize` / Scenario `Credit Card | 3DS | Manual Capture`
 
 - Service: `PaymentService/Authorize`
+- Scenario Key: `threeds_manual_capture_credit_card`
 - PM / PMT: `card` / `credit`
 - Result: `PASS`
 
@@ -199,9 +200,7 @@ Response contents:
   },
   "networkTransactionId": "WWE8F93XZ0324",
   "rawConnectorResponse": "***MASKED***"
-  },
-  "rawConnectorRequest": "***MASKED***"
-  },
+  
   "connectorResponse": {
     "additionalPaymentMethodData": {
       "card": {

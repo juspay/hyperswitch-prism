@@ -1,6 +1,7 @@
-# Connector `forte` / Suite `post_authenticate` / Scenario `threeds_card_post_authenticate`
+# Connector `forte` / Suite `post_authenticate` / Scenario `Card Post Authenticate | 3DS`
 
 - Service: `PaymentMethodAuthenticationService/PostAuthenticate`
+- Scenario Key: `threeds_card_post_authenticate`
 - PM / PMT: `card` / `credit`
 - Result: `FAIL`
 
@@ -196,7 +197,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US"
   },
   "capture_method": "MANUAL",
@@ -375,7 +376,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US"
   },
   "redirection_response": {

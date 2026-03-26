@@ -1,6 +1,7 @@
-# Connector `nexixpay` / Suite `authorize` / Scenario `no3ds_auto_capture_bacs_bank_transfer`
+# Connector `nexixpay` / Suite `authorize` / Scenario `BACS Bank Transfer | No 3DS | Automatic Capture`
 
 - Service: `PaymentService/Authorize`
+- Scenario Key: `no3ds_auto_capture_bacs_bank_transfer`
 - PM / PMT: `bacs_bank_transfer` / `-`
 - Result: `FAIL`
 

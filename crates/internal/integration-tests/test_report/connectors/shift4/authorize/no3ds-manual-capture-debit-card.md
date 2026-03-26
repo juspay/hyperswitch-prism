@@ -1,6 +1,7 @@
-# Connector `shift4` / Suite `authorize` / Scenario `no3ds_manual_capture_debit_card`
+# Connector `shift4` / Suite `authorize` / Scenario `Debit Card | No 3DS | Manual Capture`
 
 - Service: `PaymentService/Authorize`
+- Scenario Key: `no3ds_manual_capture_debit_card`
 - PM / PMT: `card` / `debit`
 - Result: `FAIL`
 
@@ -223,7 +224,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US",
     "color_depth": 24,
     "screen_height": 1080,
@@ -365,8 +366,7 @@ Response contents:
     "strict-transport-security": "max-age=2592000; includeSubDomains"
   },
   "rawConnectorResponse": "***MASKED***"
-  "rawConnectorRequest": "***MASKED***"
-  }
+  
 }
 
 Response trailers received:

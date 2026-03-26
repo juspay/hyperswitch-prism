@@ -1,6 +1,7 @@
-# Connector `checkout` / Suite `refund_sync` / Scenario `refund_sync_with_reason`
+# Connector `checkout` / Suite `refund_sync` / Scenario `Refund Sync | Reason`
 
 - Service: `RefundService/Get`
+- Scenario Key: `refund_sync_with_reason`
 - PM / PMT: `-` / `-`
 - Result: `PASS`
 
@@ -60,7 +61,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US",
     "color_depth": 24,
     "screen_height": 1080,
@@ -196,9 +197,7 @@ Response contents:
   },
   "networkTransactionId": "036768291840826",
   "rawConnectorResponse": "***MASKED***"
-  },
-  "rawConnectorRequest": "***MASKED***"
-  },
+  
   "capturedAmount": "6000",
   "connectorResponse": {
     "additionalPaymentMethodData": {
@@ -288,8 +287,7 @@ Response contents:
   },
   "connectorTransactionId": "pay_a4og3wibpz2ihmituwlhqgw2nu",
   "rawConnectorResponse": "***MASKED***"
-  },
-  "rawConnectorRequest": "***MASKED***"
+  
   }
 }
 
@@ -361,9 +359,7 @@ Response contents:
   },
   "connectorTransactionId": "pay_a4og3wibpz2ihmituwlhqgw2nu",
   "rawConnectorResponse": "***MASKED***"
-  },
-  "rawConnectorRequest": "***MASKED***"
-  }
+  
 }
 
 Response trailers received:

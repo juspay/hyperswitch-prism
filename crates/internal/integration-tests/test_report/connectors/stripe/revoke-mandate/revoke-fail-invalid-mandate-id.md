@@ -1,6 +1,7 @@
-# Connector `stripe` / Suite `revoke_mandate` / Scenario `revoke_fail_invalid_mandate_id`
+# Connector `stripe` / Suite `revoke_mandate` / Scenario `Revoke Mandate | Revoke Fail Invalid Mandate ID`
 
 - Service: `Unknown`
+- Scenario Key: `revoke_fail_invalid_mandate_id`
 - PM / PMT: `-` / `-`
 - Result: `FAIL`
 
@@ -24,7 +25,7 @@ Response headers received:
 
 Response trailers received:
 content-type: application/grpc
-date: Tue, 24 Mar 2026 08:50:27 GMT
+date: Mon, 23 Mar 2026 15:48:22 GMT
 x-request-id: revoke_mandate_revoke_fail_invalid_mandate_id_req
 Sent 1 request and received 0 responses
 
@@ -50,7 +51,7 @@ grpcurl -plaintext \
   -H "x-connector-config: ***MASKED***" \
   -d @ localhost:50051 types.PaymentService/SetupRecurring <<'JSON'
 {
-  "merchant_recurring_payment_id": "mrpi_c5d07467494e4e7bac57d191",
+  "merchant_recurring_payment_id": "mrpi_3ea1256f30d64b91b92f32997b3c2364",
   "amount": {
     "minor_amount": 6000,
     "currency": "USD"
@@ -70,23 +71,23 @@ grpcurl -plaintext \
         "value": "999"
       },
       "card_holder_name": {
-        "value": "Noah Miller"
+        "value": "Noah Taylor"
       },
       "card_type": "credit"
     }
   },
   "customer": {
-    "name": "Ethan Miller",
+    "name": "Mia Wilson",
     "email": {
-      "value": "riley.1081@testmail.io"
+      "value": "casey.8260@testmail.io"
     },
-    "id": "cust_e98c04f789fc4f728ee7fabc",
-    "phone_number": "+914347987257"
+    "id": "cust_a2c1f5a0d2294d3eb702ce46ca315435",
+    "phone_number": "+919989610046"
   },
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US",
     "color_depth": 24,
     "screen_height": 1080,
@@ -98,35 +99,35 @@ grpcurl -plaintext \
   "address": {
     "billing_address": {
       "first_name": {
-        "value": "Ethan"
+        "value": "Mia"
       },
       "last_name": {
-        "value": "Johnson"
+        "value": "Smith"
       },
       "line1": {
-        "value": "8768 Pine Dr"
+        "value": "6699 Main Ln"
       },
       "line2": {
-        "value": "7758 Sunset Ln"
+        "value": "5390 Sunset St"
       },
       "line3": {
-        "value": "31 Sunset Rd"
+        "value": "447 Pine Dr"
       },
       "city": {
-        "value": "New York"
+        "value": "Seattle"
       },
       "state": {
         "value": "CA"
       },
       "zip_code": {
-        "value": "10515"
+        "value": "99620"
       },
       "country_alpha2_code": "US",
       "email": {
-        "value": "casey.3267@example.com"
+        "value": "alex.6136@testmail.io"
       },
       "phone_number": {
-        "value": "1124320083"
+        "value": "4817019802"
       },
       "phone_country_code": "+91"
     }
@@ -161,12 +162,12 @@ x-tenant-id: default
 
 Response headers received:
 content-type: application/grpc
-date: Tue, 24 Mar 2026 08:50:27 GMT
+date: Mon, 23 Mar 2026 15:48:22 GMT
 x-request-id: setup_recurring_setup_recurring_req
 
 Response contents:
 {
-  "connectorRecurringPaymentId": "seti_1TEQfOD5R7gDAGffLATLG5nT",
+  "connectorRecurringPaymentId": "seti_1TEAiHD5R7gDAGffvvGxYiLM",
   "status": "CHARGED",
   "statusCode": 200,
   "responseHeaders": {
@@ -177,13 +178,13 @@ Response contents:
     "access-control-max-age": "300",
     "cache-control": "no-cache, no-store",
     "connection": "keep-alive",
-    "content-length": "1957",
-    "content-security-policy": "base-uri 'none'; default-src 'none'; form-action 'none'; frame-ancestors 'none'; img-src 'self'; script-src 'self' 'report-sample'; style-src 'self'; worker-src 'none'; upgrade-insecure-requests; report-uri https://q.stripe.com/csp-violation?q=cf2m0QZllQ_cO_-ua0bmze_ZEC6zU5cKsor4N_WReyb_KG6mR6TnzmyVa9YaYVkePdSCzFeftRkot2ZX",
+    "content-length": "1965",
+    "content-security-policy": "base-uri 'none'; default-src 'none'; form-action 'none'; frame-ancestors 'none'; img-src 'self'; script-src 'self' 'report-sample'; style-src 'self'; worker-src 'none'; upgrade-insecure-requests; report-uri https://q.stripe.com/csp-violation?q=hUKDJ4YUx473XYLV0pYtoq3cs3AKKgls3BBntBphBU-yO5VTy8MFHoCN9NkxP-8p_wCp63JSrVwAdn07",
     "content-type": "application/json",
-    "date": "Tue, 24 Mar 2026 08:50:27 GMT",
-    "idempotency-key": "4db6fee6-155d-4d31-8314-da6391e79e0b",
-    "original-request": "req_RKRCd4dH2nEYpp",
-    "request-id": "req_RKRCd4dH2nEYpp",
+    "date": "Mon, 23 Mar 2026 15:48:22 GMT",
+    "idempotency-key": "9915d95e-d308-4074-8d08-05b4d37201d6",
+    "original-request": "req_nB8oKt0i9dbqjF",
+    "request-id": "req_nB8oKt0i9dbqjF",
     "server": "nginx",
     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
     "stripe-should-retry": "false",
@@ -195,11 +196,11 @@ Response contents:
   },
   "mandateReference": {
     "connectorMandateId": {
-      "connectorMandateId": "pm_1TEQfOD5R7gDAGff7UgRrVI9",
-      "paymentMethodId": "pm_1TEQfOD5R7gDAGff7UgRrVI9"
+      "connectorMandateId": "pm_1TEAiHD5R7gDAGffJ8cmel4E",
+      "paymentMethodId": "pm_1TEAiHD5R7gDAGffJ8cmel4E"
     }
   },
-  "merchantRecurringPaymentId": "seti_1TEQfOD5R7gDAGffLATLG5nT",
+  "merchantRecurringPaymentId": "seti_1TEAiHD5R7gDAGffvvGxYiLM",
   "connectorResponse": {
     "additionalPaymentMethodData": {
       "card": {
@@ -209,8 +210,7 @@ Response contents:
   },
   "capturedAmount": "6000",
   "rawConnectorRequest": "***MASKED***"
-  }
-}
+
 
 Response trailers received:
 (empty)
@@ -232,7 +232,7 @@ grpcurl -plaintext \
   -H "x-connector-config: ***MASKED***" \
   -d @ localhost:50051 types.RecurringPaymentService/Revoke <<'JSON'
 {
-  "merchant_revoke_id": "gen_845759",
+  "merchant_revoke_id": "gen_542584",
   "mandate_id": "invalid_mandate_12345",
   "connector_mandate_id": "invalid_connector_mandate_12345"
 }
@@ -262,7 +262,7 @@ Response headers received:
 
 Response trailers received:
 content-type: application/grpc
-date: Tue, 24 Mar 2026 08:50:27 GMT
+date: Mon, 23 Mar 2026 15:48:22 GMT
 x-request-id: revoke_mandate_revoke_fail_invalid_mandate_id_req
 Sent 1 request and received 0 responses
 

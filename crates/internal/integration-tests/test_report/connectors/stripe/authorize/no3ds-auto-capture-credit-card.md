@@ -1,6 +1,7 @@
-# Connector `stripe` / Suite `authorize` / Scenario `no3ds_auto_capture_credit_card`
+# Connector `stripe` / Suite `authorize` / Scenario `Credit Card | No 3DS | Automatic Capture`
 
 - Service: `PaymentService/Authorize`
+- Scenario Key: `no3ds_auto_capture_credit_card`
 - PM / PMT: `card` / `credit`
 - Result: `PASS`
 
@@ -21,78 +22,78 @@ grpcurl -plaintext \
   -H "x-connector-config: ***MASKED***" \
   -d @ localhost:50051 types.CustomerService/Create <<'JSON'
 {
-  "merchant_customer_id": "mcui_d91afdf0b5834254b8b74d58",
-  "customer_name": "Ethan Johnson",
+  "merchant_customer_id": "mcui_ccb0751369a24f32bb9af40f",
+  "customer_name": "Emma Taylor",
   "email": {
-    "value": "sam.9124@sandbox.example.com"
+    "value": "sam.4809@example.com"
   },
-  "phone_number": "+918344811610",
+  "phone_number": "+919430464090",
   "address": {
     "shipping_address": {
       "first_name": {
-        "value": "Ethan"
+        "value": "Noah"
       },
       "last_name": {
-        "value": "Taylor"
+        "value": "Miller"
       },
       "line1": {
-        "value": "2797 Market Ave"
+        "value": "9036 Oak St"
       },
       "line2": {
-        "value": "4384 Pine Blvd"
+        "value": "5964 Oak Ln"
       },
       "line3": {
-        "value": "8888 Market Blvd"
+        "value": "498 Main Dr"
       },
       "city": {
-        "value": "San Francisco"
+        "value": "Austin"
       },
       "state": {
         "value": "CA"
       },
       "zip_code": {
-        "value": "54887"
+        "value": "62827"
       },
       "country_alpha2_code": "US",
       "email": {
-        "value": "morgan.8506@example.com"
+        "value": "jordan.8516@example.com"
       },
       "phone_number": {
-        "value": "7838796248"
+        "value": "1948846940"
       },
       "phone_country_code": "+91"
     },
     "billing_address": {
       "first_name": {
-        "value": "Ethan"
+        "value": "Noah"
       },
       "last_name": {
         "value": "Smith"
       },
       "line1": {
-        "value": "2734 Market Dr"
+        "value": "4541 Lake Ln"
       },
       "line2": {
-        "value": "7339 Lake St"
+        "value": "4714 Oak Dr"
       },
       "line3": {
-        "value": "9679 Sunset Ln"
+        "value": "5448 Lake Ave"
       },
       "city": {
-        "value": "Chicago"
+        "value": "New York"
       },
       "state": {
         "value": "CA"
       },
       "zip_code": {
-        "value": "45584"
+        "value": "82060"
       },
       "country_alpha2_code": "US",
       "email": {
-        "value": "morgan.2533@sandbox.example.com"
+        "value": "sam.1891@sandbox.example.com"
       },
       "phone_number": {
-        "value": "7110445806"
+        "value": "4745681025"
       },
       "phone_country_code": "+91"
     }
@@ -122,13 +123,13 @@ x-tenant-id: default
 
 Response headers received:
 content-type: application/grpc
-date: Tue, 24 Mar 2026 09:39:46 GMT
+date: Tue, 24 Mar 2026 07:12:43 GMT
 x-request-id: create_customer_create_customer_req
 
 Response contents:
 {
-  "merchantCustomerId": "cus_UCr911IR63qnLg",
-  "connectorCustomerId": "cus_UCr911IR63qnLg",
+  "merchantCustomerId": "cus_UCom5KlgMrQnwS",
+  "connectorCustomerId": "cus_UCom5KlgMrQnwS",
   "statusCode": 200,
   "responseHeaders": {
     "access-control-allow-credentials": "true",
@@ -138,13 +139,13 @@ Response contents:
     "access-control-max-age": "300",
     "cache-control": "no-cache, no-store",
     "connection": "keep-alive",
-    "content-length": "679",
-    "content-security-policy": "base-uri 'none'; default-src 'none'; form-action 'none'; frame-ancestors 'none'; img-src 'self'; script-src 'self' 'report-sample'; style-src 'self'; worker-src 'none'; upgrade-insecure-requests; report-uri https://q.stripe.com/csp-violation?q=jzYTpVf2OeNS1G5CIgQplybCQD2z2NaT2Y5fJGFDtG-3U_RVzaFmBwWSzNFv87onPxPZPfrs1fqkWfxx",
+    "content-length": "669",
+    "content-security-policy": "base-uri 'none'; default-src 'none'; form-action 'none'; frame-ancestors 'none'; img-src 'self'; script-src 'self' 'report-sample'; style-src 'self'; worker-src 'none'; upgrade-insecure-requests; report-uri https://q.stripe.com/csp-violation?q=f5VXIeU8cFr4jL34-W4bsqu1vZ_wInIUUotqkLJmli8LYHG0zVE6RHlswqg7dzE2MOHFlfPFfH-MYkEi",
     "content-type": "application/json",
-    "date": "Tue, 24 Mar 2026 09:39:46 GMT",
-    "idempotency-key": "b9e44246-4fcb-41b8-9db8-daf211eaf098",
-    "original-request": "req_OcmKkvosOodapO",
-    "request-id": "req_OcmKkvosOodapO",
+    "date": "Tue, 24 Mar 2026 07:12:43 GMT",
+    "idempotency-key": "1c9b3b39-3536-44e9-b914-c1f2784e7d47",
+    "original-request": "req_kmEKfB4Hgku1Ae",
+    "request-id": "req_kmEKfB4Hgku1Ae",
     "server": "nginx",
     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
     "stripe-should-retry": "false",
@@ -185,7 +186,7 @@ grpcurl -plaintext \
   -H "x-connector-config: ***MASKED***" \
   -d @ localhost:50051 types.PaymentMethodService/Tokenize <<'JSON'
 {
-  "merchant_payment_method_id": "gen_868471",
+  "merchant_payment_method_id": "gen_376711",
   "amount": {
     "minor_amount": 6000,
     "currency": "USD"
@@ -210,32 +211,31 @@ grpcurl -plaintext \
     }
   },
   "customer": {
-    "id": "cust_e140aaa85c1541d1b6d25395",
-    "name": "Ava Johnson",
+    "id": "cust_ff685ff4fb8d4d0b97d067a8",
+    "name": "Ethan Smith",
     "email": {
-      "value": "jordan.2733@example.com"
-    },
-    "connector_customer_id": "cus_UCr911IR63qnLg"
+      "value": "casey.5860@example.com"
+    }
   },
   "address": {
     "billing_address": {
       "first_name": {
-        "value": "Ethan"
+        "value": "Noah"
       },
       "last_name": {
         "value": "Smith"
       },
       "line1": {
-        "value": "2734 Market Dr"
+        "value": "4541 Lake Ln"
       },
       "city": {
-        "value": "Chicago"
+        "value": "New York"
       },
       "state": {
         "value": "CA"
       },
       "zip_code": {
-        "value": "45584"
+        "value": "82060"
       },
       "country_alpha2_code": "US"
     }
@@ -265,7 +265,7 @@ x-tenant-id: default
 
 Response headers received:
 content-type: application/grpc
-date: Tue, 24 Mar 2026 09:39:47 GMT
+date: Tue, 24 Mar 2026 07:12:53 GMT
 x-request-id: tokenize_payment_method_tokenize_credit_card_req
 
 Response contents:
@@ -287,12 +287,12 @@ Response contents:
     "cache-control": "no-cache, no-store",
     "connection": "keep-alive",
     "content-length": "386",
-    "content-security-policy": "base-uri 'none'; default-src 'none'; form-action 'none'; frame-ancestors 'none'; img-src 'self'; script-src 'self' 'report-sample'; style-src 'self'; worker-src 'none'; upgrade-insecure-requests; report-uri https://q.stripe.com/csp-violation?q=jzYTpVf2OeNS1G5CIgQplybCQD2z2NaT2Y5fJGFDtG-3U_RVzaFmBwWSzNFv87onPxPZPfrs1fqkWfxx",
+    "content-security-policy": "base-uri 'none'; default-src 'none'; form-action 'none'; frame-ancestors 'none'; img-src 'self'; script-src 'self' 'report-sample'; style-src 'self'; worker-src 'none'; upgrade-insecure-requests; report-uri https://q.stripe.com/csp-violation?q=f5VXIeU8cFr4jL34-W4bsqu1vZ_wInIUUotqkLJmli8LYHG0zVE6RHlswqg7dzE2MOHFlfPFfH-MYkEi",
     "content-type": "application/json",
-    "date": "Tue, 24 Mar 2026 09:39:47 GMT",
-    "idempotency-key": "daba152d-b4d6-4231-9e24-ea055f4d9c46",
-    "original-request": "req_M7mK2ayRZuURty",
-    "request-id": "req_M7mK2ayRZuURty",
+    "date": "Tue, 24 Mar 2026 07:12:44 GMT",
+    "idempotency-key": "2a62763d-636f-4c54-b598-bdd12b234153",
+    "original-request": "req_YtGjs263yrRj61",
+    "request-id": "req_YtGjs263yrRj61",
     "server": "nginx",
     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
     "stripe-version": "2022-11-15",
@@ -323,7 +323,7 @@ grpcurl -plaintext \
   -H "x-connector-config: ***MASKED***" \
   -d @ localhost:50051 types.PaymentService/Authorize <<'JSON'
 {
-  "merchant_transaction_id": "mti_a04c0150e7d145bc830a5aab",
+  "merchant_transaction_id": "mti_0aab0313402c4611b81fe3a8",
   "amount": {
     "minor_amount": 6000,
     "currency": "USD"
@@ -352,18 +352,18 @@ grpcurl -plaintext \
   },
   "capture_method": "AUTOMATIC",
   "customer": {
-    "name": "Ava Johnson",
+    "name": "Ethan Smith",
     "email": {
-      "value": "jordan.2733@example.com"
+      "value": "casey.5860@example.com"
     },
-    "id": "cust_e140aaa85c1541d1b6d25395",
-    "phone_number": "+19245439739",
-    "connector_customer_id": "cus_UCr911IR63qnLg"
+    "id": "cust_ff685ff4fb8d4d0b97d067a8",
+    "phone_number": "+442226251537",
+    "connector_customer_id": "cus_UCom5KlgMrQnwS"
   },
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US",
     "color_depth": 24,
     "screen_height": 1080,
@@ -375,69 +375,69 @@ grpcurl -plaintext \
   "address": {
     "shipping_address": {
       "first_name": {
-        "value": "Ethan"
+        "value": "Noah"
       },
       "last_name": {
-        "value": "Taylor"
+        "value": "Miller"
       },
       "line1": {
-        "value": "2797 Market Ave"
+        "value": "9036 Oak St"
       },
       "line2": {
-        "value": "4384 Pine Blvd"
+        "value": "5964 Oak Ln"
       },
       "line3": {
-        "value": "8888 Market Blvd"
+        "value": "498 Main Dr"
       },
       "city": {
-        "value": "San Francisco"
+        "value": "Austin"
       },
       "state": {
         "value": "CA"
       },
       "zip_code": {
-        "value": "54887"
+        "value": "62827"
       },
       "country_alpha2_code": "US",
       "email": {
-        "value": "morgan.8506@example.com"
+        "value": "jordan.8516@example.com"
       },
       "phone_number": {
-        "value": "7838796248"
+        "value": "1948846940"
       },
       "phone_country_code": "+91"
     },
     "billing_address": {
       "first_name": {
-        "value": "Ethan"
+        "value": "Noah"
       },
       "last_name": {
         "value": "Smith"
       },
       "line1": {
-        "value": "2734 Market Dr"
+        "value": "4541 Lake Ln"
       },
       "line2": {
-        "value": "7339 Lake St"
+        "value": "4714 Oak Dr"
       },
       "line3": {
-        "value": "9679 Sunset Ln"
+        "value": "5448 Lake Ave"
       },
       "city": {
-        "value": "Chicago"
+        "value": "New York"
       },
       "state": {
         "value": "CA"
       },
       "zip_code": {
-        "value": "45584"
+        "value": "82060"
       },
       "country_alpha2_code": "US",
       "email": {
-        "value": "morgan.2533@sandbox.example.com"
+        "value": "sam.1891@sandbox.example.com"
       },
       "phone_number": {
-        "value": "7110445806"
+        "value": "4745681025"
       },
       "phone_country_code": "+91"
     }
@@ -478,13 +478,13 @@ x-tenant-id: default
 
 Response headers received:
 content-type: application/grpc
-date: Tue, 24 Mar 2026 09:39:49 GMT
+date: Tue, 24 Mar 2026 07:12:57 GMT
 x-request-id: authorize_no3ds_auto_capture_credit_card_req
 
 Response contents:
 {
-  "merchantTransactionId": "pi_3TERR9D5R7gDAGff1wnICFUU",
-  "connectorTransactionId": "pi_3TERR9D5R7gDAGff1wnICFUU",
+  "merchantTransactionId": "pi_3TEP90D5R7gDAGff1eOdizrC",
+  "connectorTransactionId": "pi_3TEP90D5R7gDAGff1eOdizrC",
   "status": "CHARGED",
   "statusCode": 200,
   "responseHeaders": {
@@ -495,13 +495,13 @@ Response contents:
     "access-control-max-age": "300",
     "cache-control": "no-cache, no-store",
     "connection": "keep-alive",
-    "content-length": "5586",
-    "content-security-policy": "base-uri 'none'; default-src 'none'; form-action 'none'; frame-ancestors 'none'; img-src 'self'; script-src 'self' 'report-sample'; style-src 'self'; worker-src 'none'; upgrade-insecure-requests; report-uri https://q.stripe.com/csp-violation?q=jzYTpVf2OeNS1G5CIgQplybCQD2z2NaT2Y5fJGFDtG-3U_RVzaFmBwWSzNFv87onPxPZPfrs1fqkWfxx",
+    "content-length": "5551",
+    "content-security-policy": "base-uri 'none'; default-src 'none'; form-action 'none'; frame-ancestors 'none'; img-src 'self'; script-src 'self' 'report-sample'; style-src 'self'; worker-src 'none'; upgrade-insecure-requests; report-uri https://q.stripe.com/csp-violation?q=f5VXIeU8cFr4jL34-W4bsqu1vZ_wInIUUotqkLJmli8LYHG0zVE6RHlswqg7dzE2MOHFlfPFfH-MYkEi",
     "content-type": "application/json",
-    "date": "Tue, 24 Mar 2026 09:39:49 GMT",
-    "idempotency-key": "5577e82b-3f30-4ef5-bb46-1027cffcab22",
-    "original-request": "req_qSZXCdVfSR2GWD",
-    "request-id": "req_qSZXCdVfSR2GWD",
+    "date": "Tue, 24 Mar 2026 07:12:55 GMT",
+    "idempotency-key": "28168bd4-e6fc-4b81-be4a-7696e3205203",
+    "original-request": "req_PDhG22ZZtuWCPO",
+    "request-id": "req_PDhG22ZZtuWCPO",
     "server": "nginx",
     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
     "stripe-should-retry": "false",
@@ -513,15 +513,15 @@ Response contents:
   },
   "networkTransactionId": "104557651805572",
   "state": {
-    "connectorCustomerId": "cus_UCr911IR63qnLg"
+    "connectorCustomerId": "cus_UCom5KlgMrQnwS"
   },
   "rawConnectorResponse": "***MASKED***"
-  "rawConnectorRequest": "***MASKED***"
+  
   "capturedAmount": "6000",
   "mandateReference": {
     "connectorMandateId": {
-      "connectorMandateId": "pm_1TERR9D5R7gDAGffilYuEQTP",
-      "paymentMethodId": "pm_1TERR9D5R7gDAGffilYuEQTP"
+      "connectorMandateId": "pm_1TEP90D5R7gDAGff3mJYnZPW",
+      "paymentMethodId": "pm_1TEP90D5R7gDAGff3mJYnZPW"
     }
   },
   "connectorResponse": {

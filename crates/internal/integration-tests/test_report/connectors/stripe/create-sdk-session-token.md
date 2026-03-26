@@ -9,14 +9,14 @@
 
 | Scenario | PM | PMT | Result | Prerequisites |
 |:---------|:--:|:---:|:------:|:--------------|
-| [`create_sdk_session_apple_pay`](./create-sdk-session-token/create-sdk-session-apple-pay.md) | - | - | `FAIL` | None |
-| [`create_sdk_session_fail_invalid_country`](./create-sdk-session-token/create-sdk-session-fail-invalid-country.md) | - | - | `FAIL` | None |
-| [`create_sdk_session_google_pay`](./create-sdk-session-token/create-sdk-session-google-pay.md) | - | - | `FAIL` | None |
-| [`create_sdk_session_with_taxes`](./create-sdk-session-token/create-sdk-session-with-taxes.md) | - | - | `FAIL` | None |
+| [`Create SDK Session Token \| Create SDK Session Apple Pay`](./create-sdk-session-token/create-sdk-session-apple-pay.md) | - | - | `FAIL` | None |
+| [`Create SDK Session Token \| Create SDK Session Fail Invalid Country`](./create-sdk-session-token/create-sdk-session-fail-invalid-country.md) | - | - | `FAIL` | None |
+| [`Create SDK Session Token \| Create SDK Session Google Pay`](./create-sdk-session-token/create-sdk-session-google-pay.md) | - | - | `FAIL` | None |
+| [`Create SDK Session Token \| Create SDK Session With Taxes`](./create-sdk-session-token/create-sdk-session-with-taxes.md) | - | - | `FAIL` | None |
 
 ## Failed Scenarios
 
-- [`create_sdk_session_apple_pay`](./create-sdk-session-token/create-sdk-session-apple-pay.md) — Resolved method descriptor:
-- [`create_sdk_session_fail_invalid_country`](./create-sdk-session-token/create-sdk-session-fail-invalid-country.md) — Resolved method descriptor:
-- [`create_sdk_session_google_pay`](./create-sdk-session-token/create-sdk-session-google-pay.md) — Resolved method descriptor:
-- [`create_sdk_session_with_taxes`](./create-sdk-session-token/create-sdk-session-with-taxes.md) — Resolved method descriptor:
+- [`Create SDK Session Token | Create SDK Session Apple Pay`](./create-sdk-session-token/create-sdk-session-apple-pay.md) — Resolved method descriptor:
+- [`Create SDK Session Token | Create SDK Session Fail Invalid Country`](./create-sdk-session-token/create-sdk-session-fail-invalid-country.md) — Resolved method descriptor:
+- [`Create SDK Session Token | Create SDK Session Google Pay`](./create-sdk-session-token/create-sdk-session-google-pay.md) — Resolved method descriptor:
+- [`Create SDK Session Token | Create SDK Session With Taxes`](./create-sdk-session-token/create-sdk-session-with-taxes.md) — Resolved method descriptor:

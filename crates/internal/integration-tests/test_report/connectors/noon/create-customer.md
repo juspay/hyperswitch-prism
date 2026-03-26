@@ -9,8 +9,8 @@
 
 | Scenario | PM | PMT | Result | Prerequisites |
 |:---------|:--:|:---:|:------:|:--------------|
-| [`create_customer`](./create-customer/create-customer.md) | - | - | `FAIL` | None |
+| [`Create Customer`](./create-customer/create-customer.md) | - | - | `FAIL` | None |
 
 ## Failed Scenarios
 
-- [`create_customer`](./create-customer/create-customer.md) — sdk call failed: sdk HTTP request failed for 'create_customer'/'create_customer': builder error
+- [`Create Customer`](./create-customer/create-customer.md) — sdk call failed: sdk HTTP request failed for 'create_customer'/'create_customer': builder error

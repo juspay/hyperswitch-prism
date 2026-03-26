@@ -18,6 +18,7 @@
         "must_not_exist": true
       }
     },
-    "is_default": true
+    "is_default": true,
+    "display_name": "Create Access Token"
   }
 }

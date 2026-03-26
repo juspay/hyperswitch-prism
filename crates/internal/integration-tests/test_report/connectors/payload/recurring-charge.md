@@ -9,12 +9,12 @@
 
 | Scenario | PM | PMT | Result | Prerequisites |
 |:---------|:--:|:---:|:------:|:--------------|
-| [`recurring_charge`](./recurring-charge/recurring-charge.md) | - | - | `FAIL` | `setup_recurring(setup_recurring)` (FAIL) |
-| [`recurring_charge_low_amount`](./recurring-charge/recurring-charge-low-amount.md) | - | - | `FAIL` | `setup_recurring(setup_recurring)` (FAIL) |
-| [`recurring_charge_with_order_context`](./recurring-charge/recurring-charge-with-order-context.md) | - | - | `FAIL` | `setup_recurring(setup_recurring)` (FAIL) |
+| [`Recurring Charge`](./recurring-charge/recurring-charge.md) | - | - | `FAIL` | `setup_recurring(setup_recurring)` (FAIL) |
+| [`Recurring Charge \| Low Amount`](./recurring-charge/recurring-charge-low-amount.md) | - | - | `FAIL` | `setup_recurring(setup_recurring)` (FAIL) |
+| [`Recurring Charge \| Order Context`](./recurring-charge/recurring-charge-with-order-context.md) | - | - | `FAIL` | `setup_recurring(setup_recurring)` (FAIL) |
 
 ## Failed Scenarios
 
-- [`recurring_charge`](./recurring-charge/recurring-charge.md) — assertion failed for field 'connector_transaction_id': expected field to exist
-- [`recurring_charge_low_amount`](./recurring-charge/recurring-charge-low-amount.md) — assertion failed for field 'connector_transaction_id': expected field to exist
-- [`recurring_charge_with_order_context`](./recurring-charge/recurring-charge-with-order-context.md) — assertion failed for field 'connector_transaction_id': expected field to exist
+- [`Recurring Charge`](./recurring-charge/recurring-charge.md) — assertion failed for field 'connector_transaction_id': expected field to exist
+- [`Recurring Charge | Low Amount`](./recurring-charge/recurring-charge-low-amount.md) — assertion failed for field 'connector_transaction_id': expected field to exist
+- [`Recurring Charge | Order Context`](./recurring-charge/recurring-charge-with-order-context.md) — assertion failed for field 'connector_transaction_id': expected field to exist

@@ -1,6 +1,7 @@
-# Connector `paypal` / Suite `capture` / Scenario `capture_partial_amount`
+# Connector `paypal` / Suite `capture` / Scenario `Capture | Partial Amount`
 
 - Service: `PaymentService/Capture`
+- Scenario Key: `capture_partial_amount`
 - PM / PMT: `-` / `-`
 - Result: `PASS`
 
@@ -213,7 +214,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US",
     "color_depth": 24,
     "screen_height": 1080,
@@ -286,9 +287,7 @@ Response contents:
     }
   },
   "rawConnectorResponse": "***MASKED***"
-  },
-  "rawConnectorRequest": "***MASKED***"
-  },
+  
   "mandateReference": {
     "connectorMandateId": {}
   },
@@ -397,8 +396,7 @@ Response contents:
       "expiresInSeconds": "32342"
     }
   },
-  "rawConnectorRequest": "***MASKED***"
-  },
+  "rawConnectorRequest": "***MASKED***",
   "capturedAmount": "3000",
   "connectorFeatureData": {
     "value": "{\"authorize_id\":\"36X22243RL634823X\",\"capture_id\":\"5GU22491108230418\",\"incremental_authorization_id\":null,\"psync_flow\":\"CAPTURE\",\"next_action\":null,\"order_id\":null}"

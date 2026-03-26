@@ -1,6 +1,7 @@
-# Connector `checkout` / Suite `capture` / Scenario `capture_with_merchant_order_id`
+# Connector `checkout` / Suite `capture` / Scenario `Capture | Merchant Order ID Reference`
 
 - Service: `PaymentService/Capture`
+- Scenario Key: `capture_with_merchant_order_id`
 - PM / PMT: `-` / `-`
 - Result: `PASS`
 
@@ -60,7 +61,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US",
     "color_depth": 24,
     "screen_height": 1080,
@@ -196,9 +197,7 @@ Response contents:
   },
   "networkTransactionId": "263882164232628",
   "rawConnectorResponse": "***MASKED***"
-  },
-  "rawConnectorRequest": "***MASKED***"
-  },
+  
   "capturableAmount": "6000",
   "connectorResponse": {
     "additionalPaymentMethodData": {
@@ -242,7 +241,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US",
     "color_depth": 24,
     "screen_height": 1080,
@@ -296,7 +295,7 @@ Response contents:
     "strict-transport-security": "max-age=16000000; includeSubDomains; preload;"
   },
   "rawConnectorRequest": "***MASKED***"
-  },
+  
   "capturedAmount": "6000",
   "connectorFeatureData": {
     "value": "{\"psync_flow\":\"Capture\"}"

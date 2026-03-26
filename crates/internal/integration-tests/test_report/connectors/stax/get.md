@@ -9,10 +9,10 @@
 
 | Scenario | PM | PMT | Result | Prerequisites |
 |:---------|:--:|:---:|:------:|:--------------|
-| [`sync_payment`](./get/sync-payment.md) | - | - | `FAIL` | `create_customer(create_customer)` (PASS) -> `tokenize_payment_method(tokenize_credit_card)` (FAIL) -> `authorize(no3ds_auto_capture_credit_card)` (FAIL) |
-| [`sync_payment_with_handle_response`](./get/sync-payment-with-handle-response.md) | - | - | `FAIL` | `create_customer(create_customer)` (PASS) -> `tokenize_payment_method(tokenize_credit_card)` (FAIL) -> `authorize(no3ds_auto_capture_credit_card)` (FAIL) |
+| [`Get \| Sync Payment`](./get/sync-payment.md) | - | - | `FAIL` | `create_customer(create_customer)` (PASS) -> `tokenize_payment_method(tokenize_credit_card)` (FAIL) -> `authorize(no3ds_auto_capture_credit_card)` (FAIL) |
+| [`Get \| Sync Payment With Handle Response`](./get/sync-payment-with-handle-response.md) | - | - | `FAIL` | `create_customer(create_customer)` (PASS) -> `tokenize_payment_method(tokenize_credit_card)` (FAIL) -> `authorize(no3ds_auto_capture_credit_card)` (FAIL) |
 
 ## Failed Scenarios
 
-- [`sync_payment`](./get/sync-payment.md) — assertion failed for field 'error': expected field to be absent or null, got {"issuerDetails":{"networkDetails":{}},"connectorDetails":{"code":"422","message":"The selected id is invalid.","reason":"{\"id\":[\"The selected id is invalid.\"]}"}}
-- [`sync_payment_with_handle_response`](./get/sync-payment-with-handle-response.md) — assertion failed for field 'connector_transaction_id': expected field to exist
+- [`Get | Sync Payment`](./get/sync-payment.md) — assertion failed for field 'error': expected field to be absent or null, got {"issuerDetails":{"networkDetails":{}},"connectorDetails":{"code":"422","message":"The selected id is invalid.","reason":"{\"id\":[\"The selected id is invalid.\"]}"}}
+- [`Get | Sync Payment With Handle Response`](./get/sync-payment-with-handle-response.md) — assertion failed for field 'connector_transaction_id': expected field to exist

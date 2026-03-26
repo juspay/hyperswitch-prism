@@ -1,6 +1,7 @@
-# Connector `braintree` / Suite `tokenize_payment_method` / Scenario `tokenize_credit_card`
+# Connector `braintree` / Suite `tokenize_payment_method` / Scenario `Tokenize Payment Method | Tokenize Credit Card`
 
 - Service: `Unknown`
+- Scenario Key: `tokenize_credit_card`
 - PM / PMT: `card` / `-`
 - Result: `PASS`
 

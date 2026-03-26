@@ -1,6 +1,7 @@
-# Connector `rapyd` / Suite `refund_sync` / Scenario `refund_sync`
+# Connector `rapyd` / Suite `refund_sync` / Scenario `Refund Sync`
 
 - Service: `RefundService/Get`
+- Scenario Key: `refund_sync`
 - PM / PMT: `-` / `-`
 - Result: `FAIL`
 
@@ -53,14 +54,14 @@ _Response trace not available._
   "shipping_cost": 0,
   "payment_method": {
     "card": {
-      "card_number": "***MASKED***",
+      "card_number": ***MASKED***"
       "card_exp_month": {
         "value": "08"
       },
       "card_exp_year": {
         "value": "30"
       },
-      "card_cvc": "***MASKED***",
+      "card_cvc": ***MASKED***"
       "card_holder_name": {
         "value": "Mia Miller"
       },
@@ -186,7 +187,7 @@ _Response trace not available._
     "etag": "W/\"909-9fG7/U/DiMOWUTrcgjmQjZ7y7ZY\""
   },
   "raw_connector_response": "***MASKED***"
-}
+
 ```
 
 </details>

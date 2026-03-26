@@ -1,6 +1,7 @@
-# Connector `nuvei` / Suite `refund_sync` / Scenario `refund_sync`
+# Connector `nuvei` / Suite `refund_sync` / Scenario `Refund Sync`
 
 - Service: `RefundService/Get`
+- Scenario Key: `refund_sync`
 - PM / PMT: `-` / `-`
 - Result: `FAIL`
 
@@ -232,7 +233,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US",
     "color_depth": 24,
     "screen_height": 1080,
@@ -450,9 +451,7 @@ Response contents:
     "set-cookie": "JSESSIONID=b800426edeb52617ba76e377d09a; Path=/ppp; Secure; HttpOnly; SameSite=None"
   },
   "rawConnectorResponse": "***MASKED***"
-  },
-  "rawConnectorRequest": "***MASKED***"
-  }
+  
 }
 
 Response trailers received:
@@ -525,9 +524,7 @@ Response contents:
     "set-cookie": "JSESSIONID=b8005affbfd2070e1d7bff06f3b3; Path=/ppp; Secure; HttpOnly; SameSite=None"
   },
   "rawConnectorResponse": "***MASKED***"
-  },
-  "rawConnectorRequest": "***MASKED***"
-  }
+  
 }
 
 Response trailers received:

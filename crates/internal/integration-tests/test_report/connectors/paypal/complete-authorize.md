@@ -9,4 +9,4 @@
 
 | Scenario | PM | PMT | Result | Prerequisites |
 |:---------|:--:|:---:|:------:|:--------------|
-| [`threeds_complete_authorize_credit_card`](./complete-authorize/threeds-complete-authorize-credit-card.md) | card | credit | `PASS` | `create_access_token(create_access_token)` (PASS) -> `authorize(threeds_manual_capture_credit_card)` (PASS) |
+| [`Credit Card \| 3DS`](./complete-authorize/threeds-complete-authorize-credit-card.md) | card | credit | `PASS` | `create_access_token(create_access_token)` (PASS) -> `authorize(threeds_manual_capture_credit_card)` (PASS) |

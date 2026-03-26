@@ -1,6 +1,7 @@
-# Connector `wellsfargo` / Suite `capture` / Scenario `capture_partial_amount`
+# Connector `wellsfargo` / Suite `capture` / Scenario `Capture | Partial Amount`
 
 - Service: `PaymentService/Capture`
+- Scenario Key: `capture_partial_amount`
 - PM / PMT: `-` / `-`
 - Result: `PASS`
 
@@ -47,14 +48,14 @@ _Response trace not available._
   "shipping_cost": 0,
   "payment_method": {
     "card": {
-      "card_number": "***MASKED***",
+      "card_number": ***MASKED***"
       "card_exp_month": {
         "value": "08"
       },
       "card_exp_year": {
         "value": "30"
       },
-      "card_cvc": "***MASKED***",
+      "card_cvc": ***MASKED***"
       "card_holder_name": {
         "value": "Mia Brown"
       },
@@ -179,7 +180,7 @@ _Response trace not available._
     "v-c-correlation-id": "ea1be72c-b7b8-4532-9208-c8384cdeb91a"
   },
   "network_transaction_id": "016150703802094",
-  "incremental_authorization_allowed": "***MASKED***",
+  "incremental_authorization_allowed": ***MASKED***"
   "raw_connector_response": "***MASKED***",
   "connector_response": {
     "additional_payment_method_data": {
@@ -303,7 +304,7 @@ _Response trace not available._
     "content-length": "438"
   },
   "merchant_capture_id": "mci_2ad9ee2b034a40d5a9f44d478e4129d9",
-  "incremental_authorization_allowed": "***MASKED***"
+  "incremental_authorization_allowed": ***MASKED***"
 }
 ```
 

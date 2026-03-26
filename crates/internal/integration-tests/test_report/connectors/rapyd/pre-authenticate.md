@@ -9,8 +9,8 @@
 
 | Scenario | PM | PMT | Result | Prerequisites |
 |:---------|:--:|:---:|:------:|:--------------|
-| [`threeds_card_pre_authenticate`](./pre-authenticate/threeds-card-pre-authenticate.md) | card | credit | `FAIL` | None |
+| [`Card Pre Authenticate \| 3DS`](./pre-authenticate/threeds-card-pre-authenticate.md) | card | credit | `FAIL` | None |
 
 ## Failed Scenarios
 
-- [`threeds_card_pre_authenticate`](./pre-authenticate/threeds-card-pre-authenticate.md) — unsupported suite 'pre_authenticate' for grpcurl generation
+- [`Card Pre Authenticate | 3DS`](./pre-authenticate/threeds-card-pre-authenticate.md) — unsupported suite 'pre_authenticate' for grpcurl generation

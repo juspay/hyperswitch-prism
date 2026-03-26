@@ -1,6 +1,7 @@
-# Connector `nexixpay` / Suite `authorize` / Scenario `no3ds_auto_capture_bancontact`
+# Connector `nexixpay` / Suite `authorize` / Scenario `Bancontact | No 3DS | Automatic Capture`
 
 - Service: `PaymentService/Authorize`
+- Scenario Key: `no3ds_auto_capture_bancontact`
 - PM / PMT: `bancontact_card` / `-`
 - Result: `FAIL`
 

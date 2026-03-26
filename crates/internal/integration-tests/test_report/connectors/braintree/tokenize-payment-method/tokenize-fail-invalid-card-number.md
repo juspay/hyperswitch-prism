@@ -1,6 +1,7 @@
-# Connector `braintree` / Suite `tokenize_payment_method` / Scenario `tokenize_fail_invalid_card_number`
+# Connector `braintree` / Suite `tokenize_payment_method` / Scenario `Tokenize Payment Method | Tokenize Fail Invalid Card Number`
 
 - Service: `Unknown`
+- Scenario Key: `tokenize_fail_invalid_card_number`
 - PM / PMT: `card` / `-`
 - Result: `PASS`
 

@@ -30,7 +30,8 @@
         "must_not_exist": true
       }
     },
-    "is_default": true
+    "is_default": true,
+    "display_name": "Get | Sync Payment"
   },
   "sync_payment_with_handle_response": {
     "grpc_req": {
@@ -65,6 +66,7 @@
       "error": {
         "must_not_exist": true
       }
-    }
+    },
+    "display_name": "Get | Sync Payment With Handle Response"
   }
 }

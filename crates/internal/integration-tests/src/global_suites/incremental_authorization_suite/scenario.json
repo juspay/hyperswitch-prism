@@ -33,7 +33,8 @@
         "must_not_exist": true
       }
     },
-    "is_default": true
+    "is_default": true,
+    "display_name": "Incremental Authorization | Incremental Auth Basic"
   },
   "incremental_auth_with_tip": {
     "grpc_req": {
@@ -68,7 +69,8 @@
       "error": {
         "must_not_exist": true
       }
-    }
+    },
+    "display_name": "Incremental Authorization | Incremental Auth With Tip"
   },
   "incremental_auth_multiple_increase": {
     "grpc_req": {
@@ -98,7 +100,8 @@
           "FAILED"
         ]
       }
-    }
+    },
+    "display_name": "Incremental Authorization | Incremental Auth Multiple Increase"
   },
   "incremental_auth_fail_invalid_transaction_id": {
     "grpc_req": {
@@ -130,6 +133,7 @@
       "error": {
         "must_exist": true
       }
-    }
+    },
+    "display_name": "Incremental Authorization | Incremental Auth Fail Invalid Transaction ID"
   }
 }

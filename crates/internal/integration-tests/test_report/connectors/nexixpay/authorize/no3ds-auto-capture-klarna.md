@@ -1,6 +1,7 @@
-# Connector `nexixpay` / Suite `authorize` / Scenario `no3ds_auto_capture_klarna`
+# Connector `nexixpay` / Suite `authorize` / Scenario `Klarna | No 3DS | Automatic Capture`
 
 - Service: `PaymentService/Authorize`
+- Scenario Key: `no3ds_auto_capture_klarna`
 - PM / PMT: `klarna` / `-`
 - Result: `FAIL`
 

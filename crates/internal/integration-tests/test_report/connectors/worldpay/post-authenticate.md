@@ -9,8 +9,8 @@
 
 | Scenario | PM | PMT | Result | Prerequisites |
 |:---------|:--:|:---:|:------:|:--------------|
-| [`threeds_card_post_authenticate`](./post-authenticate/threeds-card-post-authenticate.md) | card | credit | `FAIL` | `authenticate(threeds_card_authenticate)` (FAIL) |
+| [`Card Post Authenticate \| 3DS`](./post-authenticate/threeds-card-post-authenticate.md) | card | credit | `FAIL` | `authenticate(threeds_card_authenticate)` (FAIL) |
 
 ## Failed Scenarios
 
-- [`threeds_card_post_authenticate`](./post-authenticate/threeds-card-post-authenticate.md) — Resolved method descriptor:
+- [`Card Post Authenticate | 3DS`](./post-authenticate/threeds-card-post-authenticate.md) — Resolved method descriptor:

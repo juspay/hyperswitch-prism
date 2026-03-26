@@ -9,4 +9,4 @@
 
 | Scenario | PM | PMT | Result | Prerequisites |
 |:---------|:--:|:---:|:------:|:--------------|
-| [`create_access_token`](./create-access-token/create-access-token.md) | - | - | `PASS` | None |
+| [`Create Access Token`](./create-access-token/create-access-token.md) | - | - | `PASS` | None |

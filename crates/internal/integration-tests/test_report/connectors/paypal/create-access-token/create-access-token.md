@@ -1,6 +1,7 @@
-# Connector `paypal` / Suite `create_access_token` / Scenario `create_access_token`
+# Connector `paypal` / Suite `create_access_token` / Scenario `Create Access Token`
 
 - Service: `MerchantAuthenticationService/CreateAccessToken`
+- Scenario Key: `create_access_token`
 - PM / PMT: `-` / `-`
 - Result: `PASS`
 

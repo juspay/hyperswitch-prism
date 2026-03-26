@@ -1,6 +1,7 @@
-# Connector `checkout` / Suite `authorize` / Scenario `no3ds_manual_capture_credit_card`
+# Connector `checkout` / Suite `authorize` / Scenario `Credit Card | No 3DS | Manual Capture`
 
 - Service: `PaymentService/Authorize`
+- Scenario Key: `no3ds_manual_capture_credit_card`
 - PM / PMT: `card` / `credit`
 - Result: `PASS`
 
@@ -58,7 +59,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US",
     "color_depth": 24,
     "screen_height": 1080,
@@ -194,9 +195,7 @@ Response contents:
   },
   "networkTransactionId": "600565090252364",
   "rawConnectorResponse": "***MASKED***"
-  },
-  "rawConnectorRequest": "***MASKED***"
-  },
+  
   "capturableAmount": "6000",
   "connectorResponse": {
     "additionalPaymentMethodData": {

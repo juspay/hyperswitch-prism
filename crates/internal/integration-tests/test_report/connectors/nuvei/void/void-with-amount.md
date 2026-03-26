@@ -1,6 +1,7 @@
-# Connector `nuvei` / Suite `void` / Scenario `void_with_amount`
+# Connector `nuvei` / Suite `void` / Scenario `Void | Amount`
 
 - Service: `PaymentService/Void`
+- Scenario Key: `void_with_amount`
 - PM / PMT: `-` / `-`
 - Result: `FAIL`
 
@@ -232,7 +233,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US",
     "color_depth": 24,
     "screen_height": 1080,
@@ -443,8 +444,7 @@ Response contents:
     "set-cookie": "JSESSIONID=b80144213fb8e6df36bece453e1a; Path=/ppp; Secure; HttpOnly; SameSite=None"
   },
   "rawConnectorRequest": "***MASKED***"
-  }
-}
+
 
 Response trailers received:
 (empty)

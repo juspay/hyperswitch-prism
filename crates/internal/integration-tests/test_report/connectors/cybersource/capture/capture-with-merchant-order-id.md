@@ -1,6 +1,7 @@
-# Connector `cybersource` / Suite `capture` / Scenario `capture_with_merchant_order_id`
+# Connector `cybersource` / Suite `capture` / Scenario `Capture | Merchant Order ID Reference`
 
 - Service: `PaymentService/Capture`
+- Scenario Key: `capture_with_merchant_order_id`
 - PM / PMT: `-` / `-`
 - Result: `PASS`
 
@@ -47,14 +48,14 @@ _Response trace not available._
   "shipping_cost": 0,
   "payment_method": {
     "card": {
-      "card_number": "***MASKED***",
+      "card_number": ***MASKED***"
       "card_exp_month": {
         "value": "08"
       },
       "card_exp_year": {
         "value": "30"
       },
-      "card_cvc": "***MASKED***",
+      "card_cvc": ***MASKED***"
       "card_holder_name": {
         "value": "Noah Smith"
       },
@@ -185,7 +186,7 @@ _Response trace not available._
     "strict-transport-security": "max-age=31536000"
   },
   "network_transaction_id": "016150703802094",
-  "incremental_authorization_allowed": "***MASKED***",
+  "incremental_authorization_allowed": ***MASKED***"
   "raw_connector_response": "***MASKED***",
   "connector_response": {
     "additional_payment_method_data": {
@@ -313,7 +314,7 @@ _Response trace not available._
     "x-opnet-transaction-trace": "d0b8bcd4-86a9-4402-95e8-35c26c084b92-2277564-18925362"
   },
   "merchant_capture_id": "mci_265fc47493cc400c8826528cca951aab",
-  "incremental_authorization_allowed": "***MASKED***"
+  "incremental_authorization_allowed": ***MASKED***"
 }
 ```
 

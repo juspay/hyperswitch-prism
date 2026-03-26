@@ -1,6 +1,7 @@
-# Connector `cybersource` / Suite `capture` / Scenario `capture_full_amount`
+# Connector `cybersource` / Suite `capture` / Scenario `Capture | Full Amount`
 
 - Service: `PaymentService/Capture`
+- Scenario Key: `capture_full_amount`
 - PM / PMT: `-` / `-`
 - Result: `PASS`
 
@@ -47,14 +48,14 @@ _Response trace not available._
   "shipping_cost": 0,
   "payment_method": {
     "card": {
-      "card_number": "***MASKED***",
+      "card_number": ***MASKED***"
       "card_exp_month": {
         "value": "08"
       },
       "card_exp_year": {
         "value": "30"
       },
-      "card_cvc": "***MASKED***",
+      "card_cvc": ***MASKED***"
       "card_holder_name": {
         "value": "Ava Smith"
       },
@@ -185,7 +186,7 @@ _Response trace not available._
     "expires": "-1"
   },
   "network_transaction_id": "016150703802094",
-  "incremental_authorization_allowed": "***MASKED***",
+  "incremental_authorization_allowed": ***MASKED***"
   "raw_connector_response": "***MASKED***",
   "connector_response": {
     "additional_payment_method_data": {
@@ -312,7 +313,7 @@ _Response trace not available._
     "strict-transport-security": "max-age=31536000"
   },
   "merchant_capture_id": "mci_8fd0bf2ec3a84c689a16efa0039c65c0",
-  "incremental_authorization_allowed": "***MASKED***"
+  "incremental_authorization_allowed": ***MASKED***"
 }
 ```
 

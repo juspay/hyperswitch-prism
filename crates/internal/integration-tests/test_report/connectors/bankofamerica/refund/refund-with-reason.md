@@ -1,6 +1,7 @@
-# Connector `bankofamerica` / Suite `refund` / Scenario `refund_with_reason`
+# Connector `bankofamerica` / Suite `refund` / Scenario `Refund | Reason`
 
 - Service: `PaymentService/Refund`
+- Scenario Key: `refund_with_reason`
 - PM / PMT: `-` / `-`
 - Result: `PASS`
 
@@ -220,7 +221,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US",
     "color_depth": 24,
     "screen_height": 1080,
@@ -357,9 +358,7 @@ Response contents:
     "x-response-time": "310ms"
   },
   "rawConnectorResponse": "***MASKED***"
-  },
-  "rawConnectorRequest": "***MASKED***"
-  },
+  
   "connectorResponse": {
     "additionalPaymentMethodData": {
       "card": {
@@ -445,9 +444,7 @@ Response contents:
   },
   "connectorTransactionId": "7742906035086843804807",
   "rawConnectorResponse": "***MASKED***"
-  },
-  "rawConnectorRequest": "***MASKED***"
-  }
+  
 }
 
 Response trailers received:

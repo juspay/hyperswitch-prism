@@ -18,8 +18,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::harness::cred_masking::{mask_json_value, mask_sensitive_text};
+use crate::harness::scenario_display_name::generate_style_a_display_name;
 use crate::harness::scenario_loader::{
-    discover_all_connectors, load_connector_spec, load_suite_spec,
+    discover_all_connectors, load_connector_spec, load_suite_scenarios, load_suite_spec,
 };
 
 // ---------------------------------------------------------------------------
@@ -151,6 +152,10 @@ pub fn append_report_batch(entries: Vec<ReportEntry>) -> Result<(), String> {
         ScenarioRunReport::default()
     };
 
+    for run in &mut report.runs {
+        sanitize_report_entry_in_place(run);
+    }
+
     let sanitized_entries = entries.into_iter().map(|mut entry| {
         sanitize_report_entry_in_place(&mut entry);
         entry
@@ -174,8 +179,12 @@ pub fn append_report_batch(entries: Vec<ReportEntry>) -> Result<(), String> {
 pub fn regenerate_markdown_from_path(json_path: &Path) -> Result<PathBuf, String> {
     let content = fs::read_to_string(json_path)
         .map_err(|e| format!("failed to read report '{}': {e}", json_path.display()))?;
-    let report = serde_json::from_str::<ScenarioRunReport>(&content)
+    let mut report = serde_json::from_str::<ScenarioRunReport>(&content)
         .map_err(|e| format!("failed to parse report '{}': {e}", json_path.display()))?;
+
+    for run in &mut report.runs {
+        sanitize_report_entry_in_place(run);
+    }
 
     generate_md(json_path, &report)?;
     Ok(md_path(json_path))
@@ -349,6 +358,38 @@ fn suite_sort_key(suite: &str) -> usize {
         .iter()
         .position(|&s| s == suite)
         .unwrap_or(usize::MAX)
+}
+
+fn build_scenario_display_name_map(suites: &[String]) -> BTreeMap<(String, String), String> {
+    let mut map = BTreeMap::new();
+
+    for suite in suites {
+        if let Ok(scenarios) = load_suite_scenarios(suite) {
+            for (scenario_name, scenario_def) in scenarios {
+                let display_name = scenario_def
+                    .display_name
+                    .unwrap_or_else(|| generate_style_a_display_name(suite, &scenario_name));
+                map.insert((suite.clone(), scenario_name), display_name);
+            }
+        }
+    }
+
+    map
+}
+
+fn resolve_scenario_display_name(
+    scenario_display_name_map: &BTreeMap<(String, String), String>,
+    suite: &str,
+    scenario: &str,
+) -> String {
+    scenario_display_name_map
+        .get(&(suite.to_string(), scenario.to_string()))
+        .cloned()
+        .unwrap_or_else(|| generate_style_a_display_name(suite, scenario))
+}
+
+fn escape_markdown_table_text(value: &str) -> String {
+    value.replace('|', "\\|")
 }
 
 /// Deduplicated, non-dependency entry keyed by (suite, scenario, connector).
@@ -620,6 +661,8 @@ fn generate_md(json_path: &Path, report: &ScenarioRunReport) -> Result<(), Strin
             .then_with(|| left.cmp(right))
     });
 
+    let scenario_display_name_map = build_scenario_display_name_map(&all_suites);
+
     let connector_suite_map: BTreeMap<(String, String), Vec<MatrixEntry>> = {
         let mut map: BTreeMap<(String, String), Vec<MatrixEntry>> = BTreeMap::new();
         for entry in deduped.values() {
@@ -740,7 +783,13 @@ fn generate_md(json_path: &Path, report: &ScenarioRunReport) -> Result<(), Strin
             })?;
         }
 
-        let suite_content = render_connector_suite_markdown(report, connector, suite, entries);
+        let suite_content = render_connector_suite_markdown(
+            report,
+            connector,
+            suite,
+            entries,
+            &scenario_display_name_map,
+        );
         fs::write(&suite_path, suite_content).map_err(|e| {
             format!(
                 "failed to write connector suite markdown '{}': {e}",
@@ -760,7 +809,8 @@ fn generate_md(json_path: &Path, report: &ScenarioRunReport) -> Result<(), Strin
                 })?;
             }
 
-            let scenario_content = render_connector_scenario_markdown(report, entry);
+            let scenario_content =
+                render_connector_scenario_markdown(report, entry, &scenario_display_name_map);
             fs::write(&scenario_path, scenario_content).map_err(|e| {
                 format!(
                     "failed to write connector scenario markdown '{}': {e}",
@@ -826,6 +876,7 @@ fn render_connector_suite_markdown(
     connector: &str,
     suite: &str,
     entries: &[MatrixEntry],
+    scenario_display_name_map: &BTreeMap<(String, String), String>,
 ) -> String {
     let mut md = String::with_capacity(4096);
     let total = entries.len();
@@ -864,10 +915,18 @@ fn render_connector_suite_markdown(
     );
     for entry in entries {
         let scenario_link = connector_scenario_relative_path_from_suite(suite, &entry.scenario);
+        let scenario_display_name =
+            resolve_scenario_display_name(scenario_display_name_map, suite, &entry.scenario);
+        let scenario_display_name_for_table = escape_markdown_table_text(&scenario_display_name);
         let prerequisites = dependency_chain_summary(report, entry);
         md.push_str(&format!(
             "| [`{}`]({}) | {} | {} | `{}` | {} |\n",
-            entry.scenario, scenario_link, entry.pm, entry.pmt, entry.result, prerequisites
+            scenario_display_name_for_table,
+            scenario_link,
+            entry.pm,
+            entry.pmt,
+            entry.result,
+            prerequisites
         ));
     }
 
@@ -879,14 +938,19 @@ fn render_connector_suite_markdown(
         md.push_str("\n## Failed Scenarios\n\n");
         for entry in failed_entries {
             let scenario_link = connector_scenario_relative_path_from_suite(suite, &entry.scenario);
+            let scenario_display_name =
+                resolve_scenario_display_name(scenario_display_name_map, suite, &entry.scenario);
             if let Some(error) = entry.error.as_deref() {
                 let summary = error.lines().next().unwrap_or("Unknown failure");
                 md.push_str(&format!(
                     "- [`{}`]({}) — {}\n",
-                    entry.scenario, scenario_link, summary
+                    scenario_display_name, scenario_link, summary
                 ));
             } else {
-                md.push_str(&format!("- [`{}`]({})\n", entry.scenario, scenario_link));
+                md.push_str(&format!(
+                    "- [`{}`]({})\n",
+                    scenario_display_name, scenario_link
+                ));
             }
         }
     }
@@ -894,19 +958,26 @@ fn render_connector_suite_markdown(
     md
 }
 
-fn render_connector_scenario_markdown(report: &ScenarioRunReport, entry: &MatrixEntry) -> String {
+fn render_connector_scenario_markdown(
+    report: &ScenarioRunReport,
+    entry: &MatrixEntry,
+    scenario_display_name_map: &BTreeMap<(String, String), String>,
+) -> String {
     let mut md = String::with_capacity(4096);
+    let scenario_display_name =
+        resolve_scenario_display_name(scenario_display_name_map, &entry.suite, &entry.scenario);
     md.push_str(&format!(
         "# Connector `{}` / Suite `{}` / Scenario `{}`
 
 ",
-        entry.connector, entry.suite, entry.scenario
+        entry.connector, entry.suite, scenario_display_name
     ));
     md.push_str(&format!(
         "- Service: `{}`
 ",
         suite_service_name(&entry.suite)
     ));
+    md.push_str(&format!("- Scenario Key: `{}`\n", entry.scenario));
     md.push_str(&format!("- PM / PMT: `{}` / `{}`\n", entry.pm, entry.pmt));
     md.push_str(&format!("- Result: `{}`\n", entry.result));
     if let Some(status) = &entry.response_status {
@@ -1182,7 +1253,7 @@ mod tests {
             .expect("suite detail markdown should be readable");
         assert!(stripe_suite_detail_content.contains("# Connector `stripe` / Suite `authorize`"));
         assert!(stripe_suite_detail_content.contains(
-            "[`no3ds_auto_capture_credit_card`](./authorize/no3ds-auto-capture-credit-card.md)"
+            "[`Credit Card \\| No 3DS \\| Automatic Capture`](./authorize/no3ds-auto-capture-credit-card.md)"
         ));
 
         let stripe_detail = temp_root
@@ -1194,8 +1265,9 @@ mod tests {
         let stripe_detail_content =
             fs::read_to_string(&stripe_detail).expect("detail markdown should be readable");
         assert!(stripe_detail_content.contains(
-            "# Connector `stripe` / Suite `authorize` / Scenario `no3ds_auto_capture_credit_card`"
+            "# Connector `stripe` / Suite `authorize` / Scenario `Credit Card | No 3DS | Automatic Capture`"
         ));
+        assert!(stripe_detail_content.contains("- Scenario Key: `no3ds_auto_capture_credit_card`"));
         assert!(stripe_detail_content.contains("<summary>Show Request (masked)</summary>"));
         assert!(stripe_detail_content.contains("<summary>Show Response (masked)</summary>"));
         assert!(!stripe_detail_content.contains("Show gRPC Request (masked)"));

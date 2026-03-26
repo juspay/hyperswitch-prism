@@ -1,6 +1,7 @@
-# Connector `wellsfargo` / Suite `authorize` / Scenario `no3ds_manual_capture_debit_card`
+# Connector `wellsfargo` / Suite `authorize` / Scenario `Debit Card | No 3DS | Manual Capture`
 
 - Service: `PaymentService/Authorize`
+- Scenario Key: `no3ds_manual_capture_debit_card`
 - PM / PMT: `card` / `debit`
 - Result: `PASS`
 
@@ -44,14 +45,14 @@ _Response trace not available._
   "shipping_cost": 0,
   "payment_method": {
     "card": {
-      "card_number": "***MASKED***",
+      "card_number": ***MASKED***"
       "card_exp_month": {
         "value": "08"
       },
       "card_exp_year": {
         "value": "30"
       },
-      "card_cvc": "***MASKED***",
+      "card_cvc": ***MASKED***"
       "card_holder_name": {
         "value": "Noah Smith"
       },
@@ -176,7 +177,7 @@ _Response trace not available._
     "x-opnet-transaction-trace": "d0b8bcd4-86a9-4402-95e8-35c26c084b92-2277564-19156182"
   },
   "network_transaction_id": "016150703802094",
-  "incremental_authorization_allowed": "***MASKED***",
+  "incremental_authorization_allowed": ***MASKED***"
   "raw_connector_response": "***MASKED***",
   "connector_response": {
     "additional_payment_method_data": {

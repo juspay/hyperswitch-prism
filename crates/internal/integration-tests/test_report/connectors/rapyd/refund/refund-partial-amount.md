@@ -1,6 +1,7 @@
-# Connector `rapyd` / Suite `refund` / Scenario `refund_partial_amount`
+# Connector `rapyd` / Suite `refund` / Scenario `Refund | Partial Amount`
 
 - Service: `PaymentService/Refund`
+- Scenario Key: `refund_partial_amount`
 - PM / PMT: `-` / `-`
 - Result: `PASS`
 
@@ -60,7 +61,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US",
     "color_depth": 24,
     "screen_height": 1080,
@@ -198,9 +199,7 @@ Response contents:
     "transfer-encoding": "chunked"
   },
   "rawConnectorResponse": "***MASKED***"
-  },
-  "rawConnectorRequest": "***MASKED***"
-  }
+  
 }
 
 Response trailers received:
@@ -277,9 +276,7 @@ Response contents:
   },
   "connectorTransactionId": "payment_382ae1c7264710ee084b2d6c558058a9",
   "rawConnectorResponse": "***MASKED***"
-  },
-  "rawConnectorRequest": "***MASKED***"
-  }
+  
 }
 
 Response trailers received:

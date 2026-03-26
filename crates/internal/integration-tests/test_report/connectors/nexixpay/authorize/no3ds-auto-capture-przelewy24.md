@@ -1,6 +1,7 @@
-# Connector `nexixpay` / Suite `authorize` / Scenario `no3ds_auto_capture_przelewy24`
+# Connector `nexixpay` / Suite `authorize` / Scenario `Przelewy24 | No 3DS | Automatic Capture`
 
 - Service: `PaymentService/Authorize`
+- Scenario Key: `no3ds_auto_capture_przelewy24`
 - PM / PMT: `przelewy24` / `-`
 - Result: `FAIL`
 

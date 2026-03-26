@@ -34,7 +34,8 @@
         "must_not_exist": true
       }
     },
-    "is_default": true
+    "is_default": true,
+    "display_name": "Refund | Full Amount"
   },
   "refund_partial_amount": {
     "grpc_req": {
@@ -70,7 +71,8 @@
       "error": {
         "must_not_exist": true
       }
-    }
+    },
+    "display_name": "Refund | Partial Amount"
   },
   "refund_with_reason": {
     "grpc_req": {
@@ -107,6 +109,7 @@
       "error": {
         "must_not_exist": true
       }
-    }
+    },
+    "display_name": "Refund | Reason"
   }
 }

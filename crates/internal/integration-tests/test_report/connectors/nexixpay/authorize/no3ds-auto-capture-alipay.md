@@ -1,6 +1,7 @@
-# Connector `nexixpay` / Suite `authorize` / Scenario `no3ds_auto_capture_alipay`
+# Connector `nexixpay` / Suite `authorize` / Scenario `Alipay | No 3DS | Automatic Capture`
 
 - Service: `PaymentService/Authorize`
+- Scenario Key: `no3ds_auto_capture_alipay`
 - PM / PMT: `ali_pay_redirect` / `-`
 - Result: `FAIL`
 

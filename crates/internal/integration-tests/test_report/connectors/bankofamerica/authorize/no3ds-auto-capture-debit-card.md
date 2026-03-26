@@ -1,6 +1,7 @@
-# Connector `bankofamerica` / Suite `authorize` / Scenario `no3ds_auto_capture_debit_card`
+# Connector `bankofamerica` / Suite `authorize` / Scenario `Debit Card | No 3DS | Automatic Capture`
 
 - Service: `PaymentService/Authorize`
+- Scenario Key: `no3ds_auto_capture_debit_card`
 - PM / PMT: `card` / `debit`
 - Result: `PASS`
 
@@ -217,7 +218,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US",
     "color_depth": 24,
     "screen_height": 1080,
@@ -354,9 +355,7 @@ Response contents:
     "x-response-time": "423ms"
   },
   "rawConnectorResponse": "***MASKED***"
-  },
-  "rawConnectorRequest": "***MASKED***"
-  },
+  
   "connectorResponse": {
     "additionalPaymentMethodData": {
       "card": {

@@ -1,6 +1,7 @@
-# Connector `fiserv` / Suite `setup_recurring` / Scenario `setup_recurring_with_order_context`
+# Connector `fiserv` / Suite `setup_recurring` / Scenario `Setup Recurring | Order Context`
 
 - Service: `PaymentService/SetupRecurring`
+- Scenario Key: `setup_recurring_with_order_context`
 - PM / PMT: `card` / `credit`
 - Result: `FAIL`
 

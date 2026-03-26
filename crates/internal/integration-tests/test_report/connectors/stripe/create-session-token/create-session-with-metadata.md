@@ -1,6 +1,7 @@
-# Connector `stripe` / Suite `create_session_token` / Scenario `create_session_with_metadata`
+# Connector `stripe` / Suite `create_session_token` / Scenario `Create Session Token | Create Session With Metadata`
 
 - Service: `Unknown`
+- Scenario Key: `create_session_with_metadata`
 - PM / PMT: `-` / `-`
 - Result: `FAIL`
 
@@ -24,7 +25,7 @@ Response headers received:
 
 Response trailers received:
 content-type: application/grpc
-date: Tue, 24 Mar 2026 08:50:32 GMT
+date: Mon, 23 Mar 2026 15:48:28 GMT
 x-request-id: create_session_token_create_session_with_metadata_req
 Sent 1 request and received 0 responses
 
@@ -48,7 +49,7 @@ grpcurl -plaintext \
   -H "x-connector-config: ***MASKED***" \
   -d @ localhost:50051 types.MerchantAuthenticationService/CreateSessionToken <<'JSON'
 {
-  "merchant_session_id": "gen_538588",
+  "merchant_session_id": "gen_133024",
   "amount": {
     "minor_amount": 15000,
     "currency": "USD"
@@ -84,7 +85,7 @@ Response headers received:
 
 Response trailers received:
 content-type: application/grpc
-date: Tue, 24 Mar 2026 08:50:32 GMT
+date: Mon, 23 Mar 2026 15:48:28 GMT
 x-request-id: create_session_token_create_session_with_metadata_req
 Sent 1 request and received 0 responses
 

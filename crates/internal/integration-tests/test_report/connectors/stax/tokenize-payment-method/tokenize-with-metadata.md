@@ -1,6 +1,7 @@
-# Connector `stax` / Suite `tokenize_payment_method` / Scenario `tokenize_with_metadata`
+# Connector `stax` / Suite `tokenize_payment_method` / Scenario `Tokenize Payment Method | Tokenize With Metadata`
 
 - Service: `Unknown`
+- Scenario Key: `tokenize_with_metadata`
 - PM / PMT: `card` / `-`
 - Result: `FAIL`
 

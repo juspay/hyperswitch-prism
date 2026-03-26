@@ -1,6 +1,7 @@
-# Connector `fiuu` / Suite `void` / Scenario `void_authorized_payment`
+# Connector `fiuu` / Suite `void` / Scenario `Void | Authorized Payment`
 
 - Service: `PaymentService/Void`
+- Scenario Key: `void_authorized_payment`
 - PM / PMT: `-` / `-`
 - Result: `PASS`
 
@@ -60,7 +61,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US",
     "color_depth": 24,
     "screen_height": 1080,
@@ -200,9 +201,7 @@ Response contents:
     "x-content-type-options": "nosniff"
   },
   "rawConnectorResponse": "***MASKED***"
-  },
-  "rawConnectorRequest": "***MASKED***"
-  },
+  
   "mandateReference": {
     "connectorMandateId": {
       "connectorMandateId": "TK_2902_35512301472677909531"
@@ -235,7 +234,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US",
     "color_depth": 24,
     "screen_height": 1080,
@@ -290,8 +289,7 @@ Response contents:
     "x-content-type-options": "nosniff"
   },
   "rawConnectorRequest": "***MASKED***"
-  }
-}
+
 
 Response trailers received:
 (empty)

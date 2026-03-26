@@ -1,6 +1,7 @@
-# Connector `stax` / Suite `tokenize_payment_method` / Scenario `tokenize_debit_card`
+# Connector `stax` / Suite `tokenize_payment_method` / Scenario `Tokenize Payment Method | Tokenize Debit Card`
 
 - Service: `Unknown`
+- Scenario Key: `tokenize_debit_card`
 - PM / PMT: `card` / `-`
 - Result: `FAIL`
 

@@ -1,6 +1,7 @@
-# Connector `worldpay` / Suite `get` / Scenario `sync_payment`
+# Connector `worldpay` / Suite `get` / Scenario `Get | Sync Payment`
 
 - Service: `PaymentService/Get`
+- Scenario Key: `sync_payment`
 - PM / PMT: `-` / `-`
 - Result: `FAIL`
 
@@ -111,7 +112,7 @@ _Response trace not available._
     "x-xss-protection": "0"
   },
   "raw_connector_response": "***MASKED***"
-}
+
 ```
 
 </details>

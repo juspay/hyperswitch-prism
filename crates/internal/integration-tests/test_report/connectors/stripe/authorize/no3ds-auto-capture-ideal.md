@@ -1,14 +1,9 @@
-# Connector `stripe` / Suite `authorize` / Scenario `no3ds_auto_capture_ideal`
+# Connector `stripe` / Suite `authorize` / Scenario `iDEAL | No 3DS | Automatic Capture`
 
 - Service: `PaymentService/Authorize`
+- Scenario Key: `no3ds_auto_capture_ideal`
 - PM / PMT: `ideal` / `-`
-- Result: `FAIL`
-
-**Error**
-
-```text
-assertion failed for field 'connector_transaction_id': expected field to exist
-```
+- Result: `PASS`
 
 **Pre Requisites Executed**
 
@@ -27,44 +22,44 @@ grpcurl -plaintext \
   -H "x-connector-config: ***MASKED***" \
   -d @ localhost:50051 types.CustomerService/Create <<'JSON'
 {
-  "merchant_customer_id": "mcui_2fa017bd2e0c4e9ba6971ebb",
-  "customer_name": "Mia Brown",
+  "merchant_customer_id": "mcui_1d0efd5081a54d15a47ce8e30d931feb",
+  "customer_name": "Liam Taylor",
   "email": {
-    "value": "casey.2174@testmail.io"
+    "value": "morgan.7604@testmail.io"
   },
-  "phone_number": "+919353006907",
+  "phone_number": "+15097358998",
   "address": {
     "shipping_address": {
       "first_name": {
-        "value": "Liam"
+        "value": "Noah"
       },
       "last_name": {
-        "value": "Wilson"
+        "value": "Smith"
       },
       "line1": {
-        "value": "189 Lake Ln"
+        "value": "6047 Oak Dr"
       },
       "line2": {
-        "value": "9393 Sunset Ave"
+        "value": "4207 Market Dr"
       },
       "line3": {
-        "value": "2258 Sunset Rd"
+        "value": "329 Sunset Dr"
       },
       "city": {
-        "value": "Los Angeles"
+        "value": "Austin"
       },
       "state": {
         "value": "CA"
       },
       "zip_code": {
-        "value": "98402"
+        "value": "92568"
       },
       "country_alpha2_code": "US",
       "email": {
-        "value": "casey.9074@testmail.io"
+        "value": "jordan.2682@sandbox.example.com"
       },
       "phone_number": {
-        "value": "4688883294"
+        "value": "6958324857"
       },
       "phone_country_code": "+91"
     },
@@ -73,32 +68,32 @@ grpcurl -plaintext \
         "value": "Liam"
       },
       "last_name": {
-        "value": "Johnson"
+        "value": "Smith"
       },
       "line1": {
-        "value": "2501 Oak Dr"
+        "value": "7263 Market Rd"
       },
       "line2": {
-        "value": "933 Market St"
+        "value": "2345 Lake Ave"
       },
       "line3": {
-        "value": "2877 Main Dr"
+        "value": "7227 Pine Blvd"
       },
       "city": {
-        "value": "New York"
+        "value": "Austin"
       },
       "state": {
         "value": "CA"
       },
       "zip_code": {
-        "value": "47084"
+        "value": "27158"
       },
       "country_alpha2_code": "US",
       "email": {
-        "value": "riley.6590@example.com"
+        "value": "jordan.8429@example.com"
       },
       "phone_number": {
-        "value": "5375995701"
+        "value": "8195830751"
       },
       "phone_country_code": "+91"
     }
@@ -128,13 +123,13 @@ x-tenant-id: default
 
 Response headers received:
 content-type: application/grpc
-date: Tue, 24 Mar 2026 08:48:40 GMT
+date: Mon, 23 Mar 2026 15:46:21 GMT
 x-request-id: create_customer_create_customer_req
 
 Response contents:
 {
-  "merchantCustomerId": "cus_UCqKWpUuDInnXG",
-  "connectorCustomerId": "cus_UCqKWpUuDInnXG",
+  "merchantCustomerId": "cus_UCZqXfe9voW9zB",
+  "connectorCustomerId": "cus_UCZqXfe9voW9zB",
   "statusCode": 200,
   "responseHeaders": {
     "access-control-allow-credentials": "true",
@@ -144,163 +139,16 @@ Response contents:
     "access-control-max-age": "300",
     "cache-control": "no-cache, no-store",
     "connection": "keep-alive",
-    "content-length": "669",
-    "content-security-policy": "base-uri 'none'; default-src 'none'; form-action 'none'; frame-ancestors 'none'; img-src 'self'; script-src 'self' 'report-sample'; style-src 'self'; worker-src 'none'; upgrade-insecure-requests; report-uri https://q.stripe.com/csp-violation?q=cf2m0QZllQ_cO_-ua0bmze_ZEC6zU5cKsor4N_WReyb_KG6mR6TnzmyVa9YaYVkePdSCzFeftRkot2ZX",
+    "content-length": "672",
+    "content-security-policy": "base-uri 'none'; default-src 'none'; form-action 'none'; frame-ancestors 'none'; img-src 'self'; script-src 'self' 'report-sample'; style-src 'self'; worker-src 'none'; upgrade-insecure-requests; report-uri https://q.stripe.com/csp-violation?q=hUKDJ4YUx473XYLV0pYtoq3cs3AKKgls3BBntBphBU-yO5VTy8MFHoCN9NkxP-8p_wCp63JSrVwAdn07",
     "content-type": "application/json",
-    "date": "Tue, 24 Mar 2026 08:48:40 GMT",
-    "idempotency-key": "69ccc0d6-5aa8-4022-8a74-6e76a09433d2",
-    "original-request": "req_AnhDubR29TQl7O",
-    "request-id": "req_AnhDubR29TQl7O",
+    "date": "Mon, 23 Mar 2026 15:46:21 GMT",
+    "idempotency-key": "f9e942b9-5ac3-4cc6-a6da-5e833399c911",
+    "original-request": "req_5ZSSFBWt0L0Fvk",
+    "request-id": "req_5ZSSFBWt0L0Fvk",
     "server": "nginx",
     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
     "stripe-should-retry": "false",
-    "stripe-version": "2022-11-15",
-    "vary": "Origin",
-    "x-stripe-priority-routing-enabled": "true",
-    "x-stripe-routing-context-priority-tier": "api-testmode",
-    "x-wc": "ABGHIJ"
-  }
-}
-
-Response trailers received:
-(empty)
-Sent 1 request and received 1 response
-```
-
-</details>
-
-</details>
-<details>
-<summary>2. tokenize_payment_method(tokenize_credit_card) — FAIL</summary>
-
-**Dependency Error**
-
-```text
-assertion failed for field 'error': expected field to be absent or null, got {"connectorDetails":{"code":"parameter_unknown","message":"Received unknown parameters: billing_details, type","reason":"Received unknown parameters: billing_details, type"}}
-```
-
-<details>
-<summary>Show Dependency Request (masked)</summary>
-
-```bash
-grpcurl -plaintext \
-  -H "x-merchant-id: test_merchant" \
-  -H "x-tenant-id: default" \
-  -H "x-request-id: tokenize_payment_method_tokenize_credit_card_req" \
-  -H "x-connector-request-reference-id: tokenize_payment_method_tokenize_credit_card_ref" \
-  -H "x-connector-config: ***MASKED***" \
-  -d @ localhost:50051 types.PaymentMethodService/Tokenize <<'JSON'
-{
-  "merchant_payment_method_id": "gen_231397",
-  "amount": {
-    "minor_amount": 6000,
-    "currency": "USD"
-  },
-  "payment_method": {
-    "card": {
-      "card_number": ***MASKED***
-        "value": "4242424242424242"
-      },
-      "card_exp_month": {
-        "value": "12"
-      },
-      "card_exp_year": {
-        "value": "2030"
-      },
-      "card_cvc": ***MASKED***
-        "value": "123"
-      },
-      "card_holder_name": {
-        "value": "John Doe"
-      }
-    }
-  },
-  "customer": {
-    "id": "cust_636c58ba74da49009e20cd2c",
-    "name": "Emma Brown",
-    "email": {
-      "value": "alex.2037@sandbox.example.com"
-    },
-    "connector_customer_id": "cus_UCqKWpUuDInnXG"
-  },
-  "address": {
-    "billing_address": {
-      "first_name": {
-        "value": "Liam"
-      },
-      "last_name": {
-        "value": "Johnson"
-      },
-      "line1": {
-        "value": "2501 Oak Dr"
-      },
-      "city": {
-        "value": "New York"
-      },
-      "state": {
-        "value": "CA"
-      },
-      "zip_code": {
-        "value": "47084"
-      },
-      "country_alpha2_code": "US"
-    }
-  },
-  "test_mode": true
-}
-JSON
-```
-
-</details>
-
-<details>
-<summary>Show Dependency Response (masked)</summary>
-
-```text
-Resolved method descriptor:
-// Tokenize payment method for secure storage. Replaces raw card details
-// with secure token for one-click payments and recurring billing.
-rpc Tokenize ( .types.PaymentMethodServiceTokenizeRequest ) returns ( .types.PaymentMethodServiceTokenizeResponse );
-
-Request metadata to send:
-x-connector-config: ***MASKED***
-x-connector-request-reference-id: tokenize_payment_method_tokenize_credit_card_ref
-x-merchant-id: test_merchant
-x-request-id: tokenize_payment_method_tokenize_credit_card_req
-x-tenant-id: default
-
-Response headers received:
-content-type: application/grpc
-date: Tue, 24 Mar 2026 08:48:40 GMT
-x-request-id: tokenize_payment_method_tokenize_credit_card_req
-
-Response contents:
-{
-  "error": {
-    "connectorDetails": {
-      "code": "parameter_unknown",
-      "message": "Received unknown parameters: billing_details, type",
-      "reason": "Received unknown parameters: billing_details, type"
-    }
-  },
-  "statusCode": 400,
-  "responseHeaders": {
-    "access-control-allow-credentials": "true",
-    "access-control-allow-methods": "GET, HEAD, PUT, PATCH, POST, DELETE",
-    "access-control-allow-origin": "*",
-    "access-control-expose-headers": "Request-Id, Stripe-Manage-Version, Stripe-Should-Retry, X-Stripe-External-Auth-Required, X-Stripe-Privileged-Session-Required",
-    "access-control-max-age": "300",
-    "cache-control": "no-cache, no-store",
-    "connection": "keep-alive",
-    "content-length": "386",
-    "content-security-policy": "base-uri 'none'; default-src 'none'; form-action 'none'; frame-ancestors 'none'; img-src 'self'; script-src 'self' 'report-sample'; style-src 'self'; worker-src 'none'; upgrade-insecure-requests; report-uri https://q.stripe.com/csp-violation?q=cf2m0QZllQ_cO_-ua0bmze_ZEC6zU5cKsor4N_WReyb_KG6mR6TnzmyVa9YaYVkePdSCzFeftRkot2ZX",
-    "content-type": "application/json",
-    "date": "Tue, 24 Mar 2026 08:48:40 GMT",
-    "idempotency-key": "9ce1e33f-94ff-4e46-a523-65fb1203ea98",
-    "original-request": "req_v831lWhcBc9Sds",
-    "request-id": "req_v831lWhcBc9Sds",
-    "server": "nginx",
-    "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
     "stripe-version": "2022-11-15",
     "vary": "Origin",
     "x-stripe-priority-routing-enabled": "true",
@@ -329,10 +177,10 @@ grpcurl -plaintext \
   -H "x-connector-config: ***MASKED***" \
   -d @ localhost:50051 types.PaymentService/Authorize <<'JSON'
 {
-  "merchant_transaction_id": "mti_97ea18330e044355b040f929",
+  "merchant_transaction_id": "mti_c3d485c34348443ba22fb555ce872024",
   "amount": {
     "minor_amount": 6000,
-    "currency": "USD"
+    "currency": "EUR"
   },
   "order_tax_amount": 0,
   "shipping_cost": 0,
@@ -341,47 +189,47 @@ grpcurl -plaintext \
   },
   "capture_method": "AUTOMATIC",
   "customer": {
-    "name": "Emma Brown",
+    "name": "Ava Wilson",
     "email": {
-      "value": "alex.2037@sandbox.example.com"
+      "value": "casey.4659@example.com"
     },
-    "id": "cust_636c58ba74da49009e20cd2c",
-    "phone_number": "+448875184525",
-    "connector_customer_id": "cus_UCqKWpUuDInnXG"
+    "id": "cust_d6e6725746094f3488f4548330b52757",
+    "phone_number": "+441295173789",
+    "connector_customer_id": "cus_UCZqXfe9voW9zB"
   },
   "locale": "en-US",
   "address": {
     "shipping_address": {
       "first_name": {
-        "value": "Liam"
+        "value": "Noah"
       },
       "last_name": {
-        "value": "Wilson"
+        "value": "Smith"
       },
       "line1": {
-        "value": "189 Lake Ln"
+        "value": "6047 Oak Dr"
       },
       "line2": {
-        "value": "9393 Sunset Ave"
+        "value": "4207 Market Dr"
       },
       "line3": {
-        "value": "2258 Sunset Rd"
+        "value": "329 Sunset Dr"
       },
       "city": {
-        "value": "Los Angeles"
+        "value": "Austin"
       },
       "state": {
         "value": "CA"
       },
       "zip_code": {
-        "value": "98402"
+        "value": "92568"
       },
       "country_alpha2_code": "US",
       "email": {
-        "value": "casey.9074@testmail.io"
+        "value": "jordan.2682@sandbox.example.com"
       },
       "phone_number": {
-        "value": "4688883294"
+        "value": "6958324857"
       },
       "phone_country_code": "+91"
     },
@@ -390,32 +238,32 @@ grpcurl -plaintext \
         "value": "Liam"
       },
       "last_name": {
-        "value": "Johnson"
+        "value": "Smith"
       },
       "line1": {
-        "value": "2501 Oak Dr"
+        "value": "7263 Market Rd"
       },
       "line2": {
-        "value": "933 Market St"
+        "value": "2345 Lake Ave"
       },
       "line3": {
-        "value": "2877 Main Dr"
+        "value": "7227 Pine Blvd"
       },
       "city": {
-        "value": "New York"
+        "value": "Austin"
       },
       "state": {
         "value": "CA"
       },
       "zip_code": {
-        "value": "47084"
+        "value": "27158"
       },
       "country_alpha2_code": "US",
       "email": {
-        "value": "riley.6590@example.com"
+        "value": "jordan.8429@example.com"
       },
       "phone_number": {
-        "value": "5375995701"
+        "value": "8195830751"
       },
       "phone_country_code": "+91"
     }
@@ -429,7 +277,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US",
     "color_depth": 24,
     "screen_height": 1080,
@@ -466,22 +314,15 @@ x-tenant-id: default
 
 Response headers received:
 content-type: application/grpc
-date: Tue, 24 Mar 2026 08:48:42 GMT
+date: Mon, 23 Mar 2026 15:46:36 GMT
 x-request-id: authorize_no3ds_auto_capture_ideal_req
 
 Response contents:
 {
-  "error": {
-    "issuerDetails": {
-      "networkDetails": {}
-    },
-    "connectorDetails": {
-      "code": "No error code",
-      "message": "The currency provided (usd) is invalid. Payments with ideal support the following currencies: eur.",
-      "reason": "The currency provided (usd) is invalid. Payments with ideal support the following currencies: eur."
-    }
-  },
-  "statusCode": 400,
+  "merchantTransactionId": "pi_3TEAgZD5R7gDAGff1xk7lJur",
+  "connectorTransactionId": "pi_3TEAgZD5R7gDAGff1xk7lJur",
+  "status": "AUTHENTICATION_PENDING",
+  "statusCode": 200,
   "responseHeaders": {
     "access-control-allow-credentials": "true",
     "access-control-allow-methods": "GET, HEAD, PUT, PATCH, POST, DELETE",
@@ -490,13 +331,13 @@ Response contents:
     "access-control-max-age": "300",
     "cache-control": "no-cache, no-store",
     "connection": "keep-alive",
-    "content-length": "322",
-    "content-security-policy": "base-uri 'none'; default-src 'none'; form-action 'none'; frame-ancestors 'none'; img-src 'self'; script-src 'self' 'report-sample'; style-src 'self'; worker-src 'none'; upgrade-insecure-requests; report-uri https://q.stripe.com/csp-violation?q=cf2m0QZllQ_cO_-ua0bmze_ZEC6zU5cKsor4N_WReyb_KG6mR6TnzmyVa9YaYVkePdSCzFeftRkot2ZX",
+    "content-length": "1916",
+    "content-security-policy": "base-uri 'none'; default-src 'none'; form-action 'none'; frame-ancestors 'none'; img-src 'self'; script-src 'self' 'report-sample'; style-src 'self'; worker-src 'none'; upgrade-insecure-requests; report-uri https://q.stripe.com/csp-violation?q=hUKDJ4YUx473XYLV0pYtoq3cs3AKKgls3BBntBphBU-yO5VTy8MFHoCN9NkxP-8p_wCp63JSrVwAdn07",
     "content-type": "application/json",
-    "date": "Tue, 24 Mar 2026 08:48:41 GMT",
-    "idempotency-key": "a53bc1fe-468b-44d0-b4cd-a561266bdae2",
-    "original-request": "req_qfF5C1wM81nmew",
-    "request-id": "req_qfF5C1wM81nmew",
+    "date": "Mon, 23 Mar 2026 15:46:36 GMT",
+    "idempotency-key": "c70dd08f-58c0-4361-877b-b389e079fea6",
+    "original-request": "req_7Van7TotNh6B8J",
+    "request-id": "req_7Van7TotNh6B8J",
     "server": "nginx",
     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
     "stripe-should-retry": "false",
@@ -506,11 +347,22 @@ Response contents:
     "x-stripe-routing-context-priority-tier": "api-testmode",
     "x-wc": "ABGHIJ"
   },
+  "redirectionData": {
+    "form": {
+      "endpoint": "https://pm-redirects.stripe.com/authorize/acct_1M7fTaD5R7gDAGff/pa_nonce_UCZqP5Cwrc8sycB4KwcQwkkDQB6LYEe",
+      "method": "HTTP_METHOD_GET"
+    }
+  },
   "state": {
-    "connectorCustomerId": "cus_UCqKWpUuDInnXG"
+    "connectorCustomerId": "cus_UCZqXfe9voW9zB"
   },
   "rawConnectorResponse": "***MASKED***"
-  "rawConnectorRequest": "***MASKED***"
+  
+  "mandateReference": {
+    "connectorMandateId": {
+      "connectorMandateId": "pm_1TEAgZD5R7gDAGffZJeptlMV",
+      "paymentMethodId": "pm_1TEAgZD5R7gDAGffZJeptlMV"
+    }
   }
 }
 

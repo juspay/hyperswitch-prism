@@ -9,10 +9,10 @@
 
 | Scenario | PM | PMT | Result | Prerequisites |
 |:---------|:--:|:---:|:------:|:--------------|
-| [`refund_sync`](./refund-sync/refund-sync.md) | - | - | `FAIL` | `create_customer(create_customer)` (FAIL) -> `authorize(no3ds_auto_capture_credit_card)` (FAIL) |
-| [`refund_sync_with_reason`](./refund-sync/refund-sync-with-reason.md) | - | - | `FAIL` | `create_customer(create_customer)` (FAIL) -> `authorize(no3ds_auto_capture_credit_card)` (FAIL) |
+| [`Refund Sync`](./refund-sync/refund-sync.md) | - | - | `FAIL` | `create_customer(create_customer)` (FAIL) -> `authorize(no3ds_auto_capture_credit_card)` (FAIL) |
+| [`Refund Sync \| Reason`](./refund-sync/refund-sync-with-reason.md) | - | - | `FAIL` | `create_customer(create_customer)` (FAIL) -> `authorize(no3ds_auto_capture_credit_card)` (FAIL) |
 
 ## Failed Scenarios
 
-- [`refund_sync`](./refund-sync/refund-sync.md) — unsupported suite 'refund_sync' for grpcurl generation
-- [`refund_sync_with_reason`](./refund-sync/refund-sync-with-reason.md) — unsupported suite 'refund_sync' for grpcurl generation
+- [`Refund Sync`](./refund-sync/refund-sync.md) — unsupported suite 'refund_sync' for grpcurl generation
+- [`Refund Sync | Reason`](./refund-sync/refund-sync-with-reason.md) — unsupported suite 'refund_sync' for grpcurl generation

@@ -1,6 +1,7 @@
-# Connector `nexixpay` / Suite `authorize` / Scenario `no3ds_auto_capture_eps`
+# Connector `nexixpay` / Suite `authorize` / Scenario `EPS | No 3DS | Automatic Capture`
 
 - Service: `PaymentService/Authorize`
+- Scenario Key: `no3ds_auto_capture_eps`
 - PM / PMT: `eps` / `-`
 - Result: `FAIL`
 

@@ -1,6 +1,7 @@
-# Connector `multisafepay` / Suite `void` / Scenario `void_with_amount`
+# Connector `multisafepay` / Suite `void` / Scenario `Void | Amount`
 
 - Service: `PaymentService/Void`
+- Scenario Key: `void_with_amount`
 - PM / PMT: `-` / `-`
 - Result: `FAIL`
 
@@ -255,7 +256,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US",
     "color_depth": 24,
     "screen_height": 1080,
@@ -395,8 +396,7 @@ Response contents:
     "x-request-id": "019d1c0e-327b-7799-8d8c-a85efb083037"
   },
   "rawConnectorResponse": "***MASKED***"
-  "rawConnectorRequest": "***MASKED***"
-  }
+  
 }
 
 Response trailers received:
@@ -429,7 +429,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US",
     "color_depth": 24,
     "screen_height": 1080,

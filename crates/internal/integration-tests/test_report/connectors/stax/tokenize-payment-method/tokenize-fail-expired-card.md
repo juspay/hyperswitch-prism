@@ -1,6 +1,7 @@
-# Connector `stax` / Suite `tokenize_payment_method` / Scenario `tokenize_fail_expired_card`
+# Connector `stax` / Suite `tokenize_payment_method` / Scenario `Tokenize Payment Method | Tokenize Fail Expired Card`
 
 - Service: `Unknown`
+- Scenario Key: `tokenize_fail_expired_card`
 - PM / PMT: `card` / `-`
 - Result: `PASS`
 

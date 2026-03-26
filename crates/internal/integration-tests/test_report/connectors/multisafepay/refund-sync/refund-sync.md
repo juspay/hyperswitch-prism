@@ -1,6 +1,7 @@
-# Connector `multisafepay` / Suite `refund_sync` / Scenario `refund_sync`
+# Connector `multisafepay` / Suite `refund_sync` / Scenario `Refund Sync`
 
 - Service: `RefundService/Get`
+- Scenario Key: `refund_sync`
 - PM / PMT: `-` / `-`
 - Result: `FAIL`
 
@@ -95,7 +96,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US",
     "color_depth": 24,
     "screen_height": 1080,
@@ -235,8 +236,7 @@ Response contents:
     "x-request-id": "019d1dd3-5e71-7b50-bca0-b3839e205a78"
   },
   "rawConnectorResponse": "***MASKED***"
-  "rawConnectorRequest": "***MASKED***"
-  }
+  
 }
 
 Response trailers received:
@@ -328,8 +328,7 @@ Response contents:
     "x-request-id": "019d1dd3-61cc-7f87-b647-c0d3e08c6033"
   },
   "rawConnectorResponse": "***MASKED***"
-  "rawConnectorRequest": "***MASKED***"
-  }
+  
 }
 
 Response trailers received:

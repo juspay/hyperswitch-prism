@@ -9,4 +9,4 @@
 
 | Scenario | PM | PMT | Result | Prerequisites |
 |:---------|:--:|:---:|:------:|:--------------|
-| [`threeds_card_pre_authenticate`](./pre-authenticate/threeds-card-pre-authenticate.md) | card | credit | `PASS` | None |
+| [`Card Pre Authenticate \| 3DS`](./pre-authenticate/threeds-card-pre-authenticate.md) | card | credit | `PASS` | None |

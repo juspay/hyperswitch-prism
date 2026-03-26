@@ -1,6 +1,7 @@
-# Connector `elavon` / Suite `setup_recurring` / Scenario `setup_recurring`
+# Connector `elavon` / Suite `setup_recurring` / Scenario `Setup Recurring`
 
 - Service: `PaymentService/SetupRecurring`
+- Scenario Key: `setup_recurring`
 - PM / PMT: `card` / `credit`
 - Result: `FAIL`
 

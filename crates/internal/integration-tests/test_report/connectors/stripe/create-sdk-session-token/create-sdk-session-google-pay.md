@@ -1,6 +1,7 @@
-# Connector `stripe` / Suite `create_sdk_session_token` / Scenario `create_sdk_session_google_pay`
+# Connector `stripe` / Suite `create_sdk_session_token` / Scenario `Create SDK Session Token | Create SDK Session Google Pay`
 
 - Service: `Unknown`
+- Scenario Key: `create_sdk_session_google_pay`
 - PM / PMT: `-` / `-`
 - Result: `FAIL`
 
@@ -37,7 +38,7 @@ grpcurl -plaintext \
   -H "x-connector-config: ***MASKED***" \
   -d @ localhost:50051 types.MerchantAuthenticationService/CreateSdkSessionToken <<'JSON'
 {
-  "merchant_sdk_session_id": "gen_673919",
+  "merchant_sdk_session_id": "gen_606574",
   "amount": {
     "minor_amount": 12000,
     "currency": "USD"
@@ -45,9 +46,9 @@ grpcurl -plaintext \
   "payment_method_type": "GOOGLE_PAY",
   "country_alpha2_code": "US",
   "customer": {
-    "name": "Liam Wilson",
+    "name": "Liam Miller",
     "email": {
-      "value": "riley.5682@example.com"
+      "value": "sam.7619@sandbox.example.com"
     }
   },
   "test_mode": true

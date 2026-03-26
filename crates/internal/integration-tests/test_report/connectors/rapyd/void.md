@@ -9,12 +9,12 @@
 
 | Scenario | PM | PMT | Result | Prerequisites |
 |:---------|:--:|:---:|:------:|:--------------|
-| [`void_authorized_payment`](./void/void-authorized-payment.md) | - | - | `FAIL` | `authorize(no3ds_manual_capture_credit_card)` (PASS) |
-| [`void_with_amount`](./void/void-with-amount.md) | - | - | `FAIL` | `authorize(no3ds_manual_capture_credit_card)` (PASS) |
-| [`void_without_cancellation_reason`](./void/void-without-cancellation-reason.md) | - | - | `FAIL` | `authorize(no3ds_manual_capture_credit_card)` (PASS) |
+| [`Void \| Authorized Payment`](./void/void-authorized-payment.md) | - | - | `FAIL` | `authorize(no3ds_manual_capture_credit_card)` (PASS) |
+| [`Void \| Amount`](./void/void-with-amount.md) | - | - | `FAIL` | `authorize(no3ds_manual_capture_credit_card)` (PASS) |
+| [`Void \| Without Cancellation Reason`](./void/void-without-cancellation-reason.md) | - | - | `FAIL` | `authorize(no3ds_manual_capture_credit_card)` (PASS) |
 
 ## Failed Scenarios
 
-- [`void_authorized_payment`](./void/void-authorized-payment.md) — assertion failed for field 'status': expected one of ["VOIDED", "PENDING"], got "AUTHORIZED"
-- [`void_with_amount`](./void/void-with-amount.md) — assertion failed for field 'status': expected one of ["VOIDED", "PENDING"], got "AUTHORIZED"
-- [`void_without_cancellation_reason`](./void/void-without-cancellation-reason.md) — assertion failed for field 'status': expected one of ["VOIDED", "PENDING"], got "AUTHORIZED"
+- [`Void | Authorized Payment`](./void/void-authorized-payment.md) — assertion failed for field 'status': expected one of ["VOIDED", "PENDING"], got "AUTHORIZED"
+- [`Void | Amount`](./void/void-with-amount.md) — assertion failed for field 'status': expected one of ["VOIDED", "PENDING"], got "AUTHORIZED"
+- [`Void | Without Cancellation Reason`](./void/void-without-cancellation-reason.md) — assertion failed for field 'status': expected one of ["VOIDED", "PENDING"], got "AUTHORIZED"

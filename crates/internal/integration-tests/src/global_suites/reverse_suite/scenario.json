@@ -20,7 +20,8 @@
         "must_not_exist": true
       }
     },
-    "is_default": true
+    "is_default": true,
+    "display_name": "Reverse | Full Payment"
   },
   "reverse_with_reason": {
     "grpc_req": {
@@ -39,7 +40,8 @@
       "error": {
         "must_not_exist": true
       }
-    }
+    },
+    "display_name": "Reverse | Reason"
   },
   "reverse_fail_invalid_transaction_id": {
     "grpc_req": {
@@ -57,6 +59,7 @@
       "error": {
         "must_exist": true
       }
-    }
+    },
+    "display_name": "Reverse | Fail Invalid Transaction ID"
   }
 }

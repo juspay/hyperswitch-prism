@@ -44,7 +44,8 @@
         "must_not_exist": true
       }
     },
-    "is_default": true
+    "is_default": true,
+    "display_name": "Capture | Full Amount"
   },
   "capture_partial_amount": {
     "grpc_req": {
@@ -90,7 +91,8 @@
       "error": {
         "must_not_exist": true
       }
-    }
+    },
+    "display_name": "Capture | Partial Amount"
   },
   "capture_with_merchant_order_id": {
     "grpc_req": {
@@ -137,6 +139,7 @@
       "error": {
         "must_not_exist": true
       }
-    }
+    },
+    "display_name": "Capture | Merchant Order ID Reference"
   }
 }

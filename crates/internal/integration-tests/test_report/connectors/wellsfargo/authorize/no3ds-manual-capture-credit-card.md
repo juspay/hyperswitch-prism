@@ -1,6 +1,7 @@
-# Connector `wellsfargo` / Suite `authorize` / Scenario `no3ds_manual_capture_credit_card`
+# Connector `wellsfargo` / Suite `authorize` / Scenario `Credit Card | No 3DS | Manual Capture`
 
 - Service: `PaymentService/Authorize`
+- Scenario Key: `no3ds_manual_capture_credit_card`
 - PM / PMT: `card` / `credit`
 - Result: `PASS`
 
@@ -44,14 +45,14 @@ _Response trace not available._
   "shipping_cost": 0,
   "payment_method": {
     "card": {
-      "card_number": "***MASKED***",
+      "card_number": ***MASKED***"
       "card_exp_month": {
         "value": "08"
       },
       "card_exp_year": {
         "value": "30"
       },
-      "card_cvc": "***MASKED***",
+      "card_cvc": ***MASKED***"
       "card_holder_name": {
         "value": "Liam Wilson"
       },
@@ -176,7 +177,7 @@ _Response trace not available._
     "x-opnet-transaction-trace": "c6da0384-aff8-4d30-af35-f1073880e050-2349521-20330084"
   },
   "network_transaction_id": "016150703802094",
-  "incremental_authorization_allowed": "***MASKED***",
+  "incremental_authorization_allowed": ***MASKED***"
   "raw_connector_response": "***MASKED***",
   "connector_response": {
     "additional_payment_method_data": {

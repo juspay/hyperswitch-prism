@@ -1,6 +1,7 @@
-# Connector `datatrans` / Suite `void` / Scenario `void_without_cancellation_reason`
+# Connector `datatrans` / Suite `void` / Scenario `Void | Without Cancellation Reason`
 
 - Service: `PaymentService/Void`
+- Scenario Key: `void_without_cancellation_reason`
 - PM / PMT: `-` / `-`
 - Result: `FAIL`
 
@@ -232,7 +233,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US",
     "color_depth": 24,
     "screen_height": 1080,
@@ -374,8 +375,7 @@ Response contents:
     "x-xss-protection": "1; mode=block"
   },
   "rawConnectorResponse": "***MASKED***"
-  "rawConnectorRequest": "***MASKED***"
-  }
+  
 }
 
 Response trailers received:
@@ -403,7 +403,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US",
     "color_depth": 24,
     "screen_height": 1080,
@@ -460,8 +460,7 @@ Response contents:
     "x-xss-protection": "1; mode=block"
   },
   "rawConnectorRequest": "***MASKED***"
-  }
-}
+
 
 Response trailers received:
 (empty)

@@ -1,6 +1,7 @@
-# Connector `elavon` / Suite `void` / Scenario `void_with_amount`
+# Connector `elavon` / Suite `void` / Scenario `Void | Amount`
 
 - Service: `PaymentService/Void`
+- Scenario Key: `void_with_amount`
 - PM / PMT: `-` / `-`
 - Result: `FAIL`
 

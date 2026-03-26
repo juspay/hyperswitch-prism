@@ -1,6 +1,7 @@
-# Connector `shift4` / Suite `refund` / Scenario `refund_with_reason`
+# Connector `shift4` / Suite `refund` / Scenario `Refund | Reason`
 
 - Service: `PaymentService/Refund`
+- Scenario Key: `refund_with_reason`
 - PM / PMT: `-` / `-`
 - Result: `FAIL`
 
@@ -232,7 +233,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US",
     "color_depth": 24,
     "screen_height": 1080,
@@ -374,8 +375,7 @@ Response contents:
     "strict-transport-security": "max-age=2592000; includeSubDomains"
   },
   "rawConnectorResponse": "***MASKED***"
-  "rawConnectorRequest": "***MASKED***"
-  }
+  
 }
 
 Response trailers received:
@@ -454,8 +454,7 @@ Response contents:
     "strict-transport-security": "max-age=2592000; includeSubDomains"
   },
   "rawConnectorResponse": "***MASKED***"
-  "rawConnectorRequest": "***MASKED***"
-  }
+  
 }
 
 Response trailers received:

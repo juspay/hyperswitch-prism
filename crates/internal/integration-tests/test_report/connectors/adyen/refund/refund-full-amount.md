@@ -1,6 +1,7 @@
-# Connector `adyen` / Suite `refund` / Scenario `refund_full_amount`
+# Connector `adyen` / Suite `refund` / Scenario `Refund | Full Amount`
 
 - Service: `PaymentService/Refund`
+- Scenario Key: `refund_full_amount`
 - PM / PMT: `-` / `-`
 - Result: `PASS`
 
@@ -201,9 +202,7 @@ Response contents:
   },
   "networkTransactionId": "AHMT9884Y0324",
   "rawConnectorResponse": "***MASKED***"
-  },
-  "rawConnectorRequest": "***MASKED***"
-  },
+  
   "capturedAmount": "6000",
   "connectorResponse": {
     "additionalPaymentMethodData": {
@@ -289,8 +288,7 @@ Response contents:
   },
   "connectorTransactionId": "PN9PXDQK3Z6JS975",
   "rawConnectorResponse": "***MASKED***"
-  "rawConnectorRequest": "***MASKED***"
-  }
+  
 }
 
 Response trailers received:

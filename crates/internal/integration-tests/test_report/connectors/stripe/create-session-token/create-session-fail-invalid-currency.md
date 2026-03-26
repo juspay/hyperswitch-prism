@@ -1,6 +1,7 @@
-# Connector `stripe` / Suite `create_session_token` / Scenario `create_session_fail_invalid_currency`
+# Connector `stripe` / Suite `create_session_token` / Scenario `Create Session Token | Create Session Fail Invalid Currency`
 
 - Service: `Unknown`
+- Scenario Key: `create_session_fail_invalid_currency`
 - PM / PMT: `-` / `-`
 - Result: `FAIL`
 
@@ -37,7 +38,7 @@ grpcurl -plaintext \
   -H "x-connector-config: ***MASKED***" \
   -d @ localhost:50051 types.MerchantAuthenticationService/CreateSessionToken <<'JSON'
 {
-  "merchant_session_id": "gen_488337",
+  "merchant_session_id": "gen_826727",
   "amount": {
     "minor_amount": 10000,
     "currency": "XXX"

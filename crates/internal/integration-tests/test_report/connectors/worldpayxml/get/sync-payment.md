@@ -1,6 +1,7 @@
-# Connector `worldpayxml` / Suite `get` / Scenario `sync_payment`
+# Connector `worldpayxml` / Suite `get` / Scenario `Get | Sync Payment`
 
 - Service: `PaymentService/Get`
+- Scenario Key: `sync_payment`
 - PM / PMT: `-` / `-`
 - Result: `PASS`
 
@@ -66,7 +67,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US",
     "color_depth": 24,
     "screen_height": 1080,
@@ -208,8 +209,7 @@ Response contents:
   },
   "networkTransactionId": "954348",
   "rawConnectorResponse": "***MASKED***"
-  "rawConnectorRequest": "***MASKED***"
-  }
+  
 }
 
 Response trailers received:
@@ -286,8 +286,7 @@ Response contents:
     "x-xss-protection": "1; mode=block"
   },
   "rawConnectorResponse": "***MASKED***"
-  "rawConnectorRequest": "***MASKED***"
-  },
+  
   "merchantTransactionId": "mti_04d08327ec4244eebcc51332"
 }
 

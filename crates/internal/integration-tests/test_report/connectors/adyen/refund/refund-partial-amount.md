@@ -1,6 +1,7 @@
-# Connector `adyen` / Suite `refund` / Scenario `refund_partial_amount`
+# Connector `adyen` / Suite `refund` / Scenario `Refund | Partial Amount`
 
 - Service: `PaymentService/Refund`
+- Scenario Key: `refund_partial_amount`
 - PM / PMT: `-` / `-`
 - Result: `PASS`
 
@@ -201,9 +202,7 @@ Response contents:
   },
   "networkTransactionId": "T6A7ERGC30324",
   "rawConnectorResponse": "***MASKED***"
-  },
-  "rawConnectorRequest": "***MASKED***"
-  },
+  
   "capturedAmount": "6000",
   "connectorResponse": {
     "additionalPaymentMethodData": {
@@ -289,8 +288,7 @@ Response contents:
   },
   "connectorTransactionId": "DXZTGNT2RZV94875",
   "rawConnectorResponse": "***MASKED***"
-  "rawConnectorRequest": "***MASKED***"
-  }
+  
 }
 
 Response trailers received:

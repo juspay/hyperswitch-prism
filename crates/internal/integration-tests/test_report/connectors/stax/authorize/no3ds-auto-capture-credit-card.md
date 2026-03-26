@@ -1,6 +1,7 @@
-# Connector `stax` / Suite `authorize` / Scenario `no3ds_auto_capture_credit_card`
+# Connector `stax` / Suite `authorize` / Scenario `Credit Card | No 3DS | Automatic Capture`
 
 - Service: `PaymentService/Authorize`
+- Scenario Key: `no3ds_auto_capture_credit_card`
 - PM / PMT: `card` / `credit`
 - Result: `FAIL`
 
@@ -436,7 +437,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US",
     "color_depth": 24,
     "screen_height": 1080,
@@ -503,8 +504,7 @@ Response contents:
     "connectorCustomerId": "f01889b4-f975-4d65-94a9-a73605ac0fea"
   },
   "rawConnectorResponse": "***MASKED***"
-  "rawConnectorRequest": "***MASKED***"
-  }
+  
 }
 
 Response trailers received:

@@ -1,6 +1,7 @@
-# Connector `stax` / Suite `refund_sync` / Scenario `refund_sync_with_reason`
+# Connector `stax` / Suite `refund_sync` / Scenario `Refund Sync | Reason`
 
 - Service: `RefundService/Get`
+- Scenario Key: `refund_sync_with_reason`
 - PM / PMT: `-` / `-`
 - Result: `FAIL`
 
@@ -468,7 +469,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US",
     "color_depth": 24,
     "screen_height": 1080,
@@ -535,7 +536,7 @@ Response contents:
     "connectorCustomerId": "d49f5d22-ea6b-45e1-ad9a-09c2436a06ea"
   },
   "rawConnectorResponse": "***MASKED***"
-  "rawConnectorRequest": "***MASKED***"
+  
   }
 }
 
@@ -630,8 +631,7 @@ Response contents:
     "x-powered-by": "PHP/8.3.11"
   },
   "rawConnectorResponse": "***MASKED***"
-  "rawConnectorRequest": "***MASKED***"
-  }
+  
 }
 
 Response trailers received:

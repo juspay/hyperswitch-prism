@@ -1,6 +1,7 @@
-# Connector `authorizedotnet` / Suite `get` / Scenario `sync_payment`
+# Connector `authorizedotnet` / Suite `get` / Scenario `Get | Sync Payment`
 
 - Service: `PaymentService/Get`
+- Scenario Key: `sync_payment`
 - PM / PMT: `-` / `-`
 - Result: `PASS`
 
@@ -211,7 +212,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US",
     "color_depth": 24,
     "screen_height": 1080,
@@ -356,9 +357,7 @@ Response contents:
     "connectorCustomerId": "525968119"
   },
   "rawConnectorResponse": "***MASKED***"
-  },
-  "rawConnectorRequest": "***MASKED***"
-  },
+  
   "connectorResponse": {
     "additionalPaymentMethodData": {
       "card": {
@@ -451,9 +450,7 @@ Response contents:
     "x-opnet-transaction-trace": "b49908eb-ad2c-49e6-ab5f-6e2044ad53c6-8872-12548083"
   },
   "rawConnectorResponse": "***MASKED***"
-  },
-  "rawConnectorRequest": "***MASKED***"
-  },
+  
   "merchantTransactionId": "80053224782"
 }
 

@@ -151,7 +151,8 @@
       "error": {
         "must_not_exist": true
       }
-    }
+    },
+    "display_name": "Google Pay (Encrypted Token) | No 3DS | Automatic Capture"
   },
   "no3ds_auto_capture_credit_card": {
     "grpc_req": {
@@ -309,7 +310,8 @@
       "error": {
         "must_not_exist": true
       }
-    }
+    },
+    "display_name": "Credit Card | No 3DS | Automatic Capture"
   },
   "no3ds_auto_capture_debit_card": {
     "grpc_req": {
@@ -467,7 +469,8 @@
       "error": {
         "must_not_exist": true
       }
-    }
+    },
+    "display_name": "Debit Card | No 3DS | Automatic Capture"
   },
   "no3ds_manual_capture_credit_card": {
     "grpc_req": {
@@ -625,7 +628,8 @@
         "must_not_exist": true
       }
     },
-    "is_default": true
+    "is_default": true,
+    "display_name": "Credit Card | No 3DS | Manual Capture"
   },
   "no3ds_manual_capture_debit_card": {
     "grpc_req": {
@@ -782,7 +786,8 @@
       "error": {
         "must_not_exist": true
       }
-    }
+    },
+    "display_name": "Debit Card | No 3DS | Manual Capture"
   },
   "threeds_manual_capture_credit_card": {
     "grpc_req": {
@@ -941,7 +946,8 @@
       "error": {
         "must_not_exist": true
       }
-    }
+    },
+    "display_name": "Credit Card | 3DS | Manual Capture"
   },
   "no3ds_auto_capture_ideal": {
     "grpc_req": {
@@ -1084,7 +1090,8 @@
       "error": {
         "must_not_exist": true
       }
-    }
+    },
+    "display_name": "iDEAL | No 3DS | Automatic Capture"
   },
   "no3ds_auto_capture_giropay": {
     "grpc_req": {
@@ -1227,7 +1234,8 @@
       "error": {
         "must_not_exist": true
       }
-    }
+    },
+    "display_name": "Giropay | No 3DS | Automatic Capture"
   },
   "no3ds_auto_capture_bancontact": {
     "grpc_req": {
@@ -1383,7 +1391,8 @@
       "error": {
         "must_not_exist": true
       }
-    }
+    },
+    "display_name": "Bancontact | No 3DS | Automatic Capture"
   },
   "no3ds_auto_capture_klarna": {
     "grpc_req": {
@@ -1526,7 +1535,8 @@
       "error": {
         "must_not_exist": true
       }
-    }
+    },
+    "display_name": "Klarna | No 3DS | Automatic Capture"
   },
   "no3ds_auto_capture_affirm": {
     "grpc_req": {
@@ -1669,7 +1679,8 @@
       "error": {
         "must_not_exist": true
       }
-    }
+    },
+    "display_name": "Affirm | No 3DS | Automatic Capture"
   },
   "no3ds_auto_capture_afterpay_clearpay": {
     "grpc_req": {
@@ -1812,7 +1823,8 @@
       "error": {
         "must_not_exist": true
       }
-    }
+    },
+    "display_name": "Afterpay/Clearpay | No 3DS | Automatic Capture"
   },
   "no3ds_fail_payment": {
     "grpc_req": {
@@ -1972,7 +1984,8 @@
       "error.connector_details.message": {
         "contains": "decline"
       }
-    }
+    },
+    "display_name": "Payment Failure | No 3DS"
   },
   "no3ds_auto_capture_przelewy24": {
     "grpc_req": {
@@ -2115,7 +2128,8 @@
       "error": {
         "must_not_exist": true
       }
-    }
+    },
+    "display_name": "Przelewy24 | No 3DS | Automatic Capture"
   },
   "no3ds_auto_capture_alipay": {
     "grpc_req": {
@@ -2258,7 +2272,8 @@
       "error": {
         "must_not_exist": true
       }
-    }
+    },
+    "display_name": "Alipay | No 3DS | Automatic Capture"
   },
   "no3ds_auto_capture_eps": {
     "grpc_req": {
@@ -2401,7 +2416,8 @@
       "error": {
         "must_not_exist": true
       }
-    }
+    },
+    "display_name": "EPS | No 3DS | Automatic Capture"
   },
   "no3ds_auto_capture_sepa_bank_transfer": {
     "grpc_req": {
@@ -2544,7 +2560,8 @@
       "error": {
         "must_not_exist": true
       }
-    }
+    },
+    "display_name": "SEPA Bank Transfer | No 3DS | Automatic Capture"
   },
   "no3ds_auto_capture_ach_bank_transfer": {
     "grpc_req": {
@@ -2687,7 +2704,8 @@
       "error": {
         "must_not_exist": true
       }
-    }
+    },
+    "display_name": "ACH Bank Transfer | No 3DS | Automatic Capture"
   },
   "no3ds_auto_capture_bacs_bank_transfer": {
     "grpc_req": {
@@ -2830,6 +2848,7 @@
       "error": {
         "must_not_exist": true
       }
-    }
+    },
+    "display_name": "BACS Bank Transfer | No 3DS | Automatic Capture"
   }
 }

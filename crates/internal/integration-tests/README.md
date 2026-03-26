@@ -121,6 +121,34 @@ make cargo ARGS="run -p integration-tests --bin sdk_run_test -- \
 cargo run -p integration-tests --bin render_report
 ```
 
+### Scenario Display Names
+
+Scenario display names are human-readable labels shown in markdown reports instead of raw scenario keys.
+
+Style A format used by the generator:
+- Payment-style scenarios: `<Subject> | <Auth Type> | <Capture Mode>`
+- Example: `Credit Card | No 3DS | Automatic Capture`
+
+```bash
+# Generate display names for all suites
+cargo run -p integration-tests --bin generate_scenario_display_names
+
+# Generate for one suite only
+cargo run -p integration-tests --bin generate_scenario_display_names -- --suite authorize
+
+# Preview changes without writing
+cargo run -p integration-tests --bin generate_scenario_display_names -- --check
+
+# Generate/update display names and regenerate markdown in one command
+cargo run -p integration-tests --bin generate_scenario_display_names -- --render-markdown
+```
+
+How it works:
+- Reads `scenario.json` files under `src/global_suites/*_suite/`
+- Generates or updates each scenario's `display_name`
+- Uses `display_name` in markdown reports (falls back to generated Style A when missing)
+- Escapes `|` in markdown tables to keep columns aligned
+
 ### Help Commands
 
 ```bash

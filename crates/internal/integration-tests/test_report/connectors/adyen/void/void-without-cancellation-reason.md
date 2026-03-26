@@ -1,6 +1,7 @@
-# Connector `adyen` / Suite `void` / Scenario `void_without_cancellation_reason`
+# Connector `adyen` / Suite `void` / Scenario `Void | Without Cancellation Reason`
 
 - Service: `PaymentService/Void`
+- Scenario Key: `void_without_cancellation_reason`
 - PM / PMT: `-` / `-`
 - Result: `PASS`
 
@@ -201,9 +202,7 @@ Response contents:
   },
   "networkTransactionId": "S778CA8N40324",
   "rawConnectorResponse": "***MASKED***"
-  },
-  "rawConnectorRequest": "***MASKED***"
-  },
+  
   "connectorResponse": {
     "additionalPaymentMethodData": {
       "card": {
@@ -295,8 +294,7 @@ Response contents:
   },
   "merchantVoidId": "mvi_e4340fed9633430fac04d87c",
   "rawConnectorRequest": "***MASKED***"
-  }
-}
+
 
 Response trailers received:
 (empty)

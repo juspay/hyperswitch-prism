@@ -1,6 +1,7 @@
-# Connector `novalnet` / Suite `capture` / Scenario `capture_full_amount`
+# Connector `novalnet` / Suite `capture` / Scenario `Capture | Full Amount`
 
 - Service: `PaymentService/Capture`
+- Scenario Key: `capture_full_amount`
 - PM / PMT: `-` / `-`
 - Result: `FAIL`
 
@@ -59,14 +60,14 @@ assertion failed for field 'connector_transaction_id': expected field to exist
   "shipping_cost": 0,
   "payment_method": {
     "card": {
-      "card_number": "***MASKED***",
+      "card_number": ***MASKED***"
       "card_exp_month": {
         "value": "08"
       },
       "card_exp_year": {
         "value": "30"
       },
-      "card_cvc": "***MASKED***",
+      "card_cvc": ***MASKED***"
       "card_holder_name": {
         "value": "Emma Smith"
       },
@@ -209,7 +210,7 @@ assertion failed for field 'connector_transaction_id': expected field to exist
     }
   },
   "raw_connector_response": "***MASKED***"
-}
+
 ```
 
 </details>

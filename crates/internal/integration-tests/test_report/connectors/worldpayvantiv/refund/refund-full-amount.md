@@ -1,6 +1,7 @@
-# Connector `worldpayvantiv` / Suite `refund` / Scenario `refund_full_amount`
+# Connector `worldpayvantiv` / Suite `refund` / Scenario `Refund | Full Amount`
 
 - Service: `PaymentService/Refund`
+- Scenario Key: `refund_full_amount`
 - PM / PMT: `-` / `-`
 - Result: `PASS`
 
@@ -60,7 +61,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US",
     "color_depth": 24,
     "screen_height": 1080,
@@ -197,8 +198,7 @@ Response contents:
   },
   "networkTransactionId": "461878327373229",
   "rawConnectorResponse": "***MASKED***"
-  "rawConnectorRequest": "***MASKED***"
-  }
+  
 }
 
 Response trailers received:
@@ -273,8 +273,7 @@ Response contents:
   },
   "connectorTransactionId": "84086940574875850",
   "rawConnectorResponse": "***MASKED***"
-  "rawConnectorRequest": "***MASKED***"
-  }
+  
 }
 
 Response trailers received:

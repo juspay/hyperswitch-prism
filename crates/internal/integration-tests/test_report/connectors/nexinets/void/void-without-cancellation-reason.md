@@ -1,6 +1,7 @@
-# Connector `nexinets` / Suite `void` / Scenario `void_without_cancellation_reason`
+# Connector `nexinets` / Suite `void` / Scenario `Void | Without Cancellation Reason`
 
 - Service: `PaymentService/Void`
+- Scenario Key: `void_without_cancellation_reason`
 - PM / PMT: `-` / `-`
 - Result: `FAIL`
 
@@ -59,14 +60,14 @@ assertion failed for field 'connector_transaction_id': expected field to exist
   "shipping_cost": 0,
   "payment_method": {
     "card": {
-      "card_number": "***MASKED***",
+      "card_number": ***MASKED***"
       "card_exp_month": {
         "value": "08"
       },
       "card_exp_year": {
         "value": "30"
       },
-      "card_cvc": "***MASKED***",
+      "card_cvc": ***MASKED***"
       "card_holder_name": {
         "value": "Noah Johnson"
       },
@@ -205,7 +206,7 @@ assertion failed for field 'connector_transaction_id': expected field to exist
     "server": "Apache"
   },
   "raw_connector_response": "***MASKED***"
-}
+
 ```
 
 </details>

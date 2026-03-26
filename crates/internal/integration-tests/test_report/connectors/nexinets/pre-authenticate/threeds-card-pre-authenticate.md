@@ -1,6 +1,7 @@
-# Connector `nexinets` / Suite `pre_authenticate` / Scenario `threeds_card_pre_authenticate`
+# Connector `nexinets` / Suite `pre_authenticate` / Scenario `Card Pre Authenticate | 3DS`
 
 - Service: `PaymentMethodAuthenticationService/PreAuthenticate`
+- Scenario Key: `threeds_card_pre_authenticate`
 - PM / PMT: `card` / `credit`
 - Result: `FAIL`
 

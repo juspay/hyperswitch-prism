@@ -1,6 +1,7 @@
-# Connector `stax` / Suite `authorize` / Scenario `no3ds_manual_capture_debit_card`
+# Connector `stax` / Suite `authorize` / Scenario `Debit Card | No 3DS | Manual Capture`
 
 - Service: `PaymentService/Authorize`
+- Scenario Key: `no3ds_manual_capture_debit_card`
 - PM / PMT: `card` / `debit`
 - Result: `FAIL`
 
@@ -436,7 +437,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US",
     "color_depth": 24,
     "screen_height": 1080,
@@ -503,8 +504,7 @@ Response contents:
     "connectorCustomerId": "585ea3f8-f739-40a0-b3bc-823ab3ce41c5"
   },
   "rawConnectorResponse": "***MASKED***"
-  "rawConnectorRequest": "***MASKED***"
-  }
+  
 }
 
 Response trailers received:

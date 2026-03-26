@@ -1,6 +1,7 @@
-# Connector `noon` / Suite `capture` / Scenario `capture_partial_amount`
+# Connector `noon` / Suite `capture` / Scenario `Capture | Partial Amount`
 
 - Service: `PaymentService/Capture`
+- Scenario Key: `capture_partial_amount`
 - PM / PMT: `-` / `-`
 - Result: `FAIL`
 
@@ -59,14 +60,14 @@ assertion failed for field 'connector_transaction_id': expected field to exist
   "shipping_cost": 0,
   "payment_method": {
     "card": {
-      "card_number": "***MASKED***",
+      "card_number": ***MASKED***"
       "card_exp_month": {
         "value": "08"
       },
       "card_exp_year": {
         "value": "30"
       },
-      "card_cvc": "***MASKED***",
+      "card_cvc": ***MASKED***"
       "card_holder_name": {
         "value": "Ava Brown"
       },
@@ -207,7 +208,7 @@ assertion failed for field 'connector_transaction_id': expected field to exist
     "x-apioperation": "INITIATE"
   },
   "raw_connector_response": "***MASKED***"
-}
+
 ```
 
 </details>

@@ -25,6 +25,9 @@ pub struct ScenarioDef {
     /// Marks exactly one scenario in a suite as the default target.
     #[serde(default)]
     pub is_default: bool,
+    /// Optional human-friendly scenario name for docs and reports.
+    #[serde(default)]
+    pub display_name: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

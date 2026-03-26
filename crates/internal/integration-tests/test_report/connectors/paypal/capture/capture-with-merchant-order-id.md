@@ -1,6 +1,7 @@
-# Connector `paypal` / Suite `capture` / Scenario `capture_with_merchant_order_id`
+# Connector `paypal` / Suite `capture` / Scenario `Capture | Merchant Order ID Reference`
 
 - Service: `PaymentService/Capture`
+- Scenario Key: `capture_with_merchant_order_id`
 - PM / PMT: `-` / `-`
 - Result: `PASS`
 
@@ -213,7 +214,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US",
     "color_depth": 24,
     "screen_height": 1080,
@@ -286,9 +287,7 @@ Response contents:
     }
   },
   "rawConnectorResponse": "***MASKED***"
-  },
-  "rawConnectorRequest": "***MASKED***"
-  },
+  
   "mandateReference": {
     "connectorMandateId": {}
   },
@@ -399,7 +398,7 @@ Response contents:
     }
   },
   "rawConnectorRequest": "***MASKED***"
-  },
+  
   "capturedAmount": "6000",
   "connectorFeatureData": {
     "value": "{\"authorize_id\":\"97E78685PU6895947\",\"capture_id\":\"5GW52551CS267412V\",\"incremental_authorization_id\":null,\"psync_flow\":\"CAPTURE\",\"next_action\":null,\"order_id\":null}"

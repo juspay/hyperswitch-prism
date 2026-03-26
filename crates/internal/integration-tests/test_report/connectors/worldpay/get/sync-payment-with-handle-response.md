@@ -1,6 +1,7 @@
-# Connector `worldpay` / Suite `get` / Scenario `sync_payment_with_handle_response`
+# Connector `worldpay` / Suite `get` / Scenario `Get | Sync Payment With Handle Response`
 
 - Service: `PaymentService/Get`
+- Scenario Key: `sync_payment_with_handle_response`
 - PM / PMT: `-` / `-`
 - Result: `FAIL`
 
@@ -111,7 +112,7 @@ _Response trace not available._
     "cache-control": "no-cache, no-store, max-age=0, must-revalidate"
   },
   "raw_connector_response": "***MASKED***"
-}
+
 ```
 
 </details>

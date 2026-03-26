@@ -9,12 +9,12 @@
 
 | Scenario | PM | PMT | Result | Prerequisites |
 |:---------|:--:|:---:|:------:|:--------------|
-| [`setup_recurring`](./setup-recurring/setup-recurring.md) | card | credit | `FAIL` | `create_customer(create_customer)` (FAIL) |
-| [`setup_recurring_with_order_context`](./setup-recurring/setup-recurring-with-order-context.md) | card | credit | `FAIL` | `create_customer(create_customer)` (FAIL) |
-| [`setup_recurring_with_webhook`](./setup-recurring/setup-recurring-with-webhook.md) | card | credit | `FAIL` | `create_customer(create_customer)` (FAIL) |
+| [`Setup Recurring`](./setup-recurring/setup-recurring.md) | card | credit | `FAIL` | `create_customer(create_customer)` (FAIL) |
+| [`Setup Recurring \| Order Context`](./setup-recurring/setup-recurring-with-order-context.md) | card | credit | `FAIL` | `create_customer(create_customer)` (FAIL) |
+| [`Setup Recurring \| Webhook`](./setup-recurring/setup-recurring-with-webhook.md) | card | credit | `FAIL` | `create_customer(create_customer)` (FAIL) |
 
 ## Failed Scenarios
 
-- [`setup_recurring`](./setup-recurring/setup-recurring.md) — sdk call failed: sdk request transformer failed for 'setup_recurring/setup_recurring': Missing required field: webhook_url (code: BAD_REQUEST)
-- [`setup_recurring_with_order_context`](./setup-recurring/setup-recurring-with-order-context.md) — assertion failed for field 'mandate_reference.connector_mandate_id.connector_mandate_id': expected field to exist
-- [`setup_recurring_with_webhook`](./setup-recurring/setup-recurring-with-webhook.md) — assertion failed for field 'mandate_reference.connector_mandate_id.connector_mandate_id': expected field to exist
+- [`Setup Recurring`](./setup-recurring/setup-recurring.md) — sdk call failed: sdk request transformer failed for 'setup_recurring/setup_recurring': Missing required field: webhook_url (code: BAD_REQUEST)
+- [`Setup Recurring | Order Context`](./setup-recurring/setup-recurring-with-order-context.md) — assertion failed for field 'mandate_reference.connector_mandate_id.connector_mandate_id': expected field to exist
+- [`Setup Recurring | Webhook`](./setup-recurring/setup-recurring-with-webhook.md) — assertion failed for field 'mandate_reference.connector_mandate_id.connector_mandate_id': expected field to exist

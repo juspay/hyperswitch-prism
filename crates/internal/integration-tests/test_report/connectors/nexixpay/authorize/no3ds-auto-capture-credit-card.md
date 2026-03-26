@@ -1,6 +1,7 @@
-# Connector `nexixpay` / Suite `authorize` / Scenario `no3ds_auto_capture_credit_card`
+# Connector `nexixpay` / Suite `authorize` / Scenario `Credit Card | No 3DS | Automatic Capture`
 
 - Service: `PaymentService/Authorize`
+- Scenario Key: `no3ds_auto_capture_credit_card`
 - PM / PMT: `card` / `credit`
 - Result: `FAIL`
 

@@ -24,6 +24,7 @@ pub fn is_sensitive_key(key: &str) -> bool {
         || key.contains("authorization")
         || key == "apikey"
         || key == "xapikey"
+        || key == "xconnectorconfig"
         || key == "xauth"
         || key == "key1"
         || key == "xkey1"
@@ -97,9 +98,20 @@ pub fn mask_sensitive_text(text: &str) -> String {
 /// unescaped closing quote of the value string.
 static RAW_CONNECTOR_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
-        r#"(?s)("rawConnector(?:Request|Response)")\s*:\s*\{\s*"value"\s*:\s*"(?:[^"\\]|\\.)*"\s*\}"#,
+        r#"(?s)("(?:rawConnector(?:Request|Response)|raw_connector_(?:request|response))")\s*:\s*\{\s*"value"\s*:\s*"(?:[^"\\]|\\.)*"\s*\}"#,
     )
     .expect("rawConnector regex must compile")
+});
+
+/// Regex for direct string form:
+///   "raw_connector_response": "..."
+/// or
+///   "rawConnectorResponse": "..."
+static RAW_CONNECTOR_STRING_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r#"(?s)("(?:rawConnector(?:Request|Response)|raw_connector_(?:request|response))")\s*:\s*"(?:[^"\\]|\\.)*""#,
+    )
+    .expect("rawConnector string regex must compile")
 });
 
 /// Cleanup regex for previously-corrupted masking output.
@@ -114,8 +126,24 @@ static RAW_CONNECTOR_RE: LazyLock<Regex> = LazyLock::new(|| {
 static RAW_CONNECTOR_CLEANUP_RE: LazyLock<Regex> = LazyLock::new(|| {
     // Match: "rawConnectorX": "***MASKED***" followed by non-newline junk
     // The junk is everything after MASKED_VALUE's closing quote until end-of-line.
-    Regex::new(r#"("rawConnector(?:Request|Response)":\s*"\*\*\*MASKED\*\*\*")[^\n]*"#)
+    Regex::new(
+        r#"("(?:rawConnector(?:Request|Response)|raw_connector_(?:request|response))":\s*"\*\*\*MASKED\*\*\*"\s*,?)[^\n]*"#,
+    )
         .expect("rawConnector cleanup regex must compile")
+});
+
+static RAW_CONNECTOR_OBJECT_START_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r#"^(\s*)"(rawConnector(?:Request|Response)|raw_connector_(?:request|response))"\s*:\s*\{\s*$"#,
+    )
+    .expect("rawConnector object-start regex must compile")
+});
+
+static RAW_CONNECTOR_STRING_LINE_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r#"^(\s*)"(rawConnector(?:Request|Response)|raw_connector_(?:request|response))"\s*:\s*".*$"#,
+    )
+    .expect("rawConnector string-line regex must compile")
 });
 
 /// Replace `"rawConnectorRequest": { "value": "..." }` and
@@ -128,11 +156,67 @@ fn mask_raw_connector_fields(text: &str) -> String {
         format!("{}: \"{}\"", &caps[1], MASKED_VALUE)
     });
 
-    // Pass 2: Clean up any leftover junk from a previous buggy masking run
+    // Pass 2: Match direct string values under raw connector keys.
+    let result = RAW_CONNECTOR_STRING_RE.replace_all(&result, |caps: &regex::Captures<'_>| {
+        format!("{}: \"{}\"", &caps[1], MASKED_VALUE)
+    });
+
+    // Pass 3: Line-based fallback for malformed rawConnector objects from
+    // older masking runs (for example, escaped-quote corruption around Bearer).
+    let result = mask_raw_connector_blocks_fallback(&result);
+
+    // Pass 4: Clean up any leftover junk from a previous buggy masking run.
     let result = RAW_CONNECTOR_CLEANUP_RE
         .replace_all(&result, |caps: &regex::Captures<'_>| caps[1].to_string());
 
     result.into_owned()
+}
+
+fn mask_raw_connector_blocks_fallback(text: &str) -> String {
+    let mut output_lines = Vec::new();
+    let mut lines = text.lines().peekable();
+
+    while let Some(line) = lines.next() {
+        if let Some(caps) = RAW_CONNECTOR_OBJECT_START_RE.captures(line) {
+            let indent = caps.get(1).map_or("", |m| m.as_str());
+            let key = caps.get(2).map_or("rawConnectorResponse", |m| m.as_str());
+
+            let mut trailing_comma = false;
+            for next_line in lines.by_ref() {
+                let trimmed = next_line.trim();
+                if trimmed == "}" || trimmed == "}," {
+                    trailing_comma = trimmed.ends_with(',');
+                    break;
+                }
+            }
+
+            if !trailing_comma {
+                if let Some(next_line) = lines.peek() {
+                    let trimmed = next_line.trim_start();
+                    if trimmed.starts_with('"') {
+                        trailing_comma = true;
+                    }
+                }
+            }
+
+            let comma = if trailing_comma { "," } else { "" };
+            output_lines.push(format!(r#"{indent}"{key}": "{MASKED_VALUE}"{comma}"#));
+            continue;
+        }
+
+        if let Some(caps) = RAW_CONNECTOR_STRING_LINE_RE.captures(line) {
+            let indent = caps.get(1).map_or("", |m| m.as_str());
+            let key = caps.get(2).map_or("rawConnectorResponse", |m| m.as_str());
+            let trailing_comma = line.trim_end().ends_with(',');
+            let comma = if trailing_comma { "," } else { "" };
+            output_lines.push(format!(r#"{indent}"{key}": "{MASKED_VALUE}"{comma}"#));
+            continue;
+        }
+
+        output_lines.push(line.to_string());
+    }
+
+    output_lines.join("\n")
 }
 
 // ---------------------------------------------------------------------------
@@ -142,7 +226,7 @@ fn mask_raw_connector_fields(text: &str) -> String {
 /// Masks the entire JSON value after `x-connector-config:`.
 ///
 /// The header looks like:
-///   -H "x-connector-config: {"config":{"Stripe":{"api_key":"sk_test_..."}}}" \
+///   -H "x-connector-config: {"config":{"Stripe":{"api_key":"<connector-secret>"}}}" \
 ///
 /// We replace everything after the colon with `***MASKED***`, preserving any
 /// trailing `"` or ` \`.
@@ -237,7 +321,9 @@ fn mask_bearer_and_jwt_tokens(line: &str) -> String {
         let start = search_start + relative_start;
         let token_start = start + "bearer ".len();
         let token_end = masked[token_start..]
-            .find(|ch: char| ch.is_whitespace() || ch == '"' || ch == '\'' || ch == ',')
+            .find(|ch: char| {
+                ch.is_whitespace() || ch == '"' || ch == '\'' || ch == ',' || ch == '\\'
+            })
             .map(|offset| token_start + offset)
             .unwrap_or(masked.len());
 
@@ -350,11 +436,10 @@ mod tests {
 
     #[test]
     fn masks_connector_config_header() {
-        let line =
-            r#"  -H "x-connector-config: {"config":{"Stripe":{"api_key":"sk_test_abc123"}}}" \"#;
+        let line = r#"  -H "x-connector-config: {"config":{"Stripe":{"api_key":"stripe_key_example_abc123"}}}" \"#;
         let masked = mask_connector_config_header(line);
         assert!(
-            !masked.contains("sk_test_abc123"),
+            !masked.contains("stripe_key_example_abc123"),
             "API key should be masked"
         );
         assert!(masked.contains(MASKED_VALUE));
@@ -381,12 +466,15 @@ mod tests {
         let text = concat!(
             "grpcurl -plaintext \\\n",
             "  -H \"x-merchant-id: test_merchant\" \\\n",
-            "  -H \"x-connector-config: {\"config\":{\"Stripe\":{\"api_key\":\"sk_test_123\"}}}\" \\\n",
+            "  -H \"x-connector-config: {\"config\":{\"Stripe\":{\"api_key\":\"stripe_key_example_123\"}}}\" \\\n",
             "  -H \"authorization: Bearer token123\" \\\n",
             "  -d @ localhost:50051 types.PaymentService/Authorize"
         );
         let masked = mask_sensitive_text(text);
-        assert!(!masked.contains("sk_test_123"), "API key should be masked");
+        assert!(
+            !masked.contains("stripe_key_example_123"),
+            "API key should be masked"
+        );
         assert!(
             !masked.contains("token123"),
             "Bearer token should be masked"
@@ -399,8 +487,7 @@ mod tests {
 
     #[test]
     fn detect_unmasked_cred_catches_config_header() {
-        let line =
-            r#"  -H "x-connector-config: {"config":{"Stripe":{"api_key":"sk_test_abc"}}}" \"#;
+        let line = r#"  -H "x-connector-config: {"config":{"Stripe":{"api_key":"stripe_key_example_abc"}}}" \"#;
         assert!(detect_unmasked_cred(line).is_some());
     }
 
@@ -424,8 +511,7 @@ mod tests {
 
     #[test]
     fn masking_is_idempotent() {
-        let line =
-            r#"  -H "x-connector-config: {"config":{"Stripe":{"api_key":"sk_test_abc"}}}" \"#;
+        let line = r#"  -H "x-connector-config: {"config":{"Stripe":{"api_key":"stripe_key_example_abc"}}}" \"#;
         let masked_once = mask_sensitive_text(line);
         let masked_twice = mask_sensitive_text(&masked_once);
         assert_eq!(masked_once, masked_twice);
@@ -436,7 +522,7 @@ mod tests {
         let mut val = serde_json::json!({
             "config": {
                 "Stripe": {
-                    "api_key": "sk_test_123",
+                    "api_key": "stripe_key_example_123",
                     "merchant_account": "acct_123"
                 }
             }
@@ -451,6 +537,21 @@ mod tests {
         // merchant_account should NOT be masked (it's not a secret key pattern)
         assert_ne!(
             val.pointer("/config/Stripe/merchant_account")
+                .and_then(Value::as_str),
+            Some(MASKED_VALUE)
+        );
+    }
+
+    #[test]
+    fn mask_json_value_masks_x_connector_config_field() {
+        let mut val = serde_json::json!({
+            "headers": {
+                "x-connector-config": "{\"config\":{\"Stripe\":{\"api_key\":\"stripe_key_example_123\"}}}"
+            }
+        });
+        mask_json_value(&mut val);
+        assert_eq!(
+            val.pointer("/headers/x-connector-config")
                 .and_then(Value::as_str),
             Some(MASKED_VALUE)
         );
@@ -533,6 +634,38 @@ mod tests {
             !masked.contains("stripe.com"),
             "connector request should be masked"
         );
+    }
+
+    #[test]
+    fn mask_raw_connector_fields_masks_snake_case_direct_string() {
+        let text = r#"{"raw_connector_response":"{\"error\":\"bad key\"}"}"#;
+        let masked = mask_sensitive_text(text);
+        assert!(
+            !masked.contains("bad key"),
+            "snake_case raw connector response should be masked"
+        );
+        assert!(
+            masked.contains("\"raw_connector_response\": \"***MASKED***\""),
+            "snake_case key should be replaced with masked value"
+        );
+    }
+
+    #[test]
+    fn mask_raw_connector_fields_fallback_handles_malformed_block() {
+        let text = concat!(
+            "{\n",
+            "  \"rawConnectorRequest\": {\n",
+            "    \"value\": \"{\\\"url\\\":\\\"https://api.example.com\\\",\\\"headers\\\":{\\\"Authorization\\\":\\\"Bearer ***MASKED***\",\\\"via\\\":\\\"HyperSwitch\\\"}}\"\n",
+            "  },\n",
+            "  \"status\": \"ok\"\n",
+            "}\n",
+        );
+        let masked = mask_sensitive_text(text);
+        assert!(
+            masked.contains("\"rawConnectorRequest\": \"***MASKED***\","),
+            "malformed raw connector block should be replaced, got: {masked}"
+        );
+        assert!(masked.contains("\"status\": \"ok\""));
     }
 
     #[test]

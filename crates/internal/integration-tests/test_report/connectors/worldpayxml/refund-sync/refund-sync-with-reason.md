@@ -1,6 +1,7 @@
-# Connector `worldpayxml` / Suite `refund_sync` / Scenario `refund_sync_with_reason`
+# Connector `worldpayxml` / Suite `refund_sync` / Scenario `Refund Sync | Reason`
 
 - Service: `RefundService/Get`
+- Scenario Key: `refund_sync_with_reason`
 - PM / PMT: `-` / `-`
 - Result: `PASS`
 
@@ -66,7 +67,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US",
     "color_depth": 24,
     "screen_height": 1080,
@@ -208,8 +209,7 @@ Response contents:
   },
   "networkTransactionId": "630133",
   "rawConnectorResponse": "***MASKED***"
-  "rawConnectorRequest": "***MASKED***"
-  }
+  
 }
 
 Response trailers received:
@@ -292,8 +292,7 @@ Response contents:
   },
   "connectorTransactionId": "mti_0922b2cb02d34851a20f31cb",
   "rawConnectorResponse": "***MASKED***"
-  "rawConnectorRequest": "***MASKED***"
-  }
+  
 }
 
 Response trailers received:
@@ -370,8 +369,7 @@ Response contents:
   },
   "connectorTransactionId": "mti_0922b2cb02d34851a20f31cb",
   "rawConnectorResponse": "***MASKED***"
-  "rawConnectorRequest": "***MASKED***"
-  }
+  
 }
 
 Response trailers received:

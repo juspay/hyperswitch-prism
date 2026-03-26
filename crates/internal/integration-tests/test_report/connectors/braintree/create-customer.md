@@ -9,8 +9,8 @@
 
 | Scenario | PM | PMT | Result | Prerequisites |
 |:---------|:--:|:---:|:------:|:--------------|
-| [`create_customer`](./create-customer/create-customer.md) | - | - | `FAIL` | None |
+| [`Create Customer`](./create-customer/create-customer.md) | - | - | `FAIL` | None |
 
 ## Failed Scenarios
 
-- [`create_customer`](./create-customer/create-customer.md) — sdk call failed: sdk request transformer failed for 'create_customer/create_customer': Failed to obtain authentication type (code: INTERNAL_SERVER_ERROR)
+- [`Create Customer`](./create-customer/create-customer.md) — sdk call failed: sdk request transformer failed for 'create_customer/create_customer': Failed to obtain authentication type (code: INTERNAL_SERVER_ERROR)

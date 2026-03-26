@@ -1,6 +1,7 @@
-# Connector `fiservemea` / Suite `capture` / Scenario `capture_full_amount`
+# Connector `fiservemea` / Suite `capture` / Scenario `Capture | Full Amount`
 
 - Service: `PaymentService/Capture`
+- Scenario Key: `capture_full_amount`
 - PM / PMT: `-` / `-`
 - Result: `PASS`
 
@@ -60,7 +61,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US",
     "color_depth": 24,
     "screen_height": 1080,
@@ -209,9 +210,7 @@ Response contents:
   },
   "networkTransactionId": "acI2mV4pbr906mPhgAPYbQAAAJo",
   "rawConnectorResponse": "***MASKED***"
-  },
-  "rawConnectorRequest": "***MASKED***"
-  },
+  
   "connectorFeatureData": {
     "value": "{\"token_reusable\":\"true\"}"
   }
@@ -246,7 +245,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US",
     "color_depth": 24,
     "screen_height": 1080,
@@ -315,8 +314,7 @@ Response contents:
   },
   "merchantCaptureId": "8393c503-05d8-4144-916c-e26f25e122f5",
   "rawConnectorRequest": "***MASKED***"
-  },
-  "connectorFeatureData": {
+  
     "value": "{\"token_reusable\":\"true\"}"
   }
 }

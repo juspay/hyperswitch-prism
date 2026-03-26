@@ -1,6 +1,7 @@
-# Connector `nexixpay` / Suite `authenticate` / Scenario `threeds_card_authenticate`
+# Connector `nexixpay` / Suite `authenticate` / Scenario `Card Authenticate | 3DS`
 
 - Service: `PaymentMethodAuthenticationService/Authenticate`
+- Scenario Key: `threeds_card_authenticate`
 - PM / PMT: `card` / `credit`
 - Result: `FAIL`
 

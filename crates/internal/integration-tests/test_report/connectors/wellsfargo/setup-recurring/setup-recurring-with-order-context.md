@@ -1,6 +1,7 @@
-# Connector `wellsfargo` / Suite `setup_recurring` / Scenario `setup_recurring_with_order_context`
+# Connector `wellsfargo` / Suite `setup_recurring` / Scenario `Setup Recurring | Order Context`
 
 - Service: `PaymentService/SetupRecurring`
+- Scenario Key: `setup_recurring_with_order_context`
 - PM / PMT: `card` / `credit`
 - Result: `FAIL`
 
@@ -48,14 +49,14 @@ _Response trace not available._
   },
   "payment_method": {
     "card": {
-      "card_number": "***MASKED***",
+      "card_number": ***MASKED***"
       "card_exp_month": {
         "value": "08"
       },
       "card_exp_year": {
         "value": "30"
       },
-      "card_cvc": "***MASKED***",
+      "card_cvc": ***MASKED***"
       "card_holder_name": {
         "value": "Liam Miller"
       },
@@ -230,7 +231,7 @@ _Response trace not available._
       }
     }
   },
-  "incremental_authorization_allowed": "***MASKED***",
+  "incremental_authorization_allowed": ***MASKED***"
   "captured_amount": 6000
 }
 ```

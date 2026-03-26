@@ -1,6 +1,7 @@
-# Connector `nexixpay` / Suite `authorize` / Scenario `no3ds_fail_payment`
+# Connector `nexixpay` / Suite `authorize` / Scenario `Payment Failure | No 3DS`
 
 - Service: `PaymentService/Authorize`
+- Scenario Key: `no3ds_fail_payment`
 - PM / PMT: `card` / `credit`
 - Result: `FAIL`
 

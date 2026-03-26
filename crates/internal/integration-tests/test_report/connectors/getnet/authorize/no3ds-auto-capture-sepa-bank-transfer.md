@@ -1,6 +1,7 @@
-# Connector `getnet` / Suite `authorize` / Scenario `no3ds_auto_capture_sepa_bank_transfer`
+# Connector `getnet` / Suite `authorize` / Scenario `SEPA Bank Transfer | No 3DS | Automatic Capture`
 
 - Service: `PaymentService/Authorize`
+- Scenario Key: `no3ds_auto_capture_sepa_bank_transfer`
 - PM / PMT: `sepa_bank_transfer` / `-`
 - Result: `FAIL`
 
@@ -47,7 +48,7 @@ grpcurl -plaintext \
   "browser_info": {
     "ip_address": "127.0.0.1",
     "accept_header": "application/json",
-    "user_agent": "Mozilla/5.0 (integration-tests)",
+    "user_agent": "Mozilla/5.0 (ucs-connector-tests)",
     "accept_language": "en-US",
     "color_depth": 24,
     "screen_height": 1080,

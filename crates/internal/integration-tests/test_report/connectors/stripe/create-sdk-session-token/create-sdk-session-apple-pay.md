@@ -1,6 +1,7 @@
-# Connector `stripe` / Suite `create_sdk_session_token` / Scenario `create_sdk_session_apple_pay`
+# Connector `stripe` / Suite `create_sdk_session_token` / Scenario `Create SDK Session Token | Create SDK Session Apple Pay`
 
 - Service: `Unknown`
+- Scenario Key: `create_sdk_session_apple_pay`
 - PM / PMT: `-` / `-`
 - Result: `FAIL`
 
@@ -37,7 +38,7 @@ grpcurl -plaintext \
   -H "x-connector-config: ***MASKED***" \
   -d @ localhost:50051 types.MerchantAuthenticationService/CreateSdkSessionToken <<'JSON'
 {
-  "merchant_sdk_session_id": "gen_826141",
+  "merchant_sdk_session_id": "gen_406930",
   "amount": {
     "minor_amount": 10000,
     "currency": "USD"
@@ -45,9 +46,9 @@ grpcurl -plaintext \
   "payment_method_type": "APPLE_PAY",
   "country_alpha2_code": "US",
   "customer": {
-    "name": "Mia Johnson",
+    "name": "Liam Wilson",
     "email": {
-      "value": "jordan.5038@sandbox.example.com"
+      "value": "morgan.5488@example.com"
     }
   },
   "test_mode": true

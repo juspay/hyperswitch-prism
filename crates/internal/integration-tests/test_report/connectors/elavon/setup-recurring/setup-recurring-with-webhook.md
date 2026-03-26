@@ -1,6 +1,7 @@
-# Connector `elavon` / Suite `setup_recurring` / Scenario `setup_recurring_with_webhook`
+# Connector `elavon` / Suite `setup_recurring` / Scenario `Setup Recurring | Webhook`
 
 - Service: `PaymentService/SetupRecurring`
+- Scenario Key: `setup_recurring_with_webhook`
 - PM / PMT: `card` / `credit`
 - Result: `FAIL`
 

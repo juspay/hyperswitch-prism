@@ -1,6 +1,7 @@
-# Connector `adyen` / Suite `capture` / Scenario `capture_with_merchant_order_id`
+# Connector `adyen` / Suite `capture` / Scenario `Capture | Merchant Order ID Reference`
 
 - Service: `PaymentService/Capture`
+- Scenario Key: `capture_with_merchant_order_id`
 - PM / PMT: `-` / `-`
 - Result: `PASS`
 
@@ -201,9 +202,7 @@ Response contents:
   },
   "networkTransactionId": "ZR9I2Q4LO0324",
   "rawConnectorResponse": "***MASKED***"
-  },
-  "rawConnectorRequest": "***MASKED***"
-  },
+  
   "connectorResponse": {
     "additionalPaymentMethodData": {
       "card": {
@@ -300,8 +299,7 @@ Response contents:
   },
   "merchantCaptureId": "mci_a2ef05b9d9c14707b250e361",
   "rawConnectorRequest": "***MASKED***"
-  }
-}
+
 
 Response trailers received:
 (empty)

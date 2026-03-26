@@ -9,4 +9,4 @@
 
 | Scenario | PM | PMT | Result | Prerequisites |
 |:---------|:--:|:---:|:------:|:--------------|
-| [`create_customer`](./create-customer/create-customer.md) | - | - | `PASS` | None |
+| [`Create Customer`](./create-customer/create-customer.md) | - | - | `PASS` | None |

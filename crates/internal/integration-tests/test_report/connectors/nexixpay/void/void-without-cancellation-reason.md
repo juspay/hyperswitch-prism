@@ -1,6 +1,7 @@
-# Connector `nexixpay` / Suite `void` / Scenario `void_without_cancellation_reason`
+# Connector `nexixpay` / Suite `void` / Scenario `Void | Without Cancellation Reason`
 
 - Service: `PaymentService/Void`
+- Scenario Key: `void_without_cancellation_reason`
 - PM / PMT: `-` / `-`
 - Result: `FAIL`
 

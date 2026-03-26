@@ -1,6 +1,7 @@
-# Connector `adyen` / Suite `authorize` / Scenario `no3ds_fail_payment`
+# Connector `adyen` / Suite `authorize` / Scenario `Payment Failure | No 3DS`
 
 - Service: `PaymentService/Authorize`
+- Scenario Key: `no3ds_fail_payment`
 - PM / PMT: `card` / `credit`
 - Result: `PASS`
 
@@ -212,9 +213,7 @@ Response contents:
     "x-frame-options": "SAMEORIGIN"
   },
   "rawConnectorResponse": "***MASKED***"
-  },
-  "rawConnectorRequest": "***MASKED***"
-  }
+  
 }
 
 Response trailers received:

@@ -1,6 +1,7 @@
-# Connector `tsys` / Suite `create_customer` / Scenario `create_customer`
+# Connector `tsys` / Suite `create_customer` / Scenario `Create Customer`
 
 - Service: `CustomerService/Create`
+- Scenario Key: `create_customer`
 - PM / PMT: `-` / `-`
 - Result: `FAIL`
 

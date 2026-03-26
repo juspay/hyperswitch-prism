@@ -107,7 +107,8 @@
         "must_not_exist": true
       }
     },
-    "is_default": true
+    "is_default": true,
+    "display_name": "Setup Recurring"
   },
   "setup_recurring_with_webhook": {
     "grpc_req": {
@@ -218,7 +219,8 @@
       "error": {
         "must_not_exist": true
       }
-    }
+    },
+    "display_name": "Setup Recurring | Webhook"
   },
   "setup_recurring_with_order_context": {
     "grpc_req": {
@@ -333,6 +335,7 @@
       "error": {
         "must_not_exist": true
       }
-    }
+    },
+    "display_name": "Setup Recurring | Order Context"
   }
 }

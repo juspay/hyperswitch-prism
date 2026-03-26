@@ -66,7 +66,8 @@
         "must_not_exist": true
       }
     },
-    "is_default": true
+    "is_default": true,
+    "display_name": "Tokenize Payment Method | Tokenize Credit Card"
   },
   "tokenize_debit_card": {
     "grpc_req": {
@@ -134,7 +135,8 @@
       "error": {
         "must_not_exist": true
       }
-    }
+    },
+    "display_name": "Tokenize Payment Method | Tokenize Debit Card"
   },
   "tokenize_with_metadata": {
     "grpc_req": {
@@ -182,7 +184,8 @@
       "error": {
         "must_not_exist": true
       }
-    }
+    },
+    "display_name": "Tokenize Payment Method | Tokenize With Metadata"
   },
   "tokenize_fail_invalid_card_number": {
     "grpc_req": {
@@ -224,7 +227,8 @@
       "error": {
         "must_exist": true
       }
-    }
+    },
+    "display_name": "Tokenize Payment Method | Tokenize Fail Invalid Card Number"
   },
   "tokenize_fail_expired_card": {
     "grpc_req": {
@@ -266,6 +270,7 @@
       "error": {
         "must_exist": true
       }
-    }
+    },
+    "display_name": "Tokenize Payment Method | Tokenize Fail Expired Card"
   }
 }

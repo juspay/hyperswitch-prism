@@ -1,6 +1,7 @@
-# Connector `cybersource` / Suite `void` / Scenario `void_with_amount`
+# Connector `cybersource` / Suite `void` / Scenario `Void | Amount`
 
 - Service: `PaymentService/Void`
+- Scenario Key: `void_with_amount`
 - PM / PMT: `-` / `-`
 - Result: `PASS`
 
@@ -47,14 +48,14 @@ _Response trace not available._
   "shipping_cost": 0,
   "payment_method": {
     "card": {
-      "card_number": "***MASKED***",
+      "card_number": ***MASKED***"
       "card_exp_month": {
         "value": "08"
       },
       "card_exp_year": {
         "value": "30"
       },
-      "card_cvc": "***MASKED***",
+      "card_cvc": ***MASKED***"
       "card_holder_name": {
         "value": "Ethan Wilson"
       },
@@ -185,7 +186,7 @@ _Response trace not available._
     "content-type": "application/hal+json"
   },
   "network_transaction_id": "016150703802094",
-  "incremental_authorization_allowed": "***MASKED***",
+  "incremental_authorization_allowed": ***MASKED***"
   "raw_connector_response": "***MASKED***",
   "connector_response": {
     "additional_payment_method_data": {
@@ -314,7 +315,7 @@ _Response trace not available._
     "x-requestid": "7742679184386414204807"
   },
   "merchant_void_id": "mvi_fd5fe10cd9154da88d6dd5d277348cb1",
-  "incremental_authorization_allowed": "***MASKED***"
+  "incremental_authorization_allowed": ***MASKED***"
 }
 ```
 
