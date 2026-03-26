@@ -24,8 +24,8 @@ use domain_types::{
     errors::ConnectorError,
     payment_method_data::{
         BankDebitData, BankRedirectData, BankTransferData, CardRedirectData, GiftCardData,
-        PayLaterData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, VoucherData,
-        WalletData,
+        GpayTokenizationData, PayLaterData, PaymentMethodData, PaymentMethodDataTypes,
+        RawCardNumber, VoucherData, WalletData,
     },
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
@@ -34,7 +34,7 @@ use domain_types::{
     utils,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use url::Url;
@@ -631,7 +631,7 @@ pub enum UsageType {
 }
 
 #[derive(Debug, Serialize)]
-#[serde(rename_all = "lowercase")]
+#[serde(untagged)]
 pub enum PaymentSourceItem<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 > {
@@ -641,6 +641,42 @@ pub enum PaymentSourceItem<
     Eps(RedirectRequest),
     Giropay(RedirectRequest),
     Sofort(RedirectRequest),
+    GooglePay(GooglePayRequest),
+}
+
+#[derive(Debug, Serialize)]
+pub struct GooglePayRequest {
+    pub decrypted_token: GooglePayDecryptedToken,
+}
+
+#[derive(Debug, Serialize)]
+pub struct GooglePayDecryptedToken {
+    pub message_id: String,
+    #[serde(rename = "payment_method")]
+    pub payment_method: GooglePayPaymentMethod,
+    pub card: GooglePayCard,
+    pub authentication_method: GooglePayAuthMethod,
+    pub cryptogram: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum GooglePayPaymentMethod {
+    Card,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GooglePayAuthMethod {
+    PanOnly,
+    Cryptogram3ds,
+}
+
+#[derive(Debug, Serialize)]
+pub struct GooglePayCard {
+    pub name: Option<String>,
+    pub number: String,
+    pub expiry: String,
 }
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CardVaultResponse {
@@ -1051,6 +1087,62 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         payment_source,
                     })
                 }
+                WalletData::GooglePay(google_pay_data) => {
+                    // Extract decrypted card data from Google Pay token
+                    let decrypted_data = match &google_pay_data.tokenization_data {
+                        GpayTokenizationData::Decrypted(decrypted) => decrypted,
+                        GpayTokenizationData::Encrypted(_) => {
+                            return Err(ConnectorError::InvalidWalletToken {
+                                wallet_name: "Google Pay".to_string(),
+                            }
+                            .into())
+                        }
+                    };
+
+                    let card_number = decrypted_data
+                        .application_primary_account_number
+                        .peek()
+                        .to_string();
+                    let expiry_month = decrypted_data.card_exp_month.peek();
+                    let expiry_year = decrypted_data
+                        .get_four_digit_expiry_year()
+                        .map_err(|_| ConnectorError::RequestEncodingFailed)?
+                        .peek()
+                        .clone();
+
+                    let message_id = item
+                        .router_data
+                        .resource_common_data
+                        .connector_request_reference_id
+                        .clone();
+
+                    let payment_source = Some(PaymentSourceItem::GooglePay(GooglePayRequest {
+                        decrypted_token: GooglePayDecryptedToken {
+                            message_id,
+                            payment_method: GooglePayPaymentMethod::Card,
+                            card: GooglePayCard {
+                                name: None,
+                                number: card_number,
+                                expiry: format!("{}-{}", expiry_year, expiry_month),
+                            },
+                            authentication_method: if decrypted_data.cryptogram.is_some() {
+                                GooglePayAuthMethod::Cryptogram3ds
+                            } else {
+                                GooglePayAuthMethod::PanOnly
+                            },
+                            cryptogram: decrypted_data
+                                .cryptogram
+                                .as_ref()
+                                .map(|s| s.peek().clone()),
+                        },
+                    }));
+
+                    Ok(Self {
+                        intent,
+                        purchase_units,
+                        payment_source,
+                    })
+                }
                 WalletData::AliPayQr(_)
                 | WalletData::AliPayRedirect(_)
                 | WalletData::AliPayHkRedirect(_)
@@ -1063,7 +1155,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::ApplePayRedirect(_)
                 | WalletData::ApplePayThirdPartySdk(_)
                 | WalletData::DanaRedirect {}
-                | WalletData::GooglePay(_)
                 | WalletData::BluecodeRedirect {}
                 | WalletData::GooglePayRedirect(_)
                 | WalletData::GooglePayThirdPartySdk(_)
