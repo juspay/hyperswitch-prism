@@ -216,6 +216,9 @@ impl Card<DefaultPCIHolder> {
 pub enum PaymentMethodData<T: PaymentMethodDataTypes> {
     Card(Card<T>),
     CardDetailsForNetworkTransactionId(CardDetailsForNetworkTransactionId),
+    DecryptedWalletTokenDetailsForNetworkTransactionId(
+        DecryptedWalletTokenDetailsForNetworkTransactionId,
+    ),
     CardRedirect(CardRedirectData),
     Wallet(WalletData),
     PayLater(PayLaterData),
@@ -1280,6 +1283,86 @@ pub enum CardRedirectData {
     Benefit {},
     MomoAtm {},
     CardRedirect {},
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
+pub struct DecryptedWalletTokenDetailsForNetworkTransactionId {
+    pub decrypted_token: cards::NetworkToken,
+    pub token_exp_month: Secret<String>,
+    pub token_exp_year: Secret<String>,
+    pub card_holder_name: Option<Secret<String>>,
+    pub eci: Option<String>,
+    pub token_source: Option<TokenSource>,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
+pub enum TokenSource {
+    GooglePay,
+    ApplePay,
+}
+
+impl DecryptedWalletTokenDetailsForNetworkTransactionId {
+    pub fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, ConnectorError> {
+        let binding = self.token_exp_year.clone();
+        let year = binding.peek();
+        Ok(Secret::new(
+            year.get(year.len() - 2..)
+                .ok_or(ConnectorError::RequestEncodingFailed)?
+                .to_string(),
+        ))
+    }
+    pub fn get_card_issuer(&self) -> Result<CardIssuer, Error> {
+        get_card_issuer(self.decrypted_token.peek())
+    }
+    pub fn get_card_expiry_month_year_2_digit_with_delimiter(
+        &self,
+        delimiter: String,
+    ) -> Result<Secret<String>, ConnectorError> {
+        let year = self.get_card_expiry_year_2_digit()?;
+        let month = self.token_exp_month.peek();
+        let year_peek = year.peek();
+        Ok(Secret::new(format!("{month}{delimiter}{year_peek}")))
+    }
+    pub fn get_expiry_date_as_yyyymm(&self, delimiter: &str) -> Secret<String> {
+        let year = self.get_expiry_year_4_digit();
+        let year_peek = year.peek();
+        let month = self.token_exp_month.peek();
+        Secret::new(format!("{year_peek}{delimiter}{month}"))
+    }
+    pub fn get_expiry_date_as_mmyyyy(&self, delimiter: &str) -> Secret<String> {
+        let year = self.get_expiry_year_4_digit();
+        let month = self.token_exp_month.peek();
+        let year_peek = year.peek();
+        Secret::new(format!("{month}{delimiter}{year_peek}"))
+    }
+    pub fn get_expiry_year_4_digit(&self) -> Secret<String> {
+        let mut year = self.token_exp_year.peek().clone();
+        if year.len() == 2 {
+            year = format!("20{year}");
+        }
+        Secret::new(year)
+    }
+    pub fn get_expiry_date_as_yymm(&self) -> Result<Secret<String>, ConnectorError> {
+        let year = self.get_card_expiry_year_2_digit()?.expose();
+        let month = self.token_exp_month.clone().expose();
+        Ok(Secret::new(format!("{year}{month}")))
+    }
+    pub fn get_expiry_month_as_i8(&self) -> Result<Secret<i8>, Error> {
+        self.token_exp_month
+            .peek()
+            .clone()
+            .parse::<i8>()
+            .change_context(ConnectorError::ResponseDeserializationFailed)
+            .map(Secret::new)
+    }
+    pub fn get_expiry_year_as_i32(&self) -> Result<Secret<i32>, Error> {
+        self.token_exp_year
+            .peek()
+            .clone()
+            .parse::<i32>()
+            .change_context(ConnectorError::ResponseDeserializationFailed)
+            .map(Secret::new)
+    }
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]

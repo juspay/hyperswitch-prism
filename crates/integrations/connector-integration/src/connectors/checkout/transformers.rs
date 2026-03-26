@@ -154,6 +154,18 @@ pub enum PaymentSource<
     MandatePayment(MandateSource),
     GooglePayPredecrypt(Box<GooglePayPredecrypt>),
     AchBankDebit(AchBankDebitSource),
+    DecryptedWalletToken(DecryptedWalletToken),
+}
+
+#[derive(Debug, Serialize)]
+pub struct DecryptedWalletToken {
+    #[serde(rename = "type")]
+    decrypt_type: String,
+    token: cards::NetworkToken,
+    token_type: String,
+    expiry_month: Secret<String>,
+    expiry_year: Secret<String>,
+    pub billing_address: Option<CheckoutAddress>,
 }
 
 #[derive(Debug, Serialize)]
@@ -187,6 +199,7 @@ pub struct ApplePayPredecrypt {
 pub enum CheckoutSourceTypes {
     Card,
     Token,
+    NetworkToken,
     #[serde(rename = "id")]
     SourceId,
 }
@@ -906,6 +919,55 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             }
                             _ => CheckoutPaymentType::Unscheduled,
                         };
+                        Ok((
+                            payment_source,
+                            Some(network_transaction_id.clone()),
+                            Some(true),
+                            p_type,
+                            None,
+                        ))
+                    }
+                    PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(
+                        ref network_token_data,
+                    ) => {
+                        let p_type = match item.router_data.request.mit_category {
+                            Some(common_enums::MitCategory::Installment) => {
+                                CheckoutPaymentType::Installment
+                            }
+                            Some(common_enums::MitCategory::Recurring) => {
+                                CheckoutPaymentType::Recurring
+                            }
+                            Some(common_enums::MitCategory::Unscheduled) | None => {
+                                CheckoutPaymentType::Unscheduled
+                            }
+                            _ => CheckoutPaymentType::Unscheduled,
+                        };
+
+                        let token_type = match network_token_data.token_source {
+                            Some(domain_types::payment_method_data::TokenSource::ApplePay) => {
+                                "applepay".to_string()
+                            }
+                            Some(domain_types::payment_method_data::TokenSource::GooglePay) => {
+                                "googlepay".to_string()
+                            }
+                            None => Err(ConnectorError::MissingRequiredField {
+                                field_name: "token_source",
+                            })?,
+                        };
+
+                        let exp_month = network_token_data.token_exp_month.clone();
+                        let expiry_year_4_digit = network_token_data.get_expiry_year_4_digit();
+
+                        let payment_source =
+                            PaymentSource::DecryptedWalletToken(DecryptedWalletToken {
+                                token: network_token_data.decrypted_token.clone(),
+                                decrypt_type: "network_token".to_string(),
+                                token_type,
+                                expiry_month: exp_month,
+                                expiry_year: expiry_year_4_digit,
+                                billing_address: billing_details,
+                            });
+
                         Ok((
                             payment_source,
                             Some(network_transaction_id.clone()),

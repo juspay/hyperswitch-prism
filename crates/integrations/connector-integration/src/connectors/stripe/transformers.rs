@@ -913,6 +913,7 @@ impl TryFrom<common_enums::PaymentMethodType> for StripePaymentMethodType {
             | common_enums::PaymentMethodType::DuitNow
             | common_enums::PaymentMethodType::PromptPay
             | common_enums::PaymentMethodType::VietQr
+            | common_enums::PaymentMethodType::NetworkToken
             | common_enums::PaymentMethodType::Mifinity
             | common_enums::PaymentMethodType::Satispay
             | common_enums::PaymentMethodType::Wero => Err(ConnectorError::NotImplemented(
@@ -1505,6 +1506,7 @@ fn create_stripe_payment_method<
         | PaymentMethodData::OpenBanking(_)
         | PaymentMethodData::CardToken(_)
         | PaymentMethodData::NetworkToken(_)
+        | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
         | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => Err(
             ConnectorError::NotImplemented(get_unimplemented_payment_method_error_message(
                 "stripe",
@@ -4573,6 +4575,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(ConnectorError::NotImplemented(
                     get_unimplemented_payment_method_error_message("stripe"),
@@ -4899,27 +4902,28 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             billing_address,
             payment_method_types,
             setup_future_usage,
-        ) = if payment_method_token.is_some() {
-            (None, None, StripeBillingAddress::default(), None, None)
-        } else {
-            match &item.request.mandate_reference {
-                MandateReferenceId::ConnectorMandateId(connector_mandate_ids) => (
-                    None,
-                    connector_mandate_ids.get_connector_mandate_id(),
-                    StripeBillingAddress::default(),
-                    get_payment_method_type_for_saved_payment_method_payment(&item)?,
-                    None,
-                ),
-                MandateReferenceId::NetworkMandateId(network_transaction_id) => {
-                    payment_method_options = Some(StripePaymentMethodOptions::Card {
-                        mandate_options: None,
-                        network_transaction_id: None,
-                        mit_exemption: Some(MitExemption {
-                            network_transaction_id: Secret::new(network_transaction_id.clone()),
-                        }),
-                    });
+        ) =
+            if payment_method_token.is_some() {
+                (None, None, StripeBillingAddress::default(), None, None)
+            } else {
+                match &item.request.mandate_reference {
+                    MandateReferenceId::ConnectorMandateId(connector_mandate_ids) => (
+                        None,
+                        connector_mandate_ids.get_connector_mandate_id(),
+                        StripeBillingAddress::default(),
+                        get_payment_method_type_for_saved_payment_method_payment(&item)?,
+                        None,
+                    ),
+                    MandateReferenceId::NetworkMandateId(network_transaction_id) => {
+                        payment_method_options = Some(StripePaymentMethodOptions::Card {
+                            mandate_options: None,
+                            network_transaction_id: None,
+                            mit_exemption: Some(MitExemption {
+                                network_transaction_id: Secret::new(network_transaction_id.clone()),
+                            }),
+                        });
 
-                    let payment_data = match item.request.payment_method_data {
+                        let payment_data = match item.request.payment_method_data {
                         PaymentMethodData::CardDetailsForNetworkTransactionId(
                             ref card_details_for_network_transaction_id,
                         ) => StripePaymentMethodData::CardNetworkTransactionId(
@@ -4962,57 +4966,58 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         | PaymentMethodData::OpenBanking(_)
                         | PaymentMethodData::CardToken(_)
                         | PaymentMethodData::NetworkToken(_)
+                        | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
                         | PaymentMethodData::Card(_) => Err(ConnectorError::NotSupported {
                             message: "Network tokenization for payment method".to_string(),
                             connector: "Stripe",
                         })?,
                     };
 
-                    (
-                        Some(payment_data),
-                        None,
-                        StripeBillingAddress::default(),
-                        None,
-                        None,
-                    )
-                }
-                MandateReferenceId::NetworkTokenWithNTI(_) => {
-                    let (payment_method_data, payment_method_type, billing_address) =
-                        create_stripe_payment_method(
-                            &item.request.payment_method_data,
-                            PaymentRequestDetails {
-                                auth_type: item.resource_common_data.auth_type,
-                                payment_method_token: item
-                                    .resource_common_data
-                                    .payment_method_token
-                                    .clone(),
-                                is_customer_initiated_mandate_payment: Some(false),
-                                billing_address: billing_address.ok_or_else(|| {
-                                    ConnectorError::MissingRequiredField {
-                                        field_name: "billing_address",
-                                    }
-                                })?,
-                                request_incremental_authorization: false,
-                                request_extended_authorization: None,
-                                request_overcapture: None,
-                            },
+                        (
+                            Some(payment_data),
+                            None,
+                            StripeBillingAddress::default(),
+                            None,
+                            None,
+                        )
+                    }
+                    MandateReferenceId::NetworkTokenWithNTI(_) => {
+                        let (payment_method_data, payment_method_type, billing_address) =
+                            create_stripe_payment_method(
+                                &item.request.payment_method_data,
+                                PaymentRequestDetails {
+                                    auth_type: item.resource_common_data.auth_type,
+                                    payment_method_token: item
+                                        .resource_common_data
+                                        .payment_method_token
+                                        .clone(),
+                                    is_customer_initiated_mandate_payment: Some(false),
+                                    billing_address: billing_address.ok_or_else(|| {
+                                        ConnectorError::MissingRequiredField {
+                                            field_name: "billing_address",
+                                        }
+                                    })?,
+                                    request_incremental_authorization: false,
+                                    request_extended_authorization: None,
+                                    request_overcapture: None,
+                                },
+                            )?;
+
+                        validate_shipping_address_against_payment_method(
+                            &shipping_address,
+                            payment_method_type.as_ref(),
                         )?;
 
-                    validate_shipping_address_against_payment_method(
-                        &shipping_address,
-                        payment_method_type.as_ref(),
-                    )?;
-
-                    (
-                        Some(payment_method_data),
-                        None,
-                        billing_address,
-                        payment_method_type,
-                        None,
-                    )
+                        (
+                            Some(payment_method_data),
+                            None,
+                            billing_address,
+                            payment_method_type,
+                            None,
+                        )
+                    }
                 }
-            }
-        };
+            };
 
         if payment_method_token.is_some() {
             payment_data = None

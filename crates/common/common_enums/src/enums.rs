@@ -997,6 +997,7 @@ pub enum PaymentMethodType {
     Momo,
     MomoAtm,
     Multibanco,
+    NetworkToken,
     OnlineBankingThailand,
     OnlineBankingCzechRepublic,
     OnlineBankingFinland,

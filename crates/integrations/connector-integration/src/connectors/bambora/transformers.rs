@@ -294,6 +294,7 @@ impl<T: PaymentMethodDataTypes>
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 return Err(errors::ConnectorError::NotSupported {
                     message: "Selected payment method".to_string(),

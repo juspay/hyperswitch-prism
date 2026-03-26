@@ -140,6 +140,7 @@ message PaymentMethod {
     // NETWORK TRANSACTION METHODS (120-129) - For recurring payments with network transaction IDs
     CardDetailsForNetworkTransactionId card_details_for_network_transaction_id = 120; // Card details with network transaction ID
     NetworkTokenData network_token = 121; // Network token data
+    DecryptedWalletTokenDetailsForNetworkTransactionId decrypted_wallet_token_details_for_network_transaction_id = 122; // Network Transaction ID and Decrypted Wallet Token Details
     
     // GIFT CARDS (130-139)
     Givex givex = 137;                                         // Givex gift card
@@ -1279,6 +1280,23 @@ message CardDetailsForNetworkTransactionId {
     optional string bank_code = 8;
     optional SecretString nick_name = 9;
     optional SecretString card_holder_name = 10;
+}
+
+// Decrypted wallet token details with network transaction ID for recurring payments
+message DecryptedWalletTokenDetailsForNetworkTransactionId {
+    NetworkTokenType decrypted_token = 1;
+    SecretString token_exp_month = 2;
+    SecretString token_exp_year = 3;
+    optional SecretString card_holder_name = 4;
+    optional string eci = 5;
+    optional TokenSource token_source = 6;
+}
+
+/// Source of the token
+enum TokenSource {
+  TOKEN_SOURCE_UNSPECIFIED = 0;
+  GOOGLEPAY = 1;
+  APPLEPAY = 2;
 }
 
 // Network token data for recurring payments

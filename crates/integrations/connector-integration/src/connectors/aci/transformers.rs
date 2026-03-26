@@ -739,6 +739,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Aci"),
