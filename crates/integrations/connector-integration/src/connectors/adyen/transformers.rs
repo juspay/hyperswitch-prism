@@ -15,11 +15,11 @@ use domain_types::{
         SubmitEvidence, Void,
     },
     connector_types::{
-        AcceptDisputeData, DisputeDefendData, DisputeFlowData, DisputeResponseData, EventType,
-        MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
-        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
-        SetupMandateRequestData, SubmitEvidenceData,
+        AcceptDisputeData, CardDetailUpdate, DisputeDefendData, DisputeFlowData,
+        DisputeResponseData, EventType, MandateReference, MandateReferenceId, PaymentFlowData,
+        PaymentMethodUpdate, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundsData, RefundsResponseData,
+        RepeatPaymentData, ResponseId, SetupMandateRequestData, SubmitEvidenceData,
     },
     errors,
     payment_method_data::{
@@ -4840,6 +4840,7 @@ pub struct AdyenErrorResponse {
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 pub enum WebhookEventCode {
     Authorisation,
+    AuthorisationAdjustment,
     Cancellation,
     Capture,
     CaptureFailed,
@@ -4853,6 +4854,10 @@ pub enum WebhookEventCode {
     SecondChargeback,
     PrearbitrationWon,
     PrearbitrationLost,
+    OfferClosed,
+    RecurringContract,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Deserialize)]
@@ -4867,8 +4872,27 @@ pub enum DisputeStatus {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenAdditionalDataWH {
+    #[serde(rename = "hmacSignature")]
+    pub hmac_signature: Option<String>,
     pub dispute_status: Option<DisputeStatus>,
     pub chargeback_reason_code: Option<String>,
+    /// Enable recurring details in Adyen dashboard to receive this ID.
+    #[serde(rename = "recurring.recurringDetailReference")]
+    pub recurring_detail_reference: Option<Secret<String>>,
+    #[serde(rename = "recurring.shopperReference")]
+    pub recurring_shopper_reference: Option<String>,
+    pub network_tx_reference: Option<Secret<String>>,
+    pub refusal_reason_raw: Option<String>,
+    pub refusal_code_raw: Option<String>,
+    pub shopper_email: Option<Secret<String>>,
+    pub shopper_reference: Option<String>,
+    pub expiry_date: Option<Secret<String>>,
+    pub card_summary: Option<Secret<String>>,
+    pub card_issuing_country: Option<String>,
+    pub card_issuing_bank: Option<String>,
+    pub payment_method_variant: Option<Secret<String>>,
+    pub card_holder_name: Option<Secret<String>>,
+    pub defense_period_ends_at: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -4891,6 +4915,71 @@ pub struct AdyenAmountWH {
     pub currency: common_enums::Currency,
 }
 
+pub(crate) fn get_adyen_mandate_reference_from_webhook(
+    notif: &AdyenNotificationRequestItemWH,
+) -> Option<Box<MandateReference>> {
+    notif
+        .additional_data
+        .recurring_detail_reference
+        .as_ref()
+        .map(|mandate_id| {
+            Box::new(MandateReference {
+                connector_mandate_id: Some(mandate_id.peek().to_string()),
+                payment_method_id: None,
+                connector_mandate_request_reference_id: None,
+            })
+        })
+}
+
+pub(crate) fn get_adyen_network_txn_id_from_webhook(
+    notif: &AdyenNotificationRequestItemWH,
+) -> Option<String> {
+    notif
+        .additional_data
+        .network_tx_reference
+        .as_ref()
+        .map(|network_tx_id| network_tx_id.peek().to_string())
+}
+
+pub(crate) fn get_adyen_payment_method_update_from_webhook(
+    notif: &AdyenNotificationRequestItemWH,
+) -> Option<PaymentMethodUpdate> {
+    // Align with HS semantics: if Adyen provides an expiry date, it's a strong signal this
+    // notification is meant to update stored card details (e.g., account updater).
+    notif
+        .additional_data
+        .expiry_date
+        .as_ref()
+        .and_then(|expiry_date| {
+            let expiry_date = expiry_date.peek().to_string();
+            let (month, year) = expiry_date.split_once('/')?;
+            Some((month.trim().to_string(), year.trim().to_string()))
+        })
+        .map(|(month, year)| {
+            PaymentMethodUpdate::Card(CardDetailUpdate {
+                card_exp_month: Some(month),
+                card_exp_year: Some(year),
+                last4_digits: notif
+                    .additional_data
+                    .card_summary
+                    .as_ref()
+                    .map(|last4| last4.peek().to_string()),
+                issuer_country: notif.additional_data.card_issuing_country.clone(),
+                card_issuer: notif.additional_data.card_issuing_bank.clone(),
+                card_network: notif
+                    .additional_data
+                    .payment_method_variant
+                    .as_ref()
+                    .map(|network| network.peek().to_string()),
+                card_holder_name: notif
+                    .additional_data
+                    .card_holder_name
+                    .as_ref()
+                    .map(|name| name.peek().to_string()),
+            })
+        })
+}
+
 fn is_success_scenario(is_success: &str) -> bool {
     is_success == "true"
 }
@@ -4900,7 +4989,14 @@ pub(crate) fn get_adyen_payment_webhook_event(
     is_success: String,
 ) -> Result<AttemptStatus, errors::ConnectorError> {
     match code {
-        WebhookEventCode::Authorisation => {
+        WebhookEventCode::Authorisation | WebhookEventCode::RecurringContract => {
+            if is_success_scenario(&is_success) {
+                Ok(AttemptStatus::Authorized)
+            } else {
+                Ok(AttemptStatus::Failure)
+            }
+        }
+        WebhookEventCode::AuthorisationAdjustment => {
             if is_success_scenario(&is_success) {
                 Ok(AttemptStatus::Authorized)
             } else {
@@ -4922,6 +5018,7 @@ pub(crate) fn get_adyen_payment_webhook_event(
             }
         }
         WebhookEventCode::CaptureFailed => Ok(AttemptStatus::Failure),
+        WebhookEventCode::OfferClosed => Ok(AttemptStatus::Expired),
         _ => Err(errors::ConnectorError::RequestEncodingFailed),
     }
 }
@@ -4945,25 +5042,34 @@ pub(crate) fn get_adyen_refund_webhook_event(
     }
 }
 
-pub(crate) fn get_adyen_webhook_event_type(code: WebhookEventCode) -> EventType {
+pub(crate) fn get_adyen_webhook_event_type(
+    code: WebhookEventCode,
+) -> Result<EventType, errors::ConnectorError> {
     match code {
-        WebhookEventCode::Authorisation => EventType::PaymentIntentAuthorizationSuccess,
-        WebhookEventCode::Cancellation => EventType::PaymentIntentCancelled,
-        WebhookEventCode::Capture => EventType::PaymentIntentCaptureSuccess,
-        WebhookEventCode::CaptureFailed => EventType::PaymentIntentCaptureFailure,
-        WebhookEventCode::Refund | WebhookEventCode::CancelOrRefund => EventType::RefundSuccess,
+        WebhookEventCode::Authorisation | WebhookEventCode::RecurringContract => {
+            Ok(EventType::PaymentIntentAuthorizationSuccess)
+        }
+        WebhookEventCode::AuthorisationAdjustment => {
+            Ok(EventType::PaymentIntentAuthorizationSuccess)
+        }
+        WebhookEventCode::Cancellation => Ok(EventType::PaymentIntentCancelled),
+        WebhookEventCode::Capture => Ok(EventType::PaymentIntentCaptureSuccess),
+        WebhookEventCode::CaptureFailed => Ok(EventType::PaymentIntentCaptureFailure),
+        WebhookEventCode::OfferClosed => Ok(EventType::PaymentIntentExpired),
+        WebhookEventCode::Refund | WebhookEventCode::CancelOrRefund => Ok(EventType::RefundSuccess),
         WebhookEventCode::RefundFailed | WebhookEventCode::RefundReversed => {
-            EventType::RefundFailure
+            Ok(EventType::RefundFailure)
         }
         WebhookEventCode::NotificationOfChargeback | WebhookEventCode::Chargeback => {
-            EventType::DisputeOpened
+            Ok(EventType::DisputeOpened)
         }
         WebhookEventCode::ChargebackReversed | WebhookEventCode::PrearbitrationWon => {
-            EventType::DisputeWon
+            Ok(EventType::DisputeWon)
         }
         WebhookEventCode::SecondChargeback | WebhookEventCode::PrearbitrationLost => {
-            EventType::DisputeLost
+            Ok(EventType::DisputeLost)
         }
+        WebhookEventCode::Unknown => Err(errors::ConnectorError::WebhookEventTypeNotFound),
     }
 }
 

@@ -41,7 +41,6 @@ macro_rules! default_impl_verify_webhook_source_v2 {
                 > for $connector<T>
             {
             }
-
         )*
     };
 }

@@ -24,6 +24,7 @@ Usage:
 import re
 import sys
 from pathlib import Path
+from typing import Optional
 
 from jinja2 import Environment, FileSystemLoader
 
@@ -395,7 +396,7 @@ def gen_uniffi_client_ts(flows: list[dict], single_flows: list[dict]) -> None:
 KOTLIN_UNIFFI_BINDINGS = SDK_ROOT / "java/src/main/kotlin/generated/uniffi/connector_service_ffi/connector_service_ffi.kt"
 
 
-def _available_uniffi_transformers() -> set[str] | None:
+def _available_uniffi_transformers() -> Optional[set[str]]:
     """
     Parse the generated uniffi Kotlin bindings to find which transformer
     functions are actually available. Returns None if the file doesn't exist

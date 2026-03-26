@@ -4,7 +4,6 @@ use crate::{
     request::RequestData,
     utils::{grpc_logging_wrapper, MetadataPayload},
 };
-use common_utils::errors::CustomResult;
 use connector_integration::types::ConnectorData;
 use domain_types::{
     connector_flow::{Accept, DefendDispute, FlowName, SubmitEvidence},
@@ -12,9 +11,8 @@ use domain_types::{
         AcceptDisputeData, DisputeDefendData, DisputeFlowData, DisputeResponseData,
         SubmitEvidenceData,
     },
-    errors::{ApiError, ApplicationErrorResponse},
     payment_method_data::DefaultPCIHolder,
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::ErrorResponse,
     router_data_v2::RouterDataV2,
     types::{
         generate_accept_dispute_response, generate_defend_dispute_response,
@@ -22,13 +20,11 @@ use domain_types::{
     },
     utils::ForeignTryFrom,
 };
-use error_stack::ResultExt;
 use grpc_api_types::payments::{
     dispute_service_server::DisputeService, DisputeResponse, DisputeServiceAcceptRequest,
     DisputeServiceAcceptResponse, DisputeServiceDefendRequest, DisputeServiceDefendResponse,
     DisputeServiceGetRequest, DisputeServiceSubmitEvidenceRequest,
-    DisputeServiceSubmitEvidenceResponse, EventResponse, EventServiceHandleRequest,
-    EventServiceHandleResponse, WebhookEventType,
+    DisputeServiceSubmitEvidenceResponse,
 };
 use interfaces::connector_integration_v2::BoxedConnectorIntegrationV2;
 use tracing::info;
@@ -409,125 +405,4 @@ impl DisputeService for Disputes {
         ))
         .await
     }
-
-    #[tracing::instrument(
-        name = "distpute_transform",
-        fields(
-            name = common_utils::consts::NAME,
-            service_name = tracing::field::Empty,
-            service_method = FlowName::IncomingWebhook.to_string(),
-            request_body = tracing::field::Empty,
-            response_body = tracing::field::Empty,
-            error_message = tracing::field::Empty,
-            merchant_id = tracing::field::Empty,
-            gateway = tracing::field::Empty,
-            request_id = tracing::field::Empty,
-            status_code = tracing::field::Empty,
-            message_ = "Golden Log Line (incoming)",
-            response_time = tracing::field::Empty,
-            tenant_id = tracing::field::Empty,
-            flow = FlowName::IncomingWebhook.to_string(),
-            flow_specific_fields.status = tracing::field::Empty,
-        )
-        skip(self, request)
-    )]
-    async fn handle_event(
-        &self,
-        request: tonic::Request<EventServiceHandleRequest>,
-    ) -> Result<tonic::Response<EventServiceHandleResponse>, tonic::Status> {
-        let config = get_config_from_request(&request)?;
-        let service_name = request
-            .extensions()
-            .get::<String>()
-            .cloned()
-            .unwrap_or_else(|| "DisputeService".to_string());
-        grpc_logging_wrapper(
-            request,
-            &service_name,
-            config.clone(),
-            common_utils::events::FlowName::IncomingWebhook,
-            |request_data| {
-                async move {
-                    let connector = request_data.extracted_metadata.connector;
-                    let connector_config = request_data.extracted_metadata.connector_config;
-                    let payload = request_data.payload;
-                    let request_details = payload
-                        .request_details
-                        .map(domain_types::connector_types::RequestDetails::foreign_try_from)
-                        .ok_or_else(|| {
-                            tonic::Status::invalid_argument(
-                                "missing request_details in the payload",
-                            )
-                        })?
-                        .map_err(|e| e.into_grpc_status())?;
-                    let webhook_secrets = payload
-                    .webhook_secrets
-                    .map(|details| {
-                        domain_types::connector_types::ConnectorWebhookSecrets::foreign_try_from(
-                            details,
-                        )
-                        .map_err(|e| e.into_grpc_status())
-                    })
-                    .transpose()?;
-                    // Get connector data
-                    let connector_data = ConnectorData::get_connector_by_name(&connector);
-                    let source_verified = connector_data
-                        .connector
-                        .verify_webhook_source(
-                            request_details.clone(),
-                            webhook_secrets.clone(),
-                            Some(connector_config.clone()),
-                        )
-                        .switch()
-                        .map_err(|e| e.into_grpc_status())?;
-
-                    let content = get_disputes_webhook_content(
-                        connector_data,
-                        request_details,
-                        webhook_secrets,
-                        Some(connector_config),
-                    )
-                    .await
-                    .map_err(|e| e.into_grpc_status())?;
-                    let response = EventServiceHandleResponse {
-                        event_type: WebhookEventType::WebhookDisputeOpened.into(),
-                        event_response: Some(content),
-                        source_verified,
-                        merchant_event_id: None,
-                        event_status: grpc_api_types::payments::WebhookEventStatus::Complete.into(),
-                    };
-                    Ok(tonic::Response::new(response))
-                }
-            },
-        )
-        .await
-    }
-}
-
-async fn get_disputes_webhook_content(
-    connector_data: ConnectorData<DefaultPCIHolder>,
-    request_details: domain_types::connector_types::RequestDetails,
-    webhook_secrets: Option<domain_types::connector_types::ConnectorWebhookSecrets>,
-    connector_config: Option<ConnectorSpecificConfig>,
-) -> CustomResult<EventResponse, ApplicationErrorResponse> {
-    let webhook_details = connector_data
-        .connector
-        .process_dispute_webhook(request_details, webhook_secrets, connector_config)
-        .switch()?;
-
-    // Generate response
-    let response = DisputeResponse::foreign_try_from(webhook_details).change_context(
-        ApplicationErrorResponse::InternalServerError(ApiError {
-            sub_code: "RESPONSE_CONSTRUCTION_ERROR".to_string(),
-            error_identifier: 500,
-            error_message: "Error while constructing response".to_string(),
-            error_object: None,
-        }),
-    )?;
-
-    Ok(EventResponse {
-        content: Some(
-            grpc_api_types::payments::event_response::Content::DisputesResponse(response),
-        ),
-    })
 }

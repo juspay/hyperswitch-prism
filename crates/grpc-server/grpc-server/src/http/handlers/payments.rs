@@ -4,7 +4,7 @@ use axum::{
     Json,
 };
 use grpc_api_types::payments::{
-    customer_service_server::CustomerService,
+    customer_service_server::CustomerService, event_service_server::EventService,
     merchant_authentication_service_server::MerchantAuthenticationService,
     payment_method_authentication_service_server::PaymentMethodAuthenticationService,
     payment_method_service_server::PaymentMethodService, payment_service_server::PaymentService,
@@ -170,7 +170,7 @@ http_handler!(
     EventServiceHandleRequest,
     EventServiceHandleResponse,
     handle_event,
-    payments_service
+    event_service
 );
 http_handler!(
     verify_redirect_response,

@@ -3992,29 +3992,21 @@ impl<F> TryFrom<ResponseRouterData<PaymentSyncResponse, Self>>
 {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<PaymentSyncResponse, Self>) -> Result<Self, Self::Error> {
-        let id = item.router_data.request.connector_transaction_id.clone();
-        match id.get_connector_transaction_id() {
-            Ok(x) if x.starts_with("set") => match item.response {
-                PaymentSyncResponse::SetupMandateResponse(setup_intent_response) => {
-                    Self::try_from(ResponseRouterData {
-                        response: setup_intent_response,
-                        router_data: item.router_data,
-                        http_code: item.http_code,
-                    })
-                }
-                _ => Err(ConnectorError::ResponseDeserializationFailed)?,
-            },
-            Ok(_) => match item.response {
-                PaymentSyncResponse::PaymentIntentSyncResponse(payment_intent_sync_response) => {
-                    Self::try_from(ResponseRouterData {
-                        response: payment_intent_sync_response,
-                        router_data: item.router_data,
-                        http_code: item.http_code,
-                    })
-                }
-                _ => Err(ConnectorError::ResponseDeserializationFailed)?,
-            },
-            Err(err) => Err(err).change_context(ConnectorError::MissingConnectorTransactionID),
+        match item.response {
+            PaymentSyncResponse::SetupMandateResponse(setup_intent_response) => {
+                Self::try_from(ResponseRouterData {
+                    response: setup_intent_response,
+                    router_data: item.router_data,
+                    http_code: item.http_code,
+                })
+            }
+            PaymentSyncResponse::PaymentIntentSyncResponse(payment_intent_sync_response) => {
+                Self::try_from(ResponseRouterData {
+                    response: payment_intent_sync_response,
+                    router_data: item.router_data,
+                    http_code: item.http_code,
+                })
+            }
         }
     }
 }

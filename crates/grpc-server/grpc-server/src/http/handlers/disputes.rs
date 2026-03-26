@@ -9,9 +9,9 @@ use axum::{
     Json,
 };
 use grpc_api_types::payments::{
-    dispute_service_server::DisputeService, DisputeResponse, DisputeServiceAcceptRequest,
-    DisputeServiceAcceptResponse, DisputeServiceDefendRequest, DisputeServiceDefendResponse,
-    DisputeServiceGetRequest, DisputeServiceSubmitEvidenceRequest,
+    dispute_service_server::DisputeService, event_service_server::EventService, DisputeResponse,
+    DisputeServiceAcceptRequest, DisputeServiceAcceptResponse, DisputeServiceDefendRequest,
+    DisputeServiceDefendResponse, DisputeServiceGetRequest, DisputeServiceSubmitEvidenceRequest,
     DisputeServiceSubmitEvidenceResponse, EventServiceHandleRequest, EventServiceHandleResponse,
 };
 use std::sync::Arc;
@@ -54,5 +54,5 @@ http_handler!(
     EventServiceHandleRequest,
     EventServiceHandleResponse,
     handle_event,
-    disputes_service
+    event_service
 );

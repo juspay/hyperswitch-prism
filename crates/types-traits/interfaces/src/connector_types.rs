@@ -34,13 +34,20 @@ use domain_types::{
     types::{PaymentMethodDataType, PaymentMethodDetails, SupportedPaymentMethods},
 };
 use error_stack::ResultExt;
+use serde_json::Value;
 
 use crate::{
-    api::ConnectorCommon,
+    api::{ApplicationResponse, ConnectorCommon},
     connector_integration_v2::ConnectorIntegrationV2,
     decode::BodyDecoding,
     verification::{ConnectorSourceVerificationSecrets, SourceVerification},
 };
+
+#[derive(Debug, Clone, Copy)]
+pub enum IncomingWebhookFlowError {
+    ResourceNotFound,
+    InternalError,
+}
 
 pub trait ConnectorServiceTrait<T: PaymentMethodDataTypes>:
     ConnectorCommon
@@ -469,6 +476,19 @@ pub trait IncomingWebhook {
             "get_webhook_resource_object".to_string(),
         )
         .into())
+    }
+
+    /// fn get_webhook_api_response
+    ///
+    /// This is used by callers to decide what HTTP response
+    /// should be sent back to the connector for webhook acknowledgement.
+    fn get_webhook_api_response(
+        &self,
+        _request: RequestDetails,
+        _error_kind: Option<IncomingWebhookFlowError>,
+    ) -> Result<ApplicationResponse<Value>, error_stack::Report<domain_types::errors::ConnectorError>>
+    {
+        Ok(ApplicationResponse::StatusOk)
     }
 }
 

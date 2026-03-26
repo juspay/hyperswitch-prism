@@ -1312,7 +1312,7 @@ message EventServiceHandleResponse {
   WebhookEventType event_type = 1;
 
   // Content
-  EventResponse event_response = 2;
+  EventContent event_content = 2;
 
   // Verification
   bool source_verified = 3;
@@ -1321,11 +1321,21 @@ message EventServiceHandleResponse {
   optional string merchant_event_id = 4;
 
   // Event Status
-  WebhookEventStatus event_status = 5;
+  EventStatus event_status = 5;
+
+  // Suggested HTTP response to send back to the connector for webhook acknowledgement
+  optional EventAckResponse event_ack_response = 6;
 }
 
-// Content of a Event
-message EventResponse {
+// Suggested HTTP response for webhook acknowledgement (status, headers, body).
+message EventAckResponse {
+  uint32 status_code = 1;
+  map<string, string> headers = 2;
+  bytes body = 3;
+}
+
+// Content of an event
+message EventContent {
   oneof content {
     // Content if the event is for a payment synchronization.
     PaymentServiceGetResponse payments_response = 1;
@@ -1338,6 +1348,7 @@ message EventResponse {
     IncompleteTransformationResponse incomplete_transformation = 4;
   }
 }
+
 
 // Data for a multiple capture request
 message MultipleCaptureRequestData {
@@ -1461,6 +1472,25 @@ message ConnectorResponseData {
       extended_authorization_response_data = 2;
   // Whether overcapture is enabled
   optional bool is_overcapture_enabled = 3;
+}
+
+// Payment method update information extracted from a connector response or webhook.
+// This is intended to be used by integrators to update stored payment method details
+// (e.g., expiry/last4 updates from network account updater programs).
+message PaymentMethodUpdate {
+  oneof payment_method_update_data {
+    CardDetailUpdate card = 1;
+  }
+}
+
+message CardDetailUpdate {
+  optional string card_exp_month = 1;
+  optional string card_exp_year = 2;
+  optional string last4_digits = 3;
+  optional string issuer_country = 4;
+  optional string card_issuer = 5;
+  optional string card_network = 6;
+  optional string card_holder_name = 7;
 }
 
 // ============================================================================
@@ -1904,6 +1934,8 @@ message PaymentServiceGetResponse {
 
   // Capability Flags
   optional bool incremental_authorization_allowed = 27;
+  // Payment method updates
+  optional PaymentMethodUpdate payment_method_update = 29; // Updated payment method details, if present
 }
 
 // Request message for voiding a payment
@@ -2866,11 +2898,11 @@ message EventServiceHandleRequest {
   optional ConnectorState state = 4;
 }
 
-// Status of webhook Event process
-enum WebhookEventStatus {
-  WEBHOOK_EVENT_STATUS_UNSPECIFIED = 0;
-  WEBHOOK_EVENT_STATUS_COMPLETE = 1;
-  WEBHOOK_EVENT_STATUS_INCOMPLETE = 2;
+// Status of event processing
+enum EventStatus {
+  EVENT_STATUS_UNSPECIFIED = 0;
+  EVENT_STATUS_COMPLETE = 1;
+  EVENT_STATUS_INCOMPLETE = 2;
 }
 
 // Request message for VerifyRedirectResponse
