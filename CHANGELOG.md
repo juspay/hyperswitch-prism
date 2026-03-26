@@ -19,6 +19,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.03.26.0
+
+### Features
+
+- **client:** Add grpc client support in js, rs, kt and py ([#764](https://github.com/juspay/connector-service/pull/764)) ([`7982ec3`](https://github.com/juspay/connector-service/commit/7982ec31e81be6e2583fa1599df45088966acfef))
+- **framework:**
+  - Superposition toml parsing implementation ([#591](https://github.com/juspay/connector-service/pull/591)) ([`65a07ae`](https://github.com/juspay/connector-service/commit/65a07aedd7245b62f28a627ced3e832a83621aae))
+  - Added ConnectorSpecificConfig for Fiservcommercehub ([#789](https://github.com/juspay/connector-service/pull/789)) ([`7d9c7e9`](https://github.com/juspay/connector-service/commit/7d9c7e918313cf07caf995ee41b68bc4f3d24ce0))
+- **payouts:** Add payout flows ([#717](https://github.com/juspay/connector-service/pull/717)) ([`965091e`](https://github.com/juspay/connector-service/commit/965091eb8c8a5029dc8d6009be9922c09fd84adc))
+- [GRACE] Add skills to Hyperswitch-Prism ([#781](https://github.com/juspay/connector-service/pull/781)) ([`0b61a93`](https://github.com/juspay/connector-service/commit/0b61a93ee2633e03b69a70ea5d4a25731434173a))
+
+### Documentation
+
+- **README.md:** Reference org repo and minor edits ([#787](https://github.com/juspay/connector-service/pull/787)) ([`806454b`](https://github.com/juspay/connector-service/commit/806454b58fbf1a5194b6f174b615f453f205b5da))
+- Restructure and enhance documentation ([#783](https://github.com/juspay/connector-service/pull/783)) ([`cc4b137`](https://github.com/juspay/connector-service/commit/cc4b137cffd6050d7ff764bf79926afc381e06bb))
+- Add comprehensive SDK reference documentation for all 4 languages ([#730](https://github.com/juspay/connector-service/pull/730)) ([`3d53997`](https://github.com/juspay/connector-service/commit/3d53997b4f9468706a563c8118cfdd7e8959bde0))
+
+**Full Changelog:** [`2026.03.25.0...2026.03.26.0`](https://github.com/juspay/connector-service/compare/2026.03.25.0...2026.03.26.0)
+
+- - -
+
 ## 2026.03.25.0
 
 ### Features
