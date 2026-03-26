@@ -855,7 +855,6 @@ enum PaymentMethodType {
   CASH_FREE = 108;
   PAY_U = 109;
   EASE_BUZZ = 110;
-  RAZORPAY_WALLET = 111;
 }
 
 // Product type enumeration

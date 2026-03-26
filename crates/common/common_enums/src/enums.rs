@@ -1024,7 +1024,6 @@ pub enum PaymentMethodType {
     PromptPay,
     Pse,
     RedCompra,
-    RazorpayWallet,
     RedPagos,
     SamsungPay,
     Satispay,

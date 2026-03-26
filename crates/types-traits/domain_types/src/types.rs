@@ -1022,11 +1022,6 @@ impl<
                         payment_method_data::EaseBuzzRedirectData {},
                     )))
                 }
-                grpc_api_types::payments::payment_method::PaymentMethod::RazorpayWalletRedirect(_) => {
-                    Ok(Self::Wallet(payment_method_data::WalletData::RazorpayWalletRedirect(
-                        payment_method_data::RazorpayWalletRedirectData {},
-                    )))
-                }
                 grpc_api_types::payments::payment_method::PaymentMethod::AmazonPayDirect(data) => {
                     Ok(Self::Wallet(payment_method_data::WalletData::AmazonPayDirect(
                         Box::new(payment_method_data::AmazonPayDirectData {
@@ -2152,7 +2147,6 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for Option<Paym
             grpc_api_types::payments::PaymentMethodType::CashFree => Ok(Some(PaymentMethodType::Cashfree)),
             grpc_api_types::payments::PaymentMethodType::PayU => Ok(Some(PaymentMethodType::PayU)),
             grpc_api_types::payments::PaymentMethodType::EaseBuzz => Ok(Some(PaymentMethodType::EaseBuzz)),
-            grpc_api_types::payments::PaymentMethodType::RazorpayWallet => Ok(Some(PaymentMethodType::RazorpayWallet)),
             _ => Err(ApplicationErrorResponse::BadRequest(ApiError {
                 sub_code: "INVALID_PAYMENT_METHOD_TYPE".to_owned(),
                 error_identifier: 400,
@@ -2247,7 +2241,6 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                 grpc_api_types::payments::payment_method::PaymentMethod::CashfreeRedirect(_) => Ok(Some(PaymentMethodType::Cashfree)),
                 grpc_api_types::payments::payment_method::PaymentMethod::PayuRedirect(_) => Ok(Some(PaymentMethodType::PayU)),
                 grpc_api_types::payments::payment_method::PaymentMethod::EasebuzzRedirect(_) => Ok(Some(PaymentMethodType::EaseBuzz)),
-                grpc_api_types::payments::payment_method::PaymentMethod::RazorpayWalletRedirect(_) => Ok(Some(PaymentMethodType::RazorpayWallet)),
                 grpc_api_types::payments::payment_method::PaymentMethod::AmazonPayDirect(_) => Ok(Some(PaymentMethodType::AmazonPay)),
                 // ============================================================================
                 // BANK TRANSFERS - PaymentMethodType mappings
@@ -4445,10 +4438,6 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
             } => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
-                    Some(grpc_api_types::payments::payment_method::PaymentMethod::RazorpayWalletRedirect(_)),
-            } => Ok(Self::Wallet),
-            grpc_api_types::payments::PaymentMethod {
-                payment_method:
                     Some(grpc_api_types::payments::payment_method::PaymentMethod::AmazonPayDirect(_)),
             } => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethod {
@@ -5607,7 +5596,6 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             grpc_api_types::payments::PaymentMethodType::CashFree => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::PayU => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::EaseBuzz => Ok(Self::Wallet),
-            grpc_api_types::payments::PaymentMethodType::RazorpayWallet => Ok(Self::Wallet),
 
             grpc_api_types::payments::PaymentMethodType::UpiCollect => Ok(Self::Upi),
             grpc_api_types::payments::PaymentMethodType::UpiIntent => Ok(Self::Upi),
@@ -8807,7 +8795,6 @@ pub enum PaymentMethodDataType {
     CashfreeRedirect,
     PayURedirect,
     EaseBuzzRedirect,
-    RazorpayWalletRedirect,
     AmazonPayDirect,
     SepaGuaranteedBankDebit,
     IndonesianBankTransfer,

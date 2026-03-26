@@ -686,7 +686,6 @@ pub enum WalletData {
     CashfreeRedirect(CashfreeRedirectData),
     PayURedirect(PayURedirectData),
     EaseBuzzRedirect(EaseBuzzRedirectData),
-    RazorpayWalletRedirect(RazorpayWalletRedirectData),
     // Indian wallet direct variants
     AmazonPayDirect(Box<AmazonPayDirectData>),
 }
@@ -755,9 +754,6 @@ pub struct PayURedirectData {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct EaseBuzzRedirectData {}
-
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct RazorpayWalletRedirectData {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct AmazonPayDirectData {

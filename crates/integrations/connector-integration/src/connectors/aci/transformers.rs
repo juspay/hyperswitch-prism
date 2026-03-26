@@ -221,7 +221,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | WalletData::CashfreeRedirect(_)
             | WalletData::PayURedirect(_)
             | WalletData::EaseBuzzRedirect(_)
-            | WalletData::RazorpayWalletRedirect(_)
             | WalletData::AmazonPayDirect(_) => {
                 Err(ConnectorError::NotImplemented("Payment method".to_string()))?
             }
