@@ -9,8 +9,11 @@ use super::requests::*;
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorldpayPaymentsResponse {
+    #[serde(alias = "lastEvent")]
     pub outcome: PaymentOutcome,
     pub transaction_reference: Option<String>,
+    /// APM responses use `paymentId` instead of `transactionReference`
+    pub payment_id: Option<String>,
     #[serde(rename = "_links", skip_serializing_if = "Option::is_none")]
     pub links: Option<SelfLink>,
     #[serde(rename = "_actions", skip_serializing_if = "Option::is_none")]
@@ -165,6 +168,10 @@ pub enum PaymentOutcome {
     ThreeDsChallenged,
     #[serde(alias = "3dsUnavailable")]
     ThreeDsUnavailable,
+    /// APM-specific: payment has been sent for authorization (e.g., SEPA direct debit)
+    SentForAuthorization,
+    /// APM-specific: payment is pending processing
+    Pending,
 }
 
 impl std::fmt::Display for PaymentOutcome {
@@ -181,6 +188,8 @@ impl std::fmt::Display for PaymentOutcome {
             Self::SentForPartialRefund => write!(f, "sentForPartialRefund"),
             Self::ThreeDsChallenged => write!(f, "3dsChallenged"),
             Self::ThreeDsUnavailable => write!(f, "3dsUnavailable"),
+            Self::SentForAuthorization => write!(f, "sentForAuthorization"),
+            Self::Pending => write!(f, "pending"),
         }
     }
 }
@@ -306,10 +315,11 @@ where
         .transpose()?;
     optional_reference_id
         .or_else(|| response.transaction_reference.map(&transform_fn))
+        .or_else(|| response.payment_id.map(&transform_fn))
         .or_else(|| connector_transaction_id.map(&transform_fn))
         .ok_or_else(|| {
             errors::ConnectorError::MissingRequiredField {
-                field_name: "_links.self.href or transactionReference",
+                field_name: "_links.self.href or transactionReference or paymentId",
             }
             .into()
         })
