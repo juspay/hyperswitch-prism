@@ -28,10 +28,11 @@ const WALLET_TYPE_GOOGLE_PAY: &str = "GOOGLE_PAY";
 pub use requests::{
     BluesnapAchAuthorizeRequest, BluesnapAchData, BluesnapAuthorizeRequest, BluesnapCaptureRequest,
     BluesnapCardHolderInfo, BluesnapCompletePaymentsRequest, BluesnapCreditCard,
-    BluesnapEcpTransaction, BluesnapMetadata, BluesnapPayerInfo, BluesnapPaymentMethodDetails,
-    BluesnapPaymentsRequest, BluesnapPaymentsTokenRequest, BluesnapRefundRequest,
-    BluesnapThreeDSecureInfo, BluesnapTxnType, BluesnapVoidRequest, BluesnapWallet,
-    RequestMetadata, TransactionFraudInfo,
+    BluesnapEcpTransaction, BluesnapLocalBankTransferTransaction, BluesnapMetadata,
+    BluesnapPayerInfo, BluesnapPaymentMethodDetails, BluesnapPaymentsRequest,
+    BluesnapPaymentsTokenRequest, BluesnapRefundRequest, BluesnapSepaAuthorizeRequest,
+    BluesnapSepaPayerInfo, BluesnapThreeDSecureInfo, BluesnapTxnType, BluesnapVoidRequest,
+    BluesnapWallet, RequestMetadata, TransactionFraudInfo,
 };
 
 // Re-export response types
@@ -426,8 +427,75 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         transaction_fraud_info,
                     }))
                 }
+                BankDebitData::SepaBankDebit {
+                    bank_account_holder_name,
+                    ..
+                } => {
+                    // Get payer info from billing address or bank account holder name
+                    let address_details = billing_address.and_then(|addr| addr.address.as_ref());
+
+                    let (first_name, last_name) =
+                        if let Some(holder_name) = bank_account_holder_name {
+                            // Split holder name into first/last
+                            let parts: Vec<&str> = holder_name.peek().splitn(2, ' ').collect();
+                            let first = Secret::new(parts[0].to_string());
+                            let last = if parts.len() > 1 {
+                                Secret::new(parts[1].to_string())
+                            } else {
+                                first.clone()
+                            };
+                            (first, last)
+                        } else if let Some(details) = address_details {
+                            let first = details.get_first_name()?.clone();
+                            let last = details.get_last_name().unwrap_or(&first).clone();
+                            (first, last)
+                        } else {
+                            return Err(error_stack::report!(
+                                errors::ConnectorError::MissingRequiredField {
+                                    field_name: "bank_account_holder_name or billing_address"
+                                }
+                            ));
+                        };
+
+                    // Extract country from billing address
+                    let country = billing_address
+                        .and_then(|addr| addr.address.as_ref())
+                        .and_then(|details| details.country.as_ref())
+                        .map(|c| c.to_string())
+                        .unwrap_or_else(|| "de".to_string()); // Default to DE for SEPA
+
+                    let amount = super::BluesnapAmountConvertor::convert(
+                        router_data.request.minor_amount,
+                        router_data.request.currency,
+                    )?;
+
+                    let transaction_fraud_info = Some(TransactionFraudInfo {
+                        fraud_session_id: router_data
+                            .resource_common_data
+                            .connector_request_reference_id
+                            .clone(),
+                    });
+
+                    Ok(Self::Sepa(BluesnapSepaAuthorizeRequest {
+                        amount,
+                        currency: router_data.request.currency.to_string(),
+                        authorized_by_shopper: true,
+                        payer_info: BluesnapSepaPayerInfo {
+                            first_name,
+                            last_name,
+                            country: country.to_lowercase(),
+                        },
+                        local_bank_transfer_transaction: BluesnapLocalBankTransferTransaction {},
+                        merchant_transaction_id: router_data
+                            .resource_common_data
+                            .connector_request_reference_id
+                            .clone(),
+                        soft_descriptor: None,
+                        transaction_fraud_info,
+                    }))
+                }
                 _ => Err(errors::ConnectorError::NotImplemented(
-                    "Only ACH Bank Debit is supported".to_string(),
+                    "Only ACH and SEPA Bank Debit are supported".to_string(),
                 ))?,
             },
             _ => Err(errors::ConnectorError::NotImplemented(
