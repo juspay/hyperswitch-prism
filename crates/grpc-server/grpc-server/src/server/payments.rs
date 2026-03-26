@@ -2116,6 +2116,7 @@ impl PaymentService for Payments {
                     let updated_request_details = domain_types::connector_types::RequestDetails {
                         method: request_details.method.clone(),
                         uri: request_details.uri.clone(),
+                        url: request_details.url.clone(),
                         headers: request_details.headers,
                         query_params: request_details.query_params.clone(),
                         body: decoded_body,
