@@ -65,7 +65,7 @@ generate-proto: install-deps
 	@echo "Generating static protobuf JS module..."
 	@mkdir -p $(GENERATED_OUT)
 	@cd $(SDK_ROOT) && ./node_modules/.bin/pbjs \
-		-t static-module -w commonjs --no-delimited --alt-comment \
+		-t static-module -w commonjs --no-delimited --no-convert --alt-comment \
 		-p $(PROTO_DIR) \
 		$(PROTO_DIR)/payment.proto $(PROTO_DIR)/payouts.proto $(PROTO_DIR)/payment_methods.proto \
 		$(PROTO_DIR)/sdk_config.proto \

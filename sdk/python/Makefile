@@ -156,7 +156,7 @@ test-package: generate-all pack-archive
 	@cd /tmp/test-hyperswitch-py && python3 test_smoke.py --connectors $(CONNECTORS) --examples-dir $(REPO_ROOT)/examples
 	@echo "Running composite flow test..."
 	@cp $(SDK_ROOT)/smoke-test/test_smoke_composite.py /tmp/test-hyperswitch-py/
-	@cd /tmp/test-hyperswitch-py && python3 test_smoke_composite.py
+	@cd /tmp/test-hyperswitch-py && python3 test_smoke_composite.py --creds-file creds.json
 	@rm -rf /tmp/test-hyperswitch-py
 	@echo "Package test passed."
 
@@ -170,11 +170,15 @@ test-composite: generate-all pack-archive
 	@rm -rf /tmp/test-hyperswitch-py-composite
 	@mkdir -p /tmp/test-hyperswitch-py-composite
 	@cp $(SDK_ROOT)/smoke-test/test_smoke_composite.py /tmp/test-hyperswitch-py-composite/
+	@# Copy credentials file if it exists
+	@if [ -f $(REPO_ROOT)/creds.json ]; then \
+		cp $(REPO_ROOT)/creds.json /tmp/test-hyperswitch-py-composite/; \
+	fi
 	@python3 -m pip install \
 		--target /tmp/test-hyperswitch-py-composite \
 		$(PACKAGE_DIR)/hyperswitch_payments-0.1.0-py3-none-any.whl \
 		--force-reinstall
-	@cd /tmp/test-hyperswitch-py-composite && python3 test_smoke_composite.py
+	@cd /tmp/test-hyperswitch-py-composite && python3 test_smoke_composite.py --creds-file creds.json
 	@rm -rf /tmp/test-hyperswitch-py-composite
 	@echo "Composite flow test passed."
 
