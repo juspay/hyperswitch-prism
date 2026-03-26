@@ -208,11 +208,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn should_do_payment_method_token(
         &self,
         payment_method: PaymentMethod,
-        _payment_method_type: Option<PaymentMethodType>,
+        payment_method_type: Option<PaymentMethodType>,
     ) -> bool {
         matches!(
-            payment_method,
-            PaymentMethod::Card | PaymentMethod::BankDebit
+            (payment_method, payment_method_type),
+            (PaymentMethod::Card, _)
+                | (PaymentMethod::BankDebit, _)
+                | (PaymentMethod::Wallet, Some(PaymentMethodType::GooglePay))
         )
     }
 }

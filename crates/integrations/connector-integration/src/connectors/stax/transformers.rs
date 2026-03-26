@@ -270,7 +270,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
         let payment_method_id = match item.router_data.request.payment_method_data {
-            PaymentMethodData::Card(_) | PaymentMethodData::BankDebit(_) => {
+            PaymentMethodData::Card(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::Wallet(
+                domain_types::payment_method_data::WalletData::GooglePay(_),
+            ) => {
                 if let Ok(pm_token) = item
                     .router_data
                     .resource_common_data
@@ -291,7 +295,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
             _ => {
                 return Err(errors::ConnectorError::NotImplemented(
-                    "Only card and ACH bank debit payments are supported for Stax".to_string(),
+                    "Only card, ACH bank debit, and GooglePay wallet payments are supported for Stax".to_string(),
                 ))?;
             }
         };
