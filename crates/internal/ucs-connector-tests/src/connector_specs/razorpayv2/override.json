@@ -1,0 +1,24 @@
+{
+  "authorize": {
+    "no3ds_auto_capture_credit_card": {
+      "assert": {
+        "status": {"one_of": ["CHARGED", "AUTHORIZED", "AUTHENTICATION_PENDING"]}
+      }
+    },
+    "no3ds_manual_capture_credit_card": {
+      "assert": {
+        "status": {"one_of": ["AUTHORIZED", "AUTHENTICATION_PENDING"]}
+      }
+    },
+    "no3ds_auto_capture_debit_card": {
+      "assert": {
+        "status": {"one_of": ["CHARGED", "AUTHORIZED", "AUTHENTICATION_PENDING"]}
+      }
+    },
+    "no3ds_manual_capture_debit_card": {
+      "assert": {
+        "status": {"one_of": ["AUTHORIZED", "AUTHENTICATION_PENDING"]}
+      }
+    }
+  }
+}

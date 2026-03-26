@@ -14,7 +14,7 @@ use domain_types::{
     },
     errors,
     payment_address::Address,
-    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, UpiData},
+    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, UpiData},
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
@@ -176,6 +176,56 @@ pub struct RazorpayV2PaymentsRequest {
     pub save: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub recurring: Option<String>,
+}
+
+// ============ Card Payment Types (for POST /payments/create/json) ============
+
+#[derive(Debug, Serialize)]
+pub struct RazorpayV2CardPaymentsRequest<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+> {
+    pub amount: MinorUnit,
+    pub currency: String,
+    pub order_id: String,
+    pub email: Email,
+    pub contact: Secret<String>,
+    pub method: String,
+    pub card: RazorpayV2CardDetails<T>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub notes: Option<RazorpayV2Notes>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub callback_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ip: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user_agent: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct RazorpayV2CardDetails<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+> {
+    pub number: RawCardNumber<T>,
+    pub name: Secret<String>,
+    pub expiry_month: Secret<String>,
+    pub expiry_year: Secret<String>,
+    pub cvv: Secret<String>,
+}
+
+/// Response from POST /payments/create/json for card payments
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RazorpayV2CardPaymentsResponse {
+    pub razorpay_payment_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub next: Option<Vec<RazorpayV2NextAction>>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RazorpayV2NextAction {
+    pub action: String,
+    pub url: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -428,6 +478,174 @@ impl<U: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             customer_id: None,
             save: Some(false),
             recurring: None,
+        })
+    }
+}
+
+// ============ Card Payment Request Transformation ============
+
+impl<U: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        &RazorpayV2RouterData<
+            &RouterDataV2<
+                Authorize,
+                PaymentFlowData,
+                PaymentsAuthorizeData<U>,
+                PaymentsResponseData,
+            >,
+            U,
+        >,
+    > for RazorpayV2CardPaymentsRequest<U>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &RazorpayV2RouterData<
+            &RouterDataV2<
+                Authorize,
+                PaymentFlowData,
+                PaymentsAuthorizeData<U>,
+                PaymentsResponseData,
+            >,
+            U,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let card_data = match &item.router_data.request.payment_method_data {
+            PaymentMethodData::Card(card) => Ok(card),
+            _ => Err(errors::ConnectorError::NotImplemented(
+                "Only card payments are supported for this endpoint".to_string(),
+            )),
+        }?;
+
+        let order_id =
+            item.order_id
+                .as_ref()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "order_id",
+                })?;
+
+        let card_holder_name = card_data
+            .card_holder_name
+            .clone()
+            .or_else(|| {
+                item.router_data
+                    .resource_common_data
+                    .get_optional_billing_full_name()
+            })
+            .unwrap_or_else(|| Secret::new("Card Holder".to_string()));
+
+        let card_details = RazorpayV2CardDetails {
+            number: card_data.card_number.clone(),
+            name: card_holder_name,
+            expiry_month: card_data.card_exp_month.clone(),
+            expiry_year: Secret::new(
+                card_data
+                    .get_card_expiry_year_2_digit()
+                    .map(|y| y.expose())
+                    .unwrap_or_else(|_| card_data.card_exp_year.peek().to_string()),
+            ),
+            cvv: card_data.card_cvc.clone(),
+        };
+
+        let callback_url = item.router_data.request.get_router_return_url().ok();
+
+        Ok(Self {
+            amount: item.amount,
+            currency: item.router_data.request.currency.to_string(),
+            order_id: order_id.to_string(),
+            email: item
+                .router_data
+                .resource_common_data
+                .get_billing_email()
+                .or_else(|_| {
+                    Email::from_str("customer@example.com").map_err(|_| {
+                        error_stack::Report::new(errors::ConnectorError::InvalidDataFormat {
+                            field_name: "billing.email",
+                        })
+                    })
+                })?,
+            contact: Secret::new(
+                item.router_data
+                    .resource_common_data
+                    .get_billing_phone_number()
+                    .map(|phone| phone.expose())
+                    .unwrap_or_else(|_| "+911234567890".to_string()),
+            ),
+            method: "card".to_string(),
+            card: card_details,
+            description: Some("Payment via RazorpayV2".to_string()),
+            notes: item.router_data.request.metadata.clone().expose_option(),
+            callback_url,
+            ip: None,
+            user_agent: None,
+        })
+    }
+}
+
+// ============ Card Payment Response Transformation ============
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    ForeignTryFrom<(RazorpayV2CardPaymentsResponse, Self, u16, Vec<u8>)>
+    for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
+{
+    type Error = errors::ConnectorError;
+
+    fn foreign_try_from(
+        (response, data, _status_code, _raw_response): (
+            RazorpayV2CardPaymentsResponse,
+            Self,
+            u16,
+            Vec<u8>,
+        ),
+    ) -> Result<Self, Self::Error> {
+        // Check if there are next actions (e.g., OTP, redirect for 3DS)
+        let has_next_actions = response
+            .next
+            .as_ref()
+            .map_or(false, |actions| !actions.is_empty());
+
+        let redirection_data = if has_next_actions {
+            // If there are next actions, find a redirect or otp_generate action
+            response.next.as_ref().and_then(|actions| {
+                actions
+                    .iter()
+                    .find(|a| a.action == "redirect" || a.action == "otp_generate")
+                    .map(|action| {
+                        Box::new(RedirectForm::Uri {
+                            uri: action.url.clone(),
+                        })
+                    })
+            })
+        } else {
+            None
+        };
+
+        // For no-3DS cards, if no next actions, payment is authorized/captured directly
+        let status = if has_next_actions {
+            AttemptStatus::AuthenticationPending
+        } else {
+            // The payment was processed without 3DS - it should be authorized or captured
+            // (Razorpay auto-captures when payment_capture=true on the order)
+            AttemptStatus::Charged
+        };
+
+        let payments_response_data = PaymentsResponseData::TransactionResponse {
+            resource_id: ResponseId::ConnectorTransactionId(response.razorpay_payment_id),
+            redirection_data,
+            connector_metadata: None,
+            mandate_reference: None,
+            network_txn_id: None,
+            connector_response_reference_id: data.resource_common_data.reference_id.clone(),
+            incremental_authorization_allowed: None,
+            status_code: _status_code,
+        };
+
+        Ok(Self {
+            response: Ok(payments_response_data),
+            resource_common_data: PaymentFlowData {
+                status,
+                ..data.resource_common_data
+            },
+            ..data
         })
     }
 }
