@@ -849,6 +849,13 @@ enum PaymentMethodType {
   SATISPAY = 102;
   WERO = 103;
   NETWORK_TOKEN = 104;
+  LAZY_PAY = 105;
+  PHONE_PE = 106;
+  BILL_DESK = 107;
+  CASH_FREE = 108;
+  PAY_U = 109;
+  EASE_BUZZ = 110;
+  RAZORPAY_WALLET = 111;
 }
 
 // Product type enumeration

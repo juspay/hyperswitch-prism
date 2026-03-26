@@ -916,7 +916,14 @@ impl TryFrom<common_enums::PaymentMethodType> for StripePaymentMethodType {
             | common_enums::PaymentMethodType::NetworkToken
             | common_enums::PaymentMethodType::Mifinity
             | common_enums::PaymentMethodType::Satispay
-            | common_enums::PaymentMethodType::Wero => Err(ConnectorError::NotImplemented(
+            | common_enums::PaymentMethodType::Wero
+            | common_enums::PaymentMethodType::LazyPay
+            | common_enums::PaymentMethodType::PhonePe
+            | common_enums::PaymentMethodType::BillDesk
+            | common_enums::PaymentMethodType::Cashfree
+            | common_enums::PaymentMethodType::PayU
+            | common_enums::PaymentMethodType::EaseBuzz
+            | common_enums::PaymentMethodType::RazorpayWallet => Err(ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("stripe"),
             )
             .into()),
@@ -1203,7 +1210,15 @@ fn get_stripe_payment_method_type_from_wallet_data(
         | WalletData::Mifinity(_)
         | WalletData::MbWay(_)
         | WalletData::Satispay(_)
-        | WalletData::Wero(_) => Err(ConnectorError::NotImplemented(
+        | WalletData::Wero(_)
+        | WalletData::LazyPayRedirect(_)
+        | WalletData::PhonePeRedirect(_)
+        | WalletData::BillDeskRedirect(_)
+        | WalletData::CashfreeRedirect(_)
+        | WalletData::PayURedirect(_)
+        | WalletData::EaseBuzzRedirect(_)
+        | WalletData::RazorpayWalletRedirect(_)
+        | WalletData::AmazonPayDirect(_) => Err(ConnectorError::NotImplemented(
             get_unimplemented_payment_method_error_message("stripe"),
         )),
     }
@@ -1679,7 +1694,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | WalletData::Mifinity(_)
             | WalletData::MbWay(_)
             | WalletData::Satispay(_)
-            | WalletData::Wero(_) => Err(ConnectorError::NotImplemented(
+            | WalletData::Wero(_)
+            | WalletData::LazyPayRedirect(_)
+            | WalletData::PhonePeRedirect(_)
+            | WalletData::BillDeskRedirect(_)
+            | WalletData::CashfreeRedirect(_)
+            | WalletData::PayURedirect(_)
+            | WalletData::EaseBuzzRedirect(_)
+            | WalletData::RazorpayWalletRedirect(_)
+            | WalletData::AmazonPayDirect(_) => Err(ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("stripe"),
             )
             .into()),
