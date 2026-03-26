@@ -303,6 +303,7 @@ fn extract_payment_method_and_data<
         | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
         | PaymentMethodData::NetworkToken(_)
         | PaymentMethodData::MobilePayment(_)
+        | PaymentMethodData::Netbanking(_)
         | PaymentMethodData::OpenBanking(_) => Err(errors::ConnectorError::NotImplemented(
             "Only Card payment method is supported for Razorpay".to_string(),
         )),
@@ -1524,6 +1525,128 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             __notes_91_pg_flow_93_: metadata_map.get("__notes_91_pg_flow_93_").cloned(),
             __notes_91_tid_93: metadata_map.get("__notes_91_tid_93").cloned(),
             account_id: None,
+        })
+    }
+}
+
+// ============ Netbanking Request ============
+
+#[derive(Debug, Serialize)]
+pub struct RazorpayNetbankingRequest {
+    pub amount: MinorUnit,
+    pub currency: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email: Option<Email>,
+    pub order_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub contact: Option<Secret<String>>,
+    pub method: String,
+    pub bank: String,
+    pub callback_url: String,
+    pub ip: Secret<String>,
+    pub referer: String,
+    pub user_agent: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub notes: Option<HashMap<String, String>>,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        &RazorpayRouterData<
+            &RouterDataV2<
+                Authorize,
+                PaymentFlowData,
+                PaymentsAuthorizeData<T>,
+                PaymentsResponseData,
+            >,
+        >,
+    > for RazorpayNetbankingRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: &RazorpayRouterData<
+            &RouterDataV2<
+                Authorize,
+                PaymentFlowData,
+                PaymentsAuthorizeData<T>,
+                PaymentsResponseData,
+            >,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let nb_data = match &item.router_data.request.payment_method_data {
+            PaymentMethodData::Netbanking(nb) => nb,
+            _ => {
+                return Err(errors::ConnectorError::MissingRequiredField {
+                    field_name: "netbanking payment_method_data",
+                }
+                .into())
+            }
+        };
+
+        let order_id = item
+            .router_data
+            .resource_common_data
+            .reference_id
+            .as_ref()
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "order_id (reference_id)",
+            })?
+            .clone();
+
+        let metadata_map = item
+            .router_data
+            .request
+            .metadata
+            .as_ref()
+            .and_then(|metadata| metadata.peek().as_object())
+            .map(|obj| {
+                obj.iter()
+                    .map(|(k, v)| (k.clone(), json_value_to_string(v)))
+                    .collect::<HashMap<String, String>>()
+            });
+
+        Ok(Self {
+            currency: item.router_data.request.currency.to_string(),
+            amount: item.amount,
+            email: item
+                .router_data
+                .resource_common_data
+                .get_billing_email()
+                .ok(),
+            order_id: order_id.to_string(),
+            contact: item
+                .router_data
+                .resource_common_data
+                .get_billing_phone_number()
+                .ok(),
+            method: "netbanking".to_string(),
+            bank: nb_data.bank_code.clone(),
+            callback_url: item.router_data.request.get_router_return_url()?,
+            ip: item
+                .router_data
+                .request
+                .get_ip_address_as_optional()
+                .map(|ip| Secret::new(ip.expose()))
+                .unwrap_or_else(|| Secret::new("127.0.0.1".to_string())),
+            referer: item
+                .router_data
+                .request
+                .browser_info
+                .as_ref()
+                .and_then(|info| info.get_referer().ok())
+                .unwrap_or_else(|| "https://example.com".to_string()),
+            user_agent: item
+                .router_data
+                .request
+                .browser_info
+                .as_ref()
+                .and_then(|info| info.get_user_agent().ok())
+                .unwrap_or_else(|| "Mozilla/5.0".to_string()),
+            description: None,
+            notes: metadata_map,
         })
     }
 }
