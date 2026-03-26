@@ -1,5 +1,5 @@
 /**
- * gRPC smoke test for hs-playlib SDK.
+ * gRPC smoke test for hyperswitch-prism SDK.
  *
  * For each supported flow (filtered by data/field_probe/{connector}.json),
  * calls the connector's _build*Request() builder to construct the proto
@@ -11,8 +11,8 @@
  *   node test_smoke_grpc.js --connectors stripe --examples-dir /path/to/examples
  */
 
-import { GrpcClient } from "hs-playlib";
-import type { GrpcConfig } from "hs-playlib";
+import { GrpcClient } from "hyperswitch-prism";
+import type { GrpcConfig } from "hyperswitch-prism";
 import * as fs from "fs";
 import * as path from "path";
 

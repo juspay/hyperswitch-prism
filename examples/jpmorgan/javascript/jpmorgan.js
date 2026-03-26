@@ -6,8 +6,8 @@
 // Run a scenario:  node jpmorgan.js checkout_card
 'use strict';
 
-const { PaymentClient, MerchantAuthenticationClient } = require('hs-playlib');
-const { ConnectorConfig, ConnectorSpecificConfig, SdkOptions, Environment } = require('hs-playlib').types;
+const { PaymentClient, MerchantAuthenticationClient } = require('hyperswitch-prism');
+const { ConnectorConfig, ConnectorSpecificConfig, SdkOptions, Environment } = require('hyperswitch-prism').types;
 
 const _defaultConfig = ConnectorConfig.create({
     options: SdkOptions.create({ environment: Environment.SANDBOX }),

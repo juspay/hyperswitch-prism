@@ -6,8 +6,8 @@
 // Run a scenario:  node nexixpay.js checkout_card
 'use strict';
 
-const { PaymentClient, PaymentMethodAuthenticationClient } = require('hs-playlib');
-const { ConnectorConfig, ConnectorSpecificConfig, SdkOptions, Environment } = require('hs-playlib').types;
+const { PaymentClient, PaymentMethodAuthenticationClient } = require('hyperswitch-prism');
+const { ConnectorConfig, ConnectorSpecificConfig, SdkOptions, Environment } = require('hyperswitch-prism').types;
 
 const _defaultConfig = ConnectorConfig.create({
     options: SdkOptions.create({ environment: Environment.SANDBOX }),

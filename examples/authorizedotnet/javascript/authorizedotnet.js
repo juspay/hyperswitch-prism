@@ -6,8 +6,8 @@
 // Run a scenario:  node authorizedotnet.js checkout_card
 'use strict';
 
-const { PaymentClient, RecurringPaymentClient, CustomerClient } = require('hs-playlib');
-const { ConnectorConfig, ConnectorSpecificConfig, SdkOptions, Environment } = require('hs-playlib').types;
+const { PaymentClient, RecurringPaymentClient, CustomerClient } = require('hyperswitch-prism');
+const { ConnectorConfig, ConnectorSpecificConfig, SdkOptions, Environment } = require('hyperswitch-prism').types;
 
 const _defaultConfig = ConnectorConfig.create({
     options: SdkOptions.create({ environment: Environment.SANDBOX }),

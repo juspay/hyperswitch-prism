@@ -98,7 +98,7 @@ Start by installing the library in the language of your choice.
 #### **Node.js**
 
 ```bash
-npm install hs-playlib
+npm install hyperswitch-prism
 ```
 
 #### **Python**
@@ -135,45 +135,66 @@ For detailed installation instructions, see [Installation Guide](./getting-start
 
 #### **Node.js**
 
-```javascript
-const { PaymentClient } = require('hyperswitch-prism');
-const { ConnectorConfig, ConnectorSpecificConfig, SdkOptions, Environment } = require('hyperswitch-prism').types;
+```typescript
+import { PaymentClient, types, IntegrationError, ConnectorResponseTransformationError } from 'hyperswitch-prism';
 
-async function main() {
-  // Configure Stripe client (Primary payment processor)
-  const stripeConfig = ConnectorConfig.create({
-    options: SdkOptions.create({ environment: Environment.SANDBOX }),
-  });
-  stripeConfig.connectorConfig = ConnectorSpecificConfig.create({
-    stripe: { apiKey: { value: process.env.STRIPE_API_KEY } }
-  });
-  const stripeClient = new PaymentClient(stripeConfig);
-
-  // Configure Adyen client (Secondary payment processor)
-  const adyenConfig = ConnectorConfig.create({
-    options: SdkOptions.create({ environment: Environment.SANDBOX }),
-  });
-  adyenConfig.connectorConfig = ConnectorSpecificConfig.create({
-    adyen: {
-      apiKey: { value: process.env.ADYEN_API_KEY },
-      merchantAccount: process.env.ADYEN_MERCHANT_ACCOUNT
+let config: types.ConnectorConfig = {
+    connectorConfig: {
+        stripe: {
+            apiKey: { value: "sk_test_" }
+        }
     }
-  });
-  const adyenClient = new PaymentClient(adyenConfig);
-
-  const order = await stripeClient.createOrder({
-    merchantOrderId: 'order-123',
-    amount: {
-      minorAmount: 1000,
-      currency: "USD"
-    },
-    orderType: 'PAYMENT',
-    description: 'Test order'
-  });
-  console.log('Order ID:', order.connectorOrderId);
 }
 
-main().catch(console.error);
+const main = async () => {
+    try {
+        let client = new PaymentClient(config)
+        let request: types.PaymentServiceAuthorizeRequest = {
+            merchantTransactionId: "authorize_123",
+            amount: {
+                minorAmount: 1000, // $10.00
+                currency: types.Currency.USD,
+            },
+            captureMethod: types.CaptureMethod.AUTOMATIC,
+            paymentMethod: {
+                card: {
+                    cardNumber: { value: "4111111111111111" },
+                    cardExpMonth: { value: "12" },
+                    cardExpYear: { value: "2050" },
+                    cardCvc: { value: "123" },
+                    cardHolderName: { value: "Test User" },
+                },
+            },
+            authType: types.AuthenticationType.NO_THREE_DS,
+            address: {},
+            orderDetails: [],
+        }
+        let response: types.PaymentServiceAuthorizeResponse = await client.authorize(request);
+        switch (response.status) {
+            case types.PaymentStatus.CHARGED:
+                console.log("success");
+                break;
+            default:
+                console.error("failed");
+        }
+    } catch (e: any) {
+        switch (true) {
+            case (e instanceof IntegrationError): {
+                console.error("Error", e);
+                break;
+            }
+            case (e instanceof ConnectorResponseTransformationError): {
+                console.error("Error", e);
+                break;
+            }
+            default: {
+                console.error("Error", e);
+            }
+        }
+    }
+}
+
+main()
 ```
 
 ---
@@ -183,28 +204,53 @@ main().catch(console.error);
 Once the basic plumbing is implemented you can leverage Prism's core benefit - **switch payment providers by changing one line**.
 
 
-```javascript
+```typescript
   // Routing rule: EUR -> Adyen, USD -> Stripe
-  const currency = 'USD';
-  const client = currency === 'EUR' ? adyenClient : stripeClient;
+  const currency = types.Currency.USD;
 
-  const order = await client.createOrder({
-    merchantOrderId: 'order-123',
-    amount: {
-      minorAmount: 1000,
-      currency: EUR
-    },
-    orderType: 'PAYMENT',
-    description: 'Test order'
-  });
+  let stripeConfig: types.ConnectorConfig = {
+      connectorConfig: {
+          stripe: {
+              apiKey: { value: process.env.STRIPE_API_KEY! }
+          }
+      }
+  }
 
-  console.log(`Order created with ${currency === 'EUR' ? 'Adyen' : 'Stripe'}`);
+  let adyenConfig: types.ConnectorConfig = {
+      connectorConfig: {
+          adyen: {
+              apiKey: { value: process.env.ADYEN_API_KEY! },
+              merchantAccount: process.env.ADYEN_MERCHANT_ACCOUNT!
+          }
+      }
+  }
 
-// EUR goes to Adyen
-createOrder('order-456', 'EUR', 2500);
+  const config = currency === types.Currency.EUR ? adyenConfig : stripeConfig;
+  const client = new PaymentClient(config);
 
-// USD goes to Stripe
-createOrder('order-123', 'USD', 1000);
+  const request: types.PaymentServiceAuthorizeRequest = {
+      merchantTransactionId: "order_123",
+      amount: {
+          minorAmount: 1000,
+          currency: currency
+      },
+      captureMethod: types.CaptureMethod.AUTOMATIC,
+      paymentMethod: {
+          card: {
+              cardNumber: { value: "4111111111111111" },
+              cardExpMonth: { value: "12" },
+              cardExpYear: { value: "2050" },
+              cardCvc: { value: "123" },
+              cardHolderName: { value: "Test User" },
+          },
+      },
+      authType: types.AuthenticationType.NO_THREE_DS,
+      address: {},
+      orderDetails: [],
+  };
+
+  const response = await client.authorize(request);
+  console.log(`Payment authorized with ${currency === types.Currency.EUR ? 'Adyen' : 'Stripe'}`);
 ```
 
 **One integration pattern. Any service category.**

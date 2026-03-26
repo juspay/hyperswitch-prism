@@ -1,10 +1,10 @@
-# hs-playlib
+# hyperswitch-prism
 
 **Universal Connector Service — Node.js SDK**
 
 A high-performance, type-safe Node.js SDK for payment processing through the Universal Connector Service. Connect to 50+ payment processors (Stripe, PayPal, Adyen, and more) through a single, unified API.
 
-[![npm version](https://badge.fury.io/js/hs-playlib.svg)](https://www.npmjs.com/package/hs-playlib)
+[![npm version](https://badge.fury.io/js/hyperswitch-prism.svg)](https://www.npmjs.com/package/hyperswitch-prism)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
 ---
@@ -23,7 +23,7 @@ A high-performance, type-safe Node.js SDK for payment processing through the Uni
 ## Installation
 
 ```bash
-npm install hs-playlib
+npm install hyperswitch-prism
 ```
 
 **Requirements:**
@@ -42,7 +42,7 @@ npm install hs-playlib
 ### 1. Configure the Client
 
 ```typescript
-import { PaymentClient, types } from 'hs-playlib';
+import { PaymentClient, types } from 'hyperswitch-prism';
 
 const { ConnectorConfig, RequestConfig, Environment, Connector } = types;
 
@@ -195,7 +195,7 @@ for (const payment of payments) {
 ## Error Handling
 
 ```typescript
-import { ConnectorError } from 'hs-playlib';
+import { ConnectorError } from 'hyperswitch-prism';
 
 try {
   const response = await client.authorize(request);
@@ -228,7 +228,7 @@ import {
   PaymentClient,
   MerchantAuthenticationClient,
   types
-} from 'hs-playlib';
+} from 'hyperswitch-prism';
 
 const { ConnectorConfig, Environment, Connector, Currency,
         CaptureMethod, SecretString, AccessToken, ConnectorState } = types;

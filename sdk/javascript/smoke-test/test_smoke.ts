@@ -1,5 +1,5 @@
 /**
- * Multi-connector smoke test for hs-playlib SDK.
+ * Multi-connector smoke test for hyperswitch-prism SDK.
  * 
  * Loads connector credentials from external JSON file and runs authorize flow
  * for multiple connectors.
@@ -10,7 +10,7 @@
  *   node test_smoke.js --creds-file creds.json --all --dry-run
  */
 
-import { PaymentClient, types, NetworkError, IntegrationError, ConnectorResponseTransformationError } from "hs-playlib";
+import { PaymentClient, types, NetworkError, IntegrationError, ConnectorResponseTransformationError } from "hyperswitch-prism";
 import * as fs from "fs";
 import * as path from "path";
 

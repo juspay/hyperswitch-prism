@@ -98,7 +98,7 @@ Start by installing the library in the language of your choice.
 #### **Node.js**
 
 ```bash
-npm install hs-playlib
+npm install hyperswitch-prism
 ```
 
 #### **Python**

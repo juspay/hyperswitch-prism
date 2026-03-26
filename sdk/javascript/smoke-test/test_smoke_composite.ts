@@ -11,7 +11,7 @@
  *   npx ts-node test_access_token_smoke.ts
  */
 
-import { PaymentClient, MerchantAuthenticationClient, types, NetworkError } from "hs-playlib";
+import { PaymentClient, MerchantAuthenticationClient, types, NetworkError } from "hyperswitch-prism";
 
 const {
   MerchantAuthenticationServiceCreateAccessTokenRequest,

@@ -10,8 +10,8 @@
     "baseUrl": ".",
     "ignoreDeprecations": "6.0",
     "paths": {
-      "hs-playlib": ["./node_modules/hs-playlib/dist/src/index"],
-      "hs-playlib/dist/src/payments/generated/proto": ["./node_modules/hs-playlib/dist/src/payments/generated/proto"]
+      "hyperswitch-prism": ["./node_modules/hyperswitch-prism/dist/src/index"],
+      "hyperswitch-prism/dist/src/payments/generated/proto": ["./node_modules/hyperswitch-prism/dist/src/payments/generated/proto"]
     }
   },
   "include": ["test_smoke.ts", "test_smoke_composite.ts", "test_smoke_grpc.ts"]

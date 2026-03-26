@@ -1295,8 +1295,8 @@ def render_scenario_javascript(
 // {scenario.description}
 'use strict';
 
-const {{ {client_imports} }} = require('hs-playlib');
-const {{ ConnectorConfig, Environment, Connector }} = require('hs-playlib').types;
+const {{ {client_imports} }} = require('hyperswitch-prism');
+const {{ ConnectorConfig, Environment, Connector }} = require('hyperswitch-prism').types;
 
 const _defaultConfig = ConnectorConfig.create({{
     connector: Connector.{conn_enum},
@@ -1946,8 +1946,8 @@ def render_consolidated_javascript(
 // Run a scenario:  node {connector_name}.js {first_scenario}
 'use strict';
 
-const {{ {client_imports} }} = require('hs-playlib');
-const {{ ConnectorConfig, ConnectorSpecificConfig, SdkOptions, Environment }} = require('hs-playlib').types;
+const {{ {client_imports} }} = require('hyperswitch-prism');
+const {{ ConnectorConfig, ConnectorSpecificConfig, SdkOptions, Environment }} = require('hyperswitch-prism').types;
 
 const _defaultConfig = ConnectorConfig.create({{
     options: SdkOptions.create({{ environment: Environment.SANDBOX }}),
