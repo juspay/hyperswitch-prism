@@ -442,6 +442,7 @@ scripts/generators/code/services.desc
 
 # UCS Connector Test Runtime Artifacts
 crates/internal/integration-tests/report.json
+crates/internal/integration-tests/test_report/
 *.test.log
 /tmp/*test*.log
 .grpc-server.pid
