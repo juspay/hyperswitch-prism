@@ -16,6 +16,7 @@ use domain_types::{
     },
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
+    router_request_types::AuthenticationData,
 };
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, Secret};
@@ -54,6 +55,7 @@ pub enum Revolv3PaymentsRequest<T: PaymentMethodDataTypes> {
 pub struct Revolv3AuthorizeRequest<T: PaymentMethodDataTypes> {
     pub payment_method: Revolv3PaymentMethodData<T>,
     pub amount: Revolv3AmountData,
+    pub three_ds: Option<Revolv3ThreeDSData>,
     pub network_processing: Option<NetworkProcessingData>,
     pub order_processing_channel: Option<OrderProcessingChannelType>,
     pub dynamic_descriptor: Option<Revolv3DynamicDescriptor>,
@@ -64,6 +66,7 @@ pub struct Revolv3AuthorizeRequest<T: PaymentMethodDataTypes> {
 pub struct Revolv3SaleRequest<T: PaymentMethodDataTypes> {
     pub payment_method: Revolv3PaymentMethodData<T>,
     pub invoice: Revolv3InvoiceData,
+    pub three_ds: Option<Revolv3ThreeDSData>,
     pub network_processing: Option<NetworkProcessingData>,
     pub dynamic_descriptor: Option<Revolv3DynamicDescriptor>,
 }
@@ -75,6 +78,15 @@ pub struct Revolv3DynamicDescriptor {
     pub sub_merchant_name: Option<Secret<String>>,
     pub sub_merchant_phone: Option<Secret<String>>,
     pub city: Option<Secret<String>>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Revolv3ThreeDSData {
+    pub cavv: Secret<String>,
+    pub xid: Option<String>,
+    pub ds_transaction_id: Option<String>,
+    pub three_ds_version: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -261,6 +273,27 @@ impl From<BillingDescriptor> for Revolv3DynamicDescriptor {
     }
 }
 
+impl TryFrom<&AuthenticationData> for Revolv3ThreeDSData {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(item: &AuthenticationData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            cavv: item
+                .cavv
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "authentication_data.cavv",
+                })?,
+            xid: item.acs_transaction_id.clone(),
+            ds_transaction_id: item.ds_trans_id.clone(),
+            three_ds_version: item
+                .message_version
+                .clone()
+                .map(|version| version.to_string()),
+        })
+    }
+}
+
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         super::Revolv3RouterData<
@@ -289,12 +322,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let payment_method_specific_response = match item.router_data.request.payment_method_data {
             PaymentMethodData::Card(ref card_data) => {
-                if item.router_data.resource_common_data.is_three_ds() {
-                    Err(errors::ConnectorError::NotSupported {
-                        message: "Cards No3DS".to_string(),
-                        connector: "revolv3",
-                    })?
-                };
                 PaymentMethodSpecificRequest::set_credit_card_data(
                     &item.router_data,
                     card_data.clone(),
@@ -304,6 +331,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 domain_types::utils::get_unimplemented_payment_method_error_message("revolv3"),
             ))?,
         };
+
+        let three_ds = item
+            .router_data
+            .request
+            .authentication_data
+            .as_ref()
+            .map(Revolv3ThreeDSData::try_from)
+            .transpose()?;
 
         let amount = Revolv3AmountData {
             value: item
@@ -341,6 +376,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             Ok(Self::Sale(Revolv3SaleRequest {
                 payment_method: payment_method_specific_response.payment_method_data,
                 invoice,
+                three_ds,
                 network_processing: payment_method_specific_response.network_data,
                 dynamic_descriptor,
             }))
@@ -348,6 +384,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             Ok(Self::Authorize(Revolv3AuthorizeRequest {
                 payment_method: payment_method_specific_response.payment_method_data,
                 amount,
+                three_ds,
                 network_processing: payment_method_specific_response.network_data,
                 dynamic_descriptor,
                 order_processing_channel,
@@ -744,7 +781,7 @@ impl TryFrom<ResponseRouterData<Revolv3RefundResponse, Self>>
     fn try_from(
         item: ResponseRouterData<Revolv3RefundResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let refund_status = RefundStatus::Pending; //from(&item.response.invoice.invoice_status);
+        let refund_status = RefundStatus::from(&item.response.invoice.invoice_status);
         let response = if is_refund_failure(refund_status) {
             let latest_attempt = get_latest_attempt(&item.response.refunds);
             let error_message = latest_attempt
