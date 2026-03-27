@@ -1,6 +1,5 @@
 use std::fmt::Debug;
 
-use crate::types::ResponseRouterData;
 use common_enums::{AttemptStatus, CaptureMethod, Currency};
 use common_utils::types::StringMinorUnit;
 use domain_types::{
@@ -10,13 +9,15 @@ use domain_types::{
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
         RefundsResponseData, ResponseId,
     },
-    errors::ConnectorError,
+    errors::{ConnectorResponseTransformationError, IntegrationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
+
+use crate::types::ResponseRouterData;
 
 // ===== CONSTANTS =====
 const TRUSTPAYMENTS_API_VERSION: &str = "1.00";
@@ -88,7 +89,7 @@ impl TrustpaymentsAuthType {
 }
 
 impl TryFrom<&ConnectorSpecificConfig> for TrustpaymentsAuthType {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(auth_type: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         match auth_type {
@@ -102,7 +103,9 @@ impl TryFrom<&ConnectorSpecificConfig> for TrustpaymentsAuthType {
                 password: password.to_owned(),
                 site_reference: site_reference.to_owned(),
             }),
-            _ => Err(ConnectorError::FailedToObtainAuthType)?,
+            _ => Err(IntegrationError::FailedToObtainAuthType {
+                context: Default::default(),
+            })?,
         }
     }
 }
@@ -209,7 +212,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     > for TrustpaymentsAuthorizeRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: super::TrustpaymentsRouterData<
@@ -231,11 +234,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let payment_method = match &router_data.request.payment_method_data {
             PaymentMethodData::Card(card_data) => {
                 // Serialize to get the string representation (needed due to generic type constraints)
-                let card_number_json = serde_json::to_value(&card_data.card_number.0)
-                    .map_err(|_| ConnectorError::RequestEncodingFailed)?;
+                let card_number_json =
+                    serde_json::to_value(&card_data.card_number.0).map_err(|_| {
+                        IntegrationError::RequestEncodingFailed {
+                            context: Default::default(),
+                        }
+                    })?;
                 let card_number_string = card_number_json
                     .as_str()
-                    .ok_or(ConnectorError::RequestEncodingFailed)?
+                    .ok_or(IntegrationError::RequestEncodingFailed {
+                        context: Default::default(),
+                    })?
                     .to_string();
 
                 // Format expiry date as MM/YY (Trust Payments requires 2-digit year)
@@ -248,7 +257,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 })
             }
             _ => {
-                return Err(error_stack::report!(ConnectorError::NotImplemented(
+                return Err(error_stack::report!(IntegrationError::not_implemented(
                     "Payment method not supported".to_string()
                 )))
             }
@@ -271,7 +280,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 router_data.request.minor_amount,
                 router_data.request.currency,
             )
-            .map_err(|_| ConnectorError::RequestEncodingFailed)?;
+            .map_err(|_| IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?;
 
         // Determine settlestatus based on capture method
         let settlestatus = match router_data.request.capture_method {
@@ -313,7 +324,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<ResponseRouterData<TrustpaymentsAuthorizeResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
 
     fn try_from(
         item: ResponseRouterData<TrustpaymentsAuthorizeResponse, Self>,
@@ -321,11 +332,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let router_data = &item.router_data;
 
         // Get the first response from the array
-        let response = item
-            .response
-            .responses
-            .first()
-            .ok_or(ConnectorError::ResponseDeserializationFailed)?;
+        let response = item.response.responses.first().ok_or(
+            crate::utils::response_handling_fail_for_connector(item.http_code, "trustpayments"),
+        )?;
 
         // Check for errors
         if response.errorcode != "0" {
@@ -448,7 +457,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     > for TrustpaymentsPSyncRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: super::TrustpaymentsRouterData<
@@ -462,10 +471,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let auth = TrustpaymentsAuthType::try_from(&router_data.connector_config)?;
 
         // Extract transaction reference from connector_transaction_id
-        let transaction_reference = router_data
-            .request
-            .get_connector_transaction_id()
-            .map_err(|_| ConnectorError::MissingConnectorTransactionID)?;
+        let transaction_reference =
+            router_data
+                .request
+                .get_connector_transaction_id()
+                .map_err(|_| IntegrationError::MissingConnectorTransactionID {
+                    context: Default::default(),
+                })?;
 
         let filter = TrustpaymentsFilter {
             sitereference: vec![TrustpaymentsFilterValue {
@@ -522,7 +534,7 @@ fn get_status_from_settlestatus(
 impl TryFrom<ResponseRouterData<TrustpaymentsPSyncResponse, Self>>
     for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
 
     fn try_from(
         item: ResponseRouterData<TrustpaymentsPSyncResponse, Self>,
@@ -530,11 +542,9 @@ impl TryFrom<ResponseRouterData<TrustpaymentsPSyncResponse, Self>>
         let router_data = &item.router_data;
 
         // Get the first response from the array
-        let response_item = item
-            .response
-            .response
-            .first()
-            .ok_or(ConnectorError::ResponseDeserializationFailed)?;
+        let response_item = item.response.response.first().ok_or(
+            crate::utils::response_handling_fail_for_connector(item.http_code, "trustpayments"),
+        )?;
 
         // Check for errors at the response level
         if response_item.errorcode != "0" {
@@ -563,7 +573,10 @@ impl TryFrom<ResponseRouterData<TrustpaymentsPSyncResponse, Self>>
             .records
             .as_ref()
             .and_then(|records| records.first())
-            .ok_or(ConnectorError::ResponseDeserializationFailed)?;
+            .ok_or(crate::utils::response_handling_fail_for_connector(
+                item.http_code,
+                "trustpayments",
+            ))?;
 
         // Check for errors at the record level
         if record.errorcode != "0" {
@@ -663,7 +676,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     > for TrustpaymentsCaptureRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: super::TrustpaymentsRouterData<
@@ -677,10 +690,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let auth = TrustpaymentsAuthType::try_from(&router_data.connector_config)?;
 
         // Extract transaction reference from connector_transaction_id
-        let transaction_reference = router_data
-            .request
-            .get_connector_transaction_id()
-            .map_err(|_| ConnectorError::MissingConnectorTransactionID)?;
+        let transaction_reference =
+            router_data
+                .request
+                .get_connector_transaction_id()
+                .map_err(|_| IntegrationError::MissingConnectorTransactionID {
+                    context: Default::default(),
+                })?;
 
         let filter = TrustpaymentsFilter {
             sitereference: vec![TrustpaymentsFilterValue {
@@ -721,7 +737,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl TryFrom<ResponseRouterData<TrustpaymentsCaptureResponse, Self>>
     for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
 
     fn try_from(
         item: ResponseRouterData<TrustpaymentsCaptureResponse, Self>,
@@ -729,11 +745,9 @@ impl TryFrom<ResponseRouterData<TrustpaymentsCaptureResponse, Self>>
         let router_data = &item.router_data;
 
         // Get the first response from the array
-        let response_item = item
-            .response
-            .response
-            .first()
-            .ok_or(ConnectorError::ResponseDeserializationFailed)?;
+        let response_item = item.response.response.first().ok_or(
+            crate::utils::response_handling_fail_for_connector(item.http_code, "trustpayments"),
+        )?;
 
         // Check for errors
         if response_item.errorcode != "0" {
@@ -820,7 +834,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     > for TrustpaymentsVoidRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: super::TrustpaymentsRouterData<
@@ -872,7 +886,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl TryFrom<ResponseRouterData<TrustpaymentsVoidResponse, Self>>
     for RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
 
     fn try_from(
         item: ResponseRouterData<TrustpaymentsVoidResponse, Self>,
@@ -880,11 +894,9 @@ impl TryFrom<ResponseRouterData<TrustpaymentsVoidResponse, Self>>
         let router_data = &item.router_data;
 
         // Get the first response from the array
-        let response_item = item
-            .response
-            .response
-            .first()
-            .ok_or(ConnectorError::ResponseDeserializationFailed)?;
+        let response_item = item.response.response.first().ok_or(
+            crate::utils::response_handling_fail_for_connector(item.http_code, "trustpayments"),
+        )?;
 
         // Check for errors
         if response_item.errorcode != "0" {
@@ -985,7 +997,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     > for TrustpaymentsRefundRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: super::TrustpaymentsRouterData<
@@ -1012,7 +1024,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     router_data.request.minor_refund_amount,
                     router_data.request.currency,
                 )
-                .map_err(|_| ConnectorError::RequestEncodingFailed)?;
+                .map_err(|_| IntegrationError::RequestEncodingFailed {
+                    context: Default::default(),
+                })?;
             Some(amount)
         } else {
             // Full refund - no amount needed
@@ -1072,7 +1086,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     > for TrustpaymentsRSyncRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: super::TrustpaymentsRouterData<
@@ -1114,7 +1128,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl TryFrom<ResponseRouterData<TrustpaymentsRSyncResponse, Self>>
     for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
 
     fn try_from(
         item: ResponseRouterData<TrustpaymentsRSyncResponse, Self>,
@@ -1122,11 +1136,9 @@ impl TryFrom<ResponseRouterData<TrustpaymentsRSyncResponse, Self>>
         let router_data = &item.router_data;
 
         // Get the first response from the array
-        let response_item = item
-            .response
-            .response
-            .first()
-            .ok_or(ConnectorError::ResponseDeserializationFailed)?;
+        let response_item = item.response.response.first().ok_or(
+            crate::utils::response_handling_fail_for_connector(item.http_code, "trustpayments"),
+        )?;
 
         // Check for errors at the response level
         if response_item.errorcode != "0" {
@@ -1151,7 +1163,10 @@ impl TryFrom<ResponseRouterData<TrustpaymentsRSyncResponse, Self>>
             .records
             .as_ref()
             .and_then(|records| records.first())
-            .ok_or(ConnectorError::ResponseDeserializationFailed)?;
+            .ok_or(crate::utils::response_handling_fail_for_connector(
+                item.http_code,
+                "trustpayments",
+            ))?;
 
         // Check for errors at the record level
         if record.errorcode != "0" {
@@ -1192,7 +1207,7 @@ impl TryFrom<ResponseRouterData<TrustpaymentsRSyncResponse, Self>>
 impl TryFrom<ResponseRouterData<TrustpaymentsRefundResponse, Self>>
     for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
 
     fn try_from(
         item: ResponseRouterData<TrustpaymentsRefundResponse, Self>,
@@ -1200,11 +1215,9 @@ impl TryFrom<ResponseRouterData<TrustpaymentsRefundResponse, Self>>
         let router_data = &item.router_data;
 
         // Get the first response from the array
-        let response = item
-            .response
-            .responses
-            .first()
-            .ok_or(ConnectorError::ResponseDeserializationFailed)?;
+        let response = item.response.responses.first().ok_or(
+            crate::utils::response_handling_fail_for_connector(item.http_code, "trustpayments"),
+        )?;
 
         // Map refund status
         let refund_status = get_refund_status_from_settlestatus(

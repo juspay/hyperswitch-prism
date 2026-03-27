@@ -14,7 +14,7 @@ use utoipa::ToSchema;
 
 pub use crate::router_data::PazeDecryptedData;
 use crate::{
-    errors::{self, ApiError, ApplicationErrorResponse, ConnectorError},
+    errors::{ApiError, ApplicationErrorResponse, IntegrationError},
     utils::{get_card_issuer, missing_field_err, CardIssuer, Error},
 };
 
@@ -38,7 +38,7 @@ pub trait PaymentMethodDataTypes: Clone {
     type Inner: Default + Debug + Send + Eq + PartialEq + Serialize + DeserializeOwned + Clone;
 
     fn peek_inner(inner: &Self::Inner) -> &str;
-    fn is_cobadged_inner(inner: &Self::Inner) -> Result<bool, ConnectorError>;
+    fn is_cobadged_inner(inner: &Self::Inner) -> Result<bool, IntegrationError>;
 }
 
 /// PCI holder implementation for handling raw PCI data
@@ -57,7 +57,7 @@ impl<T: PaymentMethodDataTypes> RawCardNumber<T> {
         T::peek_inner(&self.0)
     }
 
-    pub fn is_cobadged_card(&self) -> Result<bool, ConnectorError> {
+    pub fn is_cobadged_card(&self) -> Result<bool, IntegrationError> {
         T::is_cobadged_inner(&self.0)
     }
 }
@@ -69,10 +69,12 @@ impl PaymentMethodDataTypes for DefaultPCIHolder {
         inner.peek()
     }
 
-    fn is_cobadged_inner(inner: &Self::Inner) -> Result<bool, ConnectorError> {
+    fn is_cobadged_inner(inner: &Self::Inner) -> Result<bool, IntegrationError> {
         inner
             .is_cobadged_card()
-            .map_err(|_| ConnectorError::RequestEncodingFailed)
+            .map_err(|_| IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })
     }
 }
 
@@ -83,7 +85,7 @@ impl PaymentMethodDataTypes for VaultTokenHolder {
         inner
     }
 
-    fn is_cobadged_inner(_inner: &Self::Inner) -> Result<bool, ConnectorError> {
+    fn is_cobadged_inner(_inner: &Self::Inner) -> Result<bool, IntegrationError> {
         // Vault tokens don't have cobadged concept - always return false
         Ok(false)
     }
@@ -91,28 +93,32 @@ impl PaymentMethodDataTypes for VaultTokenHolder {
 
 // Generic implementation for all Card<T> types
 impl<T: PaymentMethodDataTypes> Card<T> {
-    pub fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, ConnectorError> {
+    pub fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, IntegrationError> {
         let binding = self.card_exp_year.clone();
         let year = binding.peek();
         Ok(Secret::new(
             year.get(year.len() - 2..)
-                .ok_or(ConnectorError::RequestEncodingFailed)?
+                .ok_or(IntegrationError::RequestEncodingFailed {
+                    context: Default::default(),
+                })?
                 .to_string(),
         ))
     }
 
-    pub fn get_card_expiry_month_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
+    pub fn get_card_expiry_month_2_digit(&self) -> Result<Secret<String>, IntegrationError> {
         let exp_month = self
             .card_exp_month
             .peek()
             .to_string()
             .parse::<u8>()
-            .map_err(|_| errors::ConnectorError::InvalidDataFormat {
+            .map_err(|_| IntegrationError::InvalidDataFormat {
                 field_name: "payment_method_data.card.card_exp_month",
+                context: Default::default(),
             })?;
         let month = cards::validate::CardExpirationMonth::try_from(exp_month).map_err(|_| {
-            errors::ConnectorError::InvalidDataFormat {
+            IntegrationError::InvalidDataFormat {
                 field_name: "payment_method_data.card.card_exp_month",
+                context: Default::default(),
             }
         })?;
         Ok(Secret::new(month.two_digits()))
@@ -121,7 +127,7 @@ impl<T: PaymentMethodDataTypes> Card<T> {
     pub fn get_card_expiry_month_year_2_digit_with_delimiter(
         &self,
         delimiter: String,
-    ) -> Result<Secret<String>, ConnectorError> {
+    ) -> Result<Secret<String>, IntegrationError> {
         let year = self.get_card_expiry_year_2_digit()?;
         Ok(Secret::new(format!(
             "{}{}{}",
@@ -144,7 +150,10 @@ impl<T: PaymentMethodDataTypes> Card<T> {
             .peek()
             .clone()
             .parse::<i8>()
-            .change_context(ConnectorError::ResponseDeserializationFailed)
+            .change_context(IntegrationError::InvalidDataFormat {
+                field_name: "payment_method_data.card.card_exp_month",
+                context: Default::default(),
+            })
             .map(Secret::new)
     }
 
@@ -158,7 +167,7 @@ impl<T: PaymentMethodDataTypes> Card<T> {
         ))
     }
 
-    pub fn get_expiry_date_as_mmyy(&self) -> Result<Secret<String>, ConnectorError> {
+    pub fn get_expiry_date_as_mmyy(&self) -> Result<Secret<String>, IntegrationError> {
         let year = self.get_card_expiry_year_2_digit()?;
         let month = self.get_card_expiry_month_2_digit()?;
         Ok(Secret::new(format!("{}{}", month.peek(), year.peek())))
@@ -167,7 +176,7 @@ impl<T: PaymentMethodDataTypes> Card<T> {
     pub fn get_card_expiry_year_month_2_digit_with_delimiter(
         &self,
         delimiter: String,
-    ) -> Result<Secret<String>, ConnectorError> {
+    ) -> Result<Secret<String>, IntegrationError> {
         let year = self.get_card_expiry_year_2_digit()?;
         Ok(Secret::new(format!(
             "{}{}{}",
@@ -185,7 +194,7 @@ impl<T: PaymentMethodDataTypes> Card<T> {
 }
 
 impl Card<DefaultPCIHolder> {
-    pub fn get_card_issuer(&self) -> Result<CardIssuer, Error> {
+    pub fn get_card_issuer(&self) -> Result<CardIssuer, error_stack::Report<IntegrationError>> {
         get_card_issuer(self.card_number.peek())
     }
     pub fn get_expiry_date_as_mmyyyy(&self, delimiter: &str) -> Secret<String> {
@@ -197,7 +206,7 @@ impl Card<DefaultPCIHolder> {
             year.peek()
         ))
     }
-    pub fn get_expiry_date_as_yymm(&self) -> Result<Secret<String>, ConnectorError> {
+    pub fn get_expiry_date_as_yymm(&self) -> Result<Secret<String>, IntegrationError> {
         let year = self.get_card_expiry_year_2_digit()?.expose();
         let month = self.card_exp_month.clone().expose();
         Ok(Secret::new(format!("{year}{month}")))
@@ -207,7 +216,10 @@ impl Card<DefaultPCIHolder> {
             .peek()
             .clone()
             .parse::<i32>()
-            .change_context(ConnectorError::ResponseDeserializationFailed)
+            .change_context(IntegrationError::InvalidDataFormat {
+                field_name: "payment_method_data.card.card_exp_year",
+                context: Default::default(),
+            })
             .map(Secret::new)
     }
 }
@@ -286,7 +298,7 @@ pub struct NetworkTokenData {
 }
 
 impl NetworkTokenData {
-    pub fn get_card_issuer(&self) -> Result<CardIssuer, Error> {
+    pub fn get_card_issuer(&self) -> Result<CardIssuer, error_stack::Report<IntegrationError>> {
         get_card_issuer(self.token_number.peek())
     }
 
@@ -297,12 +309,14 @@ impl NetworkTokenData {
         }
         Secret::new(year)
     }
-    pub fn get_token_expiry_year_2_digit(&self) -> Result<Secret<String>, ConnectorError> {
+    pub fn get_token_expiry_year_2_digit(&self) -> Result<Secret<String>, IntegrationError> {
         let binding = self.token_exp_year.clone();
         let year = binding.peek();
         Ok(Secret::new(
             year.get(year.len() - 2..)
-                .ok_or(ConnectorError::RequestEncodingFailed)?
+                .ok_or(IntegrationError::RequestEncodingFailed {
+                    context: Default::default(),
+                })?
                 .to_string(),
         ))
     }
@@ -687,15 +701,22 @@ impl WalletData {
             Self::GooglePay(data) => Ok(data.get_googlepay_encrypted_payment_data()?),
             Self::ApplePay(data) => Ok(data.get_applepay_decoded_payment_data()?),
             Self::PaypalSdk(data) => Ok(Secret::new(data.token.clone())),
-            _ => Err(ConnectorError::InvalidWallet.into()),
+            _ => Err(IntegrationError::InvalidWallet {
+                context: Default::default(),
+            }
+            .into()),
         }
     }
     pub fn get_wallet_token_as_json<T>(&self, wallet_name: String) -> Result<T, Error>
     where
         T: DeserializeOwned,
     {
-        serde_json::from_str::<T>(self.get_wallet_token()?.peek())
-            .change_context(ConnectorError::InvalidWalletToken { wallet_name })
+        serde_json::from_str::<T>(self.get_wallet_token()?.peek()).change_context(
+            IntegrationError::InvalidWalletToken {
+                wallet_name,
+                context: Default::default(),
+            },
+        )
     }
 
     pub fn get_encoded_wallet_token(&self) -> Result<String, Error> {
@@ -704,14 +725,17 @@ impl WalletData {
                 let json_token: serde_json::Value =
                     self.get_wallet_token_as_json("Google Pay".to_owned())?;
                 let token_as_vec = serde_json::to_vec(&json_token).change_context(
-                    ConnectorError::InvalidWalletToken {
+                    IntegrationError::InvalidWalletToken {
                         wallet_name: "Google Pay".to_string(),
+                        context: Default::default(),
                     },
                 )?;
                 let encoded_token = base64::engine::general_purpose::STANDARD.encode(token_as_vec);
                 Ok(encoded_token)
             }
-            _ => Err(ConnectorError::NotImplemented("SELECTED PAYMENT METHOD".to_owned()).into()),
+            _ => {
+                Err(IntegrationError::not_implemented("SELECTED PAYMENT METHOD".to_owned()).into())
+            }
         }
     }
 }
@@ -823,8 +847,9 @@ impl GooglePayWalletData {
         let encrypted_data = self
             .tokenization_data
             .get_encrypted_google_pay_payment_data_mandatory()
-            .change_context(ConnectorError::InvalidWalletToken {
+            .change_context(IntegrationError::InvalidWalletToken {
                 wallet_name: "Google Pay".to_string(),
+                context: Default::default(),
             })?;
 
         Ok(Secret::new(encrypted_data.token.clone()))
@@ -1231,19 +1256,22 @@ impl ApplePayWalletData {
         let apple_pay_encrypted_data = self
             .payment_data
             .get_encrypted_apple_pay_payment_data_mandatory()
-            .change_context(ConnectorError::MissingRequiredField {
+            .change_context(IntegrationError::MissingRequiredField {
                 field_name: "Apple pay encrypted data",
+                context: Default::default(),
             })?;
         let token = Secret::new(
             String::from_utf8(
                 base64::engine::general_purpose::STANDARD
                     .decode(apple_pay_encrypted_data)
-                    .change_context(ConnectorError::InvalidWalletToken {
+                    .change_context(IntegrationError::InvalidWalletToken {
                         wallet_name: "Apple Pay".to_string(),
+                        context: Default::default(),
                     })?,
             )
-            .change_context(ConnectorError::InvalidWalletToken {
+            .change_context(IntegrationError::InvalidWalletToken {
                 wallet_name: "Apple Pay".to_string(),
+                context: Default::default(),
             })?,
         );
         Ok(token)
@@ -1302,12 +1330,14 @@ pub enum TokenSource {
 }
 
 impl DecryptedWalletTokenDetailsForNetworkTransactionId {
-    pub fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, ConnectorError> {
+    pub fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, IntegrationError> {
         let binding = self.token_exp_year.clone();
         let year = binding.peek();
         Ok(Secret::new(
             year.get(year.len() - 2..)
-                .ok_or(ConnectorError::RequestEncodingFailed)?
+                .ok_or(IntegrationError::RequestEncodingFailed {
+                    context: Default::default(),
+                })?
                 .to_string(),
         ))
     }
@@ -1317,7 +1347,7 @@ impl DecryptedWalletTokenDetailsForNetworkTransactionId {
     pub fn get_card_expiry_month_year_2_digit_with_delimiter(
         &self,
         delimiter: String,
-    ) -> Result<Secret<String>, ConnectorError> {
+    ) -> Result<Secret<String>, IntegrationError> {
         let year = self.get_card_expiry_year_2_digit()?;
         let month = self.token_exp_month.peek();
         let year_peek = year.peek();
@@ -1342,7 +1372,7 @@ impl DecryptedWalletTokenDetailsForNetworkTransactionId {
         }
         Secret::new(year)
     }
-    pub fn get_expiry_date_as_yymm(&self) -> Result<Secret<String>, ConnectorError> {
+    pub fn get_expiry_date_as_yymm(&self) -> Result<Secret<String>, IntegrationError> {
         let year = self.get_card_expiry_year_2_digit()?.expose();
         let month = self.token_exp_month.clone().expose();
         Ok(Secret::new(format!("{year}{month}")))
@@ -1352,7 +1382,10 @@ impl DecryptedWalletTokenDetailsForNetworkTransactionId {
             .peek()
             .clone()
             .parse::<i8>()
-            .change_context(ConnectorError::ResponseDeserializationFailed)
+            .change_context(IntegrationError::InvalidDataFormat {
+                field_name: "payment_method_data.decrypted_wallet_token.token_exp_month",
+                context: Default::default(),
+            })
             .map(Secret::new)
     }
     pub fn get_expiry_year_as_i32(&self) -> Result<Secret<i32>, Error> {
@@ -1360,7 +1393,10 @@ impl DecryptedWalletTokenDetailsForNetworkTransactionId {
             .peek()
             .clone()
             .parse::<i32>()
-            .change_context(ConnectorError::ResponseDeserializationFailed)
+            .change_context(IntegrationError::InvalidDataFormat {
+                field_name: "payment_method_data.decrypted_wallet_token.token_exp_year",
+                context: Default::default(),
+            })
             .map(Secret::new)
     }
 }
@@ -1380,22 +1416,24 @@ pub struct CardDetailsForNetworkTransactionId {
 }
 
 impl CardDetailsForNetworkTransactionId {
-    pub fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, ConnectorError> {
+    pub fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, IntegrationError> {
         let binding = self.card_exp_year.clone();
         let year = binding.peek();
         Ok(Secret::new(
             year.get(year.len() - 2..)
-                .ok_or(ConnectorError::RequestEncodingFailed)?
+                .ok_or(IntegrationError::RequestEncodingFailed {
+                    context: Default::default(),
+                })?
                 .to_string(),
         ))
     }
-    pub fn get_card_issuer(&self) -> Result<CardIssuer, Error> {
+    pub fn get_card_issuer(&self) -> Result<CardIssuer, error_stack::Report<IntegrationError>> {
         get_card_issuer(self.card_number.peek())
     }
     pub fn get_card_expiry_month_year_2_digit_with_delimiter(
         &self,
         delimiter: String,
-    ) -> Result<Secret<String>, ConnectorError> {
+    ) -> Result<Secret<String>, IntegrationError> {
         let year = self.get_card_expiry_year_2_digit()?;
         Ok(Secret::new(format!(
             "{}{}{}",
@@ -1429,12 +1467,12 @@ impl CardDetailsForNetworkTransactionId {
         }
         Secret::new(year)
     }
-    pub fn get_expiry_date_as_yymm(&self) -> Result<Secret<String>, ConnectorError> {
+    pub fn get_expiry_date_as_yymm(&self) -> Result<Secret<String>, IntegrationError> {
         let year = self.get_card_expiry_year_2_digit()?.expose();
         let month = self.card_exp_month.clone().expose();
         Ok(Secret::new(format!("{year}{month}")))
     }
-    pub fn get_expiry_date_as_mmyy(&self) -> Result<Secret<String>, ConnectorError> {
+    pub fn get_expiry_date_as_mmyy(&self) -> Result<Secret<String>, IntegrationError> {
         let year = self.get_card_expiry_year_2_digit()?.expose();
         let month = self.card_exp_month.clone().expose();
         Ok(Secret::new(format!("{month}{year}")))
@@ -1444,7 +1482,10 @@ impl CardDetailsForNetworkTransactionId {
             .peek()
             .clone()
             .parse::<i8>()
-            .change_context(ConnectorError::ResponseDeserializationFailed)
+            .change_context(IntegrationError::InvalidDataFormat {
+                field_name: "payment_method_data.card.card_exp_month",
+                context: Default::default(),
+            })
             .map(Secret::new)
     }
     pub fn get_expiry_year_as_i32(&self) -> Result<Secret<i32>, Error> {
@@ -1452,7 +1493,10 @@ impl CardDetailsForNetworkTransactionId {
             .peek()
             .clone()
             .parse::<i32>()
-            .change_context(ConnectorError::ResponseDeserializationFailed)
+            .change_context(IntegrationError::InvalidDataFormat {
+                field_name: "payment_method_data.card.card_exp_year",
+                context: Default::default(),
+            })
             .map(Secret::new)
     }
 }

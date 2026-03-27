@@ -5398,7 +5398,6 @@ impl
             .transpose()?;
 
         let merchant_id_from_header = extract_merchant_id_from_metadata(metadata)?;
-
         Ok(Self {
             merchant_id: merchant_id_from_header,
             connector_request_reference_id: extract_connector_request_reference_id(
@@ -8750,18 +8749,18 @@ impl ForeignTryFrom<PaymentServiceAuthorizeRequest> for SessionTokenRequestData 
     fn foreign_try_from(
         value: PaymentServiceAuthorizeRequest,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
-        let amount = match value.amount {
-            Some(amount) => Ok(common_utils::types::Money {
-                amount: common_utils::types::MinorUnit::new(amount.minor_amount),
-                currency: common_enums::Currency::foreign_try_from(amount.currency())?,
-            }),
-            None => Err(report!(ApplicationErrorResponse::BadRequest(ApiError {
+        let amount = value.amount.ok_or_else(|| {
+            report!(ApplicationErrorResponse::BadRequest(ApiError {
                 sub_code: "MISSING_AMOUNT".to_owned(),
                 error_identifier: 400,
                 error_message: "Amount is required for repeat payments".to_owned(),
                 error_object: None,
-            }))),
-        }?;
+            }))
+        })?;
+        let amount = common_utils::types::Money {
+            amount: common_utils::types::MinorUnit::new(amount.minor_amount),
+            currency: common_enums::Currency::foreign_try_from(amount.currency())?,
+        };
         Ok(Self {
             amount: amount.amount,
             currency: amount.currency,
@@ -8894,18 +8893,18 @@ impl
     fn foreign_try_from(
         value: grpc_api_types::payments::MerchantAuthenticationServiceCreateSessionTokenRequest,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
-        let amount = match value.amount {
-            Some(amount) => Ok(common_utils::types::Money {
-                amount: common_utils::types::MinorUnit::new(amount.minor_amount),
-                currency: common_enums::Currency::foreign_try_from(amount.currency())?,
-            }),
-            None => Err(report!(ApplicationErrorResponse::BadRequest(ApiError {
+        let amount = value.amount.ok_or_else(|| {
+            report!(ApplicationErrorResponse::BadRequest(ApiError {
                 sub_code: "MISSING_AMOUNT".to_owned(),
                 error_identifier: 400,
                 error_message: "Amount is required for session token creation".to_owned(),
                 error_object: None,
-            }))),
-        }?;
+            }))
+        })?;
+        let amount = common_utils::types::Money {
+            amount: common_utils::types::MinorUnit::new(amount.minor_amount),
+            currency: common_enums::Currency::foreign_try_from(amount.currency())?,
+        };
 
         Ok(Self {
             amount: amount.amount,
@@ -9105,7 +9104,6 @@ impl
         ),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let merchant_id_from_header = extract_merchant_id_from_metadata(metadata)?;
-
         // For payment method token creation, address is optional
         let address = value
             .address

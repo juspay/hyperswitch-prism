@@ -14,7 +14,7 @@ use domain_types::{
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
         RefundsResponseData, ResponseId,
     },
-    errors::ConnectorError,
+    errors::{ConnectorResponseTransformationError, IntegrationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -140,13 +140,16 @@ pub struct XenditAuthType {
 }
 
 impl TryFrom<&ConnectorSpecificConfig> for XenditAuthType {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(auth_type: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         match auth_type {
             ConnectorSpecificConfig::Xendit { api_key, .. } => Ok(Self {
                 api_key: api_key.to_owned(),
             }),
-            _ => Err(ConnectorError::FailedToObtainAuthType.into()),
+            _ => Err(IntegrationError::FailedToObtainAuthType {
+                context: Default::default(),
+            }
+            .into()),
         }
     }
 }
@@ -246,20 +249,42 @@ fn is_auto_capture<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 >(
     data: &PaymentsAuthorizeData<T>,
-) -> Result<bool, ConnectorError> {
+) -> Result<bool, IntegrationError> {
     match data.capture_method {
         Some(common_enums::CaptureMethod::Automatic) | None => Ok(true),
         Some(common_enums::CaptureMethod::Manual) => Ok(false),
-        Some(_) => Err(ConnectorError::CaptureMethodNotSupported),
+        Some(_) => Err(IntegrationError::CaptureMethodNotSupported {
+            context: Default::default(),
+        }),
     }
 }
 
-fn is_auto_capture_psync(data: &PaymentsSyncData) -> Result<bool, ConnectorError> {
+fn is_auto_capture_psync(data: &PaymentsSyncData) -> Result<bool, IntegrationError> {
     match data.capture_method {
         Some(common_enums::CaptureMethod::Automatic) | None => Ok(true),
         Some(common_enums::CaptureMethod::Manual) => Ok(false),
-        Some(_) => Err(ConnectorError::CaptureMethodNotSupported),
+        Some(_) => Err(IntegrationError::CaptureMethodNotSupported {
+            context: Default::default(),
+        }),
     }
+}
+
+fn is_auto_capture_request<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+>(
+    data: &PaymentsAuthorizeData<T>,
+) -> Result<bool, error_stack::Report<IntegrationError>> {
+    is_auto_capture(data).change_context(IntegrationError::CaptureMethodNotSupported {
+        context: Default::default(),
+    })
+}
+
+fn is_auto_capture_psync_response(
+    data: &PaymentsSyncData,
+) -> Result<bool, error_stack::Report<ConnectorResponseTransformationError>> {
+    is_auto_capture_psync(data).change_context(
+        ConnectorResponseTransformationError::response_handling_failed_http_status_unknown(),
+    )
 }
 
 fn map_payment_response_to_attempt_status(
@@ -307,7 +332,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for XenditPaymentsRequest<T>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(
         item: XenditRouterData<
             RouterDataV2<
@@ -321,7 +346,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(card_data) => Ok(Self {
-                capture_method: match item.router_data.request.is_auto_capture()? {
+                capture_method: match is_auto_capture_request(&item.router_data.request)? {
                     true => "AUTOMATIC".to_string(),
                     false => "MANUAL".to_string(),
                 },
@@ -333,7 +358,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         item.router_data.request.minor_amount,
                         item.router_data.request.currency,
                     )
-                    .change_context(ConnectorError::AmountConversionFailed)
+                    .change_context(IntegrationError::AmountConversionFailed {
+                        context: Default::default(),
+                    })
                     .attach_printable("Failed to convert amount to required type")?,
                 payment_method: Some(PaymentMethod::Card(CardPaymentRequest {
                     payment_type: PaymentMethodType::CARD,
@@ -345,8 +372,22 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     ),
                     card: CardInfo {
                         channel_properties: ChannelProperties {
-                            success_return_url: item.router_data.request.get_router_return_url()?,
-                            failure_return_url: item.router_data.request.get_router_return_url()?,
+                            success_return_url: item
+                                .router_data
+                                .request
+                                .get_router_return_url()
+                                .change_context(IntegrationError::MissingRequiredField {
+                                    field_name: "router_return_url",
+                                    context: Default::default(),
+                                })?,
+                            failure_return_url: item
+                                .router_data
+                                .request
+                                .get_router_return_url()
+                                .change_context(IntegrationError::MissingRequiredField {
+                                    field_name: "router_return_url",
+                                    context: Default::default(),
+                                })?,
                             skip_three_d_secure: !item
                                 .router_data
                                 .resource_common_data
@@ -361,19 +402,33 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             } else {
                                 Some(card_data.card_cvc.clone())
                             },
-                            cardholder_name: card_data.get_cardholder_name().or(item
-                                .router_data
-                                .resource_common_data
-                                .get_payment_billing_full_name())?,
+                            cardholder_name: card_data
+                                .get_cardholder_name()
+                                .or(item
+                                    .router_data
+                                    .resource_common_data
+                                    .get_payment_billing_full_name())
+                                .change_context(IntegrationError::MissingRequiredField {
+                                    field_name: "billing.full_name",
+                                    context: Default::default(),
+                                })?,
                             cardholder_email: item
                                 .router_data
                                 .resource_common_data
                                 .get_billing_email()
-                                .or(item.router_data.request.get_email())?,
+                                .or(item.router_data.request.get_email())
+                                .change_context(IntegrationError::MissingRequiredField {
+                                    field_name: "billing.email",
+                                    context: Default::default(),
+                                })?,
                             cardholder_phone_number: item
                                 .router_data
                                 .resource_common_data
-                                .get_billing_phone_number()?,
+                                .get_billing_phone_number()
+                                .change_context(IntegrationError::MissingRequiredField {
+                                    field_name: "billing.phone_number",
+                                    context: Default::default(),
+                                })?,
                         },
                     },
                     reusability: match item.router_data.request.is_mandate_payment() {
@@ -384,7 +439,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 payment_method_id: None,
                 channel_properties: None,
             }),
-            _ => Err(ConnectorError::NotImplemented(
+            _ => Err(IntegrationError::not_implemented(
                 get_unimplemented_payment_method_error_message("xendit"),
             )
             .into()),
@@ -396,7 +451,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
     TryFrom<ResponseRouterData<XenditPaymentResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
     fn try_from(
         item: ResponseRouterData<XenditPaymentResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -407,7 +462,9 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
         } = item;
         let status = map_payment_response_to_attempt_status(
             response.clone(),
-            is_auto_capture(&router_data.request)?,
+            is_auto_capture(&router_data.request).change_context(
+                crate::utils::response_handling_fail_for_connector(item.http_code, "xendit"),
+            )?,
         );
 
         let payment_response = if status == common_enums::AttemptStatus::Failure {
@@ -465,7 +522,11 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
         };
 
         let response_amount =
-            XenditAmountConvertor::convert_back(response.amount, response.currency)?;
+            XenditAmountConvertor::convert_back(response.amount, response.currency)
+                .change_context(crate::utils::response_handling_fail_for_connector(
+                    item.http_code,
+                    "xendit",
+                ))?;
 
         let response_integrity_object = Some(AuthoriseIntegrityObject {
             amount: response_amount,
@@ -490,7 +551,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
 impl<F> TryFrom<ResponseRouterData<XenditResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
     fn try_from(item: ResponseRouterData<XenditResponse, Self>) -> Result<Self, Self::Error> {
         let ResponseRouterData {
             response,
@@ -501,7 +562,7 @@ impl<F> TryFrom<ResponseRouterData<XenditResponse, Self>>
             XenditResponse::Payment(payment_response) => {
                 let status = map_payment_response_to_attempt_status(
                     payment_response.clone(),
-                    is_auto_capture_psync(&router_data.request)?,
+                    is_auto_capture_psync_response(&router_data.request)?,
                 );
                 let response = if status == common_enums::AttemptStatus::Failure {
                     Err(ErrorResponse {
@@ -579,7 +640,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for XenditPaymentsCaptureRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(
         item: XenditRouterData<
             RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
@@ -590,7 +651,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             item.router_data.request.minor_amount_to_capture,
             item.router_data.request.currency,
         )
-        .change_context(ConnectorError::RequestEncodingFailed)?;
+        .change_context(IntegrationError::RequestEncodingFailed {
+            context: Default::default(),
+        })?;
         Ok(Self {
             capture_amount: amount,
         })
@@ -615,7 +678,7 @@ pub struct XenditPaymentsCaptureRequest {
 impl<F> TryFrom<ResponseRouterData<XenditCaptureResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
     fn try_from(
         item: ResponseRouterData<XenditCaptureResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -680,7 +743,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
     TryFrom<XenditRouterData<RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>, T>>
     for XenditRefundRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(
         item: XenditRouterData<
             RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>,
@@ -691,7 +754,9 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
             item.router_data.request.minor_refund_amount,
             item.router_data.request.currency,
         )
-        .change_context(ConnectorError::RequestEncodingFailed)?;
+        .change_context(IntegrationError::RequestEncodingFailed {
+            context: Default::default(),
+        })?;
         Ok(Self {
             amount: amount.to_owned(),
             payment_request_id: item.router_data.request.connector_transaction_id.clone(),
@@ -721,7 +786,7 @@ pub enum RefundStatus {
 impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
     for RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
     fn try_from(item: ResponseRouterData<RefundResponse, Self>) -> Result<Self, Self::Error> {
         let ResponseRouterData {
             response,
@@ -730,7 +795,11 @@ impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
         } = item;
 
         let response_amount =
-            XenditAmountConvertor::convert_back(response.amount, response.currency)?;
+            XenditAmountConvertor::convert_back(response.amount, response.currency)
+                .change_context(crate::utils::response_handling_fail_for_connector(
+                    item.http_code,
+                    "xendit",
+                ))?;
 
         let response_integrity_object = {
             Some(RefundIntegrityObject {
@@ -767,7 +836,7 @@ impl From<RefundStatus> for common_enums::RefundStatus {
 impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
     for RouterDataV2<F, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
     fn try_from(item: ResponseRouterData<RefundResponse, Self>) -> Result<Self, Self::Error> {
         let ResponseRouterData {
             response,

@@ -1252,8 +1252,8 @@ mod tests {
         let http_response = Response {
         headers: None,
         response: br#"{"razorpay_payment_id": "pay_xyz", "next": [ { "action": "redirect" "url": "https://api.razorpay.com/v1/payments/xyz/authenticate" } ]"#.to_vec().into(),
-        status_code: 200,
-    };
+        status_code: 200
+};
 
         let result = connector.handle_response_v2(&data, None, http_response);
 

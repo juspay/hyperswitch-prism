@@ -1,10 +1,10 @@
-use domain_types::errors;
 use error_stack::ResultExt;
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
 use super::requests::*;
+use domain_types::errors::ConnectorResponseTransformationError;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -271,7 +271,8 @@ pub fn get_resource_id<T, F>(
     response: WorldpayPaymentsResponse,
     connector_transaction_id: Option<String>,
     transform_fn: F,
-) -> Result<T, error_stack::Report<errors::ConnectorError>>
+    http_status: u16,
+) -> Result<T, error_stack::Report<ConnectorResponseTransformationError>>
 where
     F: Fn(String) -> T,
 {
@@ -301,17 +302,20 @@ where
         .map(|href| {
             urlencoding::decode(href)
                 .map(|s| transform_fn(s.into_owned()))
-                .change_context(errors::ConnectorError::ResponseHandlingFailed)
+                .change_context(crate::utils::response_handling_fail_for_connector(
+                    http_status,
+                    "worldpay",
+                ))
         })
         .transpose()?;
     optional_reference_id
         .or_else(|| response.transaction_reference.map(&transform_fn))
         .or_else(|| connector_transaction_id.map(&transform_fn))
         .ok_or_else(|| {
-            errors::ConnectorError::MissingRequiredField {
-                field_name: "_links.self.href or transactionReference",
-            }
-            .into()
+            error_stack::Report::new(crate::utils::response_handling_fail_for_connector(
+                http_status,
+                "worldpay",
+            ))
         })
 }
 

@@ -177,22 +177,6 @@ message ConnectorResponseTransformationError {
   optional uint32 http_status_code = 3;        // HTTP status from connector before parsing failed (e.g., 401, 500, 200)
 }
 
-// Error returned by req_transformer FFI calls
-message RequestError {
-  PaymentStatus status = 1;
-  optional string error_message = 2;
-  optional string error_code = 3;
-  optional uint32 status_code = 4;
-}
-
-// Error returned by res_transformer FFI calls
-message ResponseError {
-  PaymentStatus status = 1;
-  optional string error_message = 2;
-  optional string error_code = 3;
-  optional uint32 status_code = 4;
-}
-
 // Result type for FFI operations with explicit type discrimination
 // Replaces the heuristic error detection with explicit enum-based type checking
 message FfiResult {

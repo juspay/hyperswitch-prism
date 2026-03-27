@@ -817,7 +817,7 @@ impl Payments {
             })?,
             Err(error_report) => {
                 tracing::error!("{:?}", error_report);
-                // Convert ConnectorError to ApplicationErrorResponse to get proper error details
+                // Convert connector flow error to ApplicationErrorResponse for error details
                 let app_err: ApplicationErrorResponse = error_report.current_context().switch();
                 let api_error = app_err.get_api_error();
 
@@ -1020,7 +1020,7 @@ impl Payments {
         )
         .await
         .map_err(
-            |e: error_stack::Report<domain_types::errors::ConnectorError>| {
+            |e: error_stack::Report<domain_types::errors::ConnectorFlowError>| {
                 PaymentAuthorizationError::new(
                     grpc_api_types::payments::PaymentStatus::Pending,
                     Some(format!("Order creation failed: {e}")),
@@ -2558,7 +2558,7 @@ impl PaymentMethodService for PaymentMethod {
         _request: tonic::Request<PayoutMethodEligibilityRequest>,
     ) -> Result<tonic::Response<PayoutMethodEligibilityResponse>, tonic::Status> {
         Err(tonic::Status::unimplemented(
-            "Eligibility check not implemented yet",
+            "Payout method eligibility is not implemented",
         ))
     }
 }

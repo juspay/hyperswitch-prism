@@ -13,10 +13,19 @@ use common_utils::{
 };
 use domain_types::{
     connector_types::{ConnectorResponseHeaders, RawConnectorRequestResponse},
-    errors::{ApiErrorResponse, ConnectorError},
+    errors::ApiErrorResponse,
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::Proxy,
+    ConnectorResponseTransformationError,
+};
+#[cfg(feature = "injector-client")]
+use domain_types::{
+    errors::{
+        report_common_api_client_to_flow, report_connector_request_to_flow,
+        report_connector_response_to_flow, ConnectorFlowError, ResponseTransformationErrorContext,
+    },
+    IntegrationError,
 };
 use hyperswitch_masking::Secret;
 #[cfg(feature = "injector-client")]
@@ -123,7 +132,7 @@ pub type Headers = std::collections::HashSet<(String, Maskable<String>)>;
 /// Handles the connector response, processing both successful and error responses
 #[allow(clippy::too_many_arguments)]
 pub fn handle_connector_response<F, ResourceCommonData, Req, Resp>(
-    response: CustomResult<Result<Response, Response>, ConnectorError>,
+    response: CustomResult<Result<Response, Response>, ConnectorResponseTransformationError>,
     mut updated_router_data: RouterDataV2<F, ResourceCommonData, Req, Resp>,
     connector: &BoxedConnectorIntegrationV2<'static, F, ResourceCommonData, Req, Resp>,
     mut event: Option<&mut Event>,
@@ -131,7 +140,10 @@ pub fn handle_connector_response<F, ResourceCommonData, Req, Resp>(
     method: Method,
     url: String,
     event_params: Option<&EventProcessingParams<'_>>,
-) -> CustomResult<RouterDataV2<F, ResourceCommonData, Req, Resp>, ConnectorError>
+) -> CustomResult<
+    RouterDataV2<F, ResourceCommonData, Req, Resp>,
+    ConnectorResponseTransformationError,
+>
 where
     F: Clone + 'static,
     Req: Clone + 'static + std::fmt::Debug,
@@ -178,13 +190,7 @@ where
                             .record("response.headers", tracing::field::debug(&evt.headers));
                     }
 
-                    match handle_response_result {
-                        Ok(data) => {
-                            tracing::info!("Transformer completed successfully");
-                            Ok(data)
-                        }
-                        Err(err) => Err(err),
-                    }?
+                    handle_response_result?
                 }
                 Err(body) => {
                     // Record metrics only if event_params is provided
@@ -294,7 +300,7 @@ pub async fn execute_connector_processing_step<T, F, ResourceCommonData, Req, Re
     call_connector_action: common_enums::CallConnectorAction,
     test_context: Option<TestContext>,
     api_tag: Option<String>,
-) -> CustomResult<RouterDataV2<F, ResourceCommonData, Req, Resp>, ConnectorError>
+) -> CustomResult<RouterDataV2<F, ResourceCommonData, Req, Resp>, ConnectorFlowError>
 where
     F: Clone + 'static,
     T: FlowIntegrity,
@@ -345,12 +351,15 @@ where
                     Ok(data)
                 }
                 Err(err) => Err(err),
-            }?;
+            }
+            .map_err(report_connector_response_to_flow)?;
 
             Ok(response)
         }
         common_enums::CallConnectorAction::Trigger => {
-            let mut connector_request = connector.build_request_v2(&router_data.clone())?;
+            let mut connector_request = connector
+                .build_request_v2(&router_data.clone())
+                .map_err(report_connector_request_to_flow)?;
 
             let mut updated_router_data = router_data.clone();
             updated_router_data = match &connector_request {
@@ -486,7 +495,11 @@ where
                         let template = request
                             .body
                             .as_ref()
-                            .ok_or(ConnectorError::RequestEncodingFailed)?
+                            .ok_or(ConnectorFlowError::from(
+                                IntegrationError::RequestEncodingFailed {
+                                    context: Default::default(),
+                                },
+                            ))?
                             .get_inner_value()
                             .expose()
                             .to_string();
@@ -533,13 +546,20 @@ where
                         );
 
                         // New injector handles HTTP request internally and returns enhanced response
-                        let injector_response = injector_core(injector_request)
-                            .await
-                            .change_context(ConnectorError::RequestEncodingFailed)?;
+                        let injector_response =
+                            injector_core(injector_request).await.change_context(
+                                ConnectorFlowError::from(IntegrationError::RequestEncodingFailed {
+                                    context: Default::default(),
+                                }),
+                            )?;
 
                         // Convert injector response to connector service Response format
                         let response_bytes = serde_json::to_vec(&injector_response.response)
-                            .map_err(|_| ConnectorError::ResponseHandlingFailed)?;
+                            .map_err(|_| {
+                                ConnectorFlowError::from(
+                                    ConnectorResponseTransformationError::response_handling_failed_http_status_unknown(),
+                                )
+                            })?;
 
                         // Convert headers from HashMap<String, String> to reqwest::HeaderMap if present
                         let headers = injector_response.headers.map(|h| {
@@ -569,7 +589,7 @@ where
                             test_mode,
                         )
                         .await
-                        .change_context(ConnectorError::RequestEncodingFailed)
+                        .map_err(report_common_api_client_to_flow)
                         .inspect_err(|err| {
                             info_log(
                                 "NETWORK_ERROR",
@@ -625,7 +645,9 @@ where
                     event.add_service_name(event_params.service_name);
 
                     let result = handle_connector_response(
-                        response.change_context(ConnectorError::ProcessingStepFailed(None)),
+                        response.change_context(
+                            ConnectorResponseTransformationError::response_handling_failed_http_status_unknown(),
+                        ),
                         updated_router_data,
                         &connector,
                         Some(&mut event),
@@ -633,7 +655,8 @@ where
                         method,
                         url.clone(),
                         Some(&event_params),
-                    );
+                    )
+                    .map_err(report_connector_response_to_flow);
 
                     emit_event_with_config(event, event_params.event_config);
                     result
@@ -647,9 +670,17 @@ where
         Ok(data) => {
             data.request
                 .check_integrity(&data.request.clone(), None)
-                .map_err(|err| ConnectorError::IntegrityCheckFailed {
-                    field_names: err.field_names,
-                    connector_transaction_id: err.connector_transaction_id,
+                .map_err(|err| {
+                    report_connector_response_to_flow(error_stack::report!(
+                        ConnectorResponseTransformationError::IntegrityCheckFailed {
+                            context: ResponseTransformationErrorContext {
+                                http_status_code: None,
+                                additional_context: None,
+                            },
+                            field_names: err.field_names,
+                            connector_transaction_id: err.connector_transaction_id,
+                        }
+                    ))
                 })?;
             Ok(data)
         }

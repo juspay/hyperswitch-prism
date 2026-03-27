@@ -1,5 +1,6 @@
 pub mod qr_code;
 pub mod xml_utils;
+use crate::{ConnectorResponseTransformationError, IntegrationError};
 use base64::Engine;
 use common_utils::{
     consts::{
@@ -28,7 +29,7 @@ use serde_json::Value;
 use std::{collections::HashMap, str::FromStr};
 pub use xml_utils::preprocess_xml_response_bytes;
 
-type Error = Report<errors::ConnectorError>;
+type Error = Report<IntegrationError>;
 use common_enums::enums;
 use serde::{Deserialize, Serialize};
 
@@ -90,13 +91,90 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static>
 
 pub fn missing_field_err(
     message: &'static str,
-) -> Box<dyn Fn() -> Report<errors::ConnectorError> + 'static> {
+) -> Box<dyn Fn() -> Report<IntegrationError> + 'static> {
     Box::new(move || {
-        errors::ConnectorError::MissingRequiredField {
+        IntegrationError::MissingRequiredField {
             field_name: message,
+            context: Default::default(),
         }
         .into()
     })
+}
+
+/// Build [`errors::IntegrationErrorContext`] with explicit `additional_context` and `suggested_action`
+/// at the call site (no hidden defaults).
+pub fn integration_ctx(
+    additional_context: impl Into<String>,
+    suggested_action: impl Into<String>,
+) -> errors::IntegrationErrorContext {
+    errors::IntegrationErrorContext {
+        additional_context: Some(additional_context.into()),
+        suggested_action: Some(suggested_action.into()),
+        ..Default::default()
+    }
+}
+
+/// Use at `.convert(minor_amount, currency)` failures. `flow` should name the **payment operation**
+pub fn amount_conversion_ctx(
+    flow: &'static str,
+    minor_amount: &impl std::fmt::Debug,
+    currency: &impl std::fmt::Display,
+) -> errors::IntegrationErrorContext {
+    integration_ctx(
+        format!("{flow}: amount={minor_amount:?}, currency={currency}"),
+        "Send the amount in minor units for that ISO currency (e.g. cents for USD), ensure the currency is enabled for this connector, and keep the value within the connector's allowed range."
+            .to_string(),
+    )
+}
+
+// --- Response phase (`ConnectorResponseTransformationError`) -----------------
+
+pub fn response_handling_fail(
+    http_status: u16,
+    detail: impl Into<String>,
+) -> ConnectorResponseTransformationError {
+    ConnectorResponseTransformationError::response_handling_failed_with_context(
+        http_status,
+        Some(detail.into()),
+    )
+}
+
+/// Canonical detail prefix for response-handling failures where connector
+/// returned a non-success HTTP status.
+pub fn response_http_status_detail(connector: &str) -> String {
+    format!(
+        "{connector}: connector returned an error HTTP status; check the payment or refund in the connector dashboard."
+    )
+}
+
+/// Convenience helper for the common non-success HTTP status case.
+pub fn response_handling_fail_for_connector(
+    http_status: u16,
+    connector: &str,
+) -> ConnectorResponseTransformationError {
+    response_handling_fail(http_status, response_http_status_detail(connector))
+}
+
+/// Response bytes could not be parsed into the expected response type (JSON/XML, schema drift).
+pub fn response_deserialization_fail(
+    http_status: u16,
+    detail: impl Into<String>,
+) -> ConnectorResponseTransformationError {
+    ConnectorResponseTransformationError::response_deserialization_failed_with_context(
+        http_status,
+        Some(detail.into()),
+    )
+}
+
+/// Connector returned a response that does not match this flow’s contract.
+pub fn unexpected_response_fail(
+    http_status: u16,
+    detail: impl Into<String>,
+) -> ConnectorResponseTransformationError {
+    ConnectorResponseTransformationError::unexpected_response_error_with_context(
+        http_status,
+        Some(detail.into()),
+    )
 }
 
 pub(crate) fn get_unimplemented_payment_method_error_message(connector: &str) -> String {
@@ -117,13 +195,15 @@ where
     let parsed: T = match json_value {
         Value::String(json_str) => serde_json::from_str(&json_str)
             .map_err(Report::from)
-            .change_context(errors::ConnectorError::InvalidConnectorConfig {
+            .change_context(IntegrationError::InvalidConnectorConfig {
                 config: "merchant_connector_account.metadata",
+                context: Default::default(),
             })?,
         _ => serde_json::from_value(json_value.clone())
             .map_err(Report::from)
-            .change_context(errors::ConnectorError::InvalidConnectorConfig {
+            .change_context(IntegrationError::InvalidConnectorConfig {
                 config: "merchant_connector_account.metadata",
+                context: Default::default(),
             })?,
     };
 
@@ -133,14 +213,20 @@ where
 pub(crate) fn handle_json_response_deserialization_failure(
     res: Response,
     _connector: &'static str,
-) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-    let response_data = String::from_utf8(res.response.to_vec())
-        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+    let response_data =
+        String::from_utf8(res.response.to_vec()).change_context(response_deserialization_fail(
+            res.status_code,
+            "Response body was not valid UTF-8 when reading connector error payload.",
+        ))?;
 
     // check for whether the response is in json format
     match serde_json::from_str::<Value>(&response_data) {
         // in case of unexpected response but in json format
-        Ok(_) => Err(errors::ConnectorError::ResponseDeserializationFailed)?,
+        Ok(_) => Err(response_deserialization_fail(
+            res.status_code,
+            "Connector returned JSON but not in the expected error shape for this handler.",
+        ))?,
         // in case of unexpected response but in html or string format
         Err(_error_msg) => Ok(ErrorResponse {
             status_code: res.status_code,
@@ -182,7 +268,10 @@ pub(crate) fn safe_base64_decode(base64_data: String) -> Result<Vec<u8>, Error> 
             .map_err(|e| error_stack.push(e))
             .ok()
     })
-    .ok_or(errors::ConnectorError::ResponseDeserializationFailed)
+    .ok_or(IntegrationError::InvalidDataFormat {
+        field_name: "base64_data",
+        context: Default::default(),
+    })
     .attach_printable(format!(
         "Base64 decoding failed for all engines. Errors: {:?}",
         error_stack
@@ -271,7 +360,9 @@ pub fn serialize_to_xml_string_with_root<T: Serialize>(
     data: &T,
 ) -> Result<String, Error> {
     let xml_content = quick_xml::se::to_string_with_root(root_name, data)
-        .change_context(errors::ConnectorError::RequestEncodingFailed)
+        .change_context(IntegrationError::RequestEncodingFailed {
+            context: Default::default(),
+        })
         .attach_printable("Failed to serialize XML with root")?;
 
     let full_xml = format!("<?xml version=\"1.0\" encoding=\"UTF-8\"?>{xml_content}");
@@ -345,7 +436,7 @@ pub trait MultipleCaptureSyncResponse {
 
 pub(crate) fn construct_captures_response_hashmap<T>(
     capture_sync_response_list: Vec<T>,
-) -> CustomResult<HashMap<String, CaptureSyncResponse>, errors::ConnectorError>
+) -> CustomResult<HashMap<String, CaptureSyncResponse>, ConnectorResponseTransformationError>
 where
     T: MultipleCaptureSyncResponse,
 {
@@ -362,7 +453,9 @@ where
                         .get_connector_reference_id(),
                     amount: capture_sync_response
                         .get_amount_captured()
-                        .change_context(errors::ConnectorError::AmountConversionFailed)
+                        .change_context(
+                            ConnectorResponseTransformationError::response_handling_failed_http_status_unknown(),
+                        )
                         .attach_printable(
                             "failed to convert back captured response amount to minor unit",
                         )?,

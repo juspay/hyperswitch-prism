@@ -25,7 +25,6 @@ use domain_types::{
         RepeatPaymentData, SessionTokenRequestData, SessionTokenResponseData,
         SetupMandateRequestData, SubmitEvidenceData,
     },
-    errors::{self},
     payment_method_data::PaymentMethodDataTypes,
     router_data::ErrorResponse,
     router_data_v2::RouterDataV2,
@@ -49,6 +48,8 @@ use transformers::{
 use super::macros;
 use crate::types::ResponseRouterData;
 use crate::with_error_response_body;
+use domain_types::errors::ConnectorResponseTransformationError;
+use domain_types::errors::IntegrationError;
 
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
@@ -314,11 +315,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
         let response: getnet::GetnetErrorResponse = res
             .response
             .parse_struct("GetnetErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+            .change_context(
+                crate::utils::response_deserialization_fail(
+                    res.status_code,
+                "getnet: response body did not match the expected format; confirm API version and connector documentation."),
+            )
             .attach_printable("Failed to deserialize Getnet error response")?;
 
         with_error_response_body!(event_builder, response);
@@ -353,9 +358,9 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let access_token = req.resource_common_data.get_access_token()
-                .change_context(errors::ConnectorError::FailedToObtainAuthType)
+                .change_context(IntegrationError::FailedToObtainAuthType { context: Default::default() })
                 .attach_printable("Failed to obtain access token")?;
             Ok(self.build_headers(&access_token))
         }
@@ -363,7 +368,7 @@ macros::macro_connector_implementation!(
         fn get_url(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}/dpm/payments-gwproxy/v2/payments", self.connector_base_url_payments(req)))
         }
     }
@@ -385,9 +390,9 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let access_token = req.resource_common_data.get_access_token()
-                .change_context(errors::ConnectorError::FailedToObtainAuthType)
+                .change_context(IntegrationError::FailedToObtainAuthType { context: Default::default() })
                 .attach_printable("Failed to obtain access token")?;
             Ok(self.build_headers(&access_token))
         }
@@ -395,7 +400,7 @@ macros::macro_connector_implementation!(
         fn get_url(
             &self,
             req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}/dpm/payments-gwproxy/v2/payments/capture", self.connector_base_url_payments(req)))
         }
     }
@@ -416,9 +421,9 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let access_token = req.resource_common_data.get_access_token()
-                .change_context(errors::ConnectorError::FailedToObtainAuthType)
+                .change_context(IntegrationError::FailedToObtainAuthType { context: Default::default() })
                 .attach_printable("Failed to obtain access token")?;
             Ok(self.build_headers(&access_token))
         }
@@ -426,10 +431,10 @@ macros::macro_connector_implementation!(
         fn get_url(
             &self,
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let payment_id = req.request.connector_transaction_id
                 .get_connector_transaction_id()
-                .change_context(errors::ConnectorError::MissingConnectorTransactionID)
+                .change_context(IntegrationError::MissingConnectorTransactionID { context: Default::default() })
                 .attach_printable("Missing connector transaction ID")?;
             Ok(format!("{}/dpm/hub-payment-info/v1/payments/info/{}", self.connector_base_url_payments(req), payment_id))
         }
@@ -452,9 +457,9 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let access_token = req.resource_common_data.get_access_token()
-                .change_context(errors::ConnectorError::FailedToObtainAuthType)
+                .change_context(IntegrationError::FailedToObtainAuthType { context: Default::default() })
                 .attach_printable("Failed to obtain access token")?;
             Ok(self.build_headers(&access_token))
         }
@@ -462,7 +467,7 @@ macros::macro_connector_implementation!(
         fn get_url(
             &self,
             req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}/dpm/payments-gwproxy/v2/payments/cancel", self.connector_base_url_refunds(req)))
         }
     }
@@ -484,9 +489,9 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let access_token = req.resource_common_data.get_access_token()
-                .change_context(errors::ConnectorError::FailedToObtainAuthType)
+                .change_context(IntegrationError::FailedToObtainAuthType { context: Default::default() })
                 .attach_printable("Failed to obtain access token")?;
             Ok(self.build_headers(&access_token))
         }
@@ -494,7 +499,7 @@ macros::macro_connector_implementation!(
         fn get_url(
             &self,
             req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}/dpm/payments-gwproxy/v2/payments/cancel", self.connector_base_url_payments(req)))
         }
     }
@@ -535,9 +540,9 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let access_token = req.resource_common_data.get_access_token()
-                .change_context(errors::ConnectorError::FailedToObtainAuthType)
+                .change_context(IntegrationError::FailedToObtainAuthType { context: Default::default() })
                 .attach_printable("Failed to obtain access token")?;
             Ok(self.build_headers(&access_token))
         }
@@ -545,7 +550,7 @@ macros::macro_connector_implementation!(
         fn get_url(
             &self,
             req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let payment_id = req.request.connector_transaction_id.clone();
             Ok(format!("{}/dpm/hub-payment-info/v1/payments/info/{}", self.connector_base_url_refunds(req), payment_id))
         }
@@ -568,9 +573,9 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<CreateAccessToken, PaymentFlowData, AccessTokenRequestData, AccessTokenResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let auth = getnet::GetnetAuthType::try_from(&req.connector_config)
-                .change_context(errors::ConnectorError::FailedToObtainAuthType)
+                .change_context(IntegrationError::FailedToObtainAuthType { context: Default::default() })
                 .attach_printable("Failed to obtain access token")?;
 
             // Generate Base64(client_id:client_secret) for Basic Auth
@@ -592,7 +597,7 @@ macros::macro_connector_implementation!(
         fn get_url(
             &self,
             req: &RouterDataV2<CreateAccessToken, PaymentFlowData, AccessTokenRequestData, AccessTokenResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}/authentication/oauth2/access_token", self.connector_base_url_payments(req)))
         }
 

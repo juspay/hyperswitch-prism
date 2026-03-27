@@ -532,12 +532,10 @@ pub fn handle_event_transformer(
         source_verified,
     )
     .map_err(
-        |e: error_stack::Report<domain_types::errors::ApplicationErrorResponse>| {
-            ConnectorResponseTransformationError {
-                error_message: format!("Error in Processing webhook events: {e}"),
-                error_code: "WEBHOOK_PROCESSING_ERROR".to_string(),
-                http_status_code: None,
-            }
+        |e: error_stack::Report<domain_types::errors::WebhookError>| {
+            let app_error: domain_types::errors::ApplicationErrorResponse =
+                common_utils::errors::ErrorSwitch::switch(e.current_context());
+            ucs_env::error::ErrorSwitch::switch(&app_error)
         },
     )
 }

@@ -18,7 +18,7 @@ use strum::{Display, EnumString};
 use time::PrimitiveDateTime;
 
 use crate::{
-    errors::{ApiError, ApplicationErrorResponse, ConnectorError},
+    errors::{ApiError, ApplicationErrorResponse, IntegrationError},
     mandates::{CustomerAcceptance, MandateData},
     payment_address::{self, Address, AddressDetails, PhoneDetails},
     payment_method_data::{self, Card, PaymentMethodData, PaymentMethodDataTypes},
@@ -370,23 +370,32 @@ pub struct PaymentsSyncData {
 }
 
 impl PaymentsSyncData {
-    pub fn is_auto_capture(&self) -> Result<bool, Error> {
-        match self.capture_method {
-            Some(common_enums::CaptureMethod::Automatic)
-            | None
-            | Some(common_enums::CaptureMethod::SequentialAutomatic) => Ok(true),
-            Some(common_enums::CaptureMethod::Manual) => Ok(false),
-            Some(_) => Err(ConnectorError::CaptureMethodNotSupported.into()),
-        }
+    /// Returns true if payment should be automatically captured, false for manual capture.
+    ///
+    /// Maps capture methods to boolean intent:
+    /// - Automatic/SequentialAutomatic/None → true (auto capture)
+    /// - Manual/ManualMultiple/Scheduled → false (manual capture)
+    ///
+    /// Note: This is a pure getter, not a validation. Connectors that don't support
+    /// specific capture methods should validate explicitly during request building.
+    pub fn is_auto_capture(&self) -> bool {
+        !matches!(
+            self.capture_method,
+            Some(common_enums::CaptureMethod::Manual)
+                | Some(common_enums::CaptureMethod::ManualMultiple)
+                | Some(common_enums::CaptureMethod::Scheduled)
+        )
     }
-    pub fn get_connector_transaction_id(&self) -> CustomResult<String, ConnectorError> {
+    pub fn get_connector_transaction_id(&self) -> CustomResult<String, IntegrationError> {
         match self.connector_transaction_id.clone() {
             ResponseId::ConnectorTransactionId(txn_id) => Ok(txn_id),
             _ => Err(errors::ValidationError::IncorrectValueProvided {
                 field_name: "connector_transaction_id",
             })
             .attach_printable("Expected connector transaction ID not found")
-            .change_context(ConnectorError::MissingConnectorTransactionID)?,
+            .change_context(IntegrationError::MissingConnectorTransactionID {
+                context: Default::default(),
+            })?,
         }
     }
     pub fn is_mandate_payment(&self) -> bool {
@@ -838,7 +847,9 @@ impl PaymentFlowData {
     {
         self.get_connector_meta()?
             .parse_value(std::any::type_name::<T>())
-            .change_context(ConnectorError::NoConnectorMetaData)
+            .change_context(IntegrationError::NoConnectorMetaData {
+                context: Default::default(),
+            })
     }
 
     pub fn is_three_ds(&self) -> bool {
@@ -1124,14 +1135,21 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
 }
 
 impl<T: PaymentMethodDataTypes> PaymentsAuthorizeData<T> {
-    pub fn is_auto_capture(&self) -> Result<bool, Error> {
-        match self.capture_method {
-            Some(common_enums::CaptureMethod::Automatic)
-            | None
-            | Some(common_enums::CaptureMethod::SequentialAutomatic) => Ok(true),
-            Some(common_enums::CaptureMethod::Manual) => Ok(false),
-            Some(_) => Err(ConnectorError::CaptureMethodNotSupported.into()),
-        }
+    /// Returns true if payment should be automatically captured, false for manual capture.
+    ///
+    /// Maps capture methods to boolean intent:
+    /// - Automatic/SequentialAutomatic/None → true (auto capture)
+    /// - Manual/ManualMultiple/Scheduled → false (manual capture)
+    ///
+    /// Note: This is a pure getter, not a validation. Connectors that don't support
+    /// specific capture methods should validate explicitly during request building.
+    pub fn is_auto_capture(&self) -> bool {
+        !matches!(
+            self.capture_method,
+            Some(common_enums::CaptureMethod::Manual)
+                | Some(common_enums::CaptureMethod::ManualMultiple)
+                | Some(common_enums::CaptureMethod::Scheduled)
+        )
     }
     pub fn get_email(&self) -> Result<Email, Error> {
         self.email.clone().ok_or_else(missing_field_err("email"))
@@ -1506,7 +1524,10 @@ impl<T: PaymentMethodDataTypes> PaymentsPreAuthenticateData<T> {
             Some(common_enums::CaptureMethod::Manual) => Ok(false),
             Some(common_enums::CaptureMethod::ManualMultiple)
             | Some(common_enums::CaptureMethod::Scheduled) => {
-                Err(ConnectorError::CaptureMethodNotSupported.into())
+                Err(IntegrationError::CaptureMethodNotSupported {
+                    context: Default::default(),
+                }
+                .into())
             }
         }
     }
@@ -1537,7 +1558,10 @@ impl<T: PaymentMethodDataTypes> PaymentsAuthenticateData<T> {
             Some(common_enums::CaptureMethod::Manual) => Ok(false),
             Some(common_enums::CaptureMethod::ManualMultiple)
             | Some(common_enums::CaptureMethod::Scheduled) => {
-                Err(ConnectorError::CaptureMethodNotSupported.into())
+                Err(IntegrationError::CaptureMethodNotSupported {
+                    context: Default::default(),
+                }
+                .into())
             }
         }
     }
@@ -2284,7 +2308,9 @@ impl RefundsData {
         self.connector_refund_id
             .clone()
             .get_required_value("connector_refund_id")
-            .change_context(ConnectorError::MissingConnectorTransactionID)
+            .change_context(IntegrationError::MissingConnectorTransactionID {
+                context: Default::default(),
+            })
     }
     pub fn get_webhook_url(&self) -> Result<String, Error> {
         self.webhook_url
@@ -2340,14 +2366,16 @@ impl PaymentsCaptureData {
     pub fn is_multiple_capture(&self) -> bool {
         self.multiple_capture_data.is_some()
     }
-    pub fn get_connector_transaction_id(&self) -> CustomResult<String, ConnectorError> {
+    pub fn get_connector_transaction_id(&self) -> CustomResult<String, IntegrationError> {
         match self.connector_transaction_id.clone() {
             ResponseId::ConnectorTransactionId(txn_id) => Ok(txn_id),
             _ => Err(errors::ValidationError::IncorrectValueProvided {
                 field_name: "connector_transaction_id",
             })
             .attach_printable("Expected connector transaction ID not found")
-            .change_context(ConnectorError::MissingConnectorTransactionID)?,
+            .change_context(IntegrationError::MissingConnectorTransactionID {
+                context: Default::default(),
+            })?,
         }
     }
     pub fn get_optional_language_from_browser_info(&self) -> Option<String> {
@@ -2487,14 +2515,21 @@ impl<T: PaymentMethodDataTypes> RepeatPaymentData<T> {
     pub fn get_mandate_reference(&self) -> &MandateReferenceId {
         &self.mandate_reference
     }
-    pub fn is_auto_capture(&self) -> Result<bool, Error> {
-        match self.capture_method {
-            Some(common_enums::CaptureMethod::Automatic)
-            | None
-            | Some(common_enums::CaptureMethod::SequentialAutomatic) => Ok(true),
-            Some(common_enums::CaptureMethod::Manual) => Ok(false),
-            Some(_) => Err(ConnectorError::CaptureMethodNotSupported.into()),
-        }
+    /// Returns true if payment should be automatically captured, false for manual capture.
+    ///
+    /// Maps capture methods to boolean intent:
+    /// - Automatic/SequentialAutomatic/None → true (auto capture)
+    /// - Manual/ManualMultiple/Scheduled → false (manual capture)
+    ///
+    /// Note: This is a pure getter, not a validation. Connectors that don't support
+    /// specific capture methods should validate explicitly during request building.
+    pub fn is_auto_capture(&self) -> bool {
+        !matches!(
+            self.capture_method,
+            Some(common_enums::CaptureMethod::Manual)
+                | Some(common_enums::CaptureMethod::ManualMultiple)
+                | Some(common_enums::CaptureMethod::Scheduled)
+        )
     }
     pub fn get_optional_language_from_browser_info(&self) -> Option<String> {
         self.browser_info
@@ -2728,16 +2763,18 @@ pub trait ConnectorSpecifications {
 #[macro_export]
 macro_rules! capture_method_not_supported {
     ($connector:expr, $capture_method:expr) => {
-        Err(errors::ConnectorError::NotSupported {
+        Err(errors::IntegrationError::NotSupported {
             message: format!("{} for selected payment method", $capture_method),
             connector: $connector,
+            context: Default::default(),
         }
         .into())
     };
     ($connector:expr, $capture_method:expr, $payment_method_type:expr) => {
-        Err(errors::ConnectorError::NotSupported {
+        Err(errors::IntegrationError::NotSupported {
             message: format!("{} for {}", $capture_method, $payment_method_type),
             connector: $connector,
+            context: Default::default(),
         }
         .into())
     };
@@ -2746,12 +2783,13 @@ macro_rules! capture_method_not_supported {
 #[macro_export]
 macro_rules! payment_method_not_supported {
     ($connector:expr, $payment_method:expr, $payment_method_type:expr) => {
-        Err(errors::ConnectorError::NotSupported {
+        Err(errors::IntegrationError::NotSupported {
             message: format!(
                 "Payment method {} with type {} is not supported",
                 $payment_method, $payment_method_type
             ),
             connector: $connector,
+            context: Default::default(),
         }
         .into())
     };

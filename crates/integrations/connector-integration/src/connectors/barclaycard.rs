@@ -14,7 +14,6 @@ use domain_types::{
         PaymentsIncrementalAuthorizationData, PaymentsResponseData, PaymentsSyncData,
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
-    errors,
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -43,6 +42,8 @@ use responses::{
 
 use super::macros;
 use crate::{types::ResponseRouterData, with_error_response_body};
+use domain_types::errors::ConnectorResponseTransformationError;
+use domain_types::errors::IntegrationError;
 
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 pub const V_C_MERCHANT_ID: &str = "v-c-merchant-id";
@@ -423,12 +424,12 @@ macros::create_all_prerequisites!(
             payload: &String,
             date: OffsetDateTime,
             http_method: Method,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let barclaycard::BarclaycardAuthType {
                 api_key,
                 merchant_account,
-                api_secret,
-            } = auth;
+                api_secret
+} = auth;
             let is_post_or_put_method = matches!(http_method, Method::Post | Method::Put);
             let digest_str = if is_post_or_put_method { "digest " } else { "" };
             let headers = format!("host date (request-target) {digest_str}{V_C_MERCHANT_ID}");
@@ -443,8 +444,9 @@ macros::create_all_prerequisites!(
             );
             let key_value = BASE64_ENGINE
                 .decode(api_secret.expose())
-                .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                .change_context(IntegrationError::InvalidConnectorConfig {
                     config: "connector_account_details.api_secret",
+                context: Default::default()
                 })?;
             let key = hmac::Key::new(hmac::HMAC_SHA256, &key_value);
             let signature_value =
@@ -460,7 +462,7 @@ macros::create_all_prerequisites!(
         pub fn build_headers<F, FCD, Req, Res>(
             &self,
             req: &RouterDataV2<F, FCD, Req, Res>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError>
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError>
         where
             Self: ConnectorIntegrationV2<F, FCD, Req, Res>,
             FCD: HasConnectors,
@@ -472,10 +474,10 @@ macros::create_all_prerequisites!(
             let merchant_account = auth.merchant_account.clone();
             let base_url = self.base_url(req.resource_common_data.connectors());
             let barclaycard_host =
-                url::Url::parse(base_url).change_context(errors::ConnectorError::RequestEncodingFailed)?;
+                url::Url::parse(base_url).change_context(IntegrationError::RequestEncodingFailed { context: Default::default() })?;
             let host = barclaycard_host
                 .host_str()
-                .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
+                .ok_or(IntegrationError::RequestEncodingFailed { context: Default::default() })?;
             let path: String = self
                 .get_url(req)?
                 .chars()
@@ -551,14 +553,14 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
 
         fn get_url(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}/pts/v2/payments/", self.connector_base_url_payments(req)))
         }
     }
@@ -580,18 +582,18 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
 
         fn get_url(
             &self,
             req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let connector_payment_id = match &req.request.connector_transaction_id {
                 ResponseId::ConnectorTransactionId(id) => Ok(id),
-                _ => Err(errors::ConnectorError::MissingConnectorTransactionID),
-            }?;
+                _ => Err(IntegrationError::MissingConnectorTransactionID { context: Default::default() })
+}?;
             Ok(format!(
                 "{}/pts/v2/payments/{}/captures",
                 self.connector_base_url_payments(req),
@@ -617,14 +619,14 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
 
         fn get_url(
             &self,
             req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             Ok(format!(
                 "{}/pts/v2/payments/{}/voids",
                 self.connector_base_url_payments(req),
@@ -649,18 +651,18 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
 
         fn get_url(
             &self,
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let connector_transaction_id = match &req.request.connector_transaction_id {
                 ResponseId::ConnectorTransactionId(id) => Ok(id),
-                _ => Err(errors::ConnectorError::MissingConnectorTransactionID),
-            }?;
+                _ => Err(IntegrationError::MissingConnectorTransactionID { context: Default::default() })
+}?;
             Ok(format!(
                 "{}/tss/v2/transactions/{}",
                 self.connector_base_url_payments(req),
@@ -686,14 +688,14 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
 
         fn get_url(
             &self,
             req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let connector_transaction_id = &req.request.connector_transaction_id;
             Ok(format!(
                 "{}/pts/v2/payments/{}/refunds",
@@ -719,14 +721,14 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
 
         fn get_url(
             &self,
             req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let refund_id = &req.request.connector_refund_id;
             Ok(format!(
                 "{}/tss/v2/transactions/{}",
@@ -759,7 +761,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     fn get_auth_header(
         &self,
         _auth_type: &ConnectorSpecificConfig,
-    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
         // Auth is handled via signature in build_headers
         Ok(vec![])
     }
@@ -768,11 +770,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
         let response: responses::BarclaycardErrorResponse = res
             .response
             .parse_struct("BarclaycardErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            .change_context(
+                crate::utils::response_deserialization_fail(
+                    res.status_code,
+                "barclaycard: response body did not match the expected format; confirm API version and connector documentation."),
+            )?;
 
         match response {
             responses::BarclaycardErrorResponse::Standard(error_response) => {

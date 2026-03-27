@@ -26,7 +26,6 @@ use domain_types::{
         RepeatPaymentData, SessionTokenRequestData, SessionTokenResponseData,
         SetupMandateRequestData, SubmitEvidenceData,
     },
-    errors::{self},
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -55,6 +54,8 @@ pub(crate) mod headers {
 }
 
 use super::macros;
+use domain_types::errors::ConnectorResponseTransformationError;
+use domain_types::errors::IntegrationError;
 
 macros::create_all_prerequisites!(
     connector_name: Mollie,
@@ -107,7 +108,7 @@ macros::create_all_prerequisites!(
         pub fn build_headers<F, FCD, Req, Res>(
             &self,
             req: &RouterDataV2<F, FCD, Req, Res>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let mut header = vec![(
                 headers::CONTENT_TYPE.to_string(),
                 "application/json".to_string().into(),
@@ -305,7 +306,7 @@ macros::macro_connector_implementation!(
                 PaymentsAuthorizeData<T>,
                 PaymentsResponseData,
             >,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             Ok(format!(
                 "{}/payments",
                 self.base_url(&req.resource_common_data.connectors)
@@ -338,12 +339,12 @@ macros::macro_connector_implementation!(
                 PaymentsSyncData,
                 PaymentsResponseData,
             >,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let payment_id = req
                 .request
                 .connector_transaction_id
                 .get_connector_transaction_id()
-                .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+                .change_context(IntegrationError::MissingConnectorTransactionID { context: Default::default() })?;
             Ok(format!(
                 "{}/payments/{}",
                 self.base_url(&req.resource_common_data.connectors),
@@ -373,7 +374,7 @@ macros::macro_connector_implementation!(
                 PaymentVoidData,
                 PaymentsResponseData,
             >,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let payment_id = req
                 .request
                 .connector_transaction_id
@@ -421,12 +422,12 @@ macros::macro_connector_implementation!(
                 PaymentsCaptureData,
                 PaymentsResponseData,
             >,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let payment_id = req
                 .request
                 .connector_transaction_id
                 .get_connector_transaction_id()
-                .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+                .change_context(IntegrationError::MissingConnectorTransactionID { context: Default::default() })?;
             Ok(format!(
                 "{}/payments/{}/captures",
                 self.base_url(&req.resource_common_data.connectors),
@@ -457,7 +458,7 @@ macros::macro_connector_implementation!(
                 RefundsData,
                 RefundsResponseData,
             >,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let payment_id = req.request.connector_transaction_id.clone();
             Ok(format!(
                 "{}/payments/{}/refunds",
@@ -489,7 +490,7 @@ macros::macro_connector_implementation!(
                 RefundSyncData,
                 RefundsResponseData,
             >,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let payment_id = req.request.connector_transaction_id.clone();
             let refund_id = req.request.connector_refund_id.clone();
             Ok(format!(
@@ -621,7 +622,7 @@ macros::macro_connector_implementation!(
                 PaymentMethodTokenizationData<T>,
                 PaymentMethodTokenResponse,
             >,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             // Use Mollie Components API (secondary_base_url) for card tokenization
             let secondary_base_url = req
                 .resource_common_data
@@ -629,8 +630,9 @@ macros::macro_connector_implementation!(
                 .mollie
                 .secondary_base_url
                 .as_ref()
-                .ok_or(errors::ConnectorError::InvalidConnectorConfig {
+                .ok_or(IntegrationError::InvalidConnectorConfig {
                     config: "secondary_base_url",
+                context: Default::default()
                 })?;
             Ok(format!("{}card-tokens", secondary_base_url))
         }
@@ -717,9 +719,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     fn get_auth_header(
         &self,
         auth_type: &ConnectorSpecificConfig,
-    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
-        let auth = mollie::MollieAuthType::try_from(auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+        let auth = mollie::MollieAuthType::try_from(auth_type).change_context(
+            IntegrationError::FailedToObtainAuthType {
+                context: Default::default(),
+            },
+        )?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
             format!("Bearer {}", auth.api_key.expose()).into(),
@@ -730,11 +735,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
         let response: mollie::MollieErrorResponse = res
             .response
             .parse_struct("MollieErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            .change_context(
+                crate::utils::response_deserialization_fail(
+                    res.status_code,
+                "mollie: response body did not match the expected format; confirm API version and connector documentation."),
+            )?;
 
         with_error_response_body!(event_builder, response);
 

@@ -16,7 +16,7 @@ use crate::{
     utils,
 };
 
-pub type Error = error_stack::Report<errors::ConnectorError>;
+pub type Error = error_stack::Report<errors::IntegrationError>;
 
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct BrowserInformation {
