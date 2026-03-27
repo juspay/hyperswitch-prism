@@ -10,9 +10,9 @@ use domain_types::{
     },
     errors,
     payment_method_data::{
-        BankDebitData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
+        BankDebitData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData,
     },
-    router_data::ConnectorSpecificConfig,
+    router_data::ConnectorSpecificAuth,
     router_data_v2::RouterDataV2,
 };
 
@@ -30,15 +30,14 @@ pub struct NmiAuthType {
     pub public_key: Option<Secret<String>>,
 }
 
-impl TryFrom<&ConnectorSpecificConfig> for NmiAuthType {
+impl TryFrom<&ConnectorSpecificAuth> for NmiAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
 
-    fn try_from(auth_type: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &ConnectorSpecificAuth) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorSpecificConfig::Nmi {
+            ConnectorSpecificAuth::Nmi {
                 api_key,
                 public_key,
-                ..
             } => Ok(Self {
                 api_key: api_key.to_owned(),
                 public_key: public_key.to_owned(),
@@ -128,6 +127,15 @@ impl From<NmiStatus> for RefundStatus {
 pub enum NmiPaymentMethod<T: PaymentMethodDataTypes> {
     Card(Box<CardData<T>>),
     Ach(Box<AchData>),
+    GooglePay(Box<GooglePayData>),
+}
+
+// ===== GOOGLE PAY DATA =====
+
+#[derive(Debug, Serialize)]
+pub struct GooglePayData {
+    #[serde(rename = "payment_token")]
+    payment_token: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -239,7 +247,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
-        let auth = NmiAuthType::try_from(&router_data.connector_config)?;
+        let auth = NmiAuthType::try_from(&router_data.connector_auth_type)?;
 
         // Extract payment method data
         // Handle ACH Bank Debit separately to access billing info for account holder name fallback
@@ -250,6 +258,25 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 (
                     NmiPaymentMethod::Ach(Box::new(ach_data)),
                     TransactionType::Sale,
+                )
+            }
+            PaymentMethodData::Wallet(WalletData::GooglePay(google_pay_data)) => {
+                // Google Pay uses payment_token from Collect.js
+                let google_pay_token = google_pay_data
+                    .tokenization_data
+                    .get_encrypted_google_pay_token()
+                    .change_context(errors::ConnectorError::MissingRequiredField {
+                        field_name: "google_pay_token",
+                    })?;
+                (
+                    NmiPaymentMethod::GooglePay(Box::new(GooglePayData {
+                        payment_token: Secret::new(google_pay_token),
+                    })),
+                    if router_data.request.is_auto_capture()? {
+                        TransactionType::Sale
+                    } else {
+                        TransactionType::Auth
+                    },
                 )
             }
             _ => {
@@ -478,7 +505,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
-        let auth = NmiAuthType::try_from(&router_data.connector_config)?;
+        let auth = NmiAuthType::try_from(&router_data.connector_auth_type)?;
 
         // PSync uses attempt_id as order_id (NOT connector_transaction_id)
         // The connector_transaction_id contains the attempt_id for sync operations
@@ -604,7 +631,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
-        let auth = NmiAuthType::try_from(&router_data.connector_config)?;
+        let auth = NmiAuthType::try_from(&router_data.connector_auth_type)?;
 
         // Get the original transaction ID from connector_transaction_id
         let transactionid = router_data
@@ -710,7 +737,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
-        let auth = NmiAuthType::try_from(&router_data.connector_config)?;
+        let auth = NmiAuthType::try_from(&router_data.connector_auth_type)?;
 
         // Get the original payment transaction ID
         let transactionid = router_data.request.connector_transaction_id.clone();
@@ -808,7 +835,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
-        let auth = NmiAuthType::try_from(&router_data.connector_config)?;
+        let auth = NmiAuthType::try_from(&router_data.connector_auth_type)?;
 
         // RSync uses connector_refund_id as order_id (per tech spec section 3.6)
         let order_id = router_data.request.connector_refund_id.clone();
@@ -905,7 +932,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
-        let auth = NmiAuthType::try_from(&router_data.connector_config)?;
+        let auth = NmiAuthType::try_from(&router_data.connector_auth_type)?;
 
         // Get the original payment transaction ID
         let transactionid = router_data.request.connector_transaction_id.clone();
