@@ -525,5 +525,9 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             terminal_id: id(),
             base_url: None,
         },
+        ConnectorEnum::Imerchantsolutions => ConnectorSpecificConfig::Imerchantsolutions {
+            api_key: k(),
+            base_url: None,
+        },
     }
 }
