@@ -1,0 +1,20 @@
+{
+  "connector": "stripe",
+  "supported_suites": [
+    "create_customer",
+    "authorize",
+    "complete_authorize",
+    "capture",
+    "void",
+    "refund",
+    "get",
+    "refund_sync",
+    "setup_recurring",
+    "recurring_charge",
+    "tokenize_payment_method",
+    "revoke_mandate",
+    "incremental_authorization",
+    "create_session_token",
+    "create_sdk_session_token"
+  ]
+}

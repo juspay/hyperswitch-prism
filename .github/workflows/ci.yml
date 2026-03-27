@@ -61,7 +61,7 @@ jobs:
         run: cargo test -p composite-service --test composite_request_schema_check
 
       - name: Run UCS Connector Schema Compatibility Check
-        run: cargo test -p ucs-connector-tests --lib harness::scenario_api::tests::all_supported_scenarios_match_proto_schema_for_all_connectors -- --exact
+        run: cargo test -p integration-tests --lib harness::scenario_api::tests::all_supported_scenarios_match_proto_schema_for_all_connectors -- --exact
 
   test:
     name: Run Tests
@@ -118,18 +118,18 @@ jobs:
           S3_SOURCE_FILE_NAME: "b59e91fc-9054-4412-a746-664fdc185345.json.gpg"
         shell: bash
         run: |
-          mkdir -p ".github/secrets" ".github/test"
+          mkdir -p ".github/secrets"
 
           aws s3 cp "${CONNECTOR_CREDS_S3_BUCKET_URI}/${S3_SOURCE_FILE_NAME}" ".github/secrets/${DESTINATION_FILE_NAME}"
-          gpg --quiet --batch --yes --decrypt --passphrase="${CONNECTOR_AUTH_PASSPHRASE}" --output ".github/test/creds.json" ".github/secrets/${DESTINATION_FILE_NAME}"
+          gpg --quiet --batch --yes --decrypt --passphrase="${CONNECTOR_AUTH_PASSPHRASE}" --output "creds.json" ".github/secrets/${DESTINATION_FILE_NAME}"
 
       - name: Set connector credentials path in environment
         if: ${{ env.RUN_TESTS == 'true' }}
         shell: bash
         run: |
           # Only set the environment variable if the credentials file exists
-          if [[ -f ".github/test/creds.json" ]]; then
-            echo "CONNECTOR_AUTH_FILE_PATH=${{ github.workspace }}/.github/test/creds.json" >> $GITHUB_ENV
+          if [[ -f "creds.json" ]]; then
+            echo "CONNECTOR_AUTH_FILE_PATH=${{ github.workspace }}/creds.json" >> $GITHUB_ENV
             echo "Connector credentials available for tests"
           else
             echo "No connector credentials available - tests will use default values"

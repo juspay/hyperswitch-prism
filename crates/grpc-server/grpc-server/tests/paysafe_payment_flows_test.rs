@@ -12,7 +12,7 @@
 //! ```
 //!
 //! ### Method 2: Using Credentials File (Persistent Setup)
-//! Add the following to `.github/test/creds.json`:
+//! Add the following to `creds.json` in the repo root:
 //! ```json
 //! {
 //!   "paysafe": {

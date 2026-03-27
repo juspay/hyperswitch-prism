@@ -1829,6 +1829,17 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 payer_id: paypal.payer_id,
                 base_url: paypal.base_url,
             }),
+            AuthType::Aci(aci) => Ok(Self::Aci {
+                api_key: aci.api_key.ok_or_else(err)?,
+                entity_id: aci.entity_id.ok_or_else(err)?,
+                base_url: aci.base_url,
+            }),
+            AuthType::Checkout(checkout) => Ok(Self::Checkout {
+                api_key: checkout.api_key.ok_or_else(err)?,
+                api_secret: checkout.api_secret.ok_or_else(err)?,
+                processing_channel_id: checkout.processing_channel_id.ok_or_else(err)?,
+                base_url: checkout.base_url,
+            }),
             AuthType::Truelayer(truelayer) => Ok(Self::Truelayer {
                 client_id: truelayer.client_id.ok_or_else(err)?,
                 client_secret: truelayer.client_secret.ok_or_else(err)?,

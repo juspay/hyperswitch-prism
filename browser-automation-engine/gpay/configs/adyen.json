@@ -1,0 +1,10 @@
+{
+  "gateway": "adyen",
+  "gatewayMerchantId": "YOUR_ADYEN_MERCHANT_ACCOUNT",
+  "merchantName": "Test Merchant",
+  "amount": "10.00",
+  "currency": "USD",
+  "countryCode": "US",
+  "cardNetworks": ["VISA", "MASTERCARD", "AMEX", "DISCOVER"],
+  "authMethods": ["PAN_ONLY", "CRYPTOGRAM_3DS"]
+}

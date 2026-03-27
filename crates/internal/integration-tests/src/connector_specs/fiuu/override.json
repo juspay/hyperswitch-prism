@@ -1,0 +1,24 @@
+{
+  "authorize": {
+    "no3ds_auto_capture_google_pay_encrypted": {
+      "grpc_req": {}
+    }
+  },
+  "refund": {
+    "refund_full_amount": {
+      "grpc_req": {
+        "webhook_url": "https://example.com/webhook"
+      }
+    },
+    "refund_partial_amount": {
+      "grpc_req": {
+        "webhook_url": "https://example.com/webhook"
+      }
+    },
+    "refund_with_reason": {
+      "grpc_req": {
+        "webhook_url": "https://example.com/webhook"
+      }
+    }
+  }
+}

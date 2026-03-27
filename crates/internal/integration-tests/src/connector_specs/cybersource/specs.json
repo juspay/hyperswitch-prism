@@ -1,0 +1,10 @@
+{
+  "connector": "cybersource",
+  "supported_suites": [
+    "pre_authenticate",
+    "authenticate",
+    "post_authenticate",
+    "authorize",
+    "refund"
+  ]
+}

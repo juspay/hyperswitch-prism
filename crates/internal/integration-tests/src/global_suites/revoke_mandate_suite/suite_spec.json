@@ -1,0 +1,8 @@
+{
+  "suite": "revoke_mandate",
+  "suite_type": "dependent",
+  "depends_on": [
+    "setup_recurring"
+  ],
+  "strict_dependencies": true
+}

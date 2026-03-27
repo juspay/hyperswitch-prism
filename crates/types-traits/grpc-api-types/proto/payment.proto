@@ -3814,6 +3814,19 @@ message PaypalConfig {
   optional string base_url = 50;
 }
 
+message AciConfig {
+  SecretString api_key = 1;
+  SecretString entity_id = 2;
+  optional string base_url = 50;
+}
+
+message CheckoutConfig {
+  SecretString api_key = 1;
+  SecretString api_secret = 2;
+  SecretString processing_channel_id = 3;
+  optional string base_url = 50;
+}
+
 message TruelayerConfig {
   SecretString client_id = 1;
   SecretString client_secret = 2;
@@ -4051,6 +4064,12 @@ message ConnectorSpecificConfig {
 
     // PAYPAL = 62
     PaypalConfig paypal = 110;
+
+    // ACI = 2
+    AciConfig aci = 74;
+
+    // CHECKOUT = 16
+    CheckoutConfig checkout = 75;
 
     // TRUELAYER = 110
     TruelayerConfig truelayer = 111;

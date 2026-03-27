@@ -1,0 +1,10 @@
+{
+  "connector": "jpmorgan",
+  "supported_suites": [
+    "authorize",
+    "capture",
+    "refund",
+    "get",
+    "refund_sync"
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "suite": "create_session_token",
+  "suite_type": "independent",
+  "depends_on": [],
+  "strict_dependencies": true
+}

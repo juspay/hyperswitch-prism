@@ -410,8 +410,7 @@ $RECYCLE.BIN/
 **/*.swo
 **/.env.local
 
-# Credentials files
-.github/test/creds.json
+# Credentials file
 creds.json
 
 # DrawIO files
@@ -437,3 +436,14 @@ sdk/tests/client_sanity/artifacts/
 
 # Generated proto descriptor files
 scripts/generators/code/services.desc
+
+# Local Netlify folder
+.netlify
+
+# UCS Connector Test Runtime Artifacts
+crates/internal/integration-tests/report.json
+crates/internal/integration-tests/test_report/
+*.test.log
+/tmp/*test*.log
+.grpc-server.pid
+.env.connector-tests

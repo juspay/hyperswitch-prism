@@ -1,0 +1,298 @@
+{
+  "authorize": {
+    "no3ds_auto_capture_credit_card": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "5101180000000007"
+            },
+            "card_exp_month": {
+              "value": "03"
+            },
+            "card_exp_year": {
+              "value": "2030"
+            },
+            "card_cvc": {
+              "value": "737"
+            }
+          }
+        },
+        "browser_info": {
+          "color_depth": 24,
+          "screen_height": 900,
+          "screen_width": 1440,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "language": "en-US",
+          "time_zone_offset_minutes": -330,
+          "accept_header": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+          "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+      }
+    },
+    "no3ds_auto_capture_debit_card": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "5101180000000007"
+            },
+            "card_exp_month": {
+              "value": "03"
+            },
+            "card_exp_year": {
+              "value": "2030"
+            },
+            "card_cvc": {
+              "value": "737"
+            }
+          }
+        },
+        "browser_info": {
+          "color_depth": 24,
+          "screen_height": 900,
+          "screen_width": 1440,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "language": "en-US",
+          "time_zone_offset_minutes": -330,
+          "accept_header": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+          "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+      }
+    },
+    "no3ds_manual_capture_credit_card": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "5101180000000007"
+            },
+            "card_exp_month": {
+              "value": "03"
+            },
+            "card_exp_year": {
+              "value": "2030"
+            },
+            "card_cvc": {
+              "value": "737"
+            }
+          }
+        },
+        "browser_info": {
+          "color_depth": 24,
+          "screen_height": 900,
+          "screen_width": 1440,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "language": "en-US",
+          "time_zone_offset_minutes": -330,
+          "accept_header": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+          "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+      }
+    },
+    "no3ds_manual_capture_debit_card": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "5101180000000007"
+            },
+            "card_exp_month": {
+              "value": "03"
+            },
+            "card_exp_year": {
+              "value": "2030"
+            },
+            "card_cvc": {
+              "value": "737"
+            }
+          }
+        },
+        "browser_info": {
+          "color_depth": 24,
+          "screen_height": 900,
+          "screen_width": 1440,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "language": "en-US",
+          "time_zone_offset_minutes": -330,
+          "accept_header": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+          "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+      }
+    },
+    "threeds_manual_capture_credit_card": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "5101180000000007"
+            },
+            "card_exp_month": {
+              "value": "03"
+            },
+            "card_exp_year": {
+              "value": "2030"
+            },
+            "card_cvc": {
+              "value": "737"
+            }
+          }
+        },
+        "browser_info": {
+          "color_depth": 24,
+          "screen_height": 900,
+          "screen_width": 1440,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "language": "en-US",
+          "time_zone_offset_minutes": -330,
+          "accept_header": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+          "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+      }
+    },
+    "no3ds_auto_capture_ideal": {
+      "grpc_req": {
+        "browser_info": {
+          "language": "en-US"
+        }
+      }
+    },
+    "no3ds_auto_capture_giropay": {
+      "grpc_req": {
+        "browser_info": {
+          "language": "en-US"
+        }
+      }
+    },
+    "no3ds_auto_capture_eps": {
+      "grpc_req": {
+        "browser_info": {
+          "language": "en-US"
+        }
+      }
+    },
+    "no3ds_auto_capture_przelewy24": {
+      "grpc_req": {
+        "browser_info": {
+          "language": "en-US"
+        }
+      }
+    },
+    "no3ds_auto_capture_bancontact": {
+      "grpc_req": {
+        "browser_info": {
+          "language": "en-US"
+        }
+      }
+    },
+    "no3ds_auto_capture_klarna": {
+      "grpc_req": {
+        "browser_info": {
+          "language": "en-US"
+        }
+      }
+    },
+    "no3ds_fail_payment": {
+      "grpc_req": {
+        "browser_info": {
+          "color_depth": 24,
+          "screen_height": 900,
+          "screen_width": 1440,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "language": "en-US",
+          "time_zone_offset_minutes": -330,
+          "accept_header": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+          "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+      },
+      "assert": {
+        "error.connector_details.message": null
+      }
+    }
+  },
+  "refund": {
+    "refund_with_reason": {
+      "grpc_req": {
+        "reason": "CUSTOMER REQUEST"
+      }
+    }
+  },
+  "setup_recurring": {
+    "setup_recurring": {
+      "grpc_req": {
+        "return_url": "https://google.com",
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "5101180000000007"
+            },
+            "card_exp_month": {
+              "value": "03"
+            },
+            "card_exp_year": {
+              "value": "2030"
+            },
+            "card_cvc": {
+              "value": "737"
+            }
+          }
+        },
+        "browser_info": {
+          "language": "en-US"
+        }
+      }
+    },
+    "setup_recurring_with_webhook": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "5101180000000007"
+            },
+            "card_exp_month": {
+              "value": "03"
+            },
+            "card_exp_year": {
+              "value": "2030"
+            },
+            "card_cvc": {
+              "value": "737"
+            }
+          }
+        },
+        "browser_info": {
+          "language": "en-US"
+        }
+      }
+    },
+    "setup_recurring_with_order_context": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "5101180000000007"
+            },
+            "card_exp_month": {
+              "value": "03"
+            },
+            "card_exp_year": {
+              "value": "2030"
+            },
+            "card_cvc": {
+              "value": "737"
+            }
+          }
+        },
+        "browser_info": {
+          "language": "en-US"
+        }
+      }
+    }
+  }
+}
