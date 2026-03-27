@@ -153,6 +153,11 @@ pub enum Source<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'sta
         signature: Secret<String>,
         version: String,
     },
+    #[serde(rename = "BankTransfer")]
+    BankTransfer {
+        #[serde(rename = "bankTransfer")]
+        bank_transfer: BankTransferData,
+    },
 }
 
 #[derive(Debug, Serialize)]
@@ -165,6 +170,28 @@ pub struct CardData<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 
     #[serde(skip_serializing_if = "Option::is_none")]
     security_code: Option<Secret<String>>,
 }
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BankTransferData {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub account_number: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub routing_number: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub account_type: Option<BankAccountType>,
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub bank_name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub account_holder_name: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum BankAccountType {
+    Checking,
+    Savings,
+}
+
 
 #[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -526,12 +553,49 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     },
                 ))
             }
+            PaymentMethodData::BankTransfer(ref _bank_transfer) => {
+                Ok(FiservCheckoutChargesRequest::Charges(
+                    ChargesPaymentRequest {
+                        source: Source::BankTransfer {
+                            bank_transfer: BankTransferData {
+                                account_number: None,
+                                routing_number: None,
+                                account_type: None,
+                                bank_name: String::new(),
+                                account_holder_name: None,
+                            },
+                        },
+                        transaction_details: TransactionDetails {
+                            capture_flag: Some(matches!(
+                                item.router_data.request.capture_method,
+                                Some(enums::CaptureMethod::Automatic)
+                                    | Some(enums::CaptureMethod::SequentialAutomatic)
+                                    | None
+                            )),
+                            reversal_reason_code: None,
+                            merchant_transaction_id: Some(
+                                item.router_data
+                                    .resource_common_data
+                                    .connector_request_reference_id
+                                    .clone(),
+                            ),
+                            operation_type: None,
+                        },
+                        transaction_interaction: Some(TransactionInteraction {
+                            origin: TransactionInteractionOrigin::Ecom,
+                            eci_indicator: TransactionInteractionEciIndicator::ChannelEncrypted,
+                            pos_condition_code:
+                                TransactionInteractionPosConditionCode::CardNotPresentEcom,
+                        }),
+                    },
+                ))
+            },
             PaymentMethodData::Wallet(_)
             | PaymentMethodData::PayLater(_)
             | PaymentMethodData::BankRedirect(_)
             | PaymentMethodData::BankDebit(_)
             | PaymentMethodData::CardRedirect(_)
-            | PaymentMethodData::BankTransfer(_)
+            
             | PaymentMethodData::Crypto(_)
             | PaymentMethodData::MandatePayment
             | PaymentMethodData::Reward
