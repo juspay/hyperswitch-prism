@@ -368,6 +368,7 @@ pub struct Connectors {
     pub truelayer: ConnectorParams,
     pub peachpayments: ConnectorParams,
     pub finix: ConnectorParams,
+    pub pinelabs_online: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]

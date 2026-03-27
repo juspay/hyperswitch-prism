@@ -113,6 +113,7 @@ wellsfargo.base_url = "https://api.cybersource.com/"
 zift.base_url = "https://secure.zift.io/"
 truelayer.base_url = "https://api.truelayer.com"
 truelayer.secondary_base_url = "https://auth.truelayer.com"
+pinelabs_online.base_url = "https://api.pluralpay.in/api/pay/v1"
 
 # Generic Events Configuration
 [events]

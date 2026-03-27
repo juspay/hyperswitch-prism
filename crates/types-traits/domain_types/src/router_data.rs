@@ -697,6 +697,11 @@ pub enum ConnectorSpecificConfig {
         terminal_id: Secret<String>,
         base_url: Option<String>,
     },
+    PinelabsOnline {
+        client_id: Secret<String>,
+        client_secret: Secret<String>,
+        base_url: Option<String>,
+    },
 }
 
 impl ConnectorSpecificConfig {
@@ -987,6 +992,10 @@ impl ConnectorSpecificConfig {
                 secret,
                 merchant_id,
                 terminal_id
+            },
+            PinelabsOnline {
+                client_id,
+                client_secret
             },
         )
     }
@@ -1366,6 +1375,10 @@ impl ConnectorSpecificConfig {
                     secret,
                     merchant_id,
                     terminal_id
+                },
+                PinelabsOnline {
+                    client_id,
+                    client_secret
                 }
             ),
             serde_json::Value::Object(connector_patch),
@@ -1845,6 +1858,11 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 merchant_id: fiservcommercehub.merchant_id.ok_or_else(err)?,
                 terminal_id: fiservcommercehub.terminal_id.ok_or_else(err)?,
                 base_url: fiservcommercehub.base_url,
+            }),
+            AuthType::PinelabsOnline(pinelabs_online) => Ok(Self::PinelabsOnline {
+                client_id: pinelabs_online.client_id.ok_or_else(err)?,
+                client_secret: pinelabs_online.client_secret.ok_or_else(err)?,
+                base_url: pinelabs_online.base_url,
             }),
         }
     }
@@ -2813,6 +2831,14 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorEnum)>
                     secret: api_secret.clone(),
                     merchant_id: key1.clone(),
                     terminal_id: key2.clone(),
+                    base_url: None,
+                }),
+                _ => Err(err().into()),
+            },
+            ConnectorEnum::PinelabsOnline => match auth {
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::PinelabsOnline {
+                    client_id: api_key.clone(),
+                    client_secret: key1.clone(),
                     base_url: None,
                 }),
                 _ => Err(err().into()),

@@ -144,6 +144,7 @@ pub(crate) fn all_connectors() -> Vec<ConnectorEnum> {
         ConnectorEnum::Revolv3,
         ConnectorEnum::Truelayer,
         ConnectorEnum::Finix,
+        ConnectorEnum::PinelabsOnline,
     ]
 }
 

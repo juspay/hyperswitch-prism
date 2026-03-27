@@ -126,6 +126,7 @@ pub enum ConnectorEnum {
     Truelayer,
     Peachpayments,
     Finix,
+    PinelabsOnline,
 }
 
 impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
@@ -211,6 +212,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Truelayer => Ok(Self::Truelayer),
             grpc_api_types::payments::Connector::Peachpayments => Ok(Self::Peachpayments),
             grpc_api_types::payments::Connector::Finix => Ok(Self::Finix),
+            grpc_api_types::payments::Connector::PinelabsOnline => Ok(Self::PinelabsOnline),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(ApplicationErrorResponse::BadRequest(ApiError {
                     sub_code: "UNSPECIFIED_CONNECTOR".to_owned(),
@@ -3776,6 +3778,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             )),
             AuthType::Revolv3(_) => Ok(Self::Revolv3),
             AuthType::Authorizedotnet(_) => Ok(Self::Authorizedotnet),
+            AuthType::PinelabsOnline(_) => Ok(Self::PinelabsOnline),
         }
     }
 }

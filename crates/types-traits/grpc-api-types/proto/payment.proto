@@ -740,6 +740,7 @@ enum Connector {
   PEACHPAYMENTS = 112;
   PPRO = 113;
   FISERVCOMMERCEHUB = 114;
+  PINELABS_ONLINE = 115;
 }
 
 // Payment method types
@@ -3825,6 +3826,12 @@ message TruelayerConfig {
   optional string secondary_base_url = 51;
 }
 
+message PinelabsOnlineConfig {
+  SecretString client_id = 1;
+  SecretString client_secret = 2;
+  optional string base_url = 50;
+}
+
 // ConnectorSpecificConfig message with oneof containing all connector
 // configurations. Comment above each field (e.g. "// PAYPAL = 62") is the
 // Connector enum value from this file;
@@ -4057,5 +4064,8 @@ message ConnectorSpecificConfig {
 
     // FISERVCOMMERCEHUB = 114
     FiservcommercehubConfig fiservcommercehub = 112;
+
+    // PINELABS_ONLINE = 115
+    PinelabsOnlineConfig pinelabs_online = 113;
   }
 }
