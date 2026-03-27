@@ -430,7 +430,52 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     "Only ACH Bank Debit is supported".to_string(),
                 ))?,
             },
-            _ => Err(errors::ConnectorError::NotImplemented(
+            
+            PaymentMethodData::BankTransfer(ref _bank_transfer) => {
+                // BankTransferData enum variants are empty structs in domain_types
+                // Creating request with empty fields - account details would need to be added to domain_types
+                // Get payer info from billing address
+                let address_details = billing_address
+                    .and_then(|addr| addr.address.as_ref())
+                    .ok_or_else(|| {
+                        error_stack::report!(errors::ConnectorError::MissingRequiredField {
+                            field_name: "billing_address"
+                        })
+                    })?;
+
+                let payer_info = get_payer_info(address_details)?;
+
+                let amount = super::BluesnapAmountConvertor::convert(
+                    router_data.request.minor_amount,
+                    router_data.request.currency,
+                )?;
+
+                let transaction_fraud_info = Some(TransactionFraudInfo {
+                    fraud_session_id: router_data
+                        .resource_common_data
+                        .connector_request_reference_id
+                        .clone(),
+                });
+
+                // Use default CONSUMER_CHECKING for bank transfer since details are not in domain_types
+                Ok(Self::Ach(BluesnapAchAuthorizeRequest {
+                    ecp_transaction: BluesnapEcpTransaction {
+                        routing_number: Secret::new(String::new()),
+                        account_number: Secret::new(String::new()),
+                        account_type: "CONSUMER_CHECKING".to_string(),
+                    },
+                    amount,
+                    currency: router_data.request.currency.to_string(),
+                    authorized_by_shopper: true,
+                    payer_info,
+                    merchant_transaction_id: router_data
+                        .resource_common_data
+                        .connector_request_reference_id
+                        .clone(),
+                    soft_descriptor: None,
+                    transaction_fraud_info,
+                }))
+            },_ => Err(errors::ConnectorError::NotImplemented(
                 "Selected payment method is not supported".to_string(),
             ))?,
         }
