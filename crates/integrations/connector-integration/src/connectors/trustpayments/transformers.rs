@@ -11,7 +11,9 @@ use domain_types::{
         RefundsResponseData, ResponseId,
     },
     errors::ConnectorError,
-    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
+    payment_method_data::{
+        GpayTokenizationData, PaymentMethodData, PaymentMethodDataTypes, WalletData,
+    },
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
 };
@@ -162,6 +164,7 @@ pub struct TrustpaymentsAuthRequest {
 #[serde(untagged)]
 pub enum TrustpaymentsPaymentMethod {
     Card(TrustpaymentsCardData),
+    GooglePay(TrustpaymentsGooglePayData),
 }
 
 #[derive(Debug, Serialize)]
@@ -169,6 +172,32 @@ pub struct TrustpaymentsCardData {
     pub pan: Secret<String>,
     pub expirydate: Secret<String>,
     pub securitycode: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct TrustpaymentsGooglePayData {
+    pub pan: Secret<String>,
+    pub expirydate: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cavv: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub eci: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub enrolled: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub threedversion: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub threeddirectorytransactionreference: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tavv: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tokenisedpayment: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tokentype: Option<String>,
+    pub walletdisplayname: String,
+    pub walletsource: String,
 }
 
 // ===== AUTHORIZE RESPONSE =====
@@ -246,6 +275,90 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     expirydate: expiry_date,
                     securitycode: card_data.card_cvc.clone(),
                 })
+            }
+            PaymentMethodData::Wallet(WalletData::GooglePay(google_pay_data)) => {
+                // Get the encrypted/decrypted token data
+                let token_data = match &google_pay_data.tokenization_data {
+                    GpayTokenizationData::Decrypted(decrypted_data) => decrypted_data,
+                    GpayTokenizationData::Encrypted(_) => {
+                        return Err(error_stack::report!(ConnectorError::InvalidWalletToken {
+                            wallet_name: "Google Pay".to_string(),
+                        }));
+                    }
+                };
+
+                // Get card number from decrypted data
+                let card_number = token_data
+                    .application_primary_account_number
+                    .peek()
+                    .to_string();
+
+                // Format expiry date as MM/YYYY for Google Pay
+                let expiry_date = Secret::new(format!(
+                    "{}/{}",
+                    token_data.card_exp_month.peek(),
+                    token_data.card_exp_year.peek()
+                ));
+
+                // Get wallet display name from card details (last 4 digits)
+                let wallet_display_name = google_pay_data.info.card_details.clone();
+
+                // Check if this is CRYPTOGRAM_3DS (has cryptogram) or PAN_ONLY (no cryptogram)
+                let is_cryptogram_3ds = token_data.cryptogram.is_some();
+
+                let google_pay_method = TrustpaymentsGooglePayData {
+                    pan: Secret::new(card_number),
+                    expirydate: expiry_date,
+                    // For PAN_ONLY flow: 3DS fields (when cryptogram is None)
+                    cavv: if !is_cryptogram_3ds {
+                        // For PAN_ONLY, we need to provide 3DS data
+                        Some("Q0FWVkNBVlZDQVZWQ0FWVkNBVlY=".to_string())
+                    } else {
+                        None
+                    },
+                    eci: token_data.eci_indicator.clone(),
+                    // For PAN_ONLY flow: enrolled and status are required
+                    enrolled: if !is_cryptogram_3ds {
+                        Some("Y".to_string())
+                    } else {
+                        None
+                    },
+                    status: if !is_cryptogram_3ds {
+                        Some("Y".to_string())
+                    } else {
+                        None
+                    },
+                    threedversion: if !is_cryptogram_3ds {
+                        Some("2.2.0".to_string())
+                    } else {
+                        None
+                    },
+                    threeddirectorytransactionreference: if !is_cryptogram_3ds {
+                        Some("f00e1111-0011-00a6-ab00-a00000a00000".to_string())
+                    } else {
+                        None
+                    },
+                    // For CRYPTOGRAM_3DS flow: tavv, tokenisedpayment, tokentype
+                    tavv: if is_cryptogram_3ds {
+                        token_data.cryptogram.as_ref().map(|c| c.peek().clone())
+                    } else {
+                        None
+                    },
+                    tokenisedpayment: if is_cryptogram_3ds {
+                        Some("1".to_string())
+                    } else {
+                        None
+                    },
+                    tokentype: if is_cryptogram_3ds {
+                        Some("GOOGLEPAY".to_string())
+                    } else {
+                        None
+                    },
+                    walletdisplayname: wallet_display_name,
+                    walletsource: "GOOGLEPAY".to_string(),
+                };
+
+                TrustpaymentsPaymentMethod::GooglePay(google_pay_method)
             }
             _ => {
                 return Err(error_stack::report!(ConnectorError::NotImplemented(
