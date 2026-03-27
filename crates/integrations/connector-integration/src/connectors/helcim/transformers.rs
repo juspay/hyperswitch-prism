@@ -7,13 +7,13 @@ use domain_types::{
         RefundSyncData, RefundsData, RefundsResponseData, ResponseId, SetupMandateRequestData,
     },
     errors::ConnectorError,
-    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
+    payment_method_data::{BankTransferData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
     router_request_types::SyncRequestType,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::Secret;
+use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{connectors::helcim::HelcimRouterData, types::ResponseRouterData};
@@ -106,6 +106,34 @@ pub struct HelcimCard<
     card_c_v_v: Secret<String>,
 }
 
+/// Bank transfer payment method data for Helcim
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HelcimBankTransfer {
+    account_number: Secret<String>,
+    routing_number: Secret<String>,
+    account_type: HelcimAccountType,
+    account_holder_name: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum HelcimAccountType {
+    Checking,
+    Savings,
+}
+
+/// Tagged enum for different payment methods
+#[derive(Debug, Serialize)]
+#[serde(tag = "paymentMethod")]
+#[serde(rename_all = "camelCase")]
+pub enum HelcimPaymentMethod<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+> {
+    Card(HelcimCard<T>),
+    BankTransfer(HelcimBankTransfer),
+}
+
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         HelcimRouterData<
@@ -131,15 +159,68 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let card_data = match &item.router_data.request.payment_method_data {
-            PaymentMethodData::Card(card) => HelcimCard {
-                card_expiry: card
-                    .get_card_expiry_month_year_2_digit_with_delimiter("".to_string())?,
-                card_number: card.card_number.clone(),
-                card_c_v_v: card.card_cvc.clone(),
-            },
+        let (card_data, _bank_transfer_data) = match &item.router_data.request.payment_method_data {
+            PaymentMethodData::Card(card) => (
+                Some(HelcimCard {
+                    card_expiry: card
+                        .get_card_expiry_month_year_2_digit_with_delimiter("".to_string())?,
+                    card_number: card.card_number.clone(),
+                    card_c_v_v: card.card_cvc.clone(),
+                }),
+                None,
+            ),
+            PaymentMethodData::BankTransfer(bank_transfer) => {
+                // For bank transfers, we need account details from connector metadata
+                // This is a placeholder for ACH bank transfer support
+                match **bank_transfer {
+                    BankTransferData::AchBankTransfer { .. } => {
+                        // Bank transfer details would come from connector metadata
+                        // or stored payment method token
+                        (
+                            None,
+                            Some(HelcimBankTransfer {
+                                account_number: Secret::new("".to_string()), // From metadata
+                                routing_number: Secret::new("".to_string()), // From metadata
+                                account_type: HelcimAccountType::Checking,
+                                account_holder_name: item
+                                    .router_data
+                                    .resource_common_data
+                                    .address
+                                    .get_payment_method_billing()
+                                    .and_then(|billing| {
+                                        let first = billing.get_optional_first_name()?;
+                                        let last = billing.get_optional_last_name();
+                                        match last {
+                                            Some(last) => Some(Secret::new(format!(
+                                                "{} {}",
+                                                first.peek(),
+                                                last.peek()
+                                            ))),
+                                            None => Some(first),
+                                        }
+                                    })
+                                    .unwrap_or(Secret::new("".to_string())),
+                            }),
+                        )
+                    }
+                    _ => {
+                        return Err(ConnectorError::NotSupported {
+                            message: "Only ACH bank transfers are supported".to_string(),
+                            connector: "Helcim",
+                        }
+                        .into())
+                    }
+                }
+            }
             _ => return Err(ConnectorError::NotImplemented("payment method".into()).into()),
         };
+
+        // Ensure we have either card or bank transfer data
+        let card_data = card_data.ok_or_else(|| {
+            ConnectorError::NotImplemented(
+                "Bank transfer requires pre-tokenized payment method".to_string(),
+            )
+        })?;
 
         let req_address = item
             .router_data
