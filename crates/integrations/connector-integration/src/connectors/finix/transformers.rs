@@ -16,6 +16,7 @@ use domain_types::{
     router_data::{self, ConnectorAuthType, ConnectorSpecificConfig},
     router_data_v2::RouterDataV2,
 };
+use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -41,8 +42,8 @@ impl TryFrom<&ConnectorAuthType> for FinixAuthType {
             } => Ok(Self {
                 finix_user_name: api_key.to_owned(),
                 finix_password: api_secret.to_owned(),
-                merchant_id: key2.to_owned(),
-                merchant_identity_id: key1.to_owned(),
+                merchant_id: key1.to_owned(),
+                merchant_identity_id: key2.to_owned(),
             }),
             _ => Err(error_stack::report!(
                 errors::ConnectorError::FailedToObtainAuthType
@@ -976,8 +977,46 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .into()),
                 }
             }
+            PaymentMethodData::Wallet(wallet_data) => {
+                match wallet_data {
+                    domain_types::payment_method_data::WalletData::GooglePay(google_pay_data) => {
+                        // Get merchant_identity_id from auth
+                        let auth = FinixAuthType::try_from(&item.router_data.connector_config)?;
+                        let merchant_identity = auth.merchant_identity_id.peek().to_string();
+
+                        // Extract the encrypted token from Google Pay
+                        let third_party_token = google_pay_data
+                            .tokenization_data
+                            .get_encrypted_google_pay_payment_data_mandatory()
+                            .change_context(errors::ConnectorError::InvalidWalletToken {
+                                wallet_name: "Google Pay".to_string(),
+                            })?;
+
+                        Ok(Self {
+                            instrument_type: FinixPaymentInstrumentType::GooglePay,
+                            name: None, // Name is optional for Google Pay tokenization
+                            number: None,
+                            security_code: None,
+                            expiration_month: None,
+                            expiration_year: None,
+                            identity: customer_id,
+                            tags: None,
+                            address: None,
+                            merchant_identity: Some(Secret::new(merchant_identity)),
+                            third_party_token: Some(Secret::new(third_party_token.token.clone())),
+                            account_number: None,
+                            bank_code: None,
+                            account_type: None,
+                        })
+                    }
+                    _ => Err(errors::ConnectorError::NotImplemented(
+                        "Only Google Pay wallet tokenization is supported".into(),
+                    )
+                    .into()),
+                }
+            }
             _ => Err(errors::ConnectorError::NotImplemented(
-                "Only card and bank debit tokenization are supported".into(),
+                "Only card, bank debit, and Google Pay tokenization are supported".into(),
             )
             .into()),
         }

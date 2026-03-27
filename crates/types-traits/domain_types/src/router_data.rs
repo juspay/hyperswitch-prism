@@ -2788,8 +2788,8 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorEnum)>
                 } => Ok(Self::Finix {
                     finix_user_name: api_key.clone(),
                     finix_password: api_secret.clone(),
-                    merchant_identity_id: key1.clone(),
-                    merchant_id: key2.clone(),
+                    merchant_id: key1.clone(),
+                    merchant_identity_id: key2.clone(),
                     base_url: None,
                 }),
                 _ => Err(err().into()),

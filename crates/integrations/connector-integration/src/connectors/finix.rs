@@ -126,12 +126,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn should_do_payment_method_token(
         &self,
         payment_method: PaymentMethod,
-        _payment_method_type: Option<PaymentMethodType>,
+        payment_method_type: Option<PaymentMethodType>,
     ) -> bool {
+        // Check for specific wallet types that need tokenization
+        let is_google_pay_wallet = payment_method == PaymentMethod::Wallet
+            && matches!(payment_method_type, Some(PaymentMethodType::GooglePay));
+
+        // Card and BankDebit always need tokenization
         matches!(
             payment_method,
             PaymentMethod::Card | PaymentMethod::BankDebit
-        )
+        ) || is_google_pay_wallet
     }
 }
 
