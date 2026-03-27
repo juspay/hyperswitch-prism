@@ -21,6 +21,8 @@ use domain_types::{
 use hyperswitch_masking::Secret;
 #[cfg(feature = "injector-client")]
 use injector;
+use base64::Engine;
+pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 
 /// Test context for mock server integration
 #[derive(Debug, Clone)]
@@ -842,42 +844,37 @@ pub async fn call_connector_api(
 pub fn create_client(
     proxy_config: &Proxy,
     should_bypass_proxy: bool,
-    _client_certificate: Option<Secret<String>>,
-    _client_certificate_key: Option<Secret<String>>,
+    client_certificate: Option<Secret<String>>,
+    client_certificate_key: Option<Secret<String>>,
     test_mode: bool,
 ) -> CustomResult<Client, ApiClientError> {
-    get_base_client(proxy_config, should_bypass_proxy, test_mode)
-    // match (client_certificate, client_certificate_key) {
-    //     (Some(encoded_certificate), Some(encoded_certificate_key)) => {
-    //         let client_builder = get_client_builder(proxy_config, should_bypass_proxy)?;
+    match (client_certificate.clone(), client_certificate_key.clone()) {
+        (Some(encoded_certificate), Some(encoded_certificate_key)) => {
+            let client_builder = get_client_builder(proxy_config, should_bypass_proxy, test_mode)?;
 
-    //         let identity = create_identity_from_certificate_and_key(
-    //             encoded_certificate.clone(),
-    //             encoded_certificate_key,
-    //         )?;
-    //         let certificate_list = create_certificate(encoded_certificate)?;
-    //         let client_builder = certificate_list
-    //             .into_iter()
-    //             .fold(client_builder, |client_builder, certificate| {
-    //                 client_builder.add_root_certificate(certificate)
-    //             });
-    //         client_builder
-    //             .identity(identity)
-    //             .use_rustls_tls()
-    //             .build()
-    //             .change_context(ApiClientError::ClientConstructionFailed)
-    //             .inspect_err(|err| {
-    //                 info_log(
-    //                     "ERROR",
-    //                     &json!(format!(
-    //                         "Failed to construct client with certificate and certificate key. Error: {:?}",
-    //                         err
-    //                     )),
-    //                 );
-    //             })
-    //     }
-    //     _ => ,
-    // }
+            let identity = create_identity_from_certificate_and_key(
+                encoded_certificate.clone(),
+                encoded_certificate_key,
+            )?;
+            let certificate_list = create_certificate(encoded_certificate)?;
+            let client_builder = certificate_list
+                .into_iter()
+                .fold(client_builder, |client_builder, certificate| {
+                    client_builder.add_root_certificate(certificate)
+                });
+            client_builder  
+                .identity(identity)
+                .use_rustls_tls()
+                .build()
+                .change_context(ApiClientError::ClientConstructionFailed)
+                .attach_printable(
+                    "Failed to construct client with certificate and certificate key",
+                )
+        }
+        _ => {
+            get_base_client(proxy_config, should_bypass_proxy, test_mode)
+        }
+    }
 }
 
 static DEFAULT_CLIENT: OnceCell<Client> = OnceCell::new();
@@ -1049,41 +1046,41 @@ fn get_client_builder(
     Ok(client_builder)
 }
 
-// pub fn create_identity_from_certificate_and_key(
-//     encoded_certificate: hyperswitch_masking::Secret<String>,
-//     encoded_certificate_key: hyperswitch_masking::Secret<String>,
-// ) -> Result<reqwest::Identity, error_stack::Report<ApiClientError>> {
-//     let decoded_certificate = BASE64_ENGINE
-//         .decode(encoded_certificate.expose())
-//         .change_context(ApiClientError::CertificateDecodeFailed)?;
+pub fn create_identity_from_certificate_and_key(
+    encoded_certificate: Secret<String>,
+    encoded_certificate_key: Secret<String>,
+) -> Result<reqwest::Identity, error_stack::Report<ApiClientError>> {
+    let decoded_certificate = BASE64_ENGINE
+        .decode(encoded_certificate.expose())
+        .change_context(ApiClientError::CertificateDecodeFailed)?;
 
-//     let decoded_certificate_key = BASE64_ENGINE
-//         .decode(encoded_certificate_key.expose())
-//         .change_context(ApiClientError::CertificateDecodeFailed)?;
+    let decoded_certificate_key = BASE64_ENGINE
+        .decode(encoded_certificate_key.expose())
+        .change_context(ApiClientError::CertificateDecodeFailed)?;
 
-//     let certificate = String::from_utf8(decoded_certificate)
-//         .change_context(ApiClientError::CertificateDecodeFailed)?;
+    let certificate = String::from_utf8(decoded_certificate)
+        .change_context(ApiClientError::CertificateDecodeFailed)?;
 
-//     let certificate_key = String::from_utf8(decoded_certificate_key)
-//         .change_context(ApiClientError::CertificateDecodeFailed)?;
+    let certificate_key = String::from_utf8(decoded_certificate_key)
+        .change_context(ApiClientError::CertificateDecodeFailed)?;
 
-//     let key_chain = format!("{}{}", certificate_key, certificate);
-//     reqwest::Identity::from_pem(key_chain.as_bytes())
-//         .change_context(ApiClientError::CertificateDecodeFailed)
-// }
+    let key_chain = format!("{}{}", certificate_key, certificate);
+    reqwest::Identity::from_pem(key_chain.as_bytes())
+        .change_context(ApiClientError::CertificateDecodeFailed)
+}
 
-// pub fn create_certificate(
-//     encoded_certificate: hyperswitch_masking::Secret<String>,
-// ) -> Result<Vec<reqwest::Certificate>, error_stack::Report<ApiClientError>> {
-//     let decoded_certificate = BASE64_ENGINE
-//         .decode(encoded_certificate.expose())
-//         .change_context(ApiClientError::CertificateDecodeFailed)?;
+pub fn create_certificate(
+    encoded_certificate: Secret<String>,
+) -> Result<Vec<reqwest::Certificate>, error_stack::Report<ApiClientError>> {
+    let decoded_certificate = BASE64_ENGINE
+        .decode(encoded_certificate.expose())
+        .change_context(ApiClientError::CertificateDecodeFailed)?;
 
-//     let certificate = String::from_utf8(decoded_certificate)
-//         .change_context(ApiClientError::CertificateDecodeFailed)?;
-//     reqwest::Certificate::from_pem_bundle(certificate.as_bytes())
-//         .change_context(ApiClientError::CertificateDecodeFailed)
-// }
+    let certificate = String::from_utf8(decoded_certificate)
+        .change_context(ApiClientError::CertificateDecodeFailed)?;
+    reqwest::Certificate::from_pem_bundle(certificate.as_bytes())
+        .change_context(ApiClientError::CertificateDecodeFailed)
+}
 
 async fn handle_response(
     response: CustomResult<reqwest::Response, ApiClientError>,
