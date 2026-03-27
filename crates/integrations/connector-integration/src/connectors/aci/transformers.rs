@@ -214,7 +214,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | WalletData::RevolutPay(_)
             | WalletData::MbWay(_)
             | WalletData::Satispay(_)
-            | WalletData::Wero(_) => {
+            | WalletData::Wero(_)
+            | WalletData::LazyPayRedirect(_)
+            | WalletData::PhonePeRedirect(_)
+            | WalletData::BillDeskRedirect(_)
+            | WalletData::CashfreeRedirect(_)
+            | WalletData::PayURedirect(_)
+            | WalletData::EaseBuzzRedirect(_)
+            | WalletData::AmazonPayDirect(_) => {
                 Err(ConnectorError::NotImplemented("Payment method".to_string()))?
             }
         };
@@ -733,7 +740,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
             | PaymentMethodData::MobilePayment(_)
-            | PaymentMethodData::Netbanking(_)
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::Upi(_)
@@ -741,7 +747,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::Netbanking(_) => {
                 Err(ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Aci"),
                 ))?

@@ -1,5 +1,5 @@
 use common_enums::{self, AttemptStatus, Currency, RefundStatus};
-use common_utils::{pii::IpAddress, Email};
+use common_utils::{pii::IpAddress, Email, Method};
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
     connector_types::{
@@ -197,7 +197,7 @@ pub struct PayuPaymentResponse {
     #[serde(alias = "merchantVpa")]
     pub merchant_vpa: Option<Secret<String>>, // Merchant UPI VPA
     pub amount: Option<String>, // Transaction amount
-    #[serde(alias = "txnId")]
+    #[serde(alias = "txnId", alias = "txnid")]
     pub txn_id: Option<String>, // Transaction ID
     #[serde(alias = "intentURIData")]
     pub intent_uri_data: Option<String>, // UPI intent URI data
@@ -233,6 +233,10 @@ pub struct PayuPaymentResponse {
     pub result: Option<PayuResult>, // PayU result field (null for errors)
     pub error: Option<String>,      // Error code like "EX158"
     pub message: Option<String>,    // Error message
+
+    // Redirect form data extracted from HTML response (wallet/netbanking redirect flows)
+    pub redirect_url: Option<String>,          // Form action URL extracted from HTML
+    pub redirect_form_fields: Option<std::collections::HashMap<String, String>>, // Hidden input fields
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -320,7 +324,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         // Generate UDF fields based on Haskell implementation
         let udf_fields = generate_udf_fields(
-            &router_data.resource_common_data.payment_id,
+            &router_data.resource_common_data.connector_request_reference_id,
             router_data
                 .resource_common_data
                 .merchant_id
@@ -573,7 +577,7 @@ fn generate_udf_fields<
     };
 
     [
-        // udf1: From metadata "udf1" or default to transaction ID
+        // udf1: From metadata "udf1" or default to connector_request_reference_id (merchant txn id)
         get_metadata_field("udf1").or(Some(payment_id.to_string())),
         // udf2: From metadata "udf2" or default to merchant ID
         get_metadata_field("udf2").or(Some(merchant_id.to_string())),
@@ -860,7 +864,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .reference_id
             .or_else(|| response.txn_id.clone())
             .or_else(|| response.token.clone())
-            .unwrap_or_else(|| item.router_data.resource_common_data.payment_id.clone());
+            .unwrap_or_else(|| {
+                item.router_data
+                    .resource_common_data
+                    .connector_request_reference_id
+                    .clone()
+            });
 
         // Convert amount back using AmountConvertor framework if available
         let response_amount = if let Some(_amount_str) = response.amount {
@@ -895,10 +904,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             Some(PayuStatusValue::StringStatus(s)) if s == "success" => {
                 // PayU returns status="success" with a result object for both:
                 // 1. UPI Collect: result.status = "pending" while awaiting customer approval
-                // 2. Wallet/netbanking redirect (S2S failure case): result.status = "failure"
-                //    with result.error and result.error_Message populated
+                // 2. Wallet/netbanking redirect: result.status = "pending" with redirect_url set
                 let (status, transaction_id) = response
                     .result
+                    .as_ref()
                     .map(|result| {
                         let txn_id = result
                             .mihpayid
@@ -914,7 +923,25 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         }
                     })
                     .unwrap_or((AttemptStatus::AuthenticationPending, upi_transaction_id.clone()));
-                (status, transaction_id, None)
+
+                // Build redirection data from redirect_url and form fields (netbanking/wallet flows)
+                let redirection_data = response.redirect_url.as_ref().and_then(|url| {
+                    if url.is_empty() {
+                        None
+                    } else {
+                        let form_fields = response
+                            .redirect_form_fields
+                            .clone()
+                            .unwrap_or_default();
+                        Some(Box::new(RedirectForm::Form {
+                            endpoint: url.clone(),
+                            method: Method::Post,
+                            form_fields,
+                        }))
+                    }
+                });
+
+                (status, transaction_id, redirection_data)
             }
             _ => {
                 // Unknown success status
@@ -923,12 +950,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         };
 
         let payment_response_data = PaymentsResponseData::TransactionResponse {
-            resource_id: ResponseId::ConnectorTransactionId(transaction_id.clone()),
+            resource_id: ResponseId::ConnectorTransactionId(transaction_id),
             redirection_data,
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
-            connector_response_reference_id: Some(transaction_id),
+            connector_response_reference_id: Some(
+                item.router_data
+                    .resource_common_data
+                    .connector_request_reference_id
+                    .clone(),
+            ),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
         };

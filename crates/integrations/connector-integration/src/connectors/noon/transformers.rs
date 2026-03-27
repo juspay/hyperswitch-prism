@@ -351,7 +351,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::RevolutPay(_)
                 | WalletData::MbWay(_)
                 | WalletData::Satispay(_)
-                | WalletData::Wero(_) => Err(ConnectorError::NotImplemented(
+                | WalletData::Wero(_)
+                | WalletData::LazyPayRedirect(_)
+                | WalletData::PhonePeRedirect(_)
+                | WalletData::BillDeskRedirect(_)
+                | WalletData::CashfreeRedirect(_)
+                | WalletData::PayURedirect(_)
+                | WalletData::EaseBuzzRedirect(_)
+                | WalletData::AmazonPayDirect(_) => Err(ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Noon"),
                 )),
             },
@@ -365,7 +372,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
             | PaymentMethodData::MobilePayment(_)
-            | PaymentMethodData::Netbanking(_)
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
@@ -373,7 +379,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::Netbanking(_) => {
                 Err(ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Noon"),
                 ))
@@ -1219,7 +1226,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         | WalletData::RevolutPay(_)
                         | WalletData::MbWay(_)
                         | WalletData::Satispay(_)
-                        | WalletData::Wero(_) => Err(ConnectorError::NotImplemented(
+                        | WalletData::Wero(_)
+                        | WalletData::LazyPayRedirect(_)
+                        | WalletData::PhonePeRedirect(_)
+                        | WalletData::BillDeskRedirect(_)
+                        | WalletData::CashfreeRedirect(_)
+                        | WalletData::PayURedirect(_)
+                        | WalletData::EaseBuzzRedirect(_)
+                        | WalletData::AmazonPayDirect(_) => Err(ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message("Noon"),
                         )),
                     },
@@ -1233,7 +1247,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     | PaymentMethodData::Reward
                     | PaymentMethodData::RealTimePayment(_)
                     | PaymentMethodData::MobilePayment(_)
-                    | PaymentMethodData::Netbanking(_)
                     | PaymentMethodData::Upi(_)
                     | PaymentMethodData::Voucher(_)
                     | PaymentMethodData::GiftCard(_)
@@ -1241,7 +1254,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     | PaymentMethodData::CardToken(_)
                     | PaymentMethodData::NetworkToken(_)
                     | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
-                    | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+                    | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+                    | PaymentMethodData::Netbanking(_) => {
                         Err(ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message("Noon"),
                         ))

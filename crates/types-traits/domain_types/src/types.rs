@@ -1016,6 +1016,46 @@ impl<
                         payment_method_data::WeroData {},
                     )))
                 }
+                grpc_api_types::payments::payment_method::PaymentMethod::PayuRedirect(_) => {
+                    Ok(Self::Wallet(payment_method_data::WalletData::PayURedirect(
+                        payment_method_data::PayURedirectData {},
+                    )))
+                }
+                grpc_api_types::payments::payment_method::PaymentMethod::LazypayRedirect(_) => {
+                    Ok(Self::Wallet(payment_method_data::WalletData::LazyPayRedirect(
+                        payment_method_data::LazyPayRedirectData {},
+                    )))
+                }
+                grpc_api_types::payments::payment_method::PaymentMethod::PhonepeRedirect(_) => {
+                    Ok(Self::Wallet(payment_method_data::WalletData::PhonePeRedirect(
+                        payment_method_data::PhonePeRedirectData {},
+                    )))
+                }
+                grpc_api_types::payments::payment_method::PaymentMethod::BilldeskRedirect(_) => {
+                    Ok(Self::Wallet(payment_method_data::WalletData::BillDeskRedirect(
+                        payment_method_data::BillDeskRedirectData {},
+                    )))
+                }
+                grpc_api_types::payments::payment_method::PaymentMethod::CashfreeRedirect(_) => {
+                    Ok(Self::Wallet(payment_method_data::WalletData::CashfreeRedirect(
+                        payment_method_data::CashfreeRedirectData {},
+                    )))
+                }
+                grpc_api_types::payments::payment_method::PaymentMethod::EasebuzzRedirect(_) => {
+                    Ok(Self::Wallet(payment_method_data::WalletData::EaseBuzzRedirect(
+                        payment_method_data::EaseBuzzRedirectData {},
+                    )))
+                }
+                grpc_api_types::payments::payment_method::PaymentMethod::AmazonPayDirect(data) => {
+                    Ok(Self::Wallet(payment_method_data::WalletData::AmazonPayDirect(
+                        Box::new(payment_method_data::AmazonPayDirectData {
+                            wallet_token: data.wallet_token
+                                .map(|s| Secret::new(s.expose()))
+                                .unwrap_or_else(|| Secret::new(String::new())),
+                            customer_id: data.customer_id,
+                        }),
+                    )))
+                }
                 grpc_api_types::payments::payment_method::PaymentMethod::Mifinity(
                     mifinity_data,
                 ) => Ok(Self::Wallet(payment_method_data::WalletData::Mifinity(
@@ -2343,6 +2383,13 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                 grpc_api_types::payments::payment_method::PaymentMethod::DanamonVaBankTransfer(_) => Ok(Some(PaymentMethodType::DanamonVa)),
                 grpc_api_types::payments::payment_method::PaymentMethod::MandiriVaBankTransfer(_) => Ok(Some(PaymentMethodType::MandiriVa)),
                 grpc_api_types::payments::payment_method::PaymentMethod::Netbanking(_) => Ok(Some(PaymentMethodType::Netbanking)),
+                grpc_api_types::payments::payment_method::PaymentMethod::LazypayRedirect(_) => Ok(Some(PaymentMethodType::LazyPay)),
+                grpc_api_types::payments::payment_method::PaymentMethod::PhonepeRedirect(_) => Ok(Some(PaymentMethodType::PhonePe)),
+                grpc_api_types::payments::payment_method::PaymentMethod::BilldeskRedirect(_) => Ok(Some(PaymentMethodType::BillDesk)),
+                grpc_api_types::payments::payment_method::PaymentMethod::CashfreeRedirect(_) => Ok(Some(PaymentMethodType::Cashfree)),
+                grpc_api_types::payments::payment_method::PaymentMethod::PayuRedirect(_) => Ok(Some(PaymentMethodType::PayU)),
+                grpc_api_types::payments::payment_method::PaymentMethod::EasebuzzRedirect(_) => Ok(Some(PaymentMethodType::EaseBuzz)),
+                grpc_api_types::payments::payment_method::PaymentMethod::AmazonPayDirect(_) => Ok(Some(PaymentMethodType::AmazonPay)),
             },
             None => Err(ApplicationErrorResponse::BadRequest(ApiError {
                 sub_code: "INVALID_PAYMENT_METHOD_DATA".to_owned(),
@@ -4362,6 +4409,34 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
                     Some(grpc_api_types::payments::payment_method::PaymentMethod::AliPayRedirect(_)),
+            } => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::PayuRedirect(_)),
+            } => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::LazypayRedirect(_)),
+            } => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::PhonepeRedirect(_)),
+            } => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::BilldeskRedirect(_)),
+            } => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::CashfreeRedirect(_)),
+            } => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::EasebuzzRedirect(_)),
+            } => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::AmazonPayDirect(_)),
             } => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
@@ -8714,6 +8789,13 @@ pub enum PaymentMethodDataType {
     SepaGuaranteedBankDebit,
     IndonesianBankTransfer,
     Netbanking,
+    LazyPayRedirect,
+    PhonePeRedirect,
+    BillDeskRedirect,
+    CashfreeRedirect,
+    PayURedirect,
+    EaseBuzzRedirect,
+    AmazonPayDirect,
 }
 
 impl ForeignTryFrom<String> for Secret<time::Date> {

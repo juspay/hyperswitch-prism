@@ -193,7 +193,14 @@ fn fetch_payment_instrument<
             | WalletDataPaymentMethod::BluecodeRedirect {}
             | WalletDataPaymentMethod::MbWay(_)
             | WalletDataPaymentMethod::Satispay(_)
-            | WalletDataPaymentMethod::Wero(_) => {
+            | WalletDataPaymentMethod::Wero(_)
+            | WalletDataPaymentMethod::LazyPayRedirect(_)
+            | WalletDataPaymentMethod::PhonePeRedirect(_)
+            | WalletDataPaymentMethod::BillDeskRedirect(_)
+            | WalletDataPaymentMethod::CashfreeRedirect(_)
+            | WalletDataPaymentMethod::PayURedirect(_)
+            | WalletDataPaymentMethod::EaseBuzzRedirect(_)
+            | WalletDataPaymentMethod::AmazonPayDirect(_) => {
                 Err(ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("worldpay"),
                 )
@@ -208,7 +215,6 @@ fn fetch_payment_instrument<
         | PaymentMethodData::Reward
         | PaymentMethodData::RealTimePayment(_)
         | PaymentMethodData::MobilePayment(_)
-        | PaymentMethodData::Netbanking(_)
         | PaymentMethodData::Upi(_)
         | PaymentMethodData::Voucher(_)
         | PaymentMethodData::CardRedirect(_)
@@ -216,7 +222,8 @@ fn fetch_payment_instrument<
         | PaymentMethodData::OpenBanking(_)
         | PaymentMethodData::CardToken(_)
         | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
-        | PaymentMethodData::NetworkToken(_) => Err(ConnectorError::NotImplemented(
+        | PaymentMethodData::NetworkToken(_)
+        | PaymentMethodData::Netbanking(_) => Err(ConnectorError::NotImplemented(
             utils::get_unimplemented_payment_method_error_message("worldpay"),
         )
         .into()),

@@ -636,7 +636,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::BluecodeRedirect { .. }
                 | WalletData::MbWay(_)
                 | WalletData::Satispay(_)
-                | WalletData::Wero(_) => Err(ConnectorError::NotImplemented(
+                | WalletData::Wero(_)
+                | WalletData::LazyPayRedirect(_)
+                | WalletData::PhonePeRedirect(_)
+                | WalletData::BillDeskRedirect(_)
+                | WalletData::CashfreeRedirect(_)
+                | WalletData::PayURedirect(_)
+                | WalletData::EaseBuzzRedirect(_)
+                | WalletData::AmazonPayDirect(_) => Err(ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("fiuu"),
                 )
                 .into()),
@@ -648,7 +655,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::Crypto(_)
             | PaymentMethodData::MandatePayment
             | PaymentMethodData::MobilePayment(_)
-            | PaymentMethodData::Netbanking(_)
             | PaymentMethodData::Reward
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
@@ -657,7 +663,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::Netbanking(_) => {
                 Err(ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("fiuu"),
                 )

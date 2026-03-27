@@ -65,7 +65,15 @@ message PaymentMethod {
     SamsungWallet samsung_pay = 24;                     //Samsung
     MBWay mb_way = 25;                                  // MB WAY 
     Satispay satispay = 26;                             // Satispay 
-    Wero wero = 27;                                     // Wero 
+    Wero wero = 27;                                     // Wero
+    LazyPayRedirectWallet lazypay_redirect = 28;
+    PhonePeRedirectWallet phonepe_redirect = 29;
+    BillDeskRedirectWallet billdesk_redirect = 158;
+    CashfreeRedirectWallet cashfree_redirect = 159;
+    PayURedirectWallet payu_redirect = 160;
+    EaseBuzzRedirectWallet easebuzz_redirect = 161;
+    AmazonPayDirectWallet amazon_pay_direct = 163;
+    NetbankingPayment netbanking = 162;                          // Netbanking - Indian online banking
 
     // UPI METHODS (30-39) - Direct variants
     UpiCollect upi_collect = 30;                        // UPI Collect
@@ -161,9 +169,6 @@ message PaymentMethod {
     FamilyMart family_mart = 151;                             // FamilyMart - Japanese convenience store payment
     Seicomart seicomart = 152;                                // Seicomart - Japanese convenience store payment
     PayEasy pay_easy = 153;                                    // Pay-easy - Japanese bill payment service
-
-    // NETBANKING (160-169) - Indian net banking
-    NetbankingPayment netbanking = 160;                          // Netbanking - Indian online banking
   }
 }
 
@@ -523,6 +528,38 @@ message Wero {
   // Fields will be added as needed for Wero integration
 }
 
+// LazyPay - Indian BNPL/wallet service
+message LazyPayRedirectWallet {}
+
+// PhonePe - Indian digital payments platform
+message PhonePeRedirectWallet {}
+
+// BillDesk - Indian payment gateway with wallet support
+message BillDeskRedirectWallet {}
+
+// Cashfree - Indian payment gateway with wallet support
+message CashfreeRedirectWallet {}
+
+// PayU - Indian payment gateway with wallet support
+message PayURedirectWallet {}
+
+// EaseBuzz - Indian payment gateway with wallet support
+message EaseBuzzRedirectWallet {}
+
+// Amazon Pay Direct - Server-to-server wallet debit
+message AmazonPayDirectWallet {
+  SecretString wallet_token = 1;
+  optional string customer_id = 2;
+}
+
+// Netbanking - Indian online banking payment method
+message NetbankingPayment {
+  // Bank code identifying the customer's bank (e.g. "HDFC", "ICIC", "SBIN")
+  string bank_code = 1;
+  // Optional display name for the bank
+  optional string bank_name = 2;
+}
+
 // Apple Pay Third Party SDK - Apple Pay with token from third-party SDK
 message ApplePayThirdPartySdkWallet {
   // Payment token from third-party SDK
@@ -584,14 +621,6 @@ message UpiQr {
 
 message UpiConnectorResponse {
   optional UpiSource upi_mode = 1; // Final UPI source detected from connector response
-}
-
-// Netbanking - Indian online banking payment method
-message NetbankingPayment {
-  // Bank code identifying the customer's bank (e.g. "HDFC", "ICIC", "SBIN")
-  string bank_code = 1;
-  // Optional display name for the bank
-  optional string bank_name = 2;
 }
 
 // PIX - Brazilian instant payment ecosystem

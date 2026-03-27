@@ -473,7 +473,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletDataPaymentMethod::Mifinity(_)
                 | WalletDataPaymentMethod::MbWay(_)
                 | WalletDataPaymentMethod::Satispay(_)
-                | WalletDataPaymentMethod::Wero(_) => Err(ConnectorError::NotImplemented(
+                | WalletDataPaymentMethod::Wero(_)
+                | WalletDataPaymentMethod::LazyPayRedirect(_)
+                | WalletDataPaymentMethod::PhonePeRedirect(_)
+                | WalletDataPaymentMethod::BillDeskRedirect(_)
+                | WalletDataPaymentMethod::CashfreeRedirect(_)
+                | WalletDataPaymentMethod::PayURedirect(_)
+                | WalletDataPaymentMethod::EaseBuzzRedirect(_)
+                | WalletDataPaymentMethod::AmazonPayDirect(_) => Err(ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("novalnet"),
                 )
                 .into()),
@@ -2161,7 +2168,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletDataPaymentMethod::Mifinity(_)
                 | WalletDataPaymentMethod::MbWay(_)
                 | WalletDataPaymentMethod::Satispay(_)
-                | WalletDataPaymentMethod::Wero(_) => Err(ConnectorError::NotImplemented(
+                | WalletDataPaymentMethod::Wero(_)
+                | WalletDataPaymentMethod::LazyPayRedirect(_)
+                | WalletDataPaymentMethod::PhonePeRedirect(_)
+                | WalletDataPaymentMethod::BillDeskRedirect(_)
+                | WalletDataPaymentMethod::CashfreeRedirect(_)
+                | WalletDataPaymentMethod::PayURedirect(_)
+                | WalletDataPaymentMethod::EaseBuzzRedirect(_)
+                | WalletDataPaymentMethod::AmazonPayDirect(_) => Err(ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("novalnet"),
                 ))?,
             },

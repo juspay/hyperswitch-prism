@@ -302,12 +302,54 @@ macros::create_all_prerequisites!(
                     .map(|pos| &bytes[pos..])
                     .unwrap_or(&bytes[..]);
                 if trimmed.starts_with(b"<") {
-                    // HTML response — synthesize a JSON payload representing redirect pending.
-                    // PayU returns HTML when the payment requires a browser redirect.
-                    // We encode this as status="success" + result.status="pending" so that
-                    // the TryFrom implementation maps it to AttemptStatus::AuthenticationPending.
-                    let synthetic_json = br#"{"status":"success","result":{"status":"pending","mihpayid":null}}"#;
-                    Ok(bytes::Bytes::from_static(synthetic_json))
+                    // HTML response — extract form action URL and hidden inputs, then
+                    // synthesize a JSON payload with redirect data embedded.
+                    let html = std::str::from_utf8(&bytes).unwrap_or("");
+
+                    // Extract form action URL
+                    let redirect_url = html
+                        .find("action=\"")
+                        .and_then(|start| {
+                            let rest = &html[start + 8..];
+                            rest.find('"').map(|end| &rest[..end])
+                        })
+                        .unwrap_or("");
+
+                    // Extract all hidden input fields: name="..." value="..."
+                    let mut fields = std::collections::HashMap::new();
+                    let mut search = html;
+                    while let Some(pos) = search.find("<input type=\"hidden\"") {
+                        let chunk = &search[pos..];
+                        let name = chunk
+                            .find("name=\"")
+                            .and_then(|n| {
+                                let rest = &chunk[n + 6..];
+                                rest.find('"').map(|e| rest[..e].to_string())
+                            });
+                        let value = chunk
+                            .find("value=\"")
+                            .and_then(|v| {
+                                let rest = &chunk[v + 7..];
+                                rest.find('"').map(|e| rest[..e].to_string())
+                            });
+                        if let (Some(k), Some(v)) = (name, value) {
+                            fields.insert(k, v);
+                        }
+                        search = &search[pos + 20..];
+                    }
+
+                    let fields_json = serde_json::to_string(&fields).unwrap_or_else(|_| "{}".to_string());
+                    // Extract txnid from hidden form fields for transaction tracking
+                    let txnid_json = fields.get("txnid")
+                        .map(|t| format!("\"{}\"", t))
+                        .unwrap_or_else(|| "null".to_string());
+                    let synthetic = format!(
+                        r#"{{"status":"success","result":{{"status":"pending","mihpayid":null}},"txnid":{},"redirect_url":{},"redirect_form_fields":{}}}"#,
+                        txnid_json,
+                        serde_json::to_string(redirect_url).unwrap_or_else(|_| "null".to_string()),
+                        fields_json
+                    );
+                    Ok(bytes::Bytes::from(synthetic))
                 } else {
                     // Not HTML — pass through as-is (may be JSON error)
                     Ok(bytes)
