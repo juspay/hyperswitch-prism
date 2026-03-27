@@ -44,7 +44,8 @@ multisafepay.base_url = "https://testapi.multisafepay.com/v1/json"
 iatapay.base_url = "https://sandbox.iata-pay.iata.org/api/v1"
 jpmorgan.base_url = "https://api-mock.payments.jpmorgan.com/api/v2"
 jpmorgan.secondary_base_url = "https://id.payments.jpmorgan.com"
-nmi.base_url = "https://sandbox.nmi.com"
+nmi.base_url = "https://secure.nmi.com"
+nmi.secondary_base_url = "https://sandbox.nmi.com"
 nexixpay.base_url = "https://xpaysandbox.nexigroup.com/api/phoenix-0.0/psp/api/v1"
 authipay.base_url = "https://prod.emea.api.fiservapps.com/sandbox/ipp/payments-gateway/v2/payments"
 stax.base_url = "https://apiprod.fattlabs.com"
@@ -126,4 +127,4 @@ keys = ["x-request-id","x-merchant-id","x-lineage-ids","x-reference-id","x-conne
 
 # Connectors that require an external API call for webhook source verification
 [webhook_source_verification_call] # comma-separated list of connector names (case-insensitive)
-connectors_with_webhook_source_verification_call = "paypal, truelayer" 
+connectors_with_webhook_source_verification_call = "paypal, truelayer"

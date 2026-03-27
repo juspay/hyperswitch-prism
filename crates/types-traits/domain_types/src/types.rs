@@ -5638,13 +5638,31 @@ impl ForeignTryFrom<router_response_types::RedirectForm>
                     ),
                 ),
             }),
+            router_response_types::RedirectForm::Nmi {
+                amount,
+                currency,
+                public_key,
+                customer_vault_id,
+                order_id,
+                continue_redirection_url,
+            } => Ok(Self {
+                form_type: Some(grpc_api_types::payments::redirect_form::FormType::Nmi(
+                    grpc_api_types::payments::NmiData {
+                        amount,
+                        currency: currency.to_string(),
+                        public_key: Some(public_key),
+                        customer_vault_id,
+                        order_id,
+                        continue_redirection_url,
+                    },
+                )),
+            }),
             // Variants not supported in gRPC proto
             router_response_types::RedirectForm::BlueSnap { .. }
             | router_response_types::RedirectForm::CybersourceAuthSetup { .. }
             | router_response_types::RedirectForm::CybersourceConsumerAuth { .. }
             | router_response_types::RedirectForm::DeutschebankThreeDSChallengeFlow { .. }
             | router_response_types::RedirectForm::Payme
-            | router_response_types::RedirectForm::Nmi { .. }
             | router_response_types::RedirectForm::WorldpayDDCForm { .. } => {
                 Err(ApplicationErrorResponse::BadRequest(ApiError {
                     sub_code: "UNSUPPORTED_REDIRECT_FORM_TYPE".to_owned(),
@@ -8143,6 +8161,25 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
                                         ))
                                     })
                                 },
+                                router_response_types::RedirectForm::Nmi {
+                                    amount,
+                                    currency,
+                                    public_key,
+                                    customer_vault_id,
+                                    order_id,
+                                    continue_redirection_url,
+                                } => Ok(grpc_api_types::payments::RedirectForm {
+                                    form_type: Some(grpc_api_types::payments::redirect_form::FormType::Nmi(
+                                        grpc_api_types::payments::NmiData {
+                                            amount,
+                                            currency: currency.to_string(),
+                                            public_key: Some(public_key),
+                                            customer_vault_id,
+                                            order_id,
+                                            continue_redirection_url,
+                                        }
+                                    ))
+                                }),
                                 _ => Err(Box::new(
                                     ApplicationErrorResponse::BadRequest(ApiError {
                                         sub_code: "INVALID_RESPONSE".to_owned(),
@@ -10654,6 +10691,14 @@ impl<
                 .transpose()?,
             enrolled_for_3ds: false,
             redirect_response,
+            capture_method: value
+                .capture_method
+                .map(|cm| {
+                    CaptureMethod::foreign_try_from(
+                        grpc_api_types::payments::CaptureMethod::try_from(cm).unwrap_or_default(),
+                    )
+                })
+                .transpose()?,
         })
     }
 }
@@ -11151,6 +11196,27 @@ pub fn generate_payment_pre_authenticate_response<T: PaymentMethodDataTypes>(
                                 ),
                             })
                         }
+                        router_response_types::RedirectForm::Nmi {
+                            amount,
+                            currency,
+                            public_key,
+                            customer_vault_id,
+                            order_id,
+                            continue_redirection_url,
+                        } => Ok(grpc_api_types::payments::RedirectForm {
+                            form_type: Some(
+                                grpc_api_types::payments::redirect_form::FormType::Nmi(
+                                    grpc_api_types::payments::NmiData {
+                                        amount,
+                                        currency: currency.to_string(),
+                                        public_key: Some(public_key),
+                                        customer_vault_id,
+                                        order_id,
+                                        continue_redirection_url,
+                                    },
+                                ),
+                            ),
+                        }),
                         _ => Err(ApplicationErrorResponse::BadRequest(ApiError {
                             sub_code: "INVALID_RESPONSE".to_owned(),
                             error_identifier: 400,

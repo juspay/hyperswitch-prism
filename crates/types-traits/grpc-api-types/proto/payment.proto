@@ -1214,6 +1214,9 @@ message RedirectForm {
 
     // Mifinity-specific redirection data for SDK-based flows.
     MifinityData mifinity = 5;
+
+    // NMI-specific redirection data for 3DS flows.
+    NmiData nmi = 6;
   }
 }
 
@@ -1260,6 +1263,27 @@ message BraintreeData {
 message MifinityData {
   // Initialization token for Mifinity SDK initialization
   string initialization_token = 1;
+}
+
+// Represents NMI-specific redirection data for 3DS flows
+message NmiData {
+  // Transaction amount
+  string amount = 1;
+
+  // Transaction currency
+  string currency = 2;
+
+  // NMI public key for 3DS
+  SecretString public_key = 3;
+
+  // Customer vault ID for the tokenized card
+  string customer_vault_id = 4;
+
+  // Order ID for the transaction
+  string order_id = 5;
+
+  // URL to redirect to after 3DS completion
+  string continue_redirection_url = 6;
 }
 
 // Details of an HTTP request, typically for incoming webhooks
@@ -2818,6 +2842,9 @@ message PaymentMethodAuthenticationServicePostAuthenticateRequest {
 
   // Redirection Information after DDC step
   optional RedirectionResponse redirection_response = 14;
+  
+  // Capture Settings
+  optional CaptureMethod capture_method = 15;
 }
 
 // Response message for post-authentication step

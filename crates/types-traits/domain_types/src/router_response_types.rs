@@ -41,6 +41,7 @@ pub enum RedirectForm {
         public_key: hyperswitch_masking::Secret<String>,
         customer_vault_id: String,
         order_id: String,
+        continue_redirection_url: String,
     },
     Mifinity {
         initialization_token: String,
