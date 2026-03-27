@@ -1,14 +1,15 @@
-use common_utils::{pii, types::StringMajorUnit};
+use cards::CardNumber;
+use common_utils::{consts, pii, types::StringMajorUnit};
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
     connector_types::{
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId,
+        RefundsResponseData, ResponseId
     },
     errors,
     payment_method_data::{
-        BankTransferData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
+        BankTransferData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber
     },
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
@@ -16,6 +17,7 @@ use domain_types::{
 use error_stack::ResultExt;
 use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
+
 
 use super::NuveiRouterData;
 use crate::types::ResponseRouterData;
@@ -134,7 +136,7 @@ pub struct NuveiPaymentOption<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 > {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub card: Option<NuveiCard<T>>,
+    pub card: Option<NuveiCardOption<T>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub alternative_payment_method: Option<NuveiAlternativePaymentMethod>,
 }
@@ -144,12 +146,18 @@ pub struct NuveiPaymentOption<
 pub struct NuveiCard<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 > {
-    pub card_number: RawCardNumber<T>,
-    pub card_holder_name: Secret<String>,
-    pub expiration_month: Secret<String>,
-    pub expiration_year: Secret<String>,
-    #[serde(rename = "CVV")]
-    pub cvv: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card_number: Option<RawCardNumber<T>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card_holder_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expiration_month: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expiration_year: Option<Secret<String>>,
+    #[serde(rename = "CVV", skip_serializing_if = "Option::is_none")]
+    pub cvv: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub external_token: Option<NuveiExternalToken>,
 }
 
 // ACH Bank Transfer specific structures
@@ -163,6 +171,105 @@ pub struct NuveiAlternativePaymentMethod {
     pub routing_number: Secret<String>,
     #[serde(rename = "SECCode", skip_serializing_if = "Option::is_none")]
     pub sec_code: Option<String>,
+}
+
+// Apple Pay External Token - Used for wallet tokenization
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NuveiExternalToken {
+    pub external_token_provider: NuveiExternalTokenProvider,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mobile_token: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cryptogram: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub eci_provider: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub enum NuveiExternalTokenProvider {
+    ApplePay,
+    GooglePay,
+}
+
+// Card type for decrypted wallet payments (e.g. decrypted Google Pay / Apple Pay).
+// card_number holds the network token PAN from the decrypted wallet data.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NuveiDecryptedWalletCard {
+    pub card_number: CardNumber,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expiration_month: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expiration_year: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_4_digits: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub brand: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub external_token: Option<NuveiExternalToken>,
+}
+
+// Untagged so both variants serialise to the same JSON object under the "card" key.
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum NuveiCardOption<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+> {
+    Generic(NuveiCard<T>),
+    DecryptedWallet(NuveiDecryptedWalletCard),
+}
+
+// For Encrypted Apple Pay: JSON structure to be encoded into mobile_token
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ApplePayCamelCase {
+    payment_data: Secret<String>,
+    payment_method: ApplePayPaymentMethodCamelCase,
+    transaction_identifier: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ApplePayPaymentMethodCamelCase {
+    display_name: Secret<String>,
+    network: Secret<String>,
+    #[serde(rename = "type")]
+    pm_type: Secret<String>,
+}
+
+// For Encrypted Google Pay: JSON structure to be encoded into mobile_token
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct GooglePayCamelCase {
+    pm_type: Secret<String>,
+    description: Secret<String>,
+    info: GooglePayInfoCamelCase,
+    tokenization_data: GooglePayTokenizationDataCamelCase,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct GooglePayInfoCamelCase {
+    card_network: Secret<String>,
+    card_details: Secret<String>,
+    assurance_details: Option<GooglePayAssuranceDetailsCamelCase>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct GooglePayAssuranceDetailsCamelCase {
+    card_holder_authenticated: bool,
+    account_verified: bool,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct GooglePayTokenizationDataCamelCase {
+    #[serde(rename = "type")]
+    token_type: Secret<String>,
+    token: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -422,6 +529,134 @@ pub struct NuveiErrorResponse {
     pub status: Option<String>,
 }
 
+// Helper function to build Apple Pay card data
+fn build_apple_pay_card<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>(
+    apple_pay_data: &domain_types::payment_method_data::ApplePayWalletData,
+) -> Result<NuveiCardOption<T>, error_stack::Report<errors::ConnectorError>> {
+    use domain_types::payment_method_data::ApplePayPaymentData;
+
+    match &apple_pay_data.payment_data {
+        // Decrypted Apple Pay: Extract PAN, expiry, brand, last4, cryptogram, ECI
+        ApplePayPaymentData::Decrypted(apple_pay_decrypt_data) => {
+            Ok(NuveiCardOption::DecryptedWallet(NuveiDecryptedWalletCard {
+                card_number: apple_pay_decrypt_data.application_primary_account_number.clone(),
+                expiration_month: Some(apple_pay_decrypt_data.application_expiration_month.clone()),
+                expiration_year: Some(apple_pay_decrypt_data.application_expiration_year.clone()),
+                last_4_digits: Some(Secret::new(
+                    apple_pay_decrypt_data.application_primary_account_number.get_last4(),
+                )),
+                brand: Some(apple_pay_data.payment_method.network.clone()),
+                external_token: Some(NuveiExternalToken {
+                    external_token_provider: NuveiExternalTokenProvider::ApplePay,
+                    mobile_token: None,
+                    cryptogram: Some(
+                        apple_pay_decrypt_data
+                            .payment_data
+                            .online_payment_cryptogram
+                            .clone(),
+                    ),
+                    eci_provider: apple_pay_decrypt_data.payment_data.eci_indicator.clone(),
+                }),
+            }))
+        }
+        // Encrypted Apple Pay: JSON-encode entire Apple Pay data
+        ApplePayPaymentData::Encrypted(encrypted_data) => {
+            let apple_pay_json = ApplePayCamelCase {
+                payment_data: Secret::new(encrypted_data.clone()),
+                payment_method: ApplePayPaymentMethodCamelCase {
+                    display_name: Secret::new(apple_pay_data.payment_method.display_name.clone()),
+                    network: Secret::new(apple_pay_data.payment_method.network.clone()),
+                    pm_type: Secret::new(apple_pay_data.payment_method.pm_type.clone()),
+                },
+                transaction_identifier: Secret::new(apple_pay_data.transaction_identifier.clone()),
+            };
+
+            let mobile_token_json = serde_json::to_string(&apple_pay_json)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
+            Ok(NuveiCardOption::Generic(NuveiCard {
+                card_number: None,
+                card_holder_name: None,
+                expiration_month: None,
+                expiration_year: None,
+                cvv: None,
+                external_token: Some(NuveiExternalToken {
+                    external_token_provider: NuveiExternalTokenProvider::ApplePay,
+                    mobile_token: Some(Secret::new(mobile_token_json)),
+                    cryptogram: None,
+                    eci_provider: None,
+                }),
+            }))
+        }
+    }
+}
+
+// Helper function to build Google Pay card data
+fn build_google_pay_card<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>(
+    google_pay_data: &domain_types::payment_method_data::GooglePayWalletData,
+) -> Result<NuveiCardOption<T>, error_stack::Report<errors::ConnectorError>> {
+    use domain_types::payment_method_data::GpayTokenizationData;
+
+    match &google_pay_data.tokenization_data {
+        // Decrypted Google Pay: send network token PAN + expiry + last4 + brand + cryptogram + ECI
+        GpayTokenizationData::Decrypted(google_pay_decrypt_data) => {
+            Ok(NuveiCardOption::DecryptedWallet(NuveiDecryptedWalletCard {
+                card_number: google_pay_decrypt_data.application_primary_account_number.clone(),
+                expiration_month: Some(google_pay_decrypt_data.card_exp_month.clone()),
+                expiration_year: Some(google_pay_decrypt_data.card_exp_year.clone()),
+                last_4_digits: Some(Secret::new(google_pay_decrypt_data.application_primary_account_number.get_last4())),
+                brand: Some(google_pay_data.info.card_network.clone()),
+                external_token: Some(NuveiExternalToken {
+                    external_token_provider: NuveiExternalTokenProvider::GooglePay,
+                    mobile_token: None,
+                    cryptogram: google_pay_decrypt_data.cryptogram.clone(),
+                    eci_provider: google_pay_decrypt_data.eci_indicator.clone(),
+                }),
+            }))
+        }
+        // Encrypted Google Pay: JSON-encode entire Google Pay data
+        GpayTokenizationData::Encrypted(encrypted_data) => {
+            let google_pay_json = GooglePayCamelCase {
+                pm_type: Secret::new(google_pay_data.pm_type.clone()),
+                description: Secret::new(google_pay_data.description.clone()),
+                info: GooglePayInfoCamelCase {
+                    card_network: Secret::new(google_pay_data.info.card_network.clone()),
+                    card_details: Secret::new(google_pay_data.info.card_details.clone()),
+                    assurance_details: google_pay_data
+                        .info
+                        .assurance_details
+                        .as_ref()
+                        .map(|details| GooglePayAssuranceDetailsCamelCase {
+                            card_holder_authenticated: details.card_holder_authenticated,
+                            account_verified: details.account_verified,
+                        }),
+                },
+                tokenization_data: GooglePayTokenizationDataCamelCase {
+                    token_type: Secret::new(encrypted_data.token_type.clone()),
+                    token: Secret::new(encrypted_data.token.clone()),
+                },
+            };
+
+            let mobile_token_json = serde_json::to_string(&google_pay_json)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
+            Ok(NuveiCardOption::Generic(NuveiCard {
+                card_number: None,
+                card_holder_name: None,
+                expiration_month: None,
+                expiration_year: None,
+                cvv: None,
+                external_token: Some(NuveiExternalToken {
+                    external_token_provider: NuveiExternalTokenProvider::GooglePay,
+                    mobile_token: Some(Secret::new(mobile_token_json)),
+                    cryptogram: None,
+                    eci_provider: None,
+                }),
+            }))
+        }
+    }
+}
+
 // Session Token Request Transformation
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
@@ -649,13 +884,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     })?;
 
                 NuveiPaymentOption {
-                    card: Some(NuveiCard {
-                        card_number: card_data.card_number.clone(),
-                        card_holder_name,
-                        expiration_month: card_data.card_exp_month.clone(),
-                        expiration_year: card_data.card_exp_year.clone(),
-                        cvv: card_data.card_cvc.clone(),
-                    }),
+                    card: Some(NuveiCardOption::Generic(NuveiCard {
+                        card_number: Some(card_data.card_number.clone()),
+                        card_holder_name: Some(card_holder_name),
+                        expiration_month: Some(card_data.card_exp_month.clone()),
+                        expiration_year: Some(card_data.card_exp_year.clone()),
+                        cvv: Some(card_data.card_cvc.clone()),
+                        external_token: None,
+                    })),
                     alternative_payment_method: None,
                 }
             }
@@ -714,6 +950,27 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     }
                 }
             }
+            PaymentMethodData::Wallet(ref wallet_data) => {
+                use domain_types::payment_method_data::WalletData;
+
+                match wallet_data {
+                    WalletData::ApplePay(apple_pay_data) => NuveiPaymentOption {
+                        card: Some(build_apple_pay_card(apple_pay_data)?),
+                        alternative_payment_method: None,
+                    },
+                    WalletData::GooglePay(google_pay_data) => NuveiPaymentOption {
+                        card: Some(build_google_pay_card(google_pay_data)?),
+                        alternative_payment_method: None,
+                    },
+                    _ => {
+                        return Err(errors::ConnectorError::NotSupported {
+                            message: format!("Wallet type {:?} not supported for Nuvei", wallet_data),
+                            connector: "nuvei",
+                        }
+                        .into())
+                    }
+                }
+            }
             _ => {
                 return Err(errors::ConnectorError::NotSupported {
                     message: "Payment method not supported".to_string(),
@@ -752,7 +1009,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Use state code conversion (e.g., "California" -> "CA") for US/CA
         let state = router_data
             .resource_common_data
-            .get_optional_billing_state();
+            .get_optional_billing()
+                    .and_then(|b| b.address.as_ref())
+                    .and_then(|address| address.to_state_code_as_optional().ok().flatten());
 
         // Get address_line3 directly from billing address
         let address_line3 = router_data
@@ -831,16 +1090,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             TransactionType::get_from_capture_method(router_data.request.capture_method, &amount);
 
         // Build urlDetails from router_return_url if available
-        let url_details =
-            router_data
-                .request
-                .router_return_url
-                .as_ref()
-                .map(|url| NuveiUrlDetails {
-                    success_url: url.clone(),
-                    failure_url: url.clone(),
-                    pending_url: url.clone(),
-                });
+        let return_url = match consts::Env::current_env() {
+            consts::Env::Development => Some("https://example.com".to_string()),
+            _ => router_data.request.router_return_url.clone(),
+        };
+
+        let url_details = return_url.as_ref().map(|url| NuveiUrlDetails {
+            success_url: url.clone(),
+            failure_url: url.clone(),
+            pending_url: url.clone(),
+        });
 
         // Generate checksum: merchantId + merchantSiteId + clientRequestId + amount + currency + timeStamp + merchantSecretKey
         let checksum = auth.generate_checksum(&[
