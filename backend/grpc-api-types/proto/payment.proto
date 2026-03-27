@@ -1133,6 +1133,9 @@ message RequestDetails {
   // URI of the request.
   optional string uri = 2;
 
+  // URL where the webhook is received 
+  optional string url = 6;
+
   // Headers of the HTTP request.
   map<string, string> headers = 3;
 

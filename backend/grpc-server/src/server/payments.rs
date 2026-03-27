@@ -2695,56 +2695,58 @@ impl PaymentService for Payments {
                     .into_grpc_status()?;
                 // Get content for the webhook based on the event type using categorization
                 let content = if event_type.is_payment_event() {
-                    get_payments_webhook_content(
+                    Some(get_payments_webhook_content(
                         connector_data,
                         request_details,
                         webhook_secrets,
                         Some(connector_auth_details.clone()),
                     )
                     .await
-                    .into_grpc_status()?
+                    .into_grpc_status()?)
                 } else if event_type.is_refund_event() {
-                    get_refunds_webhook_content(
+                    Some(get_refunds_webhook_content(
                         connector_data,
                         request_details,
                         webhook_secrets,
                         Some(connector_auth_details.clone()),
                     )
                     .await
-                    .into_grpc_status()?
+                    .into_grpc_status()?)
                 } else if event_type.is_dispute_event() {
-                    get_disputes_webhook_content(
+                    Some(get_disputes_webhook_content(
                         connector_data,
                         request_details,
                         webhook_secrets,
                         Some(connector_auth_details.clone()),
                     )
                     .await
-                    .into_grpc_status()?
-                } else {
+                    .into_grpc_status()?)
+                } else if event_type.is_test_event() {
+                    None
+                }else {
                     // For all other event types, default to payment webhook content for now
                     // This includes mandate, payout, recovery, and misc events
-                    get_payments_webhook_content(
+                    Some(get_payments_webhook_content(
                         connector_data,
                         request_details,
                         webhook_secrets,
                         Some(connector_auth_details.clone()),
                     )
                     .await
-                    .into_grpc_status()?
+                    .into_grpc_status()?)
                 };
                 let api_event_type =
                     grpc_api_types::payments::WebhookEventType::foreign_try_from(event_type)
                         .map_err(|e| e.into_grpc_status())?;
 
-                let webhook_transformation_status = match content.content {
+                let webhook_transformation_status = match content.as_ref().and_then(|content| content.content.clone()) {
                     Some(grpc_api_types::payments::webhook_response_content::Content::IncompleteTransformation(_)) => WebhookTransformationStatus::Incomplete,
                     _ => WebhookTransformationStatus::Complete,
                 };
 
                 let response = PaymentServiceTransformResponse {
                     event_type: api_event_type.into(),
-                    content: Some(content),
+                    content: content,
                     source_verified,
                     response_ref_id: None,
                     transformation_status: webhook_transformation_status.into(),
@@ -2835,6 +2837,7 @@ impl PaymentService for Payments {
                 let updated_request_details = domain_types::connector_types::RequestDetails {
                     method: request_details.method.clone(),
                     uri: request_details.uri.clone(),
+                    url: request_details.url.clone(),
                     headers: request_details.headers,
                     query_params: request_details.query_params.clone(),
                     body: decoded_body,

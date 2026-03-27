@@ -4,6 +4,7 @@ use std::fmt::Debug;
 
 use crate::{types::ResponseRouterData, with_error_response_body};
 use common_enums::CurrencyUnit;
+use base64::Engine;
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt, types::FloatMajorUnit};
 use domain_types::{
     connector_flow,
@@ -28,12 +29,15 @@ use transformers::{
     Revolv3AuthorizeResponse, Revolv3CaptureRequest, Revolv3PaymentSyncResponse,
     Revolv3PaymentsRequest, Revolv3PaymentsResponse, Revolv3RefundRequest, Revolv3RefundResponse,
     Revolv3RefundSyncResponse, Revolv3RepeatPaymentRequest, Revolv3RepeatPaymentResponse,
-    Revolv3SaleResponse, Revolv3SetupMandateRequest,
+    Revolv3SaleResponse, Revolv3SetupMandateRequest, Revolv3InvoiceWebhookBody,  Revolv3WebhookBody, Revolv3WebhookBodyData,
 };
+pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
     pub(crate) const REVOLV3_TOKEN: &str = "x-revolv3-token";
+    pub const REVOLV3_SIGNATURE_KEY: &str = "X-Revolv3-Signature";
+    pub const REVOLV3_SIGNATURE_KEY_LOWERCASE: &str = "x-revolv3-signature";
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorCommon
@@ -116,6 +120,151 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::IncomingWebhook for Revolv3<T>
 {
+    fn verify_webhook_source(
+        &self,
+        request: RequestDetails,
+        connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificAuth>,
+    ) -> Result<bool, error_stack::Report<errors::ConnectorError>> {
+        let webhook_secret = connector_webhook_secret
+            .ok_or(errors::ConnectorError::WebhookVerificationSecretNotFound)?
+            .secret;
+
+        let signature_header = request
+            .headers
+            .get(headers::REVOLV3_SIGNATURE_KEY_LOWERCASE)
+            .or_else(|| request.headers.get(headers::REVOLV3_SIGNATURE_KEY))
+            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
+
+        let url = match request.url {
+            Some(url) => url,
+            None => {
+                tracing::warn!(
+                    target: "revolv3_webhook",
+                    "Missing URL in webhook request"
+                );
+                return Ok(false);
+            }
+        };
+
+        let message = format!("{}${}", url, String::from_utf8_lossy(&request.body));
+
+        use common_utils::crypto::{HmacSha256, SignMessage};
+        let crypto_algorithm = HmacSha256;
+        let computed_signature = match crypto_algorithm
+            .sign_message(&webhook_secret, message.as_bytes())
+        {
+            Ok(sig) => sig,
+            Err(crypto_error) => {
+                tracing::error!(
+                    target: "revolv3_webhook",
+                    "Failed to compute HMAC-Sha256 signature for webhook verification, error: {:?} - verification failed but continuing processing",
+                    crypto_error
+                );
+                return Ok(false);
+            }
+        };
+
+        let computed_signature_b64 = BASE64_ENGINE.encode(&computed_signature);
+        let check_point = computed_signature_b64 == *signature_header;
+        Ok(check_point)
+    }
+
+    fn get_event_type(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificAuth>,
+    ) -> Result<EventType, error_stack::Report<errors::ConnectorError>> {
+        let webhook_body: Revolv3WebhookBody = request
+            .body
+            .parse_struct("Revolv3Webhook")
+            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)
+            .attach_printable_lazy(|| {
+                "Failed to parse webhook event type from Revolv3 webhook body"
+            })?;
+
+        let webhook_body_data: Revolv3WebhookBodyData = serde_json::from_str(&webhook_body.body)
+            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)
+            .attach_printable_lazy(|| {
+                "Failed to parse webhook event type from Revolv3 webhook body"
+            })?;
+
+        match webhook_body_data {
+            Revolv3WebhookBodyData::InvoiceData(invoice_webhook) => {
+                Ok(invoice_webhook.get_invoice_status().to_event_type())
+            }
+            Revolv3WebhookBodyData::TestData(_) => Ok(EventType::EndpointVerification),
+        }
+    }
+
+    fn process_payment_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificAuth>,
+    ) -> Result<WebhookDetailsResponse, error_stack::Report<errors::ConnectorError>> {
+        let request_body_copy = request.body.clone();
+        let webhook_data: Revolv3WebhookBody = request
+            .body
+            .parse_struct("Revolv3WebhookBody")
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)
+            .attach_printable_lazy(|| "Failed to parse Revolv3 payment webhook body structure")?;
+
+        let webhook_body: Revolv3InvoiceWebhookBody = serde_json::from_str(&webhook_data.body)
+            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)
+            .attach_printable_lazy(|| "Failed to parse invoice data from Revolv3 webhook body")?;
+
+        let invoice_id = webhook_body.get_invoice_id();
+        let status = webhook_body.get_invoice_status().to_attempt_status()?;
+
+        Ok(WebhookDetailsResponse {
+            resource_id: Some(ResponseId::ConnectorTransactionId(invoice_id.clone())),
+            status,
+            status_code: 200,
+            mandate_reference: webhook_body.get_mandate_reference().map(Box::new),
+            connector_response_reference_id: webhook_body.get_merchant_invoice_ref_id(),
+            error_code: webhook_body.get_error_code(),
+            error_message: webhook_body.get_error_message(),
+            raw_connector_response: Some(String::from_utf8_lossy(&request_body_copy).to_string()),
+            response_headers: None,
+            minor_amount_captured: None,
+            amount_captured: None,
+            error_reason: webhook_body.get_error_message(),
+            network_txn_id: webhook_body.get_network_transaction_id(),
+            transformation_status: common_enums::WebhookTransformationStatus::Complete,
+        })
+    }
+
+    fn process_refund_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificAuth>,
+    ) -> Result<RefundWebhookDetailsResponse, error_stack::Report<errors::ConnectorError>> {
+        let request_body_copy = request.body.clone();
+        let webhook_data: Revolv3WebhookBody = request
+            .body
+            .parse_struct("Revolv3WebhookBody")
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)
+            .attach_printable_lazy(|| "Failed to parse Revolv3 refund webhook body structure")?;
+
+        let webhook_body: Revolv3InvoiceWebhookBody = serde_json::from_str(&webhook_data.body)
+            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)
+            .attach_printable_lazy(|| "Failed to parse invoice data from Revolv3 webhook body")?;
+        let invoice_id = webhook_body.get_invoice_id();
+
+        Ok(RefundWebhookDetailsResponse {
+            connector_refund_id: Some(invoice_id.clone()),
+            status: webhook_body.get_invoice_status().to_refund_status()?,
+            status_code: 200,
+            connector_response_reference_id: Some(invoice_id),
+            error_code: webhook_body.get_error_code(),
+            error_message: webhook_body.get_error_message(),
+            raw_connector_response: Some(String::from_utf8_lossy(&request_body_copy).to_string()),
+            response_headers: None,
+        })
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
