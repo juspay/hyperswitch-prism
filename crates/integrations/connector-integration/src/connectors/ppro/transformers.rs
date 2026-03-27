@@ -663,17 +663,9 @@ impl<F, Req> TryFrom<ResponseRouterData<PproPaymentsResponse, Self>>
                     if method.r#type == PproAuthenticationType::Redirect {
                         if let Some(details) = &method.details {
                             if let Some(url) = &details.request_url {
-                                let http_method = match details.request_method {
-                                    Some(PproHttpMethod::Post) => {
-                                        common_utils::request::Method::Post
-                                    }
-                                    _ => common_utils::request::Method::Get,
-                                };
                                 redirection_data =
-                                    Some(domain_types::router_response_types::RedirectForm::Form {
-                                        endpoint: url.to_string(),
-                                        method: http_method,
-                                        form_fields: std::collections::HashMap::new(),
+                                    Some(domain_types::router_response_types::RedirectForm::Uri {
+                                        uri: url.to_string(),
                                     });
                                 break;
                             }
@@ -1160,17 +1152,9 @@ impl<F, Req> TryFrom<ResponseRouterData<PproAgreementResponse, Self>>
                     if method.r#type == PproAuthenticationType::Redirect {
                         if let Some(details) = &method.details {
                             if let Some(url) = &details.request_url {
-                                let http_method = match details.request_method {
-                                    Some(PproHttpMethod::Post) => {
-                                        common_utils::request::Method::Post
-                                    }
-                                    _ => common_utils::request::Method::Get,
-                                };
                                 redirection_data =
-                                    Some(domain_types::router_response_types::RedirectForm::Form {
-                                        endpoint: url.clone(),
-                                        method: http_method,
-                                        form_fields: std::collections::HashMap::new(),
+                                    Some(domain_types::router_response_types::RedirectForm::Uri {
+                                        uri: url.clone(),
                                     });
                                 break;
                             }
