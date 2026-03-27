@@ -1,0 +1,524 @@
+syntax = "proto3";
+
+package types;
+
+import "payment.proto";
+import "payment_methods.proto";
+
+option go_package = "github.com/juspay/connector-service/crates/types-traits/grpc-api-types/proto;proto";
+
+// ============================================================================
+// PAYOUT ENUMERATIONS
+// ============================================================================
+
+message PayoutEnums {
+  enum PayoutStatus {
+    PAYOUT_STATUS_UNSPECIFIED = 0;
+    SUCCESS = 1;
+    FAILED = 2;
+    CANCELLED = 3;
+    INITIATED = 4;
+    EXPIRED = 5;
+    REVERSED = 6;
+    PENDING = 7;
+    INELIGIBLE = 8;
+    REQUIRES_CREATION = 9;
+    REQUIRES_CONFIRMATION = 10;
+    REQUIRES_PAYOUT_METHOD_DATA = 11;
+    REQUIRES_FULFILLMENT = 12;
+    REQUIRES_VENDOR_ACCOUNT_CREATION = 13;
+  }
+
+  enum PayoutRecipientType {
+    PAYOUT_RECIPIENT_TYPE_UNSPECIFIED = 0;
+    INDIVIDUAL = 1;
+    COMPANY = 2;
+    NON_PROFIT = 3;
+    PUBLIC_SECTOR = 4;
+    NATURAL_PERSON = 5;
+    BUSINESS = 6;
+    PERSONAL = 7;
+  }
+
+  enum PayoutPriority {
+    PAYOUT_PRIORITY_UNSPECIFIED = 0;
+    INSTANT = 1;
+    FAST = 2;
+    REGULAR = 3;
+    WIRE = 4;
+    CROSS_BORDER = 5;
+    INTERNAL = 6;
+  }
+
+}
+
+// ============================================================================
+// DEPENDENT MESSAGES
+// ============================================================================
+
+// Container for various address types related to a payout
+message PayoutAddress {
+  Address shipping_address = 1;
+  Address billing_address = 2;
+}
+
+// ============================================================================
+// PAYOUT METHOD DATA MESSAGES
+// ============================================================================
+
+message CardPayout {
+  // The primary account number of the card
+  CardNumberType card_number = 1;
+  // The card's expiration month (MM)
+  SecretString card_exp_month = 2;
+  // The card's expiration year (YYYY)
+  SecretString card_exp_year = 3;
+  // The full name of the cardholder
+  optional SecretString card_holder_name = 4;
+  // The network of the card (e.g., VISA, MASTERCARD)
+  optional CardNetwork card_network = 5;
+}
+
+message AchBankTransferPayout {
+  // The name of the bank
+  optional BankNames bank_name = 1;
+  // The ISO Alpha-2 country code of the bank
+  optional CountryAlpha2 bank_country_code = 2;
+  // The city where the bank is located
+  optional string bank_city = 3;
+  // The bank account number
+  optional SecretString bank_account_number = 4;
+  // The routing number of the bank
+  optional SecretString bank_routing_number = 5;
+}
+
+message BacsBankTransferPayout {
+  // The name of the bank
+  optional BankNames bank_name = 1;
+  // The ISO Alpha-2 country code of the bank
+  optional CountryAlpha2 bank_country_code = 2;
+  // The city where the bank is located
+  optional string bank_city = 3;
+  // The bank account number
+  optional SecretString bank_account_number = 4;
+  // The sort code of the bank
+  optional SecretString bank_sort_code = 5;
+}
+
+message SepaBankTransferPayout {
+  // The name of the bank
+  optional BankNames bank_name = 1;
+  // The ISO Alpha-2 country code of the bank
+  optional CountryAlpha2 bank_country_code = 2;
+  // The city where the bank is located
+  optional string bank_city = 3;
+  // The International Bank Account Number (IBAN)
+  SecretString iban = 4;
+  // The Bank Identifier Code (BIC)
+  optional SecretString bic = 5;
+}
+
+message PixBankTransferPayout {
+  // The name of the bank
+  optional BankNames bank_name = 1;
+  // The branch office of the bank
+  optional string bank_branch = 2;
+  // The bank account number
+  SecretString bank_account_number = 3;
+  // The PIX key (e.g., CPF, CNPJ, Email, Phone, or Random Key)
+  SecretString pix_key = 4;
+  // The tax identification number (CPF for individuals, CNPJ for companies)
+  optional SecretString tax_id = 5;
+}
+
+message ApplePayDecrypt {
+  // The device primary account number (DPAN)
+  CardNumberType dpan = 1;
+  // The card's expiration month (MM)
+  SecretString expiry_month = 2;
+  // The card's expiration year (YYYY)
+  SecretString expiry_year = 3;
+  // The full name of the cardholder
+  optional SecretString card_holder_name = 4;
+  // The network of the card (e.g., VISA, MASTERCARD)
+  optional CardNetwork card_network = 5;
+}
+
+message Paypal {
+  // The email address associated with the PayPal account
+  optional SecretString email = 1;
+  // The telephone number associated with the PayPal account
+  optional SecretString telephone_number = 2;
+  // The unique identifier for the PayPal account
+  optional SecretString paypal_id = 3;
+}
+
+message Venmo {
+  // The telephone number associated with the Venmo account
+  optional SecretString telephone_number = 1;
+}
+
+message InteracPayout {
+  // The email address associated with the Interac account
+  optional SecretString email = 1;
+}
+
+message OpenBankingUkPayout {
+  // The name of the account holder
+  SecretString account_holder_name = 1;
+  // The International Bank Account Number (IBAN)
+  SecretString iban = 2;
+}
+
+message Passthrough {
+  // The token provided by the payment service provider
+  string psp_token = 1;
+  // The type of the tokenized payment method
+  PaymentMethodType token_type = 2;
+}
+
+// PayoutMethod represents a payout instrument used to process a payout
+// It contains a oneof field with all possible payout method 
+message PayoutMethod {
+  oneof payout_method_data {
+    // CARD METHODS
+    CardPayout card = 1;
+
+    // BANK TRANSFER METHODS
+    AchBankTransferPayout ach = 2;
+    BacsBankTransferPayout bacs = 3;
+    SepaBankTransferPayout sepa = 4;
+    PixBankTransferPayout pix = 5;
+
+    // DIGITAL WALLETS
+    ApplePayDecrypt apple_pay_decrypt = 6;
+    Paypal paypal = 7;
+    Venmo venmo = 8;
+
+    // BANK REDIRECT
+    InteracPayout interac = 9;
+    OpenBankingUkPayout open_banking_uk = 10;
+
+    // PASSTHROUGH METHOD
+    Passthrough passthrough = 11;
+  }
+}
+
+// ============================================================================
+// API REQUEST AND RESPONSE MESSAGES
+// ============================================================================
+
+// Request message for creating a payout
+message PayoutServiceCreateRequest {
+  // Identification
+  optional string merchant_payout_id = 1; // this is the id passed to the payout processor
+  // Address Information
+  PayoutAddress address = 2;
+  // Metadata
+  optional SecretString connector_feature_data = 3;
+  // Payout Method Data
+  optional PayoutMethod payout_method_data = 4;
+  // Quote ID
+  optional string connector_quote_id = 5;
+  // Connector Payout ID
+  optional string connector_payout_id = 6;
+  // Amount Information
+  Money amount = 7; // contains amount and source_currency
+  // Currency in which payout will be received
+  Currency destination_currency = 8;
+  // Customer Details
+  optional Customer customer = 9;
+  // Priority of the Payout
+  optional PayoutEnums.PayoutPriority priority = 10;
+  // Connector Payout Method ID representing the Payout Method
+  optional string connector_payout_method_id = 11;
+  // Webhook URL
+  optional string webhook_url = 12;
+  // Browser Information
+  optional BrowserInformation browser_info = 13;
+  // access token
+  optional SecretString access_token = 14;
+}
+
+// Response message for creating a payout
+message PayoutServiceCreateResponse {
+  // Identification
+  optional string merchant_payout_id = 1;
+  // Payout Status
+  optional PayoutEnums.PayoutStatus payout_status = 2;
+  // Connector Payout ID
+  optional string connector_payout_id = 3;
+  // Error Code
+  optional ErrorInfo error = 4;
+  // HTTP status code from the connector
+  uint32 status_code = 5;
+}
+
+// Request message for transferring a payout
+message PayoutServiceTransferRequest {
+  // Identification
+  optional string merchant_payout_id = 1;
+  // Address Information
+  PayoutAddress address = 2;
+  // Payout Method Data
+  optional PayoutMethod payout_method_data = 3;
+  // Quote ID
+  optional string connector_quote_id = 4;
+  // Amount Information
+  Money amount = 5;
+  // Connector Payout ID
+  optional string connector_payout_id = 6;
+  // Currency in which payout will be received
+  Currency destination_currency = 7;
+  // Customer Details
+  optional Customer customer = 8;
+  // Priority of the Payout
+  optional PayoutEnums.PayoutPriority priority = 9;
+  // Connector Transfer Method ID representing the Payout Method
+  optional string connector_payout_method_id = 10;
+  // Webhook URL
+  optional string webhook_url = 11;
+  // Browser Information
+  optional BrowserInformation browser_info = 12;
+  // access token
+  optional SecretString access_token = 13;
+}
+
+// Response message for transferring a payout
+message PayoutServiceTransferResponse {
+  // Identification
+  optional string merchant_payout_id = 1;
+  // Payout Status
+  optional PayoutEnums.PayoutStatus payout_status = 2;
+  // Connector Payout ID
+  optional string connector_payout_id = 3;
+  // Error Code
+  optional ErrorInfo error = 4;
+  // HTTP status code from the connector
+  uint32 status_code = 5;
+}
+
+// Request message for staging a payout
+message PayoutServiceStageRequest {
+  // Identification
+  optional string merchant_quote_id = 1;
+  // Address Information
+  PayoutAddress address = 2;
+  // Amount Information
+  Money amount = 3;
+  // Currency in which payout will be received
+  Currency destination_currency = 4;
+  // Customer Details
+  optional Customer customer = 5;
+  // Browser Information
+  optional BrowserInformation browser_info = 6;
+  // access token
+  optional SecretString access_token = 7;
+}
+
+// Response message for staging a payout
+message PayoutServiceStageResponse {
+  // Identification
+  optional string merchant_payout_id = 1;
+  // Payout Status
+  optional PayoutEnums.PayoutStatus payout_status = 2;
+  // Connector Payout ID
+  optional string connector_payout_id = 3;
+  // Error Code
+  optional ErrorInfo error = 4;
+  // HTTP status code from the connector
+  uint32 status_code = 5;
+}
+
+// Request message for fetching a payout
+message PayoutServiceGetRequest {
+  // Identification
+  optional string merchant_payout_id = 1;
+  // Connector Payout ID
+  optional string connector_payout_id = 2;
+  // access token
+  optional SecretString access_token = 3;
+}
+
+// Response message for fetching a payout
+message PayoutServiceGetResponse {
+  // Identification
+  optional string merchant_payout_id = 1;
+  // Payout Status
+  optional PayoutEnums.PayoutStatus payout_status = 2;
+  // Connector Payout ID
+  optional string connector_payout_id = 3;
+  // Error Code
+  optional ErrorInfo error = 4;
+  // HTTP status code from the connector
+  uint32 status_code = 5;
+}
+
+// Request message for voiding a payout
+message PayoutServiceVoidRequest {
+  // Identification
+  optional string merchant_payout_id = 1;
+  // Address Information
+  PayoutAddress address = 2;
+  // Metadata
+  optional SecretString connector_feature_data = 3;
+  // Connector Payout ID
+  optional string connector_payout_id = 4;
+  // access token
+  optional SecretString access_token = 5;
+}
+
+// Response message for voiding a payout
+message PayoutServiceVoidResponse {
+  // Identification
+  optional string merchant_payout_id = 1;
+  // Payout Status
+  optional PayoutEnums.PayoutStatus payout_status = 2;
+  // Connector Payout ID
+  optional string connector_payout_id = 3;
+  // Error Code
+  optional ErrorInfo error = 4;
+  // HTTP status code from the connector
+  uint32 status_code = 5;
+}
+
+// Request message for creating a payout link
+message PayoutServiceCreateLinkRequest {
+  // Identification
+  optional string merchant_payout_id = 1;
+  // Address Information
+  PayoutAddress address = 2;
+  // Metadata
+  optional SecretString connector_feature_data = 3;
+  // Payout Method Data
+  optional PayoutMethod payout_method_data = 4;
+  // Quote ID
+  optional string connector_quote_id = 5;
+  // Connector Payout ID
+  optional string connector_payout_id = 6;
+  // Amount Information
+  Money amount = 7;
+  // Currency in which payout will be received
+  Currency destination_currency = 8;
+  // Customer Details
+  optional Customer customer = 9;
+  // Priority of the Payout
+  optional PayoutEnums.PayoutPriority priority = 10;
+  // Connector Payout Method ID representing the Payout Method
+  optional string connector_payout_method_id = 11;
+  // Webhook URL
+  optional string webhook_url = 12;
+  // Browser Information
+  optional BrowserInformation browser_info = 13;
+  // access token
+  optional SecretString access_token = 14;
+}
+
+// Response message for creating a payout link
+message PayoutServiceCreateLinkResponse {
+  // Identification
+  optional string merchant_payout_id = 1;
+  // Payout Status
+  optional PayoutEnums.PayoutStatus payout_status = 2;
+  // Connector Payout ID
+  optional string connector_payout_id = 3;
+  // Error Code
+  optional ErrorInfo error = 4;
+  // HTTP status code from the connector
+  uint32 status_code = 5;
+}
+
+// Request message for creating recipient account
+message PayoutServiceCreateRecipientRequest {
+  // Identification
+  optional string merchant_payout_id = 1;
+  // Address Information
+  PayoutAddress address = 2;
+  // Payout Method Data
+  optional PayoutMethod payout_method_data = 3;
+  // Amount Information
+  Money amount = 4;
+  // Entity representing the Payout
+  PayoutEnums.PayoutRecipientType recipient_type = 5;
+  // Customer Details
+  optional Customer customer = 6;
+  // access token
+  optional SecretString access_token = 7;
+}
+
+// Response message for creating recipient account
+message PayoutServiceCreateRecipientResponse {
+  // Identification
+  optional string merchant_payout_id = 1;
+  // Payout Status
+  optional PayoutEnums.PayoutStatus payout_status = 2;
+  // Connector Payout ID
+  optional string connector_payout_id = 3;
+  // Error Code
+  optional ErrorInfo error = 4;
+  // HTTP status code from the connector
+  uint32 status_code = 5;
+}
+
+// Request message for enrolling disburse account
+message PayoutServiceEnrollDisburseAccountRequest {
+  // Identification
+  optional string merchant_payout_id = 1;
+  // Address Information
+  PayoutAddress address = 2;
+  // Payout Method Data
+  optional PayoutMethod payout_method_data = 3;
+  // Amount Information
+  Money amount = 4;
+  // Customer Details
+  optional Customer customer = 5;
+  // access token
+  optional SecretString access_token = 6;
+}
+
+// Response message for enrolling disburse account
+message PayoutServiceEnrollDisburseAccountResponse {
+  // Identification
+  optional string merchant_payout_id = 1;
+  // Payout Status
+  optional PayoutEnums.PayoutStatus payout_status = 2;
+  // Connector Payout ID
+  optional string connector_payout_id = 3;
+  // Error Code
+  optional ErrorInfo error = 4;
+  // HTTP status code from the connector
+  uint32 status_code = 5;
+}
+
+// Request message for checking payout eligibility
+message PayoutMethodEligibilityRequest {
+  // Identification
+  optional string merchant_payout_id = 1;
+  // Metadata
+  optional SecretString connector_feature_data = 2;
+  // Payout Method Data
+  optional PayoutMethod payout_method_data = 3;
+  // Amount Information
+  Money amount = 4;
+  // Connector Payout ID
+  optional string connector_payout_id = 5;
+  // Currency in which payout will be received
+  Currency destination_currency = 6;
+  // access token
+  optional SecretString access_token = 7;
+}
+
+// Response message for checking payout eligibility
+message PayoutMethodEligibilityResponse {
+  // Identification
+  optional string merchant_payout_id = 1;
+  // Payout Status
+  optional PayoutEnums.PayoutStatus payout_status = 2;
+  // Connector Payout ID
+  optional string connector_payout_id = 3;
+  // Error Code
+  optional ErrorInfo error = 4;
+  // HTTP status code from the connector
+  uint32 status_code = 5;
+}
+

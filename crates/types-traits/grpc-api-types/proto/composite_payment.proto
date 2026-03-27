@@ -1,0 +1,333 @@
+syntax = "proto3";
+
+package types;
+
+import "payment.proto";
+import "payment_methods.proto";
+
+option go_package = "github.com/juspay/connector-service/crates/types-traits/grpc-api-types/proto;proto";
+
+// Request message for composite authorize flow.
+message CompositeAuthorizeRequest {
+  // Payment Identification
+  optional string merchant_transaction_id = 1; // Reference ID for tracking
+
+  // Metadata
+  optional SecretString metadata = 2; // Additional metadata for the connector
+  optional SecretString connector_feature_data = 3; // Connector-specific metadata for the transaction
+
+  // Environment Configuration
+  optional bool test_mode = 4; // A boolean value to indicate if the connector is in Test mode
+
+  // Customer Information
+  optional Customer customer = 5;
+
+  // Address Information
+  optional PaymentAddress address = 6; // Billing and shipping address details
+
+  // Amount Information
+  Money amount = 7; // The amount for the payment in minor currency units
+  optional int64 order_tax_amount = 8; // Tax amount for the order
+  optional int64 shipping_cost = 9; // Cost of shipping for the order
+
+  // Payment Method and Capture Settings
+  PaymentMethod payment_method = 10; // Payment method to be used
+  optional CaptureMethod capture_method = 11; // Method for capturing the payment
+
+  // Authentication Details
+  AuthenticationType auth_type = 12; // Type of authentication to be used
+  optional bool enrolled_for_3ds = 13; // Indicates if the customer is enrolled for 3D Secure
+  optional AuthenticationData authentication_data = 14; // Additional authentication data
+
+  // URLs for Redirection and Webhooks
+  optional string return_url = 15; // URL to redirect after payment
+  optional string webhook_url = 16; // URL for webhook notifications
+  optional string complete_authorize_url = 17; // URL to complete authorization
+
+  // Session and Token Information
+  optional string session_token = 18; // Session token, if applicable
+
+  // Order Details
+  optional string order_category = 19; // Category of the order
+  optional string merchant_order_id = 20; // Merchant's internal reference ID
+  // Behavioral Flags and Preferences
+  optional FutureUsage setup_future_usage = 21; // Indicates future usage intention
+  optional bool off_session = 22; // Indicates if off-session transaction
+  optional bool request_incremental_authorization = 23; // Indicates if incremental authorization is requested
+  optional bool request_extended_authorization = 24; // Indicates if extended authorization is requested
+  optional bool enable_partial_authorization = 25; // Indicates if partial authorization is enabled
+
+  // Contextual Information
+  optional CustomerAcceptance customer_acceptance = 26; // Details of customer acceptance
+  optional BrowserInformation browser_info = 27; // Information about the customer's browser
+  optional PaymentExperience payment_experience = 28; // Preferred payment experience
+  optional string description = 29; // Additional description for the payment
+  optional PaymentChannel payment_channel = 30; // Describes the channel through which the payment was initiated
+  // Mandate Setup Details
+  optional SetupMandateDetails setup_mandate_details = 31; // Setup mandate details for the authorization
+  // Statement Descriptor
+  optional string statement_descriptor_name = 32; // Complete description that appears on customers' statements
+  optional string statement_descriptor_suffix = 33; // Provides information about a card payment that customers see on their statements
+  optional BillingDescriptor billing_descriptor = 34; // Billing Descriptor information to be sent to the payment gateway
+
+  // State Information
+  optional ConnectorState state = 35; // State data for access token storage and other connector-specific state
+
+  // Order Line Items
+  repeated OrderDetailsWithAmount order_details = 36; // Details about the different products for which the payment is being made
+
+  // Locale Information
+  optional string locale = 37; // Locale/language preference for the shopper (e.g., "en-US")
+  // Tokenization Configuration
+  optional Tokenization tokenization_strategy = 38; // Tokenization strategy for payment processing
+  // Payment Method Token
+  optional SecretString payment_method_token = 39;
+
+  // URL for Redirection
+  optional string continue_redirection_url = 40; // URL to complete authorization
+
+  // Indicates if 3DS method data was successfully completed or not
+  optional ThreeDsCompletionIndicator threeds_completion_indicator = 41;
+
+  // Redirection Information after DDC step
+  optional RedirectionResponse redirection_response = 42; // Redirection Response from client browser
+  optional string merchant_access_token_id = 43; // Reference ID for tracking
+  optional string customer_name = 44;
+  optional SecretString email = 45;
+  optional string merchant_customer_id = 46;
+  optional string phone_number = 47;
+
+  // Level 2 / Level 3 data for enhanced payment processing
+  optional L2L3Data l2_l3_data = 48; 
+}
+
+// Response message for composite authorize flow.
+message CompositeAuthorizeResponse {
+  optional MerchantAuthenticationServiceCreateAccessTokenResponse access_token_response = 1; // Access token flow response
+  optional CustomerServiceCreateResponse create_customer_response = 2; // Create customer flow response
+  optional PaymentServiceAuthorizeResponse authorize_response = 3; // Authorize flow response
+}
+
+// Request message for composite get flow.
+message CompositeGetRequest {
+  // Identification
+  string connector_transaction_id = 1; // The connector transaction ID to synchronize
+  optional string merchant_transaction_id = 16; // The merchant's reference ID
+
+  // State Information
+  optional ConnectorState state = 2; // State data for access token storage and other connector-specific state
+
+  // Body of the response
+  optional bytes handle_response = 3;
+
+  // Amount Information
+  optional Money amount = 4; // The amount for the payment in minor currency units
+
+  // Payment Experience
+  optional PaymentExperience payment_experience = 5; // Preferred payment experience
+
+  // Capture Settings
+  optional CaptureMethod capture_method = 6; // Method for capturing the payment
+
+  // Encoded Data
+  optional string encoded_data = 7; // Encoded context data for redirect flows, etc if applicable
+
+  // Metadata
+  optional SecretString metadata = 8; // Additional metadata for the connector
+  optional FutureUsage setup_future_usage = 9; // Indicates future usage intention
+  optional SecretString connector_feature_data = 10; // Connector-specific metadata for the transaction
+  optional SyncRequestType sync_type = 11; // Indicates the type of payment sync request
+
+  // Connector Reference Id
+  optional string connector_order_reference_id = 12; // Connector's reference id for order
+
+  // Environment Configuration
+  optional bool test_mode = 13; // A boolean value to indicate if the connector is in Test mode
+
+  // Payment Method
+  optional PaymentMethod payment_method = 14; // Payment method to be used
+
+  // Access Token
+  optional string merchant_access_token_id = 15; // Reference ID for access token tracking
+}
+
+// Response message for composite get flow.
+message CompositeGetResponse {
+  optional MerchantAuthenticationServiceCreateAccessTokenResponse access_token_response = 1; // Access token flow response
+  optional PaymentServiceGetResponse get_response = 2; // Get flow response
+}
+
+// Request message for composite refund flow.
+message CompositeRefundRequest {
+  // Identification
+  optional string merchant_refund_id = 1; // Merchant's refund ID for tracking
+  string connector_transaction_id = 2; // Connector transaction ID for the original payment
+
+  // Amount Information
+  int64 payment_amount = 3; // The original payment amount
+  Money refund_amount = 4; // The amount to refund in minor currency units
+
+  // Refund Context
+  optional string reason = 5; // Reason for the refund
+  optional string webhook_url = 6; // URL for webhook notifications
+  optional string merchant_account_id = 7; // Merchant account ID for the refund
+  optional CaptureMethod capture_method = 8; // Capture method related to the original payment
+
+  // Metadata
+  optional SecretString metadata = 9; // Additional metadata for the connector
+  optional SecretString refund_metadata = 10; // Metadata specific to the refund
+  optional SecretString connector_feature_data = 11; // Connector-specific metadata for the transaction
+
+  // Browser Information
+  optional BrowserInformation browser_info = 12; // Browser information, if relevant
+
+  // State Information
+  optional ConnectorState state = 13; // State data for access token storage and other connector-specific state
+
+  // Environment Configuration
+  optional bool test_mode = 14; // A boolean value to indicate if the connector is in Test mode
+
+  // Payment Method Type
+  optional PaymentMethodType payment_method_type = 15; // Indicates the sub type of payment method
+  optional string customer_id = 16; // Merchant's customer ID
+
+  // Payment Method
+  optional PaymentMethod payment_method = 17; // Payment method used for the original payment
+
+  // Access Token
+  optional string merchant_access_token_id = 18; // Reference ID for access token tracking
+}
+
+// Response message for composite refund flow.
+message CompositeRefundResponse {
+  optional MerchantAuthenticationServiceCreateAccessTokenResponse access_token_response = 1; // Access token flow response
+  optional RefundResponse refund_response = 2; // Refund flow response
+}
+
+// Request message for composite refund get/sync flow.
+message CompositeRefundGetRequest {
+  // Identification
+  optional string merchant_refund_id = 1; // Merchant's refund ID for tracking
+  string connector_transaction_id = 2; // Connector transaction ID for the original payment
+  string refund_id = 3; // Connector's refund ID
+
+  // Refund Details
+  optional string refund_reason = 4; // Reason for the refund
+
+  // Browser Information
+  optional BrowserInformation browser_info = 5; // Browser information, if relevant
+
+  optional SecretString refund_metadata = 6; // Metadata specific to the refund sync
+
+  // State Information
+  optional ConnectorState state = 7; // State data for access token storage and other connector-specific state
+
+  // Environment Configuration
+  optional bool test_mode = 8; // A boolean value to indicate if the connector is in Test mode
+
+  // Payment Method Type
+  optional PaymentMethodType payment_method_type = 9; // Indicates the sub type of payment method
+
+  optional SecretString connector_feature_data = 10; // Connector-specific metadata for the transaction
+
+  // Metadata (needed for access token sub-call)
+  optional SecretString metadata = 11; // Additional metadata for the connector
+
+  // Payment Method
+  optional PaymentMethod payment_method = 12; // Payment method used for the original payment
+
+  // Access Token
+  optional string merchant_access_token_id = 13; // Reference ID for access token tracking
+}
+
+// Response message for composite refund get/sync flow.
+message CompositeRefundGetResponse {
+  optional MerchantAuthenticationServiceCreateAccessTokenResponse access_token_response = 1; // Access token flow response
+  optional RefundResponse refund_response = 2; // Refund get flow response
+}
+
+// Request message for composite void flow.
+message CompositeVoidRequest {
+  // Payment Identification
+  optional string merchant_void_id = 1;
+  string connector_transaction_id = 2;
+
+  // Void Details
+  optional string cancellation_reason = 3;
+  optional bool all_keys_required = 4;
+
+  // Browser Information
+  optional BrowserInformation browser_info = 5;
+
+  // Amount Information
+  optional Money amount = 6;
+
+  // Metadata
+  optional SecretString metadata = 7;
+  optional SecretString connector_feature_data = 8;
+
+  // State Information (for access token)
+  optional ConnectorState state = 9;
+
+  // Environment Configuration
+  optional bool test_mode = 10;
+
+  // Additional Context
+  optional string merchant_order_id = 11;
+
+  // Payment Method for access token creation
+  optional PaymentMethod payment_method = 12;
+
+  // Access Token ID
+  optional string merchant_access_token_id = 13;
+}
+
+// Response message for composite void flow.
+message CompositeVoidResponse {
+  optional MerchantAuthenticationServiceCreateAccessTokenResponse access_token_response = 1;
+  optional PaymentServiceVoidResponse void_response = 2;
+}
+
+// Request message for composite capture flow.
+message CompositeCaptureRequest {
+  // Payment Identification
+  optional string merchant_capture_id = 1;
+  string connector_transaction_id = 2;
+
+  // Capture Details
+  Money amount_to_capture = 3;
+
+  // Metadata
+  optional SecretString metadata = 4;
+  optional SecretString connector_feature_data = 5;
+
+  // Multiple Capture Information
+  optional MultipleCaptureRequestData multiple_capture_data = 6;
+
+  // Browser Information
+  optional BrowserInformation browser_info = 7;
+
+  // Capture Settings
+  optional CaptureMethod capture_method = 8;
+
+  // State Information (for access token)
+  optional ConnectorState state = 9;
+
+  // Environment Configuration
+  optional bool test_mode = 10;
+
+  // Additional Context
+  optional string merchant_order_id = 11;
+
+  // Payment Method for access token creation
+  optional PaymentMethod payment_method = 12;
+
+  // Access Token ID
+  optional string merchant_access_token_id = 13;
+}
+
+// Response message for composite capture flow.
+message CompositeCaptureResponse {
+  optional MerchantAuthenticationServiceCreateAccessTokenResponse access_token_response = 1;
+  optional PaymentServiceCaptureResponse capture_response = 2;
+}

@@ -412,6 +412,7 @@ $RECYCLE.BIN/
 
 # Credentials files
 .github/test/creds.json
+creds.json
 
 # DrawIO files
 **/*.drawio.bkp
@@ -419,6 +420,8 @@ gen/**
 
 sdk/**/generated
 sdk/**/node_modules
+tests/node_modules
+sdk/tests/node_modules
 sdk/**/.gradle
 sdk/**/resources/native
 sdk/**/*.tgz
@@ -428,3 +431,9 @@ sdk/java/smoke-test/gradle*
 sdk/java/bin
 
 artifacts/
+sdk/tests/client_sanity/artifacts/
+
+.claude
+
+# Generated proto descriptor files
+scripts/generators/code/services.desc

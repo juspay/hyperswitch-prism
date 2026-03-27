@@ -1,0 +1,523 @@
+{
+  "connector": "novalnet",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "ach": {
+              "account_number": "000123456789",
+              "routing_number": "110000000",
+              "bank_account_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "webhook_url": "https://example.com/webhook"
+        },
+        "sample": {
+          "url": "https://payport.novalnet.de/v2/payment",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-nn-access-key": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA=="
+          },
+          "body": "{\"merchant\":{\"signature\":\"probe_key\",\"tariff\":\"probe_id\"},\"customer\":{\"first_name\":null,\"last_name\":null,\"email\":\"test@example.com\",\"mobile\":null,\"billing\":{\"house_no\":null,\"street\":null,\"city\":null,\"zip\":null,\"country_code\":null},\"no_nc\":1,\"birth_date\":null},\"transaction\":{\"test_mode\":0,\"payment_type\":\"DIRECT_DEBIT_ACH\",\"amount\":\"1000\",\"currency\":\"USD\",\"order_no\":\"probe_txn_001\",\"payment_data\":{\"account_holder\":\"John Doe\",\"account_number\":\"000123456789\",\"routing_number\":\"110000000\"},\"hook_url\":\"https://example.com/webhook\",\"return_url\":\"https://example.com/return\",\"error_return_url\":\"https://example.com/return\",\"enforce_3d\":null,\"create_token\":null},\"custom\":{\"lang\":\"en\"}}"
+        }
+      },
+      "Affirm": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "Afterpay": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "ApplePay": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "apple_pay": {
+              "payment_data": {
+                "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9"
+              },
+              "payment_method": {
+                "display_name": "Visa 1111",
+                "network": "Visa",
+                "type": "debit"
+              },
+              "transaction_identifier": "probe_txn_id"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "webhook_url": "https://example.com/webhook"
+        },
+        "sample": {
+          "url": "https://payport.novalnet.de/v2/payment",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-nn-access-key": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA=="
+          },
+          "body": "{\"merchant\":{\"signature\":\"probe_key\",\"tariff\":\"probe_id\"},\"customer\":{\"first_name\":null,\"last_name\":null,\"email\":\"test@example.com\",\"mobile\":null,\"billing\":{\"house_no\":null,\"street\":null,\"city\":null,\"zip\":null,\"country_code\":null},\"no_nc\":1,\"birth_date\":null},\"transaction\":{\"test_mode\":0,\"payment_type\":\"APPLEPAY\",\"amount\":\"1000\",\"currency\":\"USD\",\"order_no\":\"probe_txn_001\",\"payment_data\":{\"wallet_data\":\"{\\\"version\\\":\\\"EC_v1\\\",\\\"data\\\":\\\"probe\\\",\\\"signature\\\":\\\"probe\\\"}\"},\"hook_url\":\"https://example.com/webhook\",\"return_url\":null,\"error_return_url\":null,\"enforce_3d\":null,\"create_token\":null},\"custom\":{\"lang\":\"en\"}}"
+        }
+      },
+      "ApplePayDecrypted": {
+        "status": "error",
+        "error": "Stuck on field: Apple pay encrypted data — Missing required field: Apple pay encrypted data"
+      },
+      "Bacs": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through Novalnet"
+      },
+      "Becs": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through Novalnet"
+      },
+      "Blik": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "Card": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {
+              "first_name": "John"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "webhook_url": "https://example.com/webhook"
+        },
+        "sample": {
+          "url": "https://payport.novalnet.de/v2/payment",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-nn-access-key": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA=="
+          },
+          "body": "{\"merchant\":{\"signature\":\"probe_key\",\"tariff\":\"probe_id\"},\"customer\":{\"first_name\":\"John\",\"last_name\":null,\"email\":\"test@example.com\",\"mobile\":null,\"billing\":{\"house_no\":null,\"street\":null,\"city\":null,\"zip\":null,\"country_code\":null},\"no_nc\":1,\"birth_date\":null},\"transaction\":{\"test_mode\":0,\"payment_type\":\"CREDITCARD\",\"amount\":\"1000\",\"currency\":\"USD\",\"order_no\":\"probe_txn_001\",\"payment_data\":{\"card_number\":\"4111111111111111\",\"card_expiry_month\":\"03\",\"card_expiry_year\":\"2030\",\"card_cvc\":\"737\",\"card_holder\":\"John\"},\"hook_url\":\"https://example.com/webhook\",\"return_url\":\"https://example.com/return\",\"error_return_url\":\"https://example.com/return\",\"enforce_3d\":null,\"create_token\":null},\"custom\":{\"lang\":\"en\"}}"
+        }
+      },
+      "GooglePay": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay": {
+              "type": "CARD",
+              "description": "Visa 1111",
+              "info": {
+                "card_network": "VISA",
+                "card_details": "1111"
+              },
+              "tokenization_data": {
+                "encrypted_data": {
+                  "token_type": "PAYMENT_GATEWAY",
+                  "token": "{\"id\":\"tok_probe_gpay\",\"object\":\"token\",\"type\":\"card\"}"
+                }
+              }
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "webhook_url": "https://example.com/webhook"
+        },
+        "sample": {
+          "url": "https://payport.novalnet.de/v2/payment",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-nn-access-key": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA=="
+          },
+          "body": "{\"merchant\":{\"signature\":\"probe_key\",\"tariff\":\"probe_id\"},\"customer\":{\"first_name\":null,\"last_name\":null,\"email\":\"test@example.com\",\"mobile\":null,\"billing\":{\"house_no\":null,\"street\":null,\"city\":null,\"zip\":null,\"country_code\":null},\"no_nc\":1,\"birth_date\":null},\"transaction\":{\"test_mode\":0,\"payment_type\":\"GOOGLEPAY\",\"amount\":\"1000\",\"currency\":\"USD\",\"order_no\":\"probe_txn_001\",\"payment_data\":{\"wallet_data\":\"{\\\"id\\\":\\\"tok_probe_gpay\\\",\\\"object\\\":\\\"token\\\",\\\"type\\\":\\\"card\\\"}\"},\"hook_url\":\"https://example.com/webhook\",\"return_url\":null,\"error_return_url\":null,\"enforce_3d\":null,\"create_token\":null},\"custom\":{\"lang\":\"en\"}}"
+        }
+      },
+      "GooglePayDecrypted": {
+        "status": "error",
+        "error": "Stuck on field: gpay wallet_token — Missing required field: gpay wallet_token"
+      },
+      "Ideal": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "Klarna": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "PaypalRedirect": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "paypal_redirect": {
+              "email": "test@example.com"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "webhook_url": "https://example.com/webhook"
+        },
+        "sample": {
+          "url": "https://payport.novalnet.de/v2/payment",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-nn-access-key": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA=="
+          },
+          "body": "{\"merchant\":{\"signature\":\"probe_key\",\"tariff\":\"probe_id\"},\"customer\":{\"first_name\":null,\"last_name\":null,\"email\":\"test@example.com\",\"mobile\":null,\"billing\":{\"house_no\":null,\"street\":null,\"city\":null,\"zip\":null,\"country_code\":null},\"no_nc\":1,\"birth_date\":null},\"transaction\":{\"test_mode\":0,\"payment_type\":\"PAYPAL\",\"amount\":\"1000\",\"currency\":\"USD\",\"order_no\":\"probe_txn_001\",\"payment_data\":null,\"hook_url\":\"https://example.com/webhook\",\"return_url\":\"https://example.com/return\",\"error_return_url\":\"https://example.com/return\",\"enforce_3d\":null,\"create_token\":null},\"custom\":{\"lang\":\"en\"}}"
+        }
+      },
+      "SamsungPay": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "Sepa": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "sepa": {
+              "iban": "DE89370400440532013000",
+              "bank_account_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "webhook_url": "https://example.com/webhook"
+        },
+        "sample": {
+          "url": "https://payport.novalnet.de/v2/payment",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-nn-access-key": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA=="
+          },
+          "body": "{\"merchant\":{\"signature\":\"probe_key\",\"tariff\":\"probe_id\"},\"customer\":{\"first_name\":null,\"last_name\":null,\"email\":\"test@example.com\",\"mobile\":null,\"billing\":{\"house_no\":null,\"street\":null,\"city\":null,\"zip\":null,\"country_code\":null},\"no_nc\":1,\"birth_date\":null},\"transaction\":{\"test_mode\":0,\"payment_type\":\"DIRECT_DEBIT_SEPA\",\"amount\":\"1000\",\"currency\":\"USD\",\"order_no\":\"probe_txn_001\",\"payment_data\":{\"account_holder\":\"John Doe\",\"iban\":\"DE89370400440532013000\"},\"hook_url\":\"https://example.com/webhook\",\"return_url\":\"https://example.com/return\",\"error_return_url\":\"https://example.com/return\",\"enforce_3d\":null,\"create_token\":null},\"custom\":{\"lang\":\"en\"}}"
+        }
+      },
+      "UpiCollect": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_capture_id": "probe_capture_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount_to_capture": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://payport.novalnet.de/v2/transaction/capture",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-nn-access-key": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA=="
+          },
+          "body": "{\"transaction\":{\"tid\":\"probe_connector_txn_001\",\"amount\":\"1000\",\"capture\":{\"type\":\"Final\",\"reference\":\"probe_capture_001\"}},\"custom\":{\"lang\":\"en\"}}"
+        }
+      }
+    },
+    "create_access_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_customer": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_session_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_merchant_txn_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://payport.novalnet.de/v2/transaction/details",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-nn-access-key": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA=="
+          },
+          "body": "{\"transaction\":{\"tid\":\"probe_connector_txn_001\"},\"custom\":{\"lang\":\"en\"}}"
+        }
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "connector_recurring_payment_id": {
+            "mandate_id_type": {
+              "connector_mandate_id": "probe-mandate-123"
+            }
+          },
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "token": "probe_pm_token"
+          },
+          "webhook_url": "https://example.com/webhook",
+          "return_url": "https://example.com/recurring-return",
+          "email": "test@example.com",
+          "connector_customer_id": "cust_probe_123",
+          "payment_method_type": "PAY_PAL",
+          "off_session": true
+        },
+        "sample": {
+          "url": "https://payport.novalnet.de/v2/payment",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-nn-access-key": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA=="
+          },
+          "body": "{\"merchant\":{\"signature\":\"probe_key\",\"tariff\":\"probe_id\"},\"customer\":{\"first_name\":null,\"last_name\":null,\"email\":\"test@example.com\",\"mobile\":null,\"billing\":{\"house_no\":null,\"street\":null,\"city\":null,\"zip\":null,\"country_code\":null},\"no_nc\":1,\"birth_date\":null},\"transaction\":{\"test_mode\":0,\"payment_type\":\"PAYPAL\",\"amount\":\"1000\",\"currency\":\"USD\",\"order_no\":\"\",\"payment_data\":{\"token\":\"probe-mandate-123\"},\"hook_url\":\"https://example.com/webhook\",\"return_url\":null,\"error_return_url\":null,\"enforce_3d\":null,\"create_token\":null},\"custom\":{\"lang\":\"en\"}}"
+        }
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "payment_amount": 1000,
+          "refund_amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "reason": "customer_request"
+        },
+        "sample": {
+          "url": "https://payport.novalnet.de/v2/transaction/refund",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-nn-access-key": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA=="
+          },
+          "body": "{\"transaction\":{\"tid\":\"probe_connector_txn_001\",\"amount\":\"1000\"},\"custom\":{\"lang\":\"en\"}}"
+        }
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {
+              "first_name": "John"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/mandate-return",
+          "webhook_url": "https://example.com/webhook",
+          "setup_future_usage": "OFF_SESSION",
+          "request_incremental_authorization": false,
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          }
+        },
+        "sample": {
+          "url": "https://payport.novalnet.de/v2/payment",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-nn-access-key": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA=="
+          },
+          "body": "{\"merchant\":{\"signature\":\"probe_key\",\"tariff\":\"probe_id\"},\"customer\":{\"first_name\":\"John\",\"last_name\":null,\"email\":\"test@example.com\",\"mobile\":null,\"billing\":{\"house_no\":null,\"street\":null,\"city\":null,\"zip\":null,\"country_code\":null},\"no_nc\":1,\"birth_date\":null},\"transaction\":{\"test_mode\":0,\"payment_type\":\"CREDITCARD\",\"amount\":0,\"currency\":\"USD\",\"order_no\":\"probe_mandate_001\",\"payment_data\":{\"card_number\":\"4111111111111111\",\"card_expiry_month\":\"03\",\"card_expiry_year\":\"2030\",\"card_cvc\":\"737\",\"card_holder\":\"John\"},\"hook_url\":\"https://example.com/webhook\",\"return_url\":\"https://example.com/mandate-return\",\"error_return_url\":\"https://example.com/mandate-return\",\"enforce_3d\":null,\"create_token\":1},\"custom\":{\"lang\":\"en\"}}"
+        }
+      }
+    },
+    "tokenize": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_void_id": "probe_void_001",
+          "connector_transaction_id": "probe_connector_txn_001"
+        },
+        "sample": {
+          "url": "https://payport.novalnet.de/v2/transaction/cancel",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-nn-access-key": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA=="
+          },
+          "body": "{\"transaction\":{\"tid\":\"probe_connector_txn_001\"},\"custom\":{\"lang\":\"en\"}}"
+        }
+      }
+    }
+  }
+}

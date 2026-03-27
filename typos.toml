@@ -1,6 +1,14 @@
 # Typos configuration for connector-service
 # This file configures the typos spell checker to handle domain-specific terminology
 
+# Exclude generated files from spell checking
+[files]
+extend-exclude = [
+    "data/field_probe/*.json",     # Generated probe output with base64 signatures
+    "docs-generated/all_connector.md",       # Generated summary with truncated error messages
+    "crates/internal/ucs-connector-tests/**",
+]
+
 [default.extend-words]
 # Financial and payment industry terms
 Iin = "Iin"  # Issuer Identification Number - valid financial term

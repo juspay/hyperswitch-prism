@@ -1,9 +1,0 @@
-[package]
-name = "example-rs"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-tokio = { version = "1.44.2", features = ["full"] }
-rust-grpc-client = { git = "https://github.com/juspay/connector-service.git", package="rust-grpc-client" }
-tonic = "0.13.0"

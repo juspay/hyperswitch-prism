@@ -1,0 +1,70 @@
+{
+  "sync_payment": {
+    "grpc_req": {
+      "connector_transaction_id": "auto_generate",
+      "amount": {
+        "minor_amount": 6000,
+        "currency": "USD"
+      },
+      "state": {
+        "connector_customer_id": "",
+        "access_token": {
+          "token": {
+            "value": ""
+          },
+          "token_type": "",
+          "expires_in_seconds": 0
+        }
+      }
+    },
+    "assert": {
+      "status": {
+        "one_of": [
+          "CHARGED",
+          "AUTHORIZED",
+          "VOIDED",
+          "PENDING"
+        ]
+      },
+      "error": {
+        "must_not_exist": true
+      }
+    },
+    "is_default": true
+  },
+  "sync_payment_with_handle_response": {
+    "grpc_req": {
+      "connector_transaction_id": "auto_generate",
+      "amount": {
+        "minor_amount": 6000,
+        "currency": "USD"
+      },
+      "state": {
+        "connector_customer_id": "",
+        "access_token": {
+          "token": {
+            "value": ""
+          },
+          "token_type": "",
+          "expires_in_seconds": 0
+        }
+      }
+    },
+    "assert": {
+      "status": {
+        "one_of": [
+          "CHARGED",
+          "AUTHORIZED",
+          "VOIDED",
+          "PENDING"
+        ]
+      },
+      "connector_transaction_id": {
+        "must_exist": true
+      },
+      "error": {
+        "must_not_exist": true
+      }
+    }
+  }
+}

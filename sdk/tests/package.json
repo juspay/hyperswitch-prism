@@ -1,0 +1,8 @@
+{
+  "name": "connector-service-tests",
+  "private": true,
+  "description": "Test fixtures (HTTP client sanity: echo server, proxy, judge)",
+  "devDependencies": {
+    "http-proxy": "^1.18.1"
+  }
+}

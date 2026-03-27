@@ -1,0 +1,20 @@
+[package]
+name = "composite-service"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+grpc-api-types = { path = "../../types-traits/grpc-api-types" }
+tonic = { workspace = true }
+connector-integration = { path = "../../integrations/connector-integration" }
+domain_types = { path = "../../types-traits/domain_types" }
+common_enums = { path = "../../common/common_enums", package = "ucs_common_enums" }
+common_utils = { path = "../../common/common_utils", package = "ucs_common_utils" }
+hyperswitch_masking = { version = "0.0.1", default-features = false, features = ["alloc", "serde", "time"] }
+
+[dev-dependencies]
+prost = { workspace = true }
+prost-types = "0.14"
+
+[lints]
+workspace = true

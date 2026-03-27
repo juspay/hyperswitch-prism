@@ -2,7 +2,7 @@
  * Node.js bindings for connector-service-ffi
  *
  * This module provides Node.js access to the Rust FFI functions.
- * Build with: cd backend/ffi && cargo build --release
+ * Build with: cd crates/ffi/ffi && cargo build --release
  */
 
 "use strict";

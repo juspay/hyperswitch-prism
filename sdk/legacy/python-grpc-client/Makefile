@@ -1,5 +1,5 @@
 
-PROTO_DIR=../../backend/grpc-api-types/proto
+PROTO_DIR=../../crates/types-traits/grpc-api-types/proto
 PROTO_FILES=$(wildcard $(PROTO_DIR)/*.proto)
 PYTHON_OUT=./generated
 

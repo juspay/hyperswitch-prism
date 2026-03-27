@@ -1,0 +1,251 @@
+{
+  "connector": "payme",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by payme"
+      },
+      "Affirm": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by payme"
+      },
+      "Afterpay": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by payme"
+      },
+      "ApplePay": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by payme"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by payme"
+      },
+      "Bacs": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by payme"
+      },
+      "Becs": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by payme"
+      },
+      "Blik": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by payme"
+      },
+      "Card": {
+        "status": "error",
+        "error": "Stuck on field: customer.name — Missing required field: customer.name"
+      },
+      "GooglePay": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by payme"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by payme"
+      },
+      "Ideal": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by payme"
+      },
+      "Klarna": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by payme"
+      },
+      "PaypalRedirect": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by payme"
+      },
+      "SamsungPay": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by payme"
+      },
+      "Sepa": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by payme"
+      },
+      "UpiCollect": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by payme"
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_capture_id": "probe_capture_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount_to_capture": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://sandbox.payme.io/api//capture-sale",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"seller_payme_id\":\"probe_id\",\"payme_sale_id\":\"probe_connector_txn_001\",\"sale_price\":1000}"
+        }
+      }
+    },
+    "create_access_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_customer": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_order_id": "probe_order_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://sandbox.payme.io/api//generate-sale",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"seller_payme_id\":\"probe_id\",\"sale_type\":\"authorize\",\"sale_price\":1000,\"currency\":\"USD\",\"sale_payment_method\":\"credit-card\",\"product_name\":null,\"transaction_id\":\"probe_order_001\",\"sale_callback_url\":null,\"sale_return_url\":null,\"language\":\"en\"}"
+        }
+      }
+    },
+    "create_session_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_merchant_txn_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://sandbox.payme.io/api//get-sales",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"seller_payme_id\":\"probe_id\",\"sale_payme_id\":\"probe_connector_txn_001\"}"
+        }
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "payment_amount": 1000,
+          "refund_amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "reason": "customer_request"
+        },
+        "sample": {
+          "url": "https://sandbox.payme.io/api//refund-sale",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"seller_payme_id\":\"probe_id\",\"payme_sale_id\":\"probe_connector_txn_001\",\"sale_refund_amount\":1000,\"language\":\"en\"}"
+        }
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "tokenize": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_void_id": "probe_void_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://sandbox.payme.io/api//void-sale",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"seller_payme_id\":\"probe_id\",\"payme_sale_id\":\"probe_connector_txn_001\",\"sale_currency\":\"USD\",\"language\":\"en\"}"
+        }
+      }
+    }
+  }
+}

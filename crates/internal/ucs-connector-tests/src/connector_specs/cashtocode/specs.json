@@ -1,0 +1,6 @@
+{
+  "connector": "cashtocode",
+  "supported_suites": [
+    "authorize"
+  ]
+}

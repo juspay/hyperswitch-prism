@@ -1,0 +1,93 @@
+[package]
+name = "grpc-server"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# First-party dependencies
+grpc-api-types = { path = "../../types-traits/grpc-api-types" }
+superposition_core = { workspace = true }
+connector-integration = { path = "../../integrations/connector-integration" }
+external-services = { path = "../../common/external-services" }
+domain_types = { path = "../../types-traits/domain_types" }
+interfaces = { path = "../../types-traits/interfaces" }
+cards = { path = "../../types-traits/cards", package = "ucs_cards" }
+common_enums = { path = "../../common/common_enums", package = "ucs_common_enums" }
+common_utils = { path = "../../common/common_utils", package = "ucs_common_utils" }
+composite-service = { path = "../../internal/composite-service" }
+config_patch_derive = { path = "../../common/config_patch_derive" }
+hyperswitch_masking = { version = "0.0.1", default-features = false, features = ["alloc", "serde", "time"] }
+# TODO! update to latest Hyperswitch Tag once hyperswitch_masking crate changes are merged to hyperswitch main
+injector = { git = "https://github.com/juspay/hyperswitch",  branch = "solve-injector-masking-cyclic-dependency" }
+tracing-kafka = { path = "../../common/tracing-kafka", optional = true }
+ucs_env = { path = "../../common/ucs_env" }
+ucs_interface_common = { path = "../../types-traits/ucs_interface_common" }
+
+# Third-party dependencies
+config = "0.14.0"
+error-stack = "0.4.1"
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_path_to_error = "0.1.16"
+thiserror = { workspace = true }
+time = { version = "0.3.36", features = ["parsing", "macros"] }
+tracing = { workspace = true }
+tracing-appender = { version = "0.2.3" }
+tracing-subscriber = { version = "0.3.18", default-features = true, features = [
+    "env-filter",
+    "json",
+    "registry",
+] }
+tracing-attributes = "0.1.27"
+tokio = { version = "1.48.0", features = [
+    "macros",
+    "rt-multi-thread",
+    "signal",
+] }
+tonic = { workspace = true }
+tonic-reflection = "0.14.0"
+hyper = "1.6.0"
+tower-http = { version = "0.6.2", features = ["trace", "request-id"] }
+tower = "0.5.2"
+http = "1.2.0"
+lazy_static = "1.5.0"
+axum = { version = "0.8.3", features = ["macros"] }
+prometheus = "0.13.4"
+base64 = "0.21.2"
+rustc-hash = "2.0"
+gethostname = "0.5.0"
+once_cell = "1.19.0"
+log_utils = { git = "https://github.com/juspay/framework-libs-rs", rev = "243562041252fe5897ce888d20b715ffdc3767ce", package = "log_utils", features = [
+    "tracing",
+] }
+build_info = { git = "https://github.com/juspay/framework-libs-rs", rev = "243562041252fe5897ce888d20b715ffdc3767ce", package = "build_info", features = [
+    "cargo-workspace",
+    "framework-libs-members-env",
+] }
+uuid = { workspace = true }
+chrono = "0.4.31"
+
+[build-dependencies]
+build_info = { git = "https://github.com/juspay/framework-libs-rs", rev = "243562041252fe5897ce888d20b715ffdc3767ce", package = "build_info", features = [
+    "cargo-workspace-build",
+    "vergen-gix-build",
+    "framework-libs-members-env",
+] }
+
+[dev-dependencies]
+tokio-stream = { version = "0.1.17", features = ["net"] }
+tower = { version = "0.5.2" }
+tempfile = "3.19.1"
+hyper-util = { version = "0.1.3", features = ["tokio"] }
+rand = "0.8.5"
+uuid = { workspace = true, features = ["v4"] }
+reqwest = { version = "0.11", features = ["json"] }
+serial_test = "3.2.0"
+
+
+[features]
+default = []
+kafka = ["tracing-kafka"]
+
+[lints]
+workspace = true

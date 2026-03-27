@@ -16,6 +16,33 @@ export class CustomerClient extends _ConnectorClientBase {
 
 }
 
+export class DisputeClient extends _ConnectorClientBase {
+  /** DisputeService.Accept — Concede dispute and accepts chargeback loss. Acknowledges liability and stops dispute defense process when evidence is insufficient. */
+  async accept(
+    requestMsg: types.IDisputeServiceAcceptRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.DisputeServiceAcceptResponse> {
+    return this._executeFlow('accept', requestMsg, options, 'DisputeServiceAcceptRequest', 'DisputeServiceAcceptResponse') as Promise<types.DisputeServiceAcceptResponse>;
+  }
+
+  /** DisputeService.Defend — Submit defense with reason code for dispute. Presents formal argument against customer's chargeback claim with supporting documentation. */
+  async defend(
+    requestMsg: types.IDisputeServiceDefendRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.DisputeServiceDefendResponse> {
+    return this._executeFlow('defend', requestMsg, options, 'DisputeServiceDefendRequest', 'DisputeServiceDefendResponse') as Promise<types.DisputeServiceDefendResponse>;
+  }
+
+  /** DisputeService.SubmitEvidence — Upload evidence to dispute customer chargeback. Provides documentation like receipts and delivery proof to contest fraudulent transaction claims. */
+  async submitEvidence(
+    requestMsg: types.IDisputeServiceSubmitEvidenceRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.DisputeServiceSubmitEvidenceResponse> {
+    return this._executeFlow('submit_evidence', requestMsg, options, 'DisputeServiceSubmitEvidenceRequest', 'DisputeServiceSubmitEvidenceResponse') as Promise<types.DisputeServiceSubmitEvidenceResponse>;
+  }
+
+}
+
 export class EventClient extends _ConnectorClientBase {
   /** EventService.HandleEvent — Process webhook notifications from connectors. Translates connector events into standardized responses for asynchronous payment state updates. */
   async handleEvent(
@@ -147,6 +174,73 @@ export class PaymentClient extends _ConnectorClientBase {
     options?: types.IRequestConfig | null
   ): Promise<types.PaymentServiceVoidResponse> {
     return this._executeFlow('void', requestMsg, options, 'PaymentServiceVoidRequest', 'PaymentServiceVoidResponse') as Promise<types.PaymentServiceVoidResponse>;
+  }
+
+}
+
+export class PayoutClient extends _ConnectorClientBase {
+  /** PayoutService.Create — Creates a payout. */
+  async payoutCreate(
+    requestMsg: types.IPayoutServiceCreateRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.PayoutServiceCreateResponse> {
+    return this._executeFlow('payout_create', requestMsg, options, 'PayoutServiceCreateRequest', 'PayoutServiceCreateResponse') as Promise<types.PayoutServiceCreateResponse>;
+  }
+
+  /** PayoutService.CreateLink — Creates a link between the recipient and the payout. */
+  async payoutCreateLink(
+    requestMsg: types.IPayoutServiceCreateLinkRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.PayoutServiceCreateLinkResponse> {
+    return this._executeFlow('payout_create_link', requestMsg, options, 'PayoutServiceCreateLinkRequest', 'PayoutServiceCreateLinkResponse') as Promise<types.PayoutServiceCreateLinkResponse>;
+  }
+
+  /** PayoutService.CreateRecipient — Create payout recipient. */
+  async payoutCreateRecipient(
+    requestMsg: types.IPayoutServiceCreateRecipientRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.PayoutServiceCreateRecipientResponse> {
+    return this._executeFlow('payout_create_recipient', requestMsg, options, 'PayoutServiceCreateRecipientRequest', 'PayoutServiceCreateRecipientResponse') as Promise<types.PayoutServiceCreateRecipientResponse>;
+  }
+
+  /** PayoutService.EnrollDisburseAccount — Enroll disburse account. */
+  async payoutEnrollDisburseAccount(
+    requestMsg: types.IPayoutServiceEnrollDisburseAccountRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.PayoutServiceEnrollDisburseAccountResponse> {
+    return this._executeFlow('payout_enroll_disburse_account', requestMsg, options, 'PayoutServiceEnrollDisburseAccountRequest', 'PayoutServiceEnrollDisburseAccountResponse') as Promise<types.PayoutServiceEnrollDisburseAccountResponse>;
+  }
+
+  /** PayoutService.Get — Retrieve payout details. */
+  async payoutGet(
+    requestMsg: types.IPayoutServiceGetRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.PayoutServiceGetResponse> {
+    return this._executeFlow('payout_get', requestMsg, options, 'PayoutServiceGetRequest', 'PayoutServiceGetResponse') as Promise<types.PayoutServiceGetResponse>;
+  }
+
+  /** PayoutService.Stage — Stage the payout. */
+  async payoutStage(
+    requestMsg: types.IPayoutServiceStageRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.PayoutServiceStageResponse> {
+    return this._executeFlow('payout_stage', requestMsg, options, 'PayoutServiceStageRequest', 'PayoutServiceStageResponse') as Promise<types.PayoutServiceStageResponse>;
+  }
+
+  /** PayoutService.Transfer — Creates a payout fund transfer. */
+  async payoutTransfer(
+    requestMsg: types.IPayoutServiceTransferRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.PayoutServiceTransferResponse> {
+    return this._executeFlow('payout_transfer', requestMsg, options, 'PayoutServiceTransferRequest', 'PayoutServiceTransferResponse') as Promise<types.PayoutServiceTransferResponse>;
+  }
+
+  /** PayoutService.Void — Void a payout. */
+  async payoutVoid(
+    requestMsg: types.IPayoutServiceVoidRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.PayoutServiceVoidResponse> {
+    return this._executeFlow('payout_void', requestMsg, options, 'PayoutServiceVoidRequest', 'PayoutServiceVoidResponse') as Promise<types.PayoutServiceVoidResponse>;
   }
 
 }

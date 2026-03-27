@@ -1,7 +1,0 @@
-{
-  "connector": "adyen",
-  "auth": {
-    "api_key": "test_api_key_for_header",
-    "auth_type": "headerkey"
-  }
-}

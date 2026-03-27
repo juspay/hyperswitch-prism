@@ -64,6 +64,7 @@
             python3Packages.grpcio-tools  # protoc compiler for Python
             python3Packages.requests  # HTTP library for Python SDK
             python3Packages.mypy-protobuf  # Generate mypy stub files from protobuf specs
+            python3Packages.jinja2  # Template engine for SDK codegen
 
             # Java/Gradle runtime and tools
             jdk17             # Java Development Kit (matches protobuf-java 4.x needs)

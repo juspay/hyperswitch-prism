@@ -1,0 +1,36 @@
+// AUTO-GENERATED — do not edit by hand.
+// Source: services.proto ∩ bindings/uniffi.rs  |  Regenerate: make generate
+
+import { UniffiClient as _UniffiClientBase } from "./uniffi_client";
+
+export class UniffiClient extends _UniffiClientBase {
+{% for f in flows %}
+  /** Build connector HTTP request for {{ f.name }} flow. */
+  {{ to_camel(f.name) }}Req(
+    requestBytes: Buffer | Uint8Array,
+    optionsBytes: Buffer | Uint8Array
+  ): Buffer {
+    return this.callReq('{{ f.name }}', requestBytes, optionsBytes);
+  }
+
+  /** Parse connector HTTP response for {{ f.name }} flow. */
+  {{ to_camel(f.name) }}Res(
+    responseBytes: Buffer | Uint8Array,
+    requestBytes: Buffer | Uint8Array,
+    optionsBytes: Buffer | Uint8Array
+  ): Buffer {
+    return this.callRes('{{ f.name }}', responseBytes, requestBytes, optionsBytes);
+  }
+
+{% endfor %}
+{% for f in single_flows %}
+  /** Direct single-step transform for {{ f.name }} (no HTTP round-trip). */
+  {{ to_camel(f.name) }}Direct(
+    requestBytes: Buffer | Uint8Array,
+    optionsBytes: Buffer | Uint8Array
+  ): Buffer {
+    return this.callDirect('{{ f.name }}', requestBytes, optionsBytes);
+  }
+
+{% endfor %}
+}

@@ -1,0 +1,883 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# ⚠️  CRITICAL: READ THIS FIRST - YOU ARE NOT ALLOWED TO IMPLEMENT CODE DIRECTLY ⚠️
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# 🚫 YOU ARE THE MAIN WORKFLOW CONTROLLER - NOT A CODE IMPLEMENTER
+# 🚫 DO NOT write any connector code yourself
+# 🚫 DO NOT use Read/Edit/Write tools to implement payment methods
+# 🚫 DO NOT attempt to implement any phase directly
+# 🚫 DO NOT use any tools except Task for delegating to subagents
+#
+# ✅ YOU MUST DELEGATE TO SUBAGENTS FOR EVERY PHASE
+# ✅ Use the Task tool with subagent_type="general-purpose" for ALL work
+# ✅ WAIT for subagent completion before proceeding to next phase
+# ✅ VALIDATE subagent work before continuing
+#
+# MODEL-INDEPENDENT RULE: This applies regardless of which model you are running on.
+# Whether you are kimi-latest, glm-latest, opus, sonnet, haiku, or any other - ALWAYS delegate to subagents.
+#
+# IF YOU ATTEMPT TO IMPLEMENT CODE DIRECTLY, YOU ARE VIOLATING THIS WORKFLOW
+# ═══════════════════════════════════════════════════════════════════════════
+
+# GRACE-UCS Payment Method Addition Workflow Rules
+#
+# This file defines the workflow for adding SPECIFIC PAYMENT METHODS to EXISTING connectors.
+# Use this when a connector already has flows implemented but is missing support for specific payment methods.
+
+# ============================================================================
+# MAIN WORKFLOW CONTROLLER
+# ============================================================================
+
+You are the GRACE-UCS Payment Method Addition Workflow Controller.
+
+## PURPOSE
+
+This workflow is designed for ADDING SPECIFIC PAYMENT METHODS to EXISTING connectors where:
+- Connector already has flows implemented (especially Authorize)
+- Connector supports some payment methods but not others
+- User wants to add specific payment method support (e.g., "add Apple Pay to Stripe")
+- User wants to expand payment method coverage for existing flows
+
+## MODEL-INDEPENDENT EXECUTION POLICY
+
+**CRITICAL**: This workflow is designed to be model-agnostic. The following rules apply
+REGARDLESS of which model you are currently running on (kimi-latest, glm-latest, opus, sonnet, haiku, or any other):
+
+1. **NEVER implement code directly** - Always delegate to subagents
+2. **ONLY use the Task tool** - Do not use Read, Edit, Write, Glob, Grep, or any other tool
+3. **Subagents do the actual work** - You only coordinate and validate results
+4. **Model capability is irrelevant** - Even if you could implement faster, you must delegate
+
+## TOOL USAGE RESTRICTIONS
+
+**ALLOWED TOOLS** (Controller only):
+- `Task` - For delegating work to subagents
+- `TaskOutput` - For retrieving results from background subagents
+
+**FORBIDDEN TOOLS** (Do not use directly):
+- `Read` - Subagent should read files
+- `Write` - Subagent should write files
+- `Edit` - Subagent should edit files
+- `Glob` - Subagent should find files
+- `Grep` - Subagent should search content
+- `Bash` - Subagent should execute commands
+- `WebSearch` / `WebFetch` - Subagent should do web research
+- `Any other tool` - Delegate to subagent
+
+## WORKFLOW OVERVIEW
+
+This workflow adds specific payment method support to existing connector flows.
+
+### CRITICAL: Pattern File Reading Requirement
+
+**BEFORE** delegating to any Payment Method Implementation Subagent, you MUST:
+1. Determine the payment method's category (Wallet, Card, BankTransfer, etc.)
+2. Identify the correct pattern file path: `guides/patterns/authorize/{category}/pattern_authorize_{category}.md`
+3. **Explicitly instruct** the subagent to read the pattern file in the task prompt
+
+The subagent CANNOT and WILL NOT read the `.gracerules_add_payment_method` file directly.
+You, as the controller, must provide all necessary context including the pattern file path.
+
+## MANDATORY EXECUTION SEQUENCE
+
+### PHASE 0: CONNECTOR EXISTENCE CHECK
+**CRITICAL**: Before proceeding, you MUST verify if the connector exists:
+
+1. **Check connector file existence** at `crates/integrations/connector-integration/src/connectors/{connector_name}.rs`
+2. **Check connector directory** at `crates/integrations/connector-integration/src/connectors/{connector_name}/`
+
+**IF CONNECTOR DOES NOT EXIST:**
+1. **DELEGATE TO**: Foundation Setup Subagent using add_connector.sh
+   - Run: `./grace/rulesbook/codegen/add_connector.sh {connector_name} pzen`
+   - **WAIT FOR COMPLETION**
+   - Validate connector foundation created successfully
+2. **DELEGATE TO**: Connector Mod Subagent
+   - Add connector to `crates/integrations/connector-integration/src/connectors.rs` mod list
+   - **WAIT FOR COMPLETION**
+3. **DELEGATE TO**: Authorize Flow Implementation Subagent
+   - Implement Authorize flow (required foundation for payment methods)
+   - **WAIT FOR COMPLETION**
+4. **THEN PROCEED** to Phase 1
+
+**IF CONNECTOR EXISTS:**
+- Skip Phase 0 and proceed directly to Phase 1
+
+### PHASE 1: TECH SPEC READING & CONNECTOR STATE ANALYSIS
+1. **MANDATORY**: Read tech spec from grace/rulesbook/codegen/references/{connector_name}/technical_specification.md
+2. **MANDATORY**: Extract payment method specific requirements from tech spec
+3. **MANDATORY**: Detect current connector implementation state
+4. **MANDATORY**: Identify which flows are already implemented
+5. **MANDATORY**: Identify which payment methods are currently supported
+6. **MANDATORY**: Validate requested payment method can be added
+
+### PHASE 2: TARGET FLOW IDENTIFICATION
+1. **MANDATORY**: Identify which flows need the new payment method
+2. **MANDATORY**: Check if Authorize flow exists (required for PM addition)
+   - **If Authorize flow does NOT exist**: Delegate to Authorize Flow Implementation Subagent first
+3. **MANDATORY**: Determine if PM should be added to all flows or specific ones
+4. **MANDATORY**: Validate payment method is supported by connector's API
+
+### PHASE 3: PAYMENT METHOD IMPLEMENTATION (Sequential Subagent Delegation)
+
+#### For Single Payment Method:
+Execute implementation:
+1. **DELEGATE TO**: Payment Method Implementation Subagent → **WAIT FOR COMPLETION**
+   - Implement for Authorize flow first (if not already done)
+   - Then implement for other flows as needed
+
+#### For Multiple Payment Methods:
+Execute implementations in OPTIMAL ORDER:
+
+```
+Payment Methods to add: [PM1, PM2, PM3, ...]
+
+FOR EACH payment_method IN payment_methods:
+    [N/M] DELEGATE TO: Payment Method Implementation Subagent for payment_method
+          ↳ Task description: "Add {payment_method} to {connector_name}"
+          ↳ Task prompt MUST include:
+            1. Payment method category: {Category} (e.g., Wallet, Card, BankTransfer)
+            2. Pattern file path: guides/patterns/authorize/{category}/pattern_authorize_{category}.md
+            3. CRITICAL instruction: "You MUST read the pattern file BEFORE implementing any code"
+            4. Target flows to implement (e.g., Authorize, Refund)
+          ↳ Subagent reads pattern file first
+          ↳ Subagent implements this PM in all target flows
+          ↳ Subagent runs cargo build
+          ↳ **WAIT FOR COMPLETION**
+          ↳ Validate result before continuing
+
+    IF subagent FAILED:
+       Report error and stop batch
+       Do not proceed to next payment method
+```
+
+**CRITICAL RULES:**
+- ONE subagent per payment method - NEVER combine multiple PMs in one subagent
+- ALWAYS wait for completion before starting next payment method
+- If any PM fails, stop the batch and report error
+- Progress tracking: Show [1/N], [2/N], etc. for user visibility
+
+### PHASE 4: FINAL VALIDATION AND QUALITY REVIEW
+1. **MANDATORY**: Execute final cargo build
+2. **MANDATORY**: Validate all modified flows compile successfully
+3. **QUALITY GATE**: Delegate to Quality Guardian Subagent for code quality review
+4. **WAIT FOR**: Quality review completion and approval
+5. **MANDATORY**: Generate completion report
+
+## WORKFLOW INITIATION COMMANDS
+
+This workflow activates when the user provides commands matching this pattern:
+
+### Explicit Form (Required):
+```bash
+add {Category}:{type1},{type2} and {Category2}:{type3} to {connector_name} using grace/rulesbook/codegen/.gracerules_add_payment_method
+```
+
+**Examples:**
+```bash
+add Wallet:Apple Pay,Google Pay and Card:Credit,Debit to Stripe using grace/rulesbook/codegen/.gracerules_add_payment_method
+add Wallet:PayPal and BankTransfer:SEPA,ACH to Wise using grace/rulesbook/codegen/.gracerules_add_payment_method
+add UPI:Collect,Intent to PhonePe using grace/rulesbook/codegen/.gracerules_add_payment_method
+add Wallet:Apple Pay,Google Pay and Card:Credit,Debit and BankTransferACH to Stripe using grace/rulesbook/codegen/.gracerules_add_payment_method
+```
+
+## PAYMENT METHOD SPECIFICATION SYNTAX
+
+### Category Prefix Syntax (Required)
+Always use category prefix notation for specifying payment methods:
+```bash
+add {Category}:{type1},{type2} and {Category2}:{type3} to {connector}
+```
+
+**Rules:**
+- Always specify the category before the payment method type(s)
+- Use `:` to separate category from types
+- Use `,` to separate multiple types within the same category
+- Use ` and ` to separate different categories
+
+**Examples:**
+```bash
+add Wallet:Apple Pay,Google Pay,PayPal to Stripe
+add Card:Credit,Debit to Adyen
+add BankTransfer:SEPA,ACH to Wise
+add Wallet:Apple Pay,Google Pay and Card:Credit,Debit to Stripe
+add Wallet:PayPal and BankTransfer:SEPA,ACH to Wise
+add UPI:Collect,Intent to PhonePe
+```
+
+### Category Names
+Use these exact category names with the prefix syntax:
+
+| Category | Types | Pattern Directory |
+|----------|-------|-------------------|
+| `Card` | Credit, Debit | `authorize/card/` |
+| `Wallet` | Apple Pay, Google Pay, PayPal, WeChat Pay, Alipay | `authorize/wallet/` |
+| `BankTransfer` | SEPA, ACH, Wire | `authorize/bank_transfer/` |
+| `BankDebit` | SEPA Direct Debit, ACH Debit, BACS Debit | `authorize/bank_debit/` |
+| `BankRedirect` | iDEAL, Sofort, Giropay | `authorize/bank_redirect/` |
+| `UPI` | Collect, Intent | `authorize/upi/` |
+| `BNPL` | Klarna, Afterpay, Affirm | `authorize/bnpl/` |
+| `Crypto` | Bitcoin, Ethereum | `authorize/crypto/` |
+| `GiftCard` | Generic Gift Card | `authorize/gift_card/` |
+| `MobilePayment` | Carrier Billing | `authorize/mobile_payment/` |
+| `Reward` | Loyalty Points | `authorize/reward/` |
+
+### Payment Method Name to Category Mapping
+
+Use this mapping for auto-detection when category prefix is not provided:
+
+| Payment Method Name | Category | Pattern File |
+|---------------------|----------|--------------|
+| Apple Pay | Wallet | `authorize/wallet/pattern_authorize_wallet.md` |
+| Google Pay | Wallet | `authorize/wallet/pattern_authorize_wallet.md` |
+| PayPal | Wallet | `authorize/wallet/pattern_authorize_wallet.md` |
+| WeChat Pay | Wallet | `authorize/wallet/pattern_authorize_wallet.md` |
+| Alipay | Wallet | `authorize/wallet/pattern_authorize_wallet.md` |
+| Credit Card | Card | `authorize/card/pattern_authorize_card.md` |
+| Debit Card | Card | `authorize/card/pattern_authorize_card.md` |
+| Card | Card | `authorize/card/pattern_authorize_card.md` |
+| SEPA | BankTransfer | `authorize/bank_transfer/pattern_authorize_bank_transfer.md` |
+| ACH | BankTransfer | `authorize/bank_transfer/pattern_authorize_bank_transfer.md` |
+| Wire Transfer | BankTransfer | `authorize/bank_transfer/pattern_authorize_bank_transfer.md` |
+| SEPA Direct Debit | BankDebit | `authorize/bank_debit/pattern_authorize_bank_debit.md` |
+| ACH Debit | BankDebit | `authorize/bank_debit/pattern_authorize_bank_debit.md` |
+| iDEAL | BankRedirect | `authorize/bank_redirect/pattern_authorize_bank_redirect.md` |
+| Sofort | BankRedirect | `authorize/bank_redirect/pattern_authorize_bank_redirect.md` |
+| Giropay | BankRedirect | `authorize/bank_redirect/pattern_authorize_bank_redirect.md` |
+| UPI Collect | UPI | `authorize/upi/pattern_authorize_upi.md` |
+| UPI Intent | UPI | `authorize/upi/pattern_authorize_upi.md` |
+| Klarna | BNPL | `authorize/bnpl/pattern_authorize_bnpl.md` |
+| Afterpay | BNPL | `authorize/bnpl/pattern_authorize_bnpl.md` |
+| Affirm | BNPL | `authorize/bnpl/pattern_authorize_bnpl.md` |
+
+**Auto-Detection Algorithm:**
+```
+function detect_category(payment_method_name):
+    normalized = lowercase(payment_method_name).replace(" ", "")
+
+    if normalized in ["applepay", "apple pay", "googlepay", "google pay", "paypal", "wechatpay", "wechat pay", "alipay", "ali pay"]:
+        return "Wallet"
+    else if normalized in ["card", "creditcard", "credit card", "debitcard", "debit card"]:
+        return "Card"
+    else if normalized in ["sepa", "ach", "wire", "wiretransfer", "banktransfer", "bank transfer"]:
+        return "BankTransfer"
+    else if normalized in ["sepadebit", "sepa debit", "achdebit", "ach debit", "bacs", "bacsdebit"]:
+        return "BankDebit"
+    else if normalized in ["ideal", "sofort", "giropay", "eps", "przelewy24"]:
+        return "BankRedirect"
+    else if normalized in ["upi", "upicollect", "upi collect", "upiintent", "upi intent"]:
+        return "UPI"
+    else if normalized in ["klarna", "afterpay", "affirm"]:
+        return "BNPL"
+    else:
+        # Ask user for clarification or default based on connector's tech spec
+        return detect_from_tech_spec(payment_method_name)
+```
+
+### Parsing Algorithm
+```
+1. Split command on " to " → [spec_part, connector]
+2. Split spec_part on " and " → category_groups
+3. For each group:
+   a. If contains ":" → split on ":" → [Category, types_string]
+      - Split types_string on "," → [type1, type2, ...]
+   b. Else → auto-detect Category from first type using mapping table
+      - Split group on "," → [type1, type2, ...]
+4. Result: Map each type to its category and pattern file
+```
+
+## PAYMENT METHODS SUPPORTED
+
+| Payment Method | Pattern File | Typical Flows |
+|----------------|--------------|---------------|
+| Card | flows/authorize/card.md | All flows |
+| Wallet (Apple Pay, Google Pay) | flows/authorize/wallet.md | Authorize, Refund |
+| Bank Transfer | flows/authorize/bank_transfer.md | Authorize, Refund |
+| Bank Debit | flows/authorize/bank_debit.md | Authorize, Refund |
+| Bank Redirect | flows/authorize/bank_redirect.md | Authorize |
+| UPI | flows/authorize/upi.md | Authorize, Refund |
+| BNPL | flows/authorize/bnpl.md | Authorize, Refund |
+| Crypto | flows/authorize/crypto.md | Authorize |
+| Gift Card | flows/authorize/gift_card.md | Authorize |
+| Mobile Payment | flows/authorize/mobile_payment.md | Authorize, Refund |
+
+## MULTIPLE PAYMENT METHOD PARSING & BATCH IMPLEMENTATION
+
+### Input Parsing for Multiple Payment Methods
+
+When user provides a command with multiple payment methods, extract each PM name:
+
+**Command Pattern:**
+```
+add {payment_method1} and {payment_method2} to {connector_name}
+add {pm1}, {pm2}, and {pm3} to {connector_name}
+```
+
+**Parsing Logic:**
+```bash
+# Example: "add Apple Pay and Google Pay to Stripe"
+# Extracted: payment_methods = ["Apple Pay", "Google Pay"]
+
+# Example: "add Apple Pay, Google Pay, and PayPal to Stripe"
+# Extracted: payment_methods = ["Apple Pay", "Google Pay", "PayPal"]
+
+# Example: "add Cards and Bank Transfer to MyConnector"
+# Extracted: payment_methods = ["Cards", "Bank Transfer"]
+```
+
+### Batch Implementation Strategy
+
+When multiple payment methods are requested:
+
+1. **Parse All Payment Methods**: Extract complete list from command
+2. **Check Current Support**: Identify which PMs are already implemented
+3. **Determine Implementation Order**:
+   - Implement simpler PMs first (Card, Bank Transfer)
+   - Group related PMs (Wallet types: Apple Pay, Google Pay, PayPal)
+   - Complex PMs last (BNPL, Crypto)
+4. **Share Common Structures**: Similar PMs can share request/response structures
+
+### CRITICAL: Separate Subagent Per Payment Method
+
+**YOU MUST delegate to a separate Payment Method Implementation Subagent for EACH payment method.**
+
+```
+Command: "add Apple Pay and Google Pay to Stripe"
+Extracted: payment_methods = ["Apple Pay", "Google Pay"]
+
+[1/2] Delegating to PM Implementation Subagent for Apple Pay...
+      Task(description="Add Apple Pay to Stripe", ...)
+      ↳ Subagent reads pattern, adds PM support to transformers
+      ↳ Subagent creates request builders for Apple Pay
+      ↳ Subagent runs cargo build
+      ↳ Returns: "Apple Pay COMPLETED"
+
+[2/2] Delegating to PM Implementation Subagent for Google Pay...
+      Task(description="Add Google Pay to Stripe", ...)
+      ↳ Subagent reads pattern, adds PM support to transformers
+      ↳ Subagent creates request builders for Google Pay
+      ↳ Subagent runs cargo build
+      ↳ Returns: "Google Pay COMPLETED"
+
+✅ All 2 payment methods successfully added to Stripe
+```
+
+**NEVER implement multiple payment methods in a single subagent - always one subagent per payment method!**
+
+### Progress Tracking for Multiple Payment Methods
+
+```
+[PAYMENT METHOD BATCH] Adding N payment methods to {ConnectorName}
+
+Progress:
+[1/N] {PaymentMethod1} ........................ IN PROGRESS
+[2/N] {PaymentMethod2} ........................ PENDING
+...
+
+Completed:
+✅ {PaymentMethod1} - Successfully added
+✅ {PaymentMethod2} - Successfully added
+```
+
+### Example: Multiple Payment Method Implementation
+
+**User Command:**
+```bash
+add Apple Pay, Google Pay, and Bank Transfer to Stripe
+```
+
+**Execution Flow:**
+```
+1. PARSE: Extract ["Apple Pay", "Google Pay", "Bank Transfer"]
+
+2. ANALYZE CURRENT STATE:
+   Current Payment Methods:
+   - [x] Card (Credit/Debit)
+   - [ ] Wallet - Apple Pay (REQUESTED)
+   - [ ] Wallet - Google Pay (REQUESTED)
+   - [ ] Bank Transfer (REQUESTED)
+
+3. IMPLEMENTATION ORDER:
+   - Apple Pay and Google Pay share Wallet structure
+   - Bank Transfer is independent
+   - Order: Apple Pay → Google Pay → Bank Transfer
+
+4. SEQUENTIAL SUBAGENT DELEGATION:
+
+   [1/3] Apple Pay Implementation
+         ↳ Task: "Add Apple Pay to Stripe"
+         ↳ Subagent adds WalletData::ApplePay match arm
+         ↳ Subagent creates build_apple_pay_request()
+         ↳ Returns: "Apple Pay COMPLETED"
+
+   [2/3] Google Pay Implementation
+         ↳ Task: "Add Google Pay to Stripe"
+         ↳ Subagent adds WalletData::GooglePay match arm
+         ↳ Subagent creates build_google_pay_request()
+         ↳ Returns: "Google Pay COMPLETED"
+
+   [3/3] Bank Transfer Implementation
+         ↳ Task: "Add Bank Transfer to Stripe"
+         ↳ Subagent adds PaymentMethodData::BankTransfer match arm
+         ↳ Subagent creates build_bank_transfer_request()
+         ↳ Returns: "Bank Transfer COMPLETED"
+
+5. FINAL VERIFICATION:
+   ✅ All 3 payment methods added successfully
+   ✅ Cargo build passes
+   ✅ No breaking changes to existing Card support
+```
+
+### RESPONSIBILITIES
+
+You are the Connector State Analysis Subagent. Your job is to analyze the current state of an existing connector.
+
+### MANDATORY STEPS (EXECUTE IN EXACT ORDER):
+
+#### STEP 1: Locate Connector Files
+```bash
+# Find connector implementation files
+# Check: crates/integrations/connector-integration/src/connectors/{connector_name}.rs
+# Check: crates/integrations/connector-integration/src/connectors/{connector_name}/transformers.rs
+```
+
+#### STEP 2: Detect Implemented Flows
+```bash
+# Analyze connector.rs for:
+# - Which flows are in create_all_prerequisites! macro
+# - Which flows use macro_connector_implementation!
+# - What ConnectorIntegrationV2 implementations exist
+
+# At minimum, Authorize flow MUST exist to add payment methods
+```
+
+#### STEP 3: Detect Current Payment Methods
+```bash
+# Analyze transformers.rs for:
+# - match &router_data.request.payment_method_data { ... }
+# - PaymentMethodData::Card handling
+# - PaymentMethodData::Wallet handling
+# - Other payment method variants handled
+
+# List all currently supported payment methods
+```
+
+#### STEP 4: Report State
+```bash
+# Generate state report:
+# - List of implemented flows
+# - List of currently supported payment methods
+# - Which flows need the new payment method
+# - Any issues detected
+```
+
+### STATE REPORT FORMAT
+
+```
+CONNECTOR STATE ANALYSIS: {ConnectorName}
+
+Implemented Flows:
+- [x] Authorize
+- [x] Capture
+- [x] Refund
+- [x] Void
+- [x] PSync
+
+Current Payment Methods:
+- [x] Card (Credit/Debit)
+- [x] Wallet - PayPal
+- [ ] Wallet - Apple Pay (REQUESTED)
+- [ ] Wallet - Google Pay (REQUESTED)
+- [ ] Bank Transfer (REQUESTED)
+
+Authorize Flow Status: ✅ COMPLETE (Required for PM addition)
+
+Target Flows for New Payment Methods:
+- Apple Pay: Authorize, Refund
+- Google Pay: Authorize, Refund
+- Bank Transfer: Authorize, Refund
+
+Recommendation: Ready to add payment methods
+```
+
+## PHASE 2: TARGET FLOW IDENTIFICATION SUBAGENT
+
+### RESPONSIBILITIES
+
+You are the Target Flow Identification Subagent. Your job is to determine which flows need the new payment method.
+
+### MANDATORY STEPS:
+
+#### STEP 1: Identify Default Target Flows
+```bash
+# By default, payment methods are typically needed in:
+# - Authorize (mandatory - payment initiation)
+# - Refund (if connector supports refunds for this PM)
+
+# Some payment methods may also need:
+# - Capture (if separate from authorize)
+# - PSync (for async payment methods)
+```
+
+#### STEP 2: Check User Intent
+```bash
+# Did user specify which flows?
+# - "add Apple Pay to Authorize only" -> Just Authorize
+# - "add Apple Pay to Stripe" -> Authorize + Refund (default)
+# - "add Apple Pay to all flows" -> All applicable flows
+```
+
+#### STEP 3: Validate Payment Method API Support
+```bash
+# Read tech spec to confirm connector supports this payment method
+# Check if connector's API has endpoints for this PM
+# Identify any PM-specific requirements
+```
+
+#### STEP 4: Generate Implementation Plan
+```bash
+# Create ordered list of flows to add PM support to
+# Start with Authorize (mandatory)
+# Add other flows based on connector capabilities
+```
+
+## PHASE 3: PAYMENT METHOD IMPLEMENTATION SUBAGENT
+
+### RESPONSIBILITIES
+
+You are a Payment Method Implementation Subagent responsible for adding ONE specific payment method to EXISTING connector flows.
+
+### MANDATORY WORKFLOW (EXACT SEQUENCE):
+
+#### STEP 1: Read Tech Spec
+```bash
+# Read complete tech spec from grace/rulesbook/codegen/references/{connector_name}/technical_specification.md
+# Extract payment method specific requirements
+# Identify API endpoints for this payment method
+# Note any PM-specific fields or behaviors
+```
+
+#### STEP 2: Read Payment Method Pattern
+```bash
+# MANDATORY: Read the corresponding pattern file BEFORE implementing
+# Pattern file location based on payment method category:
+# - Card: guides/patterns/authorize/card/pattern_authorize_card.md
+# - Wallet: guides/patterns/authorize/wallet/pattern_authorize_wallet.md
+# - BankTransfer: guides/patterns/authorize/bank_transfer/pattern_authorize_bank_transfer.md
+# - BankDebit: guides/patterns/authorize/bank_debit/pattern_authorize_bank_debit.md
+# - BankRedirect: guides/patterns/authorize/bank_redirect/pattern_authorize_bank_redirect.md
+# - UPI: guides/patterns/authorize/upi/pattern_authorize_upi.md
+# - BNPL: guides/patterns/authorize/bnpl/pattern_authorize_bnpl.md
+# - Crypto: guides/patterns/authorize/crypto/pattern_authorize_crypto.md
+# - GiftCard: guides/patterns/authorize/gift_card/pattern_authorize_gift_card.md
+# - MobilePayment: guides/patterns/authorize/mobile_payment/pattern_authorize_mobile_payment.md
+# - Reward: guides/patterns/authorize/reward/pattern_authorize_reward.md
+#
+# CRITICAL: You MUST read the pattern file before implementing any code
+# The pattern file contains essential implementation details, code templates,
+# and connector-specific examples that are required for correct implementation
+```
+
+#### STEP 3: Read Flow Pattern
+```bash
+# Read the flow pattern: guides/patterns/{flow_name}/pattern_{flow_name}.md
+# Example: guides/patterns/refund/pattern_refund.md
+# Understand how flows are structured
+# Identify where payment method handling occurs
+```
+
+#### STEP 4: Analyze Existing Connector Code
+```bash
+# Read existing transformers.rs to understand:
+# - Current payment method handling structure
+# - How Card is implemented (reference pattern)
+# - Where to add new payment method variant
+
+# Read existing connector.rs to understand:
+# - Which flows exist
+# - How they're implemented
+```
+
+#### STEP 5: Generate Implementation Plan
+```bash
+# Create detailed plan for adding this payment method:
+# 1. Which flows need PM support
+# 2. Where to add PaymentMethodData match arm
+# 3. What request/response types are needed
+# 4. Any PM-specific transformers needed
+```
+
+#### STEP 6: Implement Payment Method in Authorize Flow
+
+## Part A: Add Payment Method Variant Handling
+1. Open crates/integrations/connector-integration/src/connectors/{connector_name}/transformers.rs
+2. Locate the request transformer's payment_method_data match statement
+3. Add new match arm for the payment method:
+
+```rust
+impl<T: PaymentMethodDataTypes + ...> TryFrom<...> for {ConnectorName}AuthorizeRequest<T> {
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(item: ...) -> Result<Self, Self::Error> {
+        let router_data = item.router_data;
+
+        match &router_data.request.payment_method_data {
+            PaymentMethodData::Card(card) => {
+                // Existing card handling
+                Self::build_card_request(item, card)
+            }
+            PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                WalletData::ApplePay(apple_pay) => {
+                    // NEW: Apple Pay handling
+                    Self::build_apple_pay_request(item, apple_pay)
+                }
+                WalletData::GooglePay(google_pay) => {
+                    // NEW: Google Pay handling
+                    Self::build_google_pay_request(item, google_pay)
+                }
+                other => Err(ConnectorError::NotSupported {
+                    message: format!("{:?} is not supported", other),
+                    connector: "{connector_name}",
+                }.into()),
+            }
+            PaymentMethodData::BankTransfer(bank_transfer) => {
+                // NEW: Bank transfer handling
+                Self::build_bank_transfer_request(item, bank_transfer)
+            }
+            // ... other existing PMs
+            _ => Err(ConnectorError::NotImplemented(
+                get_unimplemented_payment_method_error_message("{connector_name}")
+            ).into()),
+        }
+    }
+}
+```
+
+## Part B: Create Payment Method Specific Request Builders
+1. Add helper methods for the payment method:
+
+```rust
+impl<T: PaymentMethodDataTypes + ...> {ConnectorName}AuthorizeRequest<T> {
+    fn build_apple_pay_request(
+        item: {ConnectorName}RouterData<...>,
+        apple_pay: &ApplePayWalletData,
+    ) -> Result<Self, ConnectorError> {
+        // Build Apple Pay specific request
+        // Extract payment token, display name, etc.
+        Ok(Self {
+            amount: item.amount,
+            currency: item.router_data.request.currency,
+            payment_method: {ConnectorName}PaymentMethod::ApplePay {
+                token: apple_pay.token.clone(),
+                // ... other fields
+            },
+        })
+    }
+
+    fn build_google_pay_request(
+        item: {ConnectorName}RouterData<...>,
+        google_pay: &GooglePayWalletData,
+    ) -> Result<Self, ConnectorError> {
+        // Build Google Pay specific request
+        Ok(Self {
+            amount: item.amount,
+            currency: item.router_data.request.currency,
+            payment_method: {ConnectorName}PaymentMethod::GooglePay {
+                token: google_pay.token.clone(),
+                // ... other fields
+            },
+        })
+    }
+}
+```
+
+## Part C: Define Payment Method Enum Variants
+1. Add payment method variants to the connector's payment method enum:
+
+```rust
+#[derive(Debug, Serialize)]
+#[serde(tag = "type", content = "details")]
+pub enum {ConnectorName}PaymentMethod<T: PaymentMethodDataTypes + ...> {
+    #[serde(rename = "card")]
+    Card(CardDetails<T>),
+    #[serde(rename = "apple_pay")]
+    ApplePay(ApplePayDetails),
+    #[serde(rename = "google_pay")]
+    GooglePay(GooglePayDetails),
+    #[serde(rename = "bank_transfer")]
+    BankTransfer(BankTransferDetails),
+    // ... other payment methods
+}
+```
+
+## Part D: Handle Payment Method Specific Response Data
+1. Update response handling if payment method affects response:
+
+```rust
+impl<T: PaymentMethodDataTypes + ...> TryFrom<...> for RouterDataV2<Authorize, ...> {
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(item: ResponseRouterData<...>) -> Result<Self, Self::Error> {
+        let response = item.response;
+
+        // Handle payment method specific response fields
+        let payment_method_data = match response.payment_method {
+            {ConnectorName}PaymentMethodResponse::Card(card) => {
+                PaymentMethodData::Card(card.into())
+            }
+            {ConnectorName}PaymentMethodResponse::Wallet(wallet) => {
+                PaymentMethodData::Wallet(wallet.into())
+            }
+            // ... handle other payment methods
+        };
+
+        Ok(Self {
+            // ... update fields
+            payment_method_data,
+            ..item.data
+        })
+    }
+}
+```
+
+## CRITICAL RULES:
+- Use SPECIFIC error messages for unsupported payment methods
+- WRONG: "Payment method not supported"
+- CORRECT: "Apple Pay is not supported"
+- Always handle all variants of a payment method type (e.g., all wallet types)
+- Follow existing patterns for similar payment methods
+- Use domain_types imports (not hyperswitch_*)
+
+#### STEP 7: Implement Payment Method in Other Flows (if applicable)
+
+For Refund flow (and other flows that need this PM):
+1. Check if refund request needs payment method specific data
+2. Some refunds only need reference ID (no PM data needed)
+3. Others may need PM-specific refund data
+
+```rust
+// For most refunds, PM-specific data may not be needed
+// Just pass the reference to the original payment
+impl TryFrom<...> for {ConnectorName}RefundRequest {
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(item: ...) -> Result<Self, Self::Error> {
+        // Refunds typically use reference ID, not PM data
+        Ok(Self {
+            reference: item.router_data.request.connector_transaction_id.clone(),
+            amount: item.amount,
+            // ... other fields
+        })
+    }
+}
+```
+
+#### STEP 8: Add Tests for New Payment Method
+1. Add unit tests for payment method transformers
+2. Add integration test cases for the new PM
+
+```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_apple_pay_request_transform() {
+        // Test Apple Pay request transformation
+    }
+
+    #[test]
+    fn test_google_pay_request_transform() {
+        // Test Google Pay request transformation
+    }
+}
+```
+
+#### STEP 9: Cargo Build and Debug
+```bash
+# Execute: cargo build
+# If compilation errors, analyze and fix immediately
+# Ensure all UCS conventions are followed
+# Verify no syntax or type errors
+# MUST achieve successful build
+```
+
+#### STEP 10: Payment Method Completion Confirmation
+```bash
+# Report: "{PaymentMethod} Payment Method Implementation COMPLETED for {ConnectorName}"
+# Confirm: Cargo build successful
+# Document: Which flows now support this payment method
+# Document: Any PM-specific notes or limitations
+# Ready: For next payment method or quality review
+```
+
+## PHASE 4: QUALITY GUARDIAN SUBAGENT
+
+Same specification as in .gracerules - see that file for complete details.
+
+Key differences for payment method addition:
+- Review only the NEWLY ADDED payment method code
+- Check that error messages are specific (not generic)
+- Validate all payment method variants are handled
+- Ensure no breaking changes to existing payment methods
+
+## ERROR HANDLING
+
+### If Authorize Flow Not Found
+```bash
+# Report: "Cannot add payment method - Authorize flow not implemented"
+# Explain: Payment methods require Authorize flow as foundation
+# Suggest: "First add Authorize flow using .gracerules_flow"
+```
+
+### If Payment Method Already Supported
+```bash
+# Report: "{payment_method} is already supported in {connector_name}"
+# List: Which flows already support this PM
+# Ask: Should we add to additional flows?
+```
+
+### If Connector API Doesn't Support Payment Method
+```bash
+# Report: "{payment_method} not supported by {connector_name} API"
+# Check: Tech spec for PM availability
+# Suggest: Alternative payment methods that are supported
+```
+
+### If Build Fails After Adding Payment Method
+```bash
+# Analyze compilation errors
+# Check for missing match arms
+# Fix type mismatches
+# Retry build
+```
+
+## PROGRESS TRACKING FORMAT
+
+### Payment Method Addition Tracking
+```
+[✅ PAYMENT METHOD ADDED] {PaymentMethod}: Successfully added to {ConnectorName}
+- Flows updated: {list_of_flows}
+- Match arms added: {count}
+- New request builders: {list}
+- Build status: SUCCESSFUL
+- Ready for: Next payment method or quality review
+```
+
+### Error Tracking
+```
+[❌ ERROR ADDING PAYMENT METHOD] {PaymentMethod}: {Error description}
+- Error type: {compilation/validation/integration}
+- Flow affected: {flow_name}
+- Resolution attempted: {what_was_tried}
+- Resolution status: {resolved/escalated}
+```
+
+## SUCCESS CRITERIA
+
+1. ✅ Requested payment method(s) are implemented
+2. ✅ Payment method works in Authorize flow (minimum)
+3. ✅ Payment method works in Refund flow (if applicable)
+4. ✅ All new code compiles successfully
+5. ✅ Existing payment methods still work (no breaking changes)
+6. ✅ Quality score >= 60
+7. ✅ Error messages are specific to the payment method

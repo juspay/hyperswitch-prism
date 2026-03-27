@@ -1,0 +1,21 @@
+[package]
+name = "hyperswitch-grpc-ffi"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+# Do NOT inherit workspace lints — this crate requires unsafe FFI code.
+[lints.rust]
+unsafe_code = "allow"
+
+[dependencies]
+# Intentionally NOT depending on hyperswitch-payments-client (pulls in ffi + all connectors).
+# We talk directly to the tonic-generated stubs in grpc-api-types.
+grpc-api-types = { path = "../../crates/types-traits/grpc-api-types" }
+tonic           = { workspace = true }
+tokio           = { version = "1", features = ["rt-multi-thread", "macros"] }
+serde           = { version = "1", features = ["derive"] }
+serde_json      = "1"
+prost           = "0.14"

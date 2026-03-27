@@ -5,6 +5,21 @@ export type { RustBuffer, RustCallStatus } from "./payments/uniffi_client";
 export * from "./http_client";
 export * from './payments/generated/proto';
 
+// gRPC client (Rust-backed via hyperswitch_grpc_ffi native library)
+export { GrpcClient } from "./payments/grpc_client";
+export type {
+  GrpcConfig,
+  GrpcPaymentClient,
+  GrpcCustomerClient,
+  GrpcPaymentMethodClient,
+  GrpcPaymentMethodAuthenticationClient,
+  GrpcEventClient,
+  GrpcMerchantAuthenticationClient,
+  GrpcRecurringPaymentClient,
+} from "./payments/grpc_client";
+// Export error classes
+export { IntegrationError, ConnectorResponseTransformationError } from './payments/connector_client';
+
 // ---------------------------------------------------------------------------
 // Domain namespaces — runtime values
 // Usage: import { payments, payment_methods, configs } from '@juspay/connector-service-sdk';

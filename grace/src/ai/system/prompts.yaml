@@ -1,0 +1,185 @@
+# AI Prompt Templates Configuration
+
+techspecPrompt: |
+  You are tasked with creating comprehensive API documentation by extracting information from the provided context. Your role is to structure the available information into a standardized documentation format without making any modifications, assumptions, or interpretations.
+
+  ## Core Requirements:
+  - Extract ALL available endpoints from the following documentation
+  - Maintain exact 1:1 correspondence between source content and documentation
+  - Do not modify, enhance, or assume any missing information
+  - Structure only what is explicitly present in the source material
+  - Cover all API flows mentioned in the context, not just specific ones
+
+  ## Documentation Structure:
+
+  ### Connector Information
+  - Extract connector name and basic details as provided
+  - List all base URLs (production, sandbox, testing) mentioned
+  - Include any additional URLs found (webhooks, status endpoints, documentation links, etc.)
+
+  ### Authentication Details
+  - Document authentication methods exactly as described
+  - Include all authentication parameters, headers, and configurations mentioned
+  - Preserve exact format of API keys, tokens, or credentials structure
+
+  ### Complete Endpoint Inventory
+  For EVERY endpoint found in the context, document:
+  - Exact endpoint URL/path
+  - HTTP method
+  - All headers mentioned
+  - Complete request payload structure (as provided)
+  - Complete response payload structure (as provided)
+  - Any curl examples if present
+  - Error responses if documented
+
+  ### Flow Categories to Extract:
+  Document all flows present, which may include:
+  - Payment/Authorization flows
+  - Capture operations
+  - Refund processes
+  - Status/sync endpoints
+  - Dispute handling
+  - Tokenization/vaulting
+  - Webhook endpoints
+  - Account/configuration endpoints
+  - Any other flows mentioned
+
+  ### Configuration Parameters
+  - List all configuration requirements mentioned
+  - Environment variables or settings
+  - Supported features, currencies, regions as stated
+  - Integration requirements
+
+  ## Output Guidelines:
+  - Use the exact field names, values, and structures from the source
+  - Preserve original JSON formatting and data types
+  - Include all optional and required parameters as marked
+  - Maintain original error codes and messages
+  - Do not fill gaps or make educated guesses
+  - If information is partially available, document only what's explicitly provided
+  - Use "Not specified in source" for clearly missing but relevant information
+
+  Generate documentation that serves as a faithful representation of the API capabilities based solely on the provided context.
+
+  API Documentation:
+  {content}
+
+techspecFileNamePrompt: |
+  Extract ONLY the connector/payment gateway name from the technical specification below.
+  
+  Requirements:
+  - Return ONLY the name, nothing else
+  - No explanations, no punctuation, no "The connector is called X"
+  - Single word or compound name (e.g., "Finix", "Stripe", "PayPal", "Airwallex")
+  - No spaces, use PascalCase for compound names
+  - If unable to determine, return "TechSpec"
+  
+  Technical Specification:
+  {tech_spec}
+  
+  Connector name:
+
+techspecMockServerPrompt: |
+  Create an express server which mocks all the api calls mentioned here. 
+  If encryption is required use crypto or some popular libraries to handle it. 
+  Print all endpoints created after server starts running.
+  IMPORTANT: Make the server run on port 5000 (not 3000) to avoid conflicts. Use const PORT = process.env.PORT || 5000;
+  Format your response exactly like the JSON given below and don't respond with any subscript like "of course" or "here you go":
+  \{
+    "server_js": "// Your server.js code here - MUST use port 5000",
+    "package_json": "// Your package.json content here", 
+    "info": "// Simple Markdown text providing all generated curls with port 5000"
+  \}
+  {tech_spec}
+
+searchQueryPrompt: |
+  Generate a list of 2-5 specific research queries to gather detailed information about the API documentation for the connector with the following URLs: {urls}.
+  The queries should focus on extracting comprehensive details about the API endpoints, authentication methods, request/response structures, error handling, and any other relevant technical specifications.
+  Ensure that the queries are clear, concise, and targeted towards obtaining the necessary information to create a complete technical specification document.
+  Return the queries in a numbered list format.
+  but remember each query should be highly specific not more than 5 words
+  also focus on postman or openapi documentation you can include that in the queries
+  don't focus on limits or pricing related queries
+  all you have to focus on is api documentation for integration 
+  for this connectorName : {connector_name}
+  strictly follow the instructions.
+  Avoid using github, stackoverflow, quora or any forums as sources for these queries.
+  Focus solely on official documentation, developer portals, and reputable API reference sites.
+  make the sure the queries are specific to api documentation only containing the domain in the URL and docs or api.
+  give in JSONArray of string format.
+
+connectorNamePrompt: |
+  Extract and return the connector name from the given query : {query}
+  The connector name should be a single word without spaces or special characters.
+  If unable to determine the connector name, return "".
+  always try to return the connector name.
+  if it is combined word return a string with spaces in lower letters.
+  only return a string without any additional text or formatting. don't even add "" or ''.
+
+urlsRelevancePrompt: |
+  You are an expert in identifying relevant API documentation sources.
+  The actual query used to search for the documentation is: "{query}"
+  The connector name is: "{connector_name}"
+  The following is a list of URLs that may contain API documentation for the connector.
+  {urls}
+  Now,
+  Determine which URLs are most likely to contain relevant API documentation for the connector.
+  Consider factors such as the presence of keywords like "docs", "api", "developer", or "reference" in the URL structure.
+  Return a list of URLs that are most relevant for obtaining API documentation.
+  **The output should be a JSON array of strings in the format** : [url1, url2, ...]
+  If none of the URLs are relevant, return an empty list.
+  strictly follow the instructions.
+  basically ignore the unofficial pages or links to avoid forums or community pages.
+  remember to avoid using github, stackoverflow, quora or any forums as sources for these urls.
+  try to only focus on official documentation, developer portals, and reputable API reference sites.
+  ignore all the links other than official links.
+  remember official links are the one which contains the connector name in the domain.
+  remove duplicate urls if any.
+  You can also pass the postman or openapi links for the specific {connector_name} if available in the urls
+
+searchResultExtractionFromHTML: |
+  Extract search results from the following Markdown content. The search was performed for the query: "{query}"
+  also consider the connector name: "{connector_name}" and focus on actual docs links in the results.
+  don't include any results that are not relevant to API documentation.
+
+  Please extract all search results and return them as a JSON array with the following structure:
+  [
+      {{
+          "title": "Result title",
+          "url": "Result URL",
+          "snippet": "Result description/snippet"
+      }}
+  ]
+
+  MarkDown Content:
+  {html_content}
+  try to find the links related to query
+  if you unable to produce complete json return url and make title and snippet as empty string.
+  ignore google links or any ads links in the results.
+
+  Return only the JSON array, no additional text.
+
+pageContentValidationPrompt: |
+  You are an expert in analyzing API documentation. the following query was used to find the documentation: "{query}"
+  Validation Criteria:
+  - The page must contain comprehensive API documentation for the connector named "{connector_name}".
+  - The documentation should include details such as endpoints, authentication methods, request/response structures,
+  error handling, and any other relevant technical specifications.
+  - The content should be structured in a way that facilitates understanding of the API.
+  - Are there clear sections detailing API endpoints?
+  - Is authentication information provided?
+  - Are request and response formats described?
+  - Is error handling covered?
+  - Don't consider pages that are merely overviews, marketing materials, or unrelated content or just headings.
+  - Is the content structured in a way that facilitates understanding of the API?
+  Based on the above criteria, determine if the page is relevant for extracting API documentation.
+  also if the page contains partial information you can still consider it as relevant.
+  from the pages it has to give the further references links to get more information about the api documentation.
+  Format your response as a JSON object with the following fields:
+  - is_relevant (boolean): true if the page meets the criteria, false otherwise.
+  - reason (string): A brief explanation of why the page is considered relevant or not.
+  - further (array of strings): A list of URLs for further reference to obtain more information about the API documentation, if applicable.
+  - don't return any urls which are not related to connector api documentation
+  In pages, it may contain links in a way like /api/authoritations or /docs/api/reference etc. then you have to give like actual url by combining with the base url (domain url example: https://connector.com/ even the url is https://connector.com/docs/*). try to generate on the content and give the relevant links only in further field.
+  for now give the is_relevant as true always.
+  Only respond with {"is_relevant": true, "reason": "...", "further": [url1, url2]} based on whether the page meets the above criteria.

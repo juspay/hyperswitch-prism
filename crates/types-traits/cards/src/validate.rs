@@ -1,0 +1,558 @@
+use std::{collections::HashMap, fmt, ops::Deref, str::FromStr, sync::LazyLock};
+
+use common_utils::{
+    consts::{MAX_CARD_NUMBER_LENGTH, MIN_CARD_NUMBER_LENGTH},
+    date_time, ValidationError,
+};
+use error_stack::report;
+use hyperswitch_masking::{PeekInterface, Strategy, StrongSecret, WithType};
+use regex::Regex;
+use serde::{
+    de::{self},
+    Deserialize, Deserializer, Serialize,
+};
+use thiserror::Error;
+
+#[derive(Debug, Deserialize, Serialize, Error)]
+#[error("{0}")]
+pub struct CardNumberValidationErr(&'static str);
+
+/// Card number
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
+pub struct CardNumber(StrongSecret<String, CardNumberStrategy>);
+
+//Network Token
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
+pub struct NetworkToken(StrongSecret<String, CardNumberStrategy>);
+
+impl CardNumber {
+    pub fn get_card_isin(&self) -> String {
+        self.0.peek().chars().take(6).collect::<String>()
+    }
+
+    pub fn get_extended_card_bin(&self) -> String {
+        self.0.peek().chars().take(8).collect::<String>()
+    }
+    pub fn get_card_no(&self) -> String {
+        self.0.peek().chars().collect::<String>()
+    }
+    pub fn get_last4(&self) -> String {
+        self.0
+            .peek()
+            .chars()
+            .rev()
+            .take(4)
+            .collect::<String>()
+            .chars()
+            .rev()
+            .collect::<String>()
+    }
+    pub fn is_cobadged_card(&self) -> Result<bool, error_stack::Report<ValidationError>> {
+        /// Regex to identify card networks
+        static CARD_NETWORK_REGEX: LazyLock<HashMap<&str, Result<Regex, regex::Error>>> =
+            LazyLock::new(|| {
+                let mut map = HashMap::new();
+                map.insert(
+                    "Mastercard",
+                    Regex::new(r"^(222[1-9]|22[3-9][0-9]|2[3-6][0-9]{2}|27[0-1][0-9]|2720|5[1-5])"),
+                );
+                map.insert("American Express", Regex::new(r"^3[47]"));
+                map.insert("Visa", Regex::new(r"^4"));
+                map.insert(
+                    "Discover",
+                    Regex::new(
+                        r"^(6011|64[4-9]|65|622126|622[1-9][0-9][0-9]|6229[0-1][0-9]|622925)",
+                    ),
+                );
+                map.insert(
+        "Maestro",
+        Regex::new(r"^(5018|5081|5044|504681|504993|5020|502260|5038|5893|603845|603123|6304|6759|676[1-3]|6220|504834|504817|504645|504775|600206|627741)"),
+    );
+                map.insert(
+        "RuPay",
+        Regex::new(r"^(508227|508[5-9]|603741|60698[5-9]|60699|607[0-8]|6079[0-7]|60798[0-4]|60800[1-9]|6080[1-9]|608[1-4]|608500|6521[5-9]|652[2-9]|6530|6531[0-4]|817290|817368|817378|353800|82)"),
+    );
+                map.insert("Diners Club", Regex::new(r"^(36|38|39|30[0-5])"));
+                map.insert("JCB", Regex::new(r"^35(2[89]|[3-8][0-9])"));
+                map.insert("CarteBlanche", Regex::new(r"^389[0-9]{11}$"));
+                map.insert("Sodex", Regex::new(r"^(637513)"));
+                map.insert("BAJAJ", Regex::new(r"^(203040)"));
+                map.insert("CartesBancaires", Regex::new(r"^(401(005|006|581)|4021(01|02)|403550|405936|406572|41(3849|4819|50(56|59|62|71|74)|6286|65(37|79)|71[7])|420110|423460|43(47(21|22)|50(48|49|50|51|52)|7875|95(09|11|15|39|98)|96(03|18|19|20|22|72))|4424(48|49|50|51|52|57)|448412|4505(19|60)|45(33|56[6-8]|61|62[^3]|6955|7452|7717|93[02379])|46(099|54(76|77)|6258|6575|98[023])|47(4107|71(73|74|86)|72(65|93)|9619)|48(1091|3622|6519)|49(7|83[5-9]|90(0[1-6]|1[0-6]|2[0-3]|3[0-3]|4[0-3]|5[0-2]|68|9[256789]))|5075(89|90|93|94|97)|51(0726|3([0-7]|8[56]|9(00|38))|5214|62(07|36)|72(22|43)|73(65|66)|7502|7647|8101|9920)|52(0993|1662|3718|7429|9227|93(13|14|31)|94(14|21|30|40|47|55|56|[6-9])|9542)|53(0901|10(28|30)|1195|23(4[4-7])|2459|25(09|34|54|56)|3801|41(02|05|11)|50(29|66)|5324|61(07|15)|71(06|12)|8011)|54(2848|5157|9538|98(5[89]))|55(39(79|93)|42(05|60)|4965|7008|88(67|82)|89(29|4[23])|9618|98(09|10))|56(0408|12(0[2-6]|4[134]|5[04678]))|58(17(0[0-7]|15|2[14]|3[16789]|4[0-9]|5[016]|6[269]|7[3789]|8[0-7]|9[017])|55(0[2-5]|7[7-9]|8[0-2])))"));
+                map
+            });
+        let mut no_of_supported_card_networks = 0;
+
+        let card_number_str = self.get_card_no();
+        for (_, regex) in CARD_NETWORK_REGEX.iter() {
+            let card_regex = match regex.as_ref() {
+                Ok(regex) => Ok(regex),
+                Err(_) => Err(report!(ValidationError::InvalidValue {
+                    message: "Invalid regex expression".into(),
+                })),
+            }?;
+
+            if card_regex.is_match(&card_number_str) {
+                no_of_supported_card_networks += 1;
+                if no_of_supported_card_networks > 1 {
+                    break;
+                }
+            }
+        }
+        Ok(no_of_supported_card_networks > 1)
+    }
+}
+
+impl NetworkToken {
+    pub fn get_card_isin(&self) -> String {
+        self.0.peek().chars().take(6).collect::<String>()
+    }
+
+    pub fn get_extended_card_bin(&self) -> String {
+        self.0.peek().chars().take(8).collect::<String>()
+    }
+    pub fn get_card_no(&self) -> String {
+        self.0.peek().chars().collect::<String>()
+    }
+    pub fn get_last4(&self) -> String {
+        self.0
+            .peek()
+            .chars()
+            .rev()
+            .take(4)
+            .collect::<String>()
+            .chars()
+            .rev()
+            .collect::<String>()
+    }
+}
+
+impl FromStr for CardNumber {
+    type Err = CardNumberValidationErr;
+
+    fn from_str(card_number: &str) -> Result<Self, Self::Err> {
+        // Valid test cards for threedsecureio
+        let valid_test_cards = [
+            "4000100511112003",
+            "6000100611111203",
+            "3000100811111072",
+            "9000100111111111",
+        ];
+
+        let card_number = card_number.split_whitespace().collect::<String>();
+
+        let is_card_valid = sanitize_card_number(&card_number)?;
+
+        if valid_test_cards.contains(&card_number.as_str()) || is_card_valid {
+            Ok(Self(StrongSecret::new(card_number)))
+        } else {
+            Err(CardNumberValidationErr("card number invalid"))
+        }
+    }
+}
+
+impl FromStr for NetworkToken {
+    type Err = CardNumberValidationErr;
+
+    fn from_str(network_token: &str) -> Result<Self, Self::Err> {
+        // Valid test cards for threedsecureio
+        let valid_test_network_tokens = [
+            "4000100511112003",
+            "6000100611111203",
+            "3000100811111072",
+            "9000100111111111",
+        ];
+
+        let network_token = network_token.split_whitespace().collect::<String>();
+
+        let is_network_token_valid = sanitize_card_number(&network_token)?;
+
+        if valid_test_network_tokens.contains(&network_token.as_str()) || is_network_token_valid {
+            Ok(Self(StrongSecret::new(network_token)))
+        } else {
+            Err(CardNumberValidationErr("network token invalid"))
+        }
+    }
+}
+
+pub fn sanitize_card_number(card_number: &str) -> Result<bool, CardNumberValidationErr> {
+    let is_card_number_valid = Ok(card_number)
+        .and_then(validate_card_number_chars)
+        .and_then(validate_card_number_length)
+        .map(|number| luhn(&number))?;
+
+    Ok(is_card_number_valid)
+}
+
+/// # Panics
+///
+/// Never, as a single character will never be greater than 10, or `u8`
+pub fn validate_card_number_chars(number: &str) -> Result<Vec<u8>, CardNumberValidationErr> {
+    let data = number.chars().try_fold(
+        Vec::with_capacity(MAX_CARD_NUMBER_LENGTH),
+        |mut data, character| {
+            data.push(
+                #[allow(clippy::expect_used)]
+                character
+                    .to_digit(10)
+                    .ok_or(CardNumberValidationErr(
+                        "invalid character found in card number",
+                    ))?
+                    .try_into()
+                    .expect("error while converting a single character to u8"), // safety, a single character will never be greater `u8`
+            );
+            Ok::<Vec<u8>, CardNumberValidationErr>(data)
+        },
+    )?;
+
+    Ok(data)
+}
+
+pub fn validate_card_number_length(number: Vec<u8>) -> Result<Vec<u8>, CardNumberValidationErr> {
+    if number.len() >= MIN_CARD_NUMBER_LENGTH && number.len() <= MAX_CARD_NUMBER_LENGTH {
+        Ok(number)
+    } else {
+        Err(CardNumberValidationErr("invalid card number length"))
+    }
+}
+
+#[allow(clippy::as_conversions)]
+pub fn luhn(number: &[u8]) -> bool {
+    number
+        .iter()
+        .rev()
+        .enumerate()
+        .map(|(idx, element)| {
+            ((*element * 2) / 10 + (*element * 2) % 10) * ((idx as u8) % 2)
+                + (*element) * (((idx + 1) as u8) % 2)
+        })
+        .sum::<u8>()
+        % 10
+        == 0
+}
+
+impl TryFrom<String> for CardNumber {
+    type Error = CardNumberValidationErr;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::from_str(&value)
+    }
+}
+
+impl TryFrom<String> for NetworkToken {
+    type Error = CardNumberValidationErr;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::from_str(&value)
+    }
+}
+
+impl Deref for CardNumber {
+    type Target = StrongSecret<String, CardNumberStrategy>;
+
+    fn deref(&self) -> &StrongSecret<String, CardNumberStrategy> {
+        &self.0
+    }
+}
+
+impl Deref for NetworkToken {
+    type Target = StrongSecret<String, CardNumberStrategy>;
+
+    fn deref(&self) -> &StrongSecret<String, CardNumberStrategy> {
+        &self.0
+    }
+}
+
+impl<'de> Deserialize<'de> for CardNumber {
+    fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let s = String::deserialize(d)?;
+        Self::from_str(&s).map_err(de::Error::custom)
+    }
+}
+
+impl<'de> Deserialize<'de> for NetworkToken {
+    fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let s = String::deserialize(d)?;
+        Self::from_str(&s).map_err(de::Error::custom)
+    }
+}
+
+impl std::hash::Hash for CardNumber {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.0.peek().hash(state);
+    }
+}
+
+impl std::hash::Hash for NetworkToken {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.0.peek().hash(state);
+    }
+}
+
+pub enum CardNumberStrategy {}
+
+impl<T> Strategy<T> for CardNumberStrategy
+where
+    T: AsRef<str>,
+{
+    fn fmt(val: &T, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let val_str: &str = val.as_ref();
+
+        if val_str.len() < 15 || val_str.len() > 19 {
+            return WithType::fmt(val, f);
+        }
+
+        if let Some(value) = val_str.get(..6) {
+            write!(f, "{}{}", value, "*".repeat(val_str.len() - 6))
+        } else {
+            WithType::fmt(val, f)
+        }
+    }
+}
+
+impl prost::Message for CardNumber {
+    fn encode_raw(&self, buf: &mut impl bytes::BufMut) {
+        if !self.0.peek().is_empty() {
+            prost::encoding::string::encode(1, self.0.peek(), buf);
+        }
+    }
+
+    fn merge_field(
+        &mut self,
+        tag: u32,
+        wire_type: prost::encoding::WireType,
+        buf: &mut impl bytes::Buf,
+        ctx: prost::encoding::DecodeContext,
+    ) -> Result<(), prost::DecodeError> {
+        if tag == 1 {
+            let mut temp_string = String::new();
+            prost::encoding::string::merge(wire_type, &mut temp_string, buf, ctx)?;
+            *self = Self(StrongSecret::new(temp_string));
+            Ok(())
+        } else {
+            prost::encoding::skip_field(wire_type, tag, buf, ctx)
+        }
+    }
+
+    fn encoded_len(&self) -> usize {
+        if !self.0.peek().is_empty() {
+            prost::encoding::string::encoded_len(1, self.0.peek())
+        } else {
+            0
+        }
+    }
+
+    fn clear(&mut self) {
+        *self = Self::default();
+    }
+}
+
+impl prost::Message for NetworkToken {
+    fn encode_raw(&self, buf: &mut impl bytes::BufMut) {
+        if !self.0.peek().is_empty() {
+            prost::encoding::string::encode(1, self.0.peek(), buf);
+        }
+    }
+
+    fn merge_field(
+        &mut self,
+        tag: u32,
+        wire_type: prost::encoding::WireType,
+        buf: &mut impl bytes::Buf,
+        ctx: prost::encoding::DecodeContext,
+    ) -> Result<(), prost::DecodeError> {
+        if tag == 1 {
+            let mut temp_string = String::new();
+            prost::encoding::string::merge(wire_type, &mut temp_string, buf, ctx)?;
+            *self = Self(StrongSecret::new(temp_string));
+            Ok(())
+        } else {
+            prost::encoding::skip_field(wire_type, tag, buf, ctx)
+        }
+    }
+
+    fn encoded_len(&self) -> usize {
+        if !self.0.peek().is_empty() {
+            prost::encoding::string::encoded_len(1, self.0.peek())
+        } else {
+            0
+        }
+    }
+
+    fn clear(&mut self) {
+        *self = Self::default();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::unwrap_used)]
+
+    use hyperswitch_masking::Secret;
+
+    use super::*;
+
+    #[test]
+    fn valid_card_number() {
+        let s = "371449635398431";
+        assert_eq!(
+            CardNumber::from_str(s).unwrap(),
+            CardNumber(StrongSecret::from_str(s).unwrap())
+        );
+    }
+
+    #[test]
+    fn invalid_card_number_length() {
+        let s = "371446";
+        assert_eq!(
+            CardNumber::from_str(s).unwrap_err().to_string(),
+            "invalid card number length".to_string()
+        );
+    }
+
+    #[test]
+    fn card_number_with_non_digit_character() {
+        let s = "371446431 A";
+        assert_eq!(
+            CardNumber::from_str(s).unwrap_err().to_string(),
+            "invalid character found in card number".to_string()
+        );
+    }
+
+    #[test]
+    fn invalid_card_number() {
+        let s = "371446431";
+        assert_eq!(
+            CardNumber::from_str(s).unwrap_err().to_string(),
+            "card number invalid".to_string()
+        );
+    }
+
+    #[test]
+    fn card_number_no_whitespace() {
+        let s = "3714    4963  5398 431";
+        assert_eq!(
+            format!("{:?}", CardNumber::from_str(s).unwrap().0),
+            "371449*********"
+        );
+    }
+
+    #[test]
+    fn test_valid_card_number_masking() {
+        let secret: Secret<String, CardNumberStrategy> =
+            Secret::new("1234567890987654".to_string());
+        assert_eq!("123456**********", format!("{secret:?}"));
+    }
+
+    #[test]
+    fn test_invalid_card_number_masking() {
+        let secret: Secret<String, CardNumberStrategy> = Secret::new("9123456789".to_string());
+        assert_eq!("*** alloc::string::String ***", format!("{secret:?}"));
+    }
+
+    #[test]
+    fn test_valid_card_number_strong_secret_masking() {
+        let card_number = CardNumber::from_str("3714 4963 5398 431").unwrap();
+        let secret = &(*card_number);
+        assert_eq!("371449*********", format!("{secret:?}"));
+    }
+
+    #[test]
+    fn test_valid_card_number_deserialization() {
+        let card_number = serde_json::from_str::<CardNumber>(r#""3714 4963 5398 431""#).unwrap();
+        let secret = &(*card_number);
+        assert_eq!("371449*********", format!("{secret:?}"));
+    }
+
+    #[test]
+    fn test_invalid_card_number_deserialization() {
+        let card_number = serde_json::from_str::<CardNumber>(r#""1234 5678""#);
+        let error_msg = card_number.unwrap_err().to_string();
+        assert_eq!(error_msg, "card number invalid".to_string());
+    }
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct CardExpirationMonth(StrongSecret<u8>);
+
+impl CardExpirationMonth {
+    pub fn two_digits(&self) -> String {
+        format!("{:02}", self.0.peek())
+    }
+}
+
+impl PartialEq for CardExpirationMonth {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.peek() == other.0.peek()
+    }
+}
+
+impl Eq for CardExpirationMonth {}
+
+impl TryFrom<u8> for CardExpirationMonth {
+    type Error = error_stack::Report<ValidationError>;
+    fn try_from(month: u8) -> Result<Self, Self::Error> {
+        if (1..=12).contains(&month) {
+            Ok(Self(StrongSecret::new(month)))
+        } else {
+            Err(report!(ValidationError::InvalidValue {
+                message: "invalid card expiration month".to_string()
+            }))
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for CardExpirationMonth {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let month = u8::deserialize(deserializer)?;
+        month.try_into().map_err(de::Error::custom)
+    }
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct CardExpirationYear(StrongSecret<u16>);
+
+impl CardExpirationYear {
+    pub fn get_year(&self) -> u16 {
+        *self.0.peek()
+    }
+}
+
+impl PartialEq for CardExpirationYear {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.peek() == other.0.peek()
+    }
+}
+
+impl Eq for CardExpirationYear {}
+
+impl TryFrom<u16> for CardExpirationYear {
+    type Error = error_stack::Report<ValidationError>;
+    fn try_from(year: u16) -> Result<Self, Self::Error> {
+        let curr_year = u16::try_from(date_time::now().year()).map_err(|_| {
+            report!(ValidationError::InvalidValue {
+                message: "invalid year".to_string()
+            })
+        })?;
+
+        if year >= curr_year {
+            Ok(Self(StrongSecret::<u16>::new(year)))
+        } else {
+            Err(report!(ValidationError::InvalidValue {
+                message: "invalid card expiration year".to_string()
+            }))
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for CardExpirationYear {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let year = u16::deserialize(deserializer)?;
+        year.try_into().map_err(de::Error::custom)
+    }
+}

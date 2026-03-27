@@ -3,14 +3,16 @@
     "module": "CommonJS",
     "target": "ES2020",
     "esModuleInterop": true,
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "skipLibCheck": true,
     "strict": true,
-    "baseUrl": "..",
+    "ignoreDeprecations": "6.0",
+    "baseUrl": ".",
+    "ignoreDeprecations": "6.0",
     "paths": {
-      "hyperswitch-payments": ["src/index"],
-      "hyperswitch-payments/dist/src/payments/generated/proto": ["src/payments/generated/proto"]
+      "hyperswitch-prism": ["./node_modules/hyperswitch-prism/dist/src/index"],
+      "hyperswitch-prism/dist/src/payments/generated/proto": ["./node_modules/hyperswitch-prism/dist/src/payments/generated/proto"]
     }
   },
-  "include": ["test_smoke.ts"]
+  "include": ["test_smoke.ts", "test_smoke_composite.ts", "test_smoke_grpc.ts"]
 }

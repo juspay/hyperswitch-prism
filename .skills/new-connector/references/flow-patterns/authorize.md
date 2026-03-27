@@ -1,0 +1,1 @@
+../../../_shared/references/flow-patterns/authorize.md

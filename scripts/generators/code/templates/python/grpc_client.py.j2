@@ -1,0 +1,168 @@
+# AUTO-GENERATED — do not edit by hand.
+# Source: services.proto  |  Regenerate: make generate  (or: python3 scripts/generators/code/generate.py --lang python)
+
+from __future__ import annotations
+
+import ctypes
+import json
+import os
+import platform
+import sys
+from dataclasses import dataclass, field
+from typing import Any, Dict, Optional
+
+from payments.generated import payment_pb2
+
+# ── Config ────────────────────────────────────────────────────────────────────
+
+
+@dataclass
+class GrpcConfig:
+    """Connection configuration for the gRPC client.
+
+    Field names are snake_case — they are serialised to JSON and sent to the
+    Rust FFI layer which deserialises them into GrpcConfigInput.
+    
+    The connector_config field should contain the connector-specific authentication
+    and configuration in the format expected by the server:
+    {"config": {"ConnectorName": {"api_key": "...", ...}}}
+    """
+
+    endpoint: str
+    connector: str
+    connector_config: Dict[str, Any]
+
+    def to_json_bytes(self) -> bytes:
+        d: dict = {
+            "endpoint": self.endpoint,
+            "connector": self.connector,
+            "connector_config": self.connector_config,
+        }
+        return json.dumps(d).encode()
+
+
+# ── ctypes FFI bindings ───────────────────────────────────────────────────────
+
+
+class _GrpcFfi:
+    """Thin ctypes wrapper around libhyperswitch_grpc_ffi."""
+
+    def __init__(self, lib_path: Optional[str] = None) -> None:
+        if lib_path is None:
+            here = os.path.dirname(os.path.abspath(__file__))
+            ext  = "dylib" if platform.system() == "Darwin" else "so"
+            lib_path = os.path.join(here, "generated", f"libhyperswitch_grpc_ffi.{ext}")
+
+        lib = ctypes.CDLL(lib_path)
+
+        # uint8_t *hyperswitch_grpc_call(
+        #     const char   *method,
+        #     const uint8_t *config_ptr, uint32_t config_len,
+        #     const uint8_t *req_ptr,    uint32_t req_len,
+        #     uint32_t      *out_len,
+        # );
+        self._call = lib.hyperswitch_grpc_call
+        self._call.restype  = ctypes.POINTER(ctypes.c_uint8)
+        self._call.argtypes = [
+            ctypes.c_char_p,                         # method
+            ctypes.POINTER(ctypes.c_uint8),          # config_ptr
+            ctypes.c_uint32,                         # config_len
+            ctypes.POINTER(ctypes.c_uint8),          # req_ptr
+            ctypes.c_uint32,                         # req_len
+            ctypes.POINTER(ctypes.c_uint32),         # out_len  (written by callee)
+        ]
+
+        # void hyperswitch_grpc_free(uint8_t *ptr, uint32_t len);
+        self._free = lib.hyperswitch_grpc_free
+        self._free.restype  = None
+        self._free.argtypes = [ctypes.POINTER(ctypes.c_uint8), ctypes.c_uint32]
+
+    def call(self, method: str, config_bytes: bytes, req_bytes: bytes) -> bytes:
+        config_arr = (ctypes.c_uint8 * len(config_bytes)).from_buffer_copy(config_bytes)
+        req_arr    = (ctypes.c_uint8 * len(req_bytes)).from_buffer_copy(req_bytes)
+        out_len    = ctypes.c_uint32(0)
+
+        ptr = self._call(
+            method.encode(),
+            config_arr, len(config_bytes),
+            req_arr,    len(req_bytes),
+            ctypes.byref(out_len),
+        )
+        length = out_len.value
+        raw = bytes(ptr[:length])
+        self._free(ptr, length)
+        return raw
+
+
+# ── Dispatch helper ───────────────────────────────────────────────────────────
+
+
+def _call_grpc(ffi: _GrpcFfi, config: GrpcConfig, method: str, req, res_cls):
+    """Serialize req, call FFI, parse response or raise on error."""
+    config_bytes = config.to_json_bytes()
+    req_bytes    = req.SerializeToString()
+    raw          = ffi.call(method, config_bytes, req_bytes)
+
+    if not raw:
+        raise RuntimeError(f"gRPC error ({method}): empty response from FFI")
+
+    if raw[0] == 1:  # error flag
+        raise RuntimeError(f"gRPC error ({method}): {raw[1:].decode('utf-8', errors='replace')}")
+
+    res = res_cls()
+    res.ParseFromString(raw[1:])
+    return res
+
+
+# ── Sub-clients (one per proto service) ──────────────────────────────────────
+
+{% for service in services %}
+class Grpc{{ service[:-7] if service.endswith('Service') else service }}Client:
+    """{{ service }} — gRPC sub-client."""
+
+    def __init__(self, ffi: _GrpcFfi, config: GrpcConfig) -> None:
+        self._ffi    = ffi
+        self._config = config
+
+{% for f in groups[service] %}
+    def {{ f.name }}(self, req: payment_pb2.{{ f.request }}) -> payment_pb2.{{ f.response }}:
+        """{{ f.service }}.{{ f.rpc }} — {{ f.description }}"""
+        return _call_grpc(
+            self._ffi, self._config,
+            "{{ grpc_method_path(service, f.name) }}",
+            req, payment_pb2.{{ f.response }},
+        )
+
+{% endfor %}
+
+{% endfor %}
+# ── Top-level GrpcClient ──────────────────────────────────────────────────────
+
+
+class GrpcClient:
+    """Top-level gRPC client for the connector-service.
+
+    Each sub-client corresponds to one proto service.  Auth headers from
+    ``GrpcConfig`` are injected automatically on every call via the Rust FFI layer.
+
+    Example::
+
+        client = GrpcClient(GrpcConfig(
+            endpoint  = "http://localhost:8000",
+            connector = "stripe",
+            connector_config = {"config": {"Stripe": {"api_key": "sk_test_..."}}},
+        ))
+{% for service in services[:4] %}
+        res = client.{{ service_to_grpc_field(service) }}.{{ groups[service][0].name }}(...)
+{% endfor %}
+    """
+
+{% for service in services %}
+    {{ service_to_grpc_field(service) }}: Grpc{{ service[:-7] if service.endswith('Service') else service }}Client
+{% endfor %}
+
+    def __init__(self, config: GrpcConfig, lib_path: Optional[str] = None) -> None:
+        ffi = _GrpcFfi(lib_path)
+{% for service in services %}
+        self.{{ service_to_grpc_field(service) }} = Grpc{{ service[:-7] if service.endswith('Service') else service }}Client(ffi, config)
+{% endfor %}

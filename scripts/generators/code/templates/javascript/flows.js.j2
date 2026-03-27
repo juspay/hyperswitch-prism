@@ -1,0 +1,27 @@
+// AUTO-GENERATED — do not edit by hand.
+// Source: services.proto ∩ bindings/uniffi.rs  |  Regenerate: make generate
+"use strict";
+
+const FLOWS = {
+{% for f in flows %}
+  // {{ f.name }}: {{ f.service }}.{{ f.rpc }} — {{ f.description }}
+  {{ f.name ~ " " * (max_len - f.name|length + 1) }}: { request: "{{ f.request }}", response: "{{ f.response }}" },
+
+{% endfor %}
+};
+{% if single_flows %}
+
+// Single-step flows: no HTTP round-trip.
+const SINGLE_FLOWS = {
+{% for f in single_flows %}
+  // {{ f.name }}: {{ f.service }}.{{ f.rpc }} — {{ f.description }}
+  {{ f.name ~ " " * (max_len_s - f.name|length + 1) }}: { request: "{{ f.request }}", response: "{{ f.response }}" },
+
+{% endfor %}
+};
+
+module.exports = { FLOWS, SINGLE_FLOWS };
+{% else %}
+
+module.exports = { FLOWS };
+{% endif %}

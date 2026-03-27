@@ -4,8 +4,21 @@ extend-ignore-re = [
     "[0-9a-f]{7,40}", # ignore git commit hashes
 ]
 
+[files]
+extend-exclude = [
+    "backend/ucs-connector-tests/report.json",
+    "backend/ucs-connector-tests/test_report/**",
+    "backend/ucs-connector-tests/test_report.md",
+    "backend/ucs-connector-tests/test_result.md",
+    "crates/internal/ucs-connector-tests/**",
+    "docs-generated/**",
+]
+
 [default.extend-words]
 ede = "ede" # Encrypt-Decrypt-Encrypt (Triple DES EDE mode)
+Hashi = "Hashi" # HashiCorp brand name token
+HashiCorp = "HashiCorp" # HashiCorp company name
+caf = "caf" # part of café (URL-encoding / Unicode examples)
 
 [default.extend-identifiers]
 ACI = "ACI" # Name of a connector

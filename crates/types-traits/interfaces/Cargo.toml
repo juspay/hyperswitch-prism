@@ -1,0 +1,34 @@
+[package]
+name = "interfaces"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+
+common_utils = { path = "../../common/common_utils", package = "ucs_common_utils" }
+common_enums = { path = "../../common/common_enums", package = "ucs_common_enums" }
+domain_types = { path = "../domain_types"}
+
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+
+hyperswitch_masking = { version = "0.0.1", default-features = false, features = ["alloc", "serde", "time"] }
+
+
+utoipa = { version = "4.2.0", features = ["preserve_order", "preserve_path_order"] }
+strum = { version = "0.26", features = ["derive"] }
+reqwest = { version = "0.11.27", features = ["json", "rustls-tls", "gzip", "multipart"] }
+mime = "0.3.17"
+http = "0.2.12"
+thiserror = { workspace = true }
+bytes = { workspace = true }
+time = "0.3.41"
+tracing-actix-web = "0.7.18"
+async-trait = "0.1.88"
+actix-web = "4.11.0"
+
+error-stack = "0.4.1"
+
+[lints]
+workspace = true

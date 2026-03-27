@@ -1,0 +1,9 @@
+{
+  "connector": "helcim",
+  "supported_suites": [
+    "authorize",
+    "capture",
+    "void",
+    "get"
+  ]
+}

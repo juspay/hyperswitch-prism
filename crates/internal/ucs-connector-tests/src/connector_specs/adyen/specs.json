@@ -1,0 +1,6 @@
+{
+  "connector": "adyen",
+  "supported_suites": [
+    "authorize"
+  ]
+}

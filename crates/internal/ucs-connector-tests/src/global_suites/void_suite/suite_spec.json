@@ -1,0 +1,14 @@
+{
+  "suite": "void",
+  "suite_type": "dependent",
+  "depends_on": [
+    "create_access_token",
+    "create_customer",
+    {
+      "suite": "authorize",
+      "scenario": "no3ds_manual_capture_credit_card"
+    }
+  ],
+  "dependency_scope": "scenario",
+  "strict_dependencies": false
+}

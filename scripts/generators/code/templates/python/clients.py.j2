@@ -1,0 +1,23 @@
+# AUTO-GENERATED — do not edit by hand.
+# Source: services.proto ∩ bindings/uniffi.rs  |  Regenerate: make generate
+
+from payments.connector_client import _ConnectorClientBase
+import payments.generated.payment_pb2 as _pb2
+
+{% for service in all_services %}
+class {{ service_to_client_name(service) }}(_ConnectorClientBase):
+    """{{ service }} flows"""
+{% for f in groups.get(service, []) %}
+
+    def {{ f.name }}(self, request, options=None):
+        """{{ f.service }}.{{ f.rpc }} — {{ f.description }}"""
+        return self._execute_flow("{{ f.name }}", request, _pb2.{{ f.response }}, options)
+{% endfor %}
+{% for f in single_groups.get(service, []) %}
+
+    def {{ f.name }}(self, request, options=None):
+        """{{ f.service }}.{{ f.rpc }} — {{ f.description }}"""
+        return self._execute_direct("{{ f.name }}", request, _pb2.{{ f.response }}, options)
+{% endfor %}
+
+{% endfor %}

@@ -1,0 +1,31 @@
+# AUTO-GENERATED — do not edit by hand.
+# Source: services.proto ∩ bindings/uniffi.rs  |  Regenerate: make generate
+#
+# This stub exposes per-service client classes to static analysers
+# (Pylance, pyright, mypy) so IDEs offer completions and type checking.
+from payments.generated.sdk_config_pb2 import ConnectorConfig, RequestConfig
+from payments.generated.payment_pb2 import (
+{% for t in imports %}
+    {{ t }},
+{% endfor %}
+)
+
+class _ConnectorClientBase:
+    def __init__(self, config: ConnectorConfig, defaults: RequestConfig | None = ..., lib_path: str | None = ...) -> None: ...
+
+{% for service in all_services %}
+class {{ service_to_client_name(service) }}(_ConnectorClientBase):
+{% for f in groups.get(service, []) %}
+    def {{ f.name }}(self, request: {{ f.request }}, options: RequestConfig | None = ...) -> {{ f.response }}:
+        """{{ f.service }}.{{ f.rpc }} — {{ f.description }}"""
+        ...
+
+{% endfor %}
+{% for f in single_groups.get(service, []) %}
+    def {{ f.name }}(self, request: {{ f.request }}, options: RequestConfig | None = ...) -> {{ f.response }}:
+        """{{ f.service }}.{{ f.rpc }} — {{ f.description }}"""
+        ...
+
+{% endfor %}
+
+{% endfor %}

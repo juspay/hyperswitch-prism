@@ -1,0 +1,271 @@
+{
+  "connector": "powertranz",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by powertranz"
+      },
+      "Affirm": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by powertranz"
+      },
+      "Afterpay": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by powertranz"
+      },
+      "ApplePay": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by powertranz"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by powertranz"
+      },
+      "Bacs": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by powertranz"
+      },
+      "Becs": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by powertranz"
+      },
+      "Blik": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by powertranz"
+      },
+      "Card": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://staging.ptranz.com/api/sale",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "powertranz-powertranzid": "probe_id",
+            "powertranz-powertranzpassword": "probe_pass",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"TransactionIdentifier\":\"00000000-0000-0000-0000-000000000000\",\"TotalAmount\":10.0,\"CurrencyCode\":\"840\",\"ThreeDSecure\":false,\"Source\":{\"CardholderName\":\"John Doe\",\"CardPan\":\"4111111111111111\",\"CardCvv\":\"737\",\"CardExpiration\":\"3003\"},\"OrderIdentifier\":\"probe_txn_001\",\"ExtendedData\":null}"
+        }
+      },
+      "GooglePay": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by powertranz"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by powertranz"
+      },
+      "Ideal": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by powertranz"
+      },
+      "Klarna": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by powertranz"
+      },
+      "PaypalRedirect": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by powertranz"
+      },
+      "SamsungPay": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by powertranz"
+      },
+      "Sepa": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by powertranz"
+      },
+      "UpiCollect": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by powertranz"
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_capture_id": "probe_capture_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount_to_capture": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://staging.ptranz.com/api/capture",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "powertranz-powertranzid": "probe_id",
+            "powertranz-powertranzpassword": "probe_pass",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"TransactionIdentifier\":\"probe_connector_txn_001\",\"TotalAmount\":10.0,\"Refund\":null}"
+        }
+      }
+    },
+    "create_access_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_customer": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_session_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_merchant_txn_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://staging.ptranz.com/api/Transactions/probe_connector_txn_001",
+          "method": "Get",
+          "headers": {
+            "content-type": "application/json",
+            "powertranz-powertranzid": "probe_id",
+            "powertranz-powertranzpassword": "probe_pass",
+            "via": "HyperSwitch"
+          },
+          "body": null
+        }
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "payment_amount": 1000,
+          "refund_amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "reason": "customer_request"
+        },
+        "sample": {
+          "url": "https://staging.ptranz.com/api/refund",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "powertranz-powertranzid": "probe_id",
+            "powertranz-powertranzpassword": "probe_pass",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"TransactionIdentifier\":\"probe_connector_txn_001\",\"TotalAmount\":10.0,\"Refund\":true}"
+        }
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "tokenize": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_void_id": "probe_void_001",
+          "connector_transaction_id": "probe_connector_txn_001"
+        },
+        "sample": {
+          "url": "https://staging.ptranz.com/api/void",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "powertranz-powertranzid": "probe_id",
+            "powertranz-powertranzpassword": "probe_pass",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"TransactionIdentifier\":\"probe_connector_txn_001\",\"TotalAmount\":null,\"Refund\":null}"
+        }
+      }
+    }
+  }
+}

@@ -1,9 +1,12 @@
-.PHONY: install-deps generate-bindings generate-proto generate-all \
-        generate-flows pack-archive install test-package dist clean
+.PHONY: install-deps install-codegen-deps generate-bindings generate-proto generate-all \
+        generate-flows pack-archive install test-package test-composite test-grpc dist clean
 	#
 # SDK-specific paths (define BEFORE including common.mk)
 MAKEFILE_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 SDK_ROOT     := $(MAKEFILE_DIR)
+
+# Connectors to test (comma-separated, default: stripe)
+CONNECTORS ?= stripe
 
 # Include common SDK build configuration
 include $(SDK_ROOT)/../common.mk
@@ -34,9 +37,18 @@ install-deps:
 	fi
 	@echo "All required tools present."
 
+# ---------------------------------------------------------------------------
+# install-codegen-deps
+# Ensures jinja2 etc. are installed before generate-flows (used by CI and local).
+# Delegates to sdk/Makefile install-deps (idempotent, skips if present).
+# ---------------------------------------------------------------------------
+install-codegen-deps:
+	@$(MAKE) -C $(REPO_ROOT)/sdk install-deps
+
+# ---------------------------------------------------------------------------
 # generate-bindings
 # Builds the uniffi-bindgen binary then runs uniffi-bindgen generate.
-# uniffi-bindgen lives in its own crate (backend/uniffi-bindgen) so the ffi
+# uniffi-bindgen lives in its own crate (crates/internal/uniffi-bindgen) so the ffi
 # library never pulls in the uniffi/cli codegen deps. The output binary lands
 # in the same target/<PLATFORM>/release/ directory as before.
 # ---------------------------------------------------------------------------
@@ -85,16 +97,18 @@ generate-proto: install-deps
 # stubs. Proto is generated first to ensure the __init__.py marker exists
 # before the UniFFI wrapper references the package.
 # ---------------------------------------------------------------------------
-generate-all: generate-proto generate-bindings
+generate-all: generate-proto generate-bindings generate-flows
 
 # ---------------------------------------------------------------------------
 # generate-flows
 # Generates flow methods (authorize, capture, etc.) by running the SDK
-# codegen script. Assumes descriptor is already generated.
+# codegen script. Depends on generate-descriptor to ensure the proto descriptor
+# exists, and install-codegen-deps so jinja2 etc. are available (CI and local).
 # ---------------------------------------------------------------------------
-generate-flows:
+generate-flows: install-codegen-deps
 	@echo "Generating Python flow methods..."
-	@cd $(REPO_ROOT)/sdk/codegen && python3 generate.py --lang python
+	@$(MAKE) -C $(REPO_ROOT)/sdk generate-descriptor
+	@python3 $(REPO_ROOT)/scripts/generators/code/generate.py --lang python
 	@echo "Python flow methods generated."
 
 # ---------------------------------------------------------------------------
@@ -129,13 +143,82 @@ test-package: generate-all pack-archive
 	@rm -rf /tmp/test-hyperswitch-py
 	@mkdir -p /tmp/test-hyperswitch-py
 	@cp $(SDK_ROOT)/smoke-test/test_smoke.py /tmp/test-hyperswitch-py/
+	@# Copy credentials file if it exists
+	@if [ -f $(REPO_ROOT)/creds.json ]; then \
+		cp $(REPO_ROOT)/creds.json /tmp/test-hyperswitch-py/; \
+	else \
+		echo "  Note: creds.json not found, test will use placeholder credentials"; \
+	fi
 	@python3 -m pip install \
 		--target /tmp/test-hyperswitch-py \
 		$(PACKAGE_DIR)/hyperswitch_payments-0.1.0-py3-none-any.whl \
 		--force-reinstall
-	@cd /tmp/test-hyperswitch-py && python3 test_smoke.py
+	@cd /tmp/test-hyperswitch-py && python3 test_smoke.py --connectors $(CONNECTORS) --examples-dir $(REPO_ROOT)/examples
+	@echo "Running composite flow test..."
+	@cp $(SDK_ROOT)/smoke-test/test_smoke_composite.py /tmp/test-hyperswitch-py/
+	@cd /tmp/test-hyperswitch-py && python3 test_smoke_composite.py --creds-file creds.json
 	@rm -rf /tmp/test-hyperswitch-py
 	@echo "Package test passed."
+
+# ---------------------------------------------------------------------------
+# test-composite
+# Runs the composite flow smoke test (access token + authorize flow).
+# Tests the PayPal access token composite flow in an isolated environment.
+# ---------------------------------------------------------------------------
+test-composite: generate-all pack-archive
+	@echo "Testing composite flow in isolation..."
+	@rm -rf /tmp/test-hyperswitch-py-composite
+	@mkdir -p /tmp/test-hyperswitch-py-composite
+	@cp $(SDK_ROOT)/smoke-test/test_smoke_composite.py /tmp/test-hyperswitch-py-composite/
+	@# Copy credentials file if it exists
+	@if [ -f $(REPO_ROOT)/creds.json ]; then \
+		cp $(REPO_ROOT)/creds.json /tmp/test-hyperswitch-py-composite/; \
+	fi
+	@python3 -m pip install \
+		--target /tmp/test-hyperswitch-py-composite \
+		$(PACKAGE_DIR)/hyperswitch_payments-0.1.0-py3-none-any.whl \
+		--force-reinstall
+	@cd /tmp/test-hyperswitch-py-composite && python3 test_smoke_composite.py --creds-file creds.json
+	@rm -rf /tmp/test-hyperswitch-py-composite
+	@echo "Composite flow test passed."
+
+# ---------------------------------------------------------------------------
+# test-grpc
+# End-to-end gRPC smoke test: builds both FFI libraries, packs the wheel,
+# installs it in an isolated temp directory, then runs test_smoke_grpc.py.
+# ---------------------------------------------------------------------------
+GRPC_PROFILE    ?= release-fast
+GRPC_SERVER_BIN := $(REPO_ROOT)/target/$(GRPC_PROFILE)/grpc-server
+
+test-grpc: build-ffi-lib build-grpc-ffi-lib generate-all pack-archive
+	@echo "Building grpc-server ($(GRPC_PROFILE))..."
+	@cd $(REPO_ROOT) && cargo build -p grpc-server --profile $(GRPC_PROFILE) 2>&1
+	@echo "Starting gRPC server..."
+	@pkill -KILL -f grpc-server 2>/dev/null || true
+	@sleep 1
+	@cd $(REPO_ROOT) && $(GRPC_SERVER_BIN) > /tmp/grpc-server-py.log 2>&1 &
+	@sleep 2
+	@echo "Testing gRPC flows in isolation..."
+	@rm -rf /tmp/test-hyperswitch-py-grpc
+	@mkdir -p /tmp/test-hyperswitch-py-grpc
+	@python3 -m pip install \
+		--target /tmp/test-hyperswitch-py-grpc \
+		$(PACKAGE_DIR)/hyperswitch_payments-0.1.0-py3-none-any.whl \
+		--force-reinstall
+	@cp -f $(GRPC_FFI_LIBRARY) /tmp/test-hyperswitch-py-grpc/payments/generated/
+	@cp $(SDK_ROOT)/smoke-test/test_smoke_grpc.py /tmp/test-hyperswitch-py-grpc/
+	@if [ -f $(REPO_ROOT)/creds.json ]; then \
+		cp $(REPO_ROOT)/creds.json /tmp/test-hyperswitch-py-grpc/; \
+	else \
+		echo "  Note: no creds.json found, test will use placeholder credentials"; \
+	fi
+	@cd /tmp/test-hyperswitch-py-grpc && PYTHONPATH=/tmp/test-hyperswitch-py-grpc FORCE_COLOR=1 \
+		python3 test_smoke_grpc.py \
+		--connectors $(CONNECTORS) --examples-dir $(REPO_ROOT)/examples; \
+		EXIT=$$?; \
+		pkill -f grpc-server 2>/dev/null || true; \
+		rm -rf /tmp/test-hyperswitch-py-grpc; \
+		exit $$EXIT
 
 # ---------------------------------------------------------------------------
 # dist

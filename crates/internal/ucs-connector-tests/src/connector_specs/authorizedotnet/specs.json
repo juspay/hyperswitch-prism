@@ -1,0 +1,14 @@
+{
+  "connector": "authorizedotnet",
+  "supported_suites": [
+    "create_customer",
+    "authorize",
+    "capture",
+    "void",
+    "refund",
+    "get",
+    "refund_sync",
+    "setup_recurring",
+    "recurring_charge"
+  ]
+}

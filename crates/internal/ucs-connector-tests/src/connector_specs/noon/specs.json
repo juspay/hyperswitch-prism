@@ -1,0 +1,10 @@
+{
+  "connector": "noon",
+  "supported_suites": [
+    "authorize",
+    "void",
+    "refund",
+    "refund_sync",
+    "get"
+  ]
+}

@@ -14,11 +14,33 @@
 
 import { Dispatcher } from "undici";
 import { UniffiClient } from "./uniffi_client";
-import { execute, createDispatcher, HttpRequest, ConnectorError } from "../http_client";
+import { execute, createDispatcher, HttpRequest, NetworkError } from "../http_client";
 // @ts-ignore - protobuf generated files might not have types yet
 import { types } from "./generated/proto";
 
 const v2 = types;
+
+/**
+ * Exception raised when req_transformer fails (integration error).
+ * Wraps IntegrationError and provides access to proto fields.
+ */
+export class IntegrationError extends Error {
+  constructor(public proto: any) {
+    super(proto.errorMessage || proto.error_message);
+    this.name = 'IntegrationError';
+  }
+}
+
+/**
+ * Exception raised when res_transformer fails (response transformation error).
+ * Wraps ConnectorResponseTransformationError and provides access to proto fields.
+ */
+export class ConnectorResponseTransformationError extends Error {
+  constructor(public proto: any) {
+    super(proto.errorMessage || proto.error_message);
+    this.name = 'ConnectorResponseTransformationError';
+  }
+}
 
 export class ConnectorClient {
   private uniffi: UniffiClient;
@@ -29,7 +51,7 @@ export class ConnectorClient {
   /**
    * Initialize the client with mandatory config and optional request defaults.
    *
-   * @param config - Immutable connector identity and environment (Connector, Auth, Environment).
+   * @param config - Immutable connector config and environment (ConnectorSpecificConfig, SdkOptions).
    * @param defaults - Optional per-request defaults (Http, Vault).
    * @param libPath - optional path to the UniFFI shared library.
    */
@@ -42,11 +64,14 @@ export class ConnectorClient {
     this.config = types.ConnectorConfig.create(config);
     this.defaults = defaults;
 
-    if (config.connector === undefined) {
-      throw new ConnectorError(
-        "Connector is required in ConnectorConfig",
-        400,
-        "CLIENT_INITIALIZATION"
+    const hasConnectorVariant = !!config.connectorConfig
+      && Object.values(config.connectorConfig).some((value) => value != null);
+
+    if (!hasConnectorVariant) {
+      throw new NetworkError(
+        "connectorConfig with a connector variant is required in ConnectorConfig",
+        types.NetworkErrorCode.CLIENT_INITIALIZATION_FAILURE,
+        400
       );
     }
 
@@ -75,9 +100,8 @@ export class ConnectorClient {
     };
 
     const ffi = types.FfiOptions.create({
-      environment: this.config.environment ?? types.Environment.SANDBOX,
-      connector: this.config.connector,
-      auth: this.config.auth,
+      environment: this.config.options?.environment ?? types.Environment.SANDBOX,
+      connectorConfig: this.config.connectorConfig,
     });
 
     return { ffi, http };
@@ -139,7 +163,9 @@ export class ConnectorClient {
 
     // 6. Parse connector response via FFI and decode
     const resultBytesRes = this.uniffi.callRes(flow, resBytes, requestBytes, optionsBytes);
-    return resType.decode(resultBytesRes);
+    // callRes returns FfiConnectorHttpResponse, extract domain response from body
+    const httpResponse = v2.FfiConnectorHttpResponse.decode(resultBytesRes);
+    return resType.decode(httpResponse.body);
   }
 
   /**

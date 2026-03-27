@@ -1,0 +1,185 @@
+// AUTO-GENERATED — do not edit by hand.
+// Source: services.proto  |  Regenerate: make generate  (or: python3 scripts/generators/code/generate.py --lang kotlin)
+
+package payments
+
+import com.google.protobuf.MessageLite
+import com.google.protobuf.Parser
+import com.sun.jna.Library
+import com.sun.jna.Memory
+import com.sun.jna.Native
+import com.sun.jna.Pointer
+import com.sun.jna.ptr.IntByReference
+import java.io.File
+import java.nio.charset.StandardCharsets
+import types.Payment.*
+import types.PaymentMethods.*
+import types.Payouts.*
+
+// ── Config ────────────────────────────────────────────────────────────────────
+
+/**
+ * Connection configuration for the gRPC client.
+ *
+ * The connector_config field should contain the connector-specific authentication
+ * and configuration in the format expected by the server:
+ * {"config": {"ConnectorName": {"api_key": "...", ...}}}
+ */
+data class GrpcConfig(
+    val endpoint: String,
+    val connector: String,
+    val connectorConfig: Map<String, Any>,
+)
+
+// ── JNA FFI bindings ──────────────────────────────────────────────────────────
+
+private interface GrpcFfiLib : Library {
+    fun hyperswitch_grpc_call(
+        method: String,
+        configPtr: Pointer,
+        configLen: Int,
+        reqPtr: Pointer,
+        reqLen: Int,
+        outLen: IntByReference,
+    ): Pointer
+
+    fun hyperswitch_grpc_free(ptr: Pointer, len: Int)
+}
+
+private object GrpcFfi {
+    private val lib: GrpcFfiLib by lazy {
+        val libPath = System.getProperty("hyperswitch.grpc.lib.path")
+            ?: detectLibPath()
+        Native.load(libPath, GrpcFfiLib::class.java)
+    }
+
+    private fun detectLibPath(): String {
+        val os = System.getProperty("os.name").lowercase()
+        val ext = when {
+            os.contains("mac") || os.contains("darwin") -> "dylib"
+            else -> "so"
+        }
+        val libName = "libhyperswitch_grpc_ffi.$ext"
+
+        // Try relative to jar location
+        val codeSource = GrpcFfi::class.java.protectionDomain.codeSource
+        if (codeSource != null) {
+            val jarDir = File(codeSource.location.toURI()).parentFile
+            val nativeDir = File(jarDir, "native")
+            val libFile = File(nativeDir, libName)
+            if (libFile.exists()) return libFile.absolutePath
+        }
+
+        // Try classpath resource
+        val resource = GrpcFfi::class.java.classLoader.getResource("native/$libName")
+        if (resource != null) return File(resource.toURI()).absolutePath
+
+        // Fallback to system library path
+        return libName.removePrefix("lib")
+    }
+
+    fun call(method: String, configBytes: ByteArray, reqBytes: ByteArray): ByteArray {
+        // Use JNA Memory to allocate native buffers — avoids GetDirectBufferAddress
+        // which is restricted in unnamed modules on Java 22+.
+        val configMem = Memory(configBytes.size.toLong().coerceAtLeast(1))
+        configMem.write(0, configBytes, 0, configBytes.size)
+
+        val reqMem = Memory(reqBytes.size.toLong().coerceAtLeast(1))
+        reqMem.write(0, reqBytes, 0, reqBytes.size)
+
+        val outLen = IntByReference(0)
+
+        val resultPtr = lib.hyperswitch_grpc_call(
+            method, configMem, configBytes.size, reqMem, reqBytes.size, outLen
+        )
+
+        val len = outLen.value
+
+        // Read bytes from pointer and copy to heap array (free immediately after read)
+        val raw = ByteArray(len)
+        resultPtr.read(0, raw, 0, len)
+        lib.hyperswitch_grpc_free(resultPtr, len)
+        return raw
+    }
+}
+
+// ── Dispatch helper ───────────────────────────────────────────────────────────
+
+private fun <T : com.google.protobuf.MessageLite> callGrpc(
+    config: GrpcConfig,
+    method: String,
+    req: com.google.protobuf.MessageLite,
+    responseParser: com.google.protobuf.Parser<T>,
+): T {
+    val configJson = mapOf(
+        "endpoint" to config.endpoint,
+        "connector" to config.connector,
+        "connector_config" to config.connectorConfig,
+    )
+    val configBytes = com.google.gson.Gson().toJson(configJson).toByteArray(StandardCharsets.UTF_8)
+    val reqBytes = req.toByteArray()
+
+    val raw = GrpcFfi.call(method, configBytes, reqBytes)
+
+    if (raw.isEmpty()) {
+        throw RuntimeException("gRPC error ($method): empty response")
+    }
+
+    if (raw[0] == 1.toByte()) {
+        val errorMsg = String(raw, 1, raw.size - 1, StandardCharsets.UTF_8)
+        throw RuntimeException("gRPC error ($method): $errorMsg")
+    }
+
+    return responseParser.parseFrom(raw.slice(1 until raw.size).toByteArray())
+}
+
+// ── Sub-clients (one per proto service) ───────────────────────────────────────
+
+{% for service in services %}
+/**
+ * {{ service }} — gRPC sub-client.
+ */
+class Grpc{{ service[:-7] if service.endswith('Service') else service }}Client internal constructor(
+    private val config: GrpcConfig,
+) {
+{% for f in groups[service] %}
+    /**
+     * {{ f.service }}.{{ f.rpc }} — {{ f.description }}
+     */
+    suspend fun {{ f.name }}(req: {{ f.request }}): {{ f.response }} =
+        callGrpc(config, "{{ grpc_method_path(service, f.name) }}", req, {{ f.response }}.parser())
+
+{% endfor %}
+}
+
+{% endfor %}
+// ── Top-level GrpcClient ──────────────────────────────────────────────────────
+
+/**
+ * Top-level gRPC client for the connector-service.
+ *
+ * Each sub-client corresponds to one proto service. Auth headers from
+ * `GrpcConfig` are injected automatically on every call via the Rust FFI layer.
+ *
+ * Example:
+ * ```kotlin
+ * val client = GrpcClient(GrpcConfig(
+ *     endpoint = "http://localhost:8000",
+ *     connector = "stripe",
+ *     connectorConfig = mapOf(
+ *         "config" to mapOf(
+ *             "Stripe" to mapOf("api_key" to "sk_test_...")
+ *         )
+ *     )
+ * ))
+{% for service in services[:4] %}
+ * val res = client.{{ service_to_grpc_field(service) }}.{{ groups[service][0].name }}(...)
+{% endfor %}
+ * ```
+ */
+class GrpcClient(config: GrpcConfig) {
+{% for service in services %}
+    val {{ service_to_grpc_field(service) }}: Grpc{{ service[:-7] if service.endswith('Service') else service }}Client =
+        Grpc{{ service[:-7] if service.endswith('Service') else service }}Client(config)
+{% endfor %}
+}

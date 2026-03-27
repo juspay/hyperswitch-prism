@@ -60,6 +60,9 @@ jobs:
       - name: Run Composite Request Schema Checks
         run: cargo test -p composite-service --test composite_request_schema_check
 
+      - name: Run UCS Connector Schema Compatibility Check
+        run: cargo test -p ucs-connector-tests --lib harness::scenario_api::tests::all_supported_scenarios_match_proto_schema_for_all_connectors -- --exact
+
   test:
     name: Run Tests
     runs-on: ubuntu-latest
@@ -154,3 +157,78 @@ jobs:
       - name: Check formatting
         shell: bash
         run: cargo +nightly fmt --all --check
+
+  sdk-test:
+    name: SDK Tests
+    runs-on: macos-latest
+
+    env:
+      RUSTFLAGS: "-D warnings"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python codegen dependencies
+        run: make -C sdk install-deps
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - uses: Swatinem/rust-cache@v2.7.8
+        with:
+          cache-on-failure: true
+
+      - name: Create connector credentials for SDK tests
+        shell: bash
+        env:
+          CONNECTOR_SPECIFIC_AUTH: ${{ secrets.CONNECTOR_SPECIFIC_AUTH }}
+        run: |
+          if [[ -n "${CONNECTOR_SPECIFIC_AUTH}" ]]; then
+            echo "${CONNECTOR_SPECIFIC_AUTH}" > creds.json
+            echo "Connector credentials created for SDK tests"
+          else
+            echo "No CONNECTOR_SPECIFIC_AUTH secret found, will run in dry-run mode"
+          fi
+
+      - name: Run SDK Tests
+        shell: bash
+        run: |
+          if [[ -f "creds.json" ]]; then
+            echo "Running SDK tests with connector credentials"
+          else
+            echo "Running SDK tests without connector credentials (dry-run mode)"
+          fi
+          make -C sdk test
+
+      - name: Regenerate SDK code
+        shell: bash
+        run: make -C sdk generate
+
+      - name: Check for uncommitted changes
+        shell: bash
+        run: |
+          git diff --exit-code || (echo "ERROR: Generated SDK code is out of date. Run 'make -C sdk generate' and commit the changes." && exit 1)

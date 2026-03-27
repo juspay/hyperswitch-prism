@@ -11,13 +11,15 @@ docker-compose.yml @juspay/connector-service-maintainers
 .dockerignore @juspay/connector-service-maintainers
 docs/ @juspay/connector-service-maintainers
 
-backend/connector-integration/ @juspay/connector-service-connectors
+crates/integrations/connector-integration/ @juspay/connector-service-connectors
 
-backend/grpc-server/src/server/ @juspay/connector-service-core
+crates/grpc-server/grpc-server/src/server/ @juspay/connector-service-core
 
-backend/domain_types/ @juspay/connector-service-framework
-backend/external-services/ @juspay/connector-service-framework
-backend/grpc-api-types/ @juspay/connector-service-proto-maintainers
-backend/grpc-server/ @juspay/connector-service-framework
-backend/examples/ @juspay/connector-service-framework
+crates/types-traits/domain_types/ @juspay/connector-service-framework
+crates/common/external-services/ @juspay/connector-service-framework
+crates/types-traits/grpc-api-types/ @juspay/connector-service-proto-maintainers
+crates/grpc-server/grpc-server/ @juspay/connector-service-framework
+examples/ @juspay/connector-service-framework
 config/ @juspay/connector-service-framework
+
+grace/ @juspay/connector-service-grace

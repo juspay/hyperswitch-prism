@@ -1,0 +1,160 @@
+# SDK Client Sanity Certification
+# - Triggers only when HTTP client or sanity test files change (see paths below).
+# - Runs: make certify-client-sanity
+# - On PR: posts/updates a comment with the sanity report (marker: <!-- sdk-client-sanity -->).
+# - Job name "certify-client-sanity" can be added as a required status check in
+#   Settings > Branches > Branch protection rules > Require status checks.
+name: SDK Client Sanity
+
+on:
+  pull_request:
+    paths:
+      - 'sdk/javascript/src/http_client.ts'
+      - 'sdk/javascript/tests/client_sanity_runner.ts'
+      - 'sdk/python/src/payments/http_client.py'
+      - 'sdk/python/tests/client_sanity_runner.py'
+      - 'sdk/rust/src/http_client.rs'
+      - 'sdk/rust/src/bin/client_sanity_runner.rs'
+      - 'sdk/java/src/main/kotlin/HttpClient.kt'
+      - 'sdk/java/tests/ClientSanityRunner.kt'
+      - 'sdk/tests/client_sanity/**'
+      - 'sdk/tests/package.json'
+      - 'Makefile'
+  push:
+    branches:
+      - main
+    paths:
+      - 'sdk/javascript/src/http_client.ts'
+      - 'sdk/javascript/tests/client_sanity_runner.ts'
+      - 'sdk/python/src/payments/http_client.py'
+      - 'sdk/python/tests/client_sanity_runner.py'
+      - 'sdk/rust/src/http_client.rs'
+      - 'sdk/rust/src/bin/client_sanity_runner.rs'
+      - 'sdk/java/src/main/kotlin/HttpClient.kt'
+      - 'sdk/java/tests/ClientSanityRunner.kt'
+      - 'sdk/tests/client_sanity/**'
+      - 'sdk/tests/package.json'
+      - 'Makefile'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write  # for posting/updating PR comment
+
+jobs:
+  certify:
+    name: certify-client-sanity
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Set up Java (OpenJDK 17)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Install protobuf compiler (protoc)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler
+
+      - name: Install Node dependencies (SDK JS)
+        run: cd sdk/javascript && npm install && cd ../..
+
+      - name: Install test dependencies (echo, proxy, judge)
+        run: cd sdk/tests && npm install --no-save && cd ../..
+
+      - name: Install Python dependencies (SDK)
+        run: pip install -r sdk/python/requirements.txt grpcio-tools protobuf
+
+      - name: Build FFI library (UniFFI scaffolding)
+        run: make -C sdk/python build-ffi-lib PROFILE=release
+
+      - name: Generate Python SDK artifacts (proto + UniFFI + flows)
+        run: make generate-all
+        working-directory: sdk/python
+        env:
+          PROFILE: release
+
+      - name: Generate JavaScript SDK artifacts (proto + native + flows)
+        run: make generate-all
+        working-directory: sdk/javascript
+        env:
+          PROFILE: release
+
+      - name: Generate Java/Kotlin SDK artifacts (proto + UniFFI + flows)
+        run: make generate-all
+        working-directory: sdk/java
+        env:
+          PROFILE: release
+
+      - name: Run SDK Client Sanity Certification
+        id: certify
+        run: |
+          make certify-client-sanity
+        continue-on-error: true
+
+      - name: Comment PR with report
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            const reportPath = path.join(
+              process.env.GITHUB_WORKSPACE || '.',
+              'sdk', 'tests', 'client_sanity', 'artifacts', 'REPORT.md'
+            );
+            const report = fs.existsSync(reportPath)
+              ? fs.readFileSync(reportPath, 'utf8')
+              : '*Report file not generated.*';
+
+            const verdict = report.includes('**Verdict**: PASS') ? 'PASS' : 'FAIL';
+            const body = `## SDK Client Sanity Certification: ${verdict}\n\n<details>\n<summary>Report</summary>\n\n${report}\n\n</details>\n\n<!-- sdk-client-sanity -->`;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.find((c) => c.body && c.body.includes('<!-- sdk-client-sanity -->'));
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
+      - name: Fail if certification failed
+        if: steps.certify.outcome == 'failure'
+        run: exit 1

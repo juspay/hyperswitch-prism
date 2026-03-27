@@ -36,6 +36,12 @@ typealias PaymentServiceVerifyRedirectResponseRequest = types.Payment.PaymentSer
 typealias PaymentServiceVerifyRedirectResponseResponse = types.Payment.PaymentServiceVerifyRedirectResponseResponse
 typealias PaymentServiceDisputeRequest = types.Payment.PaymentServiceDisputeRequest
 typealias DisputeResponse = types.Payment.DisputeResponse
+typealias DisputeServiceAcceptRequest = types.Payment.DisputeServiceAcceptRequest
+typealias DisputeServiceAcceptResponse = types.Payment.DisputeServiceAcceptResponse
+typealias DisputeServiceDefendRequest = types.Payment.DisputeServiceDefendRequest
+typealias DisputeServiceDefendResponse = types.Payment.DisputeServiceDefendResponse
+typealias DisputeServiceSubmitEvidenceRequest = types.Payment.DisputeServiceSubmitEvidenceRequest
+typealias DisputeServiceSubmitEvidenceResponse = types.Payment.DisputeServiceSubmitEvidenceResponse
 
 // Authentication service
 typealias MerchantAuthenticationServiceCreateAccessTokenRequest = types.Payment.MerchantAuthenticationServiceCreateAccessTokenRequest
@@ -50,6 +56,8 @@ typealias PaymentMethodAuthenticationServicePreAuthenticateRequest = types.Payme
 typealias PaymentMethodAuthenticationServicePreAuthenticateResponse = types.Payment.PaymentMethodAuthenticationServicePreAuthenticateResponse
 typealias PaymentMethodAuthenticationServiceAuthenticateRequest = types.Payment.PaymentMethodAuthenticationServiceAuthenticateRequest
 typealias PaymentMethodAuthenticationServiceAuthenticateResponse = types.Payment.PaymentMethodAuthenticationServiceAuthenticateResponse
+typealias PaymentMethodAuthenticationServicePostAuthenticateRequest = types.Payment.PaymentMethodAuthenticationServicePostAuthenticateRequest
+typealias PaymentMethodAuthenticationServicePostAuthenticateResponse = types.Payment.PaymentMethodAuthenticationServicePostAuthenticateResponse
 
 // Tokenization
 typealias PaymentMethodServiceTokenizeRequest = types.Payment.PaymentMethodServiceTokenizeRequest
@@ -82,7 +90,7 @@ typealias ConnectorResponseData = types.Payment.ConnectorResponseData
 typealias CardConnectorResponse = types.Payment.CardConnectorResponse
 typealias AuthenticationData = types.Payment.AuthenticationData
 typealias Metadata = types.Payment.Metadata
-typealias ConnectorAuth = types.Payment.ConnectorAuth
+typealias ConnectorSpecificConfig = types.Payment.ConnectorSpecificConfig
 
 // ---------------------------------------------------------------------------
 // Enums

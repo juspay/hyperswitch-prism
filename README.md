@@ -1,7 +1,7 @@
 <div align="center">
 
 
-# Connector Service
+# Hyperswitch Prism
 
 
 **One integration. Any payment processor. Zero lock-in.**
@@ -22,19 +22,23 @@
 ---
 
 
-## 🎯 Why Connector Service?
+## 🎯 What is Prism?
+
+Today, integrating multiple payment processors either makes developers running in circles with AI agents to recreate integrations from specs, or developers spending months of engineering effort.
+
+Because every payment processor has diverse APIs, error codes, authentication methods, pdf documents to read, and above all - different behaviour in the actual environment when compared to documented specs. All this rests as tribal or undocumented knowledge making it harder AI agents which are very good at implementing clearly documented specification.
+
+**Prism is a stateless, unified connector library for AI agents and Developers to connect with any payment processor.**
+
+**Prism offers hardened transformation through testing on payment processor environment & iterative bug fixing.**
+
+**Prism can be embedded in your server application with its wide range of multi-language SDKs, or run as a gRPC microservice**
 
 
-Integrating multiple payment processors shouldn't require months of engineering effort. Yet every PSP has different APIs, error codes, authentication methods, and idiosyncrasies.
-
-
-**Connector Service solves this with a unified schema that works across all payment providers.**
-
-
-| ❌ Without Connector Service | ✅ With Connector Service |
+| ❌ Without Prism | ✅ With Prism |
 |------------------------------|----------------------------|
-| 🗂️ 50+ different API schemas | 📋 Single unified schema |
-| ⏳ Months of integration work | ⚡ Hours to integrate |
+| 🗂️ 100+ different API schemas | 📋 Single unified schema |
+| ⏳ In-deterministic agent loops / months of integration work | ⚡ Deterministic agent loops, hours to integrate |
 | 🔗 Brittle, provider-specific code | 🔓 Portable, provider-agnostic code |
 | 🚫 Hard to switch providers | 🔄 Change providers in 1 line |
 
@@ -45,7 +49,7 @@ Integrating multiple payment processors shouldn't require months of engineering 
 ## ✨ Features
 
 
-- **🔌 50+ Connectors** — Stripe, Adyen, Braintree, PayPal, Worldpay, and more
+- **🔌 100+ Connectors** — Stripe, Adyen, Braintree, PayPal, Worldpay, and more
 - **🌍 Global Coverage** — Cards, wallets, bank transfers, BNPL, and regional methods
 - **🚀 Zero Overhead** — Rust core with native bindings, no overhead
 - **🔒 PCI-Compliant by Design** — Stateless, no data storage
@@ -56,17 +60,22 @@ Integrating multiple payment processors shouldn't require months of engineering 
 
 ## 🏗️ Architecture
 
+The Prism library is compliant for payment processing by design. It is:
+- **Stateless** — Hence, no PII or PCI data stored
+- **Credential free** — The API keys are never logged nor exposed
+- **Payment compliance outsourcing supported** — You can continue to outsource your PCI compliance to third party vaults, or payment processor without having to handle credit card data. 
+
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                        Your Application                         │
-└─────────────────────────────────┬───────────────────────────────┘
-                                 │
-                                 ▼
+└───────────────────────────────┬─────────────────────────────────┘
+                                │
+                                ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                      Connector Service SDK                      │
-│                 (Type-safe, idiomatic interface)                │
-└─────────────────────────────────┬───────────────────────────────┘
+│                         Prism Library                           │
+│     (Type-safe, idiomatic interface, Multi-language SDK)        │
+└────────────────────────────────┬────────────────────────────────┘
                                  │
                                  ▼
          ┌───────────────────────┼───────────────────────┬───────────────────────┐
@@ -76,277 +85,214 @@ Integrating multiple payment processors shouldn't require months of engineering 
    └──────────┘           └──────────┘           └──────────┘           └──────────┘
 ```
 
-
-### Payment & Capture Flow Sequence
-
-```mermaid
-%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#B3D9F2', 'primaryTextColor': '#333333', 'primaryBorderColor': '#5B9BD5', 'lineColor': '#666666', 'secondaryColor': '#C5E8C0', 'tertiaryColor': '#F9B872'}}}%%
-sequenceDiagram
-   autonumber
-   participant App as Your App
-   participant SDK as Connector Service SDK
-   participant PSP as Payment Service Provider (PSP)
-   
-   Note over App,PSP: Payment Authorization
-   App->>SDK: paymentservice.authorize(amount, currency, payment_method)
-   activate SDK
-   SDK->>PSP: Provider-specific Authorize API call
-   activate PSP
-   PSP-->>SDK: Provider-specific response
-   deactivate PSP
-   SDK-->>App: Unified authorize response
-   deactivate SDK
-
-   Note over App,PSP: Payment Capture
-   App->>SDK: paymentservice.capture(payment_id, amount)
-   activate SDK
-   SDK->>PSP: Provider-specific Capture API call
-   activate PSP
-   PSP-->>SDK: Provider-specific Capture response
-   deactivate PSP
-   SDK-->>App: Unified capture response
-   deactivate SDK
-
-   Note over App,PSP: Event Service (Webhooks)
-   PSP->>App: webhook(event_payload)
-   activate App
-   App->>SDK: eventservice.handle(unified_event)
-   activate SDK
-   SDK->>App: Unified event payload
-   deactivate SDK
-   deactivate App
-
-```
-
 ---
 
 
 ## 🚀 Quick Start
 
+### Install the Prism Library
 
-### Basic Usage
-
-
+Start by installing the library in the language of your choice.
 <!-- tabs:start -->
+
 #### **Node.js**
 
-
-```javascript
-const { PaymentClient, Connector, Currency } = require('@juspay/connector-service-node');
-
-
-async function main() {
- const client = new PaymentClient('your_api_key');
-
-
- const payment = await client.createPayment({
-   amount: { value: 1000, currency: Currency.USD }, // $10.00
-   connector: Connector.Stripe,
-   paymentMethod: {
-     card: {
-       number: '4242424242424242',
-       expMonth: 12,
-       expYear: 2030,
-       cvv: '123'
-     }
-   },
-   captureMethod: 'automatic'
- });
-
-
- console.log('Payment ID:', payment.id);
- console.log('Status:', payment.status);
-}
-
-
-main();
+```bash
+npm install hyperswitch-prism
 ```
 
+#### **Python**
+
+```bash
+pip install payments
+```
 
 #### **Java**
 
+Add to your `pom.xml`:
 
-```java
-import com.juspay.connectorservice.*;
-import com.juspay.connectorservice.types.*;
+```xml
+<dependency>
+    <groupId>io.hyperswitch</groupId>
+    <artifactId>prism</artifactId>
+    <version>0.0.1</version>
+</dependency>
+```
 
+#### **PHP**
 
-public class Example {
-   public static void main(String[] args) {
-       PaymentClient client = PaymentClient.create("your_api_key");
+```bash
+composer require juspay/hyperswitch-prism
+```
 
+For detailed installation instructions, see [Installation Guide](./getting-started/installation.md).
 
-       PaymentRequest request = PaymentRequest.builder()
-           .amount(Amount.of(1000, Currency.USD)) // $10.00
-           .connector(Connector.STRIPE)
-           .paymentMethod(PaymentMethod.card(
-               "4242424242424242",
-               12, 2030, "123"
-           ))
-           .captureMethod(CaptureMethod.AUTOMATIC)
-           .build();
+---
 
+### Create a Payment Order
 
-       Payment payment = client.createPayment(request);
+<!-- tabs:start -->
 
+#### **Node.js**
 
-       System.out.println("Payment ID: " + payment.getId());
-       System.out.println("Status: " + payment.getStatus());
-   }
+```typescript
+import { PaymentClient, types, IntegrationError, ConnectorResponseTransformationError } from 'hyperswitch-prism';
+
+let config: types.ConnectorConfig = {
+    connectorConfig: {
+        stripe: {
+            apiKey: { value: "sk_test_" }
+        }
+    }
 }
+
+const main = async () => {
+    try {
+        let client = new PaymentClient(config)
+        let request: types.PaymentServiceAuthorizeRequest = {
+            merchantTransactionId: "authorize_123",
+            amount: {
+                minorAmount: 1000, // $10.00
+                currency: types.Currency.USD,
+            },
+            captureMethod: types.CaptureMethod.AUTOMATIC,
+            paymentMethod: {
+                card: {
+                    cardNumber: { value: "4111111111111111" },
+                    cardExpMonth: { value: "12" },
+                    cardExpYear: { value: "2050" },
+                    cardCvc: { value: "123" },
+                    cardHolderName: { value: "Test User" },
+                },
+            },
+            authType: types.AuthenticationType.NO_THREE_DS,
+            address: {},
+            orderDetails: [],
+        }
+        let response: types.PaymentServiceAuthorizeResponse = await client.authorize(request);
+        switch (response.status) {
+            case types.PaymentStatus.CHARGED:
+                console.log("success");
+                break;
+            default:
+                console.error("failed");
+        }
+    } catch (e: any) {
+        switch (true) {
+            case (e instanceof IntegrationError): {
+                console.error("Error", e);
+                break;
+            }
+            case (e instanceof ConnectorResponseTransformationError): {
+                console.error("Error", e);
+                break;
+            }
+            default: {
+                console.error("Error", e);
+            }
+        }
+    }
+}
+
+main()
 ```
-<!-- tabs:end -->
-
 
 ---
 
+## 🔄 Routing between Payment Providers
 
-## 🔄 Switching Providers
-
-
-One of Connector Service's core benefits: switch payment providers by changing **one line**.
+Once the basic plumbing is implemented you can leverage Prism's core benefit - **switch payment providers by changing one line**.
 
 
-```javascript
-// Before: Using Stripe
-const payment = await client.createPayment({
-   connector: Connector.Stripe,  // ← Change this
-   // ... rest stays the same
-});
+```typescript
+  // Routing rule: EUR -> Adyen, USD -> Stripe
+  const currency = types.Currency.USD;
 
+  let stripeConfig: types.ConnectorConfig = {
+      connectorConfig: {
+          stripe: {
+              apiKey: { value: process.env.STRIPE_API_KEY! }
+          }
+      }
+  }
 
-// After: Using Adyen
-const payment = await client.createPayment({
-   connector: Connector.Adyen,   // ← That's it!
-   // ... everything else identical
-});
+  let adyenConfig: types.ConnectorConfig = {
+      connectorConfig: {
+          adyen: {
+              apiKey: { value: process.env.ADYEN_API_KEY! },
+              merchantAccount: process.env.ADYEN_MERCHANT_ACCOUNT!
+          }
+      }
+  }
+
+  const config = currency === types.Currency.EUR ? adyenConfig : stripeConfig;
+  const client = new PaymentClient(config);
+
+  const request: types.PaymentServiceAuthorizeRequest = {
+      merchantTransactionId: "order_123",
+      amount: {
+          minorAmount: 1000,
+          currency: currency
+      },
+      captureMethod: types.CaptureMethod.AUTOMATIC,
+      paymentMethod: {
+          card: {
+              cardNumber: { value: "4111111111111111" },
+              cardExpMonth: { value: "12" },
+              cardExpYear: { value: "2050" },
+              cardCvc: { value: "123" },
+              cardHolderName: { value: "Test User" },
+          },
+      },
+      authType: types.AuthenticationType.NO_THREE_DS,
+      address: {},
+      orderDetails: [],
+  };
+
+  const response = await client.authorize(request);
+  console.log(`Payment authorized with ${currency === types.Currency.EUR ? 'Adyen' : 'Stripe'}`);
 ```
-
-
-No rewriting. No re-architecting. Just swap the connector.
-
-
----
-
-
-## 🌊 Abstracted Payment Flows
-
-
-Connector Service unifies complex payment operations across all processors:
-
-
-### Core Payment Operations
-| Flow | Description |
-|------|-------------|
-| **Authorize** | Hold funds on a customer's payment method |
-| **Capture** | Complete an authorized payment and transfer funds |
-| **Void** | Cancel an authorized payment without charging |
-| **Refund** | Return captured funds to the customer |
-| **Sync** | Retrieve the latest payment status from the processor |
-
-
-### Advanced Flows
-| Flow | Description |
-|------|-------------|
-| **Setup Mandate** | Create recurring payment authorizations |
-| **Incremental Auth** | Increase the authorized amount post-transaction |
-| **Partial Capture** | Capture less than the originally authorized amount |
-
-
-Each flow uses the same unified schema regardless of the underlying processor's API differences. No custom code per provider.
-
-
----
-
 
 **One integration pattern. Any service category.**
 
+No rewriting. No re-architecting. Just swap the client with rules.
+Each flow uses the same unified schema regardless of the underlying processor's API differences. No custom code per provider.
+
+You can learn more about [intelligent routing](https://docs.hyperswitch.io/explore-hyperswitch/workflows/intelligent-routing) and [smart retries](https://docs.hyperswitch.io/explore-hyperswitch/workflows/smart-retries) to add more intelligence. It can help configure and manage diverse payment acceptance setup, as well as improve conversion rates.
 
 ---
 
-
 ## 🛠️ Development
 
-
 ### Prerequisites
-
 
 - Rust 1.70+
 - Protocol Buffers (protoc)
 
-
 ### Building from Source
-
 
 ```bash
 # Clone the repository
-git clone https://github.com/manojradhakrishnan/connector-service.git
-cd connector-service
-
+git clone https://github.com/juspay/hyperswitch-prism.git
+cd hyperswitch-prism
 
 # Build
 cargo build --release
-
 
 # Run tests
 cargo test
 ```
 
-
-### Project Structure
-
-
-```
-connector-service/
-├── backend/
-│   ├── grpc-server/           # gRPC server implementation
-│   ├── grpc-api-types/        # Protocol buffer definitions
-│   ├── connector-integration/ # Connector implementations
-│   ├── composite-service/     # Composite service layer
-│   ├── common_utils/          # Shared utilities
-│   ├── common_enums/          # Common enums
-│   ├── domain_types/          # Domain type definitions
-│   ├── interfaces/            # Interface definitions
-│   ├── external-services/     # External service clients
-│   ├── ffi/                   # Foreign function interface
-│   └── ...
-├── sdk/
-│   ├── java/                  # Java SDK
-│   ├── node-ffi-client/       # Node.js FFI client
-│   ├── rust/                  # Rust SDK
-│   ├── rust-grpc-client/      # Rust gRPC client
-│   └── python/                # Python SDK
-└── ...
-```
-
-
 ---
-
-
-## 🔒 Security
-
-
-- **Stateless by design** — No PII or PCI data stored
-- **Memory-safe** — Built in Rust, no buffer overflows
-- **Encrypted credentials** — API keys never logged or exposed
-
 
 ### Reporting Vulnerabilities
-
-
 Please report security issues to [security@juspay.in](mailto:security@juspay.in).
 
-
 ---
-
 
 <div align="center">
 
-
-**[⬆ Back to Top](#connector-service)**
-
-
-Made with by [Juspay hyperswitch](https://hyperswitch.io)
+Built and maintained by [Juspay hyperswitch](https://hyperswitch.io)
 
 
 </div>

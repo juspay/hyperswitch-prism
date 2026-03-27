@@ -1,0 +1,51 @@
+[package]
+name = "ffi"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "connector_service_ffi"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# First-party dependencies
+grpc-api-types = { path = "../../types-traits/grpc-api-types" }
+hyperswitch_masking = { version = "0.0.1", default-features = false, features = ["alloc", "serde", "time"] }
+connector-integration = { path = "../../integrations/connector-integration" }
+external-services = { path = "../../common/external-services", default-features = false }
+interfaces = { path = "../../types-traits/interfaces" }
+domain_types = { path = "../../types-traits/domain_types" }
+common_enums = { path = "../../common/common_enums", package = "ucs_common_enums" }
+common_utils = { path = "../../common/common_utils", package = "ucs_common_utils" }
+ucs_env = { path = "../../common/ucs_env" }
+ucs_interface_common = { path = "../../types-traits/ucs_interface_common" }
+
+# Third-party dependencies
+config = "0.14.0"
+toml = "0.8"
+error-stack = "0.4.1"
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_path_to_error = "0.1.16"
+http = "0.2.12"
+tonic = { workspace = true }
+paste = "1.0"
+tracing = { workspace = true }
+uniffi = { version = "0.29", optional = true }
+prost = { workspace = true }
+bytes = { workspace = true }
+thiserror = { workspace = true }
+base64 = "0.22"
+tokio = { version = "1", features = ["full"] }
+
+[build-dependencies]
+prost-build = { workspace = true }
+uniffi = { version = "0.29", features = ["build"], optional = true }
+
+[features]
+default = ["uniffi"]
+uniffi = ["dep:uniffi"]
+c-ffi = []
+
+[lints]
+workspace = true

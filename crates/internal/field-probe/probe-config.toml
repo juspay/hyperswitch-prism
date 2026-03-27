@@ -1,0 +1,113 @@
+# Field Probe Configuration
+# This file configures the field-probe binary which discovers required fields
+# and sample payloads for every connector × flow × payment-method combination.
+
+# Connectors to skip (exclude from probing)
+# By default, all connectors in the codebase are probed.
+# List any connectors you want to skip here.
+skip_connectors = []
+
+[probe]
+# Maximum iterations to try patching missing fields before giving up
+max_iterations = 30
+
+[access_token]
+# Mock access token for OAuth connectors that require a cached token from CreateAccessToken flow
+token = "probe_access_token"
+token_type = "Bearer"
+expires_in_seconds = 3600
+
+# OAuth connectors that require a cached access_token from a prior CreateAccessToken flow.
+# These connectors will have the mock access_token populated in the request state.
+[[oauth_connectors]]
+name = "airwallex"
+
+[[oauth_connectors]]
+name = "globalpay"
+
+[[oauth_connectors]]
+name = "jpmorgan"
+
+[[oauth_connectors]]
+name = "iatapay"
+
+[[oauth_connectors]]
+name = "getnet"
+
+[[oauth_connectors]]
+name = "payload"
+
+[[oauth_connectors]]
+name = "paypal"
+
+[[oauth_connectors]]
+name = "truelayer"
+
+[[oauth_connectors]]
+name = "volt"
+
+[[oauth_connectors]]
+name = "trustpay"
+
+# Payment methods to probe for authorize flow
+# Each entry maps a PM name to whether it's enabled
+[payment_methods]
+Card = true
+GooglePay = true
+GooglePayDecrypted = true
+ApplePay = true
+ApplePayDecrypted = true
+Sepa = true
+Bacs = true
+Ach = true
+Becs = true
+Ideal = true
+PaypalRedirect = true
+Blik = true
+Klarna = true
+Afterpay = true
+UpiCollect = true
+Affirm = true
+SamsungPay = true
+
+# Connector-specific metadata (connector_feature_data)
+# Some connectors require specific JSON metadata for the request transformer to succeed.
+[connector_metadata]
+braintree = '{"merchant_account_id":"probe_merchant_acct","merchant_config_currency":"USD"}'
+mifinity = '{"brand_id":"probe_brand","destination_account_number":"probe_acct_123"}'
+worldpay = '{"merchant_name":"Probe Merchant","link_data":"probe_link_data_001"}'
+paysafe = '{"account_id":{"card":{"USD":{"no_three_ds":"probe_acct_no3ds","three_ds":"probe_acct_3ds"}},"ach":{"USD":{"account_id":"probe_ach_acct"}}}}'
+fiserv = '{"terminal_id":"probe_terminal"}'
+gigadat = '{"site":"probe_site"}'
+jpmorgan = '{"company_name":"ProbeCompany","product_name":"ProbeProduct","merchant_purchase_description":"Probe Purchase","statement_descriptor":"PROBE"}'
+truelayer = '{"merchant_account_id":"probe_merchant_acct","account_holder_name":"Probe Account","private_key":"-----BEGIN PRIVATE KEY-----MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC-----END PRIVATE KEY-----","kid":"probe-key-id"}'
+cybersource = '{"merchant_id":"probe_merchant","merchant_key_id":"probe_key_id","merchant_secret_key":"probe_secret"}'
+bankofamerica = '{"merchant_id":"probe_merchant"}'
+nexinets = '{"transaction_id":"probe_txn_001","order_id":"probe_order_001","psync_flow":"DEBIT"}'
+paypal = '{"authorize_id":"probe_auth_001","capture_id":"probe_cap_001","psync_flow":"CAPTURE","order_id":"probe_order_001"}'
+forte = '{"auth_id":"probe_auth_001"}'
+authorizedotnet = '{"creditCard":{"cardNumber":"4111111111111111","expirationDate":"2025-12"}}'
+hyperpg = '{"order_id":"probe_order_001"}'
+paybox  = '{"connector_request_id":"probe_req_001"}'
+default = '{}'
+
+# Per-connector request field overrides.
+# Some connectors require specific field formats that differ from the probe defaults.
+# For example, Zift and Placetopay parse connector_transaction_id as i64/u64,
+# so they need a numeric string instead of the default "probe_connector_txn_001".
+[connector_overrides.zift]
+connector_transaction_id = "12345"
+
+[connector_overrides.placetopay]
+connector_transaction_id = "12345"
+
+# Header fields whose values are always random/dynamic and should be replaced
+# with a static placeholder in sample output.
+[normalize_headers]
+replace_with_static = ["salt", "idempotency-key", "timestamp", "x-request-id", "x-nonce"]
+
+# JSON body field names whose values are always dynamic (timestamps, nonces, IDs)
+# and should be replaced with static placeholders in sample output.
+[normalize_json]
+dynamic_fields = ["nonce", "invoiceNumber", "timestamp", "requestTimestamp"]
+digit_value_fields = ["NUMQUESTION"]

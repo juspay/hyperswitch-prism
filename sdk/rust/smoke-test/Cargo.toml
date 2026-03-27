@@ -1,0 +1,18 @@
+[package]
+name = "hyperswitch-smoke-test"
+version = "0.1.0"
+edition = "2021"
+default-run = "hyperswitch-smoke-test"
+
+[[bin]]
+name = "grpc-smoke-test"
+path = "src/grpc_smoke_test.rs"
+
+[dependencies]
+hyperswitch-payments-client = { path = ".." }
+grpc-api-types = { path = "../../../crates/types-traits/grpc-api-types" }
+hyperswitch_masking = { version = "0.0.1", default-features = false, features = ["alloc", "serde", "time"] }
+tonic = { workspace = true }
+tokio = { version = "1", features = ["full"] }
+serde = { workspace = true }
+serde_json = { workspace = true }

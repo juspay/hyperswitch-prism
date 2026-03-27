@@ -1,0 +1,21 @@
+// AUTO-GENERATED — do not edit by hand.
+// Source: services.proto ∩ services/*.rs  |  Regenerate: make generate
+
+{% for mod, types in modules_req.items() %}
+use grpc_api_types::{{ mod }}::{
+{% for t in types %}
+    {{ t }},
+{% endfor %}
+};
+{% endfor %}
+
+use crate::handlers::payments::{
+{% for f in flows %}
+    {{ f.name }}_req_handler, {{ f.name }}_res_handler,
+{% endfor %}
+};
+
+{% for f in flows %}
+// {{ f.name }}: {{ f.service }}.{{ f.rpc }} — {{ f.description }}
+define_ffi_flow!({{ f.name }}, {{ f.request }}, {{ f.name }}_req_handler, {{ f.name }}_res_handler);
+{% endfor %}

@@ -1,0 +1,170 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "grace-cli"
+version = "1.0.0"
+description = "Grace CLI - Technical specification generator with Firecrawl and PDF support"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "Grace Team"}
+]
+keywords = ["cli", "techspec", "automation", "firecrawl", "pdf"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Libraries",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "click>=8.0.0",
+    "python-dotenv>=1.0.0",
+    # LangGraph and workflow dependencies
+    "langgraph>=0.2.0",
+    "langchain>=0.1.0",
+    "langchain-core>=0.1.0",
+    "litellm>=1.0.0",
+    # Data processing
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "typing-extensions>=4.5.0",
+    # HTTP and async
+    "httpx>=0.25.0",
+    "requests>=2.31.0",
+    "aiohttp>=3.8.0",
+    # Text and data formats
+    "PyYAML>=6.0",
+    "toml>=0.10.2",
+    # Logging and rich output
+    "structlog>=23.1.0",
+    "rich>=13.5.0",
+    "flake8>=6.0.0",
+    "types-pyyaml>=6.0.12",
+    "types-requests>=2.32.0",
+    # Document processing (PDF, DOCX, Excel)
+    "markdownify>=1.2.0",
+    "pypdf2>=3.0.1",
+    "python-docx>=1.2.0",
+    "pandas>=2.3.3",
+    "openpyxl>=3.1.5",
+    # Claude Agent SDK for spec enhancement (-e flag)
+    "claude-agent-sdk>=0.1.30",
+]
+
+[project.optional-dependencies]
+dev =[
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-mock>=3.11.0",
+    "black>=23.0.0",
+    "mypy>=1.5.0",
+]
+nlp = [
+    "nltk>=3.8.1",
+    "spacy>=3.7.0",
+    "textblob>=0.17.1",
+]
+ai = [
+    "openai>=1.0.0",
+    "anthropic>=0.7.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/juspay/grace"
+Repository = "https://github.com/juspay/grace"
+
+[project.scripts]
+grace = "src.cli:main"
+
+[tool.setuptools]
+packages = ["src", "src.ai", "src.tools", "src.utils", "src.workflows", "src.types"]
+include-package-data = true
+zip-safe = false
+
+[tool.black]
+line-length = 100
+target-version = ['py39', 'py310', 'py311', 'py312']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+)/
+'''
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+explicit_package_bases = true
+
+[[tool.mypy.overrides]]
+module = "langgraph.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "langchain.*"
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q --strict-markers --strict-config"
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "unit: marks tests as unit tests",
+    "integration: marks tests as integration tests",
+    "workflow: marks tests as workflow tests",
+]
+
+[tool.coverage.run]
+source = ["src"]
+omit = [
+    "*/tests/*",
+    "*/test_*",
+    "*/__pycache__/*",
+    "*/.*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]

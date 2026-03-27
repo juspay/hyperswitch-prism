@@ -1,0 +1,9 @@
+{
+  "suite": "setup_recurring",
+  "suite_type": "dependent",
+  "depends_on": [
+    "create_access_token",
+    "create_customer"
+  ],
+  "strict_dependencies": false
+}

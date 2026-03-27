@@ -4,4 +4,4 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-grpc-api-types = { path = "../../backend/grpc-api-types" }
+grpc-api-types = { path = "../../crates/types-traits/grpc-api-types" }

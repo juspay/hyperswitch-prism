@@ -1,0 +1,697 @@
+# Superposition TOML Configuration for Connector Service
+# This file uses two dimensions: environment and connector
+# for powerful contextual configuration overrides
+
+[default-configs]
+# Common configuration
+common_environment = { value = "sandbox", schema = { type = "string", enum = ["sandbox", "development", "production"] } }
+
+# Log console configuration
+log_console_enabled = { value = true, schema = { type = "boolean" } }
+log_console_level = { value = "TRACE", schema = { type = "string" } }
+log_console_log_format = { value = "default", schema = { type = "string" } }
+
+# Log Kafka configuration (disabled by default)
+log_kafka_enabled = { value = false, schema = { type = "boolean" } }
+log_kafka_level = { value = "info", schema = { type = "string" } }
+log_kafka_filtering_directive = { value = "info", schema = { type = "string" } }
+log_kafka_brokers = { value = ["localhost:9092"], schema = { type = "array" } }
+log_kafka_topic = { value = "connector-service-logs", schema = { type = "string" } }
+log_kafka_buffer_limit = { value = 100000, schema = { type = "integer" } }
+
+# Server configuration
+server_host = { value = "0.0.0.0", schema = { type = "string" } }
+server_port = { value = 8000, schema = { type = "integer" } }
+server_type = { value = "grpc", schema = { type = "string" } }
+
+# Metrics configuration
+metrics_host = { value = "0.0.0.0", schema = { type = "string" } }
+metrics_port = { value = 8080, schema = { type = "integer" } }
+
+# Proxy configuration
+proxy_idle_pool_connection_timeout = { value = 90, schema = { type = "integer" } }
+proxy_bypass_proxy_urls = { value = ["localhost", "local"], schema = { type = "array" } }
+proxy_mitm_proxy_enabled = { value = false, schema = { type = "boolean" } }
+
+# Events configuration
+events_enabled = { value = false, schema = { type = "boolean" } }
+events_brokers = { value = ["localhost:9092"], schema = { type = "array" } }
+events_topic = { value = "audit-trail-events", schema = { type = "string" } }
+events_partition_key_field = { value = "request_id", schema = { type = "string" } }
+
+# Test configuration
+test_enabled = { value = false, schema = { type = "boolean" } }
+test_mock_server_url = { value = "http://localhost:3000/mockGateway", schema = { type = "string" } }
+
+# Lineage configuration
+lineage_enabled = { value = false, schema = { type = "boolean" } }
+lineage_header_name = { value = "x-lineage-ids", schema = { type = "string" } }
+lineage_field_prefix = { value = "lineage_", schema = { type = "string" } }
+
+# Unmasked headers
+unmasked_headers_keys = { value = ["x-request-id", "x-merchant-id", "x-lineage-ids", "x-reference-id", "x-connector", "x-tenant-id", "x-shadow-mode"], schema = { type = "array" } }
+
+# Connector base URLs (defaults to sandbox/test URLs)
+connector_base_url = { value = "", schema = { type = "string" } }
+connector_secondary_base_url = { value = "", schema = { type = "string" } }
+connector_third_base_url = { value = "", schema = { type = "string" } }
+connector_dispute_base_url = { value = "", schema = { type = "string" } }
+connector_base_url_bank_redirects = { value = "", schema = { type = "string" } }
+
+# Events transformations (required for development overrides)
+events_transformations_gateway = { value = "", schema = { type = "string" } }
+events_transformations_action = { value = "", schema = { type = "string" } }
+events_transformations_entity = { value = "", schema = { type = "string" } }
+events_transformations_message_latency = { value = "", schema = { type = "string" } }
+events_transformations_message_request_time = { value = "", schema = { type = "string" } }
+events_transformations_message_res_code = { value = "", schema = { type = "string" } }
+events_transformations_message_url = { value = "", schema = { type = "string" } }
+events_transformations_message_stage = { value = "", schema = { type = "string" } }
+events_transformations_message_req_body = { value = "", schema = { type = "string" } }
+events_transformations_message_res_body = { value = "", schema = { type = "string" } }
+events_transformations_udf_txn_uuid = { value = "", schema = { type = "string" } }
+
+# Events static values (required for development overrides)
+events_static_values_hostname = { value = "", schema = { type = "string" } }
+events_static_values_schema_version = { value = "", schema = { type = "string" } }
+events_static_values_category = { value = "", schema = { type = "string" } }
+events_static_values_message_req_type = { value = "", schema = { type = "string" } }
+events_static_values_message_log_type = { value = "", schema = { type = "string" } }
+
+# API tags (required for development overrides)
+api_tags_tags_psync = { value = "", schema = { type = "string" } }
+
+[dimensions]
+# Environment dimension - determines which environment configuration to use
+environment = { position = 1, schema = { type = "string", enum = ["sandbox", "development", "production"] } }
+
+# Connector dimension - determines which payment processor URLs to use
+connector = { position = 2, schema = { type = "string", enum = ["stripe", "adyen", "paypal", "razorpay", "checkout", "braintree", "worldpay", "cybersource", "payme", "bluesnap", "fiserv", "trustpay", "volt", "hipay", "xendit", "phonepe", "cashfree", "payu", "paytm", "dlocal", "rapyd", "aci", "nuvei", "forte", "authorizedotnet", "elavon", "bamboraapac", "billwerk", "paysafe", "worldpayvantiv", "worldpayxml", "tsys", "bankofamerica", "powertranz", "revolut", "airwallex", "bambora", "shift4", "multisafepay", "iatapay", "jpmorgan", "nmi", "nexixpay", "authipay", "stax", "trustpayments", "fiservemea", "datatrans", "silverflow", "celero", "globalpay", "razorpayv2", "fiuu", "payload", "cashtocode", "novalnet", "nexinets", "noon", "mifinity", "calida", "cryptopay", "helcim", "placetopay", "barclaycard"] } }
+
+# ============================================================================
+# Development Environment Overrides
+# ============================================================================
+[[overrides]]
+_context_ = { environment = "development" }
+common_environment = "development"
+log_kafka_enabled = true
+lineage_enabled = true
+events_transformations_gateway = "connector"
+events_transformations_action = "flow_type"
+events_transformations_entity = "flow_type"
+events_transformations_message_latency = "latency_ms"
+events_transformations_message_request_time = "timestamp"
+events_transformations_message_res_code = "status_code"
+events_transformations_message_url = "url"
+events_transformations_message_stage = "stage"
+events_transformations_message_req_body = "connector_request_data"
+events_transformations_message_res_body = "connector_response_data"
+events_transformations_udf_txn_uuid = "reference_id"
+events_static_values_hostname = "connector-service"
+events_static_values_schema_version = "V2"
+events_static_values_category = "OUTGOING_API"
+events_static_values_message_req_type = "EXTERNAL"
+events_static_values_message_log_type = "API_CALL"
+api_tags_tags_psync = "GW_TXN_SYNC"
+proxy_bypass_proxy_urls = []
+
+[[overrides]]
+_context_ = { environment = "production" }
+common_environment = "production"
+
+# ============================================================================
+# Connector URL Overrides (Sandbox/Development - default)
+# ============================================================================
+
+# Stripe
+[[overrides]]
+_context_ = { connector = "stripe" }
+connector_base_url = "https://api.stripe.com/"
+
+# Adyen
+[[overrides]]
+_context_ = { connector = "adyen" }
+connector_base_url = "https://checkout-test.adyen.com/"
+connector_dispute_base_url = "https://ca-test.adyen.com/"
+
+# PayPal
+[[overrides]]
+_context_ = { connector = "paypal" }
+connector_base_url = "https://api-m.sandbox.paypal.com/"
+
+# Razorpay
+[[overrides]]
+_context_ = { connector = "razorpay" }
+connector_base_url = "https://api.razorpay.com/"
+
+[[overrides]]
+_context_ = { connector = "razorpayv2" }
+connector_base_url = "https://api.razorpay.com/"
+
+# Checkout.com
+[[overrides]]
+_context_ = { connector = "checkout" }
+connector_base_url = "https://api.sandbox.checkout.com/"
+
+# Braintree
+[[overrides]]
+_context_ = { connector = "braintree" }
+connector_base_url = "https://payments.sandbox.braintree-api.com/graphql"
+
+# Worldpay
+[[overrides]]
+_context_ = { connector = "worldpay" }
+connector_base_url = "https://try.access.worldpay.com/"
+
+[[overrides]]
+_context_ = { connector = "worldpayvantiv" }
+connector_base_url = "https://transact.vantivprelive.com/vap/communicator/online"
+connector_secondary_base_url = "https://onlinessr.vantivprelive.com"
+
+[[overrides]]
+_context_ = { connector = "worldpayxml" }
+connector_base_url = "https://secure-test.worldpay.com/jsp/merchant/xml/paymentService.jsp"
+
+# Cybersource
+[[overrides]]
+_context_ = { connector = "cybersource" }
+connector_base_url = "https://apitest.cybersource.com/"
+
+# BlueSnap
+[[overrides]]
+_context_ = { connector = "bluesnap" }
+connector_base_url = "https://sandbox.bluesnap.com"
+connector_secondary_base_url = "https://sandpay.bluesnap.com"
+
+# Fiserv
+[[overrides]]
+_context_ = { connector = "fiserv" }
+connector_base_url = "https://cert.api.fiservapps.com/"
+
+# TrustPay (special case with bank redirects)
+[[overrides]]
+_context_ = { connector = "trustpay" }
+connector_base_url = "https://test-tpgw.trustpay.eu/"
+connector_base_url_bank_redirects = "https://aapi.trustpay.eu/"
+
+# Volt
+[[overrides]]
+_context_ = { connector = "volt" }
+connector_base_url = "https://gateway.sandbox.volt.io"
+connector_secondary_base_url = "https://api.sandbox.volt.io"
+
+# HiPay
+[[overrides]]
+_context_ = { connector = "hipay" }
+connector_base_url = "https://stage-secure-gateway.hipay-tpp.com/rest/"
+connector_secondary_base_url = "https://stage-secure2-vault.hipay-tpp.com/rest/v2/token"
+connector_third_base_url = "https://stage-api-gateway.hipay.com/"
+
+# Xendit
+[[overrides]]
+_context_ = { connector = "xendit" }
+connector_base_url = "https://api.xendit.co/"
+
+# PhonePe
+[[overrides]]
+_context_ = { connector = "phonepe" }
+connector_base_url = "https://api-preprod.phonepe.com/apis/hermes/"
+
+# Cashfree
+[[overrides]]
+_context_ = { connector = "cashfree" }
+connector_base_url = "https://sandbox.cashfree.com/"
+
+# PayU
+[[overrides]]
+_context_ = { connector = "payu" }
+connector_base_url = "https://test.payu.in/"
+
+# Paytm
+[[overrides]]
+_context_ = { connector = "paytm" }
+connector_base_url = "https://securestage.paytmpayments.com/"
+
+# dLocal
+[[overrides]]
+_context_ = { connector = "dlocal" }
+connector_base_url = "https://sandbox.dlocal.com/"
+
+# Rapyd
+[[overrides]]
+_context_ = { connector = "rapyd" }
+connector_base_url = "https://sandboxapi.rapyd.net"
+
+# ACI
+[[overrides]]
+_context_ = { connector = "aci" }
+connector_base_url = "https://eu-test.oppwa.com/"
+
+# Nuvei
+[[overrides]]
+_context_ = { connector = "nuvei" }
+connector_base_url = "https://ppp-test.nuvei.com/ppp/api/v1"
+
+# Forte
+[[overrides]]
+_context_ = { connector = "forte" }
+connector_base_url = "https://sandbox.forte.net/api/v3"
+
+# Authorize.Net
+[[overrides]]
+_context_ = { connector = "authorizedotnet" }
+connector_base_url = "https://apitest.authorize.net/xml/v1/request.api"
+
+# Elavon
+[[overrides]]
+_context_ = { connector = "elavon" }
+connector_base_url = "https://api.demo.convergepay.com/VirtualMerchantDemo/"
+
+# Bambora APAC
+[[overrides]]
+_context_ = { connector = "bamboraapac" }
+connector_base_url = "https://demo.ippayments.com.au/interface/api"
+
+# Billwerk
+[[overrides]]
+_context_ = { connector = "billwerk" }
+connector_base_url = "https://api.reepay.com/"
+connector_secondary_base_url = "https://card.reepay.com/"
+
+# Paysafe
+[[overrides]]
+_context_ = { connector = "paysafe" }
+connector_base_url = "https://api.test.paysafe.com/paymenthub/"
+
+# TSYS
+[[overrides]]
+_context_ = { connector = "tsys" }
+connector_base_url = "https://stagegw.transnox.com/"
+
+# Bank of America
+[[overrides]]
+_context_ = { connector = "bankofamerica" }
+connector_base_url = "https://apitest.merchant-services.bankofamerica.com/"
+
+# PowerTranz
+[[overrides]]
+_context_ = { connector = "powertranz" }
+connector_base_url = "https://staging.ptranz.com/api"
+
+# Revolut
+[[overrides]]
+_context_ = { connector = "revolut" }
+connector_base_url = "https://sandbox-merchant.revolut.com/"
+
+# Airwallex
+[[overrides]]
+_context_ = { connector = "airwallex" }
+connector_base_url = "https://api-demo.airwallex.com/api/v1"
+
+# Bambora
+[[overrides]]
+_context_ = { connector = "bambora" }
+connector_base_url = "https://api.na.bambora.com/v1"
+
+# Shift4
+[[overrides]]
+_context_ = { connector = "shift4" }
+connector_base_url = "https://api.shift4.com"
+
+# MultiSafepay
+[[overrides]]
+_context_ = { connector = "multisafepay" }
+connector_base_url = "https://testapi.multisafepay.com/v1/json"
+
+# IATA Pay
+[[overrides]]
+_context_ = { connector = "iatapay" }
+connector_base_url = "https://sandbox.iata-pay.iata.org/api/v1"
+
+# JPMorgan
+[[overrides]]
+_context_ = { connector = "jpmorgan" }
+connector_base_url = "https://api-mock.payments.jpmorgan.com/api/v2"
+connector_secondary_base_url = "https://id.payments.jpmorgan.com"
+
+# NMI
+[[overrides]]
+_context_ = { connector = "nmi" }
+connector_base_url = "https://secure.nmi.com"
+
+# Nexi XPay
+[[overrides]]
+_context_ = { connector = "nexixpay" }
+connector_base_url = "https://xpaysandbox.nexigroup.com/api/phoenix-0.0/psp/api/v1"
+
+# Authipay
+[[overrides]]
+_context_ = { connector = "authipay" }
+connector_base_url = "https://prod.emea.api.fiservapps.com/sandbox/ipp/payments-gateway/v2/payments"
+
+# Stax
+[[overrides]]
+_context_ = { connector = "stax" }
+connector_base_url = "https://apiprod.fattlabs.com"
+
+# Trust Payments
+[[overrides]]
+_context_ = { connector = "trustpayments" }
+connector_base_url = "https://webservices.securetrading.net"
+
+# Fiserv EMEA
+[[overrides]]
+_context_ = { connector = "fiservemea" }
+connector_base_url = "https://prod.emea.api.fiservapps.com/sandbox/ipp/payments-gateway/v2/payments"
+
+# Datatrans
+[[overrides]]
+_context_ = { connector = "datatrans" }
+connector_base_url = "https://api.sandbox.datatrans.com"
+
+# Silverflow
+[[overrides]]
+_context_ = { connector = "silverflow" }
+connector_base_url = "https://api-sbx.silverflow.co/v1"
+
+# Celero
+[[overrides]]
+_context_ = { connector = "celero" }
+connector_base_url = "https://sandbox.gotnpgateway.com"
+
+# Globalpay
+[[overrides]]
+_context_ = { connector = "globalpay" }
+connector_base_url = "https://apis.sandbox.globalpay.com/ucp"
+
+# Fiuu (MOLPay)
+[[overrides]]
+_context_ = { connector = "fiuu" }
+connector_base_url = "https://sandbox.merchant.razer.com/"
+connector_secondary_base_url = "https://sandbox.merchant.razer.com/"
+connector_third_base_url = "https://api.merchant.razer.com/"
+
+# Payload
+[[overrides]]
+_context_ = { connector = "payload" }
+connector_base_url = "https://api.payload.com"
+
+# CashToCode
+[[overrides]]
+_context_ = { connector = "cashtocode" }
+connector_base_url = "https://cluster05.api-test.cashtocode.com"
+
+# Novalnet
+[[overrides]]
+_context_ = { connector = "novalnet" }
+connector_base_url = "https://payport.novalnet.de/v2"
+
+# Nexi Nets
+[[overrides]]
+_context_ = { connector = "nexinets" }
+connector_base_url = "https://apitest.payengine.de/v1"
+
+# Noon Payments
+[[overrides]]
+_context_ = { connector = "noon" }
+connector_base_url = "https://api-test.noonpayments.com/"
+
+# MiFinity
+[[overrides]]
+_context_ = { connector = "mifinity" }
+connector_base_url = "https://demo.mifinity.com/"
+
+# Calida
+[[overrides]]
+_context_ = { connector = "calida" }
+connector_base_url = "https://dev.eorder.reloadhero.com/"
+
+# Cryptopay
+[[overrides]]
+_context_ = { connector = "cryptopay" }
+connector_base_url = "https://business-sandbox.cryptopay.me"
+
+# Helcim
+[[overrides]]
+_context_ = { connector = "helcim" }
+connector_base_url = "https://api.helcim.com/"
+
+# PlaceToPay
+[[overrides]]
+_context_ = { connector = "placetopay" }
+connector_base_url = "https://test.placetopay.com/rest/gateway"
+
+# PayMe
+[[overrides]]
+_context_ = { connector = "payme" }
+connector_base_url = "https://sandbox.payme.io/api/"
+
+# Barclaycard
+[[overrides]]
+_context_ = { connector = "barclaycard" }
+connector_base_url = "https://api.smartpayfuse-test.barclaycard"
+
+# ============================================================================
+# Production Environment Overrides
+# ============================================================================
+
+# Adyen Production
+[[overrides]]
+_context_ = { connector = "adyen", environment = "production" }
+connector_base_url = "https://{{merchant_endpoint_prefix}}-checkout-live.adyenpayments.com/checkout/"
+connector_dispute_base_url = "https://{{merchant_endpoint_prefix}}-ca-live.adyen.com/"
+
+# PayPal Production
+[[overrides]]
+_context_ = { connector = "paypal", environment = "production" }
+connector_base_url = "https://api-m.paypal.com/"
+
+# Braintree Production
+[[overrides]]
+_context_ = { connector = "braintree", environment = "production" }
+connector_base_url = "https://payments.braintree-api.com/graphql"
+
+# Worldpay Production
+[[overrides]]
+_context_ = { connector = "worldpay", environment = "production" }
+connector_base_url = "https://access.worldpay.com/"
+
+[[overrides]]
+_context_ = { connector = "worldpayvantiv", environment = "production" }
+connector_base_url = "https://transact.vantivcnp.com/vap/communicator/online"
+connector_secondary_base_url = "https://onlinessr.vantivcnp.com"
+
+[[overrides]]
+_context_ = { connector = "worldpayxml", environment = "production" }
+connector_base_url = "https://secure.worldpay.com/jsp/merchant/xml/paymentService.jsp"
+
+# Cybersource Production
+[[overrides]]
+_context_ = { connector = "cybersource", environment = "production" }
+connector_base_url = "https://api.cybersource.com/"
+
+# BlueSnap Production
+[[overrides]]
+_context_ = { connector = "bluesnap", environment = "production" }
+connector_base_url = "https://ws.bluesnap.com"
+connector_secondary_base_url = "https://pay.bluesnap.com"
+
+# TrustPay Production
+[[overrides]]
+_context_ = { connector = "trustpay", environment = "production" }
+connector_base_url = "https://tpgw.trustpay.eu/"
+
+# Volt Production
+[[overrides]]
+_context_ = { connector = "volt", environment = "production" }
+connector_base_url = "https://gateway.volt.io"
+connector_secondary_base_url = "https://api.volt.io/"
+
+# HiPay Production
+[[overrides]]
+_context_ = { connector = "hipay", environment = "production" }
+connector_base_url = "https://secure-gateway.hipay-tpp.com/rest/"
+connector_secondary_base_url = "https://secure2-vault.hipay-tpp.com/rest/v2/token"
+connector_third_base_url = "https://api-gateway.hipay.com/"
+
+# Xendit Production
+[[overrides]]
+_context_ = { connector = "xendit", environment = "production" }
+connector_base_url = "https://api.xendit.co"
+
+# PhonePe Production
+[[overrides]]
+_context_ = { connector = "phonepe", environment = "production" }
+connector_base_url = "https://api.phonepe.com/apis/hermes/"
+
+# PayU Production
+[[overrides]]
+_context_ = { connector = "payu", environment = "production" }
+connector_base_url = "https://secure.payu.com/api/"
+
+# Paytm Production
+[[overrides]]
+_context_ = { connector = "paytm", environment = "production" }
+connector_base_url = "https://secure.paytmpayments.com/"
+
+# dLocal Production
+[[overrides]]
+_context_ = { connector = "dlocal", environment = "production" }
+connector_base_url = "https://api.dlocal.com/"
+
+# Rapyd Production
+[[overrides]]
+_context_ = { connector = "rapyd", environment = "production" }
+connector_base_url = "https://api.rapyd.net"
+
+# ACI Production
+[[overrides]]
+_context_ = { connector = "aci", environment = "production" }
+connector_base_url = "https://eu-prod.oppwa.com/"
+
+# Nuvei Production
+[[overrides]]
+_context_ = { connector = "nuvei", environment = "production" }
+connector_base_url = "https://secure.safecharge.com/ppp/api/v1"
+
+# Forte Production
+[[overrides]]
+_context_ = { connector = "forte", environment = "production" }
+connector_base_url = "https://api.forte.net/v3"
+
+# Authorize.Net Production
+[[overrides]]
+_context_ = { connector = "authorizedotnet", environment = "production" }
+connector_base_url = "https://api.authorize.net/xml/v1/request.api"
+
+# Elavon Production
+[[overrides]]
+_context_ = { connector = "elavon", environment = "production" }
+connector_base_url = "https://api.convergepay.com/VirtualMerchant/"
+
+# Bambora APAC Production
+[[overrides]]
+_context_ = { connector = "bamboraapac", environment = "production" }
+connector_base_url = "https://www.bambora.co.nz/interface/api"
+
+# Paysafe Production
+[[overrides]]
+_context_ = { connector = "paysafe", environment = "production" }
+connector_base_url = "https://api.paysafe.com/paymenthub/"
+
+# TSYS Production
+[[overrides]]
+_context_ = { connector = "tsys", environment = "production" }
+connector_base_url = "https://gateway.transit-pass.com/"
+
+# Revolut Production
+[[overrides]]
+_context_ = { connector = "revolut", environment = "production" }
+connector_base_url = "https://merchant.revolut.com/"
+
+# Revolut Development
+[[overrides]]
+_context_ = { connector = "revolut", environment = "development" }
+connector_base_url = "https://sandbox-merchant.revolut.com/"
+
+# Airwallex Production
+[[overrides]]
+_context_ = { connector = "airwallex", environment = "production" }
+connector_base_url = "https://api.airwallex.com/api/v1"
+
+# IATA Pay Production
+[[overrides]]
+_context_ = { connector = "iatapay", environment = "production" }
+connector_base_url = "https://iata-pay.iata.org/api/v1"
+
+# JPMorgan Production
+[[overrides]]
+_context_ = { connector = "jpmorgan", environment = "production" }
+connector_base_url = "https://api-ms.payments.jpmorgan.com/api/v2"
+
+# Nexi XPay Production
+[[overrides]]
+_context_ = { connector = "nexixpay", environment = "production" }
+connector_base_url = "https://xpay.nexigroup.com/api/phoenix-0.0/psp/api/v1"
+
+# Authipay Production
+[[overrides]]
+_context_ = { connector = "authipay", environment = "production" }
+connector_base_url = "https://prod.emea.api.fiservapps.com/ipp/payments-gateway/v2/payments"
+
+# Fiserv EMEA Production
+[[overrides]]
+_context_ = { connector = "fiservemea", environment = "production" }
+connector_base_url = "https://prod.emea.api.fiservapps.com/ipp/payments-gateway/v2/payments"
+
+# Datatrans Production
+[[overrides]]
+_context_ = { connector = "datatrans", environment = "production" }
+connector_base_url = "https://api.datatrans.com"
+
+# Silverflow Production
+[[overrides]]
+_context_ = { connector = "silverflow", environment = "production" }
+connector_base_url = "https://api.silverflow.co/v1"
+
+# Celero Production
+[[overrides]]
+_context_ = { connector = "celero", environment = "production" }
+connector_base_url = "https://app.gotnpgateway.com"
+
+# Globalpay Production
+[[overrides]]
+_context_ = { connector = "globalpay", environment = "production" }
+connector_base_url = "https://apis.globalpay.com/ucp"
+
+# Fiuu Production
+[[overrides]]
+_context_ = { connector = "fiuu", environment = "production" }
+connector_base_url = "https://pay.merchant.razer.com/"
+connector_secondary_base_url = "https://api.merchant.razer.com/"
+connector_third_base_url = "https://api.merchant.razer.com/"
+
+# CashToCode Production
+[[overrides]]
+_context_ = { connector = "cashtocode", environment = "production" }
+connector_base_url = "https://cluster14.api.cashtocode.com"
+
+# Nexi Nets Production
+[[overrides]]
+_context_ = { connector = "nexinets", environment = "production" }
+connector_base_url = "https://api.payengine.de/v1"
+
+# Noon Payments Production
+[[overrides]]
+_context_ = { connector = "noon", environment = "production" }
+connector_base_url = "https://api.noonpayments.com/"
+
+# MiFinity Production
+[[overrides]]
+_context_ = { connector = "mifinity", environment = "production" }
+connector_base_url = "https://secure.mifinity.com/"
+
+# Calida Production
+[[overrides]]
+_context_ = { connector = "calida", environment = "production" }
+connector_base_url = "https://app.eorder.reloadhero.com/"
+
+# Cryptopay Production
+[[overrides]]
+_context_ = { connector = "cryptopay", environment = "production" }
+connector_base_url = "https://business.cryptopay.me/"
+
+# PlaceToPay Production
+[[overrides]]
+_context_ = { connector = "placetopay", environment = "production" }
+connector_base_url = "https://checkout.placetopay.com/rest/gateway"
+
+# PayMe Production
+[[overrides]]
+_context_ = { connector = "payme", environment = "production" }
+connector_base_url = "https://live.payme.io/api/"
+
+# Barclaycard Production
+[[overrides]]
+_context_ = { connector = "barclaycard", environment = "production" }
+connector_base_url = "https://api.smartpayfuse.barclaycard"

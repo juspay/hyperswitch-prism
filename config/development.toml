@@ -44,11 +44,14 @@ psync = "GW_TXN_SYNC"
 
 # Connectors that require an external API call for webhook source verification
 [webhook_source_verification_call] # comma-separated list of connector names (case-insensitive)
-connectors_with_webhook_source_verification_call = "paypal"
+connectors_with_webhook_source_verification_call = "paypal, truelayer "
 
 [connectors]
+peachpayments.base_url = "https://apitest.bankint.ppay.io/v/1"
 finix.base_url = "https://finix.sandbox-payments-api.com"
+fiservcommercehub.base_url = "https://connect-cert.fiservapis.com/ch/"
 revolv3.base_url = "https://api-sandbox.revolv3.com"
+ppro.base_url = "https://api.sandbox.eu.ppro.com"
 gigadat.base_url = "https://interac.express-connect.com/"
 paybox.base_url = "https://preprod-ppps.paybox.com/PPPS.php"
 loonio.base_url = "https://integration.loonio.ca/"
@@ -172,3 +175,4 @@ field_prefix = "lineage_"
 
 [unmasked_headers]
 keys = ["x-request-id","x-merchant-id","x-lineage-ids","x-reference-id","x-connector","x-tenant-id","x-shadow-mode"]
+

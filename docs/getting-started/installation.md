@@ -1,200 +1,186 @@
-# Installation
+# Installation and Configuration
 
----
-title: Installation
-description: SDK installation, API configuration, and environment setup for Connector Service
-last_updated: 2026-03-03
-generated_from: N/A
-auto_generated: false
-reviewed_by: tech-writer
-reviewed_at: 2026-03-03
-approved: true
----
 
-## Overview
+## How to install the prism library?
 
-This guide walks you through installing Connector Service SDKs and configuring your environment for development and production use.
+Start by installing the library from your terminal, using the programming language of your choice. This should be followed by configuring the environment and payment processor API keys to proceed with the next steps.
 
-## SDK Installation
+The below examples are templates for configuring Stripe and Adyen.
 
-### Node.js
+### Prerequisites
 
+- Stripe test API key (get one at [stripe.com](https://stripe.com))
+- Adyen test API key (get one at [adyen.com/signup](https://www.adyen.com/signup))
+
+{% tabs %}
+
+{% tab title="Node" %}
+
+{% code title="Terminal" overflow="wrap" %}
 ```bash
-# Using npm
-npm install @juspay/connector-service-sdk
-
-# Using yarn
-yarn add @juspay/connector-service-sdk
-
-# Using pnpm
-pnpm add @juspay/connector-service-sdk
+npm install hyperswitch-prism
 ```
+{% endcode %}
 
-### Python
+{% code title="index.js" overflow="wrap" lineNumbers="true" %}
+```javascript
+const { PaymentClient } = require('hyperswitch-prism');
+const { ConnectorConfig, ConnectorSpecificConfig, SdkOptions, Environment } = require('hyperswitch-prism').types;
 
+// Configure Stripe client
+const stripeConfig = ConnectorConfig.create({
+    options: SdkOptions.create({ environment: Environment.SANDBOX }),
+});
+stripeConfig.connectorConfig = ConnectorSpecificConfig.create({
+    stripe: { apiKey: { value: process.env.STRIPE_API_KEY } }
+});
+const stripeClient = new PaymentClient(stripeConfig);
+
+// Configure Adyen client
+const adyenConfig = ConnectorConfig.create({
+    options: SdkOptions.create({ environment: Environment.SANDBOX }),
+});
+adyenConfig.connectorConfig = ConnectorSpecificConfig.create({
+    adyen: {
+        apiKey: { value: process.env.ADYEN_API_KEY },
+        merchantAccount: process.env.ADYEN_MERCHANT_ACCOUNT
+    }
+});
+const adyenClient = new PaymentClient(adyenConfig);
+```
+{% endcode %}
+
+{% endtab %}
+
+{% tab title="Python" %}
+
+{% code title="Terminal" overflow="wrap" %}
 ```bash
-# Using pip
-pip install juspay-connector-service
-
-# Using poetry
-poetry add juspay-connector-service
-
-# Using uv
-uv pip install juspay-connector-service
+pip install hyperswitch-prism
 ```
+{% endcode %}
 
-### Java (Maven)
+{% code title="main.py" overflow="wrap" lineNumbers="true" %}
+```python
+import os
+from hyperswitch_prism import PaymentClient
+from hyperswitch_prism.generated import sdk_config_pb2
 
+# Configure Stripe client
+stripe_config = sdk_config_pb2.ConnectorConfig(
+    options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
+)
+stripe_config.connector_config.stripe.api_key.value = os.environ["STRIPE_API_KEY"]
+stripe_client = PaymentClient(stripe_config)
+
+# Configure Adyen client
+adyen_config = sdk_config_pb2.ConnectorConfig(
+    options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
+)
+adyen_config.connector_config.adyen.api_key.value = os.environ["ADYEN_API_KEY"]
+adyen_config.connector_config.adyen.merchant_account = os.environ["ADYEN_MERCHANT_ACCOUNT"]
+adyen_client = PaymentClient(adyen_config)
+```
+{% endcode %}
+
+{% endtab %}
+
+{% tab title="Java" %}
+
+{% code title="pom.xml" overflow="wrap" %}
 ```xml
 <dependency>
-    <groupId>in.juspay</groupId>
-    <artifactId>connector-service-sdk</artifactId>
+    <groupId>com.juspay.hyperswitch</groupId>
+    <artifactId>hyperswitch-prism</artifactId>
     <version>1.0.0</version>
 </dependency>
 ```
+{% endcode %}
 
-### Java (Gradle)
+{% code title="Main.java" overflow="wrap" lineNumbers="true" %}
+```java
+import com.juspay.hyperswitch.prism.PaymentClient;
+import com.juspay.hyperswitch.prism.config.*;
 
-```groovy
-dependencies {
-    implementation 'in.juspay:connector-service-sdk:1.0.0'
-}
+// Configure Stripe client
+ConnectorConfig stripeConfig = ConnectorConfig.builder()
+    .options(SdkOptions.builder()
+        .environment(Environment.SANDBOX)
+        .build())
+    .connectorSpecificConfig(ConnectorSpecificConfig.builder()
+        .stripe(StripeConfig.builder()
+            .apiKey(SecretString.of(System.getenv("STRIPE_API_KEY")))
+            .build())
+        .build())
+    .build();
+PaymentClient stripeClient = new PaymentClient(stripeConfig);
+
+// Configure Adyen client
+ConnectorConfig adyenConfig = ConnectorConfig.builder()
+    .options(SdkOptions.builder()
+        .environment(Environment.SANDBOX)
+        .build())
+    .connectorSpecificConfig(ConnectorSpecificConfig.builder()
+        .adyen(AdyenConfig.builder()
+            .apiKey(SecretString.of(System.getenv("ADYEN_API_KEY")))
+            .merchantAccount(System.getenv("ADYEN_MERCHANT_ACCOUNT"))
+            .build())
+        .build())
+    .build();
+PaymentClient adyenClient = new PaymentClient(adyenConfig);
 ```
+{% endcode %}
 
-### .NET
+{% endtab %}
 
+{% tab title="PHP" %}
+
+{% code title="Terminal" overflow="wrap" %}
 ```bash
-# Using dotnet CLI
-dotnet add package Juspay.ConnectorService
-
-# Using NuGet Package Manager
-Install-Package Juspay.ConnectorService
+composer require hyperswitch-prism
 ```
+{% endcode %}
 
-### Go
+{% code title="index.php" overflow="wrap" lineNumbers="true" %}
+```php
+<?php
+require_once 'vendor/autoload.php';
 
-```bash
-go get github.com/juspay/connector-service-sdk-go
+use HyperswitchPrism\PaymentClient;
+use HyperswitchPrism\Config\ConnectorConfig;
+use HyperswitchPrism\Config\Environment;
+
+// Configure Stripe client
+$stripeConfig = ConnectorConfig::create([
+    'environment' => Environment::SANDBOX,
+    'stripe' => [
+        'api_key' => $_ENV['STRIPE_API_KEY']
+    ]
+]);
+$stripeClient = new PaymentClient($stripeConfig);
+
+// Configure Adyen client
+$adyenConfig = ConnectorConfig::create([
+    'environment' => Environment::SANDBOX,
+    'adyen' => [
+        'api_key' => $_ENV['ADYEN_API_KEY'],
+        'merchant_account' => $_ENV['ADYEN_MERCHANT_ACCOUNT']
+    ]
+]);
+$adyenClient = new PaymentClient($adyenConfig);
 ```
+{% endcode %}
 
-### Haskell
+{% endtab %}
 
-```bash
-# Add to your cabal file
-build-depends: connector-service-sdk >= 1.0.0
+{% endtabs %}
 
-# Or using stack
-stack build connector-service-sdk
-```
+That would be all. The SDK handles native library loading automatically. Start building in the [Quick Start](./quick-start.md).
 
-## API Credentials Setup
+## Minimum version supported
 
-### 1. Obtain Credentials
-
-1. Log in to the [Juspay Dashboard](https://dashboard.juspay.in)
-2. Navigate to **Settings > API Keys**
-3. Generate a new API key (save it securely - it won't be shown again)
-4. Note your **Merchant ID** from the dashboard header
-
-### 2. Environment Variables
-
-Create a `.env` file in your project root:
-
-```bash
-# Required
-UCS_API_KEY="your-api-key-here"
-UCS_MERCHANT_ID="your-merchant-id"
-
-# Optional - defaults shown
-UCS_API_ENDPOINT="https://api.juspay.in"  # Production
-# UCS_API_ENDPOINT="https://sandbox.juspay.in"  # Sandbox
-UCS_TIMEOUT_MS="30000"
-UCS_MAX_RETRIES="3"
-```
-
-### 3. Load Environment Variables
-
-**Node.js:**
-```javascript
-require('dotenv').config();
-const apiKey = process.env.UCS_API_KEY;
-const merchantId = process.env.UCS_MERCHANT_ID;
-```
-
-**Python:**
-```python
-from dotenv import load_dotenv
-import os
-
-load_dotenv()
-api_key = os.getenv('UCS_API_KEY')
-merchant_id = os.getenv('UCS_MERCHANT_ID')
-```
-
-## Verify Installation
-
-### Health Check
-
-```bash
-# Using curl (language-agnostic)
-curl -X POST https://api.juspay.in/v2/health \
-  -H "Authorization: Bearer $UCS_API_KEY" \
-  -H "Content-Type: application/json"
-```
-
-### SDK Health Check
-
-**Node.js:**
-```javascript
-const { ConnectorClient } = require('@juspay/connector-service-sdk');
-
-const client = new ConnectorClient({
-  apiKey: process.env.UCS_API_KEY,
-  merchantId: process.env.UCS_MERCHANT_ID
-});
-
-async function verify() {
-  try {
-    const health = await client.health.check();
-    console.log('✅ Connected to Connector Service');
-    console.log('Status:', health.status);
-  } catch (error) {
-    console.error('❌ Connection failed:', error.message);
-  }
-}
-
-verify();
-```
-
-## Environment-Specific Configuration
-
-| Environment | Endpoint | Use Case |
-|-------------|----------|----------|
-| Sandbox | `https://sandbox.juspay.in` | Development, testing |
-| Production | `https://api.juspay.in` | Live transactions |
-
-### Switching Environments
-
-```javascript
-// Node.js example
-const client = new ConnectorClient({
-  apiKey: process.env.UCS_API_KEY,
-  merchantId: process.env.UCS_MERCHANT_ID,
-  environment: process.env.NODE_ENV === 'production' ? 'production' : 'sandbox'
-});
-```
-
-## Troubleshooting
-
-| Issue | Solution |
-|-------|----------|
-| "Authentication failed" | Verify API key is correct and not expired |
-| "Merchant not found" | Check MERCHANT_ID format (should be alphanumeric) |
-| "Connection timeout" | Check firewall settings and UCS_TIMEOUT_MS value |
-| "SSL certificate error" | Update system CA certificates |
-
-## Next Steps
-
-- [Quick Start Guide](./quick-start.md) - Process your first payment
-- [Concepts](./concepts.md) - Understand core abstractions
-- [SDK Documentation](../sdks/) - Language-specific guides
+The prerequisites are:
+- **Node.js**: 16+ (FFI bindings require native compilation)
+- **Python**: 3.9+ (uses `ctypes` for FFI)
+- **Java**: 11+ (uses JNI bindings)
+- **PHP**: 8.0+ (uses FFI extension)

@@ -1,0 +1,259 @@
+// Package: ucs.v2
+// File: sdk_config.proto
+//
+// Overview:
+//   Configuration options for the Connector SDK.
+//   - ConnectorConfig: Connector-specific configuration with typed auth, base_url, and metadata.
+//   - SdkOptions: Environment and other SDK-level settings.
+//   - RequestConfig: Per-request overridable parameters.
+//   - FfiOptions: Internal context for UniFFI transformation engine.
+
+syntax = "proto3";
+
+package types;
+
+import "payment.proto";
+
+option go_package = "github.com/juspay/connector-service/crates/types-traits/grpc-api-types/proto;proto";
+
+// ============================================================
+// ENUMERATIONS
+// ============================================================
+
+// Deployment environment for the SDK.
+enum Environment {
+  // Unspecified environment (Default)
+  ENVIRONMENT_UNSPECIFIED = 0;
+
+  // Sandbox/Testing environment
+  SANDBOX = 1;
+
+  // Production environment
+  PRODUCTION = 2;
+}
+
+// ============================================================
+// SDK Configuration (User-facing)
+// ============================================================
+
+// Typed per-connector configuration (auth + base_url + metadata).
+// The connector identity is inferred from which oneof variant is set.
+// Passed as the FIRST parameter during client creation.
+message ConnectorConfig {
+  // Connector-specific configuration (auth credentials, base_url override, typed metadata)
+  ConnectorSpecificConfig connector_config = 1;
+
+  // SDK-level options (environment, etc.)
+  SdkOptions options = 2;
+}
+
+// SDK-level options separate from connector-specific config.
+message SdkOptions {
+  // Primary deployment environment (Immutable)
+  Environment environment = 1;
+}
+
+// Overridable parameters for individual SDK calls.
+message RequestConfig {
+  // HTTP and transport configuration
+  optional HttpConfig http = 1;
+
+  // Vault configuration options (Placeholder)
+  optional VaultOptions vault = 2;
+}
+
+// HTTP transport configuration.
+message HttpConfig {
+  // Total timeout for entire request lifecycle (milliseconds)
+  optional uint32 total_timeout_ms = 1;
+
+  // Connection timeout (milliseconds)
+  optional uint32 connect_timeout_ms = 2;
+
+  // Response/Read timeout (milliseconds)
+  optional uint32 response_timeout_ms = 3;
+
+  // Keep-alive timeout for pooled connections (milliseconds)
+  optional uint32 keep_alive_timeout_ms = 4;
+
+  // Proxy configuration
+  optional ProxyOptions proxy = 5;
+
+  // CA certificate for pinning.
+  optional CaCert ca_cert = 6;
+}
+
+// ============================================================
+// Transport Configuration (SDK-side)
+// ============================================================
+
+// CA certificate message wrapper
+message CaCert {
+  oneof format {
+    // Binary DER-encoded certificate data
+    bytes der = 1;
+    // Text-based PEM-encoded certificate string (starts with -----BEGIN CERTIFICATE-----)
+    string pem = 2;
+  }
+}
+
+// Proxy configuration
+message ProxyOptions {
+  // HTTP proxy URL
+  optional string http_url = 1;
+
+  // HTTPS proxy URL
+  optional string https_url = 2;
+
+  // URLs/Hostnames that should bypass the proxy
+  repeated string bypass_urls = 3;
+}
+
+// Vault configuration (Placeholder)
+message VaultOptions {
+  // Reserved for future vault/secrets integration
+}
+
+// ============================================================
+// FFI Options (Internal Boundary)
+// ============================================================
+
+// Internal context passed across the FFI boundary to the UCS core.
+// The connector identity is inferred from which ConnectorSpecificConfig variant is set.
+message FfiOptions {
+  // Resolved environment context
+  Environment environment = 1;
+
+  // Typed per-connector configuration (replaces separate connector + auth fields)
+  ConnectorSpecificConfig connector_config = 2;
+}
+
+// ============================================================
+// Constants
+// ============================================================
+
+// Global defaults for the SDK transport layer
+enum HttpDefault {
+  HTTP_DEFAULT_UNSPECIFIED = 0;
+  
+  // Timeouts in milliseconds
+  TOTAL_TIMEOUT_MS = 45000;
+  CONNECT_TIMEOUT_MS = 10000;
+  RESPONSE_TIMEOUT_MS = 30000;
+  KEEP_ALIVE_TIMEOUT_MS = 60000;
+}
+
+// ============================================================
+// Internal FFI Records (UniFFI Bridge)
+// ============================================================
+
+// Binary-safe structure for passing HTTP requests from Rust to SDKs
+message FfiConnectorHttpRequest {
+  string url = 1;
+  string method = 2;
+  map<string, string> headers = 3;
+  optional bytes body = 4;
+}
+
+// Binary-safe structure for passing HTTP responses from SDKs back to Rust
+message FfiConnectorHttpResponse {
+  uint32 status_code = 1;
+  map<string, string> headers = 2;
+  bytes body = 3;
+}
+
+// Error when transforming SDK request → connector HTTP request (FFI boundary)
+message IntegrationError {
+  string error_message = 1;           // Human-readable error description with full context (e.g., "Missing required field 'card_exp'")
+  string error_code = 2;              // Machine-readable code for programmatic handling (e.g., "MISSING_REQUIRED_FIELD")
+  optional string suggested_action = 3;        // Actionable guidance for developers to resolve the error (e.g., "Provide the 'card_exp' field in your request")
+  optional string doc_url = 4;                 // documentation url for reference
+}
+
+// Error when parsing connector HTTP response → SDK response (FFI boundary)
+message ConnectorResponseTransformationError {
+  string error_message = 1;           // Human-readable description of parsing failure (e.g., "Expected JSON response, got HTML")
+  string error_code = 2;              // Machine-readable code (e.g., "RESPONSE_DESERIALIZATION_FAILED")
+  optional uint32 http_status_code = 3;        // HTTP status from connector before parsing failed (e.g., 401, 500, 200)
+}
+
+// Error returned by req_transformer FFI calls
+message RequestError {
+  PaymentStatus status = 1;
+  optional string error_message = 2;
+  optional string error_code = 3;
+  optional uint32 status_code = 4;
+}
+
+// Error returned by res_transformer FFI calls
+message ResponseError {
+  PaymentStatus status = 1;
+  optional string error_message = 2;
+  optional string error_code = 3;
+  optional uint32 status_code = 4;
+}
+
+// Result type for FFI operations with explicit type discrimination
+// Replaces the heuristic error detection with explicit enum-based type checking
+message FfiResult {
+  enum Type {
+    HTTP_REQUEST = 0;
+    HTTP_RESPONSE = 1;
+    INTEGRATION_ERROR = 2;
+    CONNECTOR_RESPONSE_TRANSFORMATION_ERROR = 3;
+  }
+
+  Type type = 1;
+
+  oneof payload {
+    FfiConnectorHttpRequest http_request = 2;
+    FfiConnectorHttpResponse http_response = 3;
+    IntegrationError integration_error = 4;
+    ConnectorResponseTransformationError connector_response_transformation_error = 5;
+  }
+}
+// ============================================================
+// Network Error (HTTP transport layer)
+// ============================================================
+// Thrown by SDK HTTP clients when transport fails (timeouts, connection
+// failures, config errors). Unlike RequestError/ResponseError, this does
+// not cross the FFI boundary — it's thrown before/after the HTTP call.
+// The enum ensures consistent error codes across all SDK languages.
+
+enum NetworkErrorCode {
+  NETWORK_ERROR_CODE_UNSPECIFIED = 0;
+
+  // Connection to the remote host timed out before establishing.
+  CONNECT_TIMEOUT_EXCEEDED = 1;
+
+  // Remote host accepted connection but did not respond within the read timeout.
+  RESPONSE_TIMEOUT_EXCEEDED = 2;
+
+  // Entire request lifecycle exceeded total timeout.
+  TOTAL_TIMEOUT_EXCEEDED = 3;
+
+  // Generic network failure (e.g. DNS resolution, connection refused, TLS handshake).
+  // See error message for details.
+  NETWORK_FAILURE = 4;
+
+  // HTTP client failed to initialize (e.g. unsupported config, internal error).
+  CLIENT_INITIALIZATION_FAILURE = 6;
+
+  // Request URL is malformed or has unsupported scheme.
+  URL_PARSING_FAILED = 7;
+
+  // Response body could not be read or decoded.
+  RESPONSE_DECODING_FAILED = 8;
+
+  // Proxy URL or proxy configuration is invalid.
+  INVALID_PROXY_CONFIGURATION = 9;
+
+  // CA certificate (PEM/DER) is invalid or could not be loaded.
+  INVALID_CA_CERT = 10;
+}
+
+message NetworkError {
+  NetworkErrorCode code = 1;
+  optional string message = 2;
+  optional uint32 status_code = 3;
+}

@@ -7,6 +7,12 @@ from payments.generated.sdk_config_pb2 import ConnectorConfig, RequestConfig
 from payments.generated.payment_pb2 import (
     CustomerServiceCreateRequest,
     CustomerServiceCreateResponse,
+    DisputeServiceAcceptRequest,
+    DisputeServiceAcceptResponse,
+    DisputeServiceDefendRequest,
+    DisputeServiceDefendResponse,
+    DisputeServiceSubmitEvidenceRequest,
+    DisputeServiceSubmitEvidenceResponse,
     EventServiceHandleRequest,
     EventServiceHandleResponse,
     MerchantAuthenticationServiceCreateAccessTokenRequest,
@@ -36,6 +42,22 @@ from payments.generated.payment_pb2 import (
     PaymentServiceSetupRecurringResponse,
     PaymentServiceVoidRequest,
     PaymentServiceVoidResponse,
+    PayoutServiceCreateLinkRequest,
+    PayoutServiceCreateLinkResponse,
+    PayoutServiceCreateRecipientRequest,
+    PayoutServiceCreateRecipientResponse,
+    PayoutServiceCreateRequest,
+    PayoutServiceCreateResponse,
+    PayoutServiceEnrollDisburseAccountRequest,
+    PayoutServiceEnrollDisburseAccountResponse,
+    PayoutServiceGetRequest,
+    PayoutServiceGetResponse,
+    PayoutServiceStageRequest,
+    PayoutServiceStageResponse,
+    PayoutServiceTransferRequest,
+    PayoutServiceTransferResponse,
+    PayoutServiceVoidRequest,
+    PayoutServiceVoidResponse,
     RecurringPaymentServiceChargeRequest,
     RecurringPaymentServiceChargeResponse,
     RefundResponse,
@@ -47,6 +69,20 @@ class _ConnectorClientBase:
 class CustomerClient(_ConnectorClientBase):
     def create(self, request: CustomerServiceCreateRequest, options: RequestConfig | None = ...) -> CustomerServiceCreateResponse:
         """CustomerService.Create — Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information."""
+        ...
+
+
+class DisputeClient(_ConnectorClientBase):
+    def accept(self, request: DisputeServiceAcceptRequest, options: RequestConfig | None = ...) -> DisputeServiceAcceptResponse:
+        """DisputeService.Accept — Concede dispute and accepts chargeback loss. Acknowledges liability and stops dispute defense process when evidence is insufficient."""
+        ...
+
+    def defend(self, request: DisputeServiceDefendRequest, options: RequestConfig | None = ...) -> DisputeServiceDefendResponse:
+        """DisputeService.Defend — Submit defense with reason code for dispute. Presents formal argument against customer's chargeback claim with supporting documentation."""
+        ...
+
+    def submit_evidence(self, request: DisputeServiceSubmitEvidenceRequest, options: RequestConfig | None = ...) -> DisputeServiceSubmitEvidenceResponse:
+        """DisputeService.SubmitEvidence — Upload evidence to dispute customer chargeback. Provides documentation like receipts and delivery proof to contest fraudulent transaction claims."""
         ...
 
 
@@ -120,9 +156,41 @@ class PaymentClient(_ConnectorClientBase):
         ...
 
 
+class PayoutClient(_ConnectorClientBase):
+    def payout_create(self, request: PayoutServiceCreateRequest, options: RequestConfig | None = ...) -> PayoutServiceCreateResponse:
+        """PayoutService.Create — Creates a payout."""
+        ...
+
+    def payout_create_link(self, request: PayoutServiceCreateLinkRequest, options: RequestConfig | None = ...) -> PayoutServiceCreateLinkResponse:
+        """PayoutService.CreateLink — Creates a link between the recipient and the payout."""
+        ...
+
+    def payout_create_recipient(self, request: PayoutServiceCreateRecipientRequest, options: RequestConfig | None = ...) -> PayoutServiceCreateRecipientResponse:
+        """PayoutService.CreateRecipient — Create payout recipient."""
+        ...
+
+    def payout_enroll_disburse_account(self, request: PayoutServiceEnrollDisburseAccountRequest, options: RequestConfig | None = ...) -> PayoutServiceEnrollDisburseAccountResponse:
+        """PayoutService.EnrollDisburseAccount — Enroll disburse account."""
+        ...
+
+    def payout_get(self, request: PayoutServiceGetRequest, options: RequestConfig | None = ...) -> PayoutServiceGetResponse:
+        """PayoutService.Get — Retrieve payout details."""
+        ...
+
+    def payout_stage(self, request: PayoutServiceStageRequest, options: RequestConfig | None = ...) -> PayoutServiceStageResponse:
+        """PayoutService.Stage — Stage the payout."""
+        ...
+
+    def payout_transfer(self, request: PayoutServiceTransferRequest, options: RequestConfig | None = ...) -> PayoutServiceTransferResponse:
+        """PayoutService.Transfer — Creates a payout fund transfer."""
+        ...
+
+    def payout_void(self, request: PayoutServiceVoidRequest, options: RequestConfig | None = ...) -> PayoutServiceVoidResponse:
+        """PayoutService.Void — Void a payout."""
+        ...
+
+
 class RecurringPaymentClient(_ConnectorClientBase):
     def charge(self, request: RecurringPaymentServiceChargeRequest, options: RequestConfig | None = ...) -> RecurringPaymentServiceChargeResponse:
         """RecurringPaymentService.Charge — Charge using an existing stored recurring payment instruction. Processes repeat payments for subscriptions or recurring billing without collecting payment details."""
         ...
-
-

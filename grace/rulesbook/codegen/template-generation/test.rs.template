@@ -1,0 +1,458 @@
+use crate::{
+    connector::{{CONNECTOR_NAME_SNAKE}}::{{CONNECTOR_NAME_PASCAL}},
+    core::errors,
+    types::{self, api, storage::enums},
+};
+
+use std::collections::HashMap;
+
+struct {{CONNECTOR_NAME_PASCAL}}Test;
+
+impl {{CONNECTOR_NAME_PASCAL}}Test {
+    fn get_default_payment_info() -> Option<utils::PaymentInfo> {
+        Some(utils::PaymentInfo {
+            address: Some(types::PaymentAddress {
+                billing: Some(types::AddressDetails {
+                    address: Some(types::Address {
+                        line1: Some("1467".to_string().into()),
+                        line2: Some("Harrison Street".to_string().into()),
+                        line3: Some("Harrison Street".to_string().into()),
+                        city: Some("San Francisco".to_string()),
+                        state: Some("California".to_string().into()),
+                        zip: Some("94122".to_string().into()),
+                        country: Some(api_models::enums::CountryAlpha2::US),
+                        first_name: Some("joseph".to_string().into()),
+                        last_name: Some("Doe".to_string().into()),
+                    }),
+                    phone: Some(types::PhoneDetails {
+                        number: Some("14155551234".to_string().into()),
+                        country_code: Some("+1".to_string()),
+                    }),
+                    email: Some(common_utils::pii::Email::from_str("test@juspay.in").unwrap()),
+                }),
+                shipping: Some(types::AddressDetails {
+                    address: Some(types::Address {
+                        line1: Some("1467".to_string().into()),
+                        line2: Some("Harrison Street".to_string().into()),
+                        line3: Some("Harrison Street".to_string().into()),
+                        city: Some("San Francisco".to_string()),
+                        state: Some("California".to_string().into()),
+                        zip: Some("94122".to_string().into()),
+                        country: Some(api_models::enums::CountryAlpha2::US),
+                        first_name: Some("joseph".to_string().into()),
+                        last_name: Some("Doe".to_string().into()),
+                    }),
+                    phone: Some(types::PhoneDetails {
+                        number: Some("14155551234".to_string().into()),
+                        country_code: Some("+1".to_string()),
+                    }),
+                    email: Some(common_utils::pii::Email::from_str("test@juspay.in").unwrap()),
+                }),
+            }),
+            access_token: None,
+            connector_customer_id: None,
+            connector_request_reference_id: uuid::Uuid::new_v4().to_string(),
+        })
+    }
+
+    fn get_payment_authorize_data() -> types::PaymentsAuthorizeData {
+        types::PaymentsAuthorizeData {
+            payment_method_data: types::domain::PaymentMethodData::Card(types::domain::Card {
+                card_number: cards::CardNumber::from_str("4242424242424242").unwrap(),
+                card_exp_month: common_utils::types::MinorUnit::new(4).into(),
+                card_exp_year: common_utils::types::MinorUnit::new(2025).into(),
+                card_holder_name: Some("joseph Doe".to_string().into()),
+                card_cvc: "999".to_string().into(),
+                card_issuer: None,
+                card_network: None,
+                card_type: None,
+                card_issuing_country: None,
+                bank_code: None,
+                nick_name: Some("nick_name".into()),
+            }),
+            confirm: true,
+            minor_amount: MinorUnit::new(100),
+            currency: enums::Currency::USD,
+            capture_method: Some(enums::CaptureMethod::Automatic),
+            authentication_type: Some(enums::AuthenticationType::NoThreeDs),
+            statement_descriptor_suffix: None,
+            statement_descriptor: None,
+            setup_future_usage: None,
+            mandate_id: None,
+            off_session: None,
+            setup_mandate_details: None,
+            capture_on: None,
+            browser_info: None,
+            order_details: None,
+            order_category: None,
+            session_token: None,
+            enrolled_for_3ds: false,
+            related_transaction_id: None,
+            payment_experience: None,
+            payment_method_type: None,
+            router_return_url: Some("https://google.com".to_string()),
+            webhook_url: Some("https://google.com".to_string()),
+            complete_authorize_url: None,
+            customer_id: None,
+            surcharge_details: None,
+            request_incremental_authorization: false,
+            metadata: None,
+            authentication_data: None,
+            customer_acceptance: None,
+            charges: None,
+            merchant_order_reference_id: None,
+            integrity_object: None,
+        }
+    }
+
+    fn get_payment_capture_data() -> types::PaymentsCaptureData {
+        types::PaymentsCaptureData {
+            minor_amount_to_capture: MinorUnit::new(100),
+            currency: enums::Currency::USD,
+            connector_transaction_id: String::from("12345"),
+            payment_amount: MinorUnit::new(100),
+            multiple_capture_data: None,
+            metadata: None,
+            connector_meta: None,
+            integrity_object: None,
+        }
+    }
+
+    fn get_payment_cancel_data() -> types::PaymentsCancelData {
+        types::PaymentsCancelData {
+            connector_transaction_id: String::from("12345"),
+            cancellation_reason: Some("Customer Request".to_string()),
+            metadata: None,
+            connector_meta: None,
+            amount: Some(MinorUnit::new(100)),
+            currency: Some(enums::Currency::USD),
+            browser_info: None,
+        }
+    }
+
+    fn get_refund_data() -> types::RefundsData {
+        types::RefundsData {
+            minor_refund_amount: MinorUnit::new(100),
+            currency: enums::Currency::USD,
+            payment_amount: MinorUnit::new(100),
+            connector_transaction_id: String::from("12345"),
+            reason: Some("Customer Request".to_string()),
+            connector_refund_id: None,
+            metadata: None,
+            connector_meta: None,
+            webhook_url: Some("https://google.com".to_string()),
+            charges: None,
+            integrity_object: None,
+        }
+    }
+}
+
+// Cards Positive Tests
+// Creates a payment using the manual capture flow (Non 3DS).
+#[actix_web::test]
+async fn should_only_authorize_payment() {
+    let response = {{CONNECTOR_NAME_PASCAL}}Test {}
+        .authorize_payment(
+            Some(types::PaymentsAuthorizeData {
+                capture_method: Some(enums::CaptureMethod::Manual),
+                ..{{CONNECTOR_NAME_PASCAL}}Test::get_payment_authorize_data()
+            }),
+            {{CONNECTOR_NAME_PASCAL}}Test::get_default_payment_info(),
+        )
+        .await
+        .expect("Authorize payment response");
+    assert_eq!(response.status, enums::AttemptStatus::Authorized);
+}
+
+// Captures a payment using the capture flow.
+#[actix_web::test]
+async fn should_capture_authorized_payment() {
+    let response = {{CONNECTOR_NAME_PASCAL}}Test {}
+        .authorize_and_capture_payment(
+            {{CONNECTOR_NAME_PASCAL}}Test::get_payment_authorize_data(),
+            {{CONNECTOR_NAME_PASCAL}}Test::get_payment_capture_data(),
+            {{CONNECTOR_NAME_PASCAL}}Test::get_default_payment_info(),
+        )
+        .await
+        .expect("Capture payment response");
+    assert_eq!(response.status, enums::AttemptStatus::Charged);
+}
+
+// Partially captures a payment using the capture flow.
+#[actix_web::test]
+async fn should_partially_capture_authorized_payment() {
+    let response = {{CONNECTOR_NAME_PASCAL}}Test {}
+        .authorize_and_capture_payment(
+            {{CONNECTOR_NAME_PASCAL}}Test::get_payment_authorize_data(),
+            types::PaymentsCaptureData {
+                minor_amount_to_capture: MinorUnit::new(50),
+                ..{{CONNECTOR_NAME_PASCAL}}Test::get_payment_capture_data()
+            },
+            {{CONNECTOR_NAME_PASCAL}}Test::get_default_payment_info(),
+        )
+        .await
+        .expect("Capture payment response");
+    assert_eq!(response.status, enums::AttemptStatus::Charged);
+}
+
+// Synchronizes a payment using the sync flow.
+#[actix_web::test]
+async fn should_sync_authorized_payment() {
+    let authorize_response = {{CONNECTOR_NAME_PASCAL}}Test {}
+        .authorize_payment(
+            Some(types::PaymentsAuthorizeData {
+                capture_method: Some(enums::CaptureMethod::Manual),
+                ..{{CONNECTOR_NAME_PASCAL}}Test::get_payment_authorize_data()
+            }),
+            {{CONNECTOR_NAME_PASCAL}}Test::get_default_payment_info(),
+        )
+        .await
+        .expect("Authorize payment response");
+    let txn_id = utils::get_connector_transaction_id(authorize_response.response);
+    let response = {{CONNECTOR_NAME_PASCAL}}Test {}
+        .psync_retry_till_status_matches(
+            enums::AttemptStatus::Authorized,
+            Some(types::PaymentsSyncData {
+                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
+                    txn_id.unwrap(),
+                ),
+                ..Default::default()
+            }),
+            {{CONNECTOR_NAME_PASCAL}}Test::get_default_payment_info(),
+        )
+        .await
+        .expect("PSync response");
+    assert_eq!(response.status, enums::AttemptStatus::Authorized,);
+}
+
+// Voids a payment using the void flow.
+#[actix_web::test]
+async fn should_void_authorized_payment() {
+    let response = {{CONNECTOR_NAME_PASCAL}}Test {}
+        .authorize_and_void_payment(
+            types::PaymentsAuthorizeData {
+                capture_method: Some(enums::CaptureMethod::Manual),
+                ..{{CONNECTOR_NAME_PASCAL}}Test::get_payment_authorize_data()
+            },
+            {{CONNECTOR_NAME_PASCAL}}Test::get_payment_cancel_data(),
+            {{CONNECTOR_NAME_PASCAL}}Test::get_default_payment_info(),
+        )
+        .await
+        .expect("Void payment response");
+    assert_eq!(response.status, enums::AttemptStatus::Voided);
+}
+
+// Refunds a payment using the refund flow.
+#[actix_web::test]
+async fn should_refund_auto_captured_payment() {
+    let response = {{CONNECTOR_NAME_PASCAL}}Test {}
+        .make_payment_and_refund(
+            {{CONNECTOR_NAME_PASCAL}}Test::get_payment_authorize_data(),
+            {{CONNECTOR_NAME_PASCAL}}Test::get_refund_data(),
+            {{CONNECTOR_NAME_PASCAL}}Test::get_default_payment_info(),
+        )
+        .await
+        .expect("Refund payment response");
+    assert_eq!(
+        response.response.unwrap().refund_status,
+        enums::RefundStatus::Success,
+    );
+}
+
+// Partially refunds a payment using the refund flow.
+#[actix_web::test]
+async fn should_partially_refund_succeeded_payment() {
+    let response = {{CONNECTOR_NAME_PASCAL}}Test {}
+        .make_payment_and_refund(
+            {{CONNECTOR_NAME_PASCAL}}Test::get_payment_authorize_data(),
+            types::RefundsData {
+                minor_refund_amount: MinorUnit::new(50),
+                ..{{CONNECTOR_NAME_PASCAL}}Test::get_refund_data()
+            },
+            {{CONNECTOR_NAME_PASCAL}}Test::get_default_payment_info(),
+        )
+        .await
+        .expect("Refund payment response");
+    assert_eq!(
+        response.response.unwrap().refund_status,
+        enums::RefundStatus::Success,
+    );
+}
+
+// Creates multiple refunds against a payment using the refund flow.
+#[actix_web::test]
+async fn should_refund_succeeded_payment_multiple_times() {
+    let response = {{CONNECTOR_NAME_PASCAL}}Test {}
+        .make_payment_and_multiple_refund(
+            {{CONNECTOR_NAME_PASCAL}}Test::get_payment_authorize_data(),
+            {{CONNECTOR_NAME_PASCAL}}Test::get_refund_data(),
+            {{CONNECTOR_NAME_PASCAL}}Test::get_default_payment_info(),
+        )
+        .await
+        .expect("Refund payment response");
+    assert_eq!(
+        response[1].response.clone().unwrap().refund_status,
+        enums::RefundStatus::Success,
+    );
+}
+
+// Synchronizes a refund using the sync flow.
+#[actix_web::test]
+async fn should_sync_refund() {
+    let refund_response = {{CONNECTOR_NAME_PASCAL}}Test {}
+        .make_payment_and_refund(
+            {{CONNECTOR_NAME_PASCAL}}Test::get_payment_authorize_data(),
+            {{CONNECTOR_NAME_PASCAL}}Test::get_refund_data(),
+            {{CONNECTOR_NAME_PASCAL}}Test::get_default_payment_info(),
+        )
+        .await
+        .expect("Refund payment response");
+    let response = {{CONNECTOR_NAME_PASCAL}}Test {}
+        .rsync_retry_till_status_matches(
+            enums::RefundStatus::Success,
+            refund_response.response.unwrap().connector_refund_id,
+            None,
+            {{CONNECTOR_NAME_PASCAL}}Test::get_default_payment_info(),
+        )
+        .await
+        .expect("Rsync response");
+    assert_eq!(
+        response.response.unwrap().refund_status,
+        enums::RefundStatus::Success,
+    );
+}
+
+// Cards Negative scenarios
+// Creates a payment with incorrect CVC.
+#[actix_web::test]
+async fn should_fail_payment_for_incorrect_cvc() {
+    let response = {{CONNECTOR_NAME_PASCAL}}Test {}
+        .make_payment(
+            Some(types::PaymentsAuthorizeData {
+                payment_method_data: types::domain::PaymentMethodData::Card(types::domain::Card {
+                    card_cvc: "12345".to_string().into(),
+                    ..utils::CCardType::default().0
+                }),
+                ..{{CONNECTOR_NAME_PASCAL}}Test::get_payment_authorize_data()
+            }),
+            {{CONNECTOR_NAME_PASCAL}}Test::get_default_payment_info(),
+        )
+        .await
+        .unwrap_err();
+    assert_eq!(
+        response.status,
+        enums::AttemptStatus::Failure,
+        "Payment should have failed"
+    );
+}
+
+// Creates a payment with incorrect expiry month.
+#[actix_web::test]
+async fn should_fail_payment_for_invalid_exp_month() {
+    let response = {{CONNECTOR_NAME_PASCAL}}Test {}
+        .make_payment(
+            Some(types::PaymentsAuthorizeData {
+                payment_method_data: types::domain::PaymentMethodData::Card(types::domain::Card {
+                    card_exp_month: common_utils::types::MinorUnit::new(20).into(),
+                    ..utils::CCardType::default().0
+                }),
+                ..{{CONNECTOR_NAME_PASCAL}}Test::get_payment_authorize_data()
+            }),
+            {{CONNECTOR_NAME_PASCAL}}Test::get_default_payment_info(),
+        )
+        .await
+        .unwrap_err();
+    assert_eq!(
+        response.status,
+        enums::AttemptStatus::Failure,
+        "Payment should have failed"
+    );
+}
+
+// Creates a payment with incorrect expiry year.
+#[actix_web::test]
+async fn should_fail_payment_for_incorrect_expiry_year() {
+    let response = {{CONNECTOR_NAME_PASCAL}}Test {}
+        .make_payment(
+            Some(types::PaymentsAuthorizeData {
+                payment_method_data: types::domain::PaymentMethodData::Card(types::domain::Card {
+                    card_exp_year: common_utils::types::MinorUnit::new(2000).into(),
+                    ..utils::CCardType::default().0
+                }),
+                ..{{CONNECTOR_NAME_PASCAL}}Test::get_payment_authorize_data()
+            }),
+            {{CONNECTOR_NAME_PASCAL}}Test::get_default_payment_info(),
+        )
+        .await
+        .unwrap_err();
+    assert_eq!(
+        response.status,
+        enums::AttemptStatus::Failure,
+        "Payment should have failed"
+    );
+}
+
+// Voids a payment using an incorrect connector payment ID.
+#[actix_web::test]
+async fn should_fail_void_payment_for_incorrect_payment_id() {
+    let response = {{CONNECTOR_NAME_PASCAL}}Test {}
+        .void_payment(
+            types::PaymentsCancelData {
+                connector_transaction_id: "123456789".to_string(),
+                ..{{CONNECTOR_NAME_PASCAL}}Test::get_payment_cancel_data()
+            },
+            {{CONNECTOR_NAME_PASCAL}}Test::get_default_payment_info(),
+        )
+        .await
+        .unwrap_err();
+    assert_eq!(
+        response.status,
+        enums::AttemptStatus::Failure,
+        "Void should have failed"
+    );
+}
+
+// Captures a payment using an incorrect connector payment ID.
+#[actix_web::test]
+async fn should_fail_capture_payment_for_incorrect_payment_id() {
+    let response = {{CONNECTOR_NAME_PASCAL}}Test {}
+        .capture_payment(
+            types::PaymentsCaptureData {
+                connector_transaction_id: "123456789".to_string(),
+                ..{{CONNECTOR_NAME_PASCAL}}Test::get_payment_capture_data()
+            },
+            {{CONNECTOR_NAME_PASCAL}}Test::get_default_payment_info(),
+        )
+        .await
+        .unwrap_err();
+    assert_eq!(
+        response.status,
+        enums::AttemptStatus::Failure,
+        "Capture should have failed"
+    );
+}
+
+// Refunds a payment with refund amount higher than payment amount.
+#[actix_web::test]
+async fn should_fail_for_refund_amount_higher_than_payment_amount() {
+    let response = {{CONNECTOR_NAME_PASCAL}}Test {}
+        .make_payment_and_refund(
+            {{CONNECTOR_NAME_PASCAL}}Test::get_payment_authorize_data(),
+            types::RefundsData {
+                minor_refund_amount: MinorUnit::new(150),
+                ..{{CONNECTOR_NAME_PASCAL}}Test::get_refund_data()
+            },
+            {{CONNECTOR_NAME_PASCAL}}Test::get_default_payment_info(),
+        )
+        .await
+        .unwrap_err();
+    assert_eq!(
+        response.response.unwrap_err().status,
+        enums::AttemptStatus::Failure,
+        "Refund should have failed"
+    );
+}
+
+// Connector dependent test cases go here
+
+// [#478]: add unit tests for non 3DS, wallets & webhooks in connector tests

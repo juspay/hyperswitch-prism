@@ -1,0 +1,12 @@
+{
+  "connector": "payload",
+  "supported_suites": [
+    "authorize",
+    "capture",
+    "void",
+    "refund",
+    "refund_sync",
+    "setup_recurring",
+    "recurring_charge"
+  ]
+}

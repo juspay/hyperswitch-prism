@@ -1,6 +1,14 @@
 # AUTO-GENERATED — do not edit by hand.
 # Source: services.proto ∩ bindings/uniffi.rs  |  Regenerate: make generate
 SERVICE_FLOWS = {
+    "DisputeClient": {
+        # accept: DisputeService.Accept — Concede dispute and accepts chargeback loss. Acknowledges liability and stops dispute defense process when evidence is insufficient.
+        "accept": "DisputeServiceAcceptResponse",
+        # defend: DisputeService.Defend — Submit defense with reason code for dispute. Presents formal argument against customer's chargeback claim with supporting documentation.
+        "defend": "DisputeServiceDefendResponse",
+        # submit_evidence: DisputeService.SubmitEvidence — Upload evidence to dispute customer chargeback. Provides documentation like receipts and delivery proof to contest fraudulent transaction claims.
+        "submit_evidence": "DisputeServiceSubmitEvidenceResponse",
+    },
     "PaymentMethodAuthenticationClient": {
         # authenticate: PaymentMethodAuthenticationService.Authenticate — Execute 3DS challenge or frictionless verification. Authenticates customer via bank challenge or behind-the-scenes verification for fraud prevention.
         "authenticate": "PaymentMethodAuthenticationServiceAuthenticateResponse",
@@ -40,6 +48,24 @@ SERVICE_FLOWS = {
         "create_access_token": "MerchantAuthenticationServiceCreateAccessTokenResponse",
         # create_session_token: MerchantAuthenticationService.CreateSessionToken — Create session token for payment processing. Maintains session state across multiple payment operations for improved security and tracking.
         "create_session_token": "MerchantAuthenticationServiceCreateSessionTokenResponse",
+    },
+    "PayoutClient": {
+        # payout_create: PayoutService.Create — Creates a payout.
+        "payout_create": "PayoutServiceCreateResponse",
+        # payout_create_link: PayoutService.CreateLink — Creates a link between the recipient and the payout.
+        "payout_create_link": "PayoutServiceCreateLinkResponse",
+        # payout_create_recipient: PayoutService.CreateRecipient — Create payout recipient.
+        "payout_create_recipient": "PayoutServiceCreateRecipientResponse",
+        # payout_enroll_disburse_account: PayoutService.EnrollDisburseAccount — Enroll disburse account.
+        "payout_enroll_disburse_account": "PayoutServiceEnrollDisburseAccountResponse",
+        # payout_get: PayoutService.Get — Retrieve payout details.
+        "payout_get": "PayoutServiceGetResponse",
+        # payout_stage: PayoutService.Stage — Stage the payout.
+        "payout_stage": "PayoutServiceStageResponse",
+        # payout_transfer: PayoutService.Transfer — Creates a payout fund transfer.
+        "payout_transfer": "PayoutServiceTransferResponse",
+        # payout_void: PayoutService.Void — Void a payout.
+        "payout_void": "PayoutServiceVoidResponse",
     },
     "PaymentMethodClient": {
         # tokenize: PaymentMethodService.Tokenize — Tokenize payment method for secure storage. Replaces raw card details with secure token for one-click payments and recurring billing.

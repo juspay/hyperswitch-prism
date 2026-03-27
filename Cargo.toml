@@ -1,24 +1,28 @@
 [workspace]
 resolver = "2"
 members = [
-  "backend/grpc-api-types",
-  "backend/connector-integration",
-  "backend/external-services",
-  "backend/grpc-server", 
-  "backend/config_patch_derive",
+  "crates/types-traits/grpc-api-types",
+  "crates/integrations/connector-integration",
+  "crates/common/external-services",
+  "crates/grpc-server/grpc-server",
+  "crates/common/config_patch_derive",
   "sdk/rust-grpc-client",
-  "backend/common_enums",
-  "backend/common_utils",
-  "backend/interfaces",
-  "backend/domain_types",
-  "backend/tracing-kafka",
-  "backend/cards",
+  "crates/common/common_enums",
+  "crates/common/common_utils",
+  "crates/types-traits/interfaces",
+  "crates/types-traits/domain_types",
+  "crates/common/tracing-kafka",
+  "crates/types-traits/cards",
   "sdk/rust",
-  "backend/composite-service",
-  "backend/ucs_env",
-  "backend/ucs_interface_common",
-  "backend/ffi",
-  "backend/uniffi-bindgen"
+  "sdk/rust/smoke-test",
+  "sdk/grpc-ffi",
+  "crates/internal/composite-service",
+  "crates/common/ucs_env",
+  "crates/types-traits/ucs_interface_common",
+  "crates/ffi/ffi",
+  "crates/internal/uniffi-bindgen",
+  "crates/internal/field-probe",
+  "crates/internal/ucs-connector-tests"
 ]
 exclude = [
   "examples/example-rs",
@@ -31,6 +35,11 @@ exclude = [
 strip = true
 lto = "thin"
 codegen-units = 1
+
+# UniFFI bindgen needs metadata symbols (UNIFFI_META_*) in the cdylib to generate
+# Python/Kotlin bindings. Stripping removes them. Keep symbols for the ffi crate.
+[profile.release.package.ffi]
+strip = "none"
 
 # Fast release profile for local SDK builds (make test-package).
 # opt-level=1: basic optimisation (no vectorisation/heavy inlining) — ~3x faster
@@ -46,6 +55,9 @@ lto = false
 codegen-units = 16
 incremental = true  # reuse codegen from unchanged crates on partial rebuilds
 
+[profile.release-fast.package.ffi]
+strip = "none"
+
 [workspace.dependencies]
 # Centralised versions — prevents duplicate compilation from version drift.
 # Each crate opts in with: dep = { workspace = true }
@@ -53,15 +65,19 @@ incremental = true  # reuse codegen from unchanged crates on partial rebuilds
 # NOT listed here (incompatible versions in use across the workspace):
 #   http        — 0.2.12 (ffi/domain_types) vs 1.3.1 (grpc-api-types/external-services)
 #   error-stack — 0.4.1 (ffi/domain_types)  vs 0.5.0 (grpc-api-types) — both compiled today
-tonic       = "0.13.1"
-tonic-build = "0.13.0"
-prost       = "0.13"
-prost-build = "0.13.5"
-serde       = { version = "1.0.219", features = ["derive"] }
+tonic       = "0.14"
+tonic-build = "0.14"
+prost       = "0.14"
+prost-build = "0.14"
+serde       = { version = "1.0.228", features = ["derive"] }
 serde_json  = "1.0.107"
 thiserror   = "1"
 tracing     = "0.1"
 bytes       = "1"
+tonic-prost = "0.14"
+superposition_core = { git = "https://github.com/juspay/superposition", branch = "main" }
+uuid = "=1.20.0"
+vergen = "=9.0.6"
 
 
 [workspace.lints.rust]

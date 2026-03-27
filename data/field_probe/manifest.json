@@ -1,0 +1,3274 @@
+{
+  "flow_metadata": [
+    {
+      "flow_key": "handle_event",
+      "service_rpc": "EventService.HandleEvent",
+      "description": "Process webhook notifications from connectors. Translates connector events into standardized responses for asynchronous payment state updates.",
+      "service_name": "EventService",
+      "rpc_name": "HandleEvent",
+      "category": "Events",
+      "grpc_request": "EventServiceHandleRequest",
+      "grpc_response": "EventServiceHandleResponse"
+    },
+    {
+      "flow_key": "authorize",
+      "service_rpc": "PaymentService.Authorize",
+      "description": "Authorize a payment amount on a payment method. This reserves funds without capturing them, essential for verifying availability before finalizing.",
+      "service_name": "PaymentService",
+      "rpc_name": "Authorize",
+      "category": "Payments",
+      "grpc_request": "PaymentServiceAuthorizeRequest",
+      "grpc_response": "PaymentServiceAuthorizeResponse"
+    },
+    {
+      "flow_key": "get",
+      "service_rpc": "PaymentService.Get",
+      "description": "Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.",
+      "service_name": "PaymentService",
+      "rpc_name": "Get",
+      "category": "Payments",
+      "grpc_request": "PaymentServiceGetRequest",
+      "grpc_response": "PaymentServiceGetResponse"
+    },
+    {
+      "flow_key": "void",
+      "service_rpc": "PaymentService.Void",
+      "description": "Cancel an authorized payment before capture. Releases held funds back to customer, typically used when orders are cancelled or abandoned.",
+      "service_name": "PaymentService",
+      "rpc_name": "Void",
+      "category": "Payments",
+      "grpc_request": "PaymentServiceVoidRequest",
+      "grpc_response": "PaymentServiceVoidResponse"
+    },
+    {
+      "flow_key": "reverse",
+      "service_rpc": "PaymentService.Reverse",
+      "description": "Reverse a captured payment before settlement. Recovers funds after capture but before bank settlement, used for corrections or cancellations.",
+      "service_name": "PaymentService",
+      "rpc_name": "Reverse",
+      "category": "Payments",
+      "grpc_request": "PaymentServiceReverseRequest",
+      "grpc_response": "PaymentServiceReverseResponse"
+    },
+    {
+      "flow_key": "capture",
+      "service_rpc": "PaymentService.Capture",
+      "description": "Finalize an authorized payment transaction. Transfers reserved funds from customer to merchant account, completing the payment lifecycle.",
+      "service_name": "PaymentService",
+      "rpc_name": "Capture",
+      "category": "Payments",
+      "grpc_request": "PaymentServiceCaptureRequest",
+      "grpc_response": "PaymentServiceCaptureResponse"
+    },
+    {
+      "flow_key": "create_order",
+      "service_rpc": "PaymentService.CreateOrder",
+      "description": "Initialize an order in the payment processor system. Sets up payment context before customer enters card details for improved authorization rates.",
+      "service_name": "PaymentService",
+      "rpc_name": "CreateOrder",
+      "category": "Payments",
+      "grpc_request": "PaymentServiceCreateOrderRequest",
+      "grpc_response": "PaymentServiceCreateOrderResponse"
+    },
+    {
+      "flow_key": "refund",
+      "service_rpc": "PaymentService.Refund",
+      "description": "Initiate a refund to customer's payment method. Returns funds for returns, cancellations, or service adjustments after original payment.",
+      "service_name": "PaymentService",
+      "rpc_name": "Refund",
+      "category": "Payments",
+      "grpc_request": "PaymentServiceRefundRequest",
+      "grpc_response": "RefundResponse"
+    },
+    {
+      "flow_key": "incremental_auth",
+      "service_rpc": "PaymentService.IncrementalAuthorization",
+      "description": "Increase authorized amount if still in authorized state. Allows adding charges to existing authorization for hospitality, tips, or incremental services.",
+      "service_name": "PaymentService",
+      "rpc_name": "IncrementalAuthorization",
+      "category": "Payments",
+      "grpc_request": "PaymentServiceIncrementalAuthorizationRequest",
+      "grpc_response": "PaymentServiceIncrementalAuthorizationResponse"
+    },
+    {
+      "flow_key": "verify_redirect",
+      "service_rpc": "PaymentService.VerifyRedirectResponse",
+      "description": "Validate redirect-based payment responses. Confirms authenticity of redirect-based payment completions to prevent fraud and tampering.",
+      "service_name": "PaymentService",
+      "rpc_name": "VerifyRedirectResponse",
+      "category": "Payments",
+      "grpc_request": "PaymentServiceVerifyRedirectResponseRequest",
+      "grpc_response": "PaymentServiceVerifyRedirectResponseResponse"
+    },
+    {
+      "flow_key": "setup_recurring",
+      "service_rpc": "PaymentService.SetupRecurring",
+      "description": "Setup a recurring payment instruction for future payments/ debits. This could be for SaaS subscriptions, monthly bill payments, insurance payments and similar use cases.",
+      "service_name": "PaymentService",
+      "rpc_name": "SetupRecurring",
+      "category": "Payments",
+      "grpc_request": "PaymentServiceSetupRecurringRequest",
+      "grpc_response": "PaymentServiceSetupRecurringResponse"
+    },
+    {
+      "flow_key": "recurring_charge",
+      "service_rpc": "RecurringPaymentService.Charge",
+      "description": "Charge using an existing stored recurring payment instruction. Processes repeat payments for subscriptions or recurring billing without collecting payment details.",
+      "service_name": "RecurringPaymentService",
+      "rpc_name": "Charge",
+      "category": "Mandates",
+      "grpc_request": "RecurringPaymentServiceChargeRequest",
+      "grpc_response": "RecurringPaymentServiceChargeResponse"
+    },
+    {
+      "flow_key": "mandate_revoke",
+      "service_rpc": "RecurringPaymentService.Revoke",
+      "description": "Cancel an existing recurring payment mandate. Stops future automatic charges on customer's stored consent for subscription cancellations.",
+      "service_name": "RecurringPaymentService",
+      "rpc_name": "Revoke",
+      "category": "Mandates",
+      "grpc_request": "RecurringPaymentServiceRevokeRequest",
+      "grpc_response": "RecurringPaymentServiceRevokeResponse"
+    },
+    {
+      "flow_key": "rsync",
+      "service_rpc": "RefundService.Get",
+      "description": "Retrieve refund status from the payment processor. Tracks refund progress through processor settlement for accurate customer communication.",
+      "service_name": "RefundService",
+      "rpc_name": "Get",
+      "category": "Refunds",
+      "grpc_request": "RefundServiceGetRequest",
+      "grpc_response": "RefundResponse"
+    },
+    {
+      "flow_key": "dispute_submit_evidence",
+      "service_rpc": "DisputeService.SubmitEvidence",
+      "description": "Upload evidence to dispute customer chargeback. Provides documentation like receipts and delivery proof to contest fraudulent transaction claims.",
+      "service_name": "DisputeService",
+      "rpc_name": "SubmitEvidence",
+      "category": "Disputes",
+      "grpc_request": "DisputeServiceSubmitEvidenceRequest",
+      "grpc_response": "DisputeServiceSubmitEvidenceResponse"
+    },
+    {
+      "flow_key": "dispute_get",
+      "service_rpc": "DisputeService.Get",
+      "description": "Retrieve dispute status and evidence submission state. Tracks dispute progress through bank review process for informed decision-making.",
+      "service_name": "DisputeService",
+      "rpc_name": "Get",
+      "category": "Disputes",
+      "grpc_request": "DisputeServiceGetRequest",
+      "grpc_response": "DisputeResponse"
+    },
+    {
+      "flow_key": "dispute_defend",
+      "service_rpc": "DisputeService.Defend",
+      "description": "Submit defense with reason code for dispute. Presents formal argument against customer's chargeback claim with supporting documentation.",
+      "service_name": "DisputeService",
+      "rpc_name": "Defend",
+      "category": "Disputes",
+      "grpc_request": "DisputeServiceDefendRequest",
+      "grpc_response": "DisputeServiceDefendResponse"
+    },
+    {
+      "flow_key": "dispute_accept",
+      "service_rpc": "DisputeService.Accept",
+      "description": "Concede dispute and accepts chargeback loss. Acknowledges liability and stops dispute defense process when evidence is insufficient.",
+      "service_name": "DisputeService",
+      "rpc_name": "Accept",
+      "category": "Disputes",
+      "grpc_request": "DisputeServiceAcceptRequest",
+      "grpc_response": "DisputeServiceAcceptResponse"
+    },
+    {
+      "flow_key": "tokenize",
+      "service_rpc": "PaymentMethodService.Tokenize",
+      "description": "Tokenize payment method for secure storage. Replaces raw card details with secure token for one-click payments and recurring billing.",
+      "service_name": "PaymentMethodService",
+      "rpc_name": "Tokenize",
+      "category": "Payments",
+      "grpc_request": "PaymentMethodServiceTokenizeRequest",
+      "grpc_response": "PaymentMethodServiceTokenizeResponse"
+    },
+    {
+      "flow_key": "create_customer",
+      "service_rpc": "CustomerService.Create",
+      "description": "Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information.",
+      "service_name": "CustomerService",
+      "rpc_name": "Create",
+      "category": "Customers",
+      "grpc_request": "CustomerServiceCreateRequest",
+      "grpc_response": "CustomerServiceCreateResponse"
+    },
+    {
+      "flow_key": "create_access_token",
+      "service_rpc": "MerchantAuthenticationService.CreateAccessToken",
+      "description": "Generate short-lived connector authentication token. Provides secure credentials for connector API access without storing secrets client-side.",
+      "service_name": "MerchantAuthenticationService",
+      "rpc_name": "CreateAccessToken",
+      "category": "Authentication",
+      "grpc_request": "MerchantAuthenticationServiceCreateAccessTokenRequest",
+      "grpc_response": "MerchantAuthenticationServiceCreateAccessTokenResponse"
+    },
+    {
+      "flow_key": "create_session_token",
+      "service_rpc": "MerchantAuthenticationService.CreateSessionToken",
+      "description": "Create session token for payment processing. Maintains session state across multiple payment operations for improved security and tracking.",
+      "service_name": "MerchantAuthenticationService",
+      "rpc_name": "CreateSessionToken",
+      "category": "Authentication",
+      "grpc_request": "MerchantAuthenticationServiceCreateSessionTokenRequest",
+      "grpc_response": "MerchantAuthenticationServiceCreateSessionTokenResponse"
+    },
+    {
+      "flow_key": "sdk_session_token",
+      "service_rpc": "MerchantAuthenticationService.CreateSdkSessionToken",
+      "description": "Initialize wallet payment sessions for Apple Pay, Google Pay, etc. Sets up secure context for tokenized wallet payments with device verification.",
+      "service_name": "MerchantAuthenticationService",
+      "rpc_name": "CreateSdkSessionToken",
+      "category": "Authentication",
+      "grpc_request": "MerchantAuthenticationServiceCreateSdkSessionTokenRequest",
+      "grpc_response": "MerchantAuthenticationServiceCreateSdkSessionTokenResponse"
+    },
+    {
+      "flow_key": "pre_authenticate",
+      "service_rpc": "PaymentMethodAuthenticationService.PreAuthenticate",
+      "description": "Initiate 3DS flow before payment authorization. Collects device data and prepares authentication context for frictionless or challenge-based verification.",
+      "service_name": "PaymentMethodAuthenticationService",
+      "rpc_name": "PreAuthenticate",
+      "category": "Authentication",
+      "grpc_request": "PaymentMethodAuthenticationServicePreAuthenticateRequest",
+      "grpc_response": "PaymentMethodAuthenticationServicePreAuthenticateResponse"
+    },
+    {
+      "flow_key": "authenticate",
+      "service_rpc": "PaymentMethodAuthenticationService.Authenticate",
+      "description": "Execute 3DS challenge or frictionless verification. Authenticates customer via bank challenge or behind-the-scenes verification for fraud prevention.",
+      "service_name": "PaymentMethodAuthenticationService",
+      "rpc_name": "Authenticate",
+      "category": "Authentication",
+      "grpc_request": "PaymentMethodAuthenticationServiceAuthenticateRequest",
+      "grpc_response": "PaymentMethodAuthenticationServiceAuthenticateResponse"
+    },
+    {
+      "flow_key": "post_authenticate",
+      "service_rpc": "PaymentMethodAuthenticationService.PostAuthenticate",
+      "description": "Validate authentication results with the issuing bank. Processes bank's authentication decision to determine if payment can proceed.",
+      "service_name": "PaymentMethodAuthenticationService",
+      "rpc_name": "PostAuthenticate",
+      "category": "Authentication",
+      "grpc_request": "PaymentMethodAuthenticationServicePostAuthenticateRequest",
+      "grpc_response": "PaymentMethodAuthenticationServicePostAuthenticateResponse"
+    }
+  ],
+  "connectors": [
+    "adyen",
+    "forte",
+    "razorpay",
+    "razorpayv2",
+    "fiserv",
+    "elavon",
+    "xendit",
+    "checkout",
+    "authorizedotnet",
+    "bamboraapac",
+    "mifinity",
+    "phonepe",
+    "cashfree",
+    "paytm",
+    "fiuu",
+    "payu",
+    "cashtocode",
+    "novalnet",
+    "nexinets",
+    "noon",
+    "braintree",
+    "volt",
+    "calida",
+    "cryptopay",
+    "helcim",
+    "dlocal",
+    "placetopay",
+    "rapyd",
+    "aci",
+    "trustpay",
+    "stripe",
+    "cybersource",
+    "worldpay",
+    "worldpayvantiv",
+    "worldpayxml",
+    "multisafepay",
+    "payload",
+    "fiservemea",
+    "paysafe",
+    "datatrans",
+    "bluesnap",
+    "authipay",
+    "silverflow",
+    "celero",
+    "paypal",
+    "stax",
+    "billwerk",
+    "hipay",
+    "trustpayments",
+    "redsys",
+    "globalpay",
+    "nuvei",
+    "iatapay",
+    "nmi",
+    "shift4",
+    "paybox",
+    "barclaycard",
+    "nexixpay",
+    "mollie",
+    "airwallex",
+    "tsys",
+    "bankofamerica",
+    "powertranz",
+    "getnet",
+    "jpmorgan",
+    "bambora",
+    "payme",
+    "revolut",
+    "gigadat",
+    "loonio",
+    "wellsfargo",
+    "hyperpg",
+    "zift",
+    "revolv3",
+    "truelayer",
+    "finix"
+  ],
+  "message_schemas": {
+    "AccessToken": {
+      "comments": {
+        "expires_in_seconds": "Expiration timestamp (seconds since epoch)",
+        "token": "The token string.",
+        "token_type": "Token type (e.g., \"Bearer\", \"Basic\")."
+      },
+      "field_types": {}
+    },
+    "Ach": {
+      "comments": {
+        "account_number": "Account number for ach bank debit payment",
+        "bank_account_holder_name": "Bank account holder name",
+        "bank_holder_type": "Bank holder type",
+        "bank_name": "Bank name",
+        "bank_type": "Bank type",
+        "card_holder_name": "Card holder name",
+        "routing_number": "Routing number for ach bank debit payment"
+      },
+      "field_types": {
+        "bank_holder_type": "BankHolderType",
+        "bank_name": "BankNames",
+        "bank_type": "BankType"
+      }
+    },
+    "AdditionalPaymentMethodConnectorResponse": {
+      "comments": {
+        "apple_pay": "Apple Pay-specific response data",
+        "bank_redirect": "Bank Redirect-specific response data",
+        "card": "Card-specific response data",
+        "google_pay": "Google Pay-specific response data",
+        "upi": "UPI-specific response data"
+      },
+      "field_types": {
+        "apple_pay": "ApplePayConnectorResponse",
+        "bank_redirect": "BankRedirectConnectorResponse",
+        "card": "CardConnectorResponse",
+        "google_pay": "GooglePayConnectorResponse",
+        "upi": "UpiConnectorResponse"
+      }
+    },
+    "Address": {
+      "comments": {
+        "email": "Contact Information",
+        "first_name": "Personal Information",
+        "line1": "Address Details"
+      },
+      "field_types": {
+        "country_alpha2_code": "CountryAlpha2"
+      }
+    },
+    "AdyenConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "AirwallexConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "AmountInfo": {
+      "comments": {
+        "amount": "Minor units"
+      },
+      "field_types": {}
+    },
+    "ApplePayBillingContactFields": {
+      "comments": {},
+      "field_types": {
+        "fields": "ApplePayAddressParameters"
+      }
+    },
+    "ApplePayConnectorResponse": {
+      "comments": {
+        "auth_code": "Unique authorisation code generated for the payment"
+      },
+      "field_types": {}
+    },
+    "ApplePayCryptogramData": {
+      "comments": {
+        "eci_indicator": "The ECI (Electronic Commerce Indicator) value",
+        "online_payment_cryptogram": "The online payment cryptogram"
+      },
+      "field_types": {}
+    },
+    "ApplePayDecryptedData": {
+      "comments": {
+        "application_expiration_month": "The application expiration date (PAN expiry month)",
+        "application_expiration_year": "The application expiration date (PAN expiry year)",
+        "application_primary_account_number": "The primary account number",
+        "payment_data": "Cryptogram data for Apple Pay transactions"
+      },
+      "field_types": {
+        "payment_data": "ApplePayCryptogramData"
+      }
+    },
+    "ApplePayPaymentRequest": {
+      "comments": {},
+      "field_types": {
+        "country_code": "CountryAlpha2",
+        "currency_code": "Currency",
+        "total": "AmountInfo"
+      }
+    },
+    "ApplePayRecurringPaymentRequest": {
+      "comments": {},
+      "field_types": {
+        "regular_billing": "ApplePayRegularBillingRequest"
+      }
+    },
+    "ApplePayRegularBillingRequest": {
+      "comments": {
+        "amount": "Minor units"
+      },
+      "field_types": {
+        "payment_timing": "ApplePayPaymentTiming",
+        "recurring_payment_interval_unit": "RecurringPaymentIntervalUnit"
+      }
+    },
+    "ApplePaySessionResponse": {
+      "comments": {},
+      "field_types": {
+        "third_party_sdk": "ThirdPartySdkSessionResponse"
+      }
+    },
+    "ApplePayShippingContactFields": {
+      "comments": {},
+      "field_types": {
+        "fields": "ApplePayAddressParameters"
+      }
+    },
+    "ApplePayThirdPartySdkWallet": {
+      "comments": {
+        "token": "Payment token from third-party SDK"
+      },
+      "field_types": {}
+    },
+    "AppleWallet": {
+      "comments": {
+        "transaction_identifier": "Transaction identifier"
+      },
+      "field_types": {
+        "payment_data": "PaymentData",
+        "payment_method": "PaymentMethod"
+      }
+    },
+    "ApplepaySessionTokenResponse": {
+      "comments": {},
+      "field_types": {
+        "payment_request_data": "ApplePayPaymentRequest",
+        "sdk_next_action": "SdkNextAction",
+        "session_token_data": "ApplePaySessionResponse"
+      }
+    },
+    "AssuranceDetails": {
+      "comments": {
+        "account_verified": "Indicates that identification and verification was performed",
+        "card_holder_authenticated": "Indicates that cardholder possession validation has been performed"
+      },
+      "field_types": {}
+    },
+    "AuthenticationData": {
+      "comments": {
+        "acs_transaction_id": "ACS Transaction ID (ACS Trans ID).",
+        "cavv": "Cardholder Authentication Verification Value (CAVV).",
+        "connector_transaction_id": "Transaction identifier generated by the 3DS system.",
+        "ds_transaction_id": "Directory Server Transaction ID (DS Trans ID).",
+        "eci": "Electronic Commerce Indicator (ECI) from 3DS.",
+        "exemption_indicator": "SCA exemption indicator for this authentication.",
+        "message_version": "3DS Message Version (e.g., \"2.1.0\", \"2.2.0\").",
+        "network_params": "Network-specific parameters for 3DS processing.",
+        "threeds_server_transaction_id": "3DS Server Transaction ID.",
+        "trans_status": "Transaction status from authentication/verification process.",
+        "ucaf_collection_indicator": "UCAF (Universal Cardholder Authentication Field) collection indicator."
+      },
+      "field_types": {
+        "exemption_indicator": "ExemptionIndicator",
+        "network_params": "NetworkParams",
+        "trans_status": "TransactionStatus"
+      }
+    },
+    "AuthipayConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "AuthorizedotnetConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "Bacs": {
+      "comments": {
+        "account_number": "Account number for Bacs payment method",
+        "bank_account_holder_name": "Holder name for bank debit",
+        "sort_code": "Sort code for Bacs payment method"
+      },
+      "field_types": {}
+    },
+    "BamboraConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "BancontactCard": {
+      "comments": {
+        "card_exp_month": "The card's expiry month",
+        "card_exp_year": "The card's expiry year",
+        "card_holder_name": "The card holder's name",
+        "card_number": "The card number"
+      },
+      "field_types": {}
+    },
+    "BankOfAmericaConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "BankRedirectConnectorResponse": {
+      "comments": {
+        "interac": "Interac-specific customer information when using bank redirect"
+      },
+      "field_types": {
+        "interac": "InteracCustomerInfo"
+      }
+    },
+    "BarclaycardConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "Becs": {
+      "comments": {
+        "account_number": "Account number for Becs payment method",
+        "bank_account_holder_name": "Owner name for bank debit",
+        "bsb_number": "Bank-State-Branch (bsb) number"
+      },
+      "field_types": {}
+    },
+    "BillingDescriptor": {
+      "comments": {
+        "city": "Customer's billing city",
+        "name": "Customer's billing name",
+        "phone": "Customer's billing phone number",
+        "reference": "A reference to be shown on billing description",
+        "statement_descriptor": "Complete description that appears on customers' statements",
+        "statement_descriptor_suffix": "Provides information about a card payment that customers see on their statements"
+      },
+      "field_types": {}
+    },
+    "BillwerkConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "Blik": {
+      "comments": {},
+      "field_types": {}
+    },
+    "BluesnapConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "Boleto": {
+      "comments": {
+        "social_security_number": "The shopper's social security number"
+      },
+      "field_types": {}
+    },
+    "BraintreeConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "BraintreeData": {
+      "comments": {
+        "acs_url": "URL for completing the authorization flow",
+        "bin": "Bank Identification Number for card verification",
+        "card_token": "Tokenized payment method identifier",
+        "client_token": "Client token for Braintree SDK initialization"
+      },
+      "field_types": {}
+    },
+    "BrowserInformation": {
+      "comments": {
+        "accept_header": "Browser Headers",
+        "color_depth": "Display Information",
+        "ip_address": "Device Information",
+        "java_enabled": "Browser Settings"
+      },
+      "field_types": {}
+    },
+    "CaCert": {
+      "comments": {
+        "der": "Binary DER-encoded certificate data",
+        "pem": "Text-based PEM-encoded certificate string (starts with -----BEGIN CERTIFICATE-----)"
+      },
+      "field_types": {}
+    },
+    "CalidaConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "CardConnectorResponse": {
+      "comments": {
+        "auth_code": "Unique authorisation code generated for the payment",
+        "authentication_data": "Authentication details as JSON bytes",
+        "card_network": "Card network returned by the processor",
+        "domestic_network": "Domestic (co-branded) card network",
+        "payment_checks": "Payment checks as JSON bytes"
+      },
+      "field_types": {}
+    },
+    "CardDetails": {
+      "comments": {
+        "card_holder_name": "Cardholder Information",
+        "card_issuer": "Card Metadata",
+        "card_number": "Card Identification"
+      },
+      "field_types": {
+        "card_network": "CardNetwork"
+      }
+    },
+    "CardDetailsForNetworkTransactionId": {
+      "comments": {},
+      "field_types": {
+        "card_network": "CardNetwork"
+      }
+    },
+    "CardNumberType": {
+      "comments": {},
+      "field_types": {}
+    },
+    "CardRedirect": {
+      "comments": {},
+      "field_types": {
+        "type": "CardRedirectType"
+      }
+    },
+    "CartesBancairesParams": {
+      "comments": {
+        "cavv_algorithm": "Algorithm used to generate the CAVV value.",
+        "cb_exemption": "Exemption indicator specific to Cartes Bancaires network.",
+        "cb_score": "Cartes Bancaires risk score assigned during 3DS authentication."
+      },
+      "field_types": {
+        "cavv_algorithm": "CavvAlgorithm"
+      }
+    },
+    "CashfreeConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "CashtocodeConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "CashtocodeCurrencyAuthData": {
+      "comments": {},
+      "field_types": {}
+    },
+    "CeleroConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "CoinbaseConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "CoingateConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "ConnectorConfig": {
+      "comments": {
+        "connector_config": "Connector-specific configuration (auth credentials, base_url override, typed metadata)",
+        "options": "SDK-level options (environment, etc.)"
+      },
+      "field_types": {
+        "connector_config": "ConnectorSpecificConfig",
+        "options": "SdkOptions"
+      }
+    },
+    "ConnectorErrorDetails": {
+      "comments": {
+        "code": "Connector-specific error code",
+        "message": "Human-readable error message",
+        "reason": "Detailed explanation"
+      },
+      "field_types": {}
+    },
+    "ConnectorMandateReferenceId": {
+      "comments": {},
+      "field_types": {}
+    },
+    "ConnectorResponseData": {
+      "comments": {
+        "additional_payment_method_data": "Additional payment method specific data",
+        "extended_authorization_response_data": "Extended authorization data",
+        "is_overcapture_enabled": "Whether overcapture is enabled"
+      },
+      "field_types": {
+        "additional_payment_method_data": "AdditionalPaymentMethodConnectorResponse",
+        "extended_authorization_response_data": "ExtendedAuthorizationResponseData"
+      }
+    },
+    "ConnectorResponseTransformationError": {
+      "comments": {
+        "error_code": "Machine-readable code (e.g., \"RESPONSE_DESERIALIZATION_FAILED\")",
+        "error_message": "Human-readable description of parsing failure (e.g., \"Expected JSON response, got HTML\")",
+        "http_status_code": "HTTP status from connector before parsing failed (e.g., 401, 500, 200)"
+      },
+      "field_types": {}
+    },
+    "ConnectorSpecificConfig": {
+      "comments": {
+        "adyen": "ADYEN = 3",
+        "airwallex": "AIRWALLEX = 4",
+        "authipay": "AUTHIPAY = 97",
+        "authorizedotnet": "AUTHORIZEDOTNET = 5",
+        "bambora": "BAMBORA = 6",
+        "bankofamerica": "BANKOFAMERICA = 8",
+        "barclaycard": "BARCLAYCARD = 102",
+        "billwerk": "BILLWERK = 9",
+        "bluesnap": "BLUESNAP = 11",
+        "braintree": "BRAINTREE = 13",
+        "calida": "CALIDA = 95",
+        "cashfree": "CASHFREE = 93",
+        "cashtocode": "CASHTOCODE = 14",
+        "celero": "CELERO = 99",
+        "coinbase": "COINBASE = 17",
+        "coingate": "COINGATE = 18",
+        "cryptopay": "CRYPTOPAY = 19",
+        "cybersource": "CYBERSOURCE = 22",
+        "datatrans": "DATATRANS = 23",
+        "dlocal": "DLOCAL = 26",
+        "ebanx": "EBANX = 27",
+        "elavon": "ELAVON = 28",
+        "fiserv": "FISERV = 29",
+        "fiservemea": "FISERVEMEA = 30",
+        "fiuu": "FIUU = 31",
+        "forte": "FORTE = 32",
+        "getnet": "GETNET = 33",
+        "gigadat": "GIGADAT = 106",
+        "globalpay": "GLOBALPAY = 34",
+        "globepay": "GLOBEPAY = 35",
+        "helcim": "HELCIM = 39",
+        "hipay": "HIPAY = 38",
+        "hyperpg": "HYPERPG = 107",
+        "iatapay": "IATAPAY = 41",
+        "jpmorgan": "JPMORGAN = 43",
+        "loonio": "LOONIO = 105",
+        "mifinity": "MIFINITY = 46",
+        "mollie": "MOLLIE = 47",
+        "multisafepay": "MULTISAFEPAY = 49",
+        "nexinets": "NEXINETS = 51",
+        "nexixpay": "NEXIXPAY = 52",
+        "nmi": "NMI = 53",
+        "noon": "NOON = 55",
+        "novalnet": "NOVALNET = 56",
+        "nuvei": "NUVEI = 57",
+        "paybox": "PAYBOX = 59",
+        "payload": "PAYLOAD = 96",
+        "payme": "PAYME = 60",
+        "paypal": "PAYPAL = 62",
+        "paysafe": "PAYSAFE = 101",
+        "paytm": "PAYTM = 94",
+        "payu": "PAYU = 64",
+        "peachpayments": "PEACHPAYMENTS = 111",
+        "phonepe": "PHONEPE = 92",
+        "powertranz": "POWERTRANZ = 66",
+        "rapyd": "RAPYD = 68",
+        "redsys": "REDSYS = 71",
+        "revolut": "REVOLUT = 104",
+        "revolv3": "REVOLV3 = 109",
+        "screenstream": "SCREENSTREAM (not in enum, added at end)",
+        "shift4": "SHIFT4 = 72",
+        "silverflow": "SILVERFLOW = 98",
+        "stax": "STAX = 74",
+        "stripe": "STRIPE = 75",
+        "trustpay": "TRUSTPAY = 78",
+        "trustpayments": "TRUSTPAYMENTS = 100",
+        "tsys": "TSYS = 79",
+        "volt": "VOLT = 80",
+        "wellsfargo": "WELLSFARGO = 81",
+        "worldpay": "WORLDPAY = 84",
+        "worldpayvantiv": "WORLDPAYVANTIV = 85",
+        "worldpayxml": "WORLDPAYXML = 103",
+        "xendit": "XENDIT = 89",
+        "zift": "ZIFT = 108"
+      },
+      "field_types": {
+        "adyen": "AdyenConfig",
+        "airwallex": "AirwallexConfig",
+        "authipay": "AuthipayConfig",
+        "authorizedotnet": "AuthorizedotnetConfig",
+        "bambora": "BamboraConfig",
+        "bankofamerica": "BankOfAmericaConfig",
+        "barclaycard": "BarclaycardConfig",
+        "billwerk": "BillwerkConfig",
+        "bluesnap": "BluesnapConfig",
+        "braintree": "BraintreeConfig",
+        "calida": "CalidaConfig",
+        "cashfree": "CashfreeConfig",
+        "cashtocode": "CashtocodeConfig",
+        "celero": "CeleroConfig",
+        "coinbase": "CoinbaseConfig",
+        "coingate": "CoingateConfig",
+        "cryptopay": "CryptopayConfig",
+        "cybersource": "CybersourceConfig",
+        "datatrans": "DatatransConfig",
+        "dlocal": "DlocalConfig",
+        "ebanx": "EbanxConfig",
+        "elavon": "ElavonConfig",
+        "fiserv": "FiservConfig",
+        "fiservemea": "FiservemeaConfig",
+        "fiuu": "FiuuConfig",
+        "forte": "ForteConfig",
+        "getnet": "GetnetConfig",
+        "gigadat": "GigadatConfig",
+        "globalpay": "GlobalpayConfig",
+        "globepay": "GlobepayConfig",
+        "helcim": "HelcimConfig",
+        "hipay": "HipayConfig",
+        "hyperpg": "HyperpgConfig",
+        "iatapay": "IatapayConfig",
+        "jpmorgan": "JpmorganConfig",
+        "loonio": "LoonioConfig",
+        "mifinity": "MifinityConfig",
+        "mollie": "MollieConfig",
+        "multisafepay": "MultisafepayConfig",
+        "nexinets": "NexinetsConfig",
+        "nexixpay": "NexixpayConfig",
+        "nmi": "NmiConfig",
+        "noon": "NoonConfig",
+        "novalnet": "NovalnetConfig",
+        "nuvei": "NuveiConfig",
+        "paybox": "PayboxConfig",
+        "payload": "PayloadConfig",
+        "payme": "PaymeConfig",
+        "paypal": "PaypalConfig",
+        "paysafe": "PaysafeConfig",
+        "paytm": "PaytmConfig",
+        "payu": "PayuConfig",
+        "peachpayments": "PeachpaymentsConfig",
+        "phonepe": "PhonepeConfig",
+        "powertranz": "PowertranzConfig",
+        "rapyd": "RapydConfig",
+        "redsys": "RedsysConfig",
+        "revolut": "RevolutConfig",
+        "revolv3": "Revolv3Config",
+        "screenstream": "ScreenstreamConfig",
+        "shift4": "Shift4Config",
+        "silverflow": "SilverflowConfig",
+        "stax": "StaxConfig",
+        "stripe": "StripeConfig",
+        "trustpay": "TrustpayConfig",
+        "trustpayments": "TrustpaymentsConfig",
+        "tsys": "TsysConfig",
+        "volt": "VoltConfig",
+        "wellsfargo": "WellsfargoConfig",
+        "worldpay": "WorldpayConfig",
+        "worldpayvantiv": "WorldpayvantivConfig",
+        "worldpayxml": "WorldpayxmlConfig",
+        "xendit": "XenditConfig",
+        "zift": "ZiftConfig"
+      }
+    },
+    "ConnectorState": {
+      "comments": {
+        "access_token": "Access token obtained from connector",
+        "connector_customer_id": "Connector's customer ID (e.g., Authorize.net customer profile ID)"
+      },
+      "field_types": {
+        "access_token": "AccessToken"
+      }
+    },
+    "CryptoCurrency": {
+      "comments": {
+        "network": "Blockchain network",
+        "pay_currency": "Currency to pay with"
+      },
+      "field_types": {}
+    },
+    "CryptopayConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "Customer": {
+      "comments": {
+        "connector_customer_id": "Customer ID in the connector system",
+        "email": "Customer's email address",
+        "id": "Internal customer ID",
+        "name": "Customer's full name",
+        "phone_country_code": "Customer's phone country code",
+        "phone_number": "Customer's phone number"
+      },
+      "field_types": {}
+    },
+    "CustomerAcceptance": {
+      "comments": {
+        "acceptance_type": "Type of acceptance (e.g., online, offline).",
+        "accepted_at": "Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).",
+        "online_mandate_details": "Details if the acceptance was an online mandate."
+      },
+      "field_types": {
+        "acceptance_type": "AcceptanceType",
+        "online_mandate_details": "OnlineMandate"
+      }
+    },
+    "CustomerInfo": {
+      "comments": {
+        "customer_bank_id": "Bank identifier or institution number for the customer's bank",
+        "customer_bank_name": "Name of the customer's bank for display purposes",
+        "customer_email": "Email address of the customer for notifications and receipts",
+        "customer_name": "Full name of the customer",
+        "customer_phone_number": "Phone number for SMS verification and customer contact"
+      },
+      "field_types": {}
+    },
+    "CustomerServiceCreateRequest": {
+      "comments": {
+        "address": "Address Information",
+        "connector_feature_data": "Connector-specific metadata for the transaction",
+        "customer_name": "Name of the customer",
+        "email": "Email address of the customer",
+        "merchant_customer_id": "Identification",
+        "metadata": "Additional metadata for the connector",
+        "phone_number": "Phone number of the customer",
+        "test_mode": "Environment Configuration"
+      },
+      "field_types": {
+        "address": "PaymentAddress"
+      }
+    },
+    "CustomerServiceCreateResponse": {
+      "comments": {
+        "connector_customer_id": "Customer Information",
+        "error": "Error Information",
+        "merchant_customer_id": "Reference"
+      },
+      "field_types": {
+        "error": "ErrorInfo"
+      }
+    },
+    "CustomerServiceDeleteRequest": {
+      "comments": {
+        "connector_customer_id": "Customer Information",
+        "merchant_customer_id": "Identification"
+      },
+      "field_types": {}
+    },
+    "CustomerServiceDeleteResponse": {
+      "comments": {
+        "error": "Error Information",
+        "merchant_customer_id": "Reference"
+      },
+      "field_types": {
+        "error": "ErrorInfo"
+      }
+    },
+    "CustomerServiceGetRequest": {
+      "comments": {
+        "connector_customer_id": "Customer Information",
+        "merchant_customer_id": "Identification"
+      },
+      "field_types": {}
+    },
+    "CustomerServiceGetResponse": {
+      "comments": {
+        "customer": "Customer Information",
+        "error": "Error Information",
+        "merchant_customer_id": "Reference"
+      },
+      "field_types": {
+        "customer": "Customer",
+        "error": "ErrorInfo"
+      }
+    },
+    "CustomerServiceUpdateRequest": {
+      "comments": {
+        "address": "Address Information",
+        "connector_customer_id": "Customer Information",
+        "connector_feature_data": "Connector-specific metadata for the transaction",
+        "customer_name": "Name of the customer",
+        "email": "Email address of the customer",
+        "merchant_customer_id": "Identification",
+        "metadata": "Additional metadata for the connector",
+        "phone_number": "Phone number of the customer"
+      },
+      "field_types": {
+        "address": "PaymentAddress"
+      }
+    },
+    "CustomerServiceUpdateResponse": {
+      "comments": {
+        "customer": "Customer Information",
+        "error": "Error Information",
+        "merchant_customer_id": "Reference"
+      },
+      "field_types": {
+        "customer": "Customer",
+        "error": "ErrorInfo"
+      }
+    },
+    "CybersourceConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "DatatransConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "DisputeResponse": {
+      "comments": {
+        "connector_dispute_id": "Connector's unique identifier for the dispute",
+        "connector_transaction_id": "Transaction ID associated with the dispute",
+        "dispute_amount": "Dispute Details",
+        "dispute_date": "Unix timestamp",
+        "dispute_reason": "Additional Context",
+        "dispute_status": "Status Information",
+        "due_date": "Unix timestamp",
+        "evidence_documents": "Collection of evidence documents submitted",
+        "merchant_dispute_id": "Reference",
+        "raw_connector_request": "Raw Request for debugging",
+        "service_date": "Unix timestamp",
+        "shipping_date": "Unix timestamp"
+      },
+      "field_types": {
+        "dispute_amount": "Money",
+        "dispute_stage": "DisputeStage",
+        "dispute_status": "DisputeStatus",
+        "error": "ErrorInfo",
+        "evidence_documents": "EvidenceDocument"
+      }
+    },
+    "DisputeServiceAcceptRequest": {
+      "comments": {
+        "merchant_dispute_id": "Identification"
+      },
+      "field_types": {}
+    },
+    "DisputeServiceAcceptResponse": {
+      "comments": {
+        "dispute_id": "Identification",
+        "dispute_status": "Status Information",
+        "merchant_dispute_id": "Reference",
+        "raw_connector_request": "Raw Request for debugging"
+      },
+      "field_types": {
+        "dispute_status": "DisputeStatus",
+        "error": "ErrorInfo"
+      }
+    },
+    "DisputeServiceDefendRequest": {
+      "comments": {
+        "merchant_dispute_id": "Identification",
+        "reason_code": "Defend Details"
+      },
+      "field_types": {}
+    },
+    "DisputeServiceDefendResponse": {
+      "comments": {
+        "dispute_id": "Identification",
+        "dispute_status": "Status Information",
+        "merchant_dispute_id": "Reference",
+        "raw_connector_request": "Raw Request for debugging"
+      },
+      "field_types": {
+        "dispute_status": "DisputeStatus",
+        "error": "ErrorInfo"
+      }
+    },
+    "DisputeServiceGetRequest": {
+      "comments": {
+        "merchant_dispute_id": "Identification"
+      },
+      "field_types": {}
+    },
+    "DisputeServiceSubmitEvidenceRequest": {
+      "comments": {
+        "evidence_documents": "Collection of evidence documents",
+        "merchant_dispute_id": "Identification",
+        "service_date": "Dates"
+      },
+      "field_types": {
+        "evidence_documents": "EvidenceDocument"
+      }
+    },
+    "DisputeServiceSubmitEvidenceResponse": {
+      "comments": {
+        "dispute_id": "Identification",
+        "dispute_status": "Status Information",
+        "merchant_dispute_id": "Reference",
+        "raw_connector_request": "Raw Request for debugging"
+      },
+      "field_types": {
+        "dispute_status": "DisputeStatus",
+        "error": "ErrorInfo"
+      }
+    },
+    "DlocalConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "EbanxConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "Eft": {
+      "comments": {
+        "provider": "Identifier for the specific Eft provider/service to be used Examples: \"ozow\", \"paystack\", \"instant_eft\""
+      },
+      "field_types": {}
+    },
+    "ElavonConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "Eps": {
+      "comments": {
+        "bank_name": "The bank name for eps",
+        "country": "The country for bank payment"
+      },
+      "field_types": {
+        "bank_name": "BankNames",
+        "country": "CountryAlpha2"
+      }
+    },
+    "ErrorInfo": {
+      "comments": {
+        "connector_details": "Detailed explanation",
+        "issuer_details": "Human-readable error message",
+        "unified_details": "Machine-readable error code"
+      },
+      "field_types": {
+        "connector_details": "ConnectorErrorDetails",
+        "issuer_details": "IssuerErrorDetails",
+        "unified_details": "UnifiedErrorDetails"
+      }
+    },
+    "EventResponse": {
+      "comments": {
+        "disputes_response": "Content if the event is for a dispute synchronization.",
+        "incomplete_transformation": "Content if the payment event transformation is incomplete and requires psync call.",
+        "payments_response": "Content if the event is for a payment synchronization.",
+        "refunds_response": "Content if the event is for a refund synchronization."
+      },
+      "field_types": {
+        "disputes_response": "DisputeResponse",
+        "incomplete_transformation": "IncompleteTransformationResponse",
+        "payments_response": "PaymentServiceGetResponse",
+        "refunds_response": "RefundResponse"
+      }
+    },
+    "EventServiceHandleRequest": {
+      "comments": {
+        "merchant_event_id": "Identification",
+        "request_details": "Request Details",
+        "state": "State Information",
+        "webhook_secrets": "Security"
+      },
+      "field_types": {
+        "request_details": "RequestDetails",
+        "state": "ConnectorState",
+        "webhook_secrets": "WebhookSecrets"
+      }
+    },
+    "EventServiceHandleResponse": {
+      "comments": {
+        "event_response": "Content",
+        "event_status": "Event Status",
+        "event_type": "Event type",
+        "merchant_event_id": "Reference",
+        "source_verified": "Verification"
+      },
+      "field_types": {
+        "event_response": "EventResponse",
+        "event_status": "WebhookEventStatus",
+        "event_type": "WebhookEventType"
+      }
+    },
+    "EvidenceDocument": {
+      "comments": {
+        "evidence_type": "Type of the evidence.",
+        "file_content": "Content Options Content of the document, if it's a file.",
+        "file_mime_type": "MIME type of the file (e.g., \"application/pdf\", \"image/png\"), if file_content is provided.",
+        "provider_file_id": "Identifier for the file if stored with an external provider.",
+        "text_content": "Textual content of the evidence, if it's not a file or in addition to a file."
+      },
+      "field_types": {
+        "evidence_type": "EvidenceType"
+      }
+    },
+    "ExtendedAuthorizationResponseData": {
+      "comments": {
+        "capture_before": "Unix timestamp before which capture must occur",
+        "extended_authentication_applied": "Whether extended authentication was applied",
+        "extended_authorization_last_applied_at": "Unix timestamp of when extended authentication was last applied"
+      },
+      "field_types": {}
+    },
+    "FfiConnectorHttpRequest": {
+      "comments": {},
+      "field_types": {}
+    },
+    "FfiConnectorHttpResponse": {
+      "comments": {},
+      "field_types": {}
+    },
+    "FfiOptions": {
+      "comments": {
+        "connector_config": "Typed per-connector configuration (replaces separate connector + auth fields)",
+        "environment": "Resolved environment context"
+      },
+      "field_types": {
+        "connector_config": "ConnectorSpecificConfig",
+        "environment": "Environment"
+      }
+    },
+    "FfiResult": {
+      "comments": {},
+      "field_types": {
+        "connector_response_transformation_error": "ConnectorResponseTransformationError",
+        "http_request": "FfiConnectorHttpRequest",
+        "http_response": "FfiConnectorHttpResponse",
+        "integration_error": "IntegrationError",
+        "type": "Type"
+      }
+    },
+    "FiservConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "FiservemeaConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "FiuuConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "FormData": {
+      "comments": {
+        "endpoint": "The endpoint URL where the form should be submitted.",
+        "form_fields": "Key-value pairs representing the form fields.",
+        "method": "HTTP method to be used for form submission (e.g., POST)."
+      },
+      "field_types": {
+        "method": "HttpMethod"
+      }
+    },
+    "ForteConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "GetnetConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "GigadatConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "Giropay": {
+      "comments": {
+        "bank_account_bic": "Bank account bic code",
+        "bank_account_iban": "Bank account iban",
+        "country": "The country for bank payment"
+      },
+      "field_types": {
+        "country": "CountryAlpha2"
+      }
+    },
+    "Givex": {
+      "comments": {
+        "cvc": "The card verification code",
+        "number": "The gift card number"
+      },
+      "field_types": {}
+    },
+    "GlobalpayConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "GlobepayConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "GooglePayConnectorResponse": {
+      "comments": {
+        "auth_code": "Unique authorisation code generated for the payment"
+      },
+      "field_types": {}
+    },
+    "GooglePayDecryptedData": {
+      "comments": {
+        "application_primary_account_number": "The Primary Account Number (PAN) of the card",
+        "card_exp_month": "The card's expiry month",
+        "card_exp_year": "The card's expiry year",
+        "cryptogram": "Cryptogram generated by the Network",
+        "eci_indicator": "Electronic Commerce Indicator"
+      },
+      "field_types": {}
+    },
+    "GooglePayEncryptedTokenizationData": {
+      "comments": {
+        "token": "Token generated for the wallet",
+        "token_type": "The type of the token"
+      },
+      "field_types": {}
+    },
+    "GooglePaySessionResponse": {
+      "comments": {},
+      "field_types": {
+        "allowed_payment_methods": "GpayAllowedPaymentMethods",
+        "merchant_info": "GpayMerchantInfo",
+        "sdk_next_action": "SdkNextAction",
+        "secrets": "SecretInfoToInitiateSdk",
+        "shipping_address_parameters": "GpayShippingAddressParameters",
+        "transaction_info": "GpayTransactionInfo"
+      }
+    },
+    "GooglePayThirdPartySdk": {
+      "comments": {},
+      "field_types": {
+        "sdk_next_action": "SdkNextAction"
+      }
+    },
+    "GooglePayThirdPartySdkWallet": {
+      "comments": {
+        "token": "Payment token from third-party SDK"
+      },
+      "field_types": {}
+    },
+    "GoogleWallet": {
+      "comments": {
+        "description": "User-facing description of the payment method",
+        "type": "Type of payment method"
+      },
+      "field_types": {
+        "info": "PaymentMethodInfo",
+        "tokenization_data": "TokenizationData"
+      }
+    },
+    "GpayAllowedMethodsParameters": {
+      "comments": {},
+      "field_types": {
+        "billing_address_parameters": "GpayBillingAddressParameters"
+      }
+    },
+    "GpayAllowedPaymentMethods": {
+      "comments": {},
+      "field_types": {
+        "parameters": "GpayAllowedMethodsParameters",
+        "tokenization_specification": "GpayTokenizationSpecification"
+      }
+    },
+    "GpayBillingAddressParameters": {
+      "comments": {},
+      "field_types": {
+        "format": "GpayBillingAddressFormat"
+      }
+    },
+    "GpayMerchantInfo": {
+      "comments": {},
+      "field_types": {}
+    },
+    "GpaySessionTokenResponse": {
+      "comments": {},
+      "field_types": {
+        "google_pay_session": "GooglePaySessionResponse"
+      }
+    },
+    "GpayShippingAddressParameters": {
+      "comments": {},
+      "field_types": {}
+    },
+    "GpayTokenParameters": {
+      "comments": {},
+      "field_types": {}
+    },
+    "GpayTokenizationSpecification": {
+      "comments": {},
+      "field_types": {
+        "parameters": "GpayTokenParameters"
+      }
+    },
+    "GpayTransactionInfo": {
+      "comments": {
+        "total_price": "Minor units"
+      },
+      "field_types": {
+        "country_code": "CountryAlpha2",
+        "currency_code": "Currency"
+      }
+    },
+    "HelcimConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "HipayConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "HtmlData": {
+      "comments": {
+        "html_data": "The HTML content as a string."
+      },
+      "field_types": {}
+    },
+    "HttpConfig": {
+      "comments": {
+        "ca_cert": "CA certificate for pinning.",
+        "connect_timeout_ms": "Connection timeout (milliseconds)",
+        "keep_alive_timeout_ms": "Keep-alive timeout for pooled connections (milliseconds)",
+        "proxy": "Proxy configuration",
+        "response_timeout_ms": "Response/Read timeout (milliseconds)",
+        "total_timeout_ms": "Total timeout for entire request lifecycle (milliseconds)"
+      },
+      "field_types": {
+        "ca_cert": "CaCert",
+        "proxy": "ProxyOptions"
+      }
+    },
+    "HyperpgConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "IatapayConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "Ideal": {
+      "comments": {
+        "bank_name": "The bank name for ideal"
+      },
+      "field_types": {
+        "bank_name": "BankNames"
+      }
+    },
+    "Identifier": {
+      "comments": {
+        "encoded_data": "Encoded data representing the ID or related information.",
+        "id": "Connector's transaction ID.",
+        "no_response_id_marker": "Indicates that no specific ID is returned or applicable."
+      },
+      "field_types": {}
+    },
+    "IncompleteTransformationResponse": {
+      "comments": {
+        "reason": "Reason why transformation is incomplete",
+        "resource_object": "The resource object bytes that should be sent in PSync call"
+      },
+      "field_types": {}
+    },
+    "IndonesianBankTransfer": {
+      "comments": {
+        "bank_name": "The bank name for bank transfer"
+      },
+      "field_types": {
+        "bank_name": "BankNames"
+      }
+    },
+    "IntegrationError": {
+      "comments": {
+        "doc_url": "documentation url for reference",
+        "error_code": "Machine-readable code for programmatic handling (e.g., \"MISSING_REQUIRED_FIELD\")",
+        "error_message": "Human-readable error description with full context (e.g., \"Missing required field 'card_exp'\")",
+        "suggested_action": "Actionable guidance for developers to resolve the error (e.g., \"Provide the 'card_exp' field in your request\")"
+      },
+      "field_types": {}
+    },
+    "Interac": {
+      "comments": {
+        "country": "The country for the Interac payment (typically CA for Canada)",
+        "email": "The email address for the Interac e-Transfer notification"
+      },
+      "field_types": {
+        "country": "CountryAlpha2"
+      }
+    },
+    "InteracCustomerInfo": {
+      "comments": {
+        "customer_info": "Base customer information for Interac payments"
+      },
+      "field_types": {
+        "customer_info": "CustomerInfo"
+      }
+    },
+    "IssuerErrorDetails": {
+      "comments": {
+        "code": "card scheme Eg: VISA, MASTERCARD etc.",
+        "message": "Human-readable error message",
+        "network_details": "Network-specific error details, if applicable"
+      },
+      "field_types": {
+        "network_details": "NetworkErrorDetails"
+      }
+    },
+    "JpmorganConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "L2L3Data": {
+      "comments": {
+        "order_info": "Order-level information",
+        "tax_info": "Tax information"
+      },
+      "field_types": {
+        "order_info": "OrderInfo",
+        "tax_info": "TaxInfo"
+      }
+    },
+    "LocalBankTransfer": {
+      "comments": {
+        "bank_code": "The bank code for local bank transfer"
+      },
+      "field_types": {}
+    },
+    "LoonioConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "MandateAmountData": {
+      "comments": {
+        "amount": "Amount",
+        "amount_type": "Amount type for variable mandates (\"exact\", \"max\", \"variable\")",
+        "currency": "Currency code (ISO 4217)",
+        "end_date": "Unix timestamp for end date",
+        "frequency": "Frequency for recurring mandates (\"daily\", \"weekly\", \"monthly\")",
+        "start_date": "Unix timestamp for start date"
+      },
+      "field_types": {
+        "currency": "Currency"
+      }
+    },
+    "MandateReference": {
+      "comments": {
+        "connector_mandate_id": "mandate_id sent by the connector",
+        "network_mandate_id": "network_txns_id sent by Issuer to connector, Used for PG agnostic mandate txns along with card data",
+        "network_token_with_nti": "network_txns_id sent by Issuer to connector, Used for PG agnostic mandate txns along with network token data"
+      },
+      "field_types": {
+        "connector_mandate_id": "ConnectorMandateReferenceId",
+        "network_token_with_nti": "NetworkTokenWithNTI"
+      }
+    },
+    "MandateType": {
+      "comments": {
+        "multi_use": "Multi use mandate with amount details (for recurring payments)",
+        "single_use": "Single use mandate with amount details"
+      },
+      "field_types": {
+        "multi_use": "MandateAmountData",
+        "single_use": "MandateAmountData"
+      }
+    },
+    "MerchantAuthenticationServiceCreateAccessTokenRequest": {
+      "comments": {
+        "connector": "The connector to create the access token for",
+        "connector_feature_data": "Connector-specific metadata for the transaction",
+        "metadata": "Additional metadata for the connector",
+        "test_mode": "A boolean value to indicate if the connector is in Test mode"
+      },
+      "field_types": {
+        "connector": "Connector"
+      }
+    },
+    "MerchantAuthenticationServiceCreateAccessTokenResponse": {
+      "comments": {
+        "access_token": "The access token string",
+        "expires_in_seconds": "Expiration timestamp of the token (seconds since epoch)",
+        "status": "Status of the access token creation attempt",
+        "status_code": "HTTP status code from the connector",
+        "token_type": "Token type (e.g., \"Bearer\", \"Basic\")"
+      },
+      "field_types": {
+        "error": "ErrorInfo",
+        "status": "OperationStatus"
+      }
+    },
+    "MerchantAuthenticationServiceCreateSdkSessionTokenRequest": {
+      "comments": {
+        "amount": "Amount Information",
+        "connector_feature_data": "Connector-specific metadata for the transaction",
+        "customer": "Customer Information",
+        "merchant_sdk_session_id": "Identification",
+        "metadata": "Additional metadata for the connector",
+        "payment_method_type": "Payment Method Type"
+      },
+      "field_types": {
+        "amount": "Money",
+        "country_alpha2_code": "CountryAlpha2",
+        "customer": "Customer",
+        "payment_method_type": "PaymentMethodType"
+      }
+    },
+    "MerchantAuthenticationServiceCreateSdkSessionTokenResponse": {
+      "comments": {},
+      "field_types": {
+        "error": "ErrorInfo",
+        "session_token": "SessionToken"
+      }
+    },
+    "MerchantAuthenticationServiceCreateSessionTokenRequest": {
+      "comments": {
+        "amount": "Amount Information",
+        "browser_info": "Browser Information",
+        "connector_feature_data": "Connector-specific metadata for the transaction",
+        "merchant_session_id": "Identification",
+        "metadata": "Additional metadata for the connector",
+        "state": "State Information"
+      },
+      "field_types": {
+        "amount": "Money",
+        "browser_info": "BrowserInformation",
+        "state": "ConnectorState"
+      }
+    },
+    "MerchantAuthenticationServiceCreateSessionTokenResponse": {
+      "comments": {
+        "error": "Error Information",
+        "session_token": "Session Token Details"
+      },
+      "field_types": {
+        "error": "ErrorInfo"
+      }
+    },
+    "Metadata": {
+      "comments": {
+        "general": "General metadata"
+      },
+      "field_types": {}
+    },
+    "MifinityConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "MifinityData": {
+      "comments": {
+        "initialization_token": "Initialization token for Mifinity SDK initialization"
+      },
+      "field_types": {}
+    },
+    "MifinityWallet": {
+      "comments": {
+        "date_of_birth": "Date of birth from Mifinity",
+        "language_preference": "Language preference"
+      },
+      "field_types": {}
+    },
+    "MollieConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "Money": {
+      "comments": {
+        "currency": "ISO 4217 currency code (e.g., \"USD\", \"EUR\")",
+        "minor_amount": "Amount in minor units (e.g., 1000 = $10.00)"
+      },
+      "field_types": {
+        "currency": "Currency"
+      }
+    },
+    "MultipleCaptureRequestData": {
+      "comments": {
+        "capture_reference": "Reference for this specific capture.",
+        "capture_sequence": "Sequence number for this capture in a series of multiple captures."
+      },
+      "field_types": {}
+    },
+    "MultisafepayConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "NetworkError": {
+      "comments": {},
+      "field_types": {
+        "code": "NetworkErrorCode"
+      }
+    },
+    "NetworkErrorDetails": {
+      "comments": {
+        "advice_code": "Network advice code for retry logic",
+        "decline_code": "Card scheme decline code",
+        "error_message": "Network-specific error details"
+      },
+      "field_types": {}
+    },
+    "NetworkParams": {
+      "comments": {
+        "cartes_bancaires": "Parameters specific to Cartes Bancaires network, if applicable."
+      },
+      "field_types": {
+        "cartes_bancaires": "CartesBancairesParams"
+      }
+    },
+    "NetworkTokenData": {
+      "comments": {},
+      "field_types": {
+        "card_network": "CardNetwork"
+      }
+    },
+    "NetworkTokenType": {
+      "comments": {},
+      "field_types": {}
+    },
+    "NetworkTokenWithNTI": {
+      "comments": {},
+      "field_types": {}
+    },
+    "NexinetsConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "NexixpayConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "NmiConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "NoThirdPartySdkSessionResponse": {
+      "comments": {},
+      "field_types": {}
+    },
+    "NoonConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "NovalnetConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "NuveiConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "OnlineBankingCzechRepublic": {
+      "comments": {
+        "issuer": "Bank issuer for Czech Republic Online Banking"
+      },
+      "field_types": {
+        "issuer": "BankNames"
+      }
+    },
+    "OnlineBankingFPX": {
+      "comments": {},
+      "field_types": {
+        "issuer": "BankNames"
+      }
+    },
+    "OnlineBankingFinland": {
+      "comments": {
+        "email": "Email address for finland's online banking"
+      },
+      "field_types": {}
+    },
+    "OnlineBankingPoland": {
+      "comments": {
+        "issuer": "Bank issuer for Poland Online Banking"
+      },
+      "field_types": {
+        "issuer": "BankNames"
+      }
+    },
+    "OnlineBankingSlovakia": {
+      "comments": {
+        "issuer": "Bank issuer for Slovakia Online Banking"
+      },
+      "field_types": {
+        "issuer": "BankNames"
+      }
+    },
+    "OnlineBankingThailand": {
+      "comments": {
+        "issuer": "Bank issuer for Thailand Online Banking"
+      },
+      "field_types": {
+        "issuer": "BankNames"
+      }
+    },
+    "OnlineMandate": {
+      "comments": {
+        "ip_address": "IP address from which the mandate was accepted.",
+        "user_agent": "User agent string of the browser used for mandate acceptance."
+      },
+      "field_types": {}
+    },
+    "OpenBankingUK": {
+      "comments": {
+        "country": "Country code for UK Open Banking",
+        "issuer": "Bank issuer for UK Open Banking"
+      },
+      "field_types": {}
+    },
+    "OrderDetailsWithAmount": {
+      "comments": {
+        "amount": "Amount per quantity (in minor currency units)",
+        "brand": "Brand of the product that is being purchased",
+        "category": "Category of the product that is being purchased",
+        "description": "Description for the item",
+        "product_id": "ID of the product that is being purchased",
+        "product_img_link": "The image URL of the product",
+        "product_name": "Name of the product that is being purchased",
+        "product_tax_code": "The tax code for the product",
+        "product_type": "Type of the product that is being purchased",
+        "quantity": "The quantity of the product to be purchased",
+        "requires_shipping": "Indicates if the product requires shipping",
+        "sub_category": "Sub category of the product that is being purchased",
+        "tax_rate": "Tax rate applicable to the product",
+        "total_tax_amount": "Total tax amount (in minor currency units)",
+        "unit_of_measure": "Unit of measure used for the item quantity."
+      },
+      "field_types": {
+        "product_type": "ProductType"
+      }
+    },
+    "OrderInfo": {
+      "comments": {
+        "discount_amount": "Discount applied to the order (in minor currency units)",
+        "duty_amount": "Duty/customs amount for the order (in minor currency units)",
+        "merchant_order_reference_id": "Merchant's internal reference ID for the order",
+        "order_date": "Date the order was placed (Unix timestamp in seconds)",
+        "order_details": "Line items for the order",
+        "shipping_cost": "Shipping cost for the order (in minor currency units)"
+      },
+      "field_types": {
+        "order_details": "OrderDetailsWithAmount"
+      }
+    },
+    "PayboxConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "PayloadConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "PayloadCurrencyAuthData": {
+      "comments": {},
+      "field_types": {}
+    },
+    "PaymeConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "PaymentAddress": {
+      "comments": {},
+      "field_types": {
+        "billing_address": "Address",
+        "shipping_address": "Address"
+      }
+    },
+    "PaymentCredential": {
+      "comments": {
+        "card_last_four_digits": "Last four digits of card",
+        "dpan_last_four_digits": "Last four digits of DPAN (Device Primary Account Number)",
+        "method": "Method type",
+        "recurring_payment": "Whether this is a recurring payment"
+      },
+      "field_types": {
+        "card_brand": "CardNetwork",
+        "token_data": "TokenData"
+      }
+    },
+    "PaymentData": {
+      "comments": {
+        "decrypted_data": "Decrypted Apple Pay payment data",
+        "encrypted_data": "Encrypted Apple Pay payment data as string"
+      },
+      "field_types": {
+        "decrypted_data": "ApplePayDecryptedData"
+      }
+    },
+    "PaymentMethod": {
+      "comments": {
+        "ach": "Ach - Automated Clearing House",
+        "ach_bank_transfer": "Automated Clearing House - US bank transfer system",
+        "affirm": "Affirm - US BNPL service",
+        "afterpay_clearpay": "Afterpay/Clearpay - BNPL service",
+        "alfamart": "Alfamart - Indonesian convenience store payment",
+        "ali_pay_redirect": "AliPay",
+        "amazon_pay_redirect": "Amazon Pay",
+        "apple_pay": "Apple Pay",
+        "apple_pay_third_party_sdk": "Apple Pay Third Party SDK",
+        "bacs": "Bacs - Bankers' Automated Clearing Services",
+        "bacs_bank_transfer": "Bankers' Automated Clearing Services - UK bank transfer",
+        "bca_bank_transfer": "BCA Bank transfer in Indonesia",
+        "becs": "Becs - Bulk Electronic Clearing System - Australian direct debit",
+        "bluecode": "Bluecode",
+        "bni_va_bank_transfer": "BNI VA Bank transfer in Indonesia",
+        "boleto": "Boleto - Brazilian payment method",
+        "bri_va_bank_transfer": "BRI VA Bank transfer in Indonesia",
+        "card": "Generic card payment",
+        "card_details_for_network_transaction_id": "Card details with network transaction ID",
+        "card_proxy": "Generic card proxy payment",
+        "card_redirect": "Card redirect flow",
+        "cashapp_qr": "Cash App",
+        "cimb_va_bank_transfer": "CIMB VA Bank transfer in Indonesia",
+        "classic_reward": "Classic reward points",
+        "crypto": "CRYPTOCURRENCY (70-79) - Direct variant",
+        "danamon_va_bank_transfer": "Danamon VA Bank transfer in Indonesia",
+        "duit_now": "MOBILE PAYMENTS (60-69) - Direct variants",
+        "e_voucher": "Electronic voucher (e-voucher)",
+        "efecty": "Efecty - Colombian cash payment network",
+        "family_mart": "FamilyMart - Japanese convenience store payment",
+        "givex": "Givex gift card",
+        "google_pay": "Google Pay",
+        "google_pay_third_party_sdk": "Google Pay Third Party SDK",
+        "indomaret": "Indomaret - Indonesian convenience store payment",
+        "indonesian_bank_transfer": "Indonesian bank transfer method",
+        "instant_bank_transfer": "Generic instant bank transfer",
+        "instant_bank_transfer_finland": "Finland's instant bank transfer",
+        "instant_bank_transfer_poland": "Poland's instant bank transfer",
+        "interac": "Interac - Canadian bank redirect payment method",
+        "klarna": "Klarna - Swedish BNPL service",
+        "lawson": "Lawson - Japanese convenience store payment",
+        "local_bank_transfer": "Generic local bank transfer",
+        "mandiri_va_bank_transfer": "Mandiri VA Bank transfer in Indonesia",
+        "mb_way": "MB WAY",
+        "mifinity": "Mifinity",
+        "mini_stop": "Ministop - Japanese convenience store payment",
+        "multibanco_bank_transfer": "Multibanco - Portuguese payment method",
+        "network_token": "Network token data",
+        "online_banking_thailand": "ONLINE BANKING (40-59) - Direct variants",
+        "oxxo": "Oxxo - Mexican convenience store payment",
+        "pago_efectivo": "PagoEfectivo - Peruvian cash payment method",
+        "pay_easy": "Pay-easy - Japanese bill payment service",
+        "pay_safe_card": "Paysafecard - Prepaid payment method",
+        "paypal_redirect": "PayPal",
+        "paypal_sdk": "PayPal SDK",
+        "paze": "Paze",
+        "permata_bank_transfer": "Permata Bank transfer in Indonesia",
+        "pix": "PIX - Brazilian instant payment",
+        "red_compra": "RedCompra - Chilean debit card network",
+        "red_pagos": "RedPagos - Uruguayan payment network",
+        "revolut_pay": "Revolut Pay",
+        "samsung_pay": "Samsung",
+        "satispay": "Satispay",
+        "seicomart": "Seicomart - Japanese convenience store payment",
+        "sepa": "Sepa - Single Euro Payments Area direct debit",
+        "sepa_bank_transfer": "SEPA credit transfer",
+        "sepa_guaranteed_debit": "SEPA Guaranteed Direct Debit - bank debit with payment guarantee",
+        "seven_eleven": "7-Eleven - Convenience store payment",
+        "token": "Payment tokens",
+        "upi_collect": "UPI Collect",
+        "upi_intent": "UPI Intent",
+        "upi_qr": "UPI QR",
+        "we_chat_pay_qr": "WeChat Pay",
+        "wero": "Wero"
+      },
+      "field_types": {
+        "ach": "Ach",
+        "ach_bank_transfer": "AchBankTransfer",
+        "affirm": "Affirm",
+        "afterpay_clearpay": "AfterpayClearpay",
+        "alfamart": "Alfamart",
+        "ali_pay_redirect": "AliPayRedirectWallet",
+        "amazon_pay_redirect": "AmazonPayRedirectWallet",
+        "apple_pay": "AppleWallet",
+        "apple_pay_third_party_sdk": "ApplePayThirdPartySdkWallet",
+        "bacs": "Bacs",
+        "bacs_bank_transfer": "BacsBankTransfer",
+        "bancontact_card": "BancontactCard",
+        "bca_bank_transfer": "BCABankTransfer",
+        "becs": "Becs",
+        "bizum": "Bizum",
+        "blik": "Blik",
+        "bluecode": "Bluecode",
+        "bni_va_bank_transfer": "BNIVaBankTransfer",
+        "boleto": "Boleto",
+        "bri_va_bank_transfer": "BRIVaBankTransfer",
+        "card": "CardDetails",
+        "card_details_for_network_transaction_id": "CardDetailsForNetworkTransactionId",
+        "card_proxy": "CardDetails",
+        "card_redirect": "CardRedirect",
+        "cashapp_qr": "CashappQrWallet",
+        "cimb_va_bank_transfer": "CIMBVaBankTransfer",
+        "classic_reward": "ClassicReward",
+        "crypto": "CryptoCurrency",
+        "danamon_va_bank_transfer": "DanamonVaBankTransfer",
+        "duit_now": "DuitNow",
+        "e_voucher": "EVoucher",
+        "efecty": "Efecty",
+        "eft": "Eft",
+        "eps": "Eps",
+        "family_mart": "FamilyMart",
+        "giropay": "Giropay",
+        "givex": "Givex",
+        "google_pay": "GoogleWallet",
+        "google_pay_third_party_sdk": "GooglePayThirdPartySdkWallet",
+        "ideal": "Ideal",
+        "indomaret": "Indomaret",
+        "indonesian_bank_transfer": "IndonesianBankTransfer",
+        "instant_bank_transfer": "InstantBankTransfer",
+        "instant_bank_transfer_finland": "InstantBankTransferFinland",
+        "instant_bank_transfer_poland": "InstantBankTransferPoland",
+        "interac": "Interac",
+        "klarna": "Klarna",
+        "lawson": "Lawson",
+        "local_bank_redirect": "LocalBankRedirect",
+        "local_bank_transfer": "LocalBankTransfer",
+        "mandiri_va_bank_transfer": "MandiriVaBankTransfer",
+        "mb_way": "MBWay",
+        "mifinity": "MifinityWallet",
+        "mini_stop": "MiniStop",
+        "multibanco_bank_transfer": "MultibancoBankTransfer",
+        "network_token": "NetworkTokenData",
+        "online_banking_czech_republic": "OnlineBankingCzechRepublic",
+        "online_banking_finland": "OnlineBankingFinland",
+        "online_banking_fpx": "OnlineBankingFPX",
+        "online_banking_poland": "OnlineBankingPoland",
+        "online_banking_slovakia": "OnlineBankingSlovakia",
+        "online_banking_thailand": "OnlineBankingThailand",
+        "open_banking": "OpenBanking",
+        "open_banking_pis": "OpenBankingPIS",
+        "open_banking_uk": "OpenBankingUK",
+        "oxxo": "Oxxo",
+        "pago_efectivo": "PagoEfectivo",
+        "pay_easy": "PayEasy",
+        "pay_safe_card": "PaySafeCard",
+        "paypal_redirect": "PaypalRedirectWallet",
+        "paypal_sdk": "PaypalSdkWallet",
+        "paze": "PazeWallet",
+        "permata_bank_transfer": "PermataBankTransfer",
+        "pix": "PixPayment",
+        "przelewy24": "Przelewy24",
+        "pse": "Pse",
+        "red_compra": "RedCompra",
+        "red_pagos": "RedPagos",
+        "revolut_pay": "RevolutPayWallet",
+        "samsung_pay": "SamsungWallet",
+        "satispay": "Satispay",
+        "seicomart": "Seicomart",
+        "sepa": "Sepa",
+        "sepa_bank_transfer": "SepaBankTransfer",
+        "sepa_guaranteed_debit": "SepaGuaranteedDebit",
+        "seven_eleven": "SevenEleven",
+        "sofort": "Sofort",
+        "token": "TokenPaymentMethodType",
+        "trustly": "Trustly",
+        "upi_collect": "UpiCollect",
+        "upi_intent": "UpiIntent",
+        "upi_qr": "UpiQr",
+        "we_chat_pay_qr": "WeChatPayQrWallet",
+        "wero": "Wero"
+      }
+    },
+    "PaymentMethodAuthenticationServiceAuthenticateRequest": {
+      "comments": {
+        "address": "Address Information",
+        "amount": "Amount Information",
+        "authentication_data": "Authentication Details",
+        "browser_info": "Contextual Information",
+        "capture_method": "Capture Settings",
+        "connector_feature_data": "Connector-specific metadata for the transaction",
+        "customer": "Customer Information",
+        "merchant_order_id": "Payment Identification",
+        "metadata": "Additional metadata for the connector",
+        "payment_method": "Payment Method",
+        "redirection_response": "Redirection Information after DDC step",
+        "return_url": "URLs for Redirection",
+        "state": "State Information"
+      },
+      "field_types": {
+        "address": "PaymentAddress",
+        "amount": "Money",
+        "authentication_data": "AuthenticationData",
+        "browser_info": "BrowserInformation",
+        "capture_method": "CaptureMethod",
+        "customer": "Customer",
+        "payment_method": "PaymentMethod",
+        "redirection_response": "RedirectionResponse",
+        "state": "ConnectorState"
+      }
+    },
+    "PaymentMethodAuthenticationServiceAuthenticateResponse": {
+      "comments": {
+        "authentication_data": "Authentication Results",
+        "connector_transaction_id": "Identification",
+        "raw_connector_response": "Raw Response for debugging",
+        "redirection_data": "Redirection and Transaction Details",
+        "state": "State Information",
+        "status": "Status Information"
+      },
+      "field_types": {
+        "authentication_data": "AuthenticationData",
+        "error": "ErrorInfo",
+        "redirection_data": "RedirectForm",
+        "state": "ConnectorState",
+        "status": "PaymentStatus"
+      }
+    },
+    "PaymentMethodAuthenticationServicePostAuthenticateRequest": {
+      "comments": {
+        "address": "Address Information",
+        "amount": "Amount Information",
+        "authentication_data": "Authentication Details",
+        "browser_info": "Contextual Information",
+        "connector_feature_data": "Connector-specific metadata for the transaction",
+        "customer": "Customer Information",
+        "merchant_order_id": "Payment Identification",
+        "payment_method": "Payment Method",
+        "redirection_response": "Redirection Information after DDC step",
+        "return_url": "URLs for Redirection",
+        "state": "State Information"
+      },
+      "field_types": {
+        "address": "PaymentAddress",
+        "amount": "Money",
+        "authentication_data": "AuthenticationData",
+        "browser_info": "BrowserInformation",
+        "customer": "Customer",
+        "payment_method": "PaymentMethod",
+        "redirection_response": "RedirectionResponse",
+        "state": "ConnectorState"
+      }
+    },
+    "PaymentMethodAuthenticationServicePostAuthenticateResponse": {
+      "comments": {
+        "authentication_data": "Authentication Results",
+        "connector_transaction_id": "Identification",
+        "incremental_authorization_allowed": "Authorization Details",
+        "raw_connector_response": "Raw Response for debugging",
+        "redirection_data": "Redirection and Transaction Details",
+        "state": "State Information",
+        "status": "Status Information"
+      },
+      "field_types": {
+        "authentication_data": "AuthenticationData",
+        "error": "ErrorInfo",
+        "redirection_data": "RedirectForm",
+        "state": "ConnectorState",
+        "status": "PaymentStatus"
+      }
+    },
+    "PaymentMethodAuthenticationServicePreAuthenticateRequest": {
+      "comments": {
+        "address": "Address Information",
+        "amount": "Amount Information",
+        "browser_info": "Contextual Information",
+        "capture_method": "Capture Settings",
+        "connector_feature_data": "Connector-specific metadata for the transaction",
+        "customer": "Customer Information",
+        "description": "Description",
+        "enrolled_for_3ds": "Authentication Details",
+        "merchant_order_id": "Payment Identification",
+        "metadata": "Additional metadata for the connector",
+        "payment_method": "Payment Method",
+        "return_url": "URLs for Redirection",
+        "state": "State Information"
+      },
+      "field_types": {
+        "address": "PaymentAddress",
+        "amount": "Money",
+        "browser_info": "BrowserInformation",
+        "capture_method": "CaptureMethod",
+        "customer": "Customer",
+        "payment_method": "PaymentMethod",
+        "state": "ConnectorState"
+      }
+    },
+    "PaymentMethodAuthenticationServicePreAuthenticateResponse": {
+      "comments": {
+        "authentication_data": "Authentication Results",
+        "connector_feature_data": "Connector-specific metadata for the transaction",
+        "connector_transaction_id": "Identification",
+        "raw_connector_response": "Raw Response for debugging",
+        "redirection_data": "Redirection and Transaction Details",
+        "state": "State Information",
+        "status": "Status Information"
+      },
+      "field_types": {
+        "authentication_data": "AuthenticationData",
+        "error": "ErrorInfo",
+        "redirection_data": "RedirectForm",
+        "state": "ConnectorState",
+        "status": "PaymentStatus"
+      }
+    },
+    "PaymentMethodInfo": {
+      "comments": {
+        "card_details": "Card details (usually last 4 digits)",
+        "card_network": "Card network name"
+      },
+      "field_types": {
+        "assurance_details": "AssuranceDetails"
+      }
+    },
+    "PaymentMethodServiceGetRequest": {
+      "comments": {
+        "merchant_payment_method_id": "Identification",
+        "payment_method_token": "Payment Method Information",
+        "state": "State Information"
+      },
+      "field_types": {
+        "state": "ConnectorState"
+      }
+    },
+    "PaymentMethodServiceGetResponse": {
+      "comments": {
+        "customer": "Customer Information",
+        "error": "Error Information",
+        "merchant_payment_method_id": "Reference",
+        "payment_method": "Payment Method Information"
+      },
+      "field_types": {
+        "customer": "Customer",
+        "error": "ErrorInfo",
+        "payment_method": "PaymentMethod"
+      }
+    },
+    "PaymentMethodServiceTokenizeRequest": {
+      "comments": {
+        "address": "Address Information",
+        "amount": "Payment Information",
+        "connector_feature_data": "Connector-specific metadata for the transaction",
+        "customer": "Customer Information",
+        "merchant_payment_method_id": "Identification",
+        "return_url": "URLs for Redirection",
+        "test_mode": "Environment Configuration"
+      },
+      "field_types": {
+        "address": "PaymentAddress",
+        "amount": "Money",
+        "customer": "Customer",
+        "payment_method": "PaymentMethod"
+      }
+    },
+    "PaymentMethodServiceTokenizeResponse": {
+      "comments": {
+        "error": "Error Information",
+        "merchant_payment_method_id": "Reference",
+        "payment_method_token": "Token Information",
+        "state": "State Information"
+      },
+      "field_types": {
+        "error": "ErrorInfo",
+        "state": "ConnectorState"
+      }
+    },
+    "PaymentServiceAuthorizeRequest": {
+      "comments": {
+        "address": "Address Information",
+        "amount": "The amount for the payment",
+        "auth_type": "Authentication Details",
+        "billing_descriptor": "Statement Descriptor",
+        "capture_method": "Method for capturing the payment",
+        "connector_feature_data": "Connector-specific feature data for the transaction",
+        "continue_redirection_url": "URL to complete authorization",
+        "customer": "Customer Information",
+        "customer_acceptance": "Contextual Information",
+        "l2_l3_data": "Level 2 / Level 3 data for enhanced payment processing",
+        "locale": "Locale Information",
+        "merchant_transaction_id": "Identification",
+        "metadata": "Additional metadata for the connector",
+        "order_category": "Order Details",
+        "order_details": "Order Details",
+        "order_tax_amount": "Tax amount for the order",
+        "payment_method": "Payment method to be used",
+        "payment_method_token": "Payment Method Token",
+        "redirection_response": "Redirection Response from client browser",
+        "return_url": "URLs for Redirection and Webhooks",
+        "session_token": "Session and Token Information",
+        "setup_future_usage": "Behavioral Flags and Preferences",
+        "setup_mandate_details": "Mandate Setup Details",
+        "shipping_cost": "Cost of shipping for the order",
+        "state": "State Information",
+        "statement_descriptor_name": "Complete description that appears on customers' statements",
+        "statement_descriptor_suffix": "Provides information about a card payment that customers see on their statements",
+        "test_mode": "Environment Configuration",
+        "threeds_completion_indicator": "Indicates if 3DS method data was successfully completed or not",
+        "tokenization_strategy": "Tokenization configuration"
+      },
+      "field_types": {
+        "address": "PaymentAddress",
+        "amount": "Money",
+        "auth_type": "AuthenticationType",
+        "authentication_data": "AuthenticationData",
+        "billing_descriptor": "BillingDescriptor",
+        "browser_info": "BrowserInformation",
+        "capture_method": "CaptureMethod",
+        "customer": "Customer",
+        "customer_acceptance": "CustomerAcceptance",
+        "l2_l3_data": "L2L3Data",
+        "order_details": "OrderDetailsWithAmount",
+        "payment_channel": "PaymentChannel",
+        "payment_experience": "PaymentExperience",
+        "payment_method": "PaymentMethod",
+        "redirection_response": "RedirectionResponse",
+        "setup_future_usage": "FutureUsage",
+        "setup_mandate_details": "SetupMandateDetails",
+        "state": "ConnectorState",
+        "threeds_completion_indicator": "ThreeDsCompletionIndicator",
+        "tokenization_strategy": "Tokenization"
+      }
+    },
+    "PaymentServiceAuthorizeResponse": {
+      "comments": {
+        "captured_amount": "Payment Details",
+        "connector_feature_data": "Connector-specific metadata for the transaction",
+        "incremental_authorization_allowed": "Authorization Details",
+        "mandate_reference": "Mandate and Connector Response",
+        "merchant_transaction_id": "Identification",
+        "raw_connector_response": "Raw Response/Request for debugging",
+        "redirection_data": "Redirection and Transaction Details",
+        "state": "State Information",
+        "status": "Status Information"
+      },
+      "field_types": {
+        "connector_response": "ConnectorResponseData",
+        "error": "ErrorInfo",
+        "mandate_reference": "MandateReference",
+        "redirection_data": "RedirectForm",
+        "state": "ConnectorState",
+        "status": "PaymentStatus"
+      }
+    },
+    "PaymentServiceCaptureRequest": {
+      "comments": {
+        "amount_to_capture": "Capture Details",
+        "browser_info": "Browser Information",
+        "capture_method": "Capture Settings",
+        "connector_feature_data": "Connector-specific metadata for the transaction",
+        "merchant_capture_id": "Identification",
+        "merchant_order_id": "Additional Context",
+        "metadata": "Additional metadata for the connector",
+        "multiple_capture_data": "Multiple Capture Information",
+        "state": "State Information",
+        "test_mode": "Environment Configuration"
+      },
+      "field_types": {
+        "amount_to_capture": "Money",
+        "browser_info": "BrowserInformation",
+        "capture_method": "CaptureMethod",
+        "multiple_capture_data": "MultipleCaptureRequestData",
+        "state": "ConnectorState"
+      }
+    },
+    "PaymentServiceCaptureResponse": {
+      "comments": {
+        "captured_amount": "Captured amount in minor currency units",
+        "connector_feature_data": "Connector-specific metadata for the transaction",
+        "connector_transaction_id": "Identification",
+        "incremental_authorization_allowed": "Authorization Details",
+        "mandate_reference": "Mandate Details",
+        "merchant_capture_id": "Reference",
+        "raw_connector_request": "Raw Request for debugging",
+        "state": "State Information",
+        "status": "Status Information"
+      },
+      "field_types": {
+        "error": "ErrorInfo",
+        "mandate_reference": "MandateReference",
+        "state": "ConnectorState",
+        "status": "PaymentStatus"
+      }
+    },
+    "PaymentServiceCreateOrderRequest": {
+      "comments": {
+        "amount": "Amount Information",
+        "connector_feature_data": "Connector-specific metadata for the transaction",
+        "merchant_order_id": "Identification",
+        "metadata": "Additional metadata for the connector",
+        "payment_method_type": "The type of payment method (e.g., apple_pay, google_pay)",
+        "state": "State Information",
+        "test_mode": "Environment Configuration",
+        "webhook_url": "URLs for Redirection and Webhooks"
+      },
+      "field_types": {
+        "amount": "Money",
+        "payment_method_type": "PaymentMethodType",
+        "state": "ConnectorState"
+      }
+    },
+    "PaymentServiceCreateOrderResponse": {
+      "comments": {
+        "connector_order_id": "Identifier for the create order response",
+        "merchant_order_id": "Reference",
+        "raw_connector_request": "Raw Request/Response for debugging",
+        "session_token": "JSON serialized session token for wallet payments (Apple Pay, Google Pay)",
+        "status": "Status of the order creation attempt"
+      },
+      "field_types": {
+        "error": "ErrorInfo",
+        "session_token": "SessionToken",
+        "status": "PaymentStatus"
+      }
+    },
+    "PaymentServiceDisputeRequest": {
+      "comments": {
+        "connector_transaction_id": "Transaction ID to raise the dispute for",
+        "merchant_dispute_id": "Identification",
+        "state": "State data for access token storage and other connector-specific state"
+      },
+      "field_types": {
+        "state": "ConnectorState"
+      }
+    },
+    "PaymentServiceGetRequest": {
+      "comments": {
+        "amount": "Amount Information",
+        "capture_method": "Capture Settings",
+        "connector_feature_data": "Connector-specific metadata for the transaction",
+        "connector_order_reference_id": "Connector Reference Id",
+        "merchant_transaction_id": "Identification",
+        "metadata": "Additional metadata for the connector",
+        "payment_experience": "Payment Experience",
+        "setup_future_usage": "Behavioral Flags",
+        "state": "State Information",
+        "sync_type": "Sync Type",
+        "test_mode": "Environment Configuration"
+      },
+      "field_types": {
+        "amount": "Money",
+        "capture_method": "CaptureMethod",
+        "payment_experience": "PaymentExperience",
+        "setup_future_usage": "FutureUsage",
+        "state": "ConnectorState",
+        "sync_type": "SyncRequestType"
+      }
+    },
+    "PaymentServiceGetResponse": {
+      "comments": {
+        "amount": "Payment Details",
+        "captured_amount": "Captured amount in minor currency units",
+        "connector_transaction_id": "Identification",
+        "created_at": "Timestamps",
+        "customer_name": "Additional Context",
+        "incremental_authorization_allowed": "Capability Flags",
+        "mandate_reference": "Transaction Details",
+        "metadata": "Additional metadata from the connector",
+        "raw_connector_response": "Raw Response/Request for debugging",
+        "redirection_data": "Redirection and Transaction Details",
+        "state": "State Information",
+        "status": "Status Information"
+      },
+      "field_types": {
+        "amount": "Money",
+        "auth_type": "AuthenticationType",
+        "capture_method": "CaptureMethod",
+        "connector_response": "ConnectorResponseData",
+        "error": "ErrorInfo",
+        "mandate_reference": "MandateReference",
+        "payment_method_type": "PaymentMethodType",
+        "redirection_data": "RedirectForm",
+        "state": "ConnectorState",
+        "status": "PaymentStatus"
+      }
+    },
+    "PaymentServiceIncrementalAuthorizationRequest": {
+      "comments": {
+        "amount": "new amount to be authorized (in minor currency units)",
+        "merchant_authorization_id": "Identification",
+        "reason": "Optional Fields",
+        "state": "State Information"
+      },
+      "field_types": {
+        "amount": "Money",
+        "state": "ConnectorState"
+      }
+    },
+    "PaymentServiceIncrementalAuthorizationResponse": {
+      "comments": {
+        "connector_authorization_id": "Identification",
+        "state": "State Information",
+        "status": "Status Information"
+      },
+      "field_types": {
+        "error": "ErrorInfo",
+        "state": "ConnectorState",
+        "status": "AuthorizationStatus"
+      }
+    },
+    "PaymentServiceRefundRequest": {
+      "comments": {
+        "browser_info": "Browser information, if relevant",
+        "capture_method": "Capture method related to the original payment",
+        "connector_feature_data": "Connector-specific metadata for the transaction",
+        "customer_id": "Merchant's customer ID",
+        "merchant_account_id": "Merchant account ID for the refund",
+        "merchant_refund_id": "Identification",
+        "metadata": "Metadata specific to the connector",
+        "payment_amount": "Amount Information",
+        "payment_method_type": "Indicates the sub type of payment method. (e.g., card, bank_redirect, bank_transfer)",
+        "reason": "Reason for the refund",
+        "refund_metadata": "Metadata specific to the refund",
+        "state": "State data for access token storage and other connector-specific state",
+        "test_mode": "A boolean value to indicate if the connector is in Test mode",
+        "webhook_url": "URL for webhook notifications"
+      },
+      "field_types": {
+        "browser_info": "BrowserInformation",
+        "capture_method": "CaptureMethod",
+        "payment_method_type": "PaymentMethodType",
+        "refund_amount": "Money",
+        "state": "ConnectorState"
+      }
+    },
+    "PaymentServiceReverseRequest": {
+      "comments": {
+        "browser_info": "Browser Information",
+        "cancellation_reason": "Reverse Details",
+        "connector_feature_data": "Connector-specific metadata for the transaction",
+        "merchant_reverse_id": "Identification",
+        "metadata": "Additional metadata for the connector"
+      },
+      "field_types": {
+        "browser_info": "BrowserInformation"
+      }
+    },
+    "PaymentServiceReverseResponse": {
+      "comments": {
+        "connector_transaction_id": "Identification",
+        "merchant_reverse_id": "Reference",
+        "status": "Status Information"
+      },
+      "field_types": {
+        "error": "ErrorInfo",
+        "status": "PaymentStatus"
+      }
+    },
+    "PaymentServiceSetupRecurringRequest": {
+      "comments": {
+        "address": "Address Information",
+        "amount": "Mandate Details",
+        "auth_type": "Type of authentication to be used",
+        "authentication_data": "Additional authentication data",
+        "billing_descriptor": "Billing Descriptor information to be sent to the payment gateway",
+        "browser_info": "Information about the customer's browser",
+        "complete_authorize_url": "URL to complete authorization",
+        "connector_feature_data": "Connector-specific metadata for the transaction",
+        "connector_testing_data": "Connector-specific testing data (JSON stringified)",
+        "customer_acceptance": "Details of customer acceptance",
+        "enable_partial_authorization": "Indicates if partial authorization is enabled",
+        "enrolled_for_3ds": "Indicates if the customer is enrolled for 3D Secure",
+        "l2_l3_data": "Level 2 / Level 3 data for enhanced payment processing",
+        "locale": "Locale/language preference for the shopper (e.g., \"en-US\")",
+        "merchant_order_id": "Merchant's internal reference ID",
+        "merchant_recurring_payment_id": "Identification",
+        "metadata": "Additional metadata for the connector",
+        "off_session": "Indicates if off-session process",
+        "order_category": "Category of the order/service related to the mandate",
+        "order_id": "Send the connector order identifier here if an order was created before authorize",
+        "order_tax_amount": "Tax amount, if an initial payment is part of setup",
+        "payment_channel": "Describes the channel through which the payment was initiated",
+        "payment_experience": "Preferred payment experience",
+        "payment_method_token": "Payment Method Token",
+        "request_extended_authorization": "Indicates if extended authorization is requested",
+        "request_incremental_authorization": "Indicates if incremental authorization is requested",
+        "return_url": "URL to redirect after setup",
+        "session_token": "Session token, if applicable",
+        "setup_future_usage": "Indicates future usage intention",
+        "setup_mandate_details": "Mandate setup details",
+        "shipping_cost": "Shipping cost, if an initial payment is part of setup",
+        "state": "State data for access token storage and other connector-specific state",
+        "webhook_url": "URL for webhook notifications"
+      },
+      "field_types": {
+        "address": "PaymentAddress",
+        "amount": "Money",
+        "auth_type": "AuthenticationType",
+        "authentication_data": "AuthenticationData",
+        "billing_descriptor": "BillingDescriptor",
+        "browser_info": "BrowserInformation",
+        "customer": "Customer",
+        "customer_acceptance": "CustomerAcceptance",
+        "l2_l3_data": "L2L3Data",
+        "payment_channel": "PaymentChannel",
+        "payment_experience": "PaymentExperience",
+        "payment_method": "PaymentMethod",
+        "setup_future_usage": "FutureUsage",
+        "setup_mandate_details": "SetupMandateDetails",
+        "state": "ConnectorState"
+      }
+    },
+    "PaymentServiceSetupRecurringResponse": {
+      "comments": {
+        "captured_amount": "Captured amount in minor currency units",
+        "connector_feature_data": "Connector-specific metadata for the transaction",
+        "connector_recurring_payment_id": "Identifier for the mandate registration",
+        "connector_response": "Various data regarding the response from connector",
+        "incremental_authorization_allowed": "Indicates if incremental authorization is allowed",
+        "mandate_reference": "Reference to the created mandate",
+        "network_transaction_id": "Renamed from network_transaction_id",
+        "raw_connector_request": "Raw request to the connector for debugging",
+        "redirection_data": "Data for redirecting the customer's browser",
+        "response_headers": "Optional HTTP response headers from the connector",
+        "state": "State data for access token storage and other connector-specific state",
+        "status": "Status of the mandate setup attempt (using PaymentStatus with mandate values)",
+        "status_code": "HTTP status code from the connector"
+      },
+      "field_types": {
+        "connector_response": "ConnectorResponseData",
+        "error": "ErrorInfo",
+        "mandate_reference": "MandateReference",
+        "redirection_data": "RedirectForm",
+        "state": "ConnectorState",
+        "status": "PaymentStatus"
+      }
+    },
+    "PaymentServiceVerifyRedirectResponseRequest": {
+      "comments": {
+        "merchant_order_id": "Identification",
+        "redirect_response_secrets": "Security",
+        "request_details": "Request Details"
+      },
+      "field_types": {
+        "redirect_response_secrets": "RedirectResponseSecrets",
+        "request_details": "RequestDetails"
+      }
+    },
+    "PaymentServiceVerifyRedirectResponseResponse": {
+      "comments": {
+        "connector_transaction_id": "Identification",
+        "merchant_order_id": "Reference",
+        "raw_connector_response": "Raw Response",
+        "response_amount": "Response Amount Information",
+        "source_verified": "Verification",
+        "status": "Status Information"
+      },
+      "field_types": {
+        "error": "ErrorInfo",
+        "response_amount": "Money",
+        "status": "PaymentStatus"
+      }
+    },
+    "PaymentServiceVoidRequest": {
+      "comments": {
+        "amount": "Amount Information",
+        "browser_info": "Browser Information",
+        "cancellation_reason": "Void Details",
+        "connector_feature_data": "Connector-specific metadata for the transaction",
+        "merchant_order_id": "Additional Context",
+        "merchant_void_id": "Identification",
+        "metadata": "Additional metadata for the connector",
+        "state": "State Information",
+        "test_mode": "Environment Configuration"
+      },
+      "field_types": {
+        "amount": "Money",
+        "browser_info": "BrowserInformation",
+        "state": "ConnectorState"
+      }
+    },
+    "PaymentServiceVoidResponse": {
+      "comments": {
+        "connector_feature_data": "Connector-specific metadata for the transaction",
+        "connector_transaction_id": "Identification",
+        "incremental_authorization_allowed": "Authorization Details",
+        "mandate_reference": "Mandate Details",
+        "merchant_void_id": "Reference",
+        "raw_connector_request": "Raw Request for debugging",
+        "state": "State Information",
+        "status": "Status Information"
+      },
+      "field_types": {
+        "error": "ErrorInfo",
+        "mandate_reference": "MandateReference",
+        "state": "ConnectorState",
+        "status": "PaymentStatus"
+      }
+    },
+    "PaypalConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "PaypalRedirectWallet": {
+      "comments": {
+        "email": "PayPal's email address"
+      },
+      "field_types": {}
+    },
+    "PaypalSdkWallet": {
+      "comments": {
+        "token": "Payment token from PayPal SDK"
+      },
+      "field_types": {}
+    },
+    "PaypalSessionTokenResponse": {
+      "comments": {},
+      "field_types": {
+        "sdk_next_action": "SdkNextAction",
+        "transaction_info": "PaypalTransactionInfo"
+      }
+    },
+    "PaypalTransactionInfo": {
+      "comments": {
+        "total_price": "Minor units"
+      },
+      "field_types": {
+        "currency_code": "Currency",
+        "flow": "PaypalFlow"
+      }
+    },
+    "PaysafeAchAccountId": {
+      "comments": {},
+      "field_types": {}
+    },
+    "PaysafeCardAccountId": {
+      "comments": {},
+      "field_types": {}
+    },
+    "PaysafeConfig": {
+      "comments": {
+        "account_id": "Card and ACH account IDs per currency"
+      },
+      "field_types": {
+        "account_id": "PaysafePaymentMethodDetails"
+      }
+    },
+    "PaysafePaymentMethodDetails": {
+      "comments": {},
+      "field_types": {}
+    },
+    "PaytmConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "PayuConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "PazeAddress": {
+      "comments": {},
+      "field_types": {
+        "country_code": "CountryAlpha2"
+      }
+    },
+    "PazeConsumer": {
+      "comments": {},
+      "field_types": {
+        "country_code": "CountryAlpha2",
+        "mobile_number": "PazePhoneNumber"
+      }
+    },
+    "PazeDecryptedData": {
+      "comments": {},
+      "field_types": {
+        "billing_address": "PazeAddress",
+        "consumer": "PazeConsumer",
+        "dynamic_data": "PazeDynamicData",
+        "payment_card_network": "CardNetwork",
+        "token": "PazeToken"
+      }
+    },
+    "PazeDynamicData": {
+      "comments": {},
+      "field_types": {}
+    },
+    "PazePhoneNumber": {
+      "comments": {},
+      "field_types": {}
+    },
+    "PazeToken": {
+      "comments": {},
+      "field_types": {}
+    },
+    "PazeWallet": {
+      "comments": {
+        "complete_response": "Backward-compatible raw payload.",
+        "decrypted_data": "Structured decrypted Paze payload."
+      },
+      "field_types": {
+        "decrypted_data": "PazeDecryptedData"
+      }
+    },
+    "PeachpaymentsConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "PhonepeConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "PixPayment": {
+      "comments": {
+        "cnpj": "CNPJ (Brazilian company tax identification number)",
+        "cpf": "CPF (Brazilian tax identification number)",
+        "destination_bank_account_id": "Destination bank account ID",
+        "expiry_date": "Session expiry date for Pix QR code (ISO 8601 format, max 5 days from now for Adyen)",
+        "pix_key": "Unique key for PIX transfer",
+        "source_bank_account_id": "Source bank account ID"
+      },
+      "field_types": {}
+    },
+    "PowertranzConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "ProxyOptions": {
+      "comments": {
+        "bypass_urls": "URLs/Hostnames that should bypass the proxy",
+        "http_url": "HTTP proxy URL",
+        "https_url": "HTTPS proxy URL"
+      },
+      "field_types": {}
+    },
+    "Przelewy24": {
+      "comments": {
+        "bank_name": "Issuer banks"
+      },
+      "field_types": {
+        "bank_name": "BankNames"
+      }
+    },
+    "RapydConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "RecurringPaymentServiceChargeRequest": {
+      "comments": {
+        "address": "Address Information",
+        "amount": "Amount Information",
+        "authentication_data": "Authentication Data",
+        "billing_descriptor": "Billing Descriptor",
+        "browser_info": "Browser Information",
+        "capture_method": "Capture Settings",
+        "connector_feature_data": "Connector-specific metadata for the transaction",
+        "connector_recurring_payment_id": "Reference to existing mandate",
+        "connector_testing_data": "Testing Data",
+        "customer": "Customer Information",
+        "email": "Customer Information",
+        "l2_l3_data": "Level 2 / Level 3 data for enhanced payment processing",
+        "locale": "Locale Information",
+        "merchant_account_id": "Merchant Account Configuration",
+        "merchant_charge_id": "Reference ID for tracking",
+        "merchant_order_id": "Optional fields",
+        "metadata": "Additional metadata for the connector",
+        "mit_category": "MIT Category",
+        "off_session": "Behavioral Flags and Preferences",
+        "original_payment_authorized_amount": "Original Payment Details (for reference and validation in MIT flows)",
+        "payment_method": "Optional payment Method Information (for network transaction flows)",
+        "shipping_cost": "Shipping cost in minor units (e.g., cents)",
+        "state": "State Information"
+      },
+      "field_types": {
+        "address": "PaymentAddress",
+        "amount": "Money",
+        "authentication_data": "AuthenticationData",
+        "billing_descriptor": "BillingDescriptor",
+        "browser_info": "BrowserInformation",
+        "capture_method": "CaptureMethod",
+        "connector_recurring_payment_id": "MandateReference",
+        "customer": "Customer",
+        "l2_l3_data": "L2L3Data",
+        "merchant_configured_currency": "Currency",
+        "mit_category": "MitCategory",
+        "original_payment_authorized_amount": "Money",
+        "payment_method": "PaymentMethod",
+        "payment_method_type": "PaymentMethodType",
+        "state": "ConnectorState"
+      }
+    },
+    "RecurringPaymentServiceChargeResponse": {
+      "comments": {
+        "captured_amount": "Captured amount in minor currency units",
+        "connector_transaction_id": "Identification",
+        "incremental_authorization_allowed": "Authorization Details",
+        "network_transaction_id": "Transaction Details",
+        "raw_connector_response": "Raw Response/Request for debugging",
+        "state": "State Information",
+        "status": "Status Information"
+      },
+      "field_types": {
+        "connector_response": "ConnectorResponseData",
+        "error": "ErrorInfo",
+        "mandate_reference": "MandateReference",
+        "state": "ConnectorState",
+        "status": "PaymentStatus"
+      }
+    },
+    "RecurringPaymentServiceRevokeRequest": {
+      "comments": {
+        "mandate_id": "Mandate Details",
+        "merchant_revoke_id": "Identification"
+      },
+      "field_types": {}
+    },
+    "RecurringPaymentServiceRevokeResponse": {
+      "comments": {
+        "network_transaction_id": "Transaction Details",
+        "raw_connector_response": "Raw Response/Request for debugging",
+        "status": "Status Information"
+      },
+      "field_types": {
+        "error": "ErrorInfo",
+        "status": "MandateStatus"
+      }
+    },
+    "RedirectForm": {
+      "comments": {
+        "braintree": "Braintree-specific redirection data for SDK-based flows.",
+        "form": "Data for constructing an HTML form for redirection.",
+        "html": "Raw HTML data for redirection.",
+        "mifinity": "Mifinity-specific redirection data for SDK-based flows.",
+        "uri": "URI for direct redirection (e.g., UPI deep links)."
+      },
+      "field_types": {
+        "braintree": "BraintreeData",
+        "form": "FormData",
+        "html": "HtmlData",
+        "mifinity": "MifinityData",
+        "uri": "UriData"
+      }
+    },
+    "RedirectResponseSecrets": {
+      "comments": {
+        "additional_secret": "Additional secret, if required by the connector.",
+        "secret": "Primary secret for source verification."
+      },
+      "field_types": {}
+    },
+    "RedirectionResponse": {
+      "comments": {},
+      "field_types": {}
+    },
+    "RedsysConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "RefundResponse": {
+      "comments": {
+        "acquirer_reference_number": "Acquirer reference number for the refund, if provided by the connector",
+        "connector_refund_id": "Connector's ID for the refund",
+        "created_at": "Unix timestamp when the refund was created",
+        "customer_name": "Name of the customer",
+        "email": "Email address of the customer",
+        "merchant_refund_id": "Identifier for the synchronized resource",
+        "processed_at": "Unix timestamp when the refund was processed",
+        "raw_connector_response": "Raw Response/Request for debugging",
+        "refund_amount": "Refund Details",
+        "refund_metadata": "Refund-specific metadata from the connector",
+        "refund_reason": "Reason for the refund",
+        "response_headers": "Optional HTTP response headers from the connector",
+        "state": "State Information",
+        "status": "Current status of the refund",
+        "status_code": "HTTP status code from the connector",
+        "updated_at": "Unix timestamp when the refund was last updated"
+      },
+      "field_types": {
+        "error": "ErrorInfo",
+        "refund_amount": "Money",
+        "state": "ConnectorState",
+        "status": "RefundStatus"
+      }
+    },
+    "RefundServiceGetRequest": {
+      "comments": {
+        "browser_info": "Browser Information",
+        "merchant_refund_id": "Identification",
+        "payment_method_type": "Payment Method Type",
+        "refund_metadata": "Metadata specific to the refund sync",
+        "refund_reason": "Refund Details",
+        "state": "State Information",
+        "test_mode": "Environment Configuration"
+      },
+      "field_types": {
+        "browser_info": "BrowserInformation",
+        "payment_method_type": "PaymentMethodType",
+        "state": "ConnectorState"
+      }
+    },
+    "RequestConfig": {
+      "comments": {
+        "http": "HTTP and transport configuration",
+        "vault": "Vault configuration options (Placeholder)"
+      },
+      "field_types": {
+        "http": "HttpConfig",
+        "vault": "VaultOptions"
+      }
+    },
+    "RequestDetails": {
+      "comments": {
+        "body": "Body of the HTTP request.",
+        "headers": "Headers of the HTTP request.",
+        "method": "HTTP method of the request (e.g., GET, POST).",
+        "query_params": "Query parameters of the request.",
+        "uri": "URI of the request."
+      },
+      "field_types": {
+        "method": "HttpMethod"
+      }
+    },
+    "RequestError": {
+      "comments": {},
+      "field_types": {
+        "status": "PaymentStatus"
+      }
+    },
+    "ResponseError": {
+      "comments": {},
+      "field_types": {
+        "status": "PaymentStatus"
+      }
+    },
+    "RevolutConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "Revolv3Config": {
+      "comments": {},
+      "field_types": {}
+    },
+    "SamsungWallet": {
+      "comments": {},
+      "field_types": {
+        "payment_credential": "PaymentCredential"
+      }
+    },
+    "ScreenstreamConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "SdkOptions": {
+      "comments": {
+        "environment": "Primary deployment environment (Immutable)"
+      },
+      "field_types": {
+        "environment": "Environment"
+      }
+    },
+    "SecretInfoToInitiateSdk": {
+      "comments": {},
+      "field_types": {}
+    },
+    "SecretString": {
+      "comments": {},
+      "field_types": {}
+    },
+    "Sepa": {
+      "comments": {
+        "bank_account_holder_name": "Owner name for bank debit",
+        "iban": "International bank account number (iban) for SEPA"
+      },
+      "field_types": {}
+    },
+    "SepaGuaranteedDebit": {
+      "comments": {
+        "bank_account_holder_name": "Owner name for bank debit",
+        "iban": "International bank account number (iban)"
+      },
+      "field_types": {}
+    },
+    "SessionToken": {
+      "comments": {},
+      "field_types": {
+        "apple_pay": "ApplepaySessionTokenResponse",
+        "google_pay": "GpaySessionTokenResponse",
+        "paypal": "PaypalSessionTokenResponse"
+      }
+    },
+    "SetupMandateDetails": {
+      "comments": {
+        "customer_acceptance": "Details of customer acceptance",
+        "mandate_type": "Type of mandate (single_use or multi_use) with amount details",
+        "update_mandate_id": "A way to update the mandate's payment method details"
+      },
+      "field_types": {
+        "customer_acceptance": "CustomerAcceptance",
+        "mandate_type": "MandateType"
+      }
+    },
+    "Shift4Config": {
+      "comments": {},
+      "field_types": {}
+    },
+    "SilverflowConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "Sofort": {
+      "comments": {
+        "country": "The country for bank payment",
+        "preferred_language": "Preferred language for bank payment"
+      },
+      "field_types": {
+        "country": "CountryAlpha2"
+      }
+    },
+    "StaxConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "StripeConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "TaxInfo": {
+      "comments": {
+        "customer_tax_registration_id": "Customer's tax registration ID (sensitive)",
+        "merchant_tax_registration_id": "Merchant's tax registration ID (sensitive)",
+        "order_tax_amount": "Total tax amount for the order (in minor currency units)",
+        "shipping_amount_tax": "Tax on the shipping amount (in minor currency units)",
+        "tax_status": "Tax status of the order"
+      },
+      "field_types": {
+        "tax_status": "TaxStatus"
+      }
+    },
+    "ThirdPartySdkSessionResponse": {
+      "comments": {},
+      "field_types": {
+        "secrets": "SecretInfoToInitiateSdk"
+      }
+    },
+    "TokenData": {
+      "comments": {
+        "data": "Token data",
+        "type": "3DS type",
+        "version": "3DS version"
+      },
+      "field_types": {}
+    },
+    "TokenPaymentMethodType": {
+      "comments": {
+        "token": "The token string representing a payment method."
+      },
+      "field_types": {}
+    },
+    "TokenizationData": {
+      "comments": {
+        "decrypted_data": "Decrypted Google Pay payment data",
+        "encrypted_data": "Encrypted Google Pay payment data"
+      },
+      "field_types": {
+        "decrypted_data": "GooglePayDecryptedData",
+        "encrypted_data": "GooglePayEncryptedTokenizationData"
+      }
+    },
+    "Trustly": {
+      "comments": {
+        "country": "The customer's country code (required by Trustly)"
+      },
+      "field_types": {
+        "country": "CountryAlpha2"
+      }
+    },
+    "TrustpayConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "TrustpaymentsConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "TsysConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "UnifiedErrorDetails": {
+      "comments": {
+        "code": "Machine-readable error code",
+        "description": "Detailed explanation",
+        "message": "Human-readable error message",
+        "user_guidance_message": "User-facing message with guidance on next steps"
+      },
+      "field_types": {}
+    },
+    "UpiCollect": {
+      "comments": {
+        "upi_source": "UPI source type",
+        "vpa_id": "Virtual Payment Address"
+      },
+      "field_types": {
+        "upi_source": "UpiSource"
+      }
+    },
+    "UpiConnectorResponse": {
+      "comments": {
+        "upi_mode": "Final UPI source detected from connector response"
+      },
+      "field_types": {
+        "upi_mode": "UpiSource"
+      }
+    },
+    "UpiIntent": {
+      "comments": {
+        "app_name": "App name for UPI Intent",
+        "upi_source": "UPI source type"
+      },
+      "field_types": {
+        "upi_source": "UpiSource"
+      }
+    },
+    "UpiQr": {
+      "comments": {
+        "upi_source": "UPI source type"
+      },
+      "field_types": {
+        "upi_source": "UpiSource"
+      }
+    },
+    "UriData": {
+      "comments": {
+        "uri": "The URI for redirection (e.g., UPI deep link)."
+      },
+      "field_types": {}
+    },
+    "VoltConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "WebhookSecrets": {
+      "comments": {
+        "additional_secret": "Additional secret, if required by the connector.",
+        "secret": "Primary secret for webhook verification."
+      },
+      "field_types": {}
+    },
+    "WellsfargoConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "WorldpayConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "WorldpayvantivConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "WorldpayxmlConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "XenditConfig": {
+      "comments": {},
+      "field_types": {}
+    },
+    "ZiftConfig": {
+      "comments": {},
+      "field_types": {}
+    }
+  },
+  "schema_version": "2.0.0"
+}

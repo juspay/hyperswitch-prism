@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use grpc_api_types::payments::{
-    self, Connector, ConnectorAuth, ConnectorConfig, Environment, FfiOptions,
-    PaymentServiceAuthorizeRequest, RequestConfig,
+    self, ConnectorConfig, ConnectorSpecificConfig, Environment, FfiOptions,
+    PaymentServiceAuthorizeRequest, RequestConfig, SdkOptions,
 };
 use hyperswitch_masking::Secret;
 use hyperswitch_payments_client::ConnectorClient;
@@ -13,17 +13,20 @@ async fn main() {
     let api_key =
         std::env::var("STRIPE_API_KEY").unwrap_or_else(|_| "sk_test_placeholder".to_string());
 
+    // Define the connector config (typed, no separate connector enum needed)
+    let connector_config = ConnectorSpecificConfig {
+        config: Some(payments::connector_specific_config::Config::Stripe(
+            payments::StripeConfig {
+                api_key: Some(Secret::new(api_key.to_string())),
+                base_url: None,
+            },
+        )),
+    };
+
     // Define the final configuration context
     let ffi_options = FfiOptions {
         environment: Environment::Sandbox.into(),
-        connector: Connector::Stripe.into(),
-        auth: Some(ConnectorAuth {
-            auth_type: Some(payments::connector_auth::AuthType::Stripe(
-                payments::StripeAuth {
-                    api_key: Some(Secret::new(api_key.to_string())),
-                },
-            )),
-        }),
+        connector_config: Some(connector_config.clone()),
     };
 
     let metadata = build_metadata(&api_key);
@@ -32,7 +35,7 @@ async fn main() {
     demo_low_level(&request, &metadata, &ffi_options);
 
     // Demo 2: Full round-trip - use ConnectorClient to make actual HTTP call
-    demo_full_round_trip(request, &metadata, ffi_options).await;
+    demo_full_round_trip(request, &metadata, connector_config).await;
 }
 
 /// Build a sample PaymentServiceAuthorizeRequest (Stripe card payment).
@@ -93,21 +96,11 @@ fn build_authorize_request() -> PaymentServiceAuthorizeRequest {
     }
 }
 
-/// Build metadata for Stripe with HeaderKey auth.
-fn build_metadata(api_key: &str) -> HashMap<String, String> {
+/// Build request metadata used for masking and tracing in the SDK example.
+fn build_metadata(_api_key: &str) -> HashMap<String, String> {
     let mut metadata = HashMap::new();
 
-    // Connector routing (used by parse_metadata / build_ffi_request)
-    metadata.insert("connector".to_string(), "Stripe".to_string());
-    metadata.insert(
-        "connector_auth_type".to_string(),
-        serde_json::json!({
-            "Stripe": {
-                "api_key": api_key,
-            }
-        })
-        .to_string(),
-    );
+    metadata.insert("x-request-id".to_string(), "rust-sdk-example".to_string());
     metadata
 }
 
@@ -177,7 +170,7 @@ fn demo_low_level(
 async fn demo_full_round_trip(
     request: PaymentServiceAuthorizeRequest,
     metadata: &HashMap<String, String>,
-    ffi_options: FfiOptions,
+    connector_config: ConnectorSpecificConfig,
 ) {
     eprintln!("\n=== Demo 2: Full Round-Trip (ConnectorClient) ===\n");
 
@@ -191,11 +184,12 @@ async fn demo_full_round_trip(
     eprintln!("Connector: Stripe");
     eprintln!("Sending authorize request...\n");
 
-    // 1. ConnectorConfig (connector, auth, environment)
+    // 1. ConnectorConfig (connector_config, options with environment)
     let config = ConnectorConfig {
-        connector: ffi_options.connector,
-        auth: ffi_options.auth.clone(),
-        environment: ffi_options.environment,
+        connector_config: Some(connector_config),
+        options: Some(SdkOptions {
+            environment: Environment::Sandbox.into(),
+        }),
     };
 
     // 2. Optional RequestConfig defaults (http, vault)

@@ -1,0 +1,26 @@
+# AUTO-GENERATED — do not edit by hand.
+# Source: services.proto ∩ bindings/uniffi.rs  |  Regenerate: make generate
+SERVICE_FLOWS = {
+{% for service, sflows in groups.items() %}
+    "{{ service_to_client_name(service) }}": {
+{% for f in sflows %}
+        # {{ f.name }}: {{ f.service }}.{{ f.rpc }} — {{ f.description }}
+        "{{ f.name }}": "{{ f.response }}",
+{% endfor %}
+    },
+{% endfor %}
+}
+{% if single_groups %}
+
+# Single-step flows: no HTTP round-trip (e.g. webhook processing).
+SINGLE_SERVICE_FLOWS = {
+{% for service, sflows in single_groups.items() %}
+    "{{ service_to_client_name(service) }}": {
+{% for f in sflows %}
+        # {{ f.name }}: {{ f.service }}.{{ f.rpc }} — {{ f.description }}
+        "{{ f.name }}": "{{ f.response }}",
+{% endfor %}
+    },
+{% endfor %}
+}
+{% endif %}

@@ -15,7 +15,7 @@ npm install connector-service-node-ffi
 
 Build the native addon:
 ```bash
-cd backend/ffi && cargo build --release --features napi
+cd crates/ffi/ffi && cargo build --release --features napi
 ```
 
 ## API Levels

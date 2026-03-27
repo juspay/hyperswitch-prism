@@ -1,0 +1,631 @@
+# Connector Service — LLM Navigation Index
+# Connectors: 76
+#
+# This file helps AI coding assistants navigate connector-service documentation.
+# Each connector block lists: doc path, scenarios, supported payment methods,
+# supported flows, and paths to runnable Python/JavaScript examples.
+#
+# Usage: fetch this file first, then fetch the specific connector doc or example.
+
+overview:
+  total_connectors: 76
+  docs_root: docs-generated/connectors/
+  examples_root: examples/
+  all_connectors_matrix: docs-generated/all_connector.md
+
+integration_pattern:
+  1. Configure ConnectorConfig with connector name and credentials
+  2. Call flows in sequence per scenario (see Integration Scenarios in connector doc)
+  3. Branch on response.status: AUTHORIZED / PENDING / FAILED
+  4. PENDING means await webhook or poll Get before capturing
+  5. Pass connector_transaction_id from Authorize response to Capture/Refund
+
+---
+
+## ACI
+connector_id: aci
+doc: docs/connectors/aci.md
+scenarios: checkout_card, checkout_autocapture, refund, recurring, void_payment, get_payment
+payment_methods: Affirm, Afterpay, Card, Ideal, Klarna
+flows: authorize, capture, get, recurring_charge, refund, setup_recurring, void
+examples_python: examples/aci/python/aci.py
+
+## Adyen
+connector_id: adyen
+doc: docs/connectors/adyen.md
+scenarios: checkout_card, checkout_autocapture, checkout_wallet, checkout_bank, refund, recurring, void_payment
+payment_methods: Ach, Affirm, Afterpay, ApplePay, ApplePayDecrypted, Bacs, Blik, Card, GooglePay, GooglePayDecrypted, Ideal, Klarna, Sepa
+flows: authorize, capture, dispute_accept, dispute_defend, dispute_submit_evidence, recurring_charge, refund, setup_recurring, void
+examples_python: examples/adyen/python/adyen.py
+
+## Airwallex
+connector_id: airwallex
+doc: docs/connectors/airwallex.md
+scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment
+payment_methods: Blik, Card, Ideal
+flows: authorize, capture, create_access_token, create_order, get, refund, void
+examples_python: examples/airwallex/python/airwallex.py
+
+## Authipay
+connector_id: authipay
+doc: docs/connectors/authipay.md
+scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment
+payment_methods: Card
+flows: authorize, capture, get, refund, void
+examples_python: examples/authipay/python/authipay.py
+
+## Authorize.net
+connector_id: authorizedotnet
+doc: docs/connectors/authorizedotnet.md
+scenarios: checkout_card, checkout_autocapture, checkout_bank, refund, recurring, void_payment, get_payment, create_customer
+payment_methods: Ach, Card
+flows: authorize, capture, create_customer, get, recurring_charge, refund, setup_recurring, void
+examples_python: examples/authorizedotnet/python/authorizedotnet.py
+
+## Bambora
+connector_id: bambora
+doc: docs/connectors/bambora.md
+scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment
+payment_methods: Card
+flows: authorize, capture, get, refund, void
+examples_python: examples/bambora/python/bambora.py
+
+## Bamboraapac
+connector_id: bamboraapac
+doc: docs/connectors/bamboraapac.md
+scenarios: checkout_card, checkout_autocapture, refund, recurring, get_payment
+payment_methods: Card
+flows: authorize, capture, get, recurring_charge, refund, setup_recurring
+examples_python: examples/bamboraapac/python/bamboraapac.py
+
+## Bankofamerica
+connector_id: bankofamerica
+doc: docs/connectors/bankofamerica.md
+scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment
+payment_methods: Card
+flows: authorize, capture, get, refund, setup_recurring, void
+examples_python: examples/bankofamerica/python/bankofamerica.py
+
+## Barclaycard
+connector_id: barclaycard
+doc: docs/connectors/barclaycard.md
+scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment
+payment_methods: Card
+flows: authorize, capture, get, refund, void
+examples_python: examples/barclaycard/python/barclaycard.py
+
+## Billwerk
+connector_id: billwerk
+doc: docs/connectors/billwerk.md
+scenarios: checkout_card, checkout_autocapture, checkout_wallet, checkout_bank, refund, void_payment, get_payment, tokenize
+payment_methods: Ach, Affirm, Afterpay, ApplePay, ApplePayDecrypted, Bacs, Becs, Blik, Card, GooglePay, GooglePayDecrypted, Ideal, Klarna, PaypalRedirect, SamsungPay, Sepa, UpiCollect
+flows: authorize, capture, get, refund, tokenize, void
+examples_python: examples/billwerk/python/billwerk.py
+
+## Bluesnap
+connector_id: bluesnap
+doc: docs/connectors/bluesnap.md
+scenarios: checkout_card, checkout_autocapture, checkout_wallet, checkout_bank, refund, void_payment, get_payment
+payment_methods: Ach, ApplePay, ApplePayDecrypted, Card, GooglePay, GooglePayDecrypted
+flows: authorize, capture, get, refund, void
+examples_python: examples/bluesnap/python/bluesnap.py
+
+## Braintree
+connector_id: braintree
+doc: docs/connectors/braintree.md
+scenarios: checkout_card, checkout_autocapture, void_payment, get_payment, tokenize
+payment_methods: Card
+flows: authorize, capture, get, tokenize, void
+examples_python: examples/braintree/python/braintree.py
+
+## Calida
+connector_id: calida
+doc: docs/connectors/calida.md
+scenarios: none
+payment_methods: none
+flows: get
+examples_python: none
+
+## Cashfree
+connector_id: cashfree
+doc: docs/connectors/cashfree.md
+scenarios: none
+payment_methods: UpiCollect
+flows: authorize
+examples_python: none
+
+## CashtoCode
+connector_id: cashtocode
+doc: docs/connectors/cashtocode.md
+scenarios: none
+payment_methods: none
+flows: 
+examples_python: none
+
+## Celero
+connector_id: celero
+doc: docs/connectors/celero.md
+scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment
+payment_methods: Card
+flows: authorize, capture, get, refund, void
+examples_python: examples/celero/python/celero.py
+
+## Checkout.com
+connector_id: checkout
+doc: docs/connectors/checkout.md
+scenarios: checkout_card, checkout_autocapture, checkout_bank, refund, recurring, void_payment, get_payment
+payment_methods: Ach, ApplePayDecrypted, Card, GooglePayDecrypted
+flows: authorize, capture, get, recurring_charge, refund, setup_recurring, void
+examples_python: examples/checkout/python/checkout.py
+
+## CryptoPay
+connector_id: cryptopay
+doc: docs/connectors/cryptopay.md
+scenarios: none
+payment_methods: none
+flows: get
+examples_python: none
+
+## CyberSource
+connector_id: cybersource
+doc: docs/connectors/cybersource.md
+scenarios: checkout_card, checkout_autocapture, checkout_wallet, refund, recurring, void_payment, get_payment
+payment_methods: ApplePay, ApplePayDecrypted, Card, GooglePay, GooglePayDecrypted
+flows: authorize, capture, get, pre_authenticate, recurring_charge, refund, setup_recurring, void
+examples_python: examples/cybersource/python/cybersource.py
+
+## Datatrans
+connector_id: datatrans
+doc: docs/connectors/datatrans.md
+scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment
+payment_methods: Card
+flows: authorize, capture, get, refund, void
+examples_python: examples/datatrans/python/datatrans.py
+
+## dLocal
+connector_id: dlocal
+doc: docs/connectors/dlocal.md
+scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment
+payment_methods: Card
+flows: authorize, capture, get, refund, void
+examples_python: examples/dlocal/python/dlocal.py
+
+## Elavon
+connector_id: elavon
+doc: docs/connectors/elavon.md
+scenarios: checkout_card, checkout_autocapture, refund, get_payment
+payment_methods: Card
+flows: authorize, capture, get, refund
+examples_python: examples/elavon/python/elavon.py
+
+## Finix
+connector_id: finix
+doc: docs/connectors/finix.md
+scenarios: checkout_card, checkout_autocapture, checkout_wallet, checkout_bank, refund, void_payment, get_payment, create_customer, tokenize
+payment_methods: Ach, Affirm, Afterpay, ApplePay, ApplePayDecrypted, Bacs, Becs, Blik, Card, GooglePay, GooglePayDecrypted, Ideal, Klarna, PaypalRedirect, SamsungPay, Sepa, UpiCollect
+flows: authorize, capture, create_customer, get, refund, tokenize, void
+examples_python: examples/finix/python/finix.py
+
+## Fiserv
+connector_id: fiserv
+doc: docs/connectors/fiserv.md
+scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment
+payment_methods: Card
+flows: authorize, capture, get, refund, void
+examples_python: examples/fiserv/python/fiserv.py
+
+## Fiservemea
+connector_id: fiservemea
+doc: docs/connectors/fiservemea.md
+scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment
+payment_methods: Card
+flows: authorize, capture, get, refund, void
+examples_python: examples/fiservemea/python/fiservemea.py
+
+## Fiuu
+connector_id: fiuu
+doc: docs/connectors/fiuu.md
+scenarios: checkout_card, checkout_autocapture, checkout_wallet, refund, void_payment, get_payment
+payment_methods: ApplePayDecrypted, Card, GooglePay
+flows: authorize, capture, get, recurring_charge, refund, void
+examples_python: examples/fiuu/python/fiuu.py
+
+## Forte
+connector_id: forte
+doc: docs/connectors/forte.md
+scenarios: checkout_autocapture, checkout_bank, void_payment, get_payment
+payment_methods: Ach, Card
+flows: authorize, get, void
+examples_python: examples/forte/python/forte.py
+
+## Getnet
+connector_id: getnet
+doc: docs/connectors/getnet.md
+scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment
+payment_methods: Card
+flows: authorize, capture, create_access_token, get, refund, void
+examples_python: examples/getnet/python/getnet.py
+
+## Gigadat
+connector_id: gigadat
+doc: docs/connectors/gigadat.md
+scenarios: none
+payment_methods: none
+flows: get, refund
+examples_python: none
+
+## Globalpay
+connector_id: globalpay
+doc: docs/connectors/globalpay.md
+scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment
+payment_methods: Card, Ideal
+flows: authorize, capture, create_access_token, get, refund, void
+examples_python: examples/globalpay/python/globalpay.py
+
+## Helcim
+connector_id: helcim
+doc: docs/connectors/helcim.md
+scenarios: checkout_autocapture, get_payment
+payment_methods: Card
+flows: authorize, get
+examples_python: examples/helcim/python/helcim.py
+
+## Hipay
+connector_id: hipay
+doc: docs/connectors/hipay.md
+scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment, tokenize
+payment_methods: Card
+flows: authorize, capture, get, refund, tokenize, void
+examples_python: examples/hipay/python/hipay.py
+
+## Hyperpg
+connector_id: hyperpg
+doc: docs/connectors/hyperpg.md
+scenarios: checkout_autocapture, refund, get_payment
+payment_methods: Card
+flows: authorize, get, refund
+examples_python: examples/hyperpg/python/hyperpg.py
+
+## Iatapay
+connector_id: iatapay
+doc: docs/connectors/iatapay.md
+scenarios: none
+payment_methods: Ideal, UpiCollect
+flows: authorize, create_access_token, get, refund
+examples_python: none
+
+## Jpmorgan
+connector_id: jpmorgan
+doc: docs/connectors/jpmorgan.md
+scenarios: checkout_card, checkout_autocapture, checkout_bank, refund, void_payment, get_payment
+payment_methods: Ach, Card
+flows: authorize, capture, create_access_token, get, refund, void
+examples_python: examples/jpmorgan/python/jpmorgan.py
+
+## Loonio
+connector_id: loonio
+doc: docs/connectors/loonio.md
+scenarios: none
+payment_methods: none
+flows: get
+examples_python: none
+
+## MiFinity
+connector_id: mifinity
+doc: docs/connectors/mifinity.md
+scenarios: none
+payment_methods: none
+flows: get
+examples_python: none
+
+## Mollie
+connector_id: mollie
+doc: docs/connectors/mollie.md
+scenarios: checkout_autocapture, refund, void_payment, get_payment
+payment_methods: Card
+flows: authorize, get, refund, void
+examples_python: examples/mollie/python/mollie.py
+
+## Multisafepay
+connector_id: multisafepay
+doc: docs/connectors/multisafepay.md
+scenarios: checkout_autocapture, checkout_wallet, refund, get_payment
+payment_methods: Card, GooglePay, GooglePayDecrypted, Ideal, PaypalRedirect
+flows: authorize, get, refund
+examples_python: examples/multisafepay/python/multisafepay.py
+
+## Nexinets
+connector_id: nexinets
+doc: docs/connectors/nexinets.md
+scenarios: checkout_autocapture, checkout_wallet, refund, get_payment
+payment_methods: ApplePay, Card, Ideal, PaypalRedirect
+flows: authorize, get, refund
+examples_python: examples/nexinets/python/nexinets.py
+
+## Nexixpay
+connector_id: nexixpay
+doc: docs/connectors/nexixpay.md
+scenarios: none
+payment_methods: none
+flows: capture, get, pre_authenticate, refund, void
+examples_python: none
+
+## Nmi
+connector_id: nmi
+doc: docs/connectors/nmi.md
+scenarios: checkout_card, checkout_autocapture, checkout_bank, refund, void_payment, get_payment
+payment_methods: Ach, Card
+flows: authorize, capture, get, refund, void
+examples_python: examples/nmi/python/nmi.py
+
+## Noon
+connector_id: noon
+doc: docs/connectors/noon.md
+scenarios: checkout_card, checkout_autocapture, checkout_wallet, refund, void_payment, get_payment
+payment_methods: Card, GooglePay, GooglePayDecrypted, PaypalRedirect
+flows: authorize, capture, get, recurring_charge, refund, void
+examples_python: examples/noon/python/noon.py
+
+## Novalnet
+connector_id: novalnet
+doc: docs/connectors/novalnet.md
+scenarios: checkout_card, checkout_autocapture, checkout_wallet, checkout_bank, refund, recurring, void_payment, get_payment
+payment_methods: Ach, ApplePay, Card, GooglePay, PaypalRedirect, Sepa
+flows: authorize, capture, get, recurring_charge, refund, setup_recurring, void
+examples_python: examples/novalnet/python/novalnet.py
+
+## Nuvei
+connector_id: nuvei
+doc: docs/connectors/nuvei.md
+scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment
+payment_methods: Card
+flows: authorize, capture, create_session_token, get, refund, void
+examples_python: examples/nuvei/python/nuvei.py
+
+## Paybox
+connector_id: paybox
+doc: docs/connectors/paybox.md
+scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment
+payment_methods: Card
+flows: authorize, capture, get, refund, void
+examples_python: examples/paybox/python/paybox.py
+
+## Payload
+connector_id: payload
+doc: docs/connectors/payload.md
+scenarios: none
+payment_methods: none
+flows: capture, get, recurring_charge, refund, void
+examples_python: none
+
+## Payme
+connector_id: payme
+doc: docs/connectors/payme.md
+scenarios: none
+payment_methods: none
+flows: capture, create_order, get, refund, void
+examples_python: none
+
+## Paypal
+connector_id: paypal
+doc: docs/connectors/paypal.md
+scenarios: checkout_card, checkout_autocapture, refund, recurring, void_payment, get_payment
+payment_methods: Card, Ideal, PaypalRedirect
+flows: authorize, capture, create_access_token, get, recurring_charge, refund, setup_recurring, void
+examples_python: examples/paypal/python/paypal.py
+
+## Paysafe
+connector_id: paysafe
+doc: docs/connectors/paysafe.md
+scenarios: checkout_card, checkout_autocapture, checkout_wallet, checkout_bank, refund, void_payment, get_payment, tokenize
+payment_methods: Ach, Affirm, Afterpay, ApplePay, ApplePayDecrypted, Bacs, Becs, Blik, Card, GooglePay, GooglePayDecrypted, Ideal, Klarna, PaypalRedirect, SamsungPay, Sepa, UpiCollect
+flows: authorize, capture, get, refund, tokenize, void
+examples_python: examples/paysafe/python/paysafe.py
+
+## Paytm
+connector_id: paytm
+doc: docs/connectors/paytm.md
+scenarios: none
+payment_methods: UpiCollect
+flows: authorize, create_session_token, get
+examples_python: none
+
+## PayU
+connector_id: payu
+doc: docs/connectors/payu.md
+scenarios: none
+payment_methods: UpiCollect
+flows: authorize, get
+examples_python: none
+
+## PhonePe
+connector_id: phonepe
+doc: docs/connectors/phonepe.md
+scenarios: none
+payment_methods: UpiCollect
+flows: authorize, get
+examples_python: none
+
+## PlacetoPay
+connector_id: placetopay
+doc: docs/connectors/placetopay.md
+scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment
+payment_methods: Card
+flows: authorize, capture, get, refund, void
+examples_python: examples/placetopay/python/placetopay.py
+
+## Powertranz
+connector_id: powertranz
+doc: docs/connectors/powertranz.md
+scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment
+payment_methods: Card
+flows: authorize, capture, get, refund, void
+examples_python: examples/powertranz/python/powertranz.py
+
+## Rapyd
+connector_id: rapyd
+doc: docs/connectors/rapyd.md
+scenarios: checkout_card, checkout_autocapture, checkout_wallet, refund, void_payment, get_payment
+payment_methods: ApplePay, Card, GooglePay, PaypalRedirect, SamsungPay
+flows: authorize, capture, get, refund, void
+examples_python: examples/rapyd/python/rapyd.py
+
+## Razorpay
+connector_id: razorpay
+doc: docs/connectors/razorpay.md
+scenarios: checkout_card, checkout_autocapture, refund, get_payment
+payment_methods: Card, UpiCollect
+flows: authorize, capture, create_order, get, refund
+examples_python: examples/razorpay/python/razorpay.py
+
+## Razorpay V2
+connector_id: razorpayv2
+doc: docs/connectors/razorpayv2.md
+scenarios: checkout_autocapture, checkout_wallet, checkout_bank, refund, get_payment
+payment_methods: Ach, Affirm, Afterpay, ApplePay, ApplePayDecrypted, Bacs, Becs, Blik, Card, GooglePay, GooglePayDecrypted, Ideal, Klarna, PaypalRedirect, SamsungPay, Sepa, UpiCollect
+flows: authorize, create_order, get, refund
+examples_python: examples/razorpayv2/python/razorpayv2.py
+
+## Redsys
+connector_id: redsys
+doc: docs/connectors/redsys.md
+scenarios: none
+payment_methods: none
+flows: capture, get, pre_authenticate, refund, void
+examples_python: none
+
+## Revolut
+connector_id: revolut
+doc: docs/connectors/revolut.md
+scenarios: checkout_card, checkout_autocapture, checkout_wallet, checkout_bank, refund, get_payment
+payment_methods: Ach, Affirm, Afterpay, ApplePay, ApplePayDecrypted, Bacs, Becs, Blik, Card, GooglePay, GooglePayDecrypted, Ideal, Klarna, PaypalRedirect, SamsungPay, Sepa, UpiCollect
+flows: authorize, capture, get, refund
+examples_python: examples/revolut/python/revolut.py
+
+## Revolv3
+connector_id: revolv3
+doc: docs/connectors/revolv3.md
+scenarios: checkout_card, checkout_autocapture, refund, void_payment
+payment_methods: Card
+flows: authorize, capture, refund, setup_recurring, void
+examples_python: examples/revolv3/python/revolv3.py
+
+## Shift4
+connector_id: shift4
+doc: docs/connectors/shift4.md
+scenarios: checkout_card, checkout_autocapture, refund, get_payment
+payment_methods: Card, Ideal
+flows: authorize, capture, get, refund
+examples_python: examples/shift4/python/shift4.py
+
+## Silverflow
+connector_id: silverflow
+doc: docs/connectors/silverflow.md
+scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment
+payment_methods: Card
+flows: authorize, capture, get, refund, void
+examples_python: examples/silverflow/python/silverflow.py
+
+## Stax
+connector_id: stax
+doc: docs/connectors/stax.md
+scenarios: checkout_card, checkout_autocapture, checkout_bank, refund, void_payment, get_payment, create_customer, tokenize
+payment_methods: Ach, Bacs, Becs, Card, Sepa
+flows: authorize, capture, create_customer, get, refund, tokenize, void
+examples_python: examples/stax/python/stax.py
+
+## Stripe
+connector_id: stripe
+doc: docs/connectors/stripe.md
+scenarios: checkout_card, checkout_autocapture, checkout_wallet, checkout_bank, refund, recurring, void_payment, get_payment, create_customer, tokenize
+payment_methods: Ach, Affirm, Afterpay, ApplePay, ApplePayDecrypted, Bacs, Becs, Blik, Card, GooglePay, Ideal, Klarna, Sepa
+flows: authorize, capture, create_customer, get, recurring_charge, refund, setup_recurring, tokenize, void
+examples_python: examples/stripe/python/stripe.py
+
+## Truelayer
+connector_id: truelayer
+doc: docs/connectors/truelayer.md
+scenarios: none
+payment_methods: none
+flows: create_access_token, get
+examples_python: none
+
+## TrustPay
+connector_id: trustpay
+doc: docs/connectors/trustpay.md
+scenarios: checkout_autocapture, refund, get_payment
+payment_methods: Blik, Card, Ideal
+flows: authorize, create_access_token, create_order, get, refund
+examples_python: examples/trustpay/python/trustpay.py
+
+## Trustpayments
+connector_id: trustpayments
+doc: docs/connectors/trustpayments.md
+scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment
+payment_methods: Card
+flows: authorize, capture, get, refund, void
+examples_python: examples/trustpayments/python/trustpayments.py
+
+## Tsys
+connector_id: tsys
+doc: docs/connectors/tsys.md
+scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment
+payment_methods: Card
+flows: authorize, capture, get, refund, void
+examples_python: examples/tsys/python/tsys.py
+
+## Volt
+connector_id: volt
+doc: docs/connectors/volt.md
+scenarios: none
+payment_methods: none
+flows: create_access_token, get, refund
+examples_python: none
+
+## Wellsfargo
+connector_id: wellsfargo
+doc: docs/connectors/wellsfargo.md
+scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment
+payment_methods: Card
+flows: authorize, capture, get, refund, setup_recurring, void
+examples_python: examples/wellsfargo/python/wellsfargo.py
+
+## Worldpay
+connector_id: worldpay
+doc: docs/connectors/worldpay.md
+scenarios: checkout_card, checkout_autocapture, checkout_wallet, refund, void_payment, get_payment
+payment_methods: ApplePay, Card, GooglePay
+flows: authorize, capture, get, recurring_charge, refund, void
+examples_python: examples/worldpay/python/worldpay.py
+
+## Worldpayvantiv
+connector_id: worldpayvantiv
+doc: docs/connectors/worldpayvantiv.md
+scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment
+payment_methods: Card
+flows: authorize, capture, get, refund, reverse, void
+examples_python: examples/worldpayvantiv/python/worldpayvantiv.py
+
+## Worldpayxml
+connector_id: worldpayxml
+doc: docs/connectors/worldpayxml.md
+scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment
+payment_methods: Card
+flows: authorize, capture, get, refund, void
+examples_python: examples/worldpayxml/python/worldpayxml.py
+
+## Xendit
+connector_id: xendit
+doc: docs/connectors/xendit.md
+scenarios: checkout_card, checkout_autocapture, refund, get_payment
+payment_methods: Card
+flows: authorize, capture, get, refund
+examples_python: examples/xendit/python/xendit.py
+
+## Zift
+connector_id: zift
+doc: docs/connectors/zift.md
+scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment
+payment_methods: Card
+flows: authorize, capture, get, refund, setup_recurring, void
+examples_python: examples/zift/python/zift.py

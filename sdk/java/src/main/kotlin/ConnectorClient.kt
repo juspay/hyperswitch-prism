@@ -17,6 +17,18 @@ import com.google.protobuf.ByteString
 import com.google.protobuf.MessageLite
 import com.google.protobuf.Parser
 
+/**
+ * Exception raised when req_transformer fails (integration error).
+ * Wraps IntegrationError and provides access to proto fields.
+ */
+class IntegrationError(val proto: types.SdkConfig.IntegrationError) : Exception(proto.getErrorMessage())
+
+/**
+ * Exception raised when res_transformer fails (response transformation error).
+ * Wraps ConnectorResponseTransformationError and provides access to proto fields.
+ */
+class ConnectorResponseTransformationError(val proto: types.SdkConfig.ConnectorResponseTransformationError) : Exception(proto.getErrorMessage())
+
 open class ConnectorClient(
     val config: ConnectorConfig,
     val defaults: RequestConfig = RequestConfig.getDefaultInstance(),
@@ -31,13 +43,12 @@ open class ConnectorClient(
     }
 
     /**
-     * Builds FfiOptions from config. Environment comes from ConnectorConfig (immutable).
+     * Builds FfiOptions from config. Environment comes from config.options.
      */
     private fun resolveFfiOptions(overrides: RequestConfig?): FfiOptions {
         return FfiOptions.newBuilder()
-            .setEnvironment(config.environment)
-            .setConnector(config.connector)
-            .setAuth(config.auth)
+            .setEnvironment(config.options.environment)
+            .setConnectorConfig(config.connectorConfig)
             .build()
     }
 
@@ -58,6 +69,44 @@ open class ConnectorClient(
         builder.mergeFrom(overrideHttp)
         
         return builder.build()
+    }
+
+    /**
+     * Parse FFI req_transformer bytes using FfiResult proto with enum-based type checking.
+     *
+     * @param resultBytes Raw bytes returned by the req_transformer FFI call
+     * @return FfiConnectorHttpRequest on success (HTTP_REQUEST type)
+     * @throws IntegrationError if result type is INTEGRATION_ERROR
+     * @throws ConnectorResponseTransformationError if result type is CONNECTOR_RESPONSE_TRANSFORMATION_ERROR
+     * @throws IllegalStateException if result type is unknown
+     */
+    private fun checkReq(resultBytes: ByteArray): FfiConnectorHttpRequest {
+        val result = types.SdkConfig.FfiResult.parseFrom(resultBytes)
+        return when (result.getType()) {
+            types.SdkConfig.FfiResult.Type.HTTP_REQUEST -> result.getHttpRequest()
+            types.SdkConfig.FfiResult.Type.INTEGRATION_ERROR -> throw IntegrationError(result.getIntegrationError())
+            types.SdkConfig.FfiResult.Type.CONNECTOR_RESPONSE_TRANSFORMATION_ERROR -> throw ConnectorResponseTransformationError(result.getConnectorResponseTransformationError())
+            else -> throw IllegalStateException("Unknown result type: ${result.getType()}")
+        }
+    }
+
+    /**
+     * Parse FFI res_transformer bytes using FfiResult proto with enum-based type checking.
+     *
+     * @param resultBytes Raw bytes returned by the res_transformer FFI call
+     * @return FfiConnectorHttpResponse on success (HTTP_RESPONSE type)
+     * @throws ConnectorResponseTransformationError if result type is CONNECTOR_RESPONSE_TRANSFORMATION_ERROR
+     * @throws IntegrationError if result type is INTEGRATION_ERROR
+     * @throws IllegalStateException if result type is unknown
+     */
+    private fun checkRes(resultBytes: ByteArray): FfiConnectorHttpResponse {
+        val result = types.SdkConfig.FfiResult.parseFrom(resultBytes)
+        return when (result.getType()) {
+            types.SdkConfig.FfiResult.Type.HTTP_RESPONSE -> result.getHttpResponse()
+            types.SdkConfig.FfiResult.Type.CONNECTOR_RESPONSE_TRANSFORMATION_ERROR -> throw ConnectorResponseTransformationError(result.getConnectorResponseTransformationError())
+            types.SdkConfig.FfiResult.Type.INTEGRATION_ERROR -> throw IntegrationError(result.getIntegrationError())
+            else -> throw IllegalStateException("Unknown result type: ${result.getType()}")
+        }
     }
 
     /**
@@ -87,7 +136,7 @@ open class ConnectorClient(
 
         // 2. Build connector HTTP request via FFI
         val connectorRequestBytes = reqTransformer(requestBytes, optionsBytes)
-        val connectorRequest = FfiConnectorHttpRequest.parseFrom(connectorRequestBytes)
+        val connectorRequest = checkReq(connectorRequestBytes)
 
         val httpRequest = HttpRequest(
             url = connectorRequest.url,
@@ -113,8 +162,8 @@ open class ConnectorClient(
             requestBytes,
             optionsBytes,
         )
-
-        return responseParser.parseFrom(resultBytes)
+        val httpResponse = checkRes(resultBytes)
+        return responseParser.parseFrom(httpResponse.body)
     }
 
     /**
@@ -140,6 +189,7 @@ open class ConnectorClient(
         val optionsBytes = ffiOptions.toByteArray()
 
         val resultBytes = transformer(requestBytes, optionsBytes)
-        return responseParser.parseFrom(resultBytes)
+        val httpResponse = checkRes(resultBytes)
+        return responseParser.parseFrom(httpResponse.body)
     }
 }

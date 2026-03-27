@@ -1,0 +1,29 @@
+[package]
+name = "field-probe"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "field-probe"
+path = "src/main.rs"
+
+[dependencies]
+# First-party
+ffi = { path = "../../ffi/ffi", default-features = false }
+grpc-api-types = { path = "../../types-traits/grpc-api-types" }
+domain_types = { path = "../../types-traits/domain_types" }
+common_utils = { path = "../../common/common_utils", package = "ucs_common_utils" }
+common_enums = { path = "../../common/common_enums", package = "ucs_common_enums" }
+ucs_env = { path = "../../common/ucs_env" }
+cards = { path = "../../types-traits/cards", package = "ucs_cards" }
+hyperswitch_masking = { version = "0.0.1", default-features = false, features = ["alloc", "serde", "time"] }
+
+# Third-party
+serde = { workspace = true }
+serde_json = { workspace = true }
+tonic = { workspace = true }
+rayon = "1.10"
+toml = "0.8"
+
+[lints]
+workspace = true

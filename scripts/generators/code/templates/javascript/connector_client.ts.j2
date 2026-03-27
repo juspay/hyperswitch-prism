@@ -1,0 +1,32 @@
+// AUTO-GENERATED — do not edit by hand.
+// Source: services.proto ∩ bindings/uniffi.rs  |  Regenerate: make generate
+
+import { ConnectorClient as _ConnectorClientBase } from "./connector_client";
+// @ts-ignore - protobuf generated files might not have types yet
+import { types } from "./generated/proto";
+
+{% for service in all_services %}
+export class {{ service_to_client_name(service) }} extends _ConnectorClientBase {
+{% for f in groups.get(service, []) %}
+  /** {{ f.service }}.{{ f.rpc }} — {{ f.description }} */
+  async {{ to_camel(f.name) }}(
+    requestMsg: types.I{{ f.request }},
+    options?: types.IRequestConfig | null
+  ): Promise<types.{{ f.response }}> {
+    return this._executeFlow('{{ f.name }}', requestMsg, options, '{{ f.request }}', '{{ f.response }}') as Promise<types.{{ f.response }}>;
+  }
+
+{% endfor %}
+{% for f in single_groups.get(service, []) %}
+  /** {{ f.service }}.{{ f.rpc }} — {{ f.description }} */
+  async {{ to_camel(f.name) }}(
+    requestMsg: types.I{{ f.request }},
+    options?: types.IRequestConfig | null
+  ): Promise<types.{{ f.response }}> {
+    return this._executeDirect('{{ f.name }}', requestMsg, options, '{{ f.request }}', '{{ f.response }}') as Promise<types.{{ f.response }}>;
+  }
+
+{% endfor %}
+}
+
+{% endfor -%}

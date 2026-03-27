@@ -1,0 +1,196 @@
+{
+  "connector": "cashfree",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "Affirm": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "Afterpay": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "ApplePay": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "Bacs": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "Becs": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "Blik": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "Card": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "GooglePay": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "Ideal": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "Klarna": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "PaypalRedirect": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "SamsungPay": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "Sepa": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "UpiCollect": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "upi_collect": {
+              "vpa_id": "test@upi"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "merchant_order_id": "probe_order_001"
+        },
+        "sample": {
+          "url": "https://sandbox.cashfree.com/pg/orders/sessions",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-version": "2022-09-01",
+            "x-client-id": "probe_id",
+            "x-client-secret": "probe_key"
+          },
+          "body": "{\"payment_session_id\":\"probe_order_001\",\"payment_method\":{\"upi\":{\"channel\":\"collect\",\"upi_id\":\"test@upi\"}},\"payment_surcharge\":null}"
+        }
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_access_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_customer": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: billing_address — Missing required field: billing_address"
+      }
+    },
+    "create_session_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "tokenize": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "not_implemented"
+      }
+    }
+  }
+}

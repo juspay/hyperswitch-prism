@@ -1,0 +1,238 @@
+{
+  "connector": "hyperpg",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: This payment method is not implemented"
+      },
+      "Affirm": {
+        "status": "not_supported",
+        "error": "PayLater payment method is not supported is not supported by hyperpg"
+      },
+      "Afterpay": {
+        "status": "not_supported",
+        "error": "PayLater payment method is not supported is not supported by hyperpg"
+      },
+      "ApplePay": {
+        "status": "not_supported",
+        "error": "Wallet payment method is not supported is not supported by hyperpg"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_supported",
+        "error": "Wallet payment method is not supported is not supported by hyperpg"
+      },
+      "Bacs": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: This payment method is not implemented"
+      },
+      "Becs": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: This payment method is not implemented"
+      },
+      "Blik": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: This payment method is not implemented"
+      },
+      "Card": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://sandbox.hyperpg.in/txns",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfdXNlcjo=",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-merchantid": "probe_merchant"
+          },
+          "body": "{\"merchant_id\":\"probe_merchant\",\"payment_method_type\":\"CARD\",\"card_number\":\"4111111111111111\",\"card_security_code\":\"737\",\"card_exp_month\":\"03\",\"card_exp_year\":\"2030\",\"name_on_card\":\"John Doe\",\"format\":\"json\",\"redirect_after_payment\":true,\"order\":{\"order_id\":\"probe_txn_001\",\"amount\":10.0,\"currency\":\"USD\",\"return_url\":\"https://example.com/return\"}}"
+        }
+      },
+      "GooglePay": {
+        "status": "not_supported",
+        "error": "Wallet payment method is not supported is not supported by hyperpg"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_supported",
+        "error": "Wallet payment method is not supported is not supported by hyperpg"
+      },
+      "Ideal": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: This payment method is not implemented"
+      },
+      "Klarna": {
+        "status": "not_supported",
+        "error": "PayLater payment method is not supported is not supported by hyperpg"
+      },
+      "PaypalRedirect": {
+        "status": "not_supported",
+        "error": "Wallet payment method is not supported is not supported by hyperpg"
+      },
+      "SamsungPay": {
+        "status": "not_supported",
+        "error": "Wallet payment method is not supported is not supported by hyperpg"
+      },
+      "Sepa": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: This payment method is not implemented"
+      },
+      "UpiCollect": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: This payment method is not implemented"
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_access_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_customer": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_session_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_merchant_txn_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "connector_order_reference_id": "probe_order_ref_001"
+        },
+        "sample": {
+          "url": "https://sandbox.hyperpg.in/orders/probe_order_ref_001",
+          "method": "Get",
+          "headers": {
+            "authorization": "Basic cHJvYmVfdXNlcjo=",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-merchantid": "probe_merchant"
+          },
+          "body": null
+        }
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "payment_amount": 1000,
+          "refund_amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "reason": "customer_request"
+        },
+        "sample": {
+          "url": "https://sandbox.hyperpg.in/orders/probe_order_001/refunds",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfdXNlcjo=",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-merchantid": "probe_merchant"
+          },
+          "body": "{\"unique_request_id\":\"probe_connector_txn_001\",\"amount\":10.0}"
+        }
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "tokenize": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "not_implemented"
+      }
+    }
+  }
+}

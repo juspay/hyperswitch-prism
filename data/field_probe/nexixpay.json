@@ -1,0 +1,277 @@
+{
+  "connector": "nexixpay",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "not_supported",
+        "error": "Payment method BankDebit(AchBankDebit { account_number: *** alloc::string::String ***, routing_number: *** alloc::string::String ***, card_holder_name: None, bank_account_holder_name: Some(*** alloc::string::String ***), bank_name: None, bank_type: None, bank_holder_type: None }) is not supported by Nexixpay"
+      },
+      "Affirm": {
+        "status": "not_supported",
+        "error": "Payment method PayLater(AffirmRedirect) is not supported by Nexixpay"
+      },
+      "Afterpay": {
+        "status": "not_supported",
+        "error": "Payment method PayLater(AfterpayClearpayRedirect) is not supported by Nexixpay"
+      },
+      "ApplePay": {
+        "status": "not_supported",
+        "error": "Payment method Wallet(ApplePay(ApplePayWalletData { payment_data: Encrypted(\"eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9\"), payment_method: ApplepayPaymentMethod { display_name: \"Visa 1111\", network: \"Visa\", pm_type: \"debit\" }, transaction_identifier: \"probe_txn_id\" })) is not supported by Nexixpay"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_supported",
+        "error": "Payment method Wallet(ApplePay(ApplePayWalletData { payment_data: Decrypted(ApplePayDecryptedData { application_primary_account_number: CardNumber(411111**********), application_expiration_month: *** alloc::string::String ***, application_expiration_year: *** alloc::string::String ***, payment_data: ApplePayCryptogramData { online_payment_cryptogram: *** alloc::string::String ***, eci_indicator: Some(\"05\") } }), payment_method: ApplepayPaymentMethod { display_name: \"Visa 1111\", network: \"Visa\", pm_type: \"debit\" }, transaction_identifier: \"probe_txn_id\" })) is not supported by Nexixpay"
+      },
+      "Bacs": {
+        "status": "not_supported",
+        "error": "Payment method BankDebit(BacsBankDebit { account_number: *** alloc::string::String ***, sort_code: *** alloc::string::String ***, bank_account_holder_name: Some(*** alloc::string::String ***) }) is not supported by Nexixpay"
+      },
+      "Becs": {
+        "status": "not_supported",
+        "error": "Payment method BankDebit(BecsBankDebit { account_number: *** alloc::string::String ***, bsb_number: *** alloc::string::String ***, bank_account_holder_name: Some(*** alloc::string::String ***) }) is not supported by Nexixpay"
+      },
+      "Blik": {
+        "status": "not_supported",
+        "error": "Payment method BankRedirect(Blik { blik_code: Some(\"777124\") }) is not supported by Nexixpay"
+      },
+      "Card": {
+        "status": "error",
+        "error": "Stuck on field: authentication_data — Missing required field: authentication_data (must be present for 3DS flow)"
+      },
+      "GooglePay": {
+        "status": "not_supported",
+        "error": "Payment method Wallet(GooglePay(GooglePayWalletData { pm_type: \"CARD\", description: \"Visa 1111\", info: GooglePayPaymentMethodInfo { card_network: \"VISA\", card_details: \"1111\", assurance_details: None }, tokenization_data: Encrypted(GpayEncryptedTokenizationData { token_type: \"PAYMENT_GATEWAY\", token: \"{\\\"id\\\":\\\"tok_probe_gpay\\\",\\\"object\\\":\\\"token\\\",\\\"type\\\":\\\"card\\\"}\" }) })) is not supported by Nexixpay"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_supported",
+        "error": "Payment method Wallet(GooglePay(GooglePayWalletData { pm_type: \"CARD\", description: \"Visa 1111\", info: GooglePayPaymentMethodInfo { card_network: \"VISA\", card_details: \"1111\", assurance_details: None }, tokenization_data: Decrypted(GooglePayDecryptedData { card_exp_month: *** alloc::string::String ***, card_exp_year: *** alloc::string::String ***, application_primary_account_number: CardNumber(411111**********), cryptogram: Some(*** alloc::string::String ***), eci_indicator: Some(\"05\") }) })) is not supported by Nexixpay"
+      },
+      "Ideal": {
+        "status": "not_supported",
+        "error": "Payment method BankRedirect(Ideal { bank_name: None }) is not supported by Nexixpay"
+      },
+      "Klarna": {
+        "status": "not_supported",
+        "error": "Payment method PayLater(KlarnaRedirect) is not supported by Nexixpay"
+      },
+      "PaypalRedirect": {
+        "status": "not_supported",
+        "error": "Payment method Wallet(PaypalRedirect(PaypalRedirection { email: Some(Email(****@example.com)) })) is not supported by Nexixpay"
+      },
+      "SamsungPay": {
+        "status": "not_supported",
+        "error": "Payment method Wallet(SamsungPay(SamsungPayWalletData { payment_credential: SamsungPayWalletCredentials { method: Some(\"3DS\"), recurring_payment: Some(false), card_brand: Visa, dpan_last_four_digits: None, card_last_four_digits: \"1234\", token_data: SamsungPayTokenData { three_ds_type: Some(\"S\"), version: \"100\", data: *** alloc::string::String *** } } })) is not supported by Nexixpay"
+      },
+      "Sepa": {
+        "status": "not_supported",
+        "error": "Payment method BankDebit(SepaBankDebit { iban: *** alloc::string::String ***, bank_account_holder_name: Some(*** alloc::string::String ***) }) is not supported by Nexixpay"
+      },
+      "UpiCollect": {
+        "status": "not_supported",
+        "error": "Payment method Upi(UpiCollect(UpiCollectData { vpa_id: Some(****@upi), upi_source: None })) is not supported by Nexixpay"
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_capture_id": "probe_capture_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount_to_capture": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://xpaysandbox.nexigroup.com/api/phoenix-0.0/psp/api/v1/operations/probe_connector_txn_001/captures",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "correlation-id": "00000000-0000-0000-0000-000000000000",
+            "idempotency-key": "HS_probe00000000000000000",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"amount\":\"1000\",\"currency\":\"USD\"}"
+        }
+      }
+    },
+    "create_access_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_customer": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_session_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_merchant_txn_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://xpaysandbox.nexigroup.com/api/phoenix-0.0/psp/api/v1/operations/probe_connector_txn_001",
+          "method": "Get",
+          "headers": {
+            "correlation-id": "00000000-0000-0000-0000-000000000000",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": null
+        }
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: redirect_response — Missing required field: redirect_response"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/3ds-return"
+        },
+        "sample": {
+          "url": "https://xpaysandbox.nexigroup.com/api/phoenix-0.0/psp/api/v1/orders/3steps/init",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "correlation-id": "00000000-0000-0000-0000-000000000000",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"order\":{\"orderId\":\"\",\"amount\":\"1000\",\"currency\":\"USD\",\"customerInfo\":{\"cardHolderName\":\"Cardholder\",\"billingAddress\":{},\"shippingAddress\":null}},\"card\":{\"pan\":\"4111111111111111\",\"expiryDate\":\"0330\",\"cvv\":\"737\"},\"recurrence\":{\"action\":\"NO_RECURRING\",\"contractId\":null,\"contractType\":null}}"
+        }
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "payment_amount": 1000,
+          "refund_amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "reason": "customer_request"
+        },
+        "sample": {
+          "url": "https://xpaysandbox.nexigroup.com/api/phoenix-0.0/psp/api/v1/operations/probe_connector_txn_001/refunds",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "correlation-id": "00000000-0000-0000-0000-000000000000",
+            "idempotency-key": "HS_probe00000000000000000",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"amount\":\"1000\",\"currency\":\"USD\",\"description\":\"customer_request\"}"
+        }
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "tokenize": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_void_id": "probe_void_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://xpaysandbox.nexigroup.com/api/phoenix-0.0/psp/api/v1/operations/probe_connector_txn_001/refunds",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "correlation-id": "00000000-0000-0000-0000-000000000000",
+            "idempotency-key": "HS_probe00000000000000000",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"amount\":\"1000\",\"currency\":\"USD\"}"
+        }
+      }
+    }
+  }
+}

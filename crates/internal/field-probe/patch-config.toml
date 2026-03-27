@@ -1,0 +1,508 @@
+# Field-patch rules for all flows.
+#
+# Format:
+#   [path] - flow-agnostic rule (applies to all flows)
+#   [flow.path] - flow-specific rule (e.g. [capture.amount_to_capture])
+#
+# Flow-specific rules take priority over flow-agnostic ones.
+#
+# Fields:
+#   aliases - error strings the connector may emit
+#   type    - value type (secret_string, string, bool, i32, country_us, etc.)
+#   value   - literal value (for string/bool/i32 types)
+
+["address.billing_address.city"]
+aliases = [
+  "address.city",
+  "billing_address.city",
+  "payment_method_data.billing.address.city",
+]
+type = "secret_string"
+value = "Seattle"
+
+["address.billing_address.country_alpha2_code"]
+aliases = [
+  "address.country",
+  "address.country_code",
+  "billing_address.country",
+  "billing_address.country_code",
+  "payment_method_data.billing.address.country",
+]
+type = "country_us"
+
+["address.billing_address.email"]
+aliases = [
+  "billing_address.email",
+  "billing_email",
+  "payment_method_data.billing.email",
+]
+type = "secret_string"
+value = "test@example.com"
+
+["address.billing_address.first_name"]
+aliases = [
+  "address.first_name",
+  "billing.first_name",
+  "billing_address.first_name",
+  "payment_method_data.billing.address.first_name",
+  "billing_address.full_name"
+]
+type = "secret_string"
+value = "John"
+
+["address.billing_address.last_name"]
+aliases = [
+  "address.last_name",
+  "billing.last_name",
+  "billing_address.last_name",
+  "payment_method_data.billing.address.last_name",
+  "billing.first_name or customer_name",
+  "billing_address.first_name and billing_address.last_name or customer_name"
+]
+type = "secret_string"
+value = "Doe"
+
+["address.billing_address.line1"]
+aliases = [
+  "address.line1",
+  "billing_address.line1",
+  "payment_method_data.billing.address.line1",
+]
+type = "secret_string"
+value = "123 Main St"
+
+["address.billing_address.phone_number"]
+aliases = ["payment_method_data.billing.phone", "contact"]
+type = "secret_string"
+value = "4155552671"
+
+["address.billing_address.phone_country_code"]
+aliases = ["billing.phone.country_code"]
+type = "secret_string"
+value = "+1"
+
+["address.billing_address.state"]
+aliases = [
+  "address.state",
+  "billing_address.state",
+  "payment_method_data.billing.address.state",
+]
+type = "secret_string"
+value = "WA"
+
+["address.billing_address.zip_code"]
+aliases = [
+  "address.postal_code",
+  "address.zip",
+  "billing_address.postal_code",
+  "billing_address.zip",
+  "billing_address.zip_code",
+  "payment_method_data.billing.address.postal_code",
+  "payment_method_data.billing.address.zip",
+  "payment_method_data.billing.address.zip_code",
+]
+type = "secret_string"
+value = "98101"
+
+["address.shipping_address.city"]
+aliases = ["shipping.address.city", "shipping_address.city"]
+type = "secret_string"
+value = "Seattle"
+
+["address.shipping_address.country_alpha2_code"]
+aliases = [
+  "shipping.address.country",
+  "shipping_address.country",
+  "shipping_address.country_code",
+  "shipping.address"
+]
+type = "country_us"
+
+["address.shipping_address.first_name"]
+aliases = ["shipping.address.first_name", "shipping_address.first_name"]
+type = "secret_string"
+value = "John"
+
+["address.shipping_address.last_name"]
+aliases = ["shipping.address.last_name", "shipping_address.last_name"]
+type = "secret_string"
+value = "Doe"
+
+["address.shipping_address.line1"]
+aliases = ["shipping.address.line1", "shipping_address.line1"]
+type = "secret_string"
+value = "123 Main St"
+
+["address.shipping_address.state"]
+aliases = ["shipping.address.state", "shipping_address.state"]
+type = "secret_string"
+value = "WA"
+
+["address.shipping_address.zip_code"]
+aliases = [
+  "shipping.address.postal_code",
+  "shipping.address.zip",
+  "shipping_address.postal_code",
+  "shipping_address.zip",
+]
+type = "secret_string"
+value = "98101"
+
+[browser_info]
+aliases = ["browser_info"]
+type = "full_browser_info"
+
+["browser_info.accept_header"]
+aliases = ["browser_info.accept_header"]
+type = "string"
+value = "application/json"
+
+["browser_info.color_depth"]
+aliases = ["browser_info.color_depth"]
+type = "i32"
+value = "24"
+
+["browser_info.ip_address"]
+aliases = [
+  "IP address",
+  "browser_info.ip_address",
+  "ip_address",
+  "online",
+  "online.ip_address",
+]
+type = "string"
+value = "1.2.3.4"
+
+["browser_info.java_script_enabled"]
+aliases = ["browser_info.java_script_enabled"]
+type = "bool"
+value = "true"
+
+["browser_info.language"]
+aliases = ["browser_info.language"]
+type = "string"
+value = "en-US"
+
+["browser_info.screen_height"]
+aliases = ["browser_info.screen_height"]
+type = "i32"
+value = "900"
+
+["browser_info.screen_width"]
+aliases = ["browser_info.screen_width"]
+type = "i32"
+value = "1440"
+
+["browser_info.time_zone_offset_minutes"]
+aliases = ["browser_info.time_zone", "browser_info.time_zone_offset_minutes"]
+type = "i32"
+value = "-480"
+
+["browser_info.user_agent"]
+aliases = ["browser_info.user_agent"]
+type = "string"
+value = "Mozilla/5.0 (probe-bot)"
+
+[complete_authorize_url]
+aliases = ["complete_authorize_url", "continue_redirection_url"]
+type = "string"
+value = "https://example.com/complete"
+
+[connector_feature_data]
+aliases = ["connector_feature_data"]
+type = "secret_string"
+value = "{}"
+
+["customer.connector_customer_id"]
+aliases = ["customer.id", "customer_id"]
+type = "string"
+value = "cust_probe_123"
+
+["customer.email"]
+aliases = ["customer.email", "email"]
+type = "secret_string"
+value = "test@example.com"
+
+["customer.name"]
+aliases = [
+  "buyer_name",
+  "company_name",
+  "customer.name",
+  "customer_name",
+  "shopper_name",
+]
+type = "string"
+value = "John Doe"
+
+[customer_name]
+aliases = ["customer_name"]
+type = "string"
+value = "John Doe"
+
+[description]
+aliases = ["description"]
+type = "string"
+value = "Probe payment"
+
+[mandate_metadata]
+aliases = ["mandate_metadata"]
+type = "secret_string"
+value = "{\"mandate_metadata\":{\"mandate_type\":\"single_use\"}}"
+
+[merchant_order_id]
+aliases = [
+  "merchant_order_id",
+  "order_id",
+  "order_id (reference_id)",
+  "reference_id",
+  "reference_id (order_id)",
+  "reference_id (payme_sale_id from CreateOrder)",
+]
+type = "string"
+value = "probe_order_001"
+
+[metadata]
+aliases = [
+  "connector_meta_data",
+  "connector_metadata",
+  "connector_request_id",
+  "connector_transaction_id",
+  "metadata",
+]
+type = "secret_string"
+value = "{\"reference_id\":\"probe_ref_001\",\"connector_request_id\":\"probe_req_001\",\"transaction_id\":\"probe_txn_001\"}"
+
+[order_category]
+aliases = ["order_category", "order_category in metadata"]
+type = "string"
+value = "mobile"
+
+[payment_method_token]
+aliases = [
+  "or ensure connector_customer_id is set",
+  "payment_handle_token",
+  "payment_method_token",
+  "payment_method_token (from PaymentMethodToken flow) or connector_mandate_id (for saved payment methods)",
+  "payment_method_token (source) - Call CreateConnectorCustomer and PaymentMethodToken first",
+  "Failed to parse",
+  "wallet token",
+]
+type = "secret_string"
+value = "probe_pm_token"
+
+[return_url]
+aliases = ["return_url", "router_return_url"]
+type = "string"
+value = "https://example.com/return"
+
+[session_token]
+aliases = ["session_token"]
+type = "string"
+value = "probe_session_token"
+
+[setup_future_usage]
+aliases = ["setup_future_usage"]
+type = "future_usage_off_session"
+
+[statement_descriptor_name]
+aliases = ["statement_descriptor", "statement_descriptor_name"]
+type = "string"
+value = "Probe"
+
+[webhook_url]
+aliases = ["webhook_url"]
+type = "string"
+value = "https://example.com/webhook"
+
+["payment_method.payment_method.ideal.bank_name"]
+aliases = ["ideal.bank_name"]
+type = "bank_names_ing"
+
+
+# ── capture flow ───────────────────────────────────────────────────────────────
+
+["capture.amount_to_capture"]
+aliases = ["amount", "currency"]
+type = "usd_money"
+
+["capture.browser_info"]
+aliases = ["browser_info", "browser_info.ip_address", "ip_address"]
+type = "full_browser_info"
+
+["capture.connector_feature_data"]
+aliases = ["connector_feature_data"]
+type = "secret_string"
+value = "{}"
+
+["capture.metadata"]
+aliases = ["description"]
+type = "secret_string"
+value = "{\"description\":\"Probe payment\",\"reference_id\":\"probe_ref_001\"}"
+
+# ── get flow ───────────────────────────────────────────────────────────────
+
+["get.connector_feature_data"]
+aliases = ["connector_feature_data"]
+type = "secret_string"
+value = "{}"
+
+["get.connector_order_reference_id"]
+aliases = ["connector_order_reference_id", "merchant_order_id", "reference_id"]
+type = "string"
+value = "probe_order_ref_001"
+
+["get.encoded_data"]
+aliases = ["encoded_data"]
+type = "string"
+value = "probe_encoded_data_001"
+
+["get.metadata"]
+aliases = [
+  "connector_meta_data",
+  "connector_metadata",
+  "connector_request_id",
+  "connector_request_id (NUMTRANS)",
+]
+type = "secret_string"
+value = "{\"reference_id\":\"probe_ref_001\",\"connector_request_id\":\"probe_req_001\",\"transaction_id\":\"probe_txn_001\"}"
+
+
+# ── recurring_charge flow ───────────────────────────────────────────────────────────────
+
+["recurring_charge.browser_info"]
+aliases = ["browser_info", "browser_info.ip_address"]
+type = "full_browser_info"
+
+["recurring_charge.connector_feature_data"]
+aliases = ["connector_feature_data"]
+type = "secret_string"
+value = "{}"
+
+["recurring_charge.description"]
+aliases = ["description"]
+type = "string"
+value = "Probe payment"
+
+["recurring_charge.email"]
+aliases = ["customer.email", "email"]
+type = "secret_string"
+value = "test@example.com"
+
+["recurring_charge.metadata"]
+aliases = ["connector_meta_data", "connector_metadata", "connector_request_id"]
+type = "secret_string"
+value = "{\"reference_id\":\"probe_ref_001\",\"connector_request_id\":\"probe_req_001\",\"transaction_id\":\"probe_txn_001\"}"
+
+["recurring_charge.return_url"]
+aliases = ["return_url", "router_return_url"]
+type = "string"
+value = "https://example.com/return"
+
+["recurring_charge.webhook_url"]
+aliases = ["webhook_url"]
+type = "string"
+value = "https://example.com/webhook"
+
+
+# ── refund flow ───────────────────────────────────────────────────────────────
+
+["refund.connector_feature_data"]
+aliases = ["connector_feature_data"]
+type = "secret_string"
+value = "{}"
+
+["refund.customer_id"]
+aliases = ["customer_id"]
+type = "string"
+value = "probe_customer_001"
+
+["refund.metadata"]
+aliases = ["connector_meta_data", "connector_metadata"]
+type = "secret_string"
+value = "{\"reference_id\":\"probe_ref_001\",\"connector_request_id\":\"probe_req_001\",\"transaction_id\":\"probe_txn_001\"}"
+
+["refund.reason"]
+aliases = ["description"]
+type = "string"
+value = "customer_request"
+
+["refund.refund_amount"]
+aliases = ["amount", "currency"]
+type = "usd_money"
+
+["refund.webhook_url"]
+aliases = ["webhook_url"]
+type = "string"
+value = "https://example.com/webhook"
+
+
+# ── setup_recurring flow ───────────────────────────────────────────────────────────────
+
+["setup_recurring.connector_feature_data"]
+aliases = ["connector_feature_data"]
+type = "secret_json"
+value = "{}"
+
+["setup_recurring.customer.connector_customer_id"]
+aliases = ["connector_customer_id", "connector_customer_id is missing"]
+type = "string"
+value = "cust_probe_123"
+
+["setup_recurring.customer.id"]
+aliases = ["customer_id"]
+type = "string"
+value = "cust_probe_123"
+
+["setup_recurring.metadata"]
+aliases = ["order_category in metadata"]
+type = "secret_string"
+value = "{\"order_category\":\"mobile\"}"
+
+["setup_recurring.order_category"]
+aliases = ["order_category"]
+type = "string"
+value = "mobile"
+
+["setup_recurring.session_token"]
+aliases = ["session_token"]
+type = "string"
+value = "probe_session_token"
+
+["setup_recurring.webhook_url"]
+aliases = ["webhook_url"]
+type = "string"
+value = "https://example.com/webhook"
+
+
+# ── tokenize flow ───────────────────────────────────────────────────────────────
+
+["tokenize.customer.id"]
+aliases = ["connector_customer_id"]
+type = "string"
+value = "cust_probe_123"
+
+
+# ── void flow ───────────────────────────────────────────────────────────────
+
+["void.amount"]
+aliases = ["Amount", "amount", "amount for void operation", "currency"]
+type = "usd_money"
+
+["void.browser_info"]
+aliases = ["browser_info", "browser_info.ip_address"]
+type = "full_browser_info"
+
+["void.cancellation_reason"]
+aliases = ["Cancellation Reason", "cancellation_reason"]
+type = "string"
+value = "requested_by_customer"
+
+["void.connector_feature_data"]
+aliases = ["connector_feature_data"]
+type = "secret_string"
+value = "{}"
+
+["void.metadata"]
+aliases = ["connector_meta_data", "connector_metadata", "connector_request_id"]
+type = "secret_string"
+value = "{\"reference_id\":\"probe_ref_001\",\"connector_request_id\":\"probe_req_001\",\"transaction_id\":\"probe_txn_001\"}"

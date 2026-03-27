@@ -1,0 +1,12 @@
+{
+  "connector": "aci",
+  "supported_suites": [
+    "authorize",
+    "capture",
+    "void",
+    "refund",
+    "get",
+    "setup_recurring",
+    "recurring_charge"
+  ]
+}

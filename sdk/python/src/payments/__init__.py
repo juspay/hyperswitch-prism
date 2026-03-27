@@ -2,193 +2,31 @@
 #
 # Export structure:
 #   - PaymentClient, MerchantAuthenticationClient (per-service high-level API)
-#   - payments (namespace - request/response types, enums)
-#   - payment_methods (namespace - payment method types)
-#   - configs (namespace - configuration types)
+#   - Direct imports via wildcard from generated proto files
+#   - Exception classes (IntegrationError, ConnectorResponseTransformationError) from connector_client
 
-from payments._generated_service_clients import PaymentClient, MerchantAuthenticationClient
-
-# Import from generated proto files
-from payments.generated.payment_pb2 import (
-    # Request types
-    PaymentServiceAuthorizeRequest,
-    PaymentServiceAuthorizeResponse,
-    PaymentServiceCaptureRequest,
-    PaymentServiceCaptureResponse,
-    PaymentServiceVoidRequest,
-    PaymentServiceVoidResponse,
-    PaymentServiceRefundRequest,
-    PaymentServiceReverseRequest,
-    PaymentServiceGetRequest,
-    PaymentServiceGetResponse,
-    PaymentServiceCreateOrderRequest,
-    PaymentServiceCreateOrderResponse,
-    PaymentServiceSetupRecurringRequest,
-    PaymentServiceSetupRecurringResponse,
-    PaymentServiceIncrementalAuthorizationRequest,
-    PaymentServiceIncrementalAuthorizationResponse,
-    PaymentServiceVerifyRedirectResponseRequest,
-    PaymentServiceVerifyRedirectResponseResponse,
-    PaymentServiceDisputeRequest,
-    # Data types
-    Customer,
-    PaymentAddress,
-    Money,
-    BrowserInformation,
-    CustomerAcceptance,
-    SessionToken,
-    # Response types
-    ConnectorResponseData,
-    CardConnectorResponse,
-    ErrorInfo,
+from payments._generated_service_clients import (
+    CustomerClient,
+    DisputeClient,
+    MerchantAuthenticationClient,
+    PaymentClient,
+    PaymentMethodAuthenticationClient,
+    PaymentMethodClient,
+    RecurringPaymentClient,
 )
+from payments.grpc_client import GrpcClient, GrpcConfig
 
-from payments.generated.payment_methods_pb2 import (
-    PaymentMethod,
-    CardNumberType,
-    CardDetails,
-)
-
-from payments.generated.sdk_config_pb2 import (
-    ConnectorConfig,
-    RequestConfig,
-    Environment,
-    FfiOptions,
-    FfiConnectorHttpRequest,
-    FfiConnectorHttpResponse,
-)
-
-# Import enums from payment_pb2
-from payments.generated.payment_pb2 import (
-    # Enums
-    Currency,
-    CaptureMethod,
-    AuthenticationType,
-    PaymentMethodType,
-    PaymentStatus,
-    RefundStatus,
-    DisputeStatus,
-    MandateStatus,
-    AuthorizationStatus,
-    OperationStatus,
-    HttpMethod,
-    FutureUsage,
-    PaymentExperience,
-    PaymentChannel,
-    Connector,
-    ProductType,
-    DisputeStage,
-    Tokenization,
-    WebhookEventType,
-    ThreeDsCompletionIndicator,
-    TransactionStatus,
-    ExemptionIndicator,
-    MitCategory,
-    SyncRequestType,
-    AcceptanceType,
-    CavvAlgorithm,
-)
-
-# Import FFI functions
-from payments.generated.connector_service_ffi import (
-    authorize_req_transformer,
-    authorize_res_transformer,
-)
-
-# Create namespace objects (matching JavaScript SDK structure)
-# These provide organized access to types
-
-class PaymentsNamespace:
-    """Namespace for payment request/response types and enums."""
-
-    # Request types
-    PaymentServiceAuthorizeRequest = PaymentServiceAuthorizeRequest
-    PaymentServiceAuthorizeResponse = PaymentServiceAuthorizeResponse
-    PaymentServiceCaptureRequest = PaymentServiceCaptureRequest
-    PaymentServiceCaptureResponse = PaymentServiceCaptureResponse
-    PaymentServiceVoidRequest = PaymentServiceVoidRequest
-    PaymentServiceVoidResponse = PaymentServiceVoidResponse
-    PaymentServiceRefundRequest = PaymentServiceRefundRequest
-    PaymentServiceReverseRequest = PaymentServiceReverseRequest
-    PaymentServiceGetRequest = PaymentServiceGetRequest
-    PaymentServiceGetResponse = PaymentServiceGetResponse
-    PaymentServiceCreateOrderRequest = PaymentServiceCreateOrderRequest
-    PaymentServiceCreateOrderResponse = PaymentServiceCreateOrderResponse
-    PaymentServiceSetupRecurringRequest = PaymentServiceSetupRecurringRequest
-    PaymentServiceSetupRecurringResponse = PaymentServiceSetupRecurringResponse
-    PaymentServiceIncrementalAuthorizationRequest = PaymentServiceIncrementalAuthorizationRequest
-    PaymentServiceIncrementalAuthorizationResponse = PaymentServiceIncrementalAuthorizationResponse
-    PaymentServiceVerifyRedirectResponseRequest = PaymentServiceVerifyRedirectResponseRequest
-    PaymentServiceVerifyRedirectResponseResponse = PaymentServiceVerifyRedirectResponseResponse
-    PaymentServiceDisputeRequest = PaymentServiceDisputeRequest
-
-    # Data types
-    Customer = Customer
-    PaymentAddress = PaymentAddress
-    Money = Money
-    BrowserInformation = BrowserInformation
-    CustomerAcceptance = CustomerAcceptance
-    SessionToken = SessionToken
-
-    # Response types
-    ConnectorResponseData = ConnectorResponseData
-    CardConnectorResponse = CardConnectorResponse
-    ErrorInfo = ErrorInfo
-
-    # Enums
-    Currency = Currency
-    CaptureMethod = CaptureMethod
-    AuthenticationType = AuthenticationType
-    PaymentMethodType = PaymentMethodType
-    PaymentStatus = PaymentStatus
-    RefundStatus = RefundStatus
-    DisputeStatus = DisputeStatus
-    MandateStatus = MandateStatus
-    AuthorizationStatus = AuthorizationStatus
-    OperationStatus = OperationStatus
-    HttpMethod = HttpMethod
-    FutureUsage = FutureUsage
-    PaymentExperience = PaymentExperience
-    PaymentChannel = PaymentChannel
-    Connector = Connector
-    ProductType = ProductType
-    DisputeStage = DisputeStage
-    Tokenization = Tokenization
-    WebhookEventType = WebhookEventType
-    ThreeDsCompletionIndicator = ThreeDsCompletionIndicator
-    TransactionStatus = TransactionStatus
-    ExemptionIndicator = ExemptionIndicator
-    MitCategory = MitCategory
-    SyncRequestType = SyncRequestType
-    AcceptanceType = AcceptanceType
-    CavvAlgorithm = CavvAlgorithm
-
-
-class PaymentMethodsNamespace:
-    """Namespace for payment method types."""
-
-    PaymentMethod = PaymentMethod
-    CardNumberType = CardNumberType
-    CardDetails = CardDetails
-
-
-class ConfigsNamespace:
-    """Namespace for configuration types."""
-
-    ConnectorConfig = ConnectorConfig
-    RequestConfig = RequestConfig
-    Environment = Environment
-    FfiOptions = FfiOptions
-    FfiConnectorHttpRequest = FfiConnectorHttpRequest
-    FfiConnectorHttpResponse = FfiConnectorHttpResponse
-
-
-# Create namespace instances
-payments = PaymentsNamespace()
-payment_methods = PaymentMethodsNamespace()
-configs = ConfigsNamespace()
-
-# Legacy exports (to be deprecated)
+# Direct access to all types via wildcard imports
 from payments.generated.payment_pb2 import *
+from payments.generated.payment_methods_pb2 import *
 from payments.generated.sdk_config_pb2 import *
 from payments.generated.connector_service_ffi import *
+
+# Exception classes - override protobuf message types with proper Exception classes
+from payments.connector_client import IntegrationError, ConnectorResponseTransformationError
+from payments.http_client import NetworkError, NetworkErrorCode
+
+# Expose proto modules for namespaced access (e.g., payments.Connector, configs.Environment)
+from payments.generated import payment_pb2 as payments
+from payments.generated import payment_methods_pb2 as payment_methods
+from payments.generated import sdk_config_pb2 as configs

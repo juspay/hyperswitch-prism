@@ -1,0 +1,165 @@
+{
+  "connector": "cashtocode",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "not_supported",
+        "error": "The given currency method is not configured with the given connector"
+      },
+      "Affirm": {
+        "status": "not_supported",
+        "error": "The given currency method is not configured with the given connector"
+      },
+      "Afterpay": {
+        "status": "not_supported",
+        "error": "The given currency method is not configured with the given connector"
+      },
+      "ApplePay": {
+        "status": "not_supported",
+        "error": "The given currency method is not configured with the given connector"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_supported",
+        "error": "The given currency method is not configured with the given connector"
+      },
+      "Bacs": {
+        "status": "not_supported",
+        "error": "The given currency method is not configured with the given connector"
+      },
+      "Becs": {
+        "status": "not_supported",
+        "error": "The given currency method is not configured with the given connector"
+      },
+      "Blik": {
+        "status": "not_supported",
+        "error": "The given currency method is not configured with the given connector"
+      },
+      "Card": {
+        "status": "not_supported",
+        "error": "The given currency method is not configured with the given connector"
+      },
+      "GooglePay": {
+        "status": "not_supported",
+        "error": "The given currency method is not configured with the given connector"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_supported",
+        "error": "The given currency method is not configured with the given connector"
+      },
+      "Ideal": {
+        "status": "not_supported",
+        "error": "The given currency method is not configured with the given connector"
+      },
+      "Klarna": {
+        "status": "not_supported",
+        "error": "The given currency method is not configured with the given connector"
+      },
+      "PaypalRedirect": {
+        "status": "not_supported",
+        "error": "The given currency method is not configured with the given connector"
+      },
+      "SamsungPay": {
+        "status": "not_supported",
+        "error": "The given currency method is not configured with the given connector"
+      },
+      "Sepa": {
+        "status": "not_supported",
+        "error": "The given currency method is not configured with the given connector"
+      },
+      "UpiCollect": {
+        "status": "not_supported",
+        "error": "The given currency method is not configured with the given connector"
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_access_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_customer": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_session_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "tokenize": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "not_implemented"
+      }
+    }
+  }
+}

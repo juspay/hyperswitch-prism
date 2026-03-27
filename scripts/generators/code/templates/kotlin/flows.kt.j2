@@ -1,0 +1,64 @@
+// AUTO-GENERATED — do not edit by hand.
+// Source: services.proto ∩ services/payments.rs  |  Regenerate: make generate
+
+package payments
+
+import types.Payment.*
+import types.Payouts.*
+import types.PaymentMethods.*
+
+{% for f in flows %}
+import uniffi.connector_service_ffi.{{ to_camel(f.name) }}ReqTransformer
+import uniffi.connector_service_ffi.{{ to_camel(f.name) }}ResTransformer
+{% endfor %}
+{% for f in single_flows %}
+import uniffi.connector_service_ffi.{{ to_camel(f.name) }}Transformer
+{% endfor %}
+
+object FlowRegistry {
+    val reqTransformers: Map<String, (ByteArray, ByteArray) -> ByteArray> = mapOf(
+{% for f in flows %}
+        "{{ f.name }}" to ::{{ to_camel(f.name) }}ReqTransformer,
+{% endfor %}
+    )
+
+    val resTransformers: Map<String, (ByteArray, ByteArray, ByteArray) -> ByteArray> = mapOf(
+{% for f in flows %}
+        "{{ f.name }}" to ::{{ to_camel(f.name) }}ResTransformer,
+{% endfor %}
+    )
+{% if single_flows %}
+
+    // Single-step flows: direct transformer, no HTTP round-trip.
+    val directTransformers: Map<String, (ByteArray, ByteArray) -> ByteArray> = mapOf(
+{% for f in single_flows %}
+        "{{ f.name }}" to ::{{ to_camel(f.name) }}Transformer,
+{% endfor %}
+    )
+
+{% endif %}
+}
+
+// Per-service client classes — typed with concrete proto request/response types.
+
+{% for service in all_services %}
+class {{ service_to_client_name(service) }}(
+    config: ConnectorConfig,
+    defaults: RequestConfig = RequestConfig.getDefaultInstance(),
+    libPath: String? = null
+) : ConnectorClient(config, defaults, libPath) {
+{% for f in groups.get(service, []) %}
+    // {{ f.name }}: {{ f.service }}.{{ f.rpc }} — {{ f.description }}
+    fun {{ f.name }}(request: {{ f.request }}, options: RequestConfig? = null): {{ f.response }} =
+        executeFlow("{{ f.name }}", request.toByteArray(), {{ f.response }}.parser(), options)
+
+{% endfor %}
+{% for f in single_groups.get(service, []) %}
+    // {{ f.name }}: {{ f.service }}.{{ f.rpc }} — {{ f.description }}
+    fun {{ f.name }}(request: {{ f.request }}, options: RequestConfig? = null): {{ f.response }} =
+        executeDirect("{{ f.name }}", request.toByteArray(), {{ f.response }}.parser(), options)
+
+{% endfor %}
+}
+
+{% endfor -%}

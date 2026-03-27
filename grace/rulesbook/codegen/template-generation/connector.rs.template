@@ -1,0 +1,126 @@
+pub mod transformers;
+
+use std::fmt::Debug;
+
+use common_enums::CurrencyUnit;
+use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt};
+use domain_types::{
+    connector_flow,
+    connector_types::{
+        *,
+    },
+    errors,
+    payment_method_data::PaymentMethodDataTypes,
+    router_data::ConnectorSpecificConfig,
+    router_request_types::VerifyWebhookSourceRequestData,
+    router_response_types::{Response, VerifyWebhookSourceResponseData},
+    types::Connectors,
+};
+use error_stack::ResultExt;
+use hyperswitch_masking::{Maskable, ExposeInterface};
+use interfaces::{
+    api::ConnectorCommon,
+    connector_integration_v2::ConnectorIntegrationV2,
+    connector_types,
+    decode::BodyDecoding,
+};
+use serde::Serialize;
+use transformers as {{CONNECTOR_NAME_SNAKE}};
+
+use crate::with_error_response_body;
+
+pub(crate) mod headers {
+    pub(crate) const CONTENT_TYPE: &str = "Content-Type";
+    pub(crate) const AUTHORIZATION: &str = "Authorization";
+}
+
+#[derive(Debug, Clone)]
+pub struct {{CONNECTOR_NAME_PASCAL}}<T: PaymentMethodDataTypes> {
+    payment_method_type: std::marker::PhantomData<T>,
+}
+
+impl<T: PaymentMethodDataTypes> {{CONNECTOR_NAME_PASCAL}}<T> {
+    pub const fn new() -> &'static Self {
+        &Self {
+            payment_method_type: std::marker::PhantomData,
+        }
+    }
+}
+
+// =============================================================================
+// MAIN CONNECTOR INTEGRATION IMPLEMENTATIONS
+// =============================================================================
+// Primary authorize implementation - customize as needed
+// =============================================================================
+// MAIN CONNECTOR INTEGRATION IMPLEMENTATIONS
+// =============================================================================
+// Primary authorize implementation - customize as needed
+// ... Authorize implementation is now valid generated code ...
+
+// =============================================================================
+// CONNECTOR COMMON IMPLEMENTATION
+// =============================================================================
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorCommon
+    for {{CONNECTOR_NAME_PASCAL}}<T>
+{
+    fn id(&self) -> &'static str {
+        "{{CONNECTOR_NAME_SNAKE}}"
+    }
+
+    fn get_currency_unit(&self) -> CurrencyUnit {
+        CurrencyUnit::Minor
+    }
+
+    fn common_get_content_type(&self) -> &'static str {
+        "application/json"
+    }
+
+    fn base_url<'a>(&self, _connectors: &'a Connectors) -> &'a str {
+        "{{BASE_URL}}"
+    }
+
+    fn get_auth_header(
+        &self,
+        auth_type: &ConnectorSpecificConfig,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        let auth = {{CONNECTOR_NAME_SNAKE}}::{{CONNECTOR_NAME_PASCAL}}AuthType::try_from(auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        Ok(vec![(
+            headers::AUTHORIZATION.to_string(),
+            format!("Bearer {}", auth.api_key.expose()).into(),
+        )])
+    }
+
+    fn build_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut events::Event>,
+    ) -> CustomResult<domain_types::router_data::ErrorResponse, errors::ConnectorError> {
+        let response: {{CONNECTOR_NAME_SNAKE}}::{{CONNECTOR_NAME_PASCAL}}ErrorResponse = res
+            .response
+            .parse_struct("{{CONNECTOR_NAME_PASCAL}}ErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        with_error_response_body!(event_builder, response);
+
+        Ok(domain_types::router_data::ErrorResponse {
+            status_code: res.status_code,
+            code: response.code,
+            message: response.message,
+            reason: None,
+            attempt_status: None,
+            connector_transaction_id: None,
+            network_decline_code: None,
+            network_advice_code: None,
+            network_error_message: None,
+        })
+    }
+}
+
+// =============================================================================
+// BODY DECODING IMPLEMENTATION
+// =============================================================================
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> BodyDecoding
+    for {{CONNECTOR_NAME_PASCAL}}<T>
+{
+}

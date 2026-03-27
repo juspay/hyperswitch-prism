@@ -21,8 +21,11 @@ bypass_proxy_urls = ["localhost", "local"]
 mitm_proxy_enabled = false
 
 [connectors]
+peachpayments.base_url = "https://apitest.bankint.ppay.io/v/1"
 finix.base_url = "https://finix.sandbox-payments-api.com"
+fiservcommercehub.base_url = "https://connect-cert.fiservapis.com/ch/"
 revolv3.base_url = "https://api-sandbox.revolv3.com"
+ppro.base_url = "https://api.sandbox.eu.ppro.com"
 mollie.base_url = "https://api.mollie.com/v2"
 mollie.secondary_base_url = "https://api.cc.mollie.com/v1/"
 gigadat.base_url = "https://interac.express-connect.com/"
@@ -105,7 +108,7 @@ worldpayxml.base_url = "https://secure-test.worldpay.com/jsp/merchant/xml/paymen
 tsys.base_url = "https://stagegw.transnox.com/"
 bankofamerica.base_url = "https://apitest.merchant-services.bankofamerica.com/"
 powertranz.base_url = "https://staging.ptranz.com/api"
-revolut.base_url = "https://sandbox-oba-auth.revolut.com/"
+revolut.base_url = "https://sandbox-merchant.revolut.com/"
 wellsfargo.base_url = "https://apitest.cybersource.com/"
 zift.base_url = "https://sandbox-secure.zift.io/"
 truelayer.base_url = "https://api.truelayer-sandbox.com"
@@ -123,4 +126,4 @@ keys = ["x-request-id","x-merchant-id","x-lineage-ids","x-reference-id","x-conne
 
 # Connectors that require an external API call for webhook source verification
 [webhook_source_verification_call] # comma-separated list of connector names (case-insensitive)
-connectors_with_webhook_source_verification_call = "paypal" 
+connectors_with_webhook_source_verification_call = "paypal, truelayer" 

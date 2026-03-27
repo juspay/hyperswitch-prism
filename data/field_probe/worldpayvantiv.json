@@ -1,0 +1,269 @@
+{
+  "connector": "worldpayvantiv",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by worldpayvantiv"
+      },
+      "Affirm": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by worldpayvantiv"
+      },
+      "Afterpay": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by worldpayvantiv"
+      },
+      "ApplePay": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by worldpayvantiv"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by worldpayvantiv"
+      },
+      "Bacs": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by worldpayvantiv"
+      },
+      "Becs": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by worldpayvantiv"
+      },
+      "Blik": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by worldpayvantiv"
+      },
+      "Card": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://transact.vantivprelive.com/vap/communicator/online",
+          "method": "Post",
+          "headers": {
+            "via": "HyperSwitch"
+          },
+          "body": ""
+        }
+      },
+      "GooglePay": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by worldpayvantiv"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by worldpayvantiv"
+      },
+      "Ideal": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by worldpayvantiv"
+      },
+      "Klarna": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by worldpayvantiv"
+      },
+      "PaypalRedirect": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by worldpayvantiv"
+      },
+      "SamsungPay": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by worldpayvantiv"
+      },
+      "Sepa": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by worldpayvantiv"
+      },
+      "UpiCollect": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by worldpayvantiv"
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_capture_id": "probe_capture_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount_to_capture": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://transact.vantivprelive.com/vap/communicator/online",
+          "method": "Post",
+          "headers": {
+            "via": "HyperSwitch"
+          },
+          "body": ""
+        }
+      }
+    },
+    "create_access_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_customer": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_session_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_merchant_txn_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://onlinessr.vantivprelive.com/reports/dtrPaymentStatus/probe_connector_txn_001",
+          "method": "Get",
+          "headers": {
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "via": "HyperSwitch"
+          },
+          "body": null
+        }
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "payment_amount": 1000,
+          "refund_amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "reason": "customer_request"
+        },
+        "sample": {
+          "url": "https://transact.vantivprelive.com/vap/communicator/online",
+          "method": "Post",
+          "headers": {
+            "via": "HyperSwitch"
+          },
+          "body": ""
+        }
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_reverse_id": "probe_reverse_001",
+          "connector_transaction_id": "probe_connector_txn_001"
+        },
+        "sample": {
+          "url": "https://transact.vantivprelive.com/vap/communicator/online",
+          "method": "Post",
+          "headers": {
+            "via": "HyperSwitch"
+          },
+          "body": ""
+        }
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "tokenize": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_void_id": "probe_void_001",
+          "connector_transaction_id": "probe_connector_txn_001"
+        },
+        "sample": {
+          "url": "https://transact.vantivprelive.com/vap/communicator/online",
+          "method": "Post",
+          "headers": {
+            "via": "HyperSwitch"
+          },
+          "body": ""
+        }
+      }
+    }
+  }
+}

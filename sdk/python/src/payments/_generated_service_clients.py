@@ -11,6 +11,21 @@ class CustomerClient(_ConnectorClientBase):
         """CustomerService.Create — Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information."""
         return self._execute_flow("create", request, _pb2.CustomerServiceCreateResponse, options)
 
+class DisputeClient(_ConnectorClientBase):
+    """DisputeService flows"""
+
+    def accept(self, request, options=None):
+        """DisputeService.Accept — Concede dispute and accepts chargeback loss. Acknowledges liability and stops dispute defense process when evidence is insufficient."""
+        return self._execute_flow("accept", request, _pb2.DisputeServiceAcceptResponse, options)
+
+    def defend(self, request, options=None):
+        """DisputeService.Defend — Submit defense with reason code for dispute. Presents formal argument against customer's chargeback claim with supporting documentation."""
+        return self._execute_flow("defend", request, _pb2.DisputeServiceDefendResponse, options)
+
+    def submit_evidence(self, request, options=None):
+        """DisputeService.SubmitEvidence — Upload evidence to dispute customer chargeback. Provides documentation like receipts and delivery proof to contest fraudulent transaction claims."""
+        return self._execute_flow("submit_evidence", request, _pb2.DisputeServiceSubmitEvidenceResponse, options)
+
 class EventClient(_ConnectorClientBase):
     """EventService flows"""
 
@@ -86,10 +101,44 @@ class PaymentClient(_ConnectorClientBase):
         """PaymentService.Void — Cancel an authorized payment before capture. Releases held funds back to customer, typically used when orders are cancelled or abandoned."""
         return self._execute_flow("void", request, _pb2.PaymentServiceVoidResponse, options)
 
+class PayoutClient(_ConnectorClientBase):
+    """PayoutService flows"""
+
+    def payout_create(self, request, options=None):
+        """PayoutService.Create — Creates a payout."""
+        return self._execute_flow("payout_create", request, _pb2.PayoutServiceCreateResponse, options)
+
+    def payout_create_link(self, request, options=None):
+        """PayoutService.CreateLink — Creates a link between the recipient and the payout."""
+        return self._execute_flow("payout_create_link", request, _pb2.PayoutServiceCreateLinkResponse, options)
+
+    def payout_create_recipient(self, request, options=None):
+        """PayoutService.CreateRecipient — Create payout recipient."""
+        return self._execute_flow("payout_create_recipient", request, _pb2.PayoutServiceCreateRecipientResponse, options)
+
+    def payout_enroll_disburse_account(self, request, options=None):
+        """PayoutService.EnrollDisburseAccount — Enroll disburse account."""
+        return self._execute_flow("payout_enroll_disburse_account", request, _pb2.PayoutServiceEnrollDisburseAccountResponse, options)
+
+    def payout_get(self, request, options=None):
+        """PayoutService.Get — Retrieve payout details."""
+        return self._execute_flow("payout_get", request, _pb2.PayoutServiceGetResponse, options)
+
+    def payout_stage(self, request, options=None):
+        """PayoutService.Stage — Stage the payout."""
+        return self._execute_flow("payout_stage", request, _pb2.PayoutServiceStageResponse, options)
+
+    def payout_transfer(self, request, options=None):
+        """PayoutService.Transfer — Creates a payout fund transfer."""
+        return self._execute_flow("payout_transfer", request, _pb2.PayoutServiceTransferResponse, options)
+
+    def payout_void(self, request, options=None):
+        """PayoutService.Void — Void a payout."""
+        return self._execute_flow("payout_void", request, _pb2.PayoutServiceVoidResponse, options)
+
 class RecurringPaymentClient(_ConnectorClientBase):
     """RecurringPaymentService flows"""
 
     def charge(self, request, options=None):
         """RecurringPaymentService.Charge — Charge using an existing stored recurring payment instruction. Processes repeat payments for subscriptions or recurring billing without collecting payment details."""
         return self._execute_flow("charge", request, _pb2.RecurringPaymentServiceChargeResponse, options)
-

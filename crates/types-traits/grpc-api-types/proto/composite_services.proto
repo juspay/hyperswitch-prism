@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package types;
+
+import "composite_payment.proto";
+
+option go_package = "github.com/juspay/connector-service/crates/types-traits/grpc-api-types/proto;proto";
+
+// Service for composite payment operations.
+service CompositePaymentService {
+  // Runs composite authorize flow.
+  rpc Authorize(CompositeAuthorizeRequest) returns (CompositeAuthorizeResponse);
+
+  // Runs composite get flow.
+  rpc Get(CompositeGetRequest) returns (CompositeGetResponse);
+
+  // Runs composite refund flow.
+  rpc Refund(CompositeRefundRequest) returns (CompositeRefundResponse);
+
+  // Runs composite void flow.
+  rpc Void(CompositeVoidRequest) returns (CompositeVoidResponse);
+
+  // Runs composite capture flow.
+  rpc Capture(CompositeCaptureRequest) returns (CompositeCaptureResponse);
+}
+
+service CompositeRefundService {
+  // Runs composite refund get/sync flow.
+  rpc Get(CompositeRefundGetRequest) returns (CompositeRefundGetResponse);
+}
+
