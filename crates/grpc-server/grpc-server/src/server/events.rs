@@ -34,9 +34,21 @@ impl EventService for EventServiceImpl {
         name = "EventService::handle_event",
         skip(self, request),
         fields(
+            name = common_utils::consts::NAME,
+            service_name = tracing::field::Empty,
+            service_method = FlowName::IncomingWebhook.to_string(),
+            request_body = tracing::field::Empty,
+            response_body = tracing::field::Empty,
+            error_message = tracing::field::Empty,
+            merchant_id = tracing::field::Empty,
+            gateway = tracing::field::Empty,
             request_id = tracing::field::Empty,
+            status_code = tracing::field::Empty,
+            message_ = "Golden Log Line (incoming)",
+            response_time = tracing::field::Empty,
             tenant_id = tracing::field::Empty,
             flow = FlowName::IncomingWebhook.to_string(),
+            flow_specific_fields.status = tracing::field::Empty,
         )
     )]
     async fn handle_event(
@@ -159,17 +171,17 @@ async fn verify_webhook_source_external(
         connector_response_headers: None,
     };
 
-    let merchant_secret = webhook_secrets.ok_or_else(|| {
-        tonic::Status::invalid_argument(
-            "webhook_secrets is required for external webhook source verification",
-        )
-    })?;
+    let merchant_secret =
+        webhook_secrets.unwrap_or_else(|| domain_types::connector_types::ConnectorWebhookSecrets {
+            secret: "default_secret".to_string().into_bytes(),
+            additional_secret: None,
+        });
 
     let verify_webhook_request = VerifyWebhookSourceRequestData {
         webhook_headers: request_details.headers.clone(),
         webhook_body: request_details.body.clone(),
         merchant_secret,
-        webhook_uri: None,
+        webhook_uri: request_details.uri.clone(),
     };
 
     let verify_webhook_router_data = RouterDataV2::<
