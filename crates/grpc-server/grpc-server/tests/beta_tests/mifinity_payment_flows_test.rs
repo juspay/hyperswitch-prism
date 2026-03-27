@@ -13,7 +13,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use grpc_api_types::{
     health_check::{health_client::HealthClient, HealthCheckRequest},
     payments::{
-        identifier::IdType, payment_method, payment_service_client::PaymentServiceClient,
+        identifier::IdType, payment_method, direct_payment_service_client::DirectPaymentServiceClient,
         AuthenticationType, CaptureMethod, Currency, Identifier, MifinityWallet, PaymentMethod,
         PaymentServiceAuthorizeRequest, PaymentServiceAuthorizeResponse, PaymentServiceGetRequest,
         PaymentStatus,
@@ -198,7 +198,7 @@ async fn test_health() {
 // Test payment authorization with auto capture
 #[tokio::test]
 async fn test_payment_authorization_auto_capture() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         // Create the payment authorization request
         let request = create_authorize_request(CaptureMethod::Automatic);
 
@@ -224,7 +224,7 @@ async fn test_payment_authorization_auto_capture() {
 // Test payment sync with auto capture
 #[tokio::test]
 async fn test_payment_sync_auto_capture() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         // Add delay of 2 seconds
         tokio::time::sleep(std::time::Duration::from_secs(2)).await;
         // Create the payment authorization request

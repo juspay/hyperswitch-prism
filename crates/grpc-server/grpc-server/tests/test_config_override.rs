@@ -8,9 +8,9 @@
 
 use cards::CardNumber;
 use grpc_api_types::payments::{
-    payment_method, payment_service_client::PaymentServiceClient, Address, AuthenticationType,
-    BrowserInformation, CaptureMethod, CardDetails, Currency, PaymentAddress, PaymentMethod,
-    PaymentServiceAuthorizeRequest, PaymentStatus,
+    direct_payment_service_client::DirectPaymentServiceClient, payment_method, Address,
+    AuthenticationType, BrowserInformation, CaptureMethod, CardDetails, Currency, PaymentAddress,
+    PaymentMethod, PaymentServiceAuthorizeRequest, PaymentStatus,
 };
 use grpc_server::app;
 use hyperswitch_masking::Secret;
@@ -22,7 +22,7 @@ mod common;
 
 #[tokio::test]
 async fn test_config_override() -> Result<(), Box<dyn std::error::Error>> {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         // let mut client = PaymentServiceClient::connect("http://localhost:8000")
         // .await
         // .unwrap();

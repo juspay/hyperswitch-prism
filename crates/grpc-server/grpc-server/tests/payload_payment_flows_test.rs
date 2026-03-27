@@ -17,16 +17,16 @@ use cards::CardNumber;
 use grpc_api_types::{
     health_check::{health_client::HealthClient, HealthCheckRequest},
     payments::{
+        direct_payment_service_client::DirectPaymentServiceClient,
         mandate_reference::MandateIdType, mandate_type::MandateType as MandateTypeInner,
-        payment_method, payment_service_client::PaymentServiceClient,
-        recurring_payment_service_client::RecurringPaymentServiceClient, AcceptanceType, Address,
-        AuthenticationType, CaptureMethod, CardDetails, ConnectorMandateReferenceId, CountryAlpha2,
-        Currency, CustomerAcceptance, FutureUsage, MandateAmountData, MandateReference,
-        MandateType, PaymentAddress, PaymentMethod, PaymentServiceAuthorizeRequest,
-        PaymentServiceAuthorizeResponse, PaymentServiceCaptureRequest, PaymentServiceGetRequest,
-        PaymentServiceRefundRequest, PaymentServiceSetupRecurringRequest,
-        PaymentServiceVoidRequest, PaymentStatus, RecurringPaymentServiceChargeRequest,
-        RefundStatus, SetupMandateDetails,
+        payment_method, recurring_payment_service_client::RecurringPaymentServiceClient,
+        AcceptanceType, Address, AuthenticationType, CaptureMethod, CardDetails,
+        ConnectorMandateReferenceId, CountryAlpha2, Currency, CustomerAcceptance, FutureUsage,
+        MandateAmountData, MandateReference, MandateType, PaymentAddress, PaymentMethod,
+        PaymentServiceAuthorizeRequest, PaymentServiceAuthorizeResponse,
+        PaymentServiceCaptureRequest, PaymentServiceGetRequest, PaymentServiceRefundRequest,
+        PaymentServiceSetupRecurringRequest, PaymentServiceVoidRequest, PaymentStatus,
+        RecurringPaymentServiceChargeRequest, RefundStatus, SetupMandateDetails,
     },
 };
 use rand::Rng;
@@ -389,7 +389,7 @@ async fn test_health() {
 
 #[tokio::test]
 async fn test_authorize_psync_void() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         // Wait 30 seconds before making API call to avoid parallel test conflicts
         tokio::time::sleep(tokio::time::Duration::from_secs(30)).await;
 
@@ -452,7 +452,7 @@ async fn test_authorize_psync_void() {
 
 #[tokio::test]
 async fn test_authorize_capture_refund_rsync() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         // Wait 30 seconds before making API call to avoid parallel test conflicts
         tokio::time::sleep(tokio::time::Duration::from_secs(30)).await;
 
@@ -548,7 +548,7 @@ async fn test_authorize_capture_refund_rsync() {
 
 #[tokio::test]
 async fn test_setup_mandate() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         // Wait 30 seconds before making API call to avoid parallel test conflicts
         tokio::time::sleep(tokio::time::Duration::from_secs(30)).await;
 
@@ -600,7 +600,7 @@ async fn test_setup_mandate() {
 //Ignored as getting "duplicate transaction" error when run in CI pipeline
 #[ignore]
 async fn test_repeat_payment() {
-    grpc_test!([client: PaymentServiceClient<Channel>, recurring_client: RecurringPaymentServiceClient<Channel>], {
+    grpc_test!([client: DirectPaymentServiceClient<Channel>, recurring_client: RecurringPaymentServiceClient<Channel>], {
         // NOTE: This test may fail with "duplicate transaction" error if run too soon
         // after other tests that use the same test card. Payload has duplicate detection.
         tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;

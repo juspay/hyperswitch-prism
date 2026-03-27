@@ -202,19 +202,28 @@ fn main() {
         }
     }
 
-    // Write manifest file with flow metadata and connector list
+    // Write manifest file with flow metadata and connector list.
+    // Preserve any existing scenario_groups — they are maintained manually
+    // and must survive field-probe regeneration.
+    let manifest_path = output_dir.join("manifest.json");
+    let existing_scenario_groups: Vec<serde_json::Value> = std::fs::read_to_string(&manifest_path)
+        .ok()
+        .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
+        .and_then(|v| v.get("scenario_groups").and_then(|g| g.as_array()).cloned())
+        .unwrap_or_default();
+
     let message_schemas = parse_message_schemas();
     let manifest = ProbeManifest {
         flow_metadata,
         connectors: connector_names,
         message_schemas,
         schema_version: "2.0.0".to_string(),
+        scenario_groups: existing_scenario_groups,
     };
 
     let manifest_json =
         serde_json::to_string_pretty(&manifest).expect("Failed to serialize manifest");
 
-    let manifest_path = output_dir.join("manifest.json");
     match std::fs::write(&manifest_path, &manifest_json) {
         Ok(()) => eprintln!("Wrote manifest to {:?}", manifest_path),
         Err(e) => eprintln!("Warning: Failed to write manifest: {e}"),

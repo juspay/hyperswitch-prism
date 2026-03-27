@@ -21,7 +21,8 @@ dependencies {
 sourceSets {
     main {
         // Include generated connector examples so process* functions are available via reflection
-        kotlin.srcDir(file("../../../examples"))
+        // for the FFI smoke test (test-package target). Examples are not needed for gRPC test.
+        kotlin.srcDir(file("../../../examples/stripe"))
         resources.srcDir(file("src/main/resources"))
     }
 }

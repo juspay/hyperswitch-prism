@@ -1977,6 +1977,7 @@ dependencies = [
  "toml 0.8.23",
  "tonic 0.14.5",
  "tracing",
+ "ucs_cards",
  "ucs_common_enums",
  "ucs_common_utils",
  "ucs_env",

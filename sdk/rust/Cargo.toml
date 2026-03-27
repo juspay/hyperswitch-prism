@@ -3,6 +3,10 @@ name = "hyperswitch-payments-client"
 version = "0.1.0"
 edition = "2021"
 
+[[example]]
+name = "stripe"
+path = "../../examples/stripe/rust/stripe.rs"
+
 [dependencies]
 # Internal crates (path deps)
 ffi = { path = "../../crates/ffi/ffi", features = ["uniffi"] }

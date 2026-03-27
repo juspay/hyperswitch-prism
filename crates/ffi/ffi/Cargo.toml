@@ -11,6 +11,7 @@ crate-type = ["cdylib", "rlib"]
 # First-party dependencies
 grpc-api-types = { path = "../../types-traits/grpc-api-types" }
 hyperswitch_masking = { version = "0.0.1", default-features = false, features = ["alloc", "serde", "time"] }
+cards = { path = "../../types-traits/cards", package = "ucs_cards" }
 connector-integration = { path = "../../integrations/connector-integration" }
 external-services = { path = "../../common/external-services", default-features = false }
 interfaces = { path = "../../types-traits/interfaces" }

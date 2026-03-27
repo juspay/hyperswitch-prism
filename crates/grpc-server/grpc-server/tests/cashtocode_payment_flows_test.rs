@@ -12,9 +12,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use grpc_api_types::{
     health_check::{health_client::HealthClient, HealthCheckRequest},
     payments::{
-        payment_method, payment_service_client::PaymentServiceClient, AuthenticationType,
-        CaptureMethod, ClassicReward, Currency, PaymentMethod, PaymentServiceAuthorizeRequest,
-        PaymentStatus,
+        direct_payment_service_client::DirectPaymentServiceClient, payment_method,
+        AuthenticationType, CaptureMethod, ClassicReward, Currency, PaymentMethod,
+        PaymentServiceAuthorizeRequest, PaymentStatus,
     },
 };
 use tonic::{transport::Channel, Request};
@@ -132,7 +132,7 @@ async fn test_health() {
 #[tokio::test]
 #[ignore] // skip in CI
 async fn test_payment_authorization() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         // Create the payment authorization request
         let request = create_authorize_request(CaptureMethod::Automatic);
 

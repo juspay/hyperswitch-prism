@@ -3,7 +3,7 @@
 // use grpc_server::app;
 // use ucs_env::configs;
 // mod common;
-// use grpc_api_types::payments::payment_service_client::PaymentServiceClient;
+// use grpc_api_types::payments::direct_payment_service_client::DirectPaymentServiceClient;
 // use tonic::{transport::Channel, Request};
 
 // #[tokio::test]
@@ -11,7 +11,7 @@
 //     // This test verifies that the authorize_only endpoint exists and can be called
 //     // It doesn't test the full flow since that would require valid connector credentials
 
-//     grpc_test!(client, PaymentServiceClient<Channel>, {
+//     grpc_test!(client, DirectPaymentServiceClient<Channel>, {
 //         // Create a basic authorize_only request
 //         let request = Request::new(PaymentServiceAuthorizeOnlyRequest {
 //             payment_method: None, // We'll keep it simple for this basic test

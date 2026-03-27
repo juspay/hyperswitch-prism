@@ -1,3 +1,4 @@
+use crate::macros::{req_transformer, res_transformer};
 use external_services;
 use grpc_api_types::payments::ConnectorResponseTransformationError;
 use grpc_api_types::payments::{
@@ -21,10 +22,10 @@ use grpc_api_types::payments::{
     PaymentServiceGetResponse, PaymentServiceRefundRequest, PaymentServiceReverseRequest,
     PaymentServiceReverseResponse, PaymentServiceSetupRecurringRequest,
     PaymentServiceSetupRecurringResponse, PaymentServiceVoidRequest, PaymentServiceVoidResponse,
+    ProxiedPaymentServiceAuthorizeRequest, ProxiedPaymentServiceSetupRecurringRequest,
     RecurringPaymentServiceChargeRequest, RecurringPaymentServiceChargeResponse, RefundResponse,
+    TokenizedPaymentServiceAuthorizeRequest, TokenizedPaymentServiceSetupRecurringRequest,
 };
-
-use crate::macros::{req_transformer, res_transformer};
 
 use domain_types::{
     connector_flow::{
@@ -541,3 +542,93 @@ pub fn handle_event_transformer(
         },
     )
 }
+
+// ============================================================================
+// NON-PCI SDK CLIENTS — TokenizedPaymentService and ProxiedPaymentService
+// transformers (generated via req_transformer! / res_transformer! macros;
+// type conversions live in domain_types::types)
+// ============================================================================
+
+// tokenized authorize
+req_transformer!(
+    fn_name: tokenized_authorize_req_transformer,
+    request_type: TokenizedPaymentServiceAuthorizeRequest,
+    flow_marker: Authorize,
+    resource_common_data_type: PaymentFlowData,
+    request_data_type: PaymentsAuthorizeData<T>,
+    response_data_type: PaymentsResponseData,
+);
+
+res_transformer!(
+    fn_name: tokenized_authorize_res_transformer,
+    request_type: TokenizedPaymentServiceAuthorizeRequest,
+    response_type: PaymentServiceAuthorizeResponse,
+    flow_marker: Authorize,
+    resource_common_data_type: PaymentFlowData,
+    request_data_type: PaymentsAuthorizeData<T>,
+    response_data_type: PaymentsResponseData,
+    generate_response_fn: generate_payment_authorize_response,
+);
+
+// tokenized setup_recurring
+req_transformer!(
+    fn_name: tokenized_setup_recurring_req_transformer,
+    request_type: TokenizedPaymentServiceSetupRecurringRequest,
+    flow_marker: SetupMandate,
+    resource_common_data_type: PaymentFlowData,
+    request_data_type: SetupMandateRequestData<T>,
+    response_data_type: PaymentsResponseData,
+);
+
+res_transformer!(
+    fn_name: tokenized_setup_recurring_res_transformer,
+    request_type: TokenizedPaymentServiceSetupRecurringRequest,
+    response_type: PaymentServiceSetupRecurringResponse,
+    flow_marker: SetupMandate,
+    resource_common_data_type: PaymentFlowData,
+    request_data_type: SetupMandateRequestData<T>,
+    response_data_type: PaymentsResponseData,
+    generate_response_fn: generate_setup_mandate_response,
+);
+
+// proxy authorize
+req_transformer!(
+    fn_name: proxied_authorize_req_transformer,
+    request_type: ProxiedPaymentServiceAuthorizeRequest,
+    flow_marker: Authorize,
+    resource_common_data_type: PaymentFlowData,
+    request_data_type: PaymentsAuthorizeData<T>,
+    response_data_type: PaymentsResponseData,
+);
+
+res_transformer!(
+    fn_name: proxied_authorize_res_transformer,
+    request_type: ProxiedPaymentServiceAuthorizeRequest,
+    response_type: PaymentServiceAuthorizeResponse,
+    flow_marker: Authorize,
+    resource_common_data_type: PaymentFlowData,
+    request_data_type: PaymentsAuthorizeData<T>,
+    response_data_type: PaymentsResponseData,
+    generate_response_fn: generate_payment_authorize_response,
+);
+
+// proxy setup_recurring
+req_transformer!(
+    fn_name: proxied_setup_recurring_req_transformer,
+    request_type: ProxiedPaymentServiceSetupRecurringRequest,
+    flow_marker: SetupMandate,
+    resource_common_data_type: PaymentFlowData,
+    request_data_type: SetupMandateRequestData<T>,
+    response_data_type: PaymentsResponseData,
+);
+
+res_transformer!(
+    fn_name: proxied_setup_recurring_res_transformer,
+    request_type: ProxiedPaymentServiceSetupRecurringRequest,
+    response_type: PaymentServiceSetupRecurringResponse,
+    flow_marker: SetupMandate,
+    resource_common_data_type: PaymentFlowData,
+    request_data_type: SetupMandateRequestData<T>,
+    response_data_type: PaymentsResponseData,
+    generate_response_fn: generate_setup_mandate_response,
+);

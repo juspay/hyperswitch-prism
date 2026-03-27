@@ -4,11 +4,14 @@ from payments._generated_grpc_client import (  # noqa: F401
     GrpcClient,
     GrpcConfig,
     GrpcCustomerClient,
+    GrpcDirectPaymentClient,
     GrpcDisputeClient,
     GrpcEventClient,
     GrpcMerchantAuthenticationClient,
-    GrpcPaymentClient,
     GrpcPaymentMethodAuthenticationClient,
     GrpcPaymentMethodClient,
     GrpcRecurringPaymentClient,
 )
+
+# Backward compatibility alias
+GrpcPaymentClient = GrpcDirectPaymentClient

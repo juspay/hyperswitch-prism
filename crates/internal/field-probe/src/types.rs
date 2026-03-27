@@ -64,6 +64,9 @@ pub(crate) struct ProbeManifest {
     pub(crate) message_schemas: BTreeMap<String, MessageSchema>,
     /// Schema version for future compatibility
     pub(crate) schema_version: String,
+    /// Scenario groups — manually maintained; preserved across field-probe runs.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub(crate) scenario_groups: Vec<serde_json::Value>,
 }
 
 /// Compact flow result that omits null fields and not_supported status

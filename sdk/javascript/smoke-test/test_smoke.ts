@@ -10,7 +10,7 @@
  *   node test_smoke.js --creds-file creds.json --all --dry-run
  */
 
-import { PaymentClient, types, NetworkError, IntegrationError, ConnectorResponseTransformationError } from "hyperswitch-prism";
+import { DirectPaymentClient, types, NetworkError, IntegrationError, ConnectorResponseTransformationError } from "hyperswitch-prism";
 import * as fs from "fs";
 import * as path from "path";
 

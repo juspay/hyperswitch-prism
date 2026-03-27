@@ -9,7 +9,7 @@ use std::fmt::Write;
 
 use common_utils::crypto::{HmacSha512, SignMessage};
 use grpc_api_types::payments::{
-    payment_service_client::PaymentServiceClient, PaymentServiceTransformRequest, RequestDetails,
+    direct_payment_service_client::DirectPaymentServiceClient, PaymentServiceTransformRequest, RequestDetails,
 };
 use serde_json::json;
 use tonic::{transport::Channel, Request};
@@ -143,7 +143,7 @@ fn generate_webhook_signature(webhook_body: &[u8], secret: &str) -> String {
 
 // Helper to make the gRPC call and return success/failure status
 async fn process_webhook_request(
-    client: &mut PaymentServiceClient<Channel>,
+    client: &mut DirectPaymentServiceClient<Channel>,
     json_body: serde_json::Value,
     include_signature: bool,
 ) -> Result<(), String> {
@@ -247,7 +247,7 @@ async fn process_webhook_request(
 
 #[tokio::test]
 async fn test_payment_authorization_approved() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let event_type = "net.authorize.payment.authorization.created";
         let response_code = 1; // Approved
         let transaction_id = "60123456789";
@@ -277,7 +277,7 @@ async fn test_payment_authorization_approved() {
 
 #[tokio::test]
 async fn test_payment_authorization_declined() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let event_type = "net.authorize.payment.authorization.created";
         let response_code = 2; // Declined
         let transaction_id = "60123456790";
@@ -304,7 +304,7 @@ async fn test_payment_authorization_declined() {
 
 #[tokio::test]
 async fn test_payment_authorization_held() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let event_type = "net.authorize.payment.authorization.created";
         let response_code = 4; // Held for review
         let transaction_id = "60123456791";
@@ -333,7 +333,7 @@ async fn test_payment_authorization_held() {
 
 #[tokio::test]
 async fn test_payment_authcapture_approved() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let event_type = "net.authorize.payment.authcapture.created";
         let response_code = 1; // Approved
         let transaction_id = "60123456792";
@@ -360,7 +360,7 @@ async fn test_payment_authcapture_approved() {
 
 #[tokio::test]
 async fn test_payment_authcapture_declined() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let event_type = "net.authorize.payment.authcapture.created";
         let response_code = 2; // Declined
         let transaction_id = "60123456793";
@@ -386,7 +386,7 @@ async fn test_payment_authcapture_declined() {
 
 #[tokio::test]
 async fn test_payment_authcapture_held() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let event_type = "net.authorize.payment.authcapture.created";
         let response_code = 4; // Held for review
         let transaction_id = "60123456794";
@@ -414,7 +414,7 @@ async fn test_payment_authcapture_held() {
 
 #[tokio::test]
 async fn test_payment_capture_approved() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let event_type = "net.authorize.payment.capture.created";
         let response_code = 1; // Approved
         let transaction_id = "60123456795";
@@ -441,7 +441,7 @@ async fn test_payment_capture_approved() {
 
 #[tokio::test]
 async fn test_payment_capture_declined() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let event_type = "net.authorize.payment.capture.created";
         let response_code = 2; // Declined
         let transaction_id = "60123456796";
@@ -469,7 +469,7 @@ async fn test_payment_capture_declined() {
 
 #[tokio::test]
 async fn test_payment_void_approved() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let event_type = "net.authorize.payment.void.created";
         let response_code = 1; // Approved
         let transaction_id = "60123456797";
@@ -495,7 +495,7 @@ async fn test_payment_void_approved() {
 
 #[tokio::test]
 async fn test_payment_void_failed() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let event_type = "net.authorize.payment.void.created";
         let response_code = 2; // Failed
         let transaction_id = "60123456798";
@@ -523,7 +523,7 @@ async fn test_payment_void_failed() {
 
 #[tokio::test]
 async fn test_payment_prior_auth_capture_approved() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let event_type = "net.authorize.payment.priorAuthCapture.created";
         let response_code = 1; // Approved
         let transaction_id = "60123456799";
@@ -550,7 +550,7 @@ async fn test_payment_prior_auth_capture_approved() {
 
 #[tokio::test]
 async fn test_payment_prior_auth_capture_declined() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let event_type = "net.authorize.payment.priorAuthCapture.created";
         let response_code = 2; // Declined
         let transaction_id = "60123456800";
@@ -578,7 +578,7 @@ async fn test_payment_prior_auth_capture_declined() {
 
 #[tokio::test]
 async fn test_payment_refund_approved() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let event_type = "net.authorize.payment.refund.created";
         let response_code = 1; // Approved
         let transaction_id = "60123456801";
@@ -605,7 +605,7 @@ async fn test_payment_refund_approved() {
 
 #[tokio::test]
 async fn test_payment_refund_declined() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let event_type = "net.authorize.payment.refund.created";
         let response_code = 2; // Declined
         let transaction_id = "60123456802";
@@ -631,7 +631,7 @@ async fn test_payment_refund_declined() {
 
 #[tokio::test]
 async fn test_payment_refund_held() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let event_type = "net.authorize.payment.refund.created";
         let response_code = 4; // Held for review
         let transaction_id = "60123456803";
@@ -660,7 +660,7 @@ async fn test_payment_refund_held() {
 
 #[tokio::test]
 async fn test_webhook_signature_verification_valid() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let event_type = "net.authorize.payment.authorization.created";
         let response_code = 1;
         let transaction_id = "60123456804";
@@ -683,7 +683,7 @@ async fn test_webhook_signature_verification_valid() {
 
 #[tokio::test]
 async fn test_webhook_missing_signature() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let event_type = "net.authorize.payment.authorization.created";
         let response_code = 1;
         let transaction_id = "60123456806";
@@ -720,7 +720,7 @@ async fn test_webhook_missing_signature() {
 
 #[tokio::test]
 async fn test_webhook_malformed_body() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let malformed_json = json!({
             "invalid": "structure",
             "missing": "required_fields"
@@ -805,7 +805,7 @@ card_details),
 
 #[tokio::test]
 async fn test_customer_created_approved() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let event_type = "net.authorize.customer.created";
         let customer_profile_id = "394";
         let payment_profile_id = "694";
@@ -829,7 +829,7 @@ async fn test_customer_created_approved() {
 
 #[tokio::test]
 async fn test_customer_created_with_different_customer_id() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let event_type = "net.authorize.customer.created";
         let customer_profile_id = "395";
         let payment_profile_id = "695";
@@ -855,7 +855,7 @@ async fn test_customer_created_with_different_customer_id() {
 
 #[tokio::test]
 async fn test_customer_payment_profile_created_individual() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let event_type = "net.authorize.customer.paymentProfile.created";
         let customer_profile_id = 394;
         let payment_profile_id = "694";
@@ -879,7 +879,7 @@ async fn test_customer_payment_profile_created_individual() {
 
 #[tokio::test]
 async fn test_customer_payment_profile_created_business() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let event_type = "net.authorize.customer.paymentProfile.created";
         let customer_profile_id = 395;
         let payment_profile_id = "695";
@@ -903,7 +903,7 @@ async fn test_customer_payment_profile_created_business() {
 
 #[tokio::test]
 async fn test_webhook_unknown_event_type() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let unknown_event_type = "net.authorize.unknown.event.type";
         let response_code = 1;
         let transaction_id = "60123456807";
@@ -937,7 +937,7 @@ async fn test_webhook_unknown_event_type() {
 
 #[tokio::test]
 async fn test_webhook_source_verification_valid_signature() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let event_type = "net.authorize.payment.authorization.created";
         let response_code = 1;
         let transaction_id = "60123456808";
@@ -963,7 +963,7 @@ async fn test_webhook_source_verification_valid_signature() {
 
 #[tokio::test]
 async fn test_webhook_source_verification_invalid_signature() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let event_type = "net.authorize.payment.authorization.created";
         let response_code = 1;
         let transaction_id = "60123456809";
@@ -1076,7 +1076,7 @@ card_details),
 
 #[tokio::test]
 async fn test_webhook_source_verification_missing_signature() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let event_type = "net.authorize.payment.authorization.created";
         let response_code = 1;
         let transaction_id = "60123456810";
@@ -1184,7 +1184,7 @@ card_details),
 
 #[tokio::test]
 async fn test_webhook_source_verification_no_secret_provided() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let event_type = "net.authorize.payment.authorization.created";
         let response_code = 1;
         let transaction_id = "60123456811";

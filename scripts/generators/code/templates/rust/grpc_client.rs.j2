@@ -29,7 +29,7 @@ use crate::grpc_config::GrpcConfig;
 //   - injects all auth headers from the shared header map
 //   - returns the unwrapped inner response on success
 macro_rules! impl_grpc_client {
-    ($name:ident, $stub:ident, $( ($method:ident, $req:ty, $res:ty) ),+ $(,)?) => {
+    ($name:ident, $stub:ident, $( ($method:ident, $stub_method:ident, $req:ty, $res:ty) ),+ $(,)?) => {
         pub struct $name {
             channel: Channel,
             headers: Arc<HashMap<String, String>>,
@@ -56,7 +56,7 @@ macro_rules! impl_grpc_client {
             $(
                 pub async fn $method(&self, request: $req) -> Result<$res, Status> {
                     $stub::new(self.channel.clone())
-                        .$method(self.inject_headers(request))
+                        .$stub_method(self.inject_headers(request))
                         .await
                         .map(|r| r.into_inner())
                 }
@@ -72,7 +72,7 @@ macro_rules! impl_grpc_client {
 impl_grpc_client!(
     {{ service_to_grpc_struct(service) }}, {{ service }}Client,
 {% for f in groups[service] %}
-    ({{ f.name }}, {{ f.request }}, {{ f.response }}),
+    ({{ f.name }}, {{ to_snake_case(f.rpc) }}, {{ f.request }}, {{ f.response }}),
 {% endfor %}
 );
 

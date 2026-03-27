@@ -15,7 +15,7 @@ use std::{
 use grpc_api_types::{
     health_check::{health_client::HealthClient, HealthCheckRequest},
     payments::{
-        identifier::IdType, payment_method, payment_service_client::PaymentServiceClient,
+        identifier::IdType, payment_method, direct_payment_service_client::DirectPaymentServiceClient,
         wallet_payment_method_type, Address, AuthenticationType, Bluecode, BrowserInformation,
         CaptureMethod, CountryAlpha2, Identifier, PaymentAddress, PaymentMethod,
         PaymentServiceAuthorizeRequest, PaymentServiceAuthorizeResponse, PaymentServiceGetRequest,
@@ -285,7 +285,7 @@ async fn test_health() {
 // Test payment authorization with auto capture
 #[tokio::test]
 async fn test_payment_authorization_auto_capture() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         // Create the payment authorization request
         let request = create_payment_authorize_request(common_enums::CaptureMethod::Automatic);
 
@@ -322,7 +322,7 @@ async fn test_payment_authorization_auto_capture() {
 // Test payment sync
 #[tokio::test]
 async fn test_payment_sync() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         // First create a payment to sync
         let auth_request = create_payment_authorize_request(common_enums::CaptureMethod::Manual);
 

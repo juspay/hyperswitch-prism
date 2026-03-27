@@ -4,10 +4,11 @@ use axum::{
     Json,
 };
 use grpc_api_types::payments::{
-    customer_service_server::CustomerService, event_service_server::EventService,
+    customer_service_server::CustomerService, direct_payment_service_server::DirectPaymentService,
+    event_service_server::EventService,
     merchant_authentication_service_server::MerchantAuthenticationService,
     payment_method_authentication_service_server::PaymentMethodAuthenticationService,
-    payment_method_service_server::PaymentMethodService, payment_service_server::PaymentService,
+    payment_method_service_server::PaymentMethodService,
     recurring_payment_service_server::RecurringPaymentService, CustomerServiceCreateRequest,
     CustomerServiceCreateResponse, EventServiceHandleRequest, EventServiceHandleResponse,
     MerchantAuthenticationServiceCreateAccessTokenRequest,

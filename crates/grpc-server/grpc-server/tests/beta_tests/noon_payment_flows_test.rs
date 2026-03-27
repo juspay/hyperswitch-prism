@@ -18,7 +18,7 @@ use grpc_api_types::{
     health_check::{health_client::HealthClient, HealthCheckRequest},
     payments::{
         identifier::IdType, payment_method,
-        payment_service_client::PaymentServiceClient, refund_service_client::RefundServiceClient,
+        direct_payment_service_client::DirectPaymentServiceClient, refund_service_client::RefundServiceClient,
         AuthenticationType, CaptureMethod, CardDetails, Currency,
         Identifier, PaymentMethod, PaymentServiceAuthorizeRequest, PaymentServiceAuthorizeResponse,
         PaymentServiceCaptureRequest, PaymentServiceGetRequest, PaymentServiceRefundRequest,
@@ -287,7 +287,7 @@ async fn test_health() {
 // Test payment authorization with auto capture
 #[tokio::test]
 async fn test_payment_authorization_auto_capture() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         // Create the payment authorization request
         let request = create_payment_authorize_request(CaptureMethod::Automatic);
         // Add metadata headers
@@ -314,7 +314,7 @@ async fn test_payment_authorization_auto_capture() {
 // Test payment authorization with manual capture
 #[tokio::test]
 async fn test_payment_authorization_manual_capture() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         // Create the payment authorization request with manual capture
         let auth_request = create_payment_authorize_request(CaptureMethod::Manual);
 
@@ -365,7 +365,7 @@ async fn test_payment_authorization_manual_capture() {
 // Test payment void
 #[tokio::test]
 async fn test_payment_void() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         // First create a payment with manual capture to void
         let auth_request = create_payment_authorize_request(CaptureMethod::Manual);
 
@@ -448,7 +448,7 @@ async fn test_payment_void() {
 // Test payment sync
 #[tokio::test]
 async fn test_payment_sync() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         // First create a payment to sync
         let auth_request = create_payment_authorize_request(CaptureMethod::Automatic);
 
@@ -498,7 +498,7 @@ async fn test_payment_sync() {
 // Test refund flow
 #[tokio::test]
 async fn test_refund() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         // First create a payment with automatic capture
         let auth_request = create_payment_authorize_request(CaptureMethod::Automatic);
 
@@ -572,7 +572,7 @@ async fn test_refund() {
 // Test refund sync flow
 #[tokio::test]
 async fn test_refund_sync() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         grpc_test!(refund_client, RefundServiceClient<Channel>, {
             // First create a payment with manual capture (same as the script)
             let auth_request = create_payment_authorize_request(CaptureMethod::Automatic);

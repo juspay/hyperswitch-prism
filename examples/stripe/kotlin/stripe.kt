@@ -7,7 +7,7 @@
 
 package examples.stripe
 
-import payments.PaymentClient
+import payments.DirectPaymentClient
 import payments.RecurringPaymentClient
 import payments.CustomerClient
 import payments.PaymentMethodClient
@@ -108,7 +108,7 @@ val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
 // Scenario: Card Payment (Authorize + Capture)
 // Reserve funds with Authorize, then settle with a separate Capture call. Use for physical goods or delayed fulfillment where capture happens later.
 fun processCheckoutCard(txnId: String, config: ConnectorConfig = _defaultConfig): Map<String, Any?> {
-    val paymentClient = PaymentClient(config)
+    val paymentClient = DirectPaymentClient(config)
 
     // Step 1: Authorize — reserve funds on the payment method
     val authorizeResponse = paymentClient.authorize(buildAuthorizeRequest("MANUAL"))
@@ -130,7 +130,7 @@ fun processCheckoutCard(txnId: String, config: ConnectorConfig = _defaultConfig)
 // Scenario: Card Payment (Automatic Capture)
 // Authorize and capture in one call using `capture_method=AUTOMATIC`. Use for digital goods or immediate fulfillment.
 fun processCheckoutAutocapture(txnId: String, config: ConnectorConfig = _defaultConfig): Map<String, Any?> {
-    val paymentClient = PaymentClient(config)
+    val paymentClient = DirectPaymentClient(config)
 
     // Step 1: Authorize — reserve funds on the payment method
     val authorizeResponse = paymentClient.authorize(buildAuthorizeRequest("AUTOMATIC"))
@@ -146,7 +146,7 @@ fun processCheckoutAutocapture(txnId: String, config: ConnectorConfig = _default
 // Scenario: Wallet Payment (Google Pay / Apple Pay)
 // Wallet payments pass an encrypted token from the browser/device SDK. Pass the token blob directly — do not decrypt client-side.
 fun processCheckoutWallet(txnId: String, config: ConnectorConfig = _defaultConfig): Map<String, Any?> {
-    val paymentClient = PaymentClient(config)
+    val paymentClient = DirectPaymentClient(config)
 
     // Step 1: Authorize — reserve funds on the payment method
     val authorizeResponse = paymentClient.authorize(PaymentServiceAuthorizeRequest.newBuilder().apply {
@@ -191,7 +191,7 @@ fun processCheckoutWallet(txnId: String, config: ConnectorConfig = _defaultConfi
 // Scenario: Bank Transfer (SEPA / ACH / BACS)
 // Direct bank debit (Sepa). Bank transfers typically use `capture_method=AUTOMATIC`.
 fun processCheckoutBank(txnId: String, config: ConnectorConfig = _defaultConfig): Map<String, Any?> {
-    val paymentClient = PaymentClient(config)
+    val paymentClient = DirectPaymentClient(config)
 
     // Step 1: Authorize — reserve funds on the payment method
     val authorizeResponse = paymentClient.authorize(PaymentServiceAuthorizeRequest.newBuilder().apply {
@@ -226,7 +226,7 @@ fun processCheckoutBank(txnId: String, config: ConnectorConfig = _defaultConfig)
 // Scenario: Refund a Payment
 // Authorize with automatic capture, then refund the captured amount. `connector_transaction_id` from the Authorize response is reused for the Refund call.
 fun processRefund(txnId: String, config: ConnectorConfig = _defaultConfig): Map<String, Any?> {
-    val paymentClient = PaymentClient(config)
+    val paymentClient = DirectPaymentClient(config)
 
     // Step 1: Authorize — reserve funds on the payment method
     val authorizeResponse = paymentClient.authorize(buildAuthorizeRequest("AUTOMATIC"))
@@ -248,7 +248,7 @@ fun processRefund(txnId: String, config: ConnectorConfig = _defaultConfig): Map<
 // Scenario: Recurring / Mandate Payments
 // Store a payment mandate with SetupRecurring, then charge it repeatedly with RecurringPaymentService.Charge without requiring customer action.
 fun processRecurring(txnId: String, config: ConnectorConfig = _defaultConfig): Map<String, Any?> {
-    val paymentClient = PaymentClient(config)
+    val paymentClient = DirectPaymentClient(config)
     val recurringPaymentClient = RecurringPaymentClient(config)
 
     // Step 1: Setup Recurring — store the payment mandate
@@ -310,7 +310,7 @@ fun processRecurring(txnId: String, config: ConnectorConfig = _defaultConfig): M
 // Scenario: Void a Payment
 // Authorize funds with a manual capture flag, then cancel the authorization with Void before any capture occurs. Releases the hold on the customer's funds.
 fun processVoidPayment(txnId: String, config: ConnectorConfig = _defaultConfig): Map<String, Any?> {
-    val paymentClient = PaymentClient(config)
+    val paymentClient = DirectPaymentClient(config)
 
     // Step 1: Authorize — reserve funds on the payment method
     val authorizeResponse = paymentClient.authorize(buildAuthorizeRequest("MANUAL"))
@@ -329,7 +329,7 @@ fun processVoidPayment(txnId: String, config: ConnectorConfig = _defaultConfig):
 // Scenario: Get Payment Status
 // Authorize a payment, then poll the connector for its current status using Get. Use this to sync payment state when webhooks are unavailable or delayed.
 fun processGetPayment(txnId: String, config: ConnectorConfig = _defaultConfig): Map<String, Any?> {
-    val paymentClient = PaymentClient(config)
+    val paymentClient = DirectPaymentClient(config)
 
     // Step 1: Authorize — reserve funds on the payment method
     val authorizeResponse = paymentClient.authorize(buildAuthorizeRequest("MANUAL"))
@@ -392,7 +392,7 @@ fun processTokenize(txnId: String, config: ConnectorConfig = _defaultConfig): Ma
 
 // Flow: PaymentService.Authorize (Card)
 fun authorize(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+    val client = DirectPaymentClient(_defaultConfig)
     val request = buildAuthorizeRequest("AUTOMATIC")
     val response = client.authorize(request)
     when (response.status.name) {
@@ -404,7 +404,7 @@ fun authorize(txnId: String) {
 
 // Flow: PaymentService.Capture
 fun capture(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+    val client = DirectPaymentClient(_defaultConfig)
     val request = buildCaptureRequest("probe_connector_txn_001")
     val response = client.capture(request)
     if (response.status.name == "FAILED")
@@ -427,7 +427,7 @@ fun createCustomer(txnId: String) {
 
 // Flow: PaymentService.Get
 fun get(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+    val client = DirectPaymentClient(_defaultConfig)
     val request = buildGetRequest("probe_connector_txn_001")
     val response = client.get(request)
     println("Status: ${response.status.name}")
@@ -464,7 +464,7 @@ fun recurringCharge(txnId: String) {
 
 // Flow: PaymentService.Refund
 fun refund(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+    val client = DirectPaymentClient(_defaultConfig)
     val request = buildRefundRequest("probe_connector_txn_001")
     val response = client.refund(request)
     if (response.status.name == "FAILED")
@@ -474,7 +474,7 @@ fun refund(txnId: String) {
 
 // Flow: PaymentService.SetupRecurring
 fun setupRecurring(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+    val client = DirectPaymentClient(_defaultConfig)
     val request = PaymentServiceSetupRecurringRequest.newBuilder().apply {
         merchantRecurringPaymentId = "probe_mandate_001"  // Identification
         amountBuilder.apply {  // Mandate Details
@@ -539,7 +539,7 @@ fun tokenize(txnId: String) {
 
 // Flow: PaymentService.Void
 fun void(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+    val client = DirectPaymentClient(_defaultConfig)
     val request = buildVoidRequest("probe_connector_txn_001")
     val response = client.void(request)
     if (response.status.name == "FAILED")

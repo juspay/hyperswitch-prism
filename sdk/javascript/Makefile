@@ -1,6 +1,5 @@
-.PHONY: install-deps install-codegen-deps generate-bindings generate-grpc-bindings \
-        generate-proto generate-all generate-flows build-ts pack-archive install \
-        test-package test-composite test-grpc dist clean
+.PHONY: install-deps install-codegen-deps generate-bindings generate-proto generate-grpc-bindings \
+        generate-all build-ts pack-archive install test-package test-composite test-grpc test-grpc-no-server dist clean
 
 # SDK-specific paths (define BEFORE including common.mk)
 MAKEFILE_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
@@ -13,24 +12,27 @@ CONNECTORS ?= stripe
 include $(SDK_ROOT)/../common.mk
 
 # SDK-specific paths continued
-GENERATED_OUT := $(SDK_ROOT)/src/payments/generated
-PACKAGE_DIR   := $(ARTIFACTS_DIR)/sdk-javascript
+GENERATED_OUT    := $(SDK_ROOT)/src/payments/generated
+PACKAGE_DIR      := $(ARTIFACTS_DIR)/sdk-javascript
+JS_TARBALL       := $(PACKAGE_DIR)/hyperswitch-prism-0.0.1.tgz
 
 # ---------------------------------------------------------------------------
 # install-deps
-# Installs Node.js build dependencies required for protobuf code generation.
-# Checks for tool existence before installing. In Nix environments, node and
-# npm are provided by the shell. Outside Nix, runs npm install only when
-# node_modules or the required pbjs/pbts binaries are absent.
+# Checks for required build tools. In Nix environments tools are provided by
+# the shell so this is effectively a no-op. Outside Nix it exits with a helpful
+# message for any missing tool rather than failing silently mid-build.
 # ---------------------------------------------------------------------------
 install-deps:
 	@command -v node >/dev/null 2>&1 || \
-		(echo "Error: node not found. Install via nix or https://nodejs.org" && exit 1)
+		(echo "Error: node not found. Install via nix or a Node version manager." && exit 1)
 	@command -v npm >/dev/null 2>&1 || \
-		(echo "Error: npm not found. Install via nix or https://nodejs.org" && exit 1)
-	@cd $(SDK_ROOT) && \
-		(echo "  → Installing npm dependencies..." && npm install)
+		(echo "Error: npm not found. Install Node.js which includes npm." && exit 1)
+	@command -v cargo >/dev/null 2>&1 || \
+		(echo "Error: cargo not found. Install Rust via rustup." && exit 1)
+	@command -v protoc >/dev/null 2>&1 || \
+		(echo "Error: protoc not found. Install via nix or 'apt install protobuf-compiler'." && exit 1)
 	@echo "All required tools present."
+	@cd $(SDK_ROOT) && npm install --silent
 
 # ---------------------------------------------------------------------------
 # install-codegen-deps
@@ -121,6 +123,7 @@ generate-descriptor:
 		--include_source_info \
 		$(REPO_ROOT)/crates/types-traits/grpc-api-types/proto/services.proto \
 		$(REPO_ROOT)/crates/types-traits/grpc-api-types/proto/payment.proto \
+		$(REPO_ROOT)/crates/types-traits/grpc-api-types/proto/payouts.proto \
 		$(REPO_ROOT)/crates/types-traits/grpc-api-types/proto/payment_methods.proto \
 		$(REPO_ROOT)/crates/types-traits/grpc-api-types/proto/sdk_config.proto
 	@echo "Descriptor written to scripts/generators/code/services.desc"
@@ -132,106 +135,68 @@ generate-descriptor:
 # includes them. Must run after generate-all (requires generated/ to be populated).
 # ---------------------------------------------------------------------------
 build-ts: install-deps
-	@echo "Compiling TypeScript to dist/..."
-	@cd $(SDK_ROOT) && npm run build
-	@echo "TypeScript compiled to dist/"
+	@echo "Compiling TypeScript..."
+	@npm run build
+	@echo "TypeScript compilation complete."
 
 # ---------------------------------------------------------------------------
 # pack-archive
-# Builds the SDK npm tarball (.tgz) using npm pack.
-# Assumes dist/ has been populated by build-ts. Copies any symlinks as real
-# files first since npm does not follow symlinks.
+# Packages the SDK into a tarball for distribution.
 # ---------------------------------------------------------------------------
-pack-archive:
+pack-archive: build-ts
+	@echo "Packing npm archive..."
 	@mkdir -p $(PACKAGE_DIR)
-	@if [ -L $(GENERATED_OUT)/libconnector_service_ffi.$(LIB_EXT) ]; then \
-		cp -fL $(GENERATED_OUT)/libconnector_service_ffi.$(LIB_EXT) \
-		        $(GENERATED_OUT)/libconnector_service_ffi.$(LIB_EXT).tmp && \
-		mv -f   $(GENERATED_OUT)/libconnector_service_ffi.$(LIB_EXT).tmp \
-		        $(GENERATED_OUT)/libconnector_service_ffi.$(LIB_EXT); \
-	fi
-	@cd $(SDK_ROOT) && npm pack --pack-destination $(PACKAGE_DIR)/
-	@echo "Tarball built in $(PACKAGE_DIR)/"
+	@npm pack --pack-destination $(PACKAGE_DIR)
+	@echo "Tarball created: $(JS_TARBALL)"
 
 # ---------------------------------------------------------------------------
 # install
-# Builds the SDK tarball. npm tarballs do not require a system-level install
-# step — users install directly with 'npm install file:...tgz'. This target
-# is a no-op beyond pack-archive and exists for interface parity with the
-# other SDK Makefiles.
+# Local install: builds TypeScript and links for development.
 # ---------------------------------------------------------------------------
-install: pack-archive
+install: install-deps generate-all build-ts
+	@npm install
 
 # ---------------------------------------------------------------------------
 # test-package
-# Full end-to-end local test: builds the FFI library, generates all code
-# artifacts, packs the tarball, then installs it into an isolated temporary
-# npm project and runs the smoke test to verify the package works correctly.
-# The temp directory is cleaned up after the test.
-# Uses package name/version from package.json so it works regardless of naming.
+# End-to-end test: build FFI → pack → install in temp dir → run smoke test.
 # ---------------------------------------------------------------------------
-JS_PKG_NAME := $(shell node -p "require('$(SDK_ROOT)package.json').name")
-JS_PKG_VERSION := $(shell node -p "require('$(SDK_ROOT)package.json').version")
-JS_TARBALL := $(PACKAGE_DIR)/$(JS_PKG_NAME)-$(JS_PKG_VERSION).tgz
-
 test-package: build-ffi-lib generate-all build-ts pack-archive
-	@echo "Testing packed tarball in isolation..."
+	@echo "Testing in isolation..."
 	@rm -rf /tmp/test-hyperswitch-js
 	@mkdir -p /tmp/test-hyperswitch-js
 	@test -f $(JS_TARBALL) || (echo "Error: Tarball not found: $(JS_TARBALL)" && exit 1)
 	@cd /tmp/test-hyperswitch-js && npm init -y --silent && \
 		npm install $(JS_TARBALL) typescript @types/node --silent
-	@cp $(SDK_ROOT)/smoke-test/test_smoke.ts /tmp/test-hyperswitch-js/test_smoke.ts
-	@cp $(SDK_ROOT)/smoke-test/tsconfig.json /tmp/test-hyperswitch-js/tsconfig.json
-	@# Copy credentials file if it exists
+	@cp $(SDK_ROOT)/smoke-test/test_smoke.ts /tmp/test-hyperswitch-js/
+	@cp $(SDK_ROOT)/smoke-test/tsconfig.json      /tmp/test-hyperswitch-js/
 	@if [ -f $(REPO_ROOT)/creds.json ]; then \
 		cp $(REPO_ROOT)/creds.json /tmp/test-hyperswitch-js/; \
-	else \
-		echo "  Note: creds.json not found, test will use placeholder credentials"; \
 	fi
-	@cd /tmp/test-hyperswitch-js && npx tsc && NODE_PATH=/tmp/test-hyperswitch-js/node_modules node test_smoke.js --connectors $(CONNECTORS) --examples-dir $(REPO_ROOT)/examples
-	@echo "Running composite flow test..."
-	@cp $(SDK_ROOT)/smoke-test/test_smoke_composite.ts /tmp/test-hyperswitch-js/
-	@cd /tmp/test-hyperswitch-js && npx ts-node test_smoke_composite.ts
+	@cd /tmp/test-hyperswitch-js && npx tsc && \
+		NODE_PATH=/tmp/test-hyperswitch-js/node_modules node test_smoke.js \
+		--connectors $(CONNECTORS) --examples-dir $(REPO_ROOT)/examples
 	@rm -rf /tmp/test-hyperswitch-js
-	@echo "Package test passed."
 
 # ---------------------------------------------------------------------------
 # test-composite
-# Runs the composite flow smoke test (access token + authorize flow).
-# Tests the PayPal access token composite flow in an isolated environment.
+# End-to-end composite flow test: build FFI → pack → install → run composite test.
 # ---------------------------------------------------------------------------
 test-composite: build-ffi-lib generate-all build-ts pack-archive
-	@echo "Testing composite flow in isolation..."
+	@echo "Testing composite flows in isolation..."
 	@rm -rf /tmp/test-hyperswitch-js-composite
 	@mkdir -p /tmp/test-hyperswitch-js-composite
 	@test -f $(JS_TARBALL) || (echo "Error: Tarball not found: $(JS_TARBALL)" && exit 1)
 	@cd /tmp/test-hyperswitch-js-composite && npm init -y --silent && \
-		npm install $(JS_TARBALL) typescript @types/node ts-node --silent
-	@cp $(SDK_ROOT)/smoke-test/test_smoke_composite.ts /tmp/test-hyperswitch-js-composite/
-	@cp $(SDK_ROOT)/smoke-test/tsconfig.json /tmp/test-hyperswitch-js-composite/
-	@cd /tmp/test-hyperswitch-js-composite && npx ts-node test_smoke_composite.ts
+		npm install $(JS_TARBALL) typescript @types/node --silent
+	@cp $(SDK_ROOT)/smoke-test/test_composite.ts /tmp/test-hyperswitch-js-composite/
+	@cp $(SDK_ROOT)/smoke-test/tsconfig.json      /tmp/test-hyperswitch-js-composite/
+	@if [ -f $(REPO_ROOT)/creds.json ]; then \
+		cp $(REPO_ROOT)/creds.json /tmp/test-hyperswitch-js-composite/; \
+	fi
+	@cd /tmp/test-hyperswitch-js-composite && npx tsc && \
+		NODE_PATH=/tmp/test-hyperswitch-js-composite/node_modules node test_composite.js \
+		--connectors $(CONNECTORS) --examples-dir $(REPO_ROOT)/examples
 	@rm -rf /tmp/test-hyperswitch-js-composite
-	@echo "Composite flow test passed."
-
-# ---------------------------------------------------------------------------
-# dist
-# Builds the distribution tarball for all supported platforms.
-# Copies pre-built native binaries for each target platform into the generated
-# output directory as real files (not symlinks — npm does not follow symlinks),
-# generates the proto JS/TS module, then packs the tarball. The single-platform
-# library from generate-bindings is overwritten by the multi-platform copies.
-# ---------------------------------------------------------------------------
-dist:
-	@echo "Building JavaScript SDK distribution tarball..."
-	@mkdir -p $(GENERATED_OUT)
-	@cp -fL $(REPO_ROOT)/target/x86_64-unknown-linux-gnu/release/libconnector_service_ffi.so \
-		$(GENERATED_OUT)/ 2>/dev/null || echo "  Note: Linux x86_64 binary not found (skipping)"
-	@cp -fL $(REPO_ROOT)/target/aarch64-apple-darwin/release/libconnector_service_ffi.dylib \
-		$(GENERATED_OUT)/ 2>/dev/null || echo "  Note: macOS aarch64 binary not found (skipping)"
-	@$(MAKE) -C $(SDK_ROOT) build-ts
-	@$(MAKE) -C $(SDK_ROOT) pack-archive
-	@echo "Distribution tarball created in $(PACKAGE_DIR)/"
 
 # ---------------------------------------------------------------------------
 # test-grpc
@@ -241,10 +206,30 @@ dist:
 GRPC_PROFILE    ?= release-fast
 GRPC_SERVER_BIN := $(REPO_ROOT)/target/$(GRPC_PROFILE)/grpc-server
 
+# Run gRPC test assuming server is already running (used by top-level test-grpc)
+test-grpc-no-server: build-ffi-lib build-grpc-ffi-lib generate-all generate-grpc-bindings build-ts pack-archive
+	@echo "Testing gRPC flows in isolation..."
+	@rm -rf /tmp/test-hyperswitch-js-grpc
+	@mkdir -p /tmp/test-hyperswitch-js-grpc
+	@test -f $(JS_TARBALL) || (echo "Error: Tarball not found: $(JS_TARBALL)" && exit 1)
+	@cd /tmp/test-hyperswitch-js-grpc && npm init -y --silent && \
+		npm install $(JS_TARBALL) typescript @types/node --silent
+	@cp $(SDK_ROOT)/smoke-test/test_smoke_grpc.ts /tmp/test-hyperswitch-js-grpc/
+	@cp $(SDK_ROOT)/smoke-test/tsconfig.json      /tmp/test-hyperswitch-js-grpc/
+	@if [ -f $(REPO_ROOT)/creds.json ]; then \
+		cp $(REPO_ROOT)/creds.json /tmp/test-hyperswitch-js-grpc/; \
+	else \
+		echo "  Note: no creds.json found, test will use placeholder credentials"; \
+	fi
+	@cd /tmp/test-hyperswitch-js-grpc && npx tsc && \
+		NODE_PATH=/tmp/test-hyperswitch-js-grpc/node_modules FORCE_COLOR=1 node test_smoke_grpc.js \
+		--connectors $(CONNECTORS) --examples-dir $(REPO_ROOT)/examples
+	@rm -rf /tmp/test-hyperswitch-js-grpc
+
 test-grpc: build-ffi-lib build-grpc-ffi-lib generate-all generate-grpc-bindings build-ts pack-archive
-	@echo "Building grpc-server ($(GRPC_PROFILE))…"
+	@echo "Building grpc-server ($(GRPC_PROFILE))..."
 	@cd $(REPO_ROOT) && cargo build -p grpc-server --profile $(GRPC_PROFILE) 2>&1
-	@echo "Starting gRPC server…"
+	@echo "Starting gRPC server..."
 	@pkill -KILL -f grpc-server 2>/dev/null || true
 	@sleep 1
 	@cd $(REPO_ROOT) && $(GRPC_SERVER_BIN) > /tmp/grpc-server-js.log 2>&1 &

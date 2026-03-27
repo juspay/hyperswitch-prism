@@ -20,21 +20,28 @@ use std::{
 };
 
 use grpc_api_types::payments::{
-    customer_service_client::CustomerServiceClient, event_service_client::EventServiceClient,
+    customer_service_client::CustomerServiceClient,
+    direct_payment_service_client::DirectPaymentServiceClient,
+    event_service_client::EventServiceClient,
     merchant_authentication_service_client::MerchantAuthenticationServiceClient,
     payment_method_authentication_service_client::PaymentMethodAuthenticationServiceClient,
     payment_method_service_client::PaymentMethodServiceClient,
-    payment_service_client::PaymentServiceClient,
-    recurring_payment_service_client::RecurringPaymentServiceClient, CustomerServiceCreateRequest,
+    proxied_payment_service_client::ProxiedPaymentServiceClient,
+    recurring_payment_service_client::RecurringPaymentServiceClient,
+    tokenized_payment_service_client::TokenizedPaymentServiceClient, CustomerServiceCreateRequest,
     EventServiceHandleRequest, MerchantAuthenticationServiceCreateAccessTokenRequest,
     MerchantAuthenticationServiceCreateSdkSessionTokenRequest,
     MerchantAuthenticationServiceCreateSessionTokenRequest,
     PaymentMethodAuthenticationServiceAuthenticateRequest,
     PaymentMethodAuthenticationServicePostAuthenticateRequest,
     PaymentMethodAuthenticationServicePreAuthenticateRequest, PaymentMethodServiceTokenizeRequest,
-    PaymentServiceAuthorizeRequest, PaymentServiceCaptureRequest, PaymentServiceGetRequest,
+    PaymentServiceAuthorizeRequest, PaymentServiceCaptureRequest, PaymentServiceCreateOrderRequest,
+    PaymentServiceGetRequest, PaymentServiceIncrementalAuthorizationRequest,
     PaymentServiceRefundRequest, PaymentServiceReverseRequest, PaymentServiceSetupRecurringRequest,
-    PaymentServiceVoidRequest, RecurringPaymentServiceChargeRequest,
+    PaymentServiceVerifyRedirectResponseRequest, PaymentServiceVoidRequest,
+    ProxiedPaymentServiceAuthorizeRequest, ProxiedPaymentServiceSetupRecurringRequest,
+    RecurringPaymentServiceChargeRequest, TokenizedPaymentServiceAuthorizeRequest,
+    TokenizedPaymentServiceSetupRecurringRequest,
 };
 use prost::Message;
 use serde::Deserialize;
@@ -148,20 +155,52 @@ async fn dispatch(method: &str, cfg: GrpcConfigInput, req_bytes: &[u8]) -> Resul
     }
 
     match method {
-        "payment/authorize" => call!(
-            PaymentServiceClient,
+        // DirectPaymentService - support both old (payment/*) and new (direct_payment/*) method names
+        "payment/authorize" | "direct_payment/authorize" => call!(
+            DirectPaymentServiceClient,
             authorize,
             PaymentServiceAuthorizeRequest
         ),
-        "payment/capture" => call!(PaymentServiceClient, capture, PaymentServiceCaptureRequest),
-        "payment/void" => call!(PaymentServiceClient, void, PaymentServiceVoidRequest),
-        "payment/get" => call!(PaymentServiceClient, get, PaymentServiceGetRequest),
-        "payment/refund" => call!(PaymentServiceClient, refund, PaymentServiceRefundRequest),
-        "payment/reverse" => call!(PaymentServiceClient, reverse, PaymentServiceReverseRequest),
-        "payment/setup_recurring" => call!(
-            PaymentServiceClient,
+        "payment/capture" | "direct_payment/capture" => call!(
+            DirectPaymentServiceClient,
+            capture,
+            PaymentServiceCaptureRequest
+        ),
+        "payment/void" | "direct_payment/void" => {
+            call!(DirectPaymentServiceClient, void, PaymentServiceVoidRequest)
+        }
+        "payment/get" | "direct_payment/get" => {
+            call!(DirectPaymentServiceClient, get, PaymentServiceGetRequest)
+        }
+        "payment/refund" | "direct_payment/refund" => call!(
+            DirectPaymentServiceClient,
+            refund,
+            PaymentServiceRefundRequest
+        ),
+        "payment/reverse" | "direct_payment/reverse" => call!(
+            DirectPaymentServiceClient,
+            reverse,
+            PaymentServiceReverseRequest
+        ),
+        "payment/setup_recurring" | "direct_payment/setup_recurring" => call!(
+            DirectPaymentServiceClient,
             setup_recurring,
             PaymentServiceSetupRecurringRequest
+        ),
+        "direct_payment/create_order" => call!(
+            DirectPaymentServiceClient,
+            create_order,
+            PaymentServiceCreateOrderRequest
+        ),
+        "direct_payment/incremental_authorization" => call!(
+            DirectPaymentServiceClient,
+            incremental_authorization,
+            PaymentServiceIncrementalAuthorizationRequest
+        ),
+        "direct_payment/verify_redirect_response" => call!(
+            DirectPaymentServiceClient,
+            verify_redirect_response,
+            PaymentServiceVerifyRedirectResponseRequest
         ),
         "customer/create" => call!(CustomerServiceClient, create, CustomerServiceCreateRequest),
         "payment_method/tokenize" => call!(
@@ -204,6 +243,28 @@ async fn dispatch(method: &str, cfg: GrpcConfigInput, req_bytes: &[u8]) -> Resul
             RecurringPaymentServiceClient,
             charge,
             RecurringPaymentServiceChargeRequest
+        ),
+        // TokenizedPaymentService
+        "tokenized_payment/authorize" => call!(
+            TokenizedPaymentServiceClient,
+            authorize,
+            TokenizedPaymentServiceAuthorizeRequest
+        ),
+        "tokenized_payment/setup_recurring" => call!(
+            TokenizedPaymentServiceClient,
+            setup_recurring,
+            TokenizedPaymentServiceSetupRecurringRequest
+        ),
+        // ProxiedPaymentService
+        "proxy_payment/authorize" => call!(
+            ProxiedPaymentServiceClient,
+            authorize,
+            ProxiedPaymentServiceAuthorizeRequest
+        ),
+        "proxy_payment/setup_recurring" => call!(
+            ProxiedPaymentServiceClient,
+            setup_recurring,
+            ProxiedPaymentServiceSetupRecurringRequest
         ),
         other => Err(format!("unknown gRPC method: \"{other}\"")),
     }

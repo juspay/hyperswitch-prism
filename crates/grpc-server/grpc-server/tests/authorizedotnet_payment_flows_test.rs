@@ -21,8 +21,8 @@ use cards::CardNumber;
 use grpc_api_types::{
     health_check::{health_client::HealthClient, HealthCheckRequest},
     payments::{
-        identifier::IdType, mandate_reference::MandateIdType, payment_method,
-        payment_service_client::PaymentServiceClient,
+        direct_payment_service_client::DirectPaymentServiceClient, identifier::IdType,
+        mandate_reference::MandateIdType, payment_method,
         recurring_payment_service_client::RecurringPaymentServiceClient, AcceptanceType, Address,
         AuthenticationType, BrowserInformation, CaptureMethod, CardDetails,
         ConnectorMandateReferenceId, CountryAlpha2, Currency, CustomerAcceptance, FutureUsage,
@@ -210,7 +210,7 @@ fn create_repeat_payment_request(mandate_id: &str) -> RecurringPaymentServiceCha
 
 // Test repeat payment (MIT) flow using previously created mandate
 async fn test_repeat_everything() {
-    grpc_test!([client: PaymentServiceClient<Channel>, recurring_client: RecurringPaymentServiceClient<Channel>], {
+    grpc_test!([client: DirectPaymentServiceClient<Channel>, recurring_client: RecurringPaymentServiceClient<Channel>], {
         // First, create a mandate using register
         let register_request = create_register_request();
 
@@ -608,7 +608,7 @@ async fn test_health() {
 // Test payment authorization with auto capture
 #[tokio::test]
 async fn test_payment_authorization_auto_capture() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         // Create the payment authorization request
         let request = create_payment_authorize_request(common_enums::CaptureMethod::Automatic);
         // println!("Auth request for auto capture: {:?}", request);
@@ -657,7 +657,7 @@ async fn test_payment_authorization_auto_capture() {
 // Test payment authorization with manual capture
 #[tokio::test]
 async fn test_payment_authorization_manual_capture() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         // Create the payment authorization request with manual capture
         let auth_request = create_payment_authorize_request(common_enums::CaptureMethod::Manual);
         // println!("Auth request for manual capture: {:?}", auth_request);
@@ -738,7 +738,7 @@ async fn test_payment_authorization_manual_capture() {
 // Test payment sync
 #[tokio::test]
 async fn test_payment_sync() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         // First create a payment to sync
         let auth_request = create_payment_authorize_request(common_enums::CaptureMethod::Manual);
 
@@ -809,7 +809,7 @@ async fn test_payment_sync() {
 // Test void flow (unique to AuthorizeDotNet)
 #[tokio::test]
 async fn test_void() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         // First create a payment to void
         let auth_request = create_payment_authorize_request(common_enums::CaptureMethod::Manual);
 
@@ -888,7 +888,7 @@ async fn test_void() {
 #[tokio::test]
 #[ignore] // Flaky in sandbox; skip in CI.
 async fn test_refund() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         // First create a payment
         let auth_request = create_payment_authorize_request(common_enums::CaptureMethod::Automatic);
 
@@ -970,7 +970,7 @@ async fn test_refund() {
 
 // Test register (setup mandate) flow
 async fn test_register() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         // Create the register request
         let request = create_register_request();
 
@@ -1031,7 +1031,7 @@ async fn test_register() {
 // Test authorization with setup_future_usage
 #[tokio::test]
 async fn test_authorize_with_setup_future_usage() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         // Create an authorization request with setup_future_usage
         let mut auth_request =
             create_payment_authorize_request(common_enums::CaptureMethod::Automatic);

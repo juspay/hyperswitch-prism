@@ -21,7 +21,7 @@ use cards::CardNumber;
 use grpc_api_types::{
     health_check::{health_client::HealthClient, HealthCheckRequest},
     payments::{
-        identifier::IdType, payment_method, payment_service_client::PaymentServiceClient,
+        identifier::IdType, payment_method, direct_payment_service_client::DirectPaymentServiceClient,
         refund_service_client::RefundServiceClient, Address, AuthenticationType, CaptureMethod,
         CardDetails, CountryAlpha2, Currency, Identifier, PaymentAddress, PaymentMethod,
         PaymentServiceAuthorizeRequest, PaymentServiceCaptureRequest, PaymentServiceGetRequest,
@@ -288,7 +288,7 @@ async fn test_health() {
 #[tokio::test]
 #[serial]
 async fn test_payment_authorization_auto_capture() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let authorize_request = create_authorize_request(CaptureMethod::Automatic);
         let mut request = Request::new(authorize_request);
         add_barclaycard_metadata(&mut request);
@@ -318,7 +318,7 @@ async fn test_payment_authorization_auto_capture() {
 #[tokio::test]
 #[serial]
 async fn test_payment_authorization_manual_capture() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let authorize_request = create_authorize_request(CaptureMethod::Manual);
         let amount = authorize_request.amount;
         let mut request = Request::new(authorize_request);
@@ -381,7 +381,7 @@ async fn test_payment_authorization_manual_capture() {
 #[tokio::test]
 #[serial]
 async fn test_payment_sync() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let authorize_request = create_authorize_request(CaptureMethod::Automatic);
         let amount = authorize_request.amount;
         let mut request = Request::new(authorize_request);
@@ -442,7 +442,7 @@ async fn test_payment_sync() {
 #[tokio::test]
 #[serial]
 async fn test_payment_void() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let authorize_request = create_authorize_request(CaptureMethod::Manual);
         let amount = authorize_request.amount;
         let mut request = Request::new(authorize_request);
@@ -503,7 +503,7 @@ async fn test_payment_void() {
 #[tokio::test]
 #[serial]
 async fn test_refund() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let authorize_request = create_authorize_request(CaptureMethod::Automatic);
         let amount = authorize_request.amount;
         let mut request = Request::new(authorize_request);
@@ -564,7 +564,7 @@ async fn test_refund() {
 #[tokio::test]
 #[serial]
 async fn test_refund_sync() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         grpc_test!(refund_client, RefundServiceClient<Channel>, {
             let authorize_request = create_authorize_request(CaptureMethod::Automatic);
             let amount = authorize_request.amount;

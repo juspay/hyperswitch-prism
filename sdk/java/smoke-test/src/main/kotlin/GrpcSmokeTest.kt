@@ -219,7 +219,7 @@ suspend fun runGrpcTests(credsFile: String, connectors: List<String>?): Int {
             print("  [authorize] running … ")
             try {
                 val req = buildAuthorizeRequest(CaptureMethod.AUTOMATIC)
-                val res = client.payment.authorize(req)
+                val res = client.direct_payment.authorize(req)
                 txnId = res.connectorTransactionId ?: txnId
                 val msg = "txn_id: $txnId, status: ${res.statusCode}"
                 if (res.statusCode >= 400) {
@@ -245,13 +245,13 @@ suspend fun runGrpcTests(credsFile: String, connectors: List<String>?): Int {
             print("  [capture] running … ")
             try {
                 val authReq = buildAuthorizeRequest(CaptureMethod.MANUAL)
-                val authRes = client.payment.authorize(authReq)
+                val authRes = client.direct_payment.authorize(authReq)
                 if (authRes.statusCode >= 400) {
                     throw RuntimeException("inline authorize failed (status ${authRes.statusCode})")
                 }
                 val captureTxnId = authRes.connectorTransactionId ?: txnId
                 val capReq = buildCaptureRequest(captureTxnId)
-                val capRes = client.payment.capture(capReq)
+                val capRes = client.direct_payment.capture(capReq)
                 val msg = "txn_id: ${capRes.connectorTransactionId ?: "-"}, status: ${capRes.statusCode}"
                 if (capRes.statusCode >= 400) {
                     println("${yellow("~ connector error")} ${grey("— $msg")}")
@@ -276,13 +276,13 @@ suspend fun runGrpcTests(credsFile: String, connectors: List<String>?): Int {
             print("  [void] running … ")
             try {
                 val authReq = buildAuthorizeRequest(CaptureMethod.MANUAL)
-                val authRes = client.payment.authorize(authReq)
+                val authRes = client.direct_payment.authorize(authReq)
                 if (authRes.statusCode >= 400) {
                     throw RuntimeException("inline authorize failed (status ${authRes.statusCode})")
                 }
                 val voidTxnId = authRes.connectorTransactionId ?: txnId
                 val voidReq = buildVoidRequest(voidTxnId)
-                val voidRes = client.payment.void(voidReq)
+                val voidRes = client.direct_payment.void(voidReq)
                 val msg = "void_id: ${voidRes.merchantVoidId ?: "-"}, status: ${voidRes.statusCode}"
                 if (voidRes.statusCode >= 400) {
                     println("${yellow("~ connector error")} ${grey("— $msg")}")
@@ -307,7 +307,7 @@ suspend fun runGrpcTests(credsFile: String, connectors: List<String>?): Int {
             print("  [get] running … ")
             try {
                 val getReq = buildGetRequest(txnId)
-                val getRes = client.payment.get(getReq)
+                val getRes = client.direct_payment.get(getReq)
                 val msg = "txn_id: ${getRes.connectorTransactionId ?: "-"}, status: ${getRes.statusCode}"
                 if (getRes.statusCode >= 400) {
                     println("${yellow("~ connector error")} ${grey("— $msg")}")
@@ -332,7 +332,7 @@ suspend fun runGrpcTests(credsFile: String, connectors: List<String>?): Int {
             print("  [refund] running … ")
             try {
                 val refReq = buildRefundRequest(txnId)
-                val refRes = client.payment.refund(refReq)
+                val refRes = client.direct_payment.refund(refReq)
                 val msg = "refund_id: ${refRes.connectorRefundId ?: "-"}, status: ${refRes.statusCode}"
                 if (refRes.statusCode >= 400) {
                     println("${yellow("~ connector error")} ${grey("— $msg")}")

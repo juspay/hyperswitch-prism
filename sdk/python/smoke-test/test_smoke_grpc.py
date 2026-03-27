@@ -84,15 +84,15 @@ def load_field_probe(
 #   arg_type: "AUTOMATIC" | "MANUAL" | "txn_id" | "none"
 
 FLOW_META = [
-    ("authorize",                "payment",          "authorize",           "_build_authorize_request",              "AUTOMATIC"),
-    ("capture",                  "payment",          "capture",             "_build_capture_request",                "txn_id"),
-    ("void",                     "payment",          "void",                "_build_void_request",                   "txn_id"),
-    ("get",                      "payment",          "get",                 "_build_get_request",                    "txn_id"),
-    ("refund",                   "payment",          "refund",              "_build_refund_request",                 "txn_id"),
-    ("reverse",                  "payment",          "reverse",             "_build_reverse_request",                "txn_id"),
+    ("authorize",                "direct_payment",   "authorize",           "_build_authorize_request",              "AUTOMATIC"),
+    ("capture",                  "direct_payment",   "capture",             "_build_capture_request",                "txn_id"),
+    ("void",                     "direct_payment",   "void",                "_build_void_request",                   "txn_id"),
+    ("get",                      "direct_payment",   "get",                 "_build_get_request",                    "txn_id"),
+    ("refund",                   "direct_payment",   "refund",              "_build_refund_request",                 "txn_id"),
+    ("reverse",                  "direct_payment",   "reverse",             "_build_reverse_request",                "txn_id"),
     ("create_customer",          "customer",         "create",              "_build_create_customer_request",        "none"),
     ("tokenize",                 "payment_method",   "tokenize",            "_build_tokenize_request",               "none"),
-    ("setup_recurring",          "payment",          "setup_recurring",     "_build_setup_recurring_request",        "none"),
+    ("setup_recurring",          "direct_payment",   "setup_recurring",     "_build_setup_recurring_request",        "none"),
     ("recurring_charge",         "recurring_payment","charge",              "_build_recurring_charge_request",       "none"),
     ("pre_authenticate",         "payment_method_authentication", "pre_authenticate",  "_build_pre_authenticate_request",  "none"),
     ("authenticate",             "payment_method_authentication", "authenticate",      "_build_authenticate_request",      "none"),
@@ -279,7 +279,7 @@ def run_connector(connector_name: str, examples_dir: str, cred: Dict[str, Any]) 
             req = build_request(mod, "_build_authorize_request", "AUTOMATIC", "AUTOMATIC")
             if req is None:
                 raise RuntimeError("_build_authorize_request not found in connector module")
-            res = client.payment.authorize(req)
+            res = client.direct_payment.authorize(req)
             authorize_txn_id = res.connector_transaction_id or txn_id
             result = _format_result(res)
             if res.status_code >= 400:
@@ -317,7 +317,7 @@ def run_connector(connector_name: str, examples_dir: str, cred: Dict[str, Any]) 
                 auth_req = build_request(mod, "_build_authorize_request", "MANUAL", "MANUAL")
                 if auth_req is None:
                     raise RuntimeError("_build_authorize_request not found")
-                auth = client.payment.authorize(auth_req)
+                auth = client.direct_payment.authorize(auth_req)
                 if auth.status_code >= 400:
                     raise RuntimeError(f"inline authorize failed (status {auth.status_code})")
                 self_txn_id = auth.connector_transaction_id or txn_id

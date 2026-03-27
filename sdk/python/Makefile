@@ -1,6 +1,6 @@
 .PHONY: install-deps install-codegen-deps generate-bindings generate-proto generate-all \
-        generate-flows pack-archive install test-package test-composite test-grpc dist clean
-	#
+        generate-flows pack-archive install test-package test-composite test-grpc test-grpc-no-server dist clean
+
 # SDK-specific paths (define BEFORE including common.mk)
 MAKEFILE_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 SDK_ROOT     := $(MAKEFILE_DIR)
@@ -189,6 +189,27 @@ test-composite: generate-all pack-archive
 # ---------------------------------------------------------------------------
 GRPC_PROFILE    ?= release-fast
 GRPC_SERVER_BIN := $(REPO_ROOT)/target/$(GRPC_PROFILE)/grpc-server
+
+# Run gRPC test assuming server is already running (used by top-level test-grpc)
+test-grpc-no-server: build-ffi-lib build-grpc-ffi-lib generate-all pack-archive
+	@echo "Testing gRPC flows in isolation..."
+	@rm -rf /tmp/test-hyperswitch-py-grpc
+	@mkdir -p /tmp/test-hyperswitch-py-grpc
+	@python3 -m pip install \
+		--target /tmp/test-hyperswitch-py-grpc \
+		$(PACKAGE_DIR)/hyperswitch_payments-0.1.0-py3-none-any.whl \
+		--force-reinstall
+	@cp -f $(GRPC_FFI_LIBRARY) /tmp/test-hyperswitch-py-grpc/payments/generated/
+	@cp $(SDK_ROOT)/smoke-test/test_smoke_grpc.py /tmp/test-hyperswitch-py-grpc/
+	@if [ -f $(REPO_ROOT)/creds.json ]; then \
+		cp $(REPO_ROOT)/creds.json /tmp/test-hyperswitch-py-grpc/; \
+	else \
+		echo "  Note: no creds.json found, test will use placeholder credentials"; \
+	fi
+	@cd /tmp/test-hyperswitch-py-grpc && PYTHONPATH=/tmp/test-hyperswitch-py-grpc FORCE_COLOR=1 \
+		python3 test_smoke_grpc.py \
+		--connectors $(CONNECTORS) --examples-dir $(REPO_ROOT)/examples
+	@rm -rf /tmp/test-hyperswitch-py-grpc
 
 test-grpc: build-ffi-lib build-grpc-ffi-lib generate-all pack-archive
 	@echo "Building grpc-server ($(GRPC_PROFILE))..."

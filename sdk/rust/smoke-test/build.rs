@@ -72,6 +72,10 @@ fn load_supported_flows(examples_dir: &Path, connector: &str) -> Option<HashSet<
         "create_access_token",
         "create_session_token",
         "create_sdk_session_token",
+        "tokenized_authorize",
+        "tokenized_setup_recurring",
+        "proxied_authorize",
+        "proxied_setup_recurring",
     ];
     let mut supported = HashSet::new();
     for flow_key in all_flow_keys {
@@ -112,6 +116,10 @@ fn main() {
         ("create_customer", "process_create_customer"),
         ("tokenize", "process_tokenize"),
         ("authentication", "process_authentication"),
+        ("tokenized_checkout", "process_tokenized_checkout"),
+        ("tokenized_recurring", "process_tokenized_recurring"),
+        ("proxy_checkout", "process_proxy_checkout"),
+        ("proxy_3ds_checkout", "process_proxy_3ds_checkout"),
     ];
 
     // Flow metadata for gRPC dispatch via builder functions.
@@ -121,7 +129,7 @@ fn main() {
     let flow_meta: &[(&str, &str, &str, &str, bool, bool)] = &[
         (
             "authorize",
-            "payment",
+            "direct_payment",
             "authorize",
             "build_authorize_request",
             false,
@@ -129,17 +137,63 @@ fn main() {
         ),
         (
             "capture",
-            "payment",
+            "direct_payment",
+            "capture",
+            "build_capture_request",
+            true,
+            false,
+        ),
+        (
+            "void",
+            "direct_payment",
+            "void",
+            "build_void_request",
+            true,
+            false,
+        ),
+        (
+            "get",
+            "direct_payment",
+            "get",
+            "build_get_request",
+            true,
+            false,
+        ),
+        (
+            "refund",
+            "direct_payment",
+            "refund",
+            "build_refund_request",
+            true,
+            false,
+        ),
+        (
+            "capture",
+            "direct_payment",
             "capture",
             "build_capture_request",
             false,
             true,
         ),
-        ("void", "payment", "void", "build_void_request", false, true),
-        ("get", "payment", "get", "build_get_request", true, false),
+        (
+            "void",
+            "direct_payment",
+            "void",
+            "build_void_request",
+            false,
+            true,
+        ),
+        (
+            "get",
+            "direct_payment",
+            "get",
+            "build_get_request",
+            true,
+            false,
+        ),
         (
             "refund",
-            "payment",
+            "direct_payment",
             "refund",
             "build_refund_request",
             true,
@@ -147,7 +201,7 @@ fn main() {
         ),
         (
             "reverse",
-            "payment",
+            "direct_payment",
             "reverse",
             "build_reverse_request",
             true,
@@ -171,7 +225,7 @@ fn main() {
         ),
         (
             "setup_recurring",
-            "payment",
+            "direct_payment",
             "setup_recurring",
             "build_setup_recurring_request",
             false,
@@ -187,7 +241,7 @@ fn main() {
         ),
         (
             "pre_authenticate",
-            "payment",
+            "direct_payment",
             "pre_authenticate",
             "build_pre_authenticate_request",
             false,
@@ -195,7 +249,7 @@ fn main() {
         ),
         (
             "authenticate",
-            "payment",
+            "direct_payment",
             "authenticate",
             "build_authenticate_request",
             false,
@@ -203,7 +257,7 @@ fn main() {
         ),
         (
             "post_authenticate",
-            "payment",
+            "direct_payment",
             "post_authenticate",
             "build_post_authenticate_request",
             false,
@@ -211,7 +265,7 @@ fn main() {
         ),
         (
             "handle_event",
-            "payment",
+            "direct_payment",
             "handle_event",
             "build_handle_event_request",
             false,
@@ -219,7 +273,7 @@ fn main() {
         ),
         (
             "create_access_token",
-            "payment",
+            "direct_payment",
             "create_access_token",
             "build_create_access_token_request",
             false,
@@ -227,7 +281,7 @@ fn main() {
         ),
         (
             "create_session_token",
-            "payment",
+            "direct_payment",
             "create_session_token",
             "build_create_session_token_request",
             false,
@@ -235,9 +289,41 @@ fn main() {
         ),
         (
             "create_sdk_session_token",
-            "payment",
+            "direct_payment",
             "create_sdk_session_token",
             "build_create_sdk_session_token_request",
+            false,
+            false,
+        ),
+        (
+            "tokenized_authorize",
+            "tokenized_payment",
+            "tokenized_authorize",
+            "build_tokenized_authorize_request",
+            false,
+            false,
+        ),
+        (
+            "tokenized_setup_recurring",
+            "tokenized_payment",
+            "tokenized_setup_recurring",
+            "build_tokenized_setup_recurring_request",
+            false,
+            false,
+        ),
+        (
+            "proxied_authorize",
+            "proxy_payment",
+            "proxied_authorize",
+            "build_proxied_authorize_request",
+            false,
+            false,
+        ),
+        (
+            "proxied_setup_recurring",
+            "proxy_payment",
+            "proxied_setup_recurring",
+            "build_proxied_setup_recurring_request",
             false,
             false,
         ),
@@ -428,7 +514,7 @@ fn main() {
             // Pre-run AUTOMATIC authorize to obtain the connector txn_id for dependent flows.
             if has_authorize && has_dependents {
                 code.push_str(&format!(
-                    "        let pre_auth_res = client.payment.authorize(connectors::{name}::build_authorize_request(\"AUTOMATIC\")).await;\n"
+                    "        let pre_auth_res = client.direct_payment.authorize(connectors::{name}::build_authorize_request(\"AUTOMATIC\")).await;\n"
                 ));
                 code.push_str("        let authorize_txn_id = pre_auth_res.as_ref().ok()\n");
                 code.push_str("            .and_then(|r| r.connector_transaction_id.as_deref())\n");
@@ -482,8 +568,8 @@ fn main() {
                     };
 
                     let ret = match flow_key {
-                    "authorize" =>
-                        "format!(\"txn_id: {}, status_code: {}, error: {}\", r.connector_transaction_id.as_deref().unwrap_or(\"-\"), r.status_code, r.error.as_deref().unwrap_or(\"-\"))",
+                        "authorize" | "tokenized_authorize" | "proxied_authorize" =>
+                            "format!(\"txn_id: {}, status_code: {}, error: {}\", r.connector_transaction_id.as_deref().unwrap_or(\"-\"), r.status_code, r.error.as_deref().unwrap_or(\"-\"))",
                         "get" | "reverse" =>
                             "format!(\"txn_id: {}, status_code: {}\", r.connector_transaction_id, r.status_code)",
                         "refund" =>
@@ -492,7 +578,7 @@ fn main() {
                             "format!(\"token: {}\", r.payment_method_token)",
                         "create_customer" =>
                             "format!(\"customer_id: {}, status_code: {}\", r.connector_customer_id, r.status_code)",
-                        "setup_recurring" =>
+                        "setup_recurring" | "tokenized_setup_recurring" | "proxied_setup_recurring" =>
                             "format!(\"recurring_id: {}, status_code: {}\", r.connector_recurring_payment_id.as_deref().unwrap_or(\"-\"), r.status_code)",
                         "recurring_charge" =>
                             "format!(\"txn_id: {}, status_code: {}\", r.connector_transaction_id.as_deref().unwrap_or(\"-\"), r.status_code)",

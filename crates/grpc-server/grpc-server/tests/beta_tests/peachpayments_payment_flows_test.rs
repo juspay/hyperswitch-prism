@@ -15,7 +15,7 @@ use std::{
 
 use cards::CardNumber;
 use grpc_api_types::payments::{
-    identifier::IdType, payment_method, payment_service_client::PaymentServiceClient,
+    identifier::IdType, payment_method, direct_payment_service_client::DirectPaymentServiceClient,
     AuthenticationType, CaptureMethod, CardDetails, Currency, Identifier, PaymentMethod,
     PaymentServiceAuthorizeRequest, PaymentServiceAuthorizeResponse, PaymentServiceCaptureRequest,
     PaymentServiceGetRequest, PaymentServiceRefundRequest, PaymentServiceVoidRequest,
@@ -210,7 +210,7 @@ fn create_payment_sync_request(transaction_id: &str) -> PaymentServiceGetRequest
 
 #[tokio::test]
 async fn test_peachpayments_authorize_auto_capture() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let request = create_authorize_request(CaptureMethod::Automatic);
         let mut grpc_request = Request::new(request);
         add_peachpayments_metadata(&mut grpc_request);
@@ -230,7 +230,7 @@ async fn test_peachpayments_authorize_auto_capture() {
 
 #[tokio::test]
 async fn test_peachpayments_authorize_manual_capture() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let request = create_authorize_request(CaptureMethod::Manual);
         let mut grpc_request = Request::new(request);
         add_peachpayments_metadata(&mut grpc_request);
@@ -250,7 +250,7 @@ async fn test_peachpayments_authorize_manual_capture() {
 
 #[tokio::test]
 async fn test_peachpayments_authorize_and_capture() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let auth_request = create_authorize_request(CaptureMethod::Manual);
         let mut auth_grpc_request = Request::new(auth_request);
         add_peachpayments_metadata(&mut auth_grpc_request);
@@ -284,7 +284,7 @@ async fn test_peachpayments_authorize_and_capture() {
 
 #[tokio::test]
 async fn test_peachpayments_authorize_and_void() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let auth_request = create_authorize_request(CaptureMethod::Manual);
         let mut auth_grpc_request = Request::new(auth_request);
         add_peachpayments_metadata(&mut auth_grpc_request);
@@ -318,7 +318,7 @@ async fn test_peachpayments_authorize_and_void() {
 
 #[tokio::test]
 async fn test_peachpayments_refund() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let auth_request = create_authorize_request(CaptureMethod::Automatic);
         let mut auth_grpc_request = Request::new(auth_request);
         add_peachpayments_metadata(&mut auth_grpc_request);
@@ -352,7 +352,7 @@ async fn test_peachpayments_refund() {
 
 #[tokio::test]
 async fn test_peachpayments_payment_sync() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let auth_request = create_authorize_request(CaptureMethod::Manual);
         let mut auth_grpc_request = Request::new(auth_request);
         add_peachpayments_metadata(&mut auth_grpc_request);

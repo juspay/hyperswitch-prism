@@ -16,7 +16,7 @@ use std::{
 use grpc_api_types::{
     health_check::{health_client::HealthClient, HealthCheckRequest},
     payments::{
-        identifier::IdType, payment_method, payment_service_client::PaymentServiceClient,
+        identifier::IdType, payment_method, direct_payment_service_client::DirectPaymentServiceClient,
         refund_service_client::RefundServiceClient, AuthenticationType, CaptureMethod, CardDetails,
         Currency, Identifier, PaymentMethod, PaymentServiceAuthorizeRequest,
         PaymentServiceAuthorizeResponse, PaymentServiceCaptureRequest, PaymentServiceGetRequest,
@@ -298,7 +298,7 @@ async fn test_health() {
 // Test payment authorization with auto capture
 #[tokio::test]
 async fn test_payment_authorization_auto_capture() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         // Create the payment authorization request
         let request = create_payment_authorize_request(CaptureMethod::Automatic);
 
@@ -325,7 +325,7 @@ async fn test_payment_authorization_auto_capture() {
 // Test payment authorization with manual capture
 #[tokio::test]
 async fn test_payment_authorization_manual_capture() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         // Add delay of 4 seconds
         tokio::time::sleep(std::time::Duration::from_secs(4)).await;
 
@@ -379,7 +379,7 @@ async fn test_payment_authorization_manual_capture() {
 // Test payment sync with auto capture
 #[tokio::test]
 async fn test_payment_sync_auto_capture() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         // Add delay of 8 seconds
         tokio::time::sleep(std::time::Duration::from_secs(8)).await;
 
@@ -425,7 +425,7 @@ async fn test_payment_sync_auto_capture() {
 // Test payment void
 #[tokio::test]
 async fn test_payment_void() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         // Add delay of 12 seconds
         tokio::time::sleep(std::time::Duration::from_secs(12)).await;
 
@@ -498,7 +498,7 @@ async fn test_payment_void() {
 #[tokio::test]
 #[ignore]
 async fn test_refund() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         // Add delay of 16 seconds
         tokio::time::sleep(std::time::Duration::from_secs(16)).await;
 
@@ -551,7 +551,7 @@ async fn test_refund() {
 #[tokio::test]
 #[ignore]
 async fn test_refund_sync() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         grpc_test!(refund_client, RefundServiceClient<Channel>, {
             // Add delay of 20 seconds
             tokio::time::sleep(std::time::Duration::from_secs(20)).await;

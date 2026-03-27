@@ -259,6 +259,46 @@
       "category": "Authentication",
       "grpc_request": "PaymentMethodAuthenticationServicePostAuthenticateRequest",
       "grpc_response": "PaymentMethodAuthenticationServicePostAuthenticateResponse"
+    },
+    {
+      "flow_key": "tokenized_authorize",
+      "service_rpc": "TokenizedPaymentService.Authorize",
+      "description": "Authorize a payment using a connector-issued payment method token (e.g. Stripe pm_xxx). Card data never touches your server \u2014 only the token is sent.",
+      "service_name": "TokenizedPaymentService",
+      "rpc_name": "Authorize",
+      "category": "Non-PCI Payments",
+      "grpc_request": "TokenizedPaymentServiceAuthorizeRequest",
+      "grpc_response": "PaymentServiceAuthorizeResponse"
+    },
+    {
+      "flow_key": "tokenized_setup_recurring",
+      "service_rpc": "TokenizedPaymentService.SetupRecurring",
+      "description": "Store a payment mandate using a connector-issued token for future recurring charges without re-collecting card data.",
+      "service_name": "TokenizedPaymentService",
+      "rpc_name": "SetupRecurring",
+      "category": "Non-PCI Payments",
+      "grpc_request": "TokenizedPaymentServiceSetupRecurringRequest",
+      "grpc_response": "PaymentServiceSetupRecurringResponse"
+    },
+    {
+      "flow_key": "proxied_authorize",
+      "service_rpc": "ProxiedPaymentService.Authorize",
+      "description": "Authorize using vault alias tokens (VGS / Basis Theory / Spreedly). The proxy substitutes aliases with real card values before forwarding to the connector.",
+      "service_name": "ProxiedPaymentService",
+      "rpc_name": "Authorize",
+      "category": "Non-PCI Payments",
+      "grpc_request": "ProxiedPaymentServiceAuthorizeRequest",
+      "grpc_response": "PaymentServiceAuthorizeResponse"
+    },
+    {
+      "flow_key": "proxied_setup_recurring",
+      "service_rpc": "ProxiedPaymentService.SetupRecurring",
+      "description": "Store a payment mandate using vault alias tokens routed through an outbound proxy.",
+      "service_name": "ProxiedPaymentService",
+      "rpc_name": "SetupRecurring",
+      "category": "Non-PCI Payments",
+      "grpc_request": "ProxiedPaymentServiceSetupRecurringRequest",
+      "grpc_response": "PaymentServiceSetupRecurringResponse"
     }
   ],
   "connectors": [
@@ -3270,5 +3310,156 @@
       "field_types": {}
     }
   },
+  "scenario_groups": [
+    {
+      "key": "checkout_card",
+      "title": "Card Payment (Authorize + Capture)",
+      "description": "Reserve funds with Authorize, then settle with a separate Capture call. Use for physical goods or delayed fulfillment where capture happens later.",
+      "flows": ["authorize", "capture"],
+      "pm_key": "Card",
+      "required_flows": [
+        {"flow_key": "authorize", "pm_key": "Card"},
+        {"flow_key": "capture"}
+      ]
+    },
+    {
+      "key": "checkout_autocapture",
+      "title": "Card Payment (Automatic Capture)",
+      "description": "Authorize and capture in one call using `capture_method=AUTOMATIC`. Use for digital goods or immediate fulfillment.",
+      "flows": ["authorize"],
+      "pm_key": "Card",
+      "required_flows": [
+        {"flow_key": "authorize", "pm_key": "Card"}
+      ]
+    },
+    {
+      "key": "checkout_wallet",
+      "title": "Wallet Payment (Google Pay / Apple Pay)",
+      "description": "Wallet payments pass an encrypted token from the browser/device SDK. Pass the token blob directly — do not decrypt client-side.",
+      "flows": ["authorize"],
+      "pm_variants": ["GooglePay", "ApplePay", "SamsungPay"],
+      "required_flows": [
+        {"flow_key": "authorize", "pm_key_variants": ["GooglePay", "ApplePay", "SamsungPay"]}
+      ]
+    },
+    {
+      "key": "checkout_bank",
+      "title": "Bank Transfer (SEPA / ACH / BACS)",
+      "description": "Direct bank debit. Bank transfers typically use `capture_method=AUTOMATIC`.",
+      "flows": ["authorize"],
+      "pm_variants": ["Sepa", "Ach", "Bacs", "Becs"],
+      "required_flows": [
+        {"flow_key": "authorize", "pm_key_variants": ["Sepa", "Ach", "Bacs", "Becs"]}
+      ]
+    },
+    {
+      "key": "refund",
+      "title": "Refund a Payment",
+      "description": "Authorize with automatic capture, then refund the captured amount. `connector_transaction_id` from the Authorize response is reused for the Refund call.",
+      "flows": ["authorize", "refund"],
+      "pm_key": "Card",
+      "required_flows": [
+        {"flow_key": "authorize", "pm_key": "Card"},
+        {"flow_key": "refund"}
+      ]
+    },
+    {
+      "key": "recurring",
+      "title": "Recurring / Mandate Payments",
+      "description": "Store a payment mandate with SetupRecurring, then charge it repeatedly with RecurringPaymentService.Charge without requiring customer action.",
+      "flows": ["setup_recurring", "recurring_charge"],
+      "pm_key": null,
+      "required_flows": [
+        {"flow_key": "setup_recurring"},
+        {"flow_key": "recurring_charge"}
+      ]
+    },
+    {
+      "key": "void_payment",
+      "title": "Void a Payment",
+      "description": "Authorize funds with a manual capture flag, then cancel the authorization with Void before any capture occurs. Releases the hold on the customer's funds.",
+      "flows": ["authorize", "void"],
+      "pm_key": "Card",
+      "required_flows": [
+        {"flow_key": "authorize", "pm_key": "Card"},
+        {"flow_key": "void"}
+      ]
+    },
+    {
+      "key": "get_payment",
+      "title": "Get Payment Status",
+      "description": "Authorize a payment, then poll the connector for its current status using Get. Use this to sync payment state when webhooks are unavailable or delayed.",
+      "flows": ["authorize", "get"],
+      "pm_key": "Card",
+      "required_flows": [
+        {"flow_key": "authorize", "pm_key": "Card"},
+        {"flow_key": "get"}
+      ]
+    },
+    {
+      "key": "create_customer",
+      "title": "Create Customer",
+      "description": "Register a customer record in the connector system. Returns a connector_customer_id that can be reused for recurring payments and tokenized card storage.",
+      "flows": ["create_customer"],
+      "pm_key": null,
+      "required_flows": [
+        {"flow_key": "create_customer"}
+      ]
+    },
+    {
+      "key": "tokenize",
+      "title": "Tokenize Payment Method",
+      "description": "Store card details in the connector's vault and receive a reusable payment token. Use the returned token for one-click payments and recurring billing without re-collecting card data.",
+      "flows": ["tokenize"],
+      "pm_key": null,
+      "required_flows": [
+        {"flow_key": "tokenize"}
+      ]
+    },
+    {
+      "key": "authentication",
+      "title": "3DS Authentication",
+      "description": "Full 3D Secure authentication flow: PreAuthenticate collects device/browser data, Authenticate executes the challenge or frictionless verification, PostAuthenticate validates the result with the issuing bank.",
+      "flows": ["pre_authenticate", "authenticate", "post_authenticate"],
+      "pm_key": null,
+      "required_flows": [
+        {"flow_key": "pre_authenticate"},
+        {"flow_key": "authenticate"},
+        {"flow_key": "post_authenticate"}
+      ]
+    },
+    {
+      "key": "tokenized_checkout",
+      "title": "Tokenized Payment (Authorize + Capture)",
+      "description": "Authorize using a connector-issued payment method token (e.g. Stripe pm_xxx). Card data never touches your server — only the token is sent. Capture settles the reserved funds.",
+      "flows": ["tokenized_authorize", "capture"],
+      "pm_key": null,
+      "required_flows": [
+        {"flow_key": "tokenized_authorize"},
+        {"flow_key": "capture"}
+      ]
+    },
+    {
+      "key": "tokenized_recurring",
+      "title": "Tokenized Recurring Payments",
+      "description": "Store a payment mandate using a connector token with SetupRecurring, then charge it repeatedly with RecurringPaymentService without requiring customer action or re-collecting card data.",
+      "flows": ["tokenized_setup_recurring", "recurring_charge"],
+      "pm_key": null,
+      "required_flows": [
+        {"flow_key": "tokenized_setup_recurring"},
+        {"flow_key": "recurring_charge"}
+      ]
+    },
+    {
+      "key": "proxy_checkout",
+      "title": "Proxy Payment via Vault (VGS / Basis Theory)",
+      "description": "Authorize using vault alias tokens. Configure an outbound proxy URL in RequestConfig — the proxy substitutes aliases with real card values before the request reaches the connector. Card data never touches your server.",
+      "flows": ["proxied_authorize"],
+      "pm_key": null,
+      "required_flows": [
+        {"flow_key": "proxied_authorize"}
+      ]
+    }
+  ],
   "schema_version": "2.0.0"
 }

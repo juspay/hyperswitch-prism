@@ -89,7 +89,7 @@ service EventService {
 // ============================================================================
 
 // Unified service definition for all payment related operations.
-service PaymentService {
+service DirectPaymentService {
   // Authorize a payment amount on a payment method. This reserves funds
   // without capturing them, essential for verifying availability before finalizing.
   rpc Authorize(PaymentServiceAuthorizeRequest) returns (PaymentServiceAuthorizeResponse);
@@ -98,36 +98,36 @@ service PaymentService {
   // between your system and payment processors for accurate state tracking.
   rpc Get(PaymentServiceGetRequest) returns (PaymentServiceGetResponse);
 
-  // Cancel an authorized payment before capture. Releases held funds back to
-  // customer, typically used when orders are cancelled or abandoned.
+  // Cancel an authorized payment that has not been captured. Releases held funds
+  // back to the customer's payment method when a transaction cannot be completed.
   rpc Void(PaymentServiceVoidRequest) returns (PaymentServiceVoidResponse);
 
-  // Reverse a captured payment before settlement. Recovers funds after capture
-  // but before bank settlement, used for corrections or cancellations.
+  // Reverse a captured payment in full. Initiates a complete refund when you need
+  // to cancel a settled transaction rather than just an authorization.
   rpc Reverse(PaymentServiceReverseRequest) returns (PaymentServiceReverseResponse);
 
-  // Finalize an authorized payment transaction. Transfers reserved funds from
-  // customer to merchant account, completing the payment lifecycle.
+  // Finalize an authorized payment by transferring funds. Captures the authorized
+  // amount to complete the transaction and move funds to your merchant account.
   rpc Capture(PaymentServiceCaptureRequest) returns (PaymentServiceCaptureResponse);
 
-  // Initialize an order in the payment processor system. Sets up payment context
-  // before customer enters card details for improved authorization rates.
+  // Create a payment order for later processing. Establishes a transaction context
+  // that can be authorized or captured in subsequent API calls.
   rpc CreateOrder(PaymentServiceCreateOrderRequest) returns (PaymentServiceCreateOrderResponse);
 
-  // Initiate a refund to customer's payment method. Returns funds for
-  // returns, cancellations, or service adjustments after original payment.
+  // Process a partial or full refund for a captured payment. Returns funds to the
+  // customer when goods are returned or services are cancelled.
   rpc Refund(PaymentServiceRefundRequest) returns (RefundResponse);
 
-  // Increase authorized amount if still in authorized state. Allows adding
-  // charges to existing authorization for hospitality, tips, or incremental services.
+  // Increase the authorized amount for an existing payment. Enables you to capture
+  // additional funds when the transaction amount changes after initial authorization.
   rpc IncrementalAuthorization(PaymentServiceIncrementalAuthorizationRequest) returns (PaymentServiceIncrementalAuthorizationResponse);
 
-  // Validate redirect-based payment responses. Confirms authenticity of
-  // redirect-based payment completions to prevent fraud and tampering.
+  // Verify and process redirect responses from 3D Secure or other external flows.
+  // Validates authentication results and updates payment state accordingly.
   rpc VerifyRedirectResponse(PaymentServiceVerifyRedirectResponseRequest) returns (PaymentServiceVerifyRedirectResponseResponse);
 
-  // Setup a recurring payment instruction for future payments/ debits. This could be
-  // for SaaS subscriptions, monthly bill payments, insurance payments and similar use cases.
+  // Configure a payment method for recurring billing. Sets up the mandate and
+  // payment details needed for future automated charges.
   rpc SetupRecurring(PaymentServiceSetupRecurringRequest) returns (PaymentServiceSetupRecurringResponse);
 }
 
@@ -283,4 +283,44 @@ service PayoutService {
 
   // Enroll disburse account.
   rpc EnrollDisburseAccount(PayoutServiceEnrollDisburseAccountRequest) returns (PayoutServiceEnrollDisburseAccountResponse);
+}
+
+// ============================================================================
+// TOKENIZED PAYMENT SERVICE — For merchants holding connector-issued payment
+// method tokens (e.g., Stripe pm_xxx, Adyen stored ref, Braintree nonce).
+// ============================================================================
+// 3DS flows (PaymentMethodAuthenticationService) are NOT available here —
+// PSP tokens cannot be passed to an external 3DS directory server.
+// For 3DS on stored tokens, use connector_feature_data to trigger
+// connector-side delegated authentication (Stripe, Adyen, etc. support this).
+
+service TokenizedPaymentService {
+  // Authorize using a connector-issued payment method token.
+  rpc Authorize(TokenizedPaymentServiceAuthorizeRequest) returns (PaymentServiceAuthorizeResponse);
+
+  // Setup a recurring mandate using a connector token.
+  rpc SetupRecurring(TokenizedPaymentServiceSetupRecurringRequest) returns (PaymentServiceSetupRecurringResponse);
+}
+
+// ============================================================================
+// PROXY PAYMENT SERVICE — For merchants using VGS, Basis Theory, Spreedly,
+// or similar vault providers that proxy traffic and substitute aliases.
+// ============================================================================
+// VaultAliasCard fields contain vault alias tokens that the proxy substitutes
+// with real card data before forwarding to the connector.
+//
+// The proxy URL must be set in RequestConfig.http.proxy when constructing
+// the client, or set in the gRPC server's outbound HTTP configuration.
+//
+// 3DS flows (PreAuthenticate, Authenticate, PostAuthenticate) are available
+// because the vault proxy substitutes aliases with the real PAN before
+// forwarding to the 3DS server (Netcetera, JuspayThreeDsServer, etc.).
+
+service ProxiedPaymentService {
+  // Authorize using vault-aliased card data. Proxy substitutes before connector.
+  rpc Authorize(ProxiedPaymentServiceAuthorizeRequest) returns (PaymentServiceAuthorizeResponse);
+
+  // Setup recurring mandate using vault-aliased card data.
+  rpc SetupRecurring(ProxiedPaymentServiceSetupRecurringRequest) returns (PaymentServiceSetupRecurringResponse);
+
 }

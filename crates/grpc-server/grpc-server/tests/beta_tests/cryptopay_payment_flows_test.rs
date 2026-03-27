@@ -10,7 +10,7 @@ mod utils;
 use grpc_api_types::{
     health_check::{health_client::HealthClient, HealthCheckRequest},
     payments::{
-        identifier::IdType, payment_method, payment_service_client::PaymentServiceClient,
+        identifier::IdType, payment_method, direct_payment_service_client::DirectPaymentServiceClient,
         AuthenticationType, CaptureMethod, CryptoCurrency, CryptoCurrencyPaymentMethodType,
         Currency, Identifier, PaymentMethod, PaymentServiceAuthorizeRequest,
         PaymentServiceAuthorizeResponse, PaymentServiceGetRequest, PaymentStatus,
@@ -159,7 +159,7 @@ async fn test_health() {
 // Test payment authorization with auto capture
 #[tokio::test]
 async fn test_payment_authorization_and_psync() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         // Create the payment authorization request
         let request = create_authorize_request(CaptureMethod::Automatic);
 

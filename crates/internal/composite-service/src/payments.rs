@@ -6,14 +6,13 @@ use domain_types::{
 use grpc_api_types::payments::{
     composite_payment_service_server::CompositePaymentService,
     composite_refund_service_server::CompositeRefundService,
-    customer_service_server::CustomerService,
+    customer_service_server::CustomerService, direct_payment_service_server::DirectPaymentService,
     merchant_authentication_service_server::MerchantAuthenticationService,
-    payment_service_server::PaymentService, refund_service_server::RefundService,
-    CompositeAuthorizeRequest, CompositeAuthorizeResponse, CompositeCaptureRequest,
-    CompositeCaptureResponse, CompositeGetRequest, CompositeGetResponse, CompositeRefundGetRequest,
-    CompositeRefundGetResponse, CompositeRefundRequest, CompositeRefundResponse,
-    CompositeVoidRequest, CompositeVoidResponse, ConnectorState, CustomerServiceCreateResponse,
-    MerchantAuthenticationServiceCreateAccessTokenRequest,
+    refund_service_server::RefundService, CompositeAuthorizeRequest, CompositeAuthorizeResponse,
+    CompositeCaptureRequest, CompositeCaptureResponse, CompositeGetRequest, CompositeGetResponse,
+    CompositeRefundGetRequest, CompositeRefundGetResponse, CompositeRefundRequest,
+    CompositeRefundResponse, CompositeVoidRequest, CompositeVoidResponse, ConnectorState,
+    CustomerServiceCreateResponse, MerchantAuthenticationServiceCreateAccessTokenRequest,
     MerchantAuthenticationServiceCreateAccessTokenResponse, PaymentMethod,
     PaymentServiceAuthorizeRequest, PaymentServiceAuthorizeResponse, PaymentServiceCaptureRequest,
     PaymentServiceCaptureResponse, PaymentServiceGetResponse, PaymentServiceRefundRequest,
@@ -161,7 +160,7 @@ impl<P, M, C, R> Payments<P, M, C, R> {
 
 impl<P, M, C, R> Payments<P, M, C, R>
 where
-    P: PaymentService + Clone + Send + Sync + 'static,
+    P: DirectPaymentService + Clone + Send + Sync + 'static,
     M: MerchantAuthenticationService + Clone + Send + Sync + 'static,
     C: CustomerService + Clone + Send + Sync + 'static,
     R: RefundService + Clone + Send + Sync + 'static,
@@ -562,7 +561,7 @@ where
 #[tonic::async_trait]
 impl<P, M, C, R> CompositePaymentService for Payments<P, M, C, R>
 where
-    P: PaymentService + Clone + Send + Sync + 'static,
+    P: DirectPaymentService + Clone + Send + Sync + 'static,
     M: MerchantAuthenticationService + Clone + Send + Sync + 'static,
     C: CustomerService + Clone + Send + Sync + 'static,
     R: RefundService + Clone + Send + Sync + 'static,
@@ -606,7 +605,7 @@ where
 #[tonic::async_trait]
 impl<P, M, C, R> CompositeRefundService for Payments<P, M, C, R>
 where
-    P: PaymentService + Clone + Send + Sync + 'static,
+    P: DirectPaymentService + Clone + Send + Sync + 'static,
     M: MerchantAuthenticationService + Clone + Send + Sync + 'static,
     C: CustomerService + Clone + Send + Sync + 'static,
     R: RefundService + Clone + Send + Sync + 'static,

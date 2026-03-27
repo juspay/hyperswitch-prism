@@ -4059,3 +4059,123 @@ message ConnectorSpecificConfig {
     FiservcommercehubConfig fiservcommercehub = 112;
   }
 }
+
+// ============================================================================
+// NON-PCI SDK CLIENTS - TOKENIZED AND PROXY PAYMENT MESSAGES
+// ============================================================================
+// These messages are used by TokenizedPaymentService and ProxiedPaymentService
+// for merchants who do not hold raw card data.
+// ============================================================================
+
+// ── VaultAliasCard ────────────────────────────────────────────────────────────
+// Used by ProxiedPaymentService. Every field is a vault alias token or plain
+// metadata — no real PAN, CVV, or sensitive card data.
+// VGS / Basis Theory / Spreedly substitutes aliases with real values in-flight.
+message VaultAliasCard {
+  // Vault alias for the card PAN (e.g. "tok_sandbox_abc123").
+  SecretString card_number_alias = 1;
+
+  // Expiry month — alias OR real value (many vaults keep expiry in the clear).
+  string exp_month = 2;
+  string exp_year = 3;
+
+  // Alias for CVV. Omit if vault does not store CVV.
+  optional SecretString cvc_alias = 4;
+
+  optional string card_holder_name = 5;
+  optional CardNetwork card_network = 6;
+  optional string vault_provider = 7; // informational: "vgs", "basis_theory", "spreedly"
+}
+
+// ── TokenizedPaymentService messages ─────────────────────────────────────────
+
+message TokenizedPaymentServiceAuthorizeRequest {
+  optional string merchant_transaction_id = 1;
+  Money amount = 2;
+  // Connector-issued token. Replaces PaymentMethod entirely.
+  // Examples: Stripe pm_xxx, Adyen recurringDetailReference, Braintree nonce.
+  SecretString connector_token = 3;
+  optional Customer customer = 4;
+  PaymentAddress address = 5;
+  optional CaptureMethod capture_method = 6;
+  optional string return_url = 7;
+  optional string webhook_url = 8;
+  optional SecretString metadata = 9;
+  optional SecretString connector_feature_data = 10;
+  optional FutureUsage setup_future_usage = 11;
+  optional BrowserInformation browser_info = 12;
+  optional ConnectorState state = 13;
+  optional BillingDescriptor billing_descriptor = 14;
+  optional string merchant_order_id = 15;
+  optional L2L3Data l2_l3_data = 16;
+  optional CustomerAcceptance customer_acceptance = 17;
+  optional PaymentExperience payment_experience = 18;
+  optional string description = 19;
+  optional PaymentChannel payment_channel = 20;
+  optional bool test_mode = 21;
+  // auth_type intentionally absent: PSP tokens cannot drive external 3DS.
+  // Use connector_feature_data to pass connector-specific delegated-3DS flags.
+}
+
+message TokenizedPaymentServiceSetupRecurringRequest {
+  string merchant_recurring_payment_id = 1;
+  Money amount = 2;
+  SecretString connector_token = 3;
+  optional Customer customer = 4;
+  PaymentAddress address = 5;
+  optional string return_url = 6;
+  optional string webhook_url = 7;
+  optional SecretString metadata = 8;
+  optional SecretString connector_feature_data = 9;
+  optional ConnectorState state = 10;
+  optional CustomerAcceptance customer_acceptance = 11;
+  optional SetupMandateDetails setup_mandate_details = 12;
+  optional BillingDescriptor billing_descriptor = 13;
+  optional string locale = 14;
+}
+
+// ── ProxiedPaymentService messages ──────────────────────────────────────────────
+
+message ProxiedPaymentServiceAuthorizeRequest {
+  optional string merchant_transaction_id = 1;
+  Money amount = 2;
+  // VaultAliasCard replaces PaymentMethod. Real values substituted by proxy.
+  VaultAliasCard vault_card = 3;
+  optional Customer customer = 4;
+  PaymentAddress address = 5;
+  optional CaptureMethod capture_method = 6;
+  AuthenticationType auth_type = 7;
+  optional AuthenticationData authentication_data = 8;
+  optional string return_url = 9;
+  optional string webhook_url = 10;
+  optional SecretString metadata = 11;
+  optional SecretString connector_feature_data = 12;
+  optional FutureUsage setup_future_usage = 13;
+  optional BrowserInformation browser_info = 14;
+  optional ConnectorState state = 15;
+  optional SetupMandateDetails setup_mandate_details = 16;
+  optional BillingDescriptor billing_descriptor = 17;
+  optional ThreeDsCompletionIndicator threeds_completion_indicator = 18;
+  optional RedirectionResponse redirection_response = 19;
+  optional L2L3Data l2_l3_data = 20;
+  optional CustomerAcceptance customer_acceptance = 21;
+  optional string merchant_order_id = 22;
+  optional bool test_mode = 23;
+}
+
+message ProxiedPaymentServiceSetupRecurringRequest {
+  string merchant_recurring_payment_id = 1;
+  Money amount = 2;
+  VaultAliasCard vault_card = 3;
+  optional Customer customer = 4;
+  PaymentAddress address = 5;
+  optional string return_url = 6;
+  optional string webhook_url = 7;
+  optional SecretString metadata = 8;
+  optional ConnectorState state = 9;
+  optional SetupMandateDetails setup_mandate_details = 10;
+  optional CustomerAcceptance customer_acceptance = 11;
+  AuthenticationType auth_type = 12;
+  optional AuthenticationData authentication_data = 13;
+}
+

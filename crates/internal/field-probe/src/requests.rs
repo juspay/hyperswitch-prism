@@ -19,10 +19,10 @@
 
 use grpc_api_types::payments::{
     self as proto, mandate_reference::MandateIdType, payment_method::PaymentMethod as PmVariant,
-    AcceptanceType, Address, CaptureMethod, ConnectorMandateReferenceId, CustomerAcceptance,
-    CustomerServiceCreateRequest, DisputeServiceAcceptRequest, DisputeServiceDefendRequest,
-    DisputeServiceSubmitEvidenceRequest, EvidenceDocument, EvidenceType, MandateReference,
-    MerchantAuthenticationServiceCreateAccessTokenRequest,
+    AcceptanceType, Address, AuthenticationType, CaptureMethod, ConnectorMandateReferenceId,
+    CustomerAcceptance, CustomerServiceCreateRequest, DisputeServiceAcceptRequest,
+    DisputeServiceDefendRequest, DisputeServiceSubmitEvidenceRequest, EvidenceDocument,
+    EvidenceType, MandateReference, MerchantAuthenticationServiceCreateAccessTokenRequest,
     MerchantAuthenticationServiceCreateSessionTokenRequest, PaymentAddress, PaymentMethod,
     PaymentMethodAuthenticationServiceAuthenticateRequest,
     PaymentMethodAuthenticationServicePostAuthenticateRequest,
@@ -30,7 +30,9 @@ use grpc_api_types::payments::{
     PaymentServiceAuthorizeRequest, PaymentServiceCaptureRequest, PaymentServiceCreateOrderRequest,
     PaymentServiceGetRequest, PaymentServiceRefundRequest, PaymentServiceReverseRequest,
     PaymentServiceSetupRecurringRequest, PaymentServiceVoidRequest,
-    RecurringPaymentServiceChargeRequest,
+    ProxiedPaymentServiceAuthorizeRequest, ProxiedPaymentServiceSetupRecurringRequest,
+    RecurringPaymentServiceChargeRequest, TokenizedPaymentServiceAuthorizeRequest,
+    TokenizedPaymentServiceSetupRecurringRequest, VaultAliasCard,
 };
 use hyperswitch_masking::Secret;
 
@@ -49,7 +51,7 @@ pub(crate) fn base_authorize_request_with_meta(
         amount: Some(usd_money(1000)),
         payment_method: Some(pm),
         capture_method: Some(CaptureMethod::Automatic as i32),
-        auth_type: proto::AuthenticationType::NoThreeDs as i32,
+        auth_type: AuthenticationType::NoThreeDs as i32,
         merchant_transaction_id: Some("probe_txn_001".to_string()),
         connector_feature_data: connector_meta.map(Secret::new),
         return_url: Some("https://example.com/return".to_string()),
@@ -71,7 +73,7 @@ pub(crate) fn base_authorize_request_with_state(
         amount: Some(usd_money(1000)),
         payment_method: Some(pm),
         capture_method: Some(CaptureMethod::Automatic as i32),
-        auth_type: proto::AuthenticationType::NoThreeDs as i32,
+        auth_type: AuthenticationType::NoThreeDs as i32,
         merchant_transaction_id: Some("probe_txn_001".to_string()),
         connector_feature_data: connector_meta.map(Secret::new),
         return_url: Some("https://example.com/return".to_string()),
@@ -145,7 +147,7 @@ pub(crate) fn base_setup_recurring_request() -> PaymentServiceSetupRecurringRequ
             billing_address: Some(Address::default()),
             shipping_address: None,
         }),
-        auth_type: proto::AuthenticationType::NoThreeDs as i32,
+        auth_type: AuthenticationType::NoThreeDs as i32,
         return_url: Some("https://example.com/mandate-return".to_string()),
         merchant_recurring_payment_id: "probe_mandate_001".to_string(),
         setup_future_usage: Some(proto::FutureUsage::OffSession as i32),
@@ -299,5 +301,85 @@ pub(crate) fn base_defend_dispute_request() -> DisputeServiceDefendRequest {
         connector_transaction_id: "probe_txn_001".to_string(),
         dispute_id: "probe_dispute_id_001".to_string(),
         reason_code: Some("probe_reason".to_string()),
+    }
+}
+
+// ── Non-PCI (Tokenized / Proxy) request builders ──────────────────────────────
+
+fn base_vault_alias_card() -> VaultAliasCard {
+    VaultAliasCard {
+        card_number_alias: Some(Secret::new("tok_sandbox_abc123".to_string())),
+        exp_month: "03".to_string(),
+        exp_year: "2030".to_string(),
+        cvc_alias: Some(Secret::new("tok_sandbox_cvc456".to_string())),
+        card_holder_name: Some("John Doe".to_string()),
+        ..Default::default()
+    }
+}
+
+pub(crate) fn base_tokenized_authorize_request() -> TokenizedPaymentServiceAuthorizeRequest {
+    TokenizedPaymentServiceAuthorizeRequest {
+        merchant_transaction_id: Some("probe_tokenized_txn_001".to_string()),
+        amount: Some(usd_money(1000)),
+        connector_token: Some(Secret::new("pm_1AbcXyzStripeTestToken".to_string())),
+        capture_method: Some(CaptureMethod::Automatic as i32),
+        address: Some(PaymentAddress {
+            billing_address: Some(Address::default()),
+            ..Default::default()
+        }),
+        return_url: Some("https://example.com/return".to_string()),
+        ..Default::default()
+    }
+}
+
+pub(crate) fn base_tokenized_setup_recurring_request(
+) -> TokenizedPaymentServiceSetupRecurringRequest {
+    TokenizedPaymentServiceSetupRecurringRequest {
+        merchant_recurring_payment_id: "probe_tokenized_mandate_001".to_string(),
+        amount: Some(usd_money(0)),
+        connector_token: Some(Secret::new("pm_1AbcXyzStripeTestToken".to_string())),
+        address: Some(PaymentAddress {
+            billing_address: Some(Address::default()),
+            ..Default::default()
+        }),
+        customer_acceptance: Some(CustomerAcceptance {
+            accepted_at: 0,
+            acceptance_type: AcceptanceType::Online as i32,
+            online_mandate_details: Some(proto::OnlineMandate {
+                ip_address: Some("127.0.0.1".to_string()),
+                user_agent: "Mozilla/5.0".to_string(),
+            }),
+        }),
+        ..Default::default()
+    }
+}
+
+pub(crate) fn base_proxied_authorize_request() -> ProxiedPaymentServiceAuthorizeRequest {
+    ProxiedPaymentServiceAuthorizeRequest {
+        merchant_transaction_id: Some("probe_proxy_txn_001".to_string()),
+        amount: Some(usd_money(1000)),
+        vault_card: Some(base_vault_alias_card()),
+        capture_method: Some(CaptureMethod::Automatic as i32),
+        auth_type: AuthenticationType::NoThreeDs as i32,
+        address: Some(PaymentAddress {
+            billing_address: Some(Address::default()),
+            ..Default::default()
+        }),
+        return_url: Some("https://example.com/return".to_string()),
+        ..Default::default()
+    }
+}
+
+pub(crate) fn base_proxied_setup_recurring_request() -> ProxiedPaymentServiceSetupRecurringRequest {
+    ProxiedPaymentServiceSetupRecurringRequest {
+        merchant_recurring_payment_id: "probe_proxy_mandate_001".to_string(),
+        amount: Some(usd_money(0)),
+        vault_card: Some(base_vault_alias_card()),
+        auth_type: AuthenticationType::NoThreeDs as i32,
+        address: Some(PaymentAddress {
+            billing_address: Some(Address::default()),
+            ..Default::default()
+        }),
+        ..Default::default()
     }
 }

@@ -1,6 +1,6 @@
 use std::{error::Error, sync::Arc};
 
-use grpc_api_types::payments::payment_service_client::PaymentServiceClient;
+use grpc_api_types::payments::direct_payment_service_client::DirectPaymentServiceClient;
 use http::Uri;
 use hyper_util::rt::TokioIo;
 use tempfile::{NamedTempFile, TempPath};
@@ -32,8 +32,8 @@ pub struct UcsServer {
 
 impl UcsServer {
     /// Creates a payment client bound to the in-process UCS transport.
-    pub fn payment_client(&self) -> PaymentServiceClient<Channel> {
-        PaymentServiceClient::new(self.channel.clone())
+    pub fn payment_client(&self) -> DirectPaymentServiceClient<Channel> {
+        DirectPaymentServiceClient::new(self.channel.clone())
     }
 }
 
@@ -59,7 +59,7 @@ pub async fn spawn() -> Result<UcsServer, Box<dyn Error>> {
     let interceptor = ConfigInterceptor { config };
     let router = Server::builder()
         .add_service(
-            grpc_api_types::payments::payment_service_server::PaymentServiceServer::with_interceptor(
+            grpc_api_types::payments::direct_payment_service_server::DirectPaymentServiceServer::with_interceptor(
                 service.payments_service,
                 interceptor.clone(),
             ),

@@ -130,6 +130,16 @@ def load_proto_type_map(proto_dir: Path) -> None:
     )
 
 
+# ── Scenario groups (populated by docs/generate.py via set_scenario_groups()) ──
+
+_SCENARIO_GROUPS: list[dict] = []  # populated by docs/generate.py via set_scenario_groups()
+
+
+def set_scenario_groups(groups: list[dict]) -> None:
+    global _SCENARIO_GROUPS
+    _SCENARIO_GROUPS = groups
+
+
 # ── Constants ──────────────────────────────────────────────────────────────────
 
 _SERVICE_TO_CLIENT: dict[str, str] = {
@@ -143,12 +153,6 @@ _SERVICE_TO_CLIENT: dict[str, str] = {
     "RecurringPaymentService":            "RecurringPaymentClient",
     "RefundService":                      "RefundClient",
 }
-
-# PM keys that represent wallets (first supported one is used for checkout_wallet)
-_WALLET_PM_KEYS = ["GooglePay", "ApplePay", "SamsungPay"]
-
-# PM keys that represent bank transfers (first supported one is used for checkout_bank)
-_BANK_PM_KEYS = ["Sepa", "Ach", "Bacs", "Becs"]
 
 # Status handling for authorize+capture scenarios (separate capture step follows)
 _AUTHORIZE_STATUS_HANDLING: dict[str, str] = {
@@ -183,6 +187,10 @@ _STEP_DESCRIPTIONS: dict[str, str] = {
     "post_authenticate": "Post-Authenticate — validate authentication result with the issuing bank",
     "setup_recurring":  "Setup Recurring — store the payment mandate",
     "recurring_charge": "Recurring Charge — charge against the stored mandate",
+    "tokenized_authorize":        "Tokenized Authorize — reserve funds using a connector-issued payment method token",
+    "tokenized_setup_recurring":  "Tokenized Setup Recurring — store a mandate using a connector token",
+    "proxied_authorize":            "Proxy Authorize — reserve funds using vault alias tokens routed through a proxy",
+    "proxied_setup_recurring":      "Proxy Setup Recurring — store a mandate using vault alias tokens via proxy",
 }
 
 # JavaScript reserved words — flow functions whose flow key is reserved get a "Payment" suffix.
@@ -201,12 +209,16 @@ _FLOW_KEY_TO_METHOD: dict[str, str] = {
 # Variable name used for the response of each flow step.
 # Defaults to "{first_word_of_flow_key}_response" for most flows.
 _FLOW_VAR_NAME: dict[str, str] = {
-    "pre_authenticate":  "pre_authenticate_response",
-    "authenticate":      "authenticate_response",
-    "post_authenticate": "post_authenticate_response",
-    "create_customer":   "create_response",
-    "setup_recurring":   "setup_response",
-    "recurring_charge":  "recurring_response",
+    "pre_authenticate":        "pre_authenticate_response",
+    "authenticate":            "authenticate_response",
+    "post_authenticate":       "post_authenticate_response",
+    "create_customer":         "create_response",
+    "setup_recurring":         "setup_response",
+    "recurring_charge":        "recurring_response",
+    "tokenized_authorize":     "authorize_response",
+    "tokenized_setup_recurring": "setup_response",
+    "proxied_authorize":         "authorize_response",
+    "proxied_setup_recurring":   "setup_response",
 }
 
 # Fields that must reference the response of a previous flow step
@@ -331,13 +343,9 @@ def detect_scenarios(probe_connector: dict) -> list[ScenarioSpec]:
     """
     Inspect probe data and return the applicable integration scenarios in display order.
 
-    Rules:
-      checkout_card        — authorize(Card) + capture both supported
-      checkout_autocapture — authorize(Card) supported (no separate capture call)
-      checkout_wallet      — authorize(GooglePay|ApplePay|SamsungPay) supported
-      checkout_bank        — authorize(Sepa|Ach|Bacs|Becs) supported
-      refund               — refund supported AND Card authorize supported
-      recurring            — setup_recurring + recurring_charge both supported
+    Scenario definitions are loaded from manifest.json scenario_groups (via set_scenario_groups()).
+    Each scenario group specifies required_flows that must be supported for the scenario to apply.
+    Falls back to empty list if _SCENARIO_GROUPS is not populated.
     """
     flows = probe_connector.get("flows", {})
 
@@ -347,169 +355,78 @@ def detect_scenarios(probe_connector: dict) -> list[ScenarioSpec]:
     def has_payload(flow_key: str, pm_key: str = "default") -> bool:
         return bool(flows.get(flow_key, {}).get(pm_key, {}).get("proto_request"))
 
-    card_ok           = ok("authorize", "Card") and has_payload("authorize", "Card")
-    capture_ok        = ok("capture")
-    refund_ok         = ok("refund")
-    void_ok           = ok("void") and has_payload("void")
-    get_ok            = ok("get") and has_payload("get")
-    tokenize_ok       = ok("tokenize") and has_payload("tokenize")
-    create_customer_ok = ok("create_customer") and has_payload("create_customer")
-    setup_ok          = ok("setup_recurring")
-    charge_ok         = ok("recurring_charge")
-    pre_auth_ok       = ok("pre_authenticate") and has_payload("pre_authenticate")
-    auth_ok           = ok("authenticate") and has_payload("authenticate")
-    post_auth_ok      = ok("post_authenticate") and has_payload("post_authenticate")
+    # Backward-compatible status_handling for specific known scenarios
+    _STATUS_HANDLING_MAP: dict[str, dict[str, str]] = {
+        "checkout_card":        _AUTHORIZE_STATUS_HANDLING,
+        "checkout_autocapture": _AUTOCAPTURE_STATUS_HANDLING,
+        "checkout_wallet":      _AUTOCAPTURE_STATUS_HANDLING,
+        "checkout_bank":        _AUTOCAPTURE_STATUS_HANDLING,
+        "recurring":            _SETUP_RECURRING_STATUS_HANDLING,
+    }
 
     scenarios: list[ScenarioSpec] = []
 
-    if card_ok and capture_ok:
+    for group in _SCENARIO_GROUPS:
+        key = group.get("key", "")
+        title = group.get("title", "")
+        description = group.get("description", "")
+        group_flows = group.get("flows", [])
+        pm_key_fixed = group.get("pm_key")  # may be None or a string
+        required_flows = group.get("required_flows", [])
+
+        # Determine the resolved pm_key and check all required flows
+        resolved_pm_key = pm_key_fixed
+        supported = True
+
+        for req in required_flows:
+            req_flow = req.get("flow_key", "")
+            req_pm = req.get("pm_key")
+            req_pm_variants = req.get("pm_key_variants")
+
+            if req_pm_variants:
+                # Try each variant; use the first supported one
+                found_variant = None
+                for variant in req_pm_variants:
+                    if ok(req_flow, variant) and has_payload(req_flow, variant):
+                        found_variant = variant
+                        break
+                if found_variant is None:
+                    supported = False
+                    break
+                resolved_pm_key = found_variant
+            elif req_pm:
+                # Specific PM key required
+                if not (ok(req_flow, req_pm) and has_payload(req_flow, req_pm)):
+                    supported = False
+                    break
+            else:
+                # Default (no PM key) — flow must be supported, payload optional for some flows
+                if not ok(req_flow):
+                    supported = False
+                    break
+                # For flows that have a default payload, require it
+                # (only skip payload check for flows like capture/refund which may not have payload)
+                _PAYLOAD_OPTIONAL_FLOWS = frozenset({"capture", "refund", "setup_recurring", "recurring_charge"})
+                if req_flow not in _PAYLOAD_OPTIONAL_FLOWS and not has_payload(req_flow):
+                    supported = False
+                    break
+
+        if not supported:
+            continue
+
+        # For checkout_bank: enrich description with the actual PM name found
+        if key == "checkout_bank" and resolved_pm_key:
+            description = f"Direct bank debit ({resolved_pm_key}). Bank transfers typically use `capture_method=AUTOMATIC`."
+
+        status_handling = _STATUS_HANDLING_MAP.get(key, {})
+
         scenarios.append(ScenarioSpec(
-            key="checkout_card",
-            title="Card Payment (Authorize + Capture)",
-            flows=["authorize", "capture"],
-            pm_key="Card",
-            description=(
-                "Reserve funds with Authorize, then settle with a separate Capture call. "
-                "Use for physical goods or delayed fulfillment where capture happens later."
-            ),
-            status_handling=_AUTHORIZE_STATUS_HANDLING,
-        ))
-
-    if card_ok:
-        scenarios.append(ScenarioSpec(
-            key="checkout_autocapture",
-            title="Card Payment (Automatic Capture)",
-            flows=["authorize"],
-            pm_key="Card",
-            description=(
-                "Authorize and capture in one call using `capture_method=AUTOMATIC`. "
-                "Use for digital goods or immediate fulfillment."
-            ),
-            status_handling=_AUTOCAPTURE_STATUS_HANDLING,
-        ))
-
-    for wallet_pm in _WALLET_PM_KEYS:
-        if ok("authorize", wallet_pm) and has_payload("authorize", wallet_pm):
-            scenarios.append(ScenarioSpec(
-                key="checkout_wallet",
-                title="Wallet Payment (Google Pay / Apple Pay)",
-                flows=["authorize"],
-                pm_key=wallet_pm,
-                description=(
-                    "Wallet payments pass an encrypted token from the browser/device SDK. "
-                    "Pass the token blob directly — do not decrypt client-side."
-                ),
-                status_handling=_AUTOCAPTURE_STATUS_HANDLING,
-            ))
-            break
-
-    for bank_pm in _BANK_PM_KEYS:
-        if ok("authorize", bank_pm) and has_payload("authorize", bank_pm):
-            scenarios.append(ScenarioSpec(
-                key="checkout_bank",
-                title="Bank Transfer (SEPA / ACH / BACS)",
-                flows=["authorize"],
-                pm_key=bank_pm,
-                description=(
-                    f"Direct bank debit ({bank_pm}). "
-                    "Bank transfers typically use `capture_method=AUTOMATIC`."
-                ),
-                status_handling=_AUTOCAPTURE_STATUS_HANDLING,
-            ))
-            break
-
-    if refund_ok and card_ok:
-        scenarios.append(ScenarioSpec(
-            key="refund",
-            title="Refund a Payment",
-            flows=["authorize", "refund"],
-            pm_key="Card",
-            description=(
-                "Authorize with automatic capture, then refund the captured amount. "
-                "`connector_transaction_id` from the Authorize response is reused for the Refund call."
-            ),
-            status_handling={},
-        ))
-
-    if setup_ok and charge_ok:
-        scenarios.append(ScenarioSpec(
-            key="recurring",
-            title="Recurring / Mandate Payments",
-            flows=["setup_recurring", "recurring_charge"],
-            pm_key=None,
-            description=(
-                "Store a payment mandate with SetupRecurring, then charge it repeatedly "
-                "with RecurringPaymentService.Charge without requiring customer action."
-            ),
-            status_handling=_SETUP_RECURRING_STATUS_HANDLING,
-        ))
-
-    if card_ok and void_ok:
-        scenarios.append(ScenarioSpec(
-            key="void_payment",
-            title="Void a Payment",
-            flows=["authorize", "void"],
-            pm_key="Card",
-            description=(
-                "Authorize funds with a manual capture flag, then cancel the authorization "
-                "with Void before any capture occurs. Releases the hold on the customer's funds."
-            ),
-            status_handling={},
-        ))
-
-    if card_ok and get_ok:
-        scenarios.append(ScenarioSpec(
-            key="get_payment",
-            title="Get Payment Status",
-            flows=["authorize", "get"],
-            pm_key="Card",
-            description=(
-                "Authorize a payment, then poll the connector for its current status using Get. "
-                "Use this to sync payment state when webhooks are unavailable or delayed."
-            ),
-            status_handling={},
-        ))
-
-    if create_customer_ok:
-        scenarios.append(ScenarioSpec(
-            key="create_customer",
-            title="Create Customer",
-            flows=["create_customer"],
-            pm_key=None,
-            description=(
-                "Register a customer record in the connector system. "
-                "Returns a connector_customer_id that can be reused for recurring payments "
-                "and tokenized card storage."
-            ),
-            status_handling={},
-        ))
-
-    if tokenize_ok:
-        scenarios.append(ScenarioSpec(
-            key="tokenize",
-            title="Tokenize Payment Method",
-            flows=["tokenize"],
-            pm_key=None,
-            description=(
-                "Store card details in the connector's vault and receive a reusable payment token. "
-                "Use the returned token for one-click payments and recurring billing "
-                "without re-collecting card data."
-            ),
-            status_handling={},
-        ))
-
-    if pre_auth_ok and auth_ok and post_auth_ok:
-        scenarios.append(ScenarioSpec(
-            key="authentication",
-            title="3DS Authentication",
-            flows=["pre_authenticate", "authenticate", "post_authenticate"],
-            pm_key=None,
-            description=(
-                "Full 3D Secure authentication flow: PreAuthenticate collects device/browser data, "
-                "Authenticate executes the challenge or frictionless verification, "
-                "PostAuthenticate validates the result with the issuing bank."
-            ),
-            status_handling={},
+            key=key,
+            title=title,
+            flows=group_flows,
+            pm_key=resolved_pm_key,
+            description=description,
+            status_handling=status_handling,
         ))
 
     return scenarios
@@ -1146,16 +1063,18 @@ def _scenario_return_kotlin(scenario: "ScenarioSpec") -> str:
 def _rust_status_check_lines(flow_key: str, var_name: str, pad: str = "    ") -> list[str]:
     """Return Rust status-check lines for a flow response variable (used in both scenarios and builders)."""
     lines: list[str] = []
-    if flow_key == "authorize":
+    if flow_key in ("authorize", "tokenized_authorize", "proxied_authorize"):
+        label = "Tokenized authorize" if flow_key == "tokenized_authorize" else ("Proxy authorize" if flow_key == "proxied_authorize" else "Payment")
         lines.append(f'{pad}match {var_name}.status() {{')
-        lines.append(f'{pad}    PaymentStatus::Failure | PaymentStatus::AuthorizationFailed => return Err(format!("Payment failed: {{:?}}", {var_name}.error).into()),')
+        lines.append(f'{pad}    PaymentStatus::Failure | PaymentStatus::AuthorizationFailed => return Err(format!("{label} failed: {{:?}}", {var_name}.error).into()),')
         lines.append(f'{pad}    PaymentStatus::Pending => return Ok("pending — awaiting webhook".to_string()),')
         lines.append(f'{pad}    _                      => {{}},')
         lines.append(f'{pad}}}')
         lines.append("")
-    elif flow_key == "setup_recurring":
+    elif flow_key in ("setup_recurring", "tokenized_setup_recurring", "proxied_setup_recurring"):
+        label = flow_key.replace("_", " ").title()
         lines.append(f'{pad}if {var_name}.status() == PaymentStatus::Failure {{')
-        lines.append(f'{pad}    return Err(format!("Setup failed: {{:?}}", {var_name}.error).into());')
+        lines.append(f'{pad}    return Err(format!("{label} failed: {{:?}}", {var_name}.error).into());')
         lines.append(f'{pad}}}')
         lines.append("")
     elif flow_key in ("capture", "recurring_charge"):
@@ -1167,6 +1086,12 @@ def _rust_status_check_lines(flow_key: str, var_name: str, pad: str = "    ") ->
     elif flow_key == "refund":
         lines.append(f'{pad}if {var_name}.status() == RefundStatus::RefundFailure {{')
         lines.append(f'{pad}    return Err(format!("Refund failed: {{:?}}", {var_name}.error).into());')
+        lines.append(f'{pad}}}')
+        lines.append("")
+    elif flow_key in ("pre_authenticate", "authenticate", "post_authenticate"):
+        label = flow_key.replace("_", " ").title()
+        lines.append(f'{pad}if {var_name}.status_code >= 400 {{')
+        lines.append(f'{pad}    return Err(format!("{label} failed (status_code={{}})", {var_name}.status_code).into());')
         lines.append(f'{pad}}}')
         lines.append("")
     return lines
@@ -1230,6 +1155,14 @@ def _scenario_return_rust(scenario: "ScenarioSpec") -> str:
         return '    Ok(format!("Token: {}", tokenize_response.payment_method_token))'
     elif scenario.key == "authentication":
         return '    Ok(format!("Auth: {:?}", post_authenticate_response.status()))'
+    elif scenario.key == "tokenized_checkout":
+        return '    Ok(format!("Tokenized payment completed: {}", authorize_response.connector_transaction_id.as_deref().unwrap_or("")))'
+    elif scenario.key == "tokenized_recurring":
+        return '    Ok(format!("Tokenized recurring charged: {:?}", recurring_response.status()))'
+    elif scenario.key == "proxy_checkout":
+        return '    Ok(format!("Proxy authorized: {}", authorize_response.connector_transaction_id.as_deref().unwrap_or("")))'
+    elif scenario.key == "proxy_3ds_checkout":
+        return '    Ok(format!("Proxy 3DS authorized: {}", authorize_response.connector_transaction_id.as_deref().unwrap_or("")))'
     return '    Ok("done".to_string())'
 
 
@@ -2590,7 +2523,12 @@ def _rust_json_lines(
             continue
 
         if isinstance(val, dict):
-            if child_msg and child_msg in _ONEOF_WRAPPER_FIELD:
+            if child_msg and db.is_wrapper(child_msg):
+                # Wrapper message (e.g. SecretString) stored as {"value": "..."} in probe data.
+                # Secret<String> deserializes from a plain string in serde, not an object.
+                inner_val = val.get("value", "")
+                lines.append(f"{pad}{json_key}: {json.dumps(inner_val)},{cmt_part}")
+            elif child_msg and child_msg in _ONEOF_WRAPPER_FIELD:
                 # Oneof wrapper: add the struct field name that holds the enum.
                 wrapper_key = _ONEOF_WRAPPER_FIELD[child_msg]
                 inner = _rust_json_lines(val, child_msg, message_schemas, indent + 2)

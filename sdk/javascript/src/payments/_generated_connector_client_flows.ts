@@ -16,6 +16,73 @@ export class CustomerClient extends _ConnectorClientBase {
 
 }
 
+export class DirectPaymentClient extends _ConnectorClientBase {
+  /** DirectPaymentService.Authorize — Authorize a payment amount on a payment method. This reserves funds without capturing them, essential for verifying availability before finalizing. */
+  async authorize(
+    requestMsg: types.IPaymentServiceAuthorizeRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.PaymentServiceAuthorizeResponse> {
+    return this._executeFlow('authorize', requestMsg, options, 'PaymentServiceAuthorizeRequest', 'PaymentServiceAuthorizeResponse') as Promise<types.PaymentServiceAuthorizeResponse>;
+  }
+
+  /** DirectPaymentService.Capture — Finalize an authorized payment by transferring funds. Captures the authorized amount to complete the transaction and move funds to your merchant account. */
+  async capture(
+    requestMsg: types.IPaymentServiceCaptureRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.PaymentServiceCaptureResponse> {
+    return this._executeFlow('capture', requestMsg, options, 'PaymentServiceCaptureRequest', 'PaymentServiceCaptureResponse') as Promise<types.PaymentServiceCaptureResponse>;
+  }
+
+  /** DirectPaymentService.CreateOrder — Create a payment order for later processing. Establishes a transaction context that can be authorized or captured in subsequent API calls. */
+  async createOrder(
+    requestMsg: types.IPaymentServiceCreateOrderRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.PaymentServiceCreateOrderResponse> {
+    return this._executeFlow('create_order', requestMsg, options, 'PaymentServiceCreateOrderRequest', 'PaymentServiceCreateOrderResponse') as Promise<types.PaymentServiceCreateOrderResponse>;
+  }
+
+  /** DirectPaymentService.Get — Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking. */
+  async get(
+    requestMsg: types.IPaymentServiceGetRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.PaymentServiceGetResponse> {
+    return this._executeFlow('get', requestMsg, options, 'PaymentServiceGetRequest', 'PaymentServiceGetResponse') as Promise<types.PaymentServiceGetResponse>;
+  }
+
+  /** DirectPaymentService.Refund — Process a partial or full refund for a captured payment. Returns funds to the customer when goods are returned or services are cancelled. */
+  async refund(
+    requestMsg: types.IPaymentServiceRefundRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.RefundResponse> {
+    return this._executeFlow('refund', requestMsg, options, 'PaymentServiceRefundRequest', 'RefundResponse') as Promise<types.RefundResponse>;
+  }
+
+  /** DirectPaymentService.Reverse — Reverse a captured payment in full. Initiates a complete refund when you need to cancel a settled transaction rather than just an authorization. */
+  async reverse(
+    requestMsg: types.IPaymentServiceReverseRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.PaymentServiceReverseResponse> {
+    return this._executeFlow('reverse', requestMsg, options, 'PaymentServiceReverseRequest', 'PaymentServiceReverseResponse') as Promise<types.PaymentServiceReverseResponse>;
+  }
+
+  /** DirectPaymentService.SetupRecurring — Configure a payment method for recurring billing. Sets up the mandate and payment details needed for future automated charges. */
+  async setupRecurring(
+    requestMsg: types.IPaymentServiceSetupRecurringRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.PaymentServiceSetupRecurringResponse> {
+    return this._executeFlow('setup_recurring', requestMsg, options, 'PaymentServiceSetupRecurringRequest', 'PaymentServiceSetupRecurringResponse') as Promise<types.PaymentServiceSetupRecurringResponse>;
+  }
+
+  /** DirectPaymentService.Void — Cancel an authorized payment that has not been captured. Releases held funds back to the customer's payment method when a transaction cannot be completed. */
+  async void(
+    requestMsg: types.IPaymentServiceVoidRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.PaymentServiceVoidResponse> {
+    return this._executeFlow('void', requestMsg, options, 'PaymentServiceVoidRequest', 'PaymentServiceVoidResponse') as Promise<types.PaymentServiceVoidResponse>;
+  }
+
+}
+
 export class DisputeClient extends _ConnectorClientBase {
   /** DisputeService.Accept — Concede dispute and accepts chargeback loss. Acknowledges liability and stops dispute defense process when evidence is insufficient. */
   async accept(
@@ -111,73 +178,6 @@ export class PaymentMethodClient extends _ConnectorClientBase {
 
 }
 
-export class PaymentClient extends _ConnectorClientBase {
-  /** PaymentService.Authorize — Authorize a payment amount on a payment method. This reserves funds without capturing them, essential for verifying availability before finalizing. */
-  async authorize(
-    requestMsg: types.IPaymentServiceAuthorizeRequest,
-    options?: types.IRequestConfig | null
-  ): Promise<types.PaymentServiceAuthorizeResponse> {
-    return this._executeFlow('authorize', requestMsg, options, 'PaymentServiceAuthorizeRequest', 'PaymentServiceAuthorizeResponse') as Promise<types.PaymentServiceAuthorizeResponse>;
-  }
-
-  /** PaymentService.Capture — Finalize an authorized payment transaction. Transfers reserved funds from customer to merchant account, completing the payment lifecycle. */
-  async capture(
-    requestMsg: types.IPaymentServiceCaptureRequest,
-    options?: types.IRequestConfig | null
-  ): Promise<types.PaymentServiceCaptureResponse> {
-    return this._executeFlow('capture', requestMsg, options, 'PaymentServiceCaptureRequest', 'PaymentServiceCaptureResponse') as Promise<types.PaymentServiceCaptureResponse>;
-  }
-
-  /** PaymentService.CreateOrder — Initialize an order in the payment processor system. Sets up payment context before customer enters card details for improved authorization rates. */
-  async createOrder(
-    requestMsg: types.IPaymentServiceCreateOrderRequest,
-    options?: types.IRequestConfig | null
-  ): Promise<types.PaymentServiceCreateOrderResponse> {
-    return this._executeFlow('create_order', requestMsg, options, 'PaymentServiceCreateOrderRequest', 'PaymentServiceCreateOrderResponse') as Promise<types.PaymentServiceCreateOrderResponse>;
-  }
-
-  /** PaymentService.Get — Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking. */
-  async get(
-    requestMsg: types.IPaymentServiceGetRequest,
-    options?: types.IRequestConfig | null
-  ): Promise<types.PaymentServiceGetResponse> {
-    return this._executeFlow('get', requestMsg, options, 'PaymentServiceGetRequest', 'PaymentServiceGetResponse') as Promise<types.PaymentServiceGetResponse>;
-  }
-
-  /** PaymentService.Refund — Initiate a refund to customer's payment method. Returns funds for returns, cancellations, or service adjustments after original payment. */
-  async refund(
-    requestMsg: types.IPaymentServiceRefundRequest,
-    options?: types.IRequestConfig | null
-  ): Promise<types.RefundResponse> {
-    return this._executeFlow('refund', requestMsg, options, 'PaymentServiceRefundRequest', 'RefundResponse') as Promise<types.RefundResponse>;
-  }
-
-  /** PaymentService.Reverse — Reverse a captured payment before settlement. Recovers funds after capture but before bank settlement, used for corrections or cancellations. */
-  async reverse(
-    requestMsg: types.IPaymentServiceReverseRequest,
-    options?: types.IRequestConfig | null
-  ): Promise<types.PaymentServiceReverseResponse> {
-    return this._executeFlow('reverse', requestMsg, options, 'PaymentServiceReverseRequest', 'PaymentServiceReverseResponse') as Promise<types.PaymentServiceReverseResponse>;
-  }
-
-  /** PaymentService.SetupRecurring — Setup a recurring payment instruction for future payments/ debits. This could be for SaaS subscriptions, monthly bill payments, insurance payments and similar use cases. */
-  async setupRecurring(
-    requestMsg: types.IPaymentServiceSetupRecurringRequest,
-    options?: types.IRequestConfig | null
-  ): Promise<types.PaymentServiceSetupRecurringResponse> {
-    return this._executeFlow('setup_recurring', requestMsg, options, 'PaymentServiceSetupRecurringRequest', 'PaymentServiceSetupRecurringResponse') as Promise<types.PaymentServiceSetupRecurringResponse>;
-  }
-
-  /** PaymentService.Void — Cancel an authorized payment before capture. Releases held funds back to customer, typically used when orders are cancelled or abandoned. */
-  async void(
-    requestMsg: types.IPaymentServiceVoidRequest,
-    options?: types.IRequestConfig | null
-  ): Promise<types.PaymentServiceVoidResponse> {
-    return this._executeFlow('void', requestMsg, options, 'PaymentServiceVoidRequest', 'PaymentServiceVoidResponse') as Promise<types.PaymentServiceVoidResponse>;
-  }
-
-}
-
 export class PayoutClient extends _ConnectorClientBase {
   /** PayoutService.Create — Creates a payout. */
   async payoutCreate(
@@ -245,6 +245,25 @@ export class PayoutClient extends _ConnectorClientBase {
 
 }
 
+export class ProxiedPaymentClient extends _ConnectorClientBase {
+  /** ProxiedPaymentService.Authorize — Authorize using vault-aliased card data. Proxy substitutes before connector. */
+  async proxiedAuthorize(
+    requestMsg: types.IProxiedPaymentServiceAuthorizeRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.PaymentServiceAuthorizeResponse> {
+    return this._executeFlow('proxied_authorize', requestMsg, options, 'ProxiedPaymentServiceAuthorizeRequest', 'PaymentServiceAuthorizeResponse') as Promise<types.PaymentServiceAuthorizeResponse>;
+  }
+
+  /** ProxiedPaymentService.SetupRecurring — Setup recurring mandate using vault-aliased card data. */
+  async proxiedSetupRecurring(
+    requestMsg: types.IProxiedPaymentServiceSetupRecurringRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.PaymentServiceSetupRecurringResponse> {
+    return this._executeFlow('proxied_setup_recurring', requestMsg, options, 'ProxiedPaymentServiceSetupRecurringRequest', 'PaymentServiceSetupRecurringResponse') as Promise<types.PaymentServiceSetupRecurringResponse>;
+  }
+
+}
+
 export class RecurringPaymentClient extends _ConnectorClientBase {
   /** RecurringPaymentService.Charge — Charge using an existing stored recurring payment instruction. Processes repeat payments for subscriptions or recurring billing without collecting payment details. */
   async charge(
@@ -252,6 +271,25 @@ export class RecurringPaymentClient extends _ConnectorClientBase {
     options?: types.IRequestConfig | null
   ): Promise<types.RecurringPaymentServiceChargeResponse> {
     return this._executeFlow('charge', requestMsg, options, 'RecurringPaymentServiceChargeRequest', 'RecurringPaymentServiceChargeResponse') as Promise<types.RecurringPaymentServiceChargeResponse>;
+  }
+
+}
+
+export class TokenizedPaymentClient extends _ConnectorClientBase {
+  /** TokenizedPaymentService.Authorize — Authorize using a connector-issued payment method token. */
+  async tokenizedAuthorize(
+    requestMsg: types.ITokenizedPaymentServiceAuthorizeRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.PaymentServiceAuthorizeResponse> {
+    return this._executeFlow('tokenized_authorize', requestMsg, options, 'TokenizedPaymentServiceAuthorizeRequest', 'PaymentServiceAuthorizeResponse') as Promise<types.PaymentServiceAuthorizeResponse>;
+  }
+
+  /** TokenizedPaymentService.SetupRecurring — Setup a recurring mandate using a connector token. */
+  async tokenizedSetupRecurring(
+    requestMsg: types.ITokenizedPaymentServiceSetupRecurringRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.PaymentServiceSetupRecurringResponse> {
+    return this._executeFlow('tokenized_setup_recurring', requestMsg, options, 'TokenizedPaymentServiceSetupRecurringRequest', 'PaymentServiceSetupRecurringResponse') as Promise<types.PaymentServiceSetupRecurringResponse>;
   }
 
 }

@@ -9,7 +9,7 @@ export * from './payments/generated/proto';
 export { GrpcClient } from "./payments/grpc_client";
 export type {
   GrpcConfig,
-  GrpcPaymentClient,
+  GrpcDirectPaymentClient,
   GrpcCustomerClient,
   GrpcPaymentMethodClient,
   GrpcPaymentMethodAuthenticationClient,

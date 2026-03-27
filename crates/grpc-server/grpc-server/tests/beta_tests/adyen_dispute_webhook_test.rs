@@ -6,7 +6,7 @@ use hyperswitch_masking::ExposeInterface;
 mod common;
 mod utils;
 use grpc_api_types::payments::{
-    payment_service_client::PaymentServiceClient,
+    direct_payment_service_client::DirectPaymentServiceClient,
     webhook_response_content::Content as GrpcWebhookContent, DisputeStage as GrpcDisputeStage,
     DisputeStatus as GrpcDisputeStatus, DisputesSyncResponse, PaymentServiceTransformRequest,
     RequestDetails,
@@ -61,7 +61,7 @@ fn build_adyen_webhook_json_body(
 
 // Helper to make the gRPC call and return the DisputesSyncResponse
 async fn process_webhook_and_get_response(
-    client: &mut PaymentServiceClient<Channel>,
+    client: &mut DirectPaymentServiceClient<Channel>,
     json_body: serde_json::Value,
 ) -> DisputesSyncResponse {
     let request_body_bytes =
@@ -149,7 +149,7 @@ async fn process_webhook_and_get_response(
 // Adyen Doc: https://docs.adyen.com/risk-management/disputes-api/dispute-notifications/#notification_of_chargeback
 #[tokio::test]
 async fn test_notification_of_chargeback_undefended() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let event_code = "NOTIFICATION_OF_CHARGEBACK";
         let reason = "Fraudulent transaction";
         let adyen_dispute_status = Some("Undefended");
@@ -174,7 +174,7 @@ async fn test_notification_of_chargeback_undefended() {
 // Adyen Doc: https://docs.adyen.com/risk-management/disputes-api/dispute-notifications/#notification_of_chargeback
 #[tokio::test]
 async fn test_notification_of_chargeback_pending() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let event_code = "NOTIFICATION_OF_CHARGEBACK";
         let reason = "Product not received";
         let adyen_dispute_status = Some("Pending");
@@ -199,7 +199,7 @@ async fn test_notification_of_chargeback_pending() {
 // Adyen Doc: https://docs.adyen.com/risk-management/disputes-api/dispute-notifications/#chargeback
 #[tokio::test]
 async fn test_chargeback_undefended() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let event_code = "CHARGEBACK";
         let reason = "Service not rendered";
         let adyen_dispute_status = Some("Undefended");
@@ -224,7 +224,7 @@ async fn test_chargeback_undefended() {
 // Adyen Doc: https://docs.adyen.com/risk-management/disputes-api/dispute-notifications/#chargeback
 #[tokio::test]
 async fn test_chargeback_pending() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let event_code = "CHARGEBACK";
         let reason = "Credit not processed";
         let adyen_dispute_status = Some("Pending");
@@ -249,7 +249,7 @@ async fn test_chargeback_pending() {
 // Adyen Doc: https://docs.adyen.com/risk-management/disputes-api/dispute-notifications/#chargeback
 #[tokio::test]
 async fn test_chargeback_lost() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let event_code = "CHARGEBACK";
         let reason = "Duplicate transaction";
         let adyen_dispute_status = Some("Lost");
@@ -274,7 +274,7 @@ async fn test_chargeback_lost() {
 // Adyen Doc: https://docs.adyen.com/risk-management/disputes-api/dispute-notifications/#chargeback
 #[tokio::test]
 async fn test_chargeback_accepted() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let event_code = "CHARGEBACK";
         let reason = "Fraudulent transaction - merchant accepted";
         let adyen_dispute_status = Some("Accepted");
@@ -299,7 +299,7 @@ async fn test_chargeback_accepted() {
 // Adyen Doc: https://docs.adyen.com/risk-management/disputes-api/dispute-notifications/#chargeback_reversed
 #[tokio::test]
 async fn test_chargeback_reversed_pending() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let event_code = "CHARGEBACK_REVERSED";
         let reason = "Defense successful, awaiting bank review";
         let adyen_dispute_status = Some("Pending");
@@ -324,7 +324,7 @@ async fn test_chargeback_reversed_pending() {
 // Adyen Doc: https://docs.adyen.com/risk-management/disputes-api/dispute-notifications/#chargeback_reversed
 #[tokio::test]
 async fn test_chargeback_reversed_won() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let event_code = "CHARGEBACK_REVERSED";
         let reason = "Defense accepted by bank";
         let adyen_dispute_status = Some("Won");
@@ -349,7 +349,7 @@ async fn test_chargeback_reversed_won() {
 // Adyen Doc: https://docs.adyen.com/risk-management/disputes-api/dispute-notifications/#second_chargeback
 #[tokio::test]
 async fn test_second_chargeback_lost() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let event_code = "SECOND_CHARGEBACK";
         let reason = "Defense declined after initial reversal";
         let adyen_dispute_status = Some("Lost");
@@ -374,7 +374,7 @@ async fn test_second_chargeback_lost() {
 // Adyen Doc: https://docs.adyen.com/risk-management/disputes-api/dispute-notifications/#prearbitration_won
 #[tokio::test]
 async fn test_prearbitration_won_with_status_won() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let event_code = "PREARBITRATION_WON";
         let reason = "Pre-arbitration won by merchant";
         let adyen_dispute_status = Some("Won");
@@ -399,7 +399,7 @@ async fn test_prearbitration_won_with_status_won() {
 // Adyen Doc: https://docs.adyen.com/risk-management/disputes-api/dispute-notifications/#prearbitration_won
 #[tokio::test]
 async fn test_prearbitration_won_with_status_pending() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let event_code = "PREARBITRATION_WON";
         let reason = "Pre-arbitration outcome pending";
         let adyen_dispute_status = Some("Pending");
@@ -424,7 +424,7 @@ async fn test_prearbitration_won_with_status_pending() {
 // Adyen Doc: https://docs.adyen.com/risk-management/disputes-api/dispute-notifications/#prearbitration_lost
 #[tokio::test]
 async fn test_prearbitration_lost() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let event_code = "PREARBITRATION_LOST";
         let reason = "Pre-arbitration lost by merchant";
         let adyen_dispute_status = Some("Lost");

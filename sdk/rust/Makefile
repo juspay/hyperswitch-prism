@@ -1,65 +1,45 @@
-# SDK Rust Makefile
-# Packages Rust SDK source code for distribution
+.PHONY: build package dist clean example-run test-package test-grpc test-grpc-no-server
 
-.PHONY: build package dist clean example-run test-package test-grpc
-
-# Auto-detect SDK root directory
+# SDK-specific paths (define BEFORE including common.mk)
 MAKEFILE_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
-SDK_ROOT := $(MAKEFILE_DIR)
-REPO_ROOT := $(shell cd $(MAKEFILE_DIR)../.. && pwd)
+SDK_ROOT     := $(MAKEFILE_DIR)
 
-ARTIFACTS_DIR=$(REPO_ROOT)/artifacts
-PACKAGE_DIR=$(ARTIFACTS_DIR)/sdk-rust
-
-# Build the Rust SDK (for verification)
-build:
-	@echo "Building Rust SDK (verification)..."
-	@cd $(SDK_ROOT) && cargo build --release
-	@echo "✓ Rust SDK builds successfully"
-
-# Package Rust SDK source (no binary)
-package:
-	@echo "Packaging Rust SDK source..."
-	@mkdir -p $(PACKAGE_DIR)
-	@echo "Copying source files..."
-	@cp -rf $(SDK_ROOT)/Cargo.toml $(PACKAGE_DIR)/
-	@cp -rf $(SDK_ROOT)/Cargo.lock $(PACKAGE_DIR)/ 2>/dev/null || true
-	@cp -rf $(SDK_ROOT)/src $(PACKAGE_DIR)/ 2>/dev/null || true
-	@cp -rf $(SDK_ROOT)/examples $(PACKAGE_DIR)/ 2>/dev/null || true
-	@echo "Rust SDK source package created: $(PACKAGE_DIR)/"
-
-# Create distribution archive
-dist: build package
-	@echo "Creating distribution archive..."
-	@cd $(ARTIFACTS_DIR) && zip -r "connector-service-rust-sdk.zip" sdk-rust/
-	@echo "Distribution archive created: $(ARTIFACTS_DIR)/connector-service-rust-sdk.zip"
-
-# ---------------------------------------------------------------------------
-# test-package
-# Verifies the Rust SDK compiles (library + basic example) and runs the
-# smoke test for a set of connectors (defaults to stripe).
-# A full round-trip test requires real connector credentials; run with
-#   CONNECTORS=stripe,adyen make test-package
-# ---------------------------------------------------------------------------
+# Connectors to test (comma-separated, default: stripe)
 CONNECTORS ?= stripe
 
-test-package:
-	@echo "Checking Rust SDK library..."
-	@cd $(SDK_ROOT) && cargo check --lib 2>&1
-	@echo "Checking Rust SDK examples..."
-	@cd $(SDK_ROOT) && cargo check --example basic 2>&1
-	@echo "Running Rust SDK smoke test..."
-	@if [ -f $(REPO_ROOT)/creds.json ]; then \
-		cp $(REPO_ROOT)/creds.json $(SDK_ROOT)/smoke-test/creds.json; \
-	else \
-		echo "  Note: creds.json not found, smoke test will use placeholder credentials"; \
-		echo '{"stripe":{"api_key":{"value":"placeholder"}}}' > $(SDK_ROOT)/smoke-test/creds.json; \
-	fi
-	@cd $(SDK_ROOT)/smoke-test && cargo run --profile release-fast -- --connectors $(CONNECTORS) --creds-file creds.json 2>&1 || \
-		(echo "  Note: smoke test requires real credentials to pass"; exit 0)
-	@echo "✓ Rust SDK package check passed."
+# Include common SDK build configuration
+include $(SDK_ROOT)/../common.mk
 
 # ---------------------------------------------------------------------------
+# Build targets
+# ---------------------------------------------------------------------------
+
+build: ## Build the Rust SDK package
+	@cd $(SDK_ROOT) && cargo build --release
+
+# ---------------------------------------------------------------------------
+# Package / Distribution
+# ---------------------------------------------------------------------------
+
+package: ## Package the Rust SDK (preparation for publishing)
+	@cd $(SDK_ROOT) && cargo package --allow-dirty
+
+dist: package ## Build distribution package (alias for package)
+
+# ---------------------------------------------------------------------------
+# Testing
+# ---------------------------------------------------------------------------
+
+test-package: build-ffi-lib ## Build FFI → Run Rust smoke test
+	@echo "Running Rust smoke test..."
+	@cd $(REPO_ROOT) && CONNECTORS=$(CONNECTORS) cargo run --profile $(PROFILE) -p hyperswitch-smoke-test -- --connectors $(CONNECTORS) 2>&1 | tail -30
+
+# test-grpc
+# Builds the grpc-server binary, starts it in background, runs gRPC smoke test binary.
+test-grpc-no-server: build-ffi-lib build-grpc-ffi-lib
+	@echo "Running gRPC smoke test..."
+	@cd $(REPO_ROOT) && cargo run --profile $(PROFILE) -p hyperswitch-smoke-test --bin grpc-smoke-test -- --connectors $(GRPC_CONNECTOR) 2>&1 | tail -30
+
 # test-grpc
 # Builds the grpc-server binary, starts it as a background process, runs
 # the gRPC smoke test against it, then shuts it down.
@@ -83,18 +63,7 @@ test-grpc: ## Build grpc-server → start in background → run gRPC smoke test 
 	@pkill -KILL -f grpc-server 2>/dev/null || true
 	@sleep 1
 	@cd $(REPO_ROOT) && $(GRPC_SERVER_BIN) > /tmp/grpc-server.log 2>&1 &
-	@echo "Running gRPC smoke test (connector: $(GRPC_CONNECTOR))…"
-	@if [ -f $(REPO_ROOT)/creds.json ]; then \
-		CREDS_ARGS="--creds-file $(REPO_ROOT)/creds.json --connector $(GRPC_CONNECTOR) --endpoint $(GRPC_ENDPOINT) --auth-type $(GRPC_AUTH_TYPE)"; \
-	elif [ -n "$(GRPC_API_KEY)" ]; then \
-		CREDS_ARGS="--endpoint $(GRPC_ENDPOINT) --connector $(GRPC_CONNECTOR) --auth-type $(GRPC_AUTH_TYPE) --api-key $(GRPC_API_KEY)"; \
-	else \
-		echo "  Note: no creds.json found and no GRPC_API_KEY set."; \
-		echo "  Add credentials to creds.json at the repo root."; \
-		pkill -f grpc-server 2>/dev/null || true; \
-		exit 1; \
-	fi; \
-	cd $(SDK_ROOT)/smoke-test && CONNECTORS=$(GRPC_CONNECTOR) cargo run --profile $(GRPC_PROFILE) --bin grpc-smoke-test -- $$CREDS_ARGS; \
+	@$(MAKE) test-grpc-no-server; \
 	EXIT=$$?; \
 	pkill -f grpc-server 2>/dev/null || true; \
 	exit $$EXIT

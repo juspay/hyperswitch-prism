@@ -18,7 +18,7 @@ use grpc_api_types::{
     health_check::{health_client::HealthClient, HealthCheckRequest},
     payments::{
         identifier::IdType, payment_method,
-        payment_service_client::PaymentServiceClient, refund_service_client::RefundServiceClient,
+        direct_payment_service_client::DirectPaymentServiceClient, refund_service_client::RefundServiceClient,
         Address, AuthenticationType, BrowserInformation, CaptureMethod, CardDetails,
         CountryAlpha2, Currency, Identifier, PaymentAddress, PaymentMethod,
         PaymentServiceAuthorizeRequest, PaymentServiceAuthorizeResponse,
@@ -321,7 +321,7 @@ async fn test_health() {
 // Test payment authorization with auto capture
 #[tokio::test]
 async fn test_payment_authorization_auto_capture() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let request = create_payment_authorize_request(common_enums::CaptureMethod::Automatic);
         let mut grpc_request = Request::new(request);
         add_placetopay_metadata(&mut grpc_request);
@@ -350,7 +350,7 @@ async fn test_payment_authorization_auto_capture() {
 // Test payment authorization with manual capture
 #[tokio::test]
 async fn test_payment_authorization_manual_capture() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let auth_request = create_payment_authorize_request(common_enums::CaptureMethod::Manual);
         let mut auth_grpc_request = Request::new(auth_request);
         add_placetopay_metadata(&mut auth_grpc_request);
@@ -384,7 +384,7 @@ async fn test_payment_authorization_manual_capture() {
 // Test payment sync
 #[tokio::test]
 async fn test_payment_sync() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let auth_request = create_payment_authorize_request(common_enums::CaptureMethod::Manual);
         let mut auth_grpc_request = Request::new(auth_request);
         add_placetopay_metadata(&mut auth_grpc_request);
@@ -424,7 +424,7 @@ async fn test_payment_sync() {
 // Test payment capture flow
 #[tokio::test]
 async fn test_payment_capture() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let auth_request = create_payment_authorize_request(common_enums::CaptureMethod::Manual);
         let mut auth_grpc_request = Request::new(auth_request);
         add_placetopay_metadata(&mut auth_grpc_request);
@@ -473,7 +473,7 @@ async fn test_payment_capture() {
 // Test refund flow
 #[tokio::test]
 async fn test_refund() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let auth_request = create_payment_authorize_request(common_enums::CaptureMethod::Automatic);
         let mut auth_grpc_request = Request::new(auth_request);
         add_placetopay_metadata(&mut auth_grpc_request);
@@ -525,7 +525,7 @@ async fn test_refund() {
 // Test refund sync flow
 #[tokio::test]
 async fn test_refund_sync() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         grpc_test!(refund_client, RefundServiceClient<Channel>, {
             let auth_request =
                 create_payment_authorize_request(common_enums::CaptureMethod::Automatic);
@@ -579,7 +579,7 @@ async fn test_refund_sync() {
 // Test payment void flow
 #[tokio::test]
 async fn test_payment_void() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         // First create a payment with manual capture (so it stays in authorized state)
         let auth_request = create_payment_authorize_request(common_enums::CaptureMethod::Manual);
 

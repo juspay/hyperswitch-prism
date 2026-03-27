@@ -60,7 +60,7 @@ use std::{
 use grpc_api_types::{
     health_check::{health_client::HealthClient, HealthCheckRequest},
     payments::{
-        payment_method, payment_service_client::PaymentServiceClient,
+        direct_payment_service_client::DirectPaymentServiceClient, payment_method,
         refund_service_client::RefundServiceClient, AuthenticationType, CaptureMethod, CardDetails,
         Currency, PaymentMethod, PaymentServiceAuthorizeRequest, PaymentServiceAuthorizeResponse,
         PaymentServiceCaptureRequest, PaymentServiceGetRequest, PaymentServiceRefundRequest,
@@ -379,7 +379,7 @@ async fn test_payment_authorization_auto_capture() {
         return;
     }
 
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         let request = create_payment_authorize_request(CaptureMethod::Automatic);
 
         let mut grpc_request = Request::new(request);
@@ -413,7 +413,7 @@ async fn test_payment_authorization_manual_capture() {
         return;
     }
 
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         // Step 1: Authorize payment with manual capture
         let request = create_payment_authorize_request(CaptureMethod::Manual);
         let mut grpc_request = Request::new(request);
@@ -479,7 +479,7 @@ async fn test_payment_sync() {
         return;
     }
 
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         // First create a payment to sync
         let request = create_payment_authorize_request(CaptureMethod::Automatic);
         let mut grpc_request = Request::new(request);
@@ -525,7 +525,7 @@ async fn test_payment_sync() {
 #[tokio::test]
 #[ignore]
 async fn test_refund() {
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         // First create and capture a payment
         let request = create_payment_authorize_request(CaptureMethod::Automatic);
         let mut grpc_request = Request::new(request);
@@ -570,7 +570,7 @@ async fn test_refund() {
 async fn test_refund_sync() {
     grpc_test!(refund_client, RefundServiceClient<Channel>, {
         // First create and capture a payment
-        grpc_test!(payment_client, PaymentServiceClient<Channel>, {
+        grpc_test!(payment_client, DirectPaymentServiceClient<Channel>, {
             let request = create_payment_authorize_request(CaptureMethod::Automatic);
             let mut grpc_request = Request::new(request);
             add_paysafe_metadata(&mut grpc_request);
@@ -629,7 +629,7 @@ async fn test_payment_void() {
         return;
     }
 
-    grpc_test!(client, PaymentServiceClient<Channel>, {
+    grpc_test!(client, DirectPaymentServiceClient<Channel>, {
         // First create a payment with manual capture (so we can void it)
         let request = create_payment_authorize_request(CaptureMethod::Manual);
         let mut grpc_request = Request::new(request);

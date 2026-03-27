@@ -131,6 +131,7 @@ def load_probe_data(probe_path: Optional[Path]) -> dict[str, dict]:
         _FLOW_METADATA = manifest.get("flow_metadata", [])
         _MESSAGE_SCHEMAS = manifest.get("message_schemas", {})
         connector_names = manifest.get("connectors", [])
+        snippets.set_scenario_groups(manifest.get("scenario_groups", []))
 
         # Load proto type map for wrapper-type detection (SecretString, CardNumberType, etc.)
         proto_dir = probe_dir.parent.parent / "crates" / "types-traits" / "grpc-api-types" / "proto"
@@ -168,52 +169,6 @@ def _probe_pm_support(probe_connector: dict, flow_key: str) -> Optional[dict[str
 
 
 # Human-readable label per PM key used as the sample heading
-_PROBE_PM_LABELS: dict[str, str] = {
-    "Card":          "Card (Raw PAN)",
-    "GooglePay":     "Google Pay",
-    "ApplePay":      "Apple Pay",
-    "Sepa":          "SEPA Direct Debit",
-    "Bacs":          "BACS Direct Debit",
-    "Ach":           "ACH Direct Debit",
-    "Becs":          "BECS Direct Debit",
-    "Ideal":         "iDEAL",
-    "PaypalRedirect":"PayPal Redirect",
-    "Blik":          "BLIK",
-    "Klarna":        "Klarna",
-    "Afterpay":      "Afterpay / Clearpay",
-}
-
-
-def _probe_samples_for_flow(probe_connector: dict, flow_key: str) -> list[tuple[str, dict]]:
-    """
-    Return [(label, proto_request)] from probe data for a flow.
-
-    - Authorize: one sample per supported PM type (in _PROBE_PM_LABELS order).
-    - Other flows: single sample from the "default" entry if supported.
-    Returns empty list when no probe data is available.
-    """
-    if not flow_key:
-        return []
-    pms = probe_connector.get("flows", {}).get(flow_key, {})
-    if not pms:
-        return []
-
-    if set(pms.keys()) == {"default"}:
-        # Non-authorize flow — single payload, no PM breakdown
-        entry = pms["default"]
-        if entry.get("status") == "supported" and "proto_request" in entry:
-            # Include even if proto_request is empty (no required fields)
-            return [("Example Request", entry["proto_request"])]
-        return []
-
-    # Authorize flow — one sample per supported PM type
-    result = []
-    for pm_key, label in _PROBE_PM_LABELS.items():
-        entry = pms.get(pm_key, {})
-        if entry.get("status") == "supported" and entry.get("proto_request"):
-            result.append((label, entry["proto_request"]))
-    return result
-
 
 # ─── Paths ────────────────────────────────────────────────────────────────────
 
@@ -1280,7 +1235,7 @@ def generate_rust_build_auth(proto_dir: Path, out_file: Path) -> None:
         lines.append(f'            let mut auth = payment_pb2::ConnectorAuthType::new();')
         lines.append(f'            let mut specific = payment_pb2::ConnectorSpecificConfig::new();')
         lines.append(f'            let mut config = payment_pb2::{conn_var.title()}Config::new();')
-        for ftype, fname in config_fields[field_name]:
+        for _, fname in config_fields[field_name]:
             env_var = f"{env_prefix}_{fname.upper()}"
             lines.append(f'            config.{fname} = env::var("{env_var}").unwrap_or_default();')
         lines.append(f'            specific.set_{conn_var}(config);')

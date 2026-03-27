@@ -8,7 +8,7 @@
     "strict": true,
     "ignoreDeprecations": "6.0",
     "baseUrl": ".",
-    "ignoreDeprecations": "6.0",
+    "types": ["node"],
     "paths": {
       "hyperswitch-prism": ["./node_modules/hyperswitch-prism/dist/src/index"],
       "hyperswitch-prism/dist/src/payments/generated/proto": ["./node_modules/hyperswitch-prism/dist/src/payments/generated/proto"]
