@@ -155,9 +155,9 @@ SDK versions follow the core:
 
 | Core Version | SDK Versions |
 |--------------|--------------|
-| 1.2.0 | `@juspay/connector-service-node@1.2.0` |
-| 1.2.0 | `connector-service-python==1.2.0` |
-| 1.2.0 | `com.juspay:connector-service-java:1.2.0` |
+| 1.2.0 | `@juspay/hyperswitch-prism@1.2.0` |
+| 1.2.0 | `hyperswitch-prism==1.2.0` |
+| 1.2.0 | `com.juspay:hyperswitch-prism:1.2.0` |
 
 Patch updates auto-generate. Minor and major versions sync with core releases.
 

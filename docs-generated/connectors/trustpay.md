@@ -38,7 +38,7 @@ config = sdk_config_pb2.ConnectorConfig(
 <details><summary>JavaScript</summary>
 
 ```javascript
-const { ConnectorClient } = require('connector-service-node-ffi');
+const { ConnectorClient } = require('hyperswitch-prism');
 
 // Reuse this client for all flows
 const client = new ConnectorClient({

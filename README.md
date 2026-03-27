@@ -7,6 +7,9 @@
 **One integration. Any payment processor. Zero lock-in.**
 
 
+![Switch processors with just a few lines of code](./images/switch_processor_demo.gif)
+
+
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 
@@ -37,7 +40,7 @@ Because every payment processor has diverse APIs, error codes, authentication me
 
 | ❌ Without Prism | ✅ With Prism |
 |------------------------------|----------------------------|
-| 🗂️ 100+ different API schemas | 📋 Single unified schema |
+| 🗂️ 60+ different API schemas | 📋 Single unified schema |
 | ⏳ In-deterministic agent loops / months of integration work | ⚡ Deterministic agent loops, hours to integrate |
 | 🔗 Brittle, provider-specific code | 🔓 Portable, provider-agnostic code |
 | 🚫 Hard to switch providers | 🔄 Change providers in 1 line |
@@ -49,7 +52,7 @@ Because every payment processor has diverse APIs, error codes, authentication me
 ## ✨ Features
 
 
-- **🔌 100+ Connectors** — Stripe, Adyen, Braintree, PayPal, Worldpay, and more
+- **🔌 60+ Connectors** — Stripe, Adyen, Braintree, PayPal, Worldpay, and more
 - **🌍 Global Coverage** — Cards, wallets, bank transfers, BNPL, and regional methods
 - **🚀 Zero Overhead** — Rust core with native bindings, no overhead
 - **🔒 PCI-Compliant by Design** — Stateless, no data storage

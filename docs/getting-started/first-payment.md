@@ -15,7 +15,7 @@ Use the `payment_method_id` from [Quick Start](./quick-start.md) to authorize th
 {% tab title="Node.js" %}
 
 ```javascript
-const { ConnectorClient, Currency, CaptureMethod } = require('@juspay/connector-service-node');
+const { ConnectorClient, Currency, CaptureMethod } = require('@juspay/hyperswitch-prism');
 
 async function authorizePayment(paymentMethodId) {
     const client = new ConnectorClient({

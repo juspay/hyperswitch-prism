@@ -2,7 +2,7 @@
 
 Prism follows [Semantic Versioning 2.0.0](https://semver.org/). A minor version upgrade or a patch will never break your existing integration.
 
-It is recommended to **Pin to `MAJOR.MINOR.*`. Get fixes automatically. Control features manually. Sleep soundly.**
+It is recommended to **pin to `MAJOR.MINOR.*`. Get fixes automatically. Control features manually. Sleep soundly.**
 
 ```
 MAJOR.MINOR.PATCH

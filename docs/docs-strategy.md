@@ -13,7 +13,7 @@ Become the **"Linux for Payments"** — a universal standard that makes payment 
 ## Overview
 
 
-Documentation is split into two distinct folders within the juspay/connector-service repo:
+Documentation is split into two distinct folders within the juspay/hyperswitch-prism repo:
 - **`/docs`** - Handwritten, curated content that explains concepts, provides guidance, and offers insights
 - **`/docs-generated`** - Auto-generated from code (API references, type definitions, SDK documentation)
 
@@ -158,7 +158,7 @@ To present a unified documentation experience on GitBook, we use a **merged sync
 
 ```
 ┌─────────────────────────────────┐         ┌──────────────────────────┐
-│  connector-service              │         │  juspay/hyperswitch-docs │
+│  hyperswitch-prism              │         │  juspay/hyperswitch-docs │
 │  (this repo)                    │         │  (docs repo)             │
 │                                 │         │                          │
 │  ┌──────────────────┐           │         │  ┌────────────────────┐  │
@@ -208,7 +208,7 @@ jobs:
  sync:
    runs-on: ubuntu-latest
    steps:
-     - name: Checkout connector-service
+     - name: Checkout hyperswitch-prism
        uses: actions/checkout@v4
 
 
@@ -278,7 +278,7 @@ jobs:
          fi
 
 
-         git commit -m "Sync UCS docs from connector-service@$GITHUB_SHA"
+         git commit -m "Sync UCS docs from hyperswitch-prism@$GITHUB_SHA"
          git push
 ```
 
@@ -387,7 +387,7 @@ When syncing, content is merged in this order:
 ### GitBook Configuration
 
 
-In `hyperswitch-docs/SUMMARY.md` (maintained in connector-service, synced to docs repo):
+In `hyperswitch-docs/SUMMARY.md` (maintained in hyperswitch-prism, synced to docs repo):
 
 
 ```markdown
