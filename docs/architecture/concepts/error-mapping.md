@@ -54,13 +54,13 @@ A sample mapping of error codes across Stripe and Adyen as below.
 
 | Unified Code | Description | Stripe Equivalent | Adyen Equivalent |
 |--------------|-------------|--------------------|------------------|
-| `PAYMENT_DECLINED` | Generic decline | `card_declined` | `Refused` |
-| `INSUFFICIENT_FUNDS` | Not enough money | `card_declined` + `decline_code: insufficient_funds` | `Not enough balance` |
-| `EXPIRED_CARD` | Card expired | `expired_card` | `Expiry Date not valid` |
-| `INCORRECT_CVV` | Wrong security code | `incorrect_cvc` | `CVC Declined` |
-| `INVALID_CARD_NUMBER` | Bad card number | `incorrect_number` | `Invalid card number` |
-| `PROCESSING_ERROR` | Generic processor error | `processing_error` | `Error` |
-| `NETWORK_TIMEOUT` | Request timed out | HTTP 504 | Timeout |
-| `RATE_LIMITED` | Too many requests | HTTP 429 | HTTP 401 |
-| `INVALID_API_KEY` | Auth failed | HTTP 401 | HTTP 401 |
+| `PAYMENT_DECLINED` | Generic decline | `card_declined` | `Refused` (refusalReasonCode: 2) |
+| `INSUFFICIENT_FUNDS` | Not enough money | `card_declined` + `decline_code: insufficient_funds` | `Not enough balance` (refusalReasonCode: 12) |
+| `EXPIRED_CARD` | Card expired | `expired_card` | `Expired Card` (refusalReasonCode: 6) |
+| `INCORRECT_CVV` | Wrong security code | `incorrect_cvc` | `CVC Declined` (refusalReasonCode: 24) |
+| `INVALID_CARD_NUMBER` | Bad card number | `incorrect_number` | `Invalid Card Number` (refusalReasonCode: 8) |
+| `PROCESSING_ERROR` | Generic processor error | `processing_error` | `Acquirer Error` (refusalReasonCode: 4) |
+| `NETWORK_TIMEOUT` | Request timed out | HTTP 504 | `Issuer Unavailable` (refusalReasonCode: 9) |
+| `RATE_LIMITED` | Too many requests | HTTP 429 | Refusal code 46 (excessive retry prevention) |
+| `INVALID_API_KEY` | Auth failed | `api_key_expired` / HTTP 401 | HTTP 401 |
 | `VALIDATION_ERROR` | Bad request format | HTTP 400 | HTTP 422 |
