@@ -1,0 +1,366 @@
+version: 1
+repo: connector-service
+default_owner: "@juspay/connector-service-maintainers"
+
+primary_scenario_precedence:
+  - ci-config-security
+  - proto-api-contract
+  - core-flow-framework
+  - server-composite
+  - connector-shared-plumbing
+  - connector-new-integration
+  - connector-flow-addition
+  - connector-payment-method-addition
+  - connector-bugfix-webhook
+  - sdk-ffi-codegen
+  - tests-specs-docs
+  - grace-tooling
+
+metadata_scenarios:
+  - id: grace-generated-pr
+    reviewer: grace-generated-pr
+    subagent_prompt: grace/rulesbook/pr-reviewer/subagents/grace-generated-pr.md
+    description: Extra code-pattern scrutiny for PRs raised by `10xGRACE`.
+    matching_rule: activate when the PR author or head repo owner is `10xGRACE`.
+    pr_author_any:
+      - "10xGRACE"
+      - "10xgrace"
+      - "10xgrace[bot]"
+    head_owner_any:
+      - "10xGRACE"
+      - "10xgrace"
+    must_read_companion_files:
+      - "grace/rulesbook/codegen/README.md"
+      - "grace/rulesbook/codegen/guides/quality/README.md"
+    likely_owners:
+      - "@juspay/connector-service-grace"
+      - "@juspay/connector-service-connectors"
+
+reviewer_families:
+  - id: connector
+    prompt: grace/rulesbook/pr-reviewer/reviewers/connector.md
+    areas:
+      - connector leaves
+      - connector shared plumbing
+      - auth mapping
+      - webhook and dispute handling
+
+  - id: core-flow
+    prompt: grace/rulesbook/pr-reviewer/reviewers/core-flow.md
+    areas:
+      - shared domain models
+      - interfaces and traits
+      - flow definitions
+      - framework blast radius
+
+  - id: proto-api
+    prompt: grace/rulesbook/pr-reviewer/reviewers/proto-api.md
+    areas:
+      - protobuf contracts
+      - buf config
+      - build.rs generation rules
+      - schema compatibility
+
+  - id: server-composite
+    prompt: grace/rulesbook/pr-reviewer/reviewers/server-composite.md
+    areas:
+      - grpc server handlers
+      - http facade
+      - composite orchestration
+      - request and error propagation
+
+  - id: sdk-ffi-codegen
+    prompt: grace/rulesbook/pr-reviewer/reviewers/sdk-ffi-codegen.md
+    areas:
+      - sdk clients
+      - ffi boundary
+      - generated artifacts
+      - client sanity drift
+
+  - id: tests-docs
+    prompt: grace/rulesbook/pr-reviewer/reviewers/tests-docs.md
+    areas:
+      - connector specs
+      - harness and suite coverage
+      - docs and docs-generated
+      - source-of-truth drift
+
+  - id: ci-config-security
+    prompt: grace/rulesbook/pr-reviewer/reviewers/ci-config-security.md
+    areas:
+      - workflows
+      - config
+      - secrets and credential handling
+      - release and deployment risk
+
+  - id: grace-generated-pr
+    prompt: grace/rulesbook/pr-reviewer/reviewers/grace-generated-pr.md
+    areas:
+      - PR metadata emitted by GRACE
+      - validation-claim consistency
+      - sanitized grpcurl evidence
+      - automation contract drift
+
+scenarios:
+  - id: connector-new-integration
+    reviewer: connector
+    subagent_prompt: grace/rulesbook/pr-reviewer/subagents/connector-new-integration.md
+    description: Adds a new connector and its registration points.
+    path_triggers:
+      - "crates/integrations/connector-integration/src/connectors/*.rs"
+      - "crates/integrations/connector-integration/src/connectors/**/*.rs"
+    diff_signals:
+      - "new connector file plus new transformers file"
+      - "new pub mod or pub use in connectors.rs"
+      - "new ConnectorEnum variant or convert_connector match arm"
+    must_read_companion_files:
+      - "crates/integrations/connector-integration/src/connectors.rs"
+      - "crates/integrations/connector-integration/src/default_implementations.rs"
+      - "crates/integrations/connector-integration/src/types.rs"
+      - "crates/types-traits/domain_types/src/connector_types.rs"
+      - "data/field_probe/manifest.json"
+    likely_owners:
+      - "@juspay/connector-service-connectors"
+      - "@juspay/connector-service-framework"
+
+  - id: connector-flow-addition
+    reviewer: connector
+    subagent_prompt: grace/rulesbook/pr-reviewer/subagents/connector-flow-addition.md
+    description: Adds or significantly alters a flow in an existing connector.
+    path_triggers:
+      - "crates/integrations/connector-integration/src/connectors/**/*.rs"
+    diff_signals:
+      - "new ConnectorIntegrationV2 impl blocks"
+      - "new request or response transformers for an existing connector"
+      - "flow-related status mapping change"
+    must_read_companion_files:
+      - "crates/types-traits/domain_types/src/connector_flow.rs"
+      - "crates/types-traits/interfaces/src/connector_types.rs"
+      - "crates/integrations/connector-integration/src/types.rs"
+      - "crates/internal/ucs-connector-tests/src/global_suites/"
+    likely_owners:
+      - "@juspay/connector-service-connectors"
+
+  - id: connector-payment-method-addition
+    reviewer: connector
+    subagent_prompt: grace/rulesbook/pr-reviewer/subagents/connector-payment-method-addition.md
+    description: Expands payment method handling in connector transformers.
+    path_triggers:
+      - "crates/integrations/connector-integration/src/connectors/**/*.rs"
+      - "crates/types-traits/domain_types/src/payment_method_data.rs"
+    diff_signals:
+      - "new PaymentMethodData match arms"
+      - "new payment method-specific request mapping"
+      - "new wallet, bank redirect, bank transfer, or tokenization path"
+    must_read_companion_files:
+      - "crates/types-traits/domain_types/src/payment_method_data.rs"
+      - "crates/common/common_enums/src/enums.rs"
+      - "crates/internal/ucs-connector-tests/src/connector_specs/"
+    likely_owners:
+      - "@juspay/connector-service-connectors"
+      - "@juspay/connector-service-framework"
+
+  - id: connector-bugfix-webhook
+    reviewer: connector
+    subagent_prompt: grace/rulesbook/pr-reviewer/subagents/connector-bugfix-webhook.md
+    description: Changes connector auth, webhook, dispute, redirect, or bugfix behavior.
+    path_triggers:
+      - "crates/integrations/connector-integration/src/connectors/**/*.rs"
+      - "crates/integrations/connector-integration/src/webhook_utils.rs"
+    diff_signals:
+      - "auth header or signature logic changed"
+      - "incoming webhook parsing or verification changed"
+      - "dispute or refund mapping changed"
+    must_read_companion_files:
+      - "crates/types-traits/interfaces/src/webhooks.rs"
+      - "crates/types-traits/interfaces/src/verification.rs"
+      - "crates/integrations/connector-integration/src/default_implementations.rs"
+    likely_owners:
+      - "@juspay/connector-service-connectors"
+
+  - id: connector-shared-plumbing
+    reviewer: connector
+    subagent_prompt: grace/rulesbook/pr-reviewer/subagents/connector-shared-plumbing.md
+    description: Changes connector registry, shared utils, macros, or cross-connector plumbing.
+    path_triggers:
+      - "crates/integrations/connector-integration/src/connectors.rs"
+      - "crates/integrations/connector-integration/src/default_implementations.rs"
+      - "crates/integrations/connector-integration/src/types.rs"
+      - "crates/integrations/connector-integration/src/utils.rs"
+      - "crates/integrations/connector-integration/src/webhook_utils.rs"
+      - "crates/integrations/connector-integration/src/connectors/macros.rs"
+    diff_signals:
+      - "shared helper behavior changed"
+      - "multiple connectors impacted by one file"
+    must_read_companion_files:
+      - "crates/types-traits/interfaces/src/connector_types.rs"
+      - "crates/types-traits/domain_types/src/connector_types.rs"
+    likely_owners:
+      - "@juspay/connector-service-connectors"
+
+  - id: core-flow-framework
+    reviewer: core-flow
+    subagent_prompt: grace/rulesbook/pr-reviewer/subagents/core-flow-framework.md
+    description: Changes shared domain types, traits, enums, or flow markers.
+    path_triggers:
+      - "crates/types-traits/domain_types/**"
+      - "crates/types-traits/interfaces/**"
+      - "crates/types-traits/ucs_interface_common/**"
+      - "crates/common/common_enums/**"
+      - "crates/common/common_utils/**"
+      - "crates/common/external-services/**"
+    diff_signals:
+      - "ConnectorServiceTrait changed"
+      - "FlowName or connector_flow markers changed"
+      - "shared enums or request/response semantics changed"
+    must_read_companion_files:
+      - "crates/types-traits/domain_types/src/connector_flow.rs"
+      - "crates/types-traits/interfaces/src/connector_types.rs"
+      - "crates/types-traits/domain_types/src/connector_types.rs"
+      - "Cargo.toml"
+    likely_owners:
+      - "@juspay/connector-service-framework"
+
+  - id: proto-api-contract
+    reviewer: proto-api
+    subagent_prompt: grace/rulesbook/pr-reviewer/subagents/proto-api-contract.md
+    description: Changes protobuf contracts, buf config, or generated gRPC type rules.
+    path_triggers:
+      - "crates/types-traits/grpc-api-types/proto/**"
+      - "crates/types-traits/grpc-api-types/build.rs"
+      - "crates/types-traits/grpc-api-types/src/**"
+      - "buf.yaml"
+      - "buf.gen.yaml"
+      - "buf.lock"
+    diff_signals:
+      - "proto field or service change"
+      - "build.rs extern_path or serde attributes changed"
+      - "generated SDK fallout expected"
+    must_read_companion_files:
+      - "crates/types-traits/grpc-api-types/proto/services.proto"
+      - "crates/types-traits/grpc-api-types/proto/payment.proto"
+      - "crates/types-traits/grpc-api-types/proto/payment_methods.proto"
+      - "crates/types-traits/grpc-api-types/build.rs"
+      - "Makefile"
+    likely_owners:
+      - "@juspay/connector-service-proto-maintainers"
+
+  - id: server-composite
+    reviewer: server-composite
+    subagent_prompt: grace/rulesbook/pr-reviewer/subagents/server-composite.md
+    description: Changes gRPC server handlers, HTTP facade, or composite-service orchestration.
+    path_triggers:
+      - "crates/grpc-server/grpc-server/**"
+      - "crates/internal/composite-service/**"
+    diff_signals:
+      - "request validation or orchestration changed"
+      - "transport or service behavior changed"
+      - "new flow wired into the server layer"
+    must_read_companion_files:
+      - "crates/grpc-server/grpc-server/src/server/payments.rs"
+      - "crates/grpc-server/grpc-server/src/http/router.rs"
+      - "crates/grpc-server/grpc-server/src/request.rs"
+      - "crates/internal/composite-service/src/payments.rs"
+      - "crates/types-traits/grpc-api-types/proto/services.proto"
+    likely_owners:
+      - "@juspay/connector-service-core"
+      - "@juspay/connector-service-framework"
+
+  - id: sdk-ffi-codegen
+    reviewer: sdk-ffi-codegen
+    subagent_prompt: grace/rulesbook/pr-reviewer/subagents/sdk-ffi-codegen.md
+    description: Changes SDKs, FFI boundary, bindgen, or generated client artifacts.
+    path_triggers:
+      - "sdk/**"
+      - "crates/ffi/ffi/**"
+      - "crates/internal/uniffi-bindgen/**"
+    diff_signals:
+      - "generated flow files changed"
+      - "ffi transformers changed"
+      - "http client or client sanity paths changed"
+    must_read_companion_files:
+      - "sdk/Makefile"
+      - "crates/types-traits/grpc-api-types/proto/services.proto"
+      - "crates/ffi/ffi/src/"
+      - ".github/workflows/sdk-client-sanity.yml"
+    likely_owners:
+      - "@juspay/connector-service-maintainers"
+
+  - id: tests-specs-docs
+    reviewer: tests-docs
+    subagent_prompt: grace/rulesbook/pr-reviewer/subagents/tests-specs-docs.md
+    description: Changes test harnesses, connector specs, docs, or generated docs.
+    path_triggers:
+      - "crates/internal/ucs-connector-tests/**"
+      - "crates/internal/field-probe/**"
+      - "data/field_probe/**"
+      - "docs/**"
+      - "docs-generated/**"
+      - "scripts/generators/**"
+      - "README.md"
+      - "setup.md"
+    diff_signals:
+      - "scenario or suite changes"
+      - "generated docs changed"
+      - "field probe output changed"
+    must_read_companion_files:
+      - "docs/rules/rules.md"
+      - "docs-generated/test-suite/README.md"
+      - "crates/internal/ucs-connector-tests/src/harness/scenario_loader.rs"
+      - "scripts/generators/docs/generate.py"
+    likely_owners:
+      - "@juspay/connector-service-maintainers"
+
+  - id: ci-config-security
+    reviewer: ci-config-security
+    subagent_prompt: grace/rulesbook/pr-reviewer/subagents/ci-config-security.md
+    description: Changes CI workflows, runtime config, release process, secrets handling, or security-sensitive logic.
+    path_triggers:
+      - ".github/**"
+      - "config/**"
+      - "Dockerfile"
+      - ".dockerignore"
+      - "Makefile"
+      - ".nextest.toml"
+      - ".coderabbit.yaml"
+      - ".typos.toml"
+      - "typos.toml"
+      - "scripts/validation/**"
+    diff_signals:
+      - "permissions or trigger model changed"
+      - "credential download or decrypt flow changed"
+      - "workflow safety or trust boundary changed"
+    must_read_companion_files:
+      - ".github/workflows/ci.yml"
+      - ".github/workflows/pr-convention-checks.yml"
+      - ".github/workflows/sdk-client-sanity.yml"
+      - "Makefile"
+    likely_owners:
+      - "@juspay/connector-service-maintainers"
+      - "@juspay/connector-service-framework"
+
+  - id: grace-tooling
+    reviewer: ci-config-security
+    subagent_prompt: grace/rulesbook/pr-reviewer/subagents/grace-tooling.md
+    description: Changes the Grace subproject, workflow prompts, or rulesbook logic.
+    path_triggers:
+      - "grace/**"
+    diff_signals:
+      - "workflow or rulesbook changed"
+      - "agent prompt changed"
+      - "codegen process changed"
+    must_read_companion_files:
+      - "grace/README.md"
+      - "grace/workflow/"
+      - "grace/rulesbook/codegen/README.md"
+      - "grace/rulesbook/codegen/guides/quality/README.md"
+    likely_owners:
+      - "@juspay/connector-service-grace"
+
+mixed_pr_escalation_rules:
+  - "If a PR matches 3 or more scenarios, treat it as mixed-high-risk and require the aggregator to comment on whether the PR should be split."
+  - "If a PR touches proto-api-contract plus sdk-ffi-codegen, require schema, regeneration, and client fallout review."
+  - "If a PR touches core-flow-framework plus connector scenarios, treat shared-type drift as a blocking risk until blast radius is discussed."
+  - "If a PR touches ci-config-security with any production code path, require an explicit explanation for why the changes are coupled."
+  - "If a PR changes docs-generated or generated SDK files without touching the source-of-truth inputs, flag possible manual edit or stale generation."
+  - "If `grace-generated-pr` applies and the diff touches shared core, proto, CI, or config files unexpectedly, treat it as an anomaly that requires manual triage and likely request changes."

@@ -1,0 +1,213 @@
+version: 1
+name: connector-service-pr-review-rubric
+mode: strict
+
+review_contract:
+  objective: >
+    Block code that weakens payment correctness, schema integrity, security-sensitive
+    behavior, generated artifact correctness, or test credibility.
+  defaults:
+    fail_closed: true
+    require_explicit_evidence: true
+    allow_handwaving: false
+    treat_mixed_prs_strictly: true
+    require_file_level_coverage: true
+    code_only_comments: true
+    ignore_pr_metadata: true
+    ignore_ci_and_process_status: true
+
+severity:
+  levels:
+    - id: S0
+      name: critical-blocker
+      merge_allowed: false
+      examples:
+        - security exposure or secret leakage in code
+        - payment or money movement correctness risk
+        - weakened auth, signature, webhook, or source verification logic
+        - API or proto break without safe migration path in code
+        - generated code drift that can ship stale runtime behavior
+
+    - id: S1
+      name: major-blocker
+      merge_allowed: false
+      examples:
+        - likely production regression
+        - incomplete implementation for claimed code scope
+        - missing companion-file updates in touched code paths
+        - missing code-level tests or specs for a risky behavioral change
+
+    - id: S2
+      name: moderate-nonblocker
+      merge_allowed: true
+      examples:
+        - localized correctness concern with compensating evidence
+        - maintainability or clarity issue
+        - low-risk test, spec, or generated-artifact gap
+
+    - id: S3
+      name: minor-nit
+      merge_allowed: true
+      examples:
+        - naming cleanup
+        - wording improvement in code comments or docs tied to code
+        - optional refactor
+
+hard_blockers:
+  - any S0 finding
+  - any S1 finding
+  - unresolved safety question in a high-risk code area
+
+base_checks:
+  file_coverage:
+    - every changed code file is reviewed fully
+    - required companion files are reviewed when code wiring depends on them
+
+  code_integrity:
+    - no debug prints, dead code, or shipping TODO markers in risky paths
+    - no new unwrap, expect, panic, todo, or unchecked indexing in production-critical code
+    - no generated file is hand-edited without source-of-truth changes
+    - no copy-paste remnants survive in provider-specific code
+
+  code_correctness:
+    - changed inputs and outputs are handled explicitly
+    - error paths remain intentional and observable
+    - backward compatibility is preserved unless code changes clearly redefine behavior
+    - idempotency, retries, and partial failures are considered where relevant
+    - amount, currency, identifier, and status semantics stay coherent where money moves
+
+  companion_sync:
+    - registration, trait, enum, and router wiring stay aligned
+    - tests, specs, and generated outputs stay aligned with the claimed code behavior
+    - source-of-truth files are updated when generated artifacts change
+
+  comment_scope:
+    - review comments stay anchored to code, tests, specs, generated artifacts, or required companion files
+    - do not comment on labels, approvals, PR title, branch names, CI status, or process state
+
+decision_rules:
+  approve_requires:
+    - no S0 findings
+    - no S1 findings
+    - touched code appears safe and complete
+
+  comment_only_requires:
+    - only S2 or S3 findings remain
+    - merge still appears safe from a code standpoint
+
+  request_changes_triggers:
+    - any hard_blocker
+    - reviewer cannot verify code safety from the diff and companion files
+    - mixed-high-risk code change should be split before safe review
+
+scenario_checklists:
+  connector:
+    required:
+      - registration points are updated when a new connector is added
+      - default implementations are updated when connector-wide optional traits need registration
+      - ConnectorEnum and convert_connector stay consistent with connector registry changes
+      - auth, status mapping, amount conversion, and error mapping are connector-correct
+      - unsupported flows are explicit rather than silently implied
+      - targeted connector tests or harness scenarios exist for the changed behavior
+    red_flags:
+      - connector copied from another provider with only superficial renames
+      - status mapping changed without test evidence
+      - amount or currency transformation changed without regression coverage
+      - webhook verification weakened or bypassed
+      - auth secrets exposed in code paths, errors, or serialized values
+
+  core_flow:
+    required:
+      - flow markers, traits, shared types, and enums are backward compatible or explicitly versioned in code
+      - blast radius across connectors, server, and SDK layers is discussed through code companions
+      - shared helper changes are validated beyond one local consumer
+      - core semantic changes are reflected in tests or generated companions where needed
+    red_flags:
+      - ConnectorServiceTrait or shared domain type changed without downstream proof in code
+      - hidden behavior change sold as a refactor
+      - enum meaning changed without broad impact review
+
+  proto_api:
+    required:
+      - field numbering and wire compatibility are preserved
+      - removed or renamed fields have a migration story visible in code changes
+      - build.rs extern_path and serde rules remain correct
+      - schema-affecting changes keep generated fallout coherent
+    red_flags:
+      - field reuse, renumbering, or type narrowing
+      - proto change without generated fallout
+      - build.rs change that silently alters generated type behavior
+
+  server_composite:
+    required:
+      - request validation remains explicit
+      - error mapping does not swallow connector-specific failures
+      - orchestration changes preserve retries, timeouts, state propagation, and status semantics
+      - transport behavior still matches proto and domain contracts
+    red_flags:
+      - silent fallback behavior introduced
+      - retry or timeout semantics changed without code-level justification
+      - validation or source verification bypassed
+
+  sdk_ffi_codegen:
+    required:
+      - generated files are regenerated, not hand-edited
+      - FFI, proto, and SDK outputs stay in sync
+      - public client behavior changes are surfaced in tests, examples, or generated outputs
+      - multi-language fallout is internally consistent
+    red_flags:
+      - one SDK updated but others drift for shared contract changes
+      - generated files changed without generator or source changes
+      - SDK HTTP client changed without code-level regression coverage
+
+  tests_docs:
+    required:
+      - changed behavior has tests at the correct layer
+      - assertions are strong enough to catch the claimed bug or regression
+      - docs or generated docs tied to the code remain accurate
+      - docs-generated changes trace back to source or generator changes
+    red_flags:
+      - test updated only to bless buggy output
+      - weaker assertions or broader fixtures mask a regression
+      - docs claim support that code does not implement
+      - hand-edited generated docs without source changes
+
+  ci_config_security:
+    required:
+      - workflow, config, or script file changes are reviewed as code/config content only
+      - secret handling logic inside the changed files is not weakened
+      - runtime config changes remain internally consistent across touched environments
+      - new external execution paths are justified in the file contents
+    red_flags:
+      - exposed secrets in file contents, scripts, or logs committed in code
+      - broadened permissions or remote execution added without code-level justification
+      - config drift across environments without explanation in the changed files
+
+  grace_generated_pr:
+    required:
+      - copied or generated connector code is actually provider-specific
+      - intended flow or payment-method scope matches the actual match arms and guards in code
+      - registration, transformer, test, and spec wiring is complete
+      - leftover placeholder names, wrong provider references, and brittle raw parsing are removed or justified
+      - generated changes do not silently widen support beyond the intended scope
+    red_flags:
+      - copy-paste remnants from another connector
+      - broadened support through catch-all matching without auth or payment-method guards
+      - code claims new support but tests, specs, or registration do not line up
+      - raw manual serialization or parsing added without focused coverage
+
+mixed_pr_rules:
+  - if 3 or more scenarios match, require the review to say whether the code change should be split
+  - if proto-api-contract combines with sdk-ffi-codegen, require generation and client fallout review
+  - if core-flow-framework combines with any connector scenario, assume broad blast radius until proven otherwise
+  - if docs-generated or generated SDK files change alone, verify source-of-truth drift before approving
+  - if grace-generated-pr applies and non-connector high-risk code paths are touched, raise review strictness on scope drift and incomplete wiring
+
+output_requirements:
+  - verdict
+  - classification
+  - scope
+  - blocking_code_findings
+  - non_blocking_code_findings
+  - missing_code_companions
+  - suggested_code_fixes

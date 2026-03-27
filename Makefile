@@ -9,7 +9,7 @@ ifeq ($(CI),true)
 	CLIPPY_EXTRA := -- -D warnings
 endif
 
-.PHONY: all fmt check clippy test nextest ci help proto-format proto-generate proto-build proto-lint proto-clean generate certify-client-sanity field-probe docs docs-check test-ucs validate-pre-push ai gen-tech-spec new-connector add-flow add-payment-method test-grpc
+.PHONY: all fmt check clippy test nextest ci help proto-format proto-generate proto-build proto-lint proto-clean generate certify-client-sanity field-probe docs docs-check test-ucs validate-pre-push ai gen-tech-spec new-connector add-flow add-payment-method review-pr test-grpc
 
 ## Run all checks: fmt → check → clippy → test
 all: fmt check clippy test
@@ -174,15 +174,15 @@ endef
 
 # Launch editor with a specific skill
 # Usage: $(call LAUNCH_SKILL,skill-name)
-# - claude: "query" as positional arg with /skill-name slash command
+# - claude: /skill-name slash command as positional arg
 # - opencode: --prompt flag (skills auto-invoke, prompt hints the agent)
-# - codex: $skill-name mention syntax as positional arg
+# - codex: plain prompt that loads the skill and asks for required inputs
 # - cursor/windsurf: open project (skills auto-load as rules)
 define LAUNCH_SKILL
 	case $$choice in \
 		claude)   exec claude "/$(1)" ;; \
 		opencode) exec opencode --prompt "Use the $(1) skill" ;; \
-		codex)    exec codex '$$$(1)' ;; \
+		codex)    exec codex "Use the $(1) skill. Ask the user for any required inputs before starting." ;; \
 		cursor)   echo "Skill '$(1)' available as a rule in Cursor"; exec cursor . ;; \
 		windsurf) echo "Skill '$(1)' available as a rule in Windsurf"; exec windsurf . ;; \
 	esac
@@ -215,6 +215,11 @@ add-flow:
 add-payment-method:
 	@$(AI_AGENT); \
 	$(call LAUNCH_SKILL,add-payment-method)
+
+## Review a PR using the pr-reviewer skill
+review-pr:
+	@$(AI_AGENT); \
+	$(call LAUNCH_SKILL,pr-reviewer)
 
 ## Show this help
 help:
@@ -256,6 +261,7 @@ help:
 	@echo "  new-connector      Implement a new connector from scratch"
 	@echo "  add-flow           Add payment flow(s) to an existing connector"
 	@echo "  add-payment-method Add payment method support to an existing connector"
+	@echo "  review-pr          Review a PR using the pr-reviewer skill"
 	@echo
 	@echo "Other Targets:"
 	@echo "  test-grpc              Run gRPC smoke tests for all SDKs (Rust + JS + Python)"
