@@ -3332,6 +3332,11 @@ pub enum SessionToken {
     Paypal(Box<PaypalSessionTokenResponse>),
     /// The session response structure for Apple Pay
     ApplePay(Box<ApplepaySessionTokenResponse>),
+    /// The session response structure for connector-specific session tokens (e.g. client_secret).
+    /// TODO: This is not a wallet session token and should be decoupled from SessionToken
+    /// into its own field on PaymentCreateOrderResponse.
+    /// See: https://github.com/juspay/hyperswitch-prism/issues/817
+    Connector(Box<ConnectorSessionTokenResponse>),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -3635,6 +3640,13 @@ pub enum PaypalFlow {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PaypalSdkMetaData {
     pub client_id: String,
+}
+
+/// Session token response for a connector's CreateOrder flow.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ConnectorSessionTokenResponse {
+    /// The client_secret returned by the connector's CreateOrder response
+    pub client_secret: Secret<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

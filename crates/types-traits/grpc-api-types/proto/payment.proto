@@ -1503,6 +1503,7 @@ message SessionToken {
     GpaySessionTokenResponse google_pay = 1;
     PaypalSessionTokenResponse paypal = 2;
     ApplepaySessionTokenResponse apple_pay = 3;
+    ConnectorSessionTokenResponse connector = 4;
   }
 }
 
@@ -1693,6 +1694,11 @@ message PaypalTransactionInfo {
 enum PaypalFlow {
   PAYPAL_FLOW_UNSPECIFIED = 0;
   PAYPAL_FLOW_CHECKOUT = 1;
+}
+
+// Connector Session Token - contains client_secret returned by the connector's CreateOrder flow
+message ConnectorSessionTokenResponse {
+  SecretString client_secret = 1;
 }
 
 // Common Session Token Types

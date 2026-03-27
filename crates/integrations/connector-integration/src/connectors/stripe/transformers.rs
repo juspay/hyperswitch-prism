@@ -11,16 +11,17 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, CreateConnectorCustomer, IncrementalAuthorization, PaymentMethodToken,
-        RepeatPayment, SetupMandate, Void,
+        Authorize, Capture, CreateConnectorCustomer, CreateOrder, IncrementalAuthorization,
+        PaymentMethodToken, RepeatPayment, SetupMandate, Void,
     },
     connector_types::{
-        ConnectorCustomerData, ConnectorCustomerResponse, MandateReference, MandateReferenceId,
+        ConnectorCustomerData, ConnectorCustomerResponse, ConnectorSessionTokenResponse,
+        MandateReference, MandateReferenceId, PaymentCreateOrderData, PaymentCreateOrderResponse,
         PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
         PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsResponseData, PaymentsSyncData,
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        ResponseId, SetupMandateRequestData,
+        ResponseId, SessionToken, SetupMandateRequestData,
     },
     errors::ConnectorError,
     mandates::AcceptanceType,
@@ -37,7 +38,7 @@ use domain_types::{
     router_data_v2::RouterDataV2,
     router_request_types::{
         AuthoriseIntegrityObject, BrowserInformation, CaptureIntegrityObject,
-        PaymentSynIntegrityObject, RefundIntegrityObject,
+        CreateOrderIntegrityObject, PaymentSynIntegrityObject, RefundIntegrityObject,
     },
     router_response_types::RedirectForm,
     utils::{get_unimplemented_payment_method_error_message, is_payment_failure},
@@ -5260,6 +5261,159 @@ impl<F, T> TryFrom<ResponseRouterData<StripeTokenResponse, Self>>
         let token = item.response.id.clone().expose();
         Ok(Self {
             response: Ok(PaymentMethodTokenResponse { token }),
+            ..item.router_data
+        })
+    }
+}
+
+// ---- CreateOrder flow types ----
+
+/// Request body for Stripe CreateOrder flow.
+///
+/// Note: `confirm` is intentionally omitted. This creates an unconfirmed PaymentIntent in
+/// `requires_payment_method` status. Confirmation happens browser-side via
+/// `stripe.confirmPayment()` using the `client_secret` returned in the response.
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct StripeCreateOrderRequest {
+    pub amount: MinorUnit,
+    pub currency: String,
+    #[serde(rename = "automatic_payment_methods[enabled]")]
+    pub automatic_payment_methods_enabled: Option<bool>,
+    #[serde(flatten)]
+    pub meta_data: HashMap<String, String>,
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        StripeRouterData<
+            RouterDataV2<
+                CreateOrder,
+                PaymentFlowData,
+                PaymentCreateOrderData,
+                PaymentCreateOrderResponse,
+            >,
+            T,
+        >,
+    > for StripeCreateOrderRequest
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: StripeRouterData<
+            RouterDataV2<
+                CreateOrder,
+                PaymentFlowData,
+                PaymentCreateOrderData,
+                PaymentCreateOrderResponse,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = item.router_data;
+
+        let amount = StripeAmountConvertor::convert(
+            router_data.request.amount,
+            router_data.request.currency,
+        )?;
+
+        let currency = router_data.request.currency.to_string().to_lowercase();
+
+        let order_id = router_data
+            .resource_common_data
+            .connector_request_reference_id
+            .clone();
+
+        let meta_data = get_transaction_metadata(router_data.request.metadata.clone(), order_id);
+
+        Ok(Self {
+            amount,
+            currency,
+            // Required for Stripe.js Payment Element to automatically discover available payment
+            // methods (cards, wallets, etc.) without explicitly listing them. Not merchant-configurable
+            // in this flow — Stripe manages the list based on account settings and currency.
+            automatic_payment_methods_enabled: Some(true),
+            meta_data,
+        })
+    }
+}
+
+/// Maps a Stripe PaymentIntent status to an AttemptStatus for the CreateOrder flow.
+///
+/// This is an explicit mapping independent of the shared `From<StripePaymentStatus>` impl,
+/// which is designed for the Authorize flow and would misinterpret CreateOrder states.
+/// Key difference: `requires_payment_method` means card rejected (Failure) in Authorize,
+/// but is the expected success state in CreateOrder — the intent is live and waiting for
+/// the customer to enter payment details browser-side via stripe.confirmPayment().
+pub fn stripe_create_order_attempt_status(
+    status: StripePaymentStatus,
+) -> common_enums::AttemptStatus {
+    match status {
+        StripePaymentStatus::RequiresPaymentMethod | StripePaymentStatus::RequiresConfirmation => {
+            common_enums::AttemptStatus::Started
+        }
+        StripePaymentStatus::Succeeded => common_enums::AttemptStatus::Charged,
+        StripePaymentStatus::Failed => common_enums::AttemptStatus::Failure,
+        StripePaymentStatus::Canceled => common_enums::AttemptStatus::Voided,
+        StripePaymentStatus::RequiresCapture => common_enums::AttemptStatus::Authorized,
+        StripePaymentStatus::RequiresCustomerAction => {
+            common_enums::AttemptStatus::AuthenticationPending
+        }
+        StripePaymentStatus::Processing
+        | StripePaymentStatus::Chargeable
+        | StripePaymentStatus::Consumed => common_enums::AttemptStatus::Authorizing,
+        StripePaymentStatus::Pending => common_enums::AttemptStatus::Pending,
+    }
+}
+
+/// Response body for Stripe CreateOrder flow.
+#[derive(Debug, Deserialize, Serialize)]
+pub struct StripeCreateOrderResponse(PaymentIntentResponse);
+
+impl TryFrom<ResponseRouterData<StripeCreateOrderResponse, Self>>
+    for RouterDataV2<
+        CreateOrder,
+        PaymentFlowData,
+        PaymentCreateOrderData,
+        PaymentCreateOrderResponse,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<StripeCreateOrderResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response.0;
+
+        let currency_enum =
+            common_enums::Currency::from_str(response.currency.to_uppercase().as_str())
+                .change_context(ConnectorError::ParsingFailed)?;
+
+        let amount_in_minor_unit =
+            StripeAmountConvertor::convert_back(response.amount, currency_enum)?;
+
+        let response_integrity_object = CreateOrderIntegrityObject {
+            amount: amount_in_minor_unit,
+            currency: currency_enum,
+        };
+
+        let attempt_status = stripe_create_order_attempt_status(response.status);
+
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                status: attempt_status,
+                ..item.router_data.resource_common_data
+            },
+            response: Ok(PaymentCreateOrderResponse {
+                order_id: response.id,
+                session_token: response.client_secret.map(|cs| {
+                    SessionToken::Connector(Box::new(ConnectorSessionTokenResponse {
+                        client_secret: cs,
+                    }))
+                }),
+            }),
+            request: PaymentCreateOrderData {
+                integrity_object: Some(response_integrity_object),
+                ..item.router_data.request
+            },
             ..item.router_data
         })
     }
