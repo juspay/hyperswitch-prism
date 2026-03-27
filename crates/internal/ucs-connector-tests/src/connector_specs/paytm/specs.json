@@ -1,0 +1,7 @@
+{
+  "connector": "paytm",
+  "supported_suites": [
+    "authorize",
+    "get"
+  ]
+}

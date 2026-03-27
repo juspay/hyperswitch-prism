@@ -141,12 +141,41 @@ pub struct PaytmEnableMethod {
 
 // Authorize flow request structures
 
-// Enum to handle both UPI Intent and UPI Collect request types
+// Enum to handle UPI Intent, UPI Collect, and Card request types
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum PaytmAuthorizeRequest {
     Intent(PaytmProcessTxnRequest),
     Collect(PaytmNativeProcessTxnRequest),
+    Card(PaytmCardProcessTxnRequest),
+}
+
+// Card payment Process Transaction request
+#[derive(Debug, Serialize)]
+pub struct PaytmCardProcessTxnRequest {
+    pub head: PaytmProcessHeadTypes,
+    pub body: PaytmCardProcessBodyTypes,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PaytmCardProcessBodyTypes {
+    pub mid: Secret<String>,
+    #[serde(rename = "orderId")]
+    pub order_id: String,
+    #[serde(rename = "requestType")]
+    pub request_type: String, // "NATIVE"
+    #[serde(rename = "paymentMode")]
+    pub payment_mode: String, // "CREDIT_CARD" or "DEBIT_CARD"
+    #[serde(rename = "cardInfo")]
+    pub card_info: Secret<String>, // Format: "|cardNo|cvv|expDate"
+    #[serde(rename = "authMode", skip_serializing_if = "Option::is_none")]
+    pub auth_mode: Option<String>, // Authentication mode (otp, pin)
+    #[serde(rename = "paymentFlow", skip_serializing_if = "Option::is_none")]
+    pub payment_flow: Option<String>, // "NONE"
+    #[serde(rename = "txnNote", skip_serializing_if = "Option::is_none")]
+    pub txn_note: Option<String>,
+    #[serde(rename = "extendInfo", skip_serializing_if = "Option::is_none")]
+    pub extend_info: Option<PaytmExtendInfo>,
 }
 
 #[derive(Debug, Serialize)]
