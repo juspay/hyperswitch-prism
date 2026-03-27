@@ -11,43 +11,24 @@ Regenerate: python3 scripts/generators/docs/generate.py revolv3
 Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
 
 <table>
-<tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
+<tr><td><b>Javascript</b></td><td><b>Kotlin</b></td><td><b>Python</b></td><td><b>Rust</b></td></tr>
 <tr>
 <td valign="top">
 
-<details><summary>Python</summary>
-
-```python
-from payments.generated import sdk_config_pb2, payment_pb2
-
-config = sdk_config_pb2.ConnectorConfig(
-    options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
-)
-# Set credentials before running (field names depend on connector auth type):
-# config.connector_config.CopyFrom(payment_pb2.ConnectorSpecificConfig(
-#     revolv3=payment_pb2.Revolv3Config(api_key=...),
-# ))
-
-```
-
-</details>
-
-</td>
-<td valign="top">
-
-<details><summary>JavaScript</summary>
+<details><summary>Javascript</summary>
 
 ```javascript
-const { ConnectorClient } = require('connector-service-node-ffi');
+import { DirectPaymentClient, types } from 'hyperswitch-prism';
 
-// Reuse this client for all flows
-const client = new ConnectorClient({
-    connector: 'Revolv3',
-    environment: 'sandbox',
-    connector_auth_type: {
-        header_key: { api_key: 'YOUR_API_KEY' },
-    },
+const config: types.IConnectorConfig = types.ConnectorConfig.create({
+    options: types.SdkOptions.create({ environment: types.Environment.SANDBOX }),
+    connectorConfig: types.ConnectorSpecificConfig.create({
+        revolv3: {
+        apiKey: { value: 'YOUR_API_KEY' },
+        },
+    }),
 });
+const client = new DirectPaymentClient(config);
 ```
 
 </details>
@@ -58,14 +39,30 @@ const client = new ConnectorClient({
 <details><summary>Kotlin</summary>
 
 ```kotlin
+import payments.PaymentClient
+import payments.ConnectorConfig
+
 val config = ConnectorConfig.newBuilder()
-    .setConnector("Revolv3")
     .setEnvironment(Environment.SANDBOX)
-    .setAuth(
-        ConnectorAuthType.newBuilder()
-            .setHeaderKey(HeaderKey.newBuilder().setApiKey("YOUR_API_KEY"))
-    )
     .build()
+val client = PaymentClient(config)
+```
+
+</details>
+
+</td>
+<td valign="top">
+
+<details><summary>Python</summary>
+
+```python
+from payments import PaymentClient
+from payments.generated import sdk_config_pb2
+
+config = sdk_config_pb2.ConnectorConfig(
+    options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
+)
+client = PaymentClient(config)
 ```
 
 </details>
@@ -76,14 +73,20 @@ val config = ConnectorConfig.newBuilder()
 <details><summary>Rust</summary>
 
 ```rust
-use connector_service_sdk::{ConnectorClient, ConnectorConfig};
+use grpc_api_types::payments::{connector_specific_config, *};
+use hyperswitch_payments_client::ConnectorClient;
+use hyperswitch_masking::Secret;
 
 let config = ConnectorConfig {
-    connector: "Revolv3".to_string(),
-    environment: Environment::Sandbox,
-    auth: ConnectorAuth::HeaderKey { api_key: "YOUR_API_KEY".into() },
-    ..Default::default()
+    connector_config: Some(ConnectorSpecificConfig {
+        config: Some(connector_specific_config::Config::Revolv3(Revolv3Config {
+                api_key: Some(Secret::new("YOUR_API_KEY".to_string())),
+            ..Default::default()
+        })),
+    }),
+    options: Some(SdkOptions { environment: Environment::Sandbox.into() }),
 };
+let client = ConnectorClient::new(config, None).unwrap();
 ```
 
 </details>
@@ -108,7 +111,7 @@ Reserve funds with Authorize, then settle with a separate Capture call. Use for 
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/revolv3/python/revolv3.py#L74) · [JavaScript](../../examples/revolv3/javascript/revolv3.js#L67) · [Kotlin](../../examples/revolv3/kotlin/revolv3.kt#L91) · [Rust](../../examples/revolv3/rust/revolv3.rs#L87)
+**Examples:** [Python](../../examples/revolv3/python/revolv3.py#L5) · [JavaScript](../../examples/revolv3/javascript/revolv3.js#L27) · [Kotlin](../../examples/revolv3/kotlin/revolv3.kt#L6) · [Rust](../../examples/revolv3/rust/revolv3.rs#L18)
 
 ### Card Payment (Automatic Capture)
 
@@ -122,40 +125,33 @@ Authorize and capture in one call using `capture_method=AUTOMATIC`. Use for digi
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/revolv3/python/revolv3.py#L99) · [JavaScript](../../examples/revolv3/javascript/revolv3.js#L93) · [Kotlin](../../examples/revolv3/kotlin/revolv3.kt#L113) · [Rust](../../examples/revolv3/rust/revolv3.rs#L110)
+**Examples:** [Python](../../examples/revolv3/python/revolv3.py#L13) · [JavaScript](../../examples/revolv3/javascript/revolv3.js#L83) · [Kotlin](../../examples/revolv3/kotlin/revolv3.kt#L10) · [Rust](../../examples/revolv3/rust/revolv3.rs#L30)
 
 ### Refund a Payment
 
 Authorize with automatic capture, then refund the captured amount. `connector_transaction_id` from the Authorize response is reused for the Refund call.
 
-**Examples:** [Python](../../examples/revolv3/python/revolv3.py#L118) · [JavaScript](../../examples/revolv3/javascript/revolv3.js#L112) · [Kotlin](../../examples/revolv3/kotlin/revolv3.kt#L129) · [Rust](../../examples/revolv3/rust/revolv3.rs#L126)
+**Examples:** [Python](../../examples/revolv3/python/revolv3.py#L19) · [JavaScript](../../examples/revolv3/javascript/revolv3.js#L125) · [Kotlin](../../examples/revolv3/kotlin/revolv3.kt#L14) · [Rust](../../examples/revolv3/rust/revolv3.rs#L39)
 
 ### Void a Payment
 
 Authorize funds with a manual capture flag, then cancel the authorization with Void before any capture occurs. Releases the hold on the customer's funds.
 
-**Examples:** [Python](../../examples/revolv3/python/revolv3.py#L155) · [JavaScript](../../examples/revolv3/javascript/revolv3.js#L147) · [Kotlin](../../examples/revolv3/kotlin/revolv3.kt#L151) · [Rust](../../examples/revolv3/rust/revolv3.rs#L149)
+**Examples:** [Python](../../examples/revolv3/python/revolv3.py#L27) · [JavaScript](../../examples/revolv3/javascript/revolv3.js#L183) · [Kotlin](../../examples/revolv3/kotlin/revolv3.kt#L18) · [Rust](../../examples/revolv3/rust/revolv3.rs#L51)
 
 ## API Reference
 
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
-| [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
-| [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
-| [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
-| [PaymentService.SetupRecurring](#paymentservicesetuprecurring) | Payments | `PaymentServiceSetupRecurringRequest` |
-| [PaymentService.Void](#paymentservicevoid) | Payments | `PaymentServiceVoidRequest` |
+| [authorize](#authorize) | Other | `—` |
+| [capture](#capture) | Other | `—` |
+| [refund](#refund) | Other | `—` |
+| [setup_recurring](#setup_recurring) | Other | `—` |
+| [void](#void) | Other | `—` |
 
-### Payments
+### Other
 
-#### PaymentService.Authorize
-
-Authorize a payment amount on a payment method. This reserves funds without capturing them, essential for verifying availability before finalizing.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceAuthorizeRequest` |
-| **Response** | `PaymentServiceAuthorizeResponse` |
+#### authorize
 
 **Supported payment method types:**
 
@@ -193,48 +189,20 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/revolv3/python/revolv3.py#L177) · [JavaScript](../../examples/revolv3/javascript/revolv3.js#L168) · [Kotlin](../../examples/revolv3/kotlin/revolv3.kt#L169) · [Rust](../../examples/revolv3/rust/revolv3.rs#L167)
+**Examples:** [Python](../../examples/revolv3/python/revolv3.py) · [JavaScript](../../examples/revolv3/javascript/revolv3.ts#L229) · [Kotlin](../../examples/revolv3/kotlin/revolv3.kt) · [Rust](../../examples/revolv3/rust/revolv3.rs#L63)
 
-#### PaymentService.Capture
+#### capture
 
-Finalize an authorized payment transaction. Transfers reserved funds from customer to merchant account, completing the payment lifecycle.
+**Examples:** [Python](../../examples/revolv3/python/revolv3.py) · [JavaScript](../../examples/revolv3/javascript/revolv3.ts#L267) · [Kotlin](../../examples/revolv3/kotlin/revolv3.kt) · [Rust](../../examples/revolv3/rust/revolv3.rs#L95)
 
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceCaptureRequest` |
-| **Response** | `PaymentServiceCaptureResponse` |
+#### refund
 
-**Examples:** [Python](../../examples/revolv3/python/revolv3.py#L186) · [JavaScript](../../examples/revolv3/javascript/revolv3.js#L177) · [Kotlin](../../examples/revolv3/kotlin/revolv3.kt#L181) · [Rust](../../examples/revolv3/rust/revolv3.rs#L179)
+**Examples:** [Python](../../examples/revolv3/python/revolv3.py) · [JavaScript](../../examples/revolv3/javascript/revolv3.ts#L286) · [Kotlin](../../examples/revolv3/kotlin/revolv3.kt) · [Rust](../../examples/revolv3/rust/revolv3.rs#L112)
 
-#### PaymentService.Refund
+#### setup_recurring
 
-Initiate a refund to customer's payment method. Returns funds for returns, cancellations, or service adjustments after original payment.
+**Examples:** [Python](../../examples/revolv3/python/revolv3.py) · [JavaScript](../../examples/revolv3/javascript/revolv3.ts#L307) · [Kotlin](../../examples/revolv3/kotlin/revolv3.kt) · [Rust](../../examples/revolv3/rust/revolv3.rs#L131)
 
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceRefundRequest` |
-| **Response** | `RefundResponse` |
+#### void
 
-**Examples:** [Python](../../examples/revolv3/python/revolv3.py#L118) · [JavaScript](../../examples/revolv3/javascript/revolv3.js#L112) · [Kotlin](../../examples/revolv3/kotlin/revolv3.kt#L191) · [Rust](../../examples/revolv3/rust/revolv3.rs#L186)
-
-#### PaymentService.SetupRecurring
-
-Setup a recurring payment instruction for future payments/ debits. This could be for SaaS subscriptions, monthly bill payments, insurance payments and similar use cases.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceSetupRecurringRequest` |
-| **Response** | `PaymentServiceSetupRecurringResponse` |
-
-**Examples:** [Python](../../examples/revolv3/python/revolv3.py#L195) · [JavaScript](../../examples/revolv3/javascript/revolv3.js#L186) · [Kotlin](../../examples/revolv3/kotlin/revolv3.kt#L201) · [Rust](../../examples/revolv3/rust/revolv3.rs#L193)
-
-#### PaymentService.Void
-
-Cancel an authorized payment before capture. Releases held funds back to customer, typically used when orders are cancelled or abandoned.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceVoidRequest` |
-| **Response** | `PaymentServiceVoidResponse` |
-
-**Examples:** [Python](../../examples/revolv3/python/revolv3.py#L242) · [JavaScript](../../examples/revolv3/javascript/revolv3.js#L226) · [Kotlin](../../examples/revolv3/kotlin/revolv3.kt#L240) · [Rust](../../examples/revolv3/rust/revolv3.rs#L233)
+**Examples:** [Python](../../examples/revolv3/python/revolv3.py) · [JavaScript](../../examples/revolv3/javascript/revolv3.ts#L347) · [Kotlin](../../examples/revolv3/kotlin/revolv3.kt) · [Rust](../../examples/revolv3/rust/revolv3.rs#L169)

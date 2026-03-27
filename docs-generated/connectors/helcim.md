@@ -11,43 +11,24 @@ Regenerate: python3 scripts/generators/docs/generate.py helcim
 Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
 
 <table>
-<tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
+<tr><td><b>Javascript</b></td><td><b>Kotlin</b></td><td><b>Python</b></td><td><b>Rust</b></td></tr>
 <tr>
 <td valign="top">
 
-<details><summary>Python</summary>
-
-```python
-from payments.generated import sdk_config_pb2, payment_pb2
-
-config = sdk_config_pb2.ConnectorConfig(
-    options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
-)
-# Set credentials before running (field names depend on connector auth type):
-# config.connector_config.CopyFrom(payment_pb2.ConnectorSpecificConfig(
-#     helcim=payment_pb2.HelcimConfig(api_key=...),
-# ))
-
-```
-
-</details>
-
-</td>
-<td valign="top">
-
-<details><summary>JavaScript</summary>
+<details><summary>Javascript</summary>
 
 ```javascript
-const { ConnectorClient } = require('connector-service-node-ffi');
+import { DirectPaymentClient, types } from 'hyperswitch-prism';
 
-// Reuse this client for all flows
-const client = new ConnectorClient({
-    connector: 'Helcim',
-    environment: 'sandbox',
-    connector_auth_type: {
-        header_key: { api_key: 'YOUR_API_KEY' },
-    },
+const config: types.IConnectorConfig = types.ConnectorConfig.create({
+    options: types.SdkOptions.create({ environment: types.Environment.SANDBOX }),
+    connectorConfig: types.ConnectorSpecificConfig.create({
+        helcim: {
+        apiKey: { value: 'YOUR_API_KEY' },
+        },
+    }),
 });
+const client = new DirectPaymentClient(config);
 ```
 
 </details>
@@ -58,14 +39,30 @@ const client = new ConnectorClient({
 <details><summary>Kotlin</summary>
 
 ```kotlin
+import payments.PaymentClient
+import payments.ConnectorConfig
+
 val config = ConnectorConfig.newBuilder()
-    .setConnector("Helcim")
     .setEnvironment(Environment.SANDBOX)
-    .setAuth(
-        ConnectorAuthType.newBuilder()
-            .setHeaderKey(HeaderKey.newBuilder().setApiKey("YOUR_API_KEY"))
-    )
     .build()
+val client = PaymentClient(config)
+```
+
+</details>
+
+</td>
+<td valign="top">
+
+<details><summary>Python</summary>
+
+```python
+from payments import PaymentClient
+from payments.generated import sdk_config_pb2
+
+config = sdk_config_pb2.ConnectorConfig(
+    options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
+)
+client = PaymentClient(config)
 ```
 
 </details>
@@ -76,14 +73,20 @@ val config = ConnectorConfig.newBuilder()
 <details><summary>Rust</summary>
 
 ```rust
-use connector_service_sdk::{ConnectorClient, ConnectorConfig};
+use grpc_api_types::payments::{connector_specific_config, *};
+use hyperswitch_payments_client::ConnectorClient;
+use hyperswitch_masking::Secret;
 
 let config = ConnectorConfig {
-    connector: "Helcim".to_string(),
-    environment: Environment::Sandbox,
-    auth: ConnectorAuth::HeaderKey { api_key: "YOUR_API_KEY".into() },
-    ..Default::default()
+    connector_config: Some(ConnectorSpecificConfig {
+        config: Some(connector_specific_config::Config::Helcim(HelcimConfig {
+                api_key: Some(Secret::new("YOUR_API_KEY".to_string())),
+            ..Default::default()
+        })),
+    }),
+    options: Some(SdkOptions { environment: Environment::Sandbox.into() }),
 };
+let client = ConnectorClient::new(config, None).unwrap();
 ```
 
 </details>
@@ -108,31 +111,24 @@ Authorize and capture in one call using `capture_method=AUTOMATIC`. Use for digi
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/helcim/python/helcim.py#L71) · [JavaScript](../../examples/helcim/javascript/helcim.js#L66) · [Kotlin](../../examples/helcim/kotlin/helcim.kt#L72) · [Rust](../../examples/helcim/rust/helcim.rs#L73)
+**Examples:** [Python](../../examples/helcim/python/helcim.py#L5) · [JavaScript](../../examples/helcim/javascript/helcim.js#L27) · [Kotlin](../../examples/helcim/kotlin/helcim.kt#L6) · [Rust](../../examples/helcim/rust/helcim.rs#L18)
 
 ### Get Payment Status
 
 Authorize a payment, then poll the connector for its current status using Get. Use this to sync payment state when webhooks are unavailable or delayed.
 
-**Examples:** [Python](../../examples/helcim/python/helcim.py#L90) · [JavaScript](../../examples/helcim/javascript/helcim.js#L85) · [Kotlin](../../examples/helcim/kotlin/helcim.kt#L88) · [Rust](../../examples/helcim/rust/helcim.rs#L89)
+**Examples:** [Python](../../examples/helcim/python/helcim.py#L11) · [JavaScript](../../examples/helcim/javascript/helcim.js#L75) · [Kotlin](../../examples/helcim/kotlin/helcim.kt#L10) · [Rust](../../examples/helcim/rust/helcim.rs#L27)
 
 ## API Reference
 
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
-| [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
-| [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
+| [authorize](#authorize) | Other | `—` |
+| [get](#get) | Other | `—` |
 
-### Payments
+### Other
 
-#### PaymentService.Authorize
-
-Authorize a payment amount on a payment method. This reserves funds without capturing them, essential for verifying availability before finalizing.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceAuthorizeRequest` |
-| **Response** | `PaymentServiceAuthorizeResponse` |
+#### authorize
 
 **Supported payment method types:**
 
@@ -170,15 +166,8 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/helcim/python/helcim.py#L112) · [JavaScript](../../examples/helcim/javascript/helcim.js#L106) · [Kotlin](../../examples/helcim/kotlin/helcim.kt#L106) · [Rust](../../examples/helcim/rust/helcim.rs#L107)
+**Examples:** [Python](../../examples/helcim/python/helcim.py) · [JavaScript](../../examples/helcim/javascript/helcim.ts#L131) · [Kotlin](../../examples/helcim/kotlin/helcim.kt) · [Rust](../../examples/helcim/rust/helcim.rs#L39)
 
-#### PaymentService.Get
+#### get
 
-Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceGetRequest` |
-| **Response** | `PaymentServiceGetResponse` |
-
-**Examples:** [Python](../../examples/helcim/python/helcim.py#L121) · [JavaScript](../../examples/helcim/javascript/helcim.js#L115) · [Kotlin](../../examples/helcim/kotlin/helcim.kt#L118) · [Rust](../../examples/helcim/rust/helcim.rs#L119)
+**Examples:** [Python](../../examples/helcim/python/helcim.py) · [JavaScript](../../examples/helcim/javascript/helcim.ts#L175) · [Kotlin](../../examples/helcim/kotlin/helcim.kt) · [Rust](../../examples/helcim/rust/helcim.rs#L77)

@@ -705,6 +705,18 @@
         "status": "not_implemented"
       }
     },
+    "proxied_authorize": {
+      "default": {
+        "status": "error",
+        "error": "Missing card number"
+      }
+    },
+    "proxied_setup_recurring": {
+      "default": {
+        "status": "error",
+        "error": "Customer acceptance is missing"
+      }
+    },
     "recurring_charge": {
       "default": {
         "status": "error",
@@ -778,6 +790,18 @@
           },
           "body": "{\"merchantRefNum\":\"\",\"amount\":1000,\"settleWithAuth\":true,\"card\":{\"cardNum\":\"4111111111111111\",\"cardExpiry\":{\"month\":\"03\",\"year\":\"2030\"},\"cvv\":\"737\",\"holderName\":\"John Doe\"},\"currencyCode\":\"USD\",\"paymentType\":\"CARD\",\"transactionType\":\"PAYMENT\",\"returnLinks\":[{\"rel\":\"default\",\"href\":\"https://example.com/return\",\"method\":\"GET\"},{\"rel\":\"on_completed\",\"href\":\"https://example.com/return\",\"method\":\"GET\"},{\"rel\":\"on_failed\",\"href\":\"https://example.com/return\",\"method\":\"GET\"},{\"rel\":\"on_cancelled\",\"href\":\"https://example.com/return\",\"method\":\"GET\"}],\"accountId\":\"probe_acct_no3ds\"}"
         }
+      }
+    },
+    "tokenized_authorize": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+      }
+    },
+    "tokenized_setup_recurring": {
+      "default": {
+        "status": "error",
+        "error": "Future usage must be specified"
       }
     },
     "void": {

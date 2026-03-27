@@ -11,43 +11,25 @@ Regenerate: python3 scripts/generators/docs/generate.py globalpay
 Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
 
 <table>
-<tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
+<tr><td><b>Javascript</b></td><td><b>Kotlin</b></td><td><b>Python</b></td><td><b>Rust</b></td></tr>
 <tr>
 <td valign="top">
 
-<details><summary>Python</summary>
-
-```python
-from payments.generated import sdk_config_pb2, payment_pb2
-
-config = sdk_config_pb2.ConnectorConfig(
-    options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
-)
-# Set credentials before running (field names depend on connector auth type):
-# config.connector_config.CopyFrom(payment_pb2.ConnectorSpecificConfig(
-#     globalpay=payment_pb2.GlobalpayConfig(api_key=...),
-# ))
-
-```
-
-</details>
-
-</td>
-<td valign="top">
-
-<details><summary>JavaScript</summary>
+<details><summary>Javascript</summary>
 
 ```javascript
-const { ConnectorClient } = require('connector-service-node-ffi');
+import { DirectPaymentClient, types } from 'hyperswitch-prism';
 
-// Reuse this client for all flows
-const client = new ConnectorClient({
-    connector: 'Globalpay',
-    environment: 'sandbox',
-    connector_auth_type: {
-        header_key: { api_key: 'YOUR_API_KEY' },
-    },
+const config: types.IConnectorConfig = types.ConnectorConfig.create({
+    options: types.SdkOptions.create({ environment: types.Environment.SANDBOX }),
+    connectorConfig: types.ConnectorSpecificConfig.create({
+        globalpay: {
+        appId: { value: 'YOUR_APP_ID' },
+        appKey: { value: 'YOUR_APP_KEY' },
+        },
+    }),
 });
+const client = new DirectPaymentClient(config);
 ```
 
 </details>
@@ -58,14 +40,30 @@ const client = new ConnectorClient({
 <details><summary>Kotlin</summary>
 
 ```kotlin
+import payments.PaymentClient
+import payments.ConnectorConfig
+
 val config = ConnectorConfig.newBuilder()
-    .setConnector("Globalpay")
     .setEnvironment(Environment.SANDBOX)
-    .setAuth(
-        ConnectorAuthType.newBuilder()
-            .setHeaderKey(HeaderKey.newBuilder().setApiKey("YOUR_API_KEY"))
-    )
     .build()
+val client = PaymentClient(config)
+```
+
+</details>
+
+</td>
+<td valign="top">
+
+<details><summary>Python</summary>
+
+```python
+from payments import PaymentClient
+from payments.generated import sdk_config_pb2
+
+config = sdk_config_pb2.ConnectorConfig(
+    options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
+)
+client = PaymentClient(config)
 ```
 
 </details>
@@ -76,14 +74,21 @@ val config = ConnectorConfig.newBuilder()
 <details><summary>Rust</summary>
 
 ```rust
-use connector_service_sdk::{ConnectorClient, ConnectorConfig};
+use grpc_api_types::payments::{connector_specific_config, *};
+use hyperswitch_payments_client::ConnectorClient;
+use hyperswitch_masking::Secret;
 
 let config = ConnectorConfig {
-    connector: "Globalpay".to_string(),
-    environment: Environment::Sandbox,
-    auth: ConnectorAuth::HeaderKey { api_key: "YOUR_API_KEY".into() },
-    ..Default::default()
+    connector_config: Some(ConnectorSpecificConfig {
+        config: Some(connector_specific_config::Config::Globalpay(GlobalpayConfig {
+                app_id: Some(Secret::new("YOUR_APP_ID".to_string())),
+                app_key: Some(Secret::new("YOUR_APP_KEY".to_string())),
+            ..Default::default()
+        })),
+    }),
+    options: Some(SdkOptions { environment: Environment::Sandbox.into() }),
 };
+let client = ConnectorClient::new(config, None).unwrap();
 ```
 
 </details>
@@ -108,7 +113,7 @@ Reserve funds with Authorize, then settle with a separate Capture call. Use for 
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/globalpay/python/globalpay.py#L116) · [JavaScript](../../examples/globalpay/javascript/globalpay.js#L106) · [Kotlin](../../examples/globalpay/kotlin/globalpay.kt#L137) · [Rust](../../examples/globalpay/rust/globalpay.rs#L133)
+**Examples:** [Python](../../examples/globalpay/python/globalpay.py#L5) · [JavaScript](../../examples/globalpay/javascript/globalpay.js#L34) · [Kotlin](../../examples/globalpay/kotlin/globalpay.kt#L6) · [Rust](../../examples/globalpay/rust/globalpay.rs#L18)
 
 ### Card Payment (Automatic Capture)
 
@@ -122,47 +127,53 @@ Authorize and capture in one call using `capture_method=AUTOMATIC`. Use for digi
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/globalpay/python/globalpay.py#L141) · [JavaScript](../../examples/globalpay/javascript/globalpay.js#L132) · [Kotlin](../../examples/globalpay/kotlin/globalpay.kt#L159) · [Rust](../../examples/globalpay/rust/globalpay.rs#L156)
+**Examples:** [Python](../../examples/globalpay/python/globalpay.py#L13) · [JavaScript](../../examples/globalpay/javascript/globalpay.js#L104) · [Kotlin](../../examples/globalpay/kotlin/globalpay.kt#L10) · [Rust](../../examples/globalpay/rust/globalpay.rs#L30)
 
 ### Refund a Payment
 
 Authorize with automatic capture, then refund the captured amount. `connector_transaction_id` from the Authorize response is reused for the Refund call.
 
-**Examples:** [Python](../../examples/globalpay/python/globalpay.py#L160) · [JavaScript](../../examples/globalpay/javascript/globalpay.js#L151) · [Kotlin](../../examples/globalpay/kotlin/globalpay.kt#L175) · [Rust](../../examples/globalpay/rust/globalpay.rs#L172)
+**Examples:** [Python](../../examples/globalpay/python/globalpay.py#L19) · [JavaScript](../../examples/globalpay/javascript/globalpay.js#L153) · [Kotlin](../../examples/globalpay/kotlin/globalpay.kt#L14) · [Rust](../../examples/globalpay/rust/globalpay.rs#L39)
 
 ### Void a Payment
 
 Authorize funds with a manual capture flag, then cancel the authorization with Void before any capture occurs. Releases the hold on the customer's funds.
 
-**Examples:** [Python](../../examples/globalpay/python/globalpay.py#L204) · [JavaScript](../../examples/globalpay/javascript/globalpay.js#L193) · [Kotlin](../../examples/globalpay/kotlin/globalpay.kt#L197) · [Rust](../../examples/globalpay/rust/globalpay.rs#L195)
+**Examples:** [Python](../../examples/globalpay/python/globalpay.py#L27) · [JavaScript](../../examples/globalpay/javascript/globalpay.js#L225) · [Kotlin](../../examples/globalpay/kotlin/globalpay.kt#L18) · [Rust](../../examples/globalpay/rust/globalpay.rs#L51)
 
 ### Get Payment Status
 
 Authorize a payment, then poll the connector for its current status using Get. Use this to sync payment state when webhooks are unavailable or delayed.
 
-**Examples:** [Python](../../examples/globalpay/python/globalpay.py#L226) · [JavaScript](../../examples/globalpay/javascript/globalpay.js#L215) · [Kotlin](../../examples/globalpay/kotlin/globalpay.kt#L216) · [Rust](../../examples/globalpay/rust/globalpay.rs#L214)
+**Examples:** [Python](../../examples/globalpay/python/globalpay.py#L35) · [JavaScript](../../examples/globalpay/javascript/globalpay.js#L287) · [Kotlin](../../examples/globalpay/kotlin/globalpay.kt#L22) · [Rust](../../examples/globalpay/rust/globalpay.rs#L63)
 
 ## API Reference
 
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
-| [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
-| [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
+| [authorize](#authorize) | Other | `—` |
+| [capture](#capture) | Other | `—` |
 | [MerchantAuthenticationService.CreateAccessToken](#merchantauthenticationservicecreateaccesstoken) | Authentication | `MerchantAuthenticationServiceCreateAccessTokenRequest` |
-| [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
-| [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
-| [PaymentService.Void](#paymentservicevoid) | Payments | `PaymentServiceVoidRequest` |
+| [get](#get) | Other | `—` |
+| [refund](#refund) | Other | `—` |
+| [void](#void) | Other | `—` |
 
-### Payments
+### Authentication
 
-#### PaymentService.Authorize
+#### MerchantAuthenticationService.CreateAccessToken
 
-Authorize a payment amount on a payment method. This reserves funds without capturing them, essential for verifying availability before finalizing.
+Generate short-lived connector authentication token. Provides secure credentials for connector API access without storing secrets client-side.
 
 | | Message |
 |---|---------|
-| **Request** | `PaymentServiceAuthorizeRequest` |
-| **Response** | `PaymentServiceAuthorizeResponse` |
+| **Request** | `MerchantAuthenticationServiceCreateAccessTokenRequest` |
+| **Response** | `MerchantAuthenticationServiceCreateAccessTokenResponse` |
+
+**Examples:** [Python](../../examples/globalpay/python/globalpay.py) · [JavaScript](../../examples/globalpay/javascript/globalpay.ts#L422) · [Kotlin](../../examples/globalpay/kotlin/globalpay.kt) · [Rust](../../examples/globalpay/rust/globalpay.rs#L138)
+
+### Other
+
+#### authorize
 
 **Supported payment method types:**
 
@@ -209,61 +220,20 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/globalpay/python/globalpay.py#L248) · [JavaScript](../../examples/globalpay/javascript/globalpay.js#L236) · [Kotlin](../../examples/globalpay/kotlin/globalpay.kt#L234) · [Rust](../../examples/globalpay/rust/globalpay.rs#L232)
+**Examples:** [Python](../../examples/globalpay/python/globalpay.py) · [JavaScript](../../examples/globalpay/javascript/globalpay.ts#L351) · [Kotlin](../../examples/globalpay/kotlin/globalpay.kt) · [Rust](../../examples/globalpay/rust/globalpay.rs#L75)
 
-#### PaymentService.Capture
+#### capture
 
-Finalize an authorized payment transaction. Transfers reserved funds from customer to merchant account, completing the payment lifecycle.
+**Examples:** [Python](../../examples/globalpay/python/globalpay.py) · [JavaScript](../../examples/globalpay/javascript/globalpay.ts#L396) · [Kotlin](../../examples/globalpay/kotlin/globalpay.kt) · [Rust](../../examples/globalpay/rust/globalpay.rs#L114)
 
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceCaptureRequest` |
-| **Response** | `PaymentServiceCaptureResponse` |
+#### get
 
-**Examples:** [Python](../../examples/globalpay/python/globalpay.py#L257) · [JavaScript](../../examples/globalpay/javascript/globalpay.js#L245) · [Kotlin](../../examples/globalpay/kotlin/globalpay.kt#L246) · [Rust](../../examples/globalpay/rust/globalpay.rs#L244)
+**Examples:** [Python](../../examples/globalpay/python/globalpay.py) · [JavaScript](../../examples/globalpay/javascript/globalpay.ts#L431) · [Kotlin](../../examples/globalpay/kotlin/globalpay.kt) · [Rust](../../examples/globalpay/rust/globalpay.rs#L145)
 
-#### PaymentService.Get
+#### refund
 
-Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.
+**Examples:** [Python](../../examples/globalpay/python/globalpay.py) · [JavaScript](../../examples/globalpay/javascript/globalpay.ts#L453) · [Kotlin](../../examples/globalpay/kotlin/globalpay.kt) · [Rust](../../examples/globalpay/rust/globalpay.rs#L169)
 
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceGetRequest` |
-| **Response** | `PaymentServiceGetResponse` |
+#### void
 
-**Examples:** [Python](../../examples/globalpay/python/globalpay.py#L281) · [JavaScript](../../examples/globalpay/javascript/globalpay.js#L264) · [Kotlin](../../examples/globalpay/kotlin/globalpay.kt#L266) · [Rust](../../examples/globalpay/rust/globalpay.rs#L260)
-
-#### PaymentService.Refund
-
-Initiate a refund to customer's payment method. Returns funds for returns, cancellations, or service adjustments after original payment.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceRefundRequest` |
-| **Response** | `RefundResponse` |
-
-**Examples:** [Python](../../examples/globalpay/python/globalpay.py#L160) · [JavaScript](../../examples/globalpay/javascript/globalpay.js#L151) · [Kotlin](../../examples/globalpay/kotlin/globalpay.kt#L274) · [Rust](../../examples/globalpay/rust/globalpay.rs#L267)
-
-#### PaymentService.Void
-
-Cancel an authorized payment before capture. Releases held funds back to customer, typically used when orders are cancelled or abandoned.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceVoidRequest` |
-| **Response** | `PaymentServiceVoidResponse` |
-
-**Examples:** [Python](../../examples/globalpay/python/globalpay.py#L290) · [JavaScript](../../examples/globalpay/javascript/globalpay.js#L273) · [Kotlin](../../examples/globalpay/kotlin/globalpay.kt#L284) · [Rust](../../examples/globalpay/rust/globalpay.rs#L274)
-
-### Authentication
-
-#### MerchantAuthenticationService.CreateAccessToken
-
-Generate short-lived connector authentication token. Provides secure credentials for connector API access without storing secrets client-side.
-
-| | Message |
-|---|---------|
-| **Request** | `MerchantAuthenticationServiceCreateAccessTokenRequest` |
-| **Response** | `MerchantAuthenticationServiceCreateAccessTokenResponse` |
-
-**Examples:** [Python](../../examples/globalpay/python/globalpay.py#L266) · [JavaScript](../../examples/globalpay/javascript/globalpay.js#L254) · [Kotlin](../../examples/globalpay/kotlin/globalpay.kt#L256) · [Rust](../../examples/globalpay/rust/globalpay.rs#L251)
+**Examples:** [Python](../../examples/globalpay/python/globalpay.py) · [JavaScript](../../examples/globalpay/javascript/globalpay.ts#L481) · [Kotlin](../../examples/globalpay/kotlin/globalpay.kt) · [Rust](../../examples/globalpay/rust/globalpay.rs#L195)

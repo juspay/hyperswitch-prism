@@ -273,9 +273,9 @@ examples_python: examples/helcim/python/helcim.py
 ## Hipay
 connector_id: hipay
 doc: docs/connectors/hipay.md
-scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment, tokenize
+scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment, tokenize, tokenized_checkout
 payment_methods: Card
-flows: authorize, capture, get, refund, tokenize, void
+flows: authorize, capture, get, refund, tokenize, tokenized_authorize, void
 examples_python: examples/hipay/python/hipay.py
 
 ## Hyperpg
@@ -483,7 +483,7 @@ connector_id: razorpayv2
 doc: docs/connectors/razorpayv2.md
 scenarios: checkout_autocapture, checkout_wallet, checkout_bank, refund, get_payment
 payment_methods: Ach, Affirm, Afterpay, ApplePay, ApplePayDecrypted, Bacs, Becs, Blik, Card, GooglePay, GooglePayDecrypted, Ideal, Klarna, PaypalRedirect, SamsungPay, Sepa, UpiCollect
-flows: authorize, create_order, get, refund
+flows: authorize, create_order, get, refund, tokenized_authorize
 examples_python: examples/razorpayv2/python/razorpayv2.py
 
 ## Redsys
@@ -497,9 +497,9 @@ examples_python: none
 ## Revolut
 connector_id: revolut
 doc: docs/connectors/revolut.md
-scenarios: checkout_card, checkout_autocapture, checkout_wallet, checkout_bank, refund, get_payment
+scenarios: checkout_card, checkout_autocapture, checkout_wallet, checkout_bank, refund, get_payment, tokenized_checkout
 payment_methods: Ach, Affirm, Afterpay, ApplePay, ApplePayDecrypted, Bacs, Becs, Blik, Card, GooglePay, GooglePayDecrypted, Ideal, Klarna, PaypalRedirect, SamsungPay, Sepa, UpiCollect
-flows: authorize, capture, get, refund
+flows: authorize, capture, get, refund, tokenized_authorize
 examples_python: examples/revolut/python/revolut.py
 
 ## Revolv3

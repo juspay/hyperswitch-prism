@@ -1,1 +1,6 @@
 * text=auto
+
+# Auto-generated files — collapsed in GitHub PR diffs
+/examples/** linguist-generated=true
+/docs-generated/** linguist-generated=true
+/data/field_probe/** linguist-generated=true

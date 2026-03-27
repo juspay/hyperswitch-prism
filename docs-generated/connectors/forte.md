@@ -11,43 +11,27 @@ Regenerate: python3 scripts/generators/docs/generate.py forte
 Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
 
 <table>
-<tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
+<tr><td><b>Javascript</b></td><td><b>Kotlin</b></td><td><b>Python</b></td><td><b>Rust</b></td></tr>
 <tr>
 <td valign="top">
 
-<details><summary>Python</summary>
-
-```python
-from payments.generated import sdk_config_pb2, payment_pb2
-
-config = sdk_config_pb2.ConnectorConfig(
-    options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
-)
-# Set credentials before running (field names depend on connector auth type):
-# config.connector_config.CopyFrom(payment_pb2.ConnectorSpecificConfig(
-#     forte=payment_pb2.ForteConfig(api_key=...),
-# ))
-
-```
-
-</details>
-
-</td>
-<td valign="top">
-
-<details><summary>JavaScript</summary>
+<details><summary>Javascript</summary>
 
 ```javascript
-const { ConnectorClient } = require('connector-service-node-ffi');
+import { DirectPaymentClient, types } from 'hyperswitch-prism';
 
-// Reuse this client for all flows
-const client = new ConnectorClient({
-    connector: 'Forte',
-    environment: 'sandbox',
-    connector_auth_type: {
-        header_key: { api_key: 'YOUR_API_KEY' },
-    },
+const config: types.IConnectorConfig = types.ConnectorConfig.create({
+    options: types.SdkOptions.create({ environment: types.Environment.SANDBOX }),
+    connectorConfig: types.ConnectorSpecificConfig.create({
+        forte: {
+        apiAccessId: { value: 'YOUR_API_ACCESS_ID' },
+        organizationId: { value: 'YOUR_ORGANIZATION_ID' },
+        locationId: { value: 'YOUR_LOCATION_ID' },
+        apiSecretKey: { value: 'YOUR_API_SECRET_KEY' },
+        },
+    }),
 });
+const client = new DirectPaymentClient(config);
 ```
 
 </details>
@@ -58,14 +42,30 @@ const client = new ConnectorClient({
 <details><summary>Kotlin</summary>
 
 ```kotlin
+import payments.PaymentClient
+import payments.ConnectorConfig
+
 val config = ConnectorConfig.newBuilder()
-    .setConnector("Forte")
     .setEnvironment(Environment.SANDBOX)
-    .setAuth(
-        ConnectorAuthType.newBuilder()
-            .setHeaderKey(HeaderKey.newBuilder().setApiKey("YOUR_API_KEY"))
-    )
     .build()
+val client = PaymentClient(config)
+```
+
+</details>
+
+</td>
+<td valign="top">
+
+<details><summary>Python</summary>
+
+```python
+from payments import PaymentClient
+from payments.generated import sdk_config_pb2
+
+config = sdk_config_pb2.ConnectorConfig(
+    options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
+)
+client = PaymentClient(config)
 ```
 
 </details>
@@ -76,14 +76,23 @@ val config = ConnectorConfig.newBuilder()
 <details><summary>Rust</summary>
 
 ```rust
-use connector_service_sdk::{ConnectorClient, ConnectorConfig};
+use grpc_api_types::payments::{connector_specific_config, *};
+use hyperswitch_payments_client::ConnectorClient;
+use hyperswitch_masking::Secret;
 
 let config = ConnectorConfig {
-    connector: "Forte".to_string(),
-    environment: Environment::Sandbox,
-    auth: ConnectorAuth::HeaderKey { api_key: "YOUR_API_KEY".into() },
-    ..Default::default()
+    connector_config: Some(ConnectorSpecificConfig {
+        config: Some(connector_specific_config::Config::Forte(ForteConfig {
+                api_access_id: Some(Secret::new("YOUR_API_ACCESS_ID".to_string())),
+                organization_id: Some(Secret::new("YOUR_ORGANIZATION_ID".to_string())),
+                location_id: Some(Secret::new("YOUR_LOCATION_ID".to_string())),
+                api_secret_key: Some(Secret::new("YOUR_API_SECRET_KEY".to_string())),
+            ..Default::default()
+        })),
+    }),
+    options: Some(SdkOptions { environment: Environment::Sandbox.into() }),
 };
+let client = ConnectorClient::new(config, None).unwrap();
 ```
 
 </details>
@@ -108,7 +117,7 @@ Authorize and capture in one call using `capture_method=AUTOMATIC`. Use for digi
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/forte/python/forte.py#L75) · [JavaScript](../../examples/forte/javascript/forte.js#L68) · [Kotlin](../../examples/forte/kotlin/forte.kt#L75) · [Rust](../../examples/forte/rust/forte.rs#L75)
+**Examples:** [Python](../../examples/forte/python/forte.py#L5) · [JavaScript](../../examples/forte/javascript/forte.js#L30) · [Kotlin](../../examples/forte/kotlin/forte.kt#L6) · [Rust](../../examples/forte/rust/forte.rs#L18)
 
 ### Bank Transfer (SEPA / ACH / BACS)
 
@@ -122,38 +131,31 @@ Direct bank debit (Ach). Bank transfers typically use `capture_method=AUTOMATIC`
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/forte/python/forte.py#L94) · [JavaScript](../../examples/forte/javascript/forte.js#L87) · [Kotlin](../../examples/forte/kotlin/forte.kt#L91) · [Rust](../../examples/forte/rust/forte.rs#L91)
+**Examples:** [Python](../../examples/forte/python/forte.py#L11) · [JavaScript](../../examples/forte/javascript/forte.js#L73) · [Kotlin](../../examples/forte/kotlin/forte.kt#L10) · [Rust](../../examples/forte/rust/forte.rs#L27)
 
 ### Void a Payment
 
 Authorize funds with a manual capture flag, then cancel the authorization with Void before any capture occurs. Releases the hold on the customer's funds.
 
-**Examples:** [Python](../../examples/forte/python/forte.py#L137) · [JavaScript](../../examples/forte/javascript/forte.js#L127) · [Kotlin](../../examples/forte/kotlin/forte.kt#L128) · [Rust](../../examples/forte/rust/forte.rs#L130)
+**Examples:** [Python](../../examples/forte/python/forte.py#L17) · [JavaScript](../../examples/forte/javascript/forte.js#L114) · [Kotlin](../../examples/forte/kotlin/forte.kt#L14) · [Rust](../../examples/forte/rust/forte.rs#L36)
 
 ### Get Payment Status
 
 Authorize a payment, then poll the connector for its current status using Get. Use this to sync payment state when webhooks are unavailable or delayed.
 
-**Examples:** [Python](../../examples/forte/python/forte.py#L159) · [JavaScript](../../examples/forte/javascript/forte.js#L149) · [Kotlin](../../examples/forte/kotlin/forte.kt#L147) · [Rust](../../examples/forte/rust/forte.rs#L149)
+**Examples:** [Python](../../examples/forte/python/forte.py#L25) · [JavaScript](../../examples/forte/javascript/forte.js#L163) · [Kotlin](../../examples/forte/kotlin/forte.kt#L18) · [Rust](../../examples/forte/rust/forte.rs#L48)
 
 ## API Reference
 
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
-| [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
-| [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
-| [PaymentService.Void](#paymentservicevoid) | Payments | `PaymentServiceVoidRequest` |
+| [authorize](#authorize) | Other | `—` |
+| [get](#get) | Other | `—` |
+| [void](#void) | Other | `—` |
 
-### Payments
+### Other
 
-#### PaymentService.Authorize
-
-Authorize a payment amount on a payment method. This reserves funds without capturing them, essential for verifying availability before finalizing.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceAuthorizeRequest` |
-| **Response** | `PaymentServiceAuthorizeResponse` |
+#### authorize
 
 **Supported payment method types:**
 
@@ -203,26 +205,12 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/forte/python/forte.py#L181) · [JavaScript](../../examples/forte/javascript/forte.js#L170) · [Kotlin](../../examples/forte/kotlin/forte.kt#L165) · [Rust](../../examples/forte/rust/forte.rs#L167)
+**Examples:** [Python](../../examples/forte/python/forte.py) · [JavaScript](../../examples/forte/javascript/forte.ts#L214) · [Kotlin](../../examples/forte/kotlin/forte.kt) · [Rust](../../examples/forte/rust/forte.rs#L60)
 
-#### PaymentService.Get
+#### get
 
-Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.
+**Examples:** [Python](../../examples/forte/python/forte.py) · [JavaScript](../../examples/forte/javascript/forte.ts#L253) · [Kotlin](../../examples/forte/kotlin/forte.kt) · [Rust](../../examples/forte/rust/forte.rs#L93)
 
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceGetRequest` |
-| **Response** | `PaymentServiceGetResponse` |
+#### void
 
-**Examples:** [Python](../../examples/forte/python/forte.py#L190) · [JavaScript](../../examples/forte/javascript/forte.js#L179) · [Kotlin](../../examples/forte/kotlin/forte.kt#L177) · [Rust](../../examples/forte/rust/forte.rs#L179)
-
-#### PaymentService.Void
-
-Cancel an authorized payment before capture. Releases held funds back to customer, typically used when orders are cancelled or abandoned.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceVoidRequest` |
-| **Response** | `PaymentServiceVoidResponse` |
-
-**Examples:** [Python](../../examples/forte/python/forte.py#L199) · [JavaScript](../../examples/forte/javascript/forte.js#L188) · [Kotlin](../../examples/forte/kotlin/forte.kt#L185) · [Rust](../../examples/forte/rust/forte.rs#L186)
+**Examples:** [Python](../../examples/forte/python/forte.py) · [JavaScript](../../examples/forte/javascript/forte.ts#L268) · [Kotlin](../../examples/forte/kotlin/forte.kt) · [Rust](../../examples/forte/rust/forte.rs#L110)

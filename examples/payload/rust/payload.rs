@@ -1,174 +1,155 @@
-// This file is auto-generated. Do not edit manually.
-// Replace YOUR_API_KEY and placeholder values with real data.
-// Regenerate: python3 scripts/generate-connector-docs.py payload
-//
-// Payload — all scenarios and flows in one file.
-// Run a scenario:  cargo run --example payload -- process_checkout_card
+// Auto-generated for payload
+// Run: cargo run --example payload -- process_checkout_card
 
 use grpc_api_types::payments::*;
 use hyperswitch_payments_client::ConnectorClient;
 use std::collections::HashMap;
 
-#[allow(dead_code)]
 fn build_client() -> ConnectorClient {
-    // Set connector_config to authenticate: use ConnectorSpecificConfig with your PayloadConfig
     let config = ConnectorConfig {
-        connector_config: None,  // TODO: Some(ConnectorSpecificConfig { config: Some(...) })
-        options: Some(SdkOptions {
-            environment: Environment::Sandbox.into(),
-        }),
+        connector_config: None,  // TODO: set credentials
+        options: Some(SdkOptions { environment: Environment::Sandbox.into() }),
     };
     ConnectorClient::new(config, None).unwrap()
 }
 
-fn build_capture_request(connector_transaction_id: &str) -> PaymentServiceCaptureRequest {
-    serde_json::from_value::<PaymentServiceCaptureRequest>(serde_json::json!({
-    "merchant_capture_id": "probe_capture_001",  // Identification
-    "connector_transaction_id": connector_transaction_id,
-    "amount_to_capture": {  // Capture Details
-        "minor_amount": 1000,  // Amount in minor units (e.g., 1000 = $10.00)
-        "currency": "USD",  // ISO 4217 currency code (e.g., "USD", "EUR")
-    },
-    "state": {  // State Information
-        "access_token": {  // Access token obtained from connector
-            "token": "probe_access_token",  // The token string.
-            "expires_in_seconds": 3600,  // Expiration timestamp (seconds since epoch)
-            "token_type": "Bearer",  // Token type (e.g., "Bearer", "Basic").
-        },
-    },
-    })).unwrap_or_default()
-}
-
-fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetRequest {
-    serde_json::from_value::<PaymentServiceGetRequest>(serde_json::json!({
-    "merchant_transaction_id": "probe_merchant_txn_001",  // Identification
-    "connector_transaction_id": connector_transaction_id,
-    "amount": {  // Amount Information
-        "minor_amount": 1000,  // Amount in minor units (e.g., 1000 = $10.00)
-        "currency": "USD",  // ISO 4217 currency code (e.g., "USD", "EUR")
-    },
-    "state": {  // State Information
-        "access_token": {  // Access token obtained from connector
-            "token": "probe_access_token",  // The token string.
-            "expires_in_seconds": 3600,  // Expiration timestamp (seconds since epoch)
-            "token_type": "Bearer",  // Token type (e.g., "Bearer", "Basic").
-        },
-    },
-    })).unwrap_or_default()
-}
-
-fn build_refund_request(connector_transaction_id: &str) -> PaymentServiceRefundRequest {
-    serde_json::from_value::<PaymentServiceRefundRequest>(serde_json::json!({
-    "merchant_refund_id": "probe_refund_001",  // Identification
-    "connector_transaction_id": connector_transaction_id,
-    "payment_amount": 1000,  // Amount Information
-    "refund_amount": {
-        "minor_amount": 1000,  // Amount in minor units (e.g., 1000 = $10.00)
-        "currency": "USD",  // ISO 4217 currency code (e.g., "USD", "EUR")
-    },
-    "reason": "customer_request",  // Reason for the refund
-    "state": {  // State data for access token storage and other connector-specific state
-        "access_token": {  // Access token obtained from connector
-            "token": "probe_access_token",  // The token string.
-            "expires_in_seconds": 3600,  // Expiration timestamp (seconds since epoch)
-            "token_type": "Bearer",  // Token type (e.g., "Bearer", "Basic").
-        },
-    },
-    })).unwrap_or_default()
-}
-
-fn build_void_request(connector_transaction_id: &str) -> PaymentServiceVoidRequest {
-    serde_json::from_value::<PaymentServiceVoidRequest>(serde_json::json!({
-    "merchant_void_id": "probe_void_001",  // Identification
-    "connector_transaction_id": connector_transaction_id,
-    "state": {  // State Information
-        "access_token": {  // Access token obtained from connector
-            "token": "probe_access_token",  // The token string.
-            "expires_in_seconds": 3600,  // Expiration timestamp (seconds since epoch)
-            "token_type": "Bearer",  // Token type (e.g., "Bearer", "Basic").
-        },
-    },
-    })).unwrap_or_default()
-}
-
-
-// Flow: PaymentService.Capture
 #[allow(dead_code)]
-pub async fn capture(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client.capture(build_capture_request("probe_connector_txn_001"), &HashMap::new(), None).await?;
-    Ok(format!("status: {:?}", response.status()))
+pub async fn capture(client: &ConnectorClient, _merchant_id: &str) -> Result<String, Box<dyn std::error::Error>> {
+    // Flow: PaymentService.capture
+    let response = client.capture(
+        serde_json::json!({
+    "merchant_capture_id": "probe_capture_001",
+    "connector_transaction_id": "probe_connector_txn_001",
+    "amount_to_capture": {
+        "minor_amount": 1000,
+        "currency": "USD"
+    },
+    "state": {
+        "access_token": {
+            "token": "probe_access_token",
+            "expires_in_seconds": 3600,
+            "token_type": "Bearer"
+        }
+    }
+        }).into(),
+        &HashMap::new(), None
+    ).await?;
+    Ok(format!("Flow completed: {:?}", response.status()))
 }
 
-// Flow: PaymentService.Get
 #[allow(dead_code)]
-pub async fn get(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client.get(build_get_request("probe_connector_txn_001"), &HashMap::new(), None).await?;
-    Ok(format!("status: {:?}", response.status()))
+pub async fn get(client: &ConnectorClient, _merchant_id: &str) -> Result<String, Box<dyn std::error::Error>> {
+    // Flow: PaymentService.get
+    let response = client.get(
+        serde_json::json!({
+    "merchant_transaction_id": "probe_merchant_txn_001",
+    "connector_transaction_id": "probe_connector_txn_001",
+    "amount": {
+        "minor_amount": 1000,
+        "currency": "USD"
+    },
+    "state": {
+        "access_token": {
+            "token": "probe_access_token",
+            "expires_in_seconds": 3600,
+            "token_type": "Bearer"
+        }
+    }
+        }).into(),
+        &HashMap::new(), None
+    ).await?;
+    Ok(format!("Flow completed: {:?}", response.status()))
 }
 
-// Flow: RecurringPaymentService.Charge
 #[allow(dead_code)]
-pub async fn recurring_charge(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client.recurring_charge(serde_json::from_value::<RecurringPaymentServiceChargeRequest>(serde_json::json!({
-    "connector_recurring_payment_id": {  // Reference to existing mandate
+pub async fn recurring_charge(client: &ConnectorClient, _merchant_id: &str) -> Result<String, Box<dyn std::error::Error>> {
+    // Flow: RecurringPaymentService.Charge
+    let response = client.recurring_charge(
+        serde_json::from_value::<RecurringPaymentServiceChargeRequest>(serde_json::json!({
+    "connector_recurring_payment_id": {
         "mandate_id_type": {
-            "connector_mandate_id": "probe-mandate-123",
-        },
+            "connector_mandate_id": {
+                "connector_mandate_id": "probe-mandate-123"
+            }
+        }
     },
-    "amount": {  // Amount Information
-        "minor_amount": 1000,  // Amount in minor units (e.g., 1000 = $10.00)
-        "currency": "USD",  // ISO 4217 currency code (e.g., "USD", "EUR")
+    "amount": {
+        "minor_amount": 1000,
+        "currency": "USD"
     },
-    "payment_method": {  // Optional payment Method Information (for network transaction flows)
+    "payment_method": {
         "payment_method": {
-            "token": "probe_pm_token",  // Payment tokens
+            "token": {
+                "token": "probe_pm_token"
+            }
         }
     },
     "return_url": "https://example.com/recurring-return",
     "connector_customer_id": "cust_probe_123",
     "payment_method_type": "PAY_PAL",
-    "off_session": true,  // Behavioral Flags and Preferences
-    "state": {  // State Information
-        "access_token": {  // Access token obtained from connector
-            "token": "probe_access_token",  // The token string.
-            "expires_in_seconds": 3600,  // Expiration timestamp (seconds since epoch)
-            "token_type": "Bearer",  // Token type (e.g., "Bearer", "Basic").
-        },
+    "off_session": true,
+    "state": {
+        "access_token": {
+            "token": "probe_access_token",
+            "expires_in_seconds": 3600,
+            "token_type": "Bearer"
+        }
+    }
+        })).unwrap_or_default(),
+        &HashMap::new(), None
+    ).await?;
+    Ok(format!("Flow completed: {:?}", response.status()))
+}
+
+#[allow(dead_code)]
+pub async fn refund(client: &ConnectorClient, _merchant_id: &str) -> Result<String, Box<dyn std::error::Error>> {
+    // Flow: PaymentService.refund
+    let response = client.refund(
+        serde_json::json!({
+    "merchant_refund_id": "probe_refund_001",
+    "connector_transaction_id": "probe_connector_txn_001",
+    "payment_amount": 1000,
+    "refund_amount": {
+        "minor_amount": 1000,
+        "currency": "USD"
     },
-    })).unwrap_or_default(), &HashMap::new(), None).await?;
-    Ok(format!("status: {:?}", response.status()))
+    "reason": "customer_request",
+    "state": {
+        "access_token": {
+            "token": "probe_access_token",
+            "expires_in_seconds": 3600,
+            "token_type": "Bearer"
+        }
+    }
+        }).into(),
+        &HashMap::new(), None
+    ).await?;
+    Ok(format!("Flow completed: {:?}", response.status()))
 }
 
-// Flow: PaymentService.Refund
 #[allow(dead_code)]
-pub async fn refund(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client.refund(build_refund_request("probe_connector_txn_001"), &HashMap::new(), None).await?;
-    Ok(format!("status: {:?}", response.status()))
+pub async fn void(client: &ConnectorClient, _merchant_id: &str) -> Result<String, Box<dyn std::error::Error>> {
+    // Flow: PaymentService.void
+    let response = client.void(
+        serde_json::json!({
+    "merchant_void_id": "probe_void_001",
+    "connector_transaction_id": "probe_connector_txn_001",
+    "state": {
+        "access_token": {
+            "token": "probe_access_token",
+            "expires_in_seconds": 3600,
+            "token_type": "Bearer"
+        }
+    }
+        }).into(),
+        &HashMap::new(), None
+    ).await?;
+    Ok(format!("Flow completed: {:?}", response.status()))
 }
 
-// Flow: PaymentService.Void
-#[allow(dead_code)]
-pub async fn void(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client.void(build_void_request("probe_connector_txn_001"), &HashMap::new(), None).await?;
-    Ok(format!("status: {:?}", response.status()))
-}
-
-
-#[allow(dead_code)]
 #[tokio::main]
 async fn main() {
     let client = build_client();
-    let flow = std::env::args().nth(1).unwrap_or_else(|| "capture".to_string());
-    let result: Result<String, Box<dyn std::error::Error>> = match flow.as_str() {
-        "capture" => capture(&client, "order_001").await,
-        "get" => get(&client, "order_001").await,
-        "recurring_charge" => recurring_charge(&client, "order_001").await,
-        "refund" => refund(&client, "order_001").await,
-        "void" => void(&client, "order_001").await,
-        _ => { eprintln!("Unknown flow: {}. Available: capture, get, recurring_charge, refund, void", flow); return; }
-    };
-    match result {
-        Ok(msg) => println!("✓ {msg}"),
-        Err(e) => eprintln!("✗ {e}"),
-    }
+    let flow = std::env::args().nth(1).unwrap_or_else(|| "authorize".to_string());
+    println!("Running flow: {}", flow);
 }

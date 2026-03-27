@@ -1,0 +1,379 @@
+// This file is auto-generated. Do not edit manually.
+// Replace placeholder credentials with real values.
+// Regenerate: python3 scripts/generate-connector-docs.py revolv3
+//
+// Revolv3 — all integration scenarios and flows in one file.
+// Run a scenario:  npx ts-node revolv3.ts checkout_card
+
+import { PaymentClient } from 'hyperswitch-prism';
+import { types } from 'hyperswitch-prism';
+
+const { ConnectorConfig, ConnectorSpecificConfig, SdkOptions, Environment } = types;
+
+const _defaultConfig: types.IConnectorConfig = ConnectorConfig.create({
+    options: SdkOptions.create({ environment: Environment.SANDBOX }),
+    connectorConfig: ConnectorSpecificConfig.create({
+        revolv3: {
+            apiKey: { value: 'YOUR_API_KEY' },
+        },
+    }),
+});
+
+
+// ANCHOR: scenario_functions
+// Card Payment (Authorize + Capture)
+// Flow: authorize → capture
+// Reserve funds with Authorize, then settle with a separate Capture call. Use for physical goods or delayed fulfillment where capture happens later.
+async function processCheckoutCard(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig): Promise<unknown> {
+    const paymentClient = new PaymentClient(config);
+
+    // Step 1: Authorize — reserve funds on the payment method
+    const authorizeResponse = await paymentClient.authorize({
+        "merchantTransactionId": "probe_txn_001",
+        "amount": {
+            "minorAmount": 1000,
+            "currency": "USD"
+        },
+        "paymentMethod": {
+            "card": {
+                "cardNumber": "4111111111111111",
+                "cardExpMonth": "03",
+                "cardExpYear": "2030",
+                "cardCvc": "737",
+                "cardHolderName": "John Doe"
+            }
+        },
+        "captureMethod": "MANUAL",
+        "address": {
+            "billingAddress": {
+            }
+        },
+        "authType": "NO_THREE_DS",
+        "returnUrl": "https://example.com/return"
+    });
+
+    if (authorizeResponse.status === 'FAILED') {
+        throw new Error(`Payment failed: ${authorizeResponse.error?.message}`);
+    }
+    if (authorizeResponse.status === 'PENDING') {
+        // Awaiting async confirmation — handle via webhook
+        return { status: 'pending', transactionId: authorizeResponse.connectorTransactionId };
+    }
+
+    // Step 2: Capture — settle the reserved funds
+    const captureResponse = await paymentClient.capture({
+        "merchantCaptureId": "probe_capture_001",
+        "connectorTransactionId": authorizeResponse.connectorTransactionId,  // from authorize response
+        "amountToCapture": {
+            "minorAmount": 1000,
+            "currency": "USD"
+        }
+    });
+
+    if (captureResponse.status === 'FAILED') {
+        throw new Error(`Capture failed: ${captureResponse.error?.message}`);
+    }
+
+    return { status: captureResponse.status, transactionId: authorizeResponse.connectorTransactionId, error: authorizeResponse.error };
+}
+
+// Card Payment (Automatic Capture)
+// Flow: authorize
+// Authorize and capture in one call using `capture_method=AUTOMATIC`. Use for digital goods or immediate fulfillment.
+async function processCheckoutAutocapture(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig): Promise<unknown> {
+    const paymentClient = new PaymentClient(config);
+
+    // Step 1: Authorize — reserve funds on the payment method
+    const authorizeResponse = await paymentClient.authorize({
+        "merchantTransactionId": "probe_txn_001",
+        "amount": {
+            "minorAmount": 1000,
+            "currency": "USD"
+        },
+        "paymentMethod": {
+            "card": {
+                "cardNumber": "4111111111111111",
+                "cardExpMonth": "03",
+                "cardExpYear": "2030",
+                "cardCvc": "737",
+                "cardHolderName": "John Doe"
+            }
+        },
+        "captureMethod": "AUTOMATIC",
+        "address": {
+            "billingAddress": {
+            }
+        },
+        "authType": "NO_THREE_DS",
+        "returnUrl": "https://example.com/return"
+    });
+
+    if (authorizeResponse.status === 'FAILED') {
+        throw new Error(`Payment failed: ${authorizeResponse.error?.message}`);
+    }
+    if (authorizeResponse.status === 'PENDING') {
+        // Awaiting async confirmation — handle via webhook
+        return { status: 'pending', transactionId: authorizeResponse.connectorTransactionId };
+    }
+
+    return { status: authorizeResponse.status, transactionId: authorizeResponse.connectorTransactionId, error: authorizeResponse.error };
+}
+
+// Refund a Payment
+// Flow: authorize → refund
+// Authorize with automatic capture, then refund the captured amount. `connector_transaction_id` from the Authorize response is reused for the Refund call.
+async function processRefund(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig): Promise<unknown> {
+    const paymentClient = new PaymentClient(config);
+
+    // Step 1: Authorize — reserve funds on the payment method
+    const authorizeResponse = await paymentClient.authorize({
+        "merchantTransactionId": "probe_txn_001",
+        "amount": {
+            "minorAmount": 1000,
+            "currency": "USD"
+        },
+        "paymentMethod": {
+            "card": {
+                "cardNumber": "4111111111111111",
+                "cardExpMonth": "03",
+                "cardExpYear": "2030",
+                "cardCvc": "737",
+                "cardHolderName": "John Doe"
+            }
+        },
+        "captureMethod": "AUTOMATIC",
+        "address": {
+            "billingAddress": {
+            }
+        },
+        "authType": "NO_THREE_DS",
+        "returnUrl": "https://example.com/return"
+    });
+
+    if (authorizeResponse.status === 'FAILED') {
+        throw new Error(`Payment failed: ${authorizeResponse.error?.message}`);
+    }
+    if (authorizeResponse.status === 'PENDING') {
+        // Awaiting async confirmation — handle via webhook
+        return { status: 'pending', transactionId: authorizeResponse.connectorTransactionId };
+    }
+
+    // Step 2: Refund — return funds to the customer
+    const refundResponse = await paymentClient.refund({
+        "merchantRefundId": "probe_refund_001",
+        "connectorTransactionId": authorizeResponse.connectorTransactionId,  // from authorize response
+        "paymentAmount": 1000,
+        "refundAmount": {
+            "minorAmount": 1000,
+            "currency": "USD"
+        },
+        "reason": "customer_request"
+    });
+
+    if (refundResponse.status === 'FAILED') {
+        throw new Error(`Refund failed: ${refundResponse.error?.message}`);
+    }
+
+    return { status: refundResponse.status, error: refundResponse.error };
+}
+
+// Void a Payment
+// Flow: authorize → void
+// Authorize funds with a manual capture flag, then cancel the authorization with Void before any capture occurs. Releases the hold on the customer's funds.
+async function processVoidPayment(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig): Promise<unknown> {
+    const paymentClient = new PaymentClient(config);
+
+    // Step 1: Authorize — reserve funds on the payment method
+    const authorizeResponse = await paymentClient.authorize({
+        "merchantTransactionId": "probe_txn_001",
+        "amount": {
+            "minorAmount": 1000,
+            "currency": "USD"
+        },
+        "paymentMethod": {
+            "card": {
+                "cardNumber": "4111111111111111",
+                "cardExpMonth": "03",
+                "cardExpYear": "2030",
+                "cardCvc": "737",
+                "cardHolderName": "John Doe"
+            }
+        },
+        "captureMethod": "MANUAL",
+        "address": {
+            "billingAddress": {
+            }
+        },
+        "authType": "NO_THREE_DS",
+        "returnUrl": "https://example.com/return"
+    });
+
+    if (authorizeResponse.status === 'FAILED') {
+        throw new Error(`Payment failed: ${authorizeResponse.error?.message}`);
+    }
+    if (authorizeResponse.status === 'PENDING') {
+        // Awaiting async confirmation — handle via webhook
+        return { status: 'pending', transactionId: authorizeResponse.connectorTransactionId };
+    }
+
+    // Step 2: Void — release reserved funds (cancel authorization)
+    const voidResponse = await paymentClient.void({
+        "merchantVoidId": "probe_void_001",
+        "connectorTransactionId": authorizeResponse.connectorTransactionId,  // from authorize response
+    });
+
+    return { status: voidResponse.status, transactionId: authorizeResponse.connectorTransactionId, error: voidResponse.error };
+}
+
+// Flow: PaymentService.authorize (Card)
+async function authorize(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig): Promise<unknown> {
+    // Step 1: Authorize — reserve funds on the payment method
+    const authorizeResponse = await paymentClient.authorize({
+        "merchantTransactionId": "probe_txn_001",
+        "amount": {
+            "minorAmount": 1000,
+            "currency": "USD"
+        },
+        "paymentMethod": {
+            "card": {
+                "cardNumber": "4111111111111111",
+                "cardExpMonth": "03",
+                "cardExpYear": "2030",
+                "cardCvc": "737",
+                "cardHolderName": "John Doe"
+            }
+        },
+        "captureMethod": "AUTOMATIC",
+        "address": {
+            "billingAddress": {
+            }
+        },
+        "authType": "NO_THREE_DS",
+        "returnUrl": "https://example.com/return"
+    });
+
+    if (authorizeResponse.status === 'FAILED') {
+        throw new Error(`Payment failed: ${authorizeResponse.error?.message}`);
+    }
+    if (authorizeResponse.status === 'PENDING') {
+        // Awaiting async confirmation — handle via webhook
+        return { status: 'pending', transactionId: authorizeResponse.connectorTransactionId };
+    }
+
+    return { status: authorizeResponse.status, transactionId: authorizeResponse.connectorTransactionId };
+}
+
+// Flow: PaymentService.capture
+async function capture(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig): Promise<unknown> {
+    // Step 1: Capture — settle the reserved funds
+    const captureResponse = await paymentClient.capture({
+        "merchantCaptureId": "probe_capture_001",
+        "connectorTransactionId": "probe_connector_txn_001",
+        "amountToCapture": {
+            "minorAmount": 1000,
+            "currency": "USD"
+        }
+    });
+
+    if (captureResponse.status === 'FAILED') {
+        throw new Error(`Capture failed: ${captureResponse.error?.message}`);
+    }
+
+    return { status: captureResponse.status };
+}
+
+// Flow: PaymentService.refund
+async function refund(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig): Promise<unknown> {
+    // Step 1: Refund — return funds to the customer
+    const refundResponse = await paymentClient.refund({
+        "merchantRefundId": "probe_refund_001",
+        "connectorTransactionId": "probe_connector_txn_001",
+        "paymentAmount": 1000,
+        "refundAmount": {
+            "minorAmount": 1000,
+            "currency": "USD"
+        },
+        "reason": "customer_request"
+    });
+
+    if (refundResponse.status === 'FAILED') {
+        throw new Error(`Refund failed: ${refundResponse.error?.message}`);
+    }
+
+    return { status: refundResponse.status };
+}
+
+// Flow: PaymentService.setup_recurring
+async function setupRecurring(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig): Promise<unknown> {
+    // Step 1: Setup Recurring — store the payment mandate
+    const setupResponse = await paymentClient.setupRecurring({
+        "merchantRecurringPaymentId": "probe_mandate_001",
+        "amount": {
+            "minorAmount": 0,
+            "currency": "USD"
+        },
+        "paymentMethod": {
+            "card": {
+                "cardNumber": "4111111111111111",
+                "cardExpMonth": "03",
+                "cardExpYear": "2030",
+                "cardCvc": "737",
+                "cardHolderName": "John Doe"
+            }
+        },
+        "address": {
+            "billingAddress": {
+            }
+        },
+        "authType": "NO_THREE_DS",
+        "enrolledFor3Ds": false,
+        "returnUrl": "https://example.com/mandate-return",
+        "setupFutureUsage": "OFF_SESSION",
+        "requestIncrementalAuthorization": false,
+        "customerAcceptance": {
+            "acceptanceType": "OFFLINE",
+            "acceptedAt": 0
+        }
+    });
+
+    if (setupResponse.status === 'FAILED') {
+        throw new Error(`Recurring setup failed: ${setupResponse.error?.message}`);
+    }
+
+    return { status: setupResponse.status, mandateId: setupResponse.connectorTransactionId };
+}
+
+// Flow: PaymentService.void
+async function voidPayment(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig): Promise<unknown> {
+    // Step 1: Void — release reserved funds (cancel authorization)
+    const voidResponse = await paymentClient.void({
+        "merchantVoidId": "probe_void_001",
+        "connectorTransactionId": "probe_connector_txn_001"
+    });
+
+    return { status: voidResponse.status };
+}
+
+
+export { processCheckoutCard, processCheckoutAutocapture, processRefund, processVoidPayment, authorize, capture, refund, setupRecurring, voidPayment };
+
+const _scenarioMap: Record<string, (id: string) => Promise<unknown>> = {
+    processCheckoutCard,
+    processCheckoutAutocapture,
+    processRefund,
+    processVoidPayment,
+};
+
+if (require.main === module) {
+    const scenario = process.argv[2] || 'checkout_card';
+    const key = 'process' + scenario.replace(/_([a-z])/g, (_: string, l: string) => l.toUpperCase()).replace(/^(.)/, (c: string) => c.toUpperCase());
+    const fn = _scenarioMap[key];
+    if (!fn) {
+        const available = Object.keys(_scenarioMap).map(k =>
+            k.replace(/^process/, '').replace(/([A-Z])/g, '_$1').toLowerCase().replace(/^_/, '')
+        );
+        console.error(`Unknown scenario: ${scenario}. Available: ${available.join(', ')}`);
+        process.exit(1);
+    }
+    fn('order_001').catch(console.error);
+}

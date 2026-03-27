@@ -706,6 +706,18 @@
         "status": "not_implemented"
       }
     },
+    "proxied_authorize": {
+      "default": {
+        "status": "error",
+        "error": "Missing card number"
+      }
+    },
+    "proxied_setup_recurring": {
+      "default": {
+        "status": "error",
+        "error": "Customer acceptance is missing"
+      }
+    },
     "recurring_charge": {
       "default": {
         "status": "not_implemented"
@@ -777,6 +789,18 @@
           },
           "body": "{\"number\":\"4111111111111111\",\"month\":\"03\",\"year\":\"30\",\"cvv\":\"737\",\"pkey\":\"probe_pub_key\",\"recurring\":null,\"intent\":null,\"strongAuthenticationRule\":null}"
         }
+      }
+    },
+    "tokenized_authorize": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+      }
+    },
+    "tokenized_setup_recurring": {
+      "default": {
+        "status": "error",
+        "error": "Future usage must be specified"
       }
     },
     "void": {

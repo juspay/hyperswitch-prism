@@ -11,43 +11,24 @@ Regenerate: python3 scripts/generators/docs/generate.py mollie
 Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
 
 <table>
-<tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
+<tr><td><b>Javascript</b></td><td><b>Kotlin</b></td><td><b>Python</b></td><td><b>Rust</b></td></tr>
 <tr>
 <td valign="top">
 
-<details><summary>Python</summary>
-
-```python
-from payments.generated import sdk_config_pb2, payment_pb2
-
-config = sdk_config_pb2.ConnectorConfig(
-    options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
-)
-# Set credentials before running (field names depend on connector auth type):
-# config.connector_config.CopyFrom(payment_pb2.ConnectorSpecificConfig(
-#     mollie=payment_pb2.MollieConfig(api_key=...),
-# ))
-
-```
-
-</details>
-
-</td>
-<td valign="top">
-
-<details><summary>JavaScript</summary>
+<details><summary>Javascript</summary>
 
 ```javascript
-const { ConnectorClient } = require('connector-service-node-ffi');
+import { DirectPaymentClient, types } from 'hyperswitch-prism';
 
-// Reuse this client for all flows
-const client = new ConnectorClient({
-    connector: 'Mollie',
-    environment: 'sandbox',
-    connector_auth_type: {
-        header_key: { api_key: 'YOUR_API_KEY' },
-    },
+const config: types.IConnectorConfig = types.ConnectorConfig.create({
+    options: types.SdkOptions.create({ environment: types.Environment.SANDBOX }),
+    connectorConfig: types.ConnectorSpecificConfig.create({
+        mollie: {
+        apiKey: { value: 'YOUR_API_KEY' },
+        },
+    }),
 });
+const client = new DirectPaymentClient(config);
 ```
 
 </details>
@@ -58,14 +39,30 @@ const client = new ConnectorClient({
 <details><summary>Kotlin</summary>
 
 ```kotlin
+import payments.PaymentClient
+import payments.ConnectorConfig
+
 val config = ConnectorConfig.newBuilder()
-    .setConnector("Mollie")
     .setEnvironment(Environment.SANDBOX)
-    .setAuth(
-        ConnectorAuthType.newBuilder()
-            .setHeaderKey(HeaderKey.newBuilder().setApiKey("YOUR_API_KEY"))
-    )
     .build()
+val client = PaymentClient(config)
+```
+
+</details>
+
+</td>
+<td valign="top">
+
+<details><summary>Python</summary>
+
+```python
+from payments import PaymentClient
+from payments.generated import sdk_config_pb2
+
+config = sdk_config_pb2.ConnectorConfig(
+    options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
+)
+client = PaymentClient(config)
 ```
 
 </details>
@@ -76,14 +73,20 @@ val config = ConnectorConfig.newBuilder()
 <details><summary>Rust</summary>
 
 ```rust
-use connector_service_sdk::{ConnectorClient, ConnectorConfig};
+use grpc_api_types::payments::{connector_specific_config, *};
+use hyperswitch_payments_client::ConnectorClient;
+use hyperswitch_masking::Secret;
 
 let config = ConnectorConfig {
-    connector: "Mollie".to_string(),
-    environment: Environment::Sandbox,
-    auth: ConnectorAuth::HeaderKey { api_key: "YOUR_API_KEY".into() },
-    ..Default::default()
+    connector_config: Some(ConnectorSpecificConfig {
+        config: Some(connector_specific_config::Config::Mollie(MollieConfig {
+                api_key: Some(Secret::new("YOUR_API_KEY".to_string())),
+            ..Default::default()
+        })),
+    }),
+    options: Some(SdkOptions { environment: Environment::Sandbox.into() }),
 };
+let client = ConnectorClient::new(config, None).unwrap();
 ```
 
 </details>
@@ -108,45 +111,38 @@ Authorize and capture in one call using `capture_method=AUTOMATIC`. Use for digi
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/mollie/python/mollie.py#L75) · [JavaScript](../../examples/mollie/javascript/mollie.js#L68) · [Kotlin](../../examples/mollie/kotlin/mollie.kt#L89) · [Rust](../../examples/mollie/rust/mollie.rs#L88)
+**Examples:** [Python](../../examples/mollie/python/mollie.py#L5) · [JavaScript](../../examples/mollie/javascript/mollie.js#L27) · [Kotlin](../../examples/mollie/kotlin/mollie.kt#L6) · [Rust](../../examples/mollie/rust/mollie.rs#L18)
 
 ### Refund a Payment
 
 Authorize with automatic capture, then refund the captured amount. `connector_transaction_id` from the Authorize response is reused for the Refund call.
 
-**Examples:** [Python](../../examples/mollie/python/mollie.py#L94) · [JavaScript](../../examples/mollie/javascript/mollie.js#L87) · [Kotlin](../../examples/mollie/kotlin/mollie.kt#L105) · [Rust](../../examples/mollie/rust/mollie.rs#L104)
+**Examples:** [Python](../../examples/mollie/python/mollie.py#L11) · [JavaScript](../../examples/mollie/javascript/mollie.js#L70) · [Kotlin](../../examples/mollie/kotlin/mollie.kt#L10) · [Rust](../../examples/mollie/rust/mollie.rs#L27)
 
 ### Void a Payment
 
 Authorize funds with a manual capture flag, then cancel the authorization with Void before any capture occurs. Releases the hold on the customer's funds.
 
-**Examples:** [Python](../../examples/mollie/python/mollie.py#L131) · [JavaScript](../../examples/mollie/javascript/mollie.js#L122) · [Kotlin](../../examples/mollie/kotlin/mollie.kt#L127) · [Rust](../../examples/mollie/rust/mollie.rs#L127)
+**Examples:** [Python](../../examples/mollie/python/mollie.py#L19) · [JavaScript](../../examples/mollie/javascript/mollie.js#L129) · [Kotlin](../../examples/mollie/kotlin/mollie.kt#L14) · [Rust](../../examples/mollie/rust/mollie.rs#L39)
 
 ### Get Payment Status
 
 Authorize a payment, then poll the connector for its current status using Get. Use this to sync payment state when webhooks are unavailable or delayed.
 
-**Examples:** [Python](../../examples/mollie/python/mollie.py#L153) · [JavaScript](../../examples/mollie/javascript/mollie.js#L144) · [Kotlin](../../examples/mollie/kotlin/mollie.kt#L146) · [Rust](../../examples/mollie/rust/mollie.rs#L146)
+**Examples:** [Python](../../examples/mollie/python/mollie.py#L27) · [JavaScript](../../examples/mollie/javascript/mollie.js#L178) · [Kotlin](../../examples/mollie/kotlin/mollie.kt#L18) · [Rust](../../examples/mollie/rust/mollie.rs#L51)
 
 ## API Reference
 
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
-| [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
-| [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
-| [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
-| [PaymentService.Void](#paymentservicevoid) | Payments | `PaymentServiceVoidRequest` |
+| [authorize](#authorize) | Other | `—` |
+| [get](#get) | Other | `—` |
+| [refund](#refund) | Other | `—` |
+| [void](#void) | Other | `—` |
 
-### Payments
+### Other
 
-#### PaymentService.Authorize
-
-Authorize a payment amount on a payment method. This reserves funds without capturing them, essential for verifying availability before finalizing.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceAuthorizeRequest` |
-| **Response** | `PaymentServiceAuthorizeResponse` |
+#### authorize
 
 **Supported payment method types:**
 
@@ -184,37 +180,16 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/mollie/python/mollie.py#L175) · [JavaScript](../../examples/mollie/javascript/mollie.js#L165) · [Kotlin](../../examples/mollie/kotlin/mollie.kt#L164) · [Rust](../../examples/mollie/rust/mollie.rs#L164)
+**Examples:** [Python](../../examples/mollie/python/mollie.py) · [JavaScript](../../examples/mollie/javascript/mollie.ts#L229) · [Kotlin](../../examples/mollie/kotlin/mollie.kt) · [Rust](../../examples/mollie/rust/mollie.rs#L63)
 
-#### PaymentService.Get
+#### get
 
-Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.
+**Examples:** [Python](../../examples/mollie/python/mollie.py) · [JavaScript](../../examples/mollie/javascript/mollie.ts#L268) · [Kotlin](../../examples/mollie/kotlin/mollie.kt) · [Rust](../../examples/mollie/rust/mollie.rs#L96)
 
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceGetRequest` |
-| **Response** | `PaymentServiceGetResponse` |
+#### refund
 
-**Examples:** [Python](../../examples/mollie/python/mollie.py#L184) · [JavaScript](../../examples/mollie/javascript/mollie.js#L174) · [Kotlin](../../examples/mollie/kotlin/mollie.kt#L176) · [Rust](../../examples/mollie/rust/mollie.rs#L176)
+**Examples:** [Python](../../examples/mollie/python/mollie.py) · [JavaScript](../../examples/mollie/javascript/mollie.ts#L283) · [Kotlin](../../examples/mollie/kotlin/mollie.kt) · [Rust](../../examples/mollie/rust/mollie.rs#L113)
 
-#### PaymentService.Refund
+#### void
 
-Initiate a refund to customer's payment method. Returns funds for returns, cancellations, or service adjustments after original payment.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceRefundRequest` |
-| **Response** | `RefundResponse` |
-
-**Examples:** [Python](../../examples/mollie/python/mollie.py#L94) · [JavaScript](../../examples/mollie/javascript/mollie.js#L87) · [Kotlin](../../examples/mollie/kotlin/mollie.kt#L184) · [Rust](../../examples/mollie/rust/mollie.rs#L183)
-
-#### PaymentService.Void
-
-Cancel an authorized payment before capture. Releases held funds back to customer, typically used when orders are cancelled or abandoned.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceVoidRequest` |
-| **Response** | `PaymentServiceVoidResponse` |
-
-**Examples:** [Python](../../examples/mollie/python/mollie.py#L193) · [JavaScript](../../examples/mollie/javascript/mollie.js#L183) · [Kotlin](../../examples/mollie/kotlin/mollie.kt#L194) · [Rust](../../examples/mollie/rust/mollie.rs#L190)
+**Examples:** [Python](../../examples/mollie/python/mollie.py) · [JavaScript](../../examples/mollie/javascript/mollie.ts#L304) · [Kotlin](../../examples/mollie/kotlin/mollie.kt) · [Rust](../../examples/mollie/rust/mollie.rs#L132)

@@ -11,43 +11,24 @@ Regenerate: python3 scripts/generators/docs/generate.py multisafepay
 Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
 
 <table>
-<tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
+<tr><td><b>Javascript</b></td><td><b>Kotlin</b></td><td><b>Python</b></td><td><b>Rust</b></td></tr>
 <tr>
 <td valign="top">
 
-<details><summary>Python</summary>
-
-```python
-from payments.generated import sdk_config_pb2, payment_pb2
-
-config = sdk_config_pb2.ConnectorConfig(
-    options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
-)
-# Set credentials before running (field names depend on connector auth type):
-# config.connector_config.CopyFrom(payment_pb2.ConnectorSpecificConfig(
-#     multisafepay=payment_pb2.MultisafepayConfig(api_key=...),
-# ))
-
-```
-
-</details>
-
-</td>
-<td valign="top">
-
-<details><summary>JavaScript</summary>
+<details><summary>Javascript</summary>
 
 ```javascript
-const { ConnectorClient } = require('connector-service-node-ffi');
+import { DirectPaymentClient, types } from 'hyperswitch-prism';
 
-// Reuse this client for all flows
-const client = new ConnectorClient({
-    connector: 'Multisafepay',
-    environment: 'sandbox',
-    connector_auth_type: {
-        header_key: { api_key: 'YOUR_API_KEY' },
-    },
+const config: types.IConnectorConfig = types.ConnectorConfig.create({
+    options: types.SdkOptions.create({ environment: types.Environment.SANDBOX }),
+    connectorConfig: types.ConnectorSpecificConfig.create({
+        multisafepay: {
+        apiKey: { value: 'YOUR_API_KEY' },
+        },
+    }),
 });
+const client = new DirectPaymentClient(config);
 ```
 
 </details>
@@ -58,14 +39,30 @@ const client = new ConnectorClient({
 <details><summary>Kotlin</summary>
 
 ```kotlin
+import payments.PaymentClient
+import payments.ConnectorConfig
+
 val config = ConnectorConfig.newBuilder()
-    .setConnector("Multisafepay")
     .setEnvironment(Environment.SANDBOX)
-    .setAuth(
-        ConnectorAuthType.newBuilder()
-            .setHeaderKey(HeaderKey.newBuilder().setApiKey("YOUR_API_KEY"))
-    )
     .build()
+val client = PaymentClient(config)
+```
+
+</details>
+
+</td>
+<td valign="top">
+
+<details><summary>Python</summary>
+
+```python
+from payments import PaymentClient
+from payments.generated import sdk_config_pb2
+
+config = sdk_config_pb2.ConnectorConfig(
+    options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
+)
+client = PaymentClient(config)
 ```
 
 </details>
@@ -76,14 +73,20 @@ val config = ConnectorConfig.newBuilder()
 <details><summary>Rust</summary>
 
 ```rust
-use connector_service_sdk::{ConnectorClient, ConnectorConfig};
+use grpc_api_types::payments::{connector_specific_config, *};
+use hyperswitch_payments_client::ConnectorClient;
+use hyperswitch_masking::Secret;
 
 let config = ConnectorConfig {
-    connector: "Multisafepay".to_string(),
-    environment: Environment::Sandbox,
-    auth: ConnectorAuth::HeaderKey { api_key: "YOUR_API_KEY".into() },
-    ..Default::default()
+    connector_config: Some(ConnectorSpecificConfig {
+        config: Some(connector_specific_config::Config::Multisafepay(MultisafepayConfig {
+                api_key: Some(Secret::new("YOUR_API_KEY".to_string())),
+            ..Default::default()
+        })),
+    }),
+    options: Some(SdkOptions { environment: Environment::Sandbox.into() }),
 };
+let client = ConnectorClient::new(config, None).unwrap();
 ```
 
 </details>
@@ -108,7 +111,7 @@ Authorize and capture in one call using `capture_method=AUTOMATIC`. Use for digi
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/multisafepay/python/multisafepay.py#L69) · [JavaScript](../../examples/multisafepay/javascript/multisafepay.js#L64) · [Kotlin](../../examples/multisafepay/kotlin/multisafepay.kt#L84) · [Rust](../../examples/multisafepay/rust/multisafepay.rs#L84)
+**Examples:** [Python](../../examples/multisafepay/python/multisafepay.py#L5) · [JavaScript](../../examples/multisafepay/javascript/multisafepay.js#L27) · [Kotlin](../../examples/multisafepay/kotlin/multisafepay.kt#L6) · [Rust](../../examples/multisafepay/rust/multisafepay.rs#L18)
 
 ### Wallet Payment (Google Pay / Apple Pay)
 
@@ -122,38 +125,31 @@ Wallet payments pass an encrypted token from the browser/device SDK. Pass the to
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/multisafepay/python/multisafepay.py#L88) · [JavaScript](../../examples/multisafepay/javascript/multisafepay.js#L83) · [Kotlin](../../examples/multisafepay/kotlin/multisafepay.kt#L100) · [Rust](../../examples/multisafepay/rust/multisafepay.rs#L100)
+**Examples:** [Python](../../examples/multisafepay/python/multisafepay.py#L11) · [JavaScript](../../examples/multisafepay/javascript/multisafepay.js#L73) · [Kotlin](../../examples/multisafepay/kotlin/multisafepay.kt#L10) · [Rust](../../examples/multisafepay/rust/multisafepay.rs#L27)
 
 ### Refund a Payment
 
 Authorize with automatic capture, then refund the captured amount. `connector_transaction_id` from the Authorize response is reused for the Refund call.
 
-**Examples:** [Python](../../examples/multisafepay/python/multisafepay.py#L143) · [JavaScript](../../examples/multisafepay/javascript/multisafepay.js#L135) · [Kotlin](../../examples/multisafepay/kotlin/multisafepay.kt#L149) · [Rust](../../examples/multisafepay/rust/multisafepay.rs#L151)
+**Examples:** [Python](../../examples/multisafepay/python/multisafepay.py#L17) · [JavaScript](../../examples/multisafepay/javascript/multisafepay.js#L126) · [Kotlin](../../examples/multisafepay/kotlin/multisafepay.kt#L14) · [Rust](../../examples/multisafepay/rust/multisafepay.rs#L36)
 
 ### Get Payment Status
 
 Authorize a payment, then poll the connector for its current status using Get. Use this to sync payment state when webhooks are unavailable or delayed.
 
-**Examples:** [Python](../../examples/multisafepay/python/multisafepay.py#L180) · [JavaScript](../../examples/multisafepay/javascript/multisafepay.js#L170) · [Kotlin](../../examples/multisafepay/kotlin/multisafepay.kt#L171) · [Rust](../../examples/multisafepay/rust/multisafepay.rs#L174)
+**Examples:** [Python](../../examples/multisafepay/python/multisafepay.py#L25) · [JavaScript](../../examples/multisafepay/javascript/multisafepay.js#L188) · [Kotlin](../../examples/multisafepay/kotlin/multisafepay.kt#L18) · [Rust](../../examples/multisafepay/rust/multisafepay.rs#L48)
 
 ## API Reference
 
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
-| [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
-| [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
-| [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
+| [authorize](#authorize) | Other | `—` |
+| [get](#get) | Other | `—` |
+| [refund](#refund) | Other | `—` |
 
-### Payments
+### Other
 
-#### PaymentService.Authorize
-
-Authorize a payment amount on a payment method. This reserves funds without capturing them, essential for verifying availability before finalizing.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceAuthorizeRequest` |
-| **Response** | `PaymentServiceAuthorizeResponse` |
+#### authorize
 
 **Supported payment method types:**
 
@@ -231,26 +227,12 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/multisafepay/python/multisafepay.py#L202) · [JavaScript](../../examples/multisafepay/javascript/multisafepay.js#L191) · [Kotlin](../../examples/multisafepay/kotlin/multisafepay.kt#L189) · [Rust](../../examples/multisafepay/rust/multisafepay.rs#L192)
+**Examples:** [Python](../../examples/multisafepay/python/multisafepay.py) · [JavaScript](../../examples/multisafepay/javascript/multisafepay.ts#L242) · [Kotlin](../../examples/multisafepay/kotlin/multisafepay.kt) · [Rust](../../examples/multisafepay/rust/multisafepay.rs#L60)
 
-#### PaymentService.Get
+#### get
 
-Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.
+**Examples:** [Python](../../examples/multisafepay/python/multisafepay.py) · [JavaScript](../../examples/multisafepay/javascript/multisafepay.ts#L284) · [Kotlin](../../examples/multisafepay/kotlin/multisafepay.kt) · [Rust](../../examples/multisafepay/rust/multisafepay.rs#L96)
 
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceGetRequest` |
-| **Response** | `PaymentServiceGetResponse` |
+#### refund
 
-**Examples:** [Python](../../examples/multisafepay/python/multisafepay.py#L211) · [JavaScript](../../examples/multisafepay/javascript/multisafepay.js#L200) · [Kotlin](../../examples/multisafepay/kotlin/multisafepay.kt#L201) · [Rust](../../examples/multisafepay/rust/multisafepay.rs#L204)
-
-#### PaymentService.Refund
-
-Initiate a refund to customer's payment method. Returns funds for returns, cancellations, or service adjustments after original payment.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceRefundRequest` |
-| **Response** | `RefundResponse` |
-
-**Examples:** [Python](../../examples/multisafepay/python/multisafepay.py#L143) · [JavaScript](../../examples/multisafepay/javascript/multisafepay.js#L135) · [Kotlin](../../examples/multisafepay/kotlin/multisafepay.kt#L209) · [Rust](../../examples/multisafepay/rust/multisafepay.rs#L211)
+**Examples:** [Python](../../examples/multisafepay/python/multisafepay.py) · [JavaScript](../../examples/multisafepay/javascript/multisafepay.ts#L299) · [Kotlin](../../examples/multisafepay/kotlin/multisafepay.kt) · [Rust](../../examples/multisafepay/rust/multisafepay.rs#L113)

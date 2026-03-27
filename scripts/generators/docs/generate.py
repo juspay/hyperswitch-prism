@@ -28,6 +28,7 @@ from typing import Optional
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from snippet_examples import generate as snippets
+from snippet_examples.renderers import RENDERERS
 
 # ─── Probe Data ───────────────────────────────────────────────────────────────
 
@@ -355,7 +356,7 @@ def generate_scenario_files(
 ) -> tuple[list[Path], dict[str, dict[str, int]], dict[str, dict[str, int]]]:
     """
     Write one consolidated examples/{connector}/python/{connector}.py and
-    examples/{connector}/javascript/{connector}.js containing all scenarios
+    examples/{connector}/javascript/{connector}.ts containing all scenarios
     plus individual flow functions.  Deletes stale per-scenario files.
 
     Returns (paths, scenario_lines, flow_lines) where:
@@ -386,14 +387,16 @@ def generate_scenario_files(
     # flow_lines[flow_key][sdk] = 1-based line number of flow function (py/js)
     flow_lines: dict[str, dict[str, int]] = {}
 
-    for sdk, ext, render_fn in [
-        ("python",     "py", snippets.render_consolidated_python),
-        ("javascript", "js", snippets.render_consolidated_javascript),
+    # Use dynamic renderer dispatch instead of hardcoded functions
+    for sdk, ext in [
+        ("python",     "py"),
+        ("javascript", "ts"),
     ]:
         out_dir  = examples_dir / connector_name / sdk
         out_dir.mkdir(parents=True, exist_ok=True)
         out_path = out_dir / f"{connector_name}.{ext}"
-        content  = render_fn(connector_name, scenarios_with_payloads, flow_metadata, _MESSAGE_SCHEMAS, flow_items)
+        renderer = RENDERERS[sdk]
+        content  = renderer.render_consolidated(connector_name, scenarios_with_payloads, flow_metadata, _MESSAGE_SCHEMAS, flow_items)
         out_path.write_text(content, encoding="utf-8")
         written.append(out_path)
 
@@ -470,16 +473,18 @@ def generate_flow_files(
     # All flow keys (including those matching scenario names) — needed for cleanup
     all_flow_keys = set(probe_connector.get("flows", {}).keys())
 
-    for sdk, ext, render_fn in [
-        ("kotlin", "kt", snippets.render_consolidated_kotlin),
-        ("rust",   "rs", snippets.render_consolidated_rust),
+    # Use dynamic renderer dispatch instead of hardcoded functions
+    for sdk, ext in [
+        ("kotlin", "kt"),
+        ("rust",   "rs"),
     ]:
         out_dir  = examples_dir / connector_name / sdk
         out_dir.mkdir(parents=True, exist_ok=True)
         out_path = out_dir / f"{connector_name}.{ext}"
-        content  = render_fn(
-            connector_name, flow_items, flow_metadata, _MESSAGE_SCHEMAS,
-            scenarios_with_payloads=scenarios_with_payloads,
+        renderer = RENDERERS[sdk]
+        content  = renderer.render_consolidated(
+            connector_name, scenarios_with_payloads, flow_metadata, _MESSAGE_SCHEMAS,
+            flow_items=flow_items,
         )
         out_path.write_text(content, encoding="utf-8")
         written.append(out_path)
@@ -696,7 +701,7 @@ def generate_connector_doc(
             )
             if has_payload:
                 base_py = f"../../examples/{connector_name}/python/{connector_name}.py"
-                base_js = f"../../examples/{connector_name}/javascript/{connector_name}.js"
+                base_js = f"../../examples/{connector_name}/javascript/{connector_name}.ts"
                 base_kt = f"../../examples/{connector_name}/kotlin/{connector_name}.kt"
                 base_rs = f"../../examples/{connector_name}/rust/{connector_name}.rs"
                 
@@ -733,7 +738,7 @@ def check_example_syntax(examples_dir: Path) -> None:
     import subprocess
 
     py_files = sorted(examples_dir.rglob("*.py"))
-    js_files = sorted(examples_dir.rglob("*.js"))
+    ts_files = sorted(examples_dir.rglob("*.ts"))
     kt_files = sorted(examples_dir.rglob("*.kt"))
     rs_files = sorted(examples_dir.rglob("*.rs"))
 
@@ -748,18 +753,22 @@ def check_example_syntax(examples_dir: Path) -> None:
         if result.returncode != 0:
             errors.append(f"Python: {f.relative_to(examples_dir.parent)}: {result.stderr.strip()}")
 
-    # JavaScript — syntax check
-    node_ok = False
+    # TypeScript — syntax check via tsc --noEmit (if available)
+    tsc_ok = False
     try:
-        subprocess.run(["node", "--version"], capture_output=True, check=True)
-        node_ok = True
+        subprocess.run(["tsc", "--version"], capture_output=True, check=True)
+        tsc_ok = True
     except (subprocess.CalledProcessError, FileNotFoundError):
         pass
-    if node_ok:
-        for f in js_files:
-            result = subprocess.run(["node", "--check", str(f)], capture_output=True, text=True)
+    if tsc_ok:
+        for f in ts_files:
+            result = subprocess.run(
+                ["tsc", "--noEmit", "--strict", "--esModuleInterop", "--target", "ES2020",
+                 "--module", "commonjs", "--moduleResolution", "node", str(f)],
+                capture_output=True, text=True,
+            )
             if result.returncode != 0:
-                errors.append(f"JS: {f.relative_to(examples_dir.parent)}: {result.stderr.strip()}")
+                errors.append(f"TS: {f.relative_to(examples_dir.parent)}: {result.stderr.strip()}")
 
     # Kotlin — full compile via Gradle (preferred) or kotlinc syntax check (fallback).
     # Standalone kotlinc cannot resolve payments.* SDK imports, so only Gradle gives
@@ -824,11 +833,11 @@ def check_example_syntax(examples_dir: Path) -> None:
         for e in errors:
             print(f"    {e}")
     else:
-        checks = f"{len(py_files)} Python, {len(js_files)} JavaScript, {len(kt_files)} Kotlin, {len(rs_files)} Rust"
-        js_note = "" if node_ok else " (node unavailable — JS skipped)"
+        checks = f"{len(py_files)} Python, {len(ts_files)} TypeScript, {len(kt_files)} Kotlin, {len(rs_files)} Rust"
+        ts_note = "" if tsc_ok else " (tsc unavailable — TypeScript skipped)"
         kt_note = "" if kt_ok else " (Gradle/kotlinc unavailable — Kotlin skipped)"
         rs_note = "" if rustfmt_ok else " (rustfmt unavailable — Rust skipped)"
-        print(f"  ✓ Syntax check passed ({checks}){js_note}{kt_note}{rs_note}")
+        print(f"  ✓ Syntax check passed ({checks}){ts_note}{kt_note}{rs_note}")
 
 
 def cmd_list():
