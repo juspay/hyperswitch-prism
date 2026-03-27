@@ -2,7 +2,7 @@
 
 If you have ever integrated a payment processor, you know the drill. You read through a PDF that was last updated in 2019, figure out what combination of API keys goes in which header, discover that "decline code 51" means something subtly different on this processor than the last one you dealt with, and then do it all over again when your business decides to add a second processor.
 
-We have been living in this world for years building Hyperswitch, an open-source payment orchestrator. At some point we had integrations for 50+ connectors. The integrations worked well — but they were locked inside our orchestrator, not usable by anyone who just needed to talk to Stripe or Adyen without adopting an entire platform.
+We have been living in this world for years building Hyperswitch, an open-source payment orchestrator. At some point we had integrations for 60+ connectors. The integrations worked well — but they were locked inside our orchestrator, not usable by anyone who just needed to talk to Stripe or Adyen without adopting an entire platform.
 We always felt the Payment APIs are not more complicated than database drivers. It it just that the industry has not arrived at a standard (and it never will!!) for payments. Hence, we decided to build an open interface for Developer and AI agents to use, rather than recreate it every time.
 
 This post is about how we did that: unbundling those integrations into a standalone library called the **Prism**, and the engineering decisions we made along the way. Some of them are genuinely interesting.
@@ -47,11 +47,11 @@ Everything is strongly typed. `PaymentService.Authorize` takes a `PaymentService
 
 > **Q: Why Rust? Wouldn't Go or Java be simpler?**
 >
-> A few reasons. First, we already had 50+ connector implementations in Rust from Hyperswitch, so starting there was practical. But more importantly: the library needs to be embeddable in Python, JavaScript, and Java applications without a separate process or a runtime dependency like the JVM or a Python interpreter. The only realistic way to distribute a native library that loads cleanly into all of those runtimes is as a compiled shared library — `.so` on Linux, `.dylib` on macOS. Rust produces exactly that, with no garbage collector pauses, no runtime to ship, and memory safety that does not require a GC.
+> A few reasons. First, we already had 60+ connector implementations in Rust from Hyperswitch, so starting there was practical. But more importantly: the library needs to be embeddable in Python, JavaScript, and Java applications without a separate process or a runtime dependency like the JVM or a Python interpreter. The only realistic way to distribute a native library that loads cleanly into all of those runtimes is as a compiled shared library — `.so` on Linux, `.dylib` on macOS. Rust produces exactly that, with no garbage collector pauses, no runtime to ship, and memory safety that does not require a GC.
 
 The Rust codebase is organized into a handful of internal crates:
 
-- `connector-integration` — The actual connector logic: 50+ implementations translating unified domain types into connector-specific HTTP requests and parsing responses back
+- `connector-integration` — The actual connector logic: 60+ implementations translating unified domain types into connector-specific HTTP requests and parsing responses back
 - `domain_types` — Shared models: `RouterDataV2`, flow markers (`Authorize`, `Capture`, `Refund`, ...), request/response data types
 - `grpc-api-types` — Rust types generated from the protobuf spec via `prost`
 - `interfaces` — The trait definitions that connector implementations must satisfy
@@ -322,7 +322,7 @@ In gRPC mode, steps ③b through ③f happen inside the `grpc-server` process. T
 
 We want to be upfront about what this is and what it is not.
 
-What it is: a working implementation with 50+ connectors, a protobuf specification that covers the full payment lifecycle, and SDKs in four languages. It is ready to use today.
+What it is: a working implementation with 60+ connectors, a protobuf specification that covers the full payment lifecycle, and SDKs in four languages. It is ready to use today.
 
 What it is not: a finished standard. The spec reflects our understanding of what payment integrations need to look like. That understanding is incomplete, and we know it. Payment APIs have a very long tail of edge cases — 3DS flows that differ between processors, webhook schemas that change without notice, authorization responses that technically succeeded but should be treated as soft declines. There is no team small enough to have seen all of it.
 

@@ -4,7 +4,7 @@ You get regression tests for every connector without writing them by hand. Prism
 
 ## Why Generate Tests
 
-Manual test maintenance doesn't scale. With 50+ connectors, each supporting 10-20 operations, you'd need thousands of test cases. When Stripe changes their API response format or Adyen deprecates a field, manually updating every affected test takes weeks.
+Manual test maintenance doesn't scale. With 60+ connectors, each supporting 10-20 operations, you'd need thousands of test cases. When Stripe changes their API response format or Adyen deprecates a field, manually updating every affected test takes weeks.
 
 Generated tests solve this by deriving test cases from the source of truth: the protobuf definitions and a connector-specific test specification.
 
