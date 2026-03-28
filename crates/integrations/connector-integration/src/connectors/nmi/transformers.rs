@@ -1,4 +1,5 @@
 use crate::types::ResponseRouterData;
+use base64::Engine;
 use common_enums::{AttemptStatus, RefundStatus};
 use common_utils::types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector};
 use domain_types::{
@@ -10,11 +11,15 @@ use domain_types::{
     },
     errors,
     payment_method_data::{
-        BankDebitData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
+        ApplePayWalletData, BankDebitData, GooglePayWalletData, PaymentMethodData,
+        PaymentMethodDataTypes, RawCardNumber, WalletData,
     },
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
 };
+
+/// Type alias for error handling
+type Error = error_stack::Report<errors::ConnectorError>;
 
 // Note: Refund and RefundsData are used for the Refund flow implementation
 use error_stack::ResultExt;
@@ -128,6 +133,8 @@ impl From<NmiStatus> for RefundStatus {
 pub enum NmiPaymentMethod<T: PaymentMethodDataTypes> {
     Card(Box<CardData<T>>),
     Ach(Box<AchData>),
+    GooglePay(Box<NmiGooglePayPaymentData>),
+    ApplePay(Box<NmiApplePayPaymentData>),
 }
 
 #[derive(Debug, Serialize)]
@@ -161,6 +168,79 @@ pub struct AchData {
     /// Standard Entry Class code of the ACH transaction (PPD, WEB, TEL, CCD)
     #[serde(skip_serializing_if = "Option::is_none")]
     sec_code: Option<String>,
+}
+
+// ===== GOOGLE PAY STRUCTURES =====
+
+/// NMI-specific Google Pay decrypted data format
+#[derive(Debug, Serialize)]
+pub struct NmiGooglePayDecryptedData {
+    /// Indicator that this is decrypted data
+    pub decrypted_googlepay_data: DecryptedDataIndicator,
+    /// The tokenized card number (DPAN)
+    pub ccnumber: Secret<String>,
+    /// Card expiry in MMYY format
+    pub ccexp: String,
+    /// Cardholder authentication verification value
+    pub cavv: Secret<String>,
+    /// Electronic commerce indicator
+    pub eci: Secret<String>,
+}
+
+/// NMI-specific Google Pay encrypted data format
+#[derive(Debug, Serialize)]
+pub struct NmiGooglePayEncryptedData {
+    /// The Google Pay payment data token
+    pub googlepay_payment_data: Secret<String>,
+}
+
+/// Enum for Google Pay payment data (decrypted or encrypted)
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum NmiGooglePayPaymentData {
+    Decrypted(Box<NmiGooglePayDecryptedData>),
+    Encrypted(Box<NmiGooglePayEncryptedData>),
+}
+
+// ===== APPLE PAY STRUCTURES =====
+
+/// NMI-specific Apple Pay decrypted data format
+#[derive(Debug, Serialize)]
+pub struct NmiApplePayDecryptedData {
+    /// Indicator that this is decrypted data
+    pub decrypted_applepay_data: DecryptedDataIndicator,
+    /// The tokenized card number (DPAN)
+    pub ccnumber: Secret<String>,
+    /// Card expiry in MMYY format
+    pub ccexp: String,
+    /// Cardholder authentication verification value (cryptogram)
+    pub cavv: Secret<String>,
+    /// Electronic commerce indicator
+    pub eci: Secret<String>,
+}
+
+/// NMI-specific Apple Pay encrypted data format
+#[derive(Debug, Serialize)]
+pub struct NmiApplePayEncryptedData {
+    /// The Apple Pay payment data token (hex-encoded)
+    pub applepay_payment_data: Secret<String>,
+}
+
+/// Enum for Apple Pay payment data (decrypted or encrypted)
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum NmiApplePayPaymentData {
+    Decrypted(Box<NmiApplePayDecryptedData>),
+    Encrypted(Box<NmiApplePayEncryptedData>),
+}
+
+// ===== COMMON ENUM =====
+
+/// Indicator for decrypted wallet data
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum DecryptedDataIndicator {
+    Decrypted,
 }
 
 // ===== MERCHANT DEFINED FIELDS =====
@@ -312,6 +392,24 @@ impl<T: PaymentMethodDataTypes> TryFrom<&PaymentMethodData<T>> for NmiPaymentMet
                     cvv: card_data.card_cvc.clone(),
                 };
                 Ok(Self::Card(Box::new(card)))
+            }
+            PaymentMethodData::Wallet(wallet_data) => {
+                // Handle wallet payments (Google Pay, Apple Pay)
+                match wallet_data {
+                    WalletData::GooglePay(google_pay_data) => {
+                        let nmi_gpay_data = NmiGooglePayPaymentData::try_from(google_pay_data)?;
+                        Ok(Self::GooglePay(Box::new(nmi_gpay_data)))
+                    }
+                    WalletData::ApplePay(apple_pay_data) => {
+                        let nmi_apple_pay_data = NmiApplePayPaymentData::try_from(apple_pay_data)?;
+                        Ok(Self::ApplePay(Box::new(nmi_apple_pay_data)))
+                    }
+                    _ => Err(error_stack::report!(
+                        errors::ConnectorError::NotImplemented(
+                            "Wallet type not supported for NMI".to_string()
+                        )
+                    )),
+                }
             }
             PaymentMethodData::BankDebit(
                 BankDebitData::SepaBankDebit { .. }
@@ -967,5 +1065,164 @@ impl TryFrom<ResponseRouterData<StandardResponse, Self>>
             },
             ..item.router_data
         })
+    }
+}
+
+// ===== WALLET PAYMENT METHOD CONVERSION =====
+
+// ===== GOOGLE PAY =====
+
+impl TryFrom<&GooglePayWalletData> for NmiGooglePayPaymentData {
+    type Error = Error;
+
+    fn try_from(data: &GooglePayWalletData) -> Result<Self, Self::Error> {
+        use domain_types::payment_method_data::GpayTokenizationData;
+
+        match &data.tokenization_data {
+            // ===== DECRYPTED FLOW =====
+            GpayTokenizationData::Decrypted(d) => {
+                let ccexp = d
+                    .get_expiry_date_as_mmyy()
+                    .change_context(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "gpay.expiry",
+                    })?;
+
+                let cavv = d.cryptogram.clone().ok_or_else(|| {
+                    error_stack::report!(errors::ConnectorError::MissingRequiredField {
+                        field_name: "gpay.cryptogram",
+                    })
+                })?;
+
+                let eci = d.eci_indicator.clone().ok_or_else(|| {
+                    error_stack::report!(errors::ConnectorError::MissingRequiredField {
+                        field_name: "gpay.eci",
+                    })
+                })?;
+
+                Ok(Self::Decrypted(Box::new(NmiGooglePayDecryptedData {
+                    decrypted_googlepay_data: DecryptedDataIndicator::Decrypted,
+                    ccnumber: Secret::new(
+                        d.application_primary_account_number.peek().to_string(),
+                    ),
+                    ccexp: ccexp.expose(),
+                    cavv,
+                    eci: Secret::new(eci),
+                })))
+            }
+
+            // ===== ENCRYPTED FLOW =====
+            GpayTokenizationData::Encrypted(e) => {
+                if e.token.is_empty() {
+                    return Err(error_stack::report!(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "gpay.token",
+                        }
+                    ));
+                }
+
+                Ok(Self::Encrypted(Box::new(NmiGooglePayEncryptedData {
+                    googlepay_payment_data: Secret::new(e.token.clone()),
+                })))
+            }
+        }
+    }
+}
+
+// ===== APPLE PAY =====
+
+impl TryFrom<&ApplePayWalletData> for NmiApplePayPaymentData {
+    type Error = Error;
+
+    fn try_from(data: &ApplePayWalletData) -> Result<Self, Self::Error> {
+        use domain_types::payment_method_data::ApplePayPaymentData;
+
+        match &data.payment_data {
+            // ===== DECRYPTED FLOW =====
+            ApplePayPaymentData::Decrypted(d) => {
+                let ccexp = d
+                    .get_expiry_date_as_mmyy()
+                    .change_context(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "applepay.expiry",
+                    })?;
+
+                let cavv = d.payment_data.online_payment_cryptogram.clone();
+
+                if cavv.peek().is_empty() {
+                    return Err(error_stack::report!(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "applepay.cryptogram",
+                        }
+                    ));
+                }
+
+                let eci = d
+                    .payment_data
+                    .eci_indicator
+                    .clone()
+                    .ok_or_else(|| {
+                        error_stack::report!(
+                            errors::ConnectorError::MissingRequiredField {
+                                field_name: "applepay.eci",
+                            }
+                        )
+                    })?;
+
+                Ok(Self::Decrypted(Box::new(NmiApplePayDecryptedData {
+                    decrypted_applepay_data: DecryptedDataIndicator::Decrypted,
+                    ccnumber: Secret::new(
+                        d.application_primary_account_number.peek().to_string(),
+                    ),
+                    ccexp: ccexp.expose(),
+                    cavv,
+                    eci: Secret::new(eci),
+                })))
+            }
+
+            // ===== ENCRYPTED FLOW =====
+            ApplePayPaymentData::Encrypted(e) => {
+                if e.is_empty() {
+                    return Err(error_stack::report!(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "applepay.token",
+                        }
+                    ));
+                }
+
+                // Base64 → Binary → Hex (NMI requirement)
+                let decoded = base64::prelude::BASE64_STANDARD
+                    .decode(e.as_bytes())
+                    .change_context(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "applepay.token_base64",
+                    })?;
+
+                let hex_encoded = hex::encode(decoded);
+
+                Ok(Self::Encrypted(Box::new(NmiApplePayEncryptedData {
+                    applepay_payment_data: Secret::new(hex_encoded),
+                })))
+            }
+        }
+    }
+}
+
+// ===== HELPER FUNCTIONS FOR REQUEST BUILDING =====
+
+/// Convert WalletData to NmiPaymentMethod for payment requests
+pub fn wallet_to_nmi_payment_method(
+    wallet_data: &WalletData,
+) -> Result<NmiPaymentMethod<domain_types::payment_method_data::DefaultPCIHolder>, Error> {
+    match wallet_data {
+        WalletData::GooglePay(google_pay_data) => {
+            let nmi_gpay_data = NmiGooglePayPaymentData::try_from(google_pay_data)?;
+            Ok(NmiPaymentMethod::GooglePay(Box::new(nmi_gpay_data)))
+        }
+        WalletData::ApplePay(apple_pay_data) => {
+            let nmi_apple_pay_data = NmiApplePayPaymentData::try_from(apple_pay_data)?;
+            Ok(NmiPaymentMethod::ApplePay(Box::new(nmi_apple_pay_data)))
+        }
+        // All other wallet types are not supported by NMI
+        _ => Err(error_stack::report!(
+            errors::ConnectorError::NotImplemented("Wallet type not supported for NMI".to_string())
+        )),
     }
 }
