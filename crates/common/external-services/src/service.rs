@@ -18,7 +18,7 @@ use domain_types::{
     router_response_types::Response,
     types::Proxy,
 };
-use hyperswitch_masking::Secret;
+use hyperswitch_masking::{ExposeInterface, Secret};
 #[cfg(feature = "injector-client")]
 use injector;
 
@@ -687,6 +687,7 @@ pub async fn call_connector_api(
         request.certificate,
         request.certificate_key,
         test_mode,
+        request.ca_certificate,
     )?;
 
     let headers = request.headers.construct_header_map()?;
@@ -845,39 +846,33 @@ pub fn create_client(
     _client_certificate: Option<Secret<String>>,
     _client_certificate_key: Option<Secret<String>>,
     test_mode: bool,
+    ca_certificate: Option<Secret<String>>,
 ) -> CustomResult<Client, ApiClientError> {
-    get_base_client(proxy_config, should_bypass_proxy, test_mode)
-    // match (client_certificate, client_certificate_key) {
-    //     (Some(encoded_certificate), Some(encoded_certificate_key)) => {
-    //         let client_builder = get_client_builder(proxy_config, should_bypass_proxy)?;
+    // If CA certificate is provided, create client with CA cert for server verification
+    if let Some(ca_pem) = ca_certificate {
+        tracing::debug!("Creating HTTP client with CA certificate for server verification");
+        let pem = ca_pem.expose().replace("\\r\\n", "\n");
+        let cert = reqwest::Certificate::from_pem(pem.as_bytes())
+            .change_context(ApiClientError::ClientConstructionFailed)
+            .attach_printable("Failed to parse CA certificate PEM block")?;
 
-    //         let identity = create_identity_from_certificate_and_key(
-    //             encoded_certificate.clone(),
-    //             encoded_certificate_key,
-    //         )?;
-    //         let certificate_list = create_certificate(encoded_certificate)?;
-    //         let client_builder = certificate_list
-    //             .into_iter()
-    //             .fold(client_builder, |client_builder, certificate| {
-    //                 client_builder.add_root_certificate(certificate)
-    //             });
-    //         client_builder
-    //             .identity(identity)
-    //             .use_rustls_tls()
-    //             .build()
-    //             .change_context(ApiClientError::ClientConstructionFailed)
-    //             .inspect_err(|err| {
-    //                 info_log(
-    //                     "ERROR",
-    //                     &json!(format!(
-    //                         "Failed to construct client with certificate and certificate key. Error: {:?}",
-    //                         err
-    //                     )),
-    //                 );
-    //             })
-    //     }
-    //     _ => ,
-    // }
+        get_client_builder(proxy_config, should_bypass_proxy, test_mode)?
+            .add_root_certificate(cert)
+            .use_rustls_tls()
+            .build()
+            .change_context(ApiClientError::ClientConstructionFailed)
+            .inspect_err(|err| {
+                info_log(
+                    "ERROR",
+                    &json!(format!(
+                        "Failed to construct client with CA certificate. Error: {:?}",
+                        err
+                    )),
+                );
+            })
+    } else {
+        get_base_client(proxy_config, should_bypass_proxy, test_mode)
+    }
 }
 
 static DEFAULT_CLIENT: OnceCell<Client> = OnceCell::new();

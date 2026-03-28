@@ -740,6 +740,7 @@ enum Connector {
   PEACHPAYMENTS = 112;
   PPRO = 113;
   FISERVCOMMERCEHUB = 114;
+  ARCHIPEL = 115;
 }
 
 // Payment method types
@@ -1885,6 +1886,8 @@ message PaymentServiceGetRequest {
 
   // Payment Experience
   optional PaymentExperience payment_experience = 14;
+  
+  map<string, string> connector_metadata = 15;
 }
 
 // Response message for a payment status synchronization

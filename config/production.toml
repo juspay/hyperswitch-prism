@@ -113,6 +113,7 @@ wellsfargo.base_url = "https://api.cybersource.com/"
 zift.base_url = "https://secure.zift.io/"
 truelayer.base_url = "https://api.truelayer.com"
 truelayer.secondary_base_url = "https://auth.truelayer.com"
+archipel.base_url = "https://{{merchant_endpoint_prefix}}/ArchiPEL/Transaction/v1"
 
 # Generic Events Configuration
 [events]

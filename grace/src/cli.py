@@ -12,6 +12,7 @@ load_dotenv()
 
 # Import workflow modules
 from .workflows import run_techspec_workflow
+from .workflows.integration_workflow import run_integration_workflow
 from .config import get_config
 
 
@@ -139,6 +140,77 @@ def techspec(connector, folder, urls, output, test_only, verbose, mock_server, e
 
     # Run the async workflow
     asyncio.run(run_techspec())
+
+
+@cli.command()
+@click.argument('connector', required=True)
+@click.option('--flow', '-f', default='Authorize', help='Payment flow (e.g., Authorize, Capture, Refund)')
+@click.option('--techspec', '-t', help='Path to techspec file')
+@click.option('--branch', '-b', help='Git branch name for PR')
+@click.option('--verbose', '-v', is_flag=True, help='Enable verbose output')
+def integrate(connector, flow, techspec, branch, verbose):
+    """Run full integration workflow for a connector.
+
+    CONNECTOR: Name of the connector (e.g., shift4)
+
+    This command runs the complete integration pipeline:
+    - Loads techspec from references/specs/{connector}.md
+    - Generates connector code
+    - Builds and tests
+    - Creates a Pull Request
+
+    Example: grace integrate shift4 --flow Authorize -v
+    """
+    async def run_integration():
+        """Async wrapper for integration workflow."""
+        try:
+            if verbose:
+                click.echo(f"Starting integration workflow...")
+                click.echo(f"Connector: {connector}")
+                click.echo(f"Flow: {flow}")
+                click.echo(f"Branch: {branch or 'auto-generated'}")
+                click.echo()
+
+            # Find techspec if not provided
+            techspec_path = techspec
+            if not techspec_path:
+                config_instance = get_config()
+                default_path = Path(config_instance.getTechSpecConfig().output_dir) / f"{connector}.md"
+                if default_path.exists():
+                    techspec_path = str(default_path)
+                else:
+                    # Try alternate location
+                    alt_path = Path("rulesbook/codegen/references/specs") / f"{connector}.md"
+                    if alt_path.exists():
+                        techspec_path = str(alt_path)
+
+            result = await run_integration_workflow(
+                connector_name=connector,
+                flow=flow,
+                techspec_path=techspec_path,
+                branch=branch,
+                verbose=verbose
+            )
+
+            if result.get("success"):
+                click.echo("\nIntegration completed successfully!")
+                if result.get("pr_url"):
+                    click.echo(f"PR_URL: {result['pr_url']}")
+                if result.get("output_path"):
+                    click.echo(f"Output: {result['output_path']}")
+            else:
+                click.echo(f"\nIntegration failed: {result.get('error', 'Unknown error')}", err=True)
+                sys.exit(1)
+
+        except Exception as e:
+            click.echo(f"Unexpected error: {str(e)}", err=True)
+            if verbose:
+                import traceback
+                click.echo(f"Traceback: {traceback.format_exc()}", err=True)
+            sys.exit(1)
+
+    asyncio.run(run_integration())
+
 
 def main():
     """Main entry point for Grace CLI."""

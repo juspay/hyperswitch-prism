@@ -525,5 +525,9 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             terminal_id: id(),
             base_url: None,
         },
+        ConnectorEnum::Archipel => ConnectorSpecificConfig::Archipel {
+            api_key: k(),
+            base_url: None,
+        },
     }
 }

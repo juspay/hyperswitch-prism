@@ -1,0 +1,25 @@
+# Grace wrapper dependencies
+click>=8.0.0
+python-dotenv>=1.0.0
+
+# LangGraph and workflow dependencies (from Grace)
+langgraph>=0.2.0
+langchain>=0.1.0
+langchain-core>=0.1.0
+litellm>=1.0.0
+
+# Data processing
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+
+# HTTP and async
+httpx>=0.25.0
+requests>=2.31.0
+aiohttp>=3.8.0
+
+# Text and data formats
+PyYAML>=6.0
+
+# Logging and rich output
+structlog>=23.1.0
+rich>=13.5.0

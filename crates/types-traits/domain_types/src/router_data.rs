@@ -697,6 +697,10 @@ pub enum ConnectorSpecificConfig {
         terminal_id: Secret<String>,
         base_url: Option<String>,
     },
+    Archipel {
+        api_key: Secret<String>,
+        base_url: Option<String>,
+    },
 }
 
 impl ConnectorSpecificConfig {
@@ -988,6 +992,7 @@ impl ConnectorSpecificConfig {
                 merchant_id,
                 terminal_id
             },
+            Archipel { api_key },
         )
     }
 
@@ -1366,7 +1371,8 @@ impl ConnectorSpecificConfig {
                     secret,
                     merchant_id,
                     terminal_id
-                }
+                },
+                Archipel { api_key }
             ),
             serde_json::Value::Object(connector_patch),
         );
@@ -2813,6 +2819,13 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorEnum)>
                     secret: api_secret.clone(),
                     merchant_id: key1.clone(),
                     terminal_id: key2.clone(),
+                    base_url: None,
+                }),
+                _ => Err(err().into()),
+            },
+            ConnectorEnum::Archipel => match auth {
+                ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Archipel {
+                    api_key: api_key.clone(),
                     base_url: None,
                 }),
                 _ => Err(err().into()),
