@@ -64,6 +64,7 @@ generate-proto:
 		--php_out=$(GENERATED_OUT) \
 		$(PROTO_DIR)/payment.proto \
 		$(PROTO_DIR)/payment_methods.proto \
+		$(PROTO_DIR)/payouts.proto \
 		$(PROTO_DIR)/sdk_config.proto
 	@echo "PHP protobuf stubs generated in $(GENERATED_OUT)/"
 
