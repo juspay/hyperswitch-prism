@@ -80,8 +80,6 @@ message CompositeAuthorizeRequest {
   optional string locale = 37; // Locale/language preference for the shopper (e.g., "en-US")
   // Tokenization Configuration
   optional Tokenization tokenization_strategy = 38; // Tokenization strategy for payment processing
-  // Payment Method Token
-  optional SecretString payment_method_token = 39;
 
   // URL for Redirection
   optional string continue_redirection_url = 40; // URL to complete authorization

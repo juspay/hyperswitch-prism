@@ -40,8 +40,7 @@ function _buildAuthorizeRequest(captureMethod) {
             }
         },
         "authType": "NO_THREE_DS",  // Authentication Details
-        "returnUrl": "https://example.com/return",  // URLs for Redirection and Webhooks
-        "paymentMethodToken": {"value": "probe_pm_token"}  // Payment Method Token
+        "returnUrl": "https://example.com/return"  // URLs for Redirection and Webhooks
     };
 }
 
@@ -157,8 +156,7 @@ async function processCheckoutWallet(merchantTransactionId, config = _defaultCon
             }
         },
         "authType": "NO_THREE_DS",  // Authentication Details
-        "returnUrl": "https://example.com/return",  // URLs for Redirection and Webhooks
-        "paymentMethodToken": {"value": "probe_pm_token"}  // Payment Method Token
+        "returnUrl": "https://example.com/return"  // URLs for Redirection and Webhooks
     });
 
     if (authorizeResponse.status === 'FAILED') {
@@ -196,8 +194,7 @@ async function processCheckoutBank(merchantTransactionId, config = _defaultConfi
             }
         },
         "authType": "NO_THREE_DS",  // Authentication Details
-        "returnUrl": "https://example.com/return",  // URLs for Redirection and Webhooks
-        "paymentMethodToken": {"value": "probe_pm_token"}  // Payment Method Token
+        "returnUrl": "https://example.com/return"  // URLs for Redirection and Webhooks
     });
 
     if (authorizeResponse.status === 'FAILED') {

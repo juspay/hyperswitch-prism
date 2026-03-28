@@ -4,7 +4,7 @@
     "authenticate": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: authentication_data.threeds_server_transaction_id — Missing required field: authentication_data.threeds_server_transaction_id"
+        "error": "Stuck on field: authentication_data.threeds_server_transaction_id \u2014 Missing required field: authentication_data.threeds_server_transaction_id"
       }
     },
     "authorize": {

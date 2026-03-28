@@ -145,7 +145,7 @@
     "capture": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: amount — Missing required field: amount"
+        "error": "Stuck on field: amount \u2014 Missing required field: amount"
       }
     },
     "create_access_token": {

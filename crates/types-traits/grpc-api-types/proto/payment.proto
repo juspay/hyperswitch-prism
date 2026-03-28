@@ -1801,10 +1801,7 @@ message PaymentServiceAuthorizeRequest {
 
   // URL for Redirection
   optional string continue_redirection_url =
-      41; // URL to complete authorization
-
-  // Payment Method Token
-  optional SecretString payment_method_token = 42;
+       41; // URL to complete authorization
 
   // Level 2 / Level 3 data for enhanced payment processing
   optional L2L3Data l2_l3_data = 43;
@@ -2438,9 +2435,6 @@ message PaymentServiceSetupRecurringRequest {
   // State Information
   optional ConnectorState state = 29; // State data for access token storage and
                                       // other connector-specific state
-
-  // Payment Method Token
-  optional SecretString payment_method_token = 30;
 
   // Send the connector order identifier here if an order was created before
   // authorize

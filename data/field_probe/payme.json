@@ -41,7 +41,7 @@
       },
       "Card": {
         "status": "error",
-        "error": "Stuck on field: customer.name — Missing required field: customer.name"
+        "error": "Stuck on field: customer.name \u2014 Missing required field: customer.name"
       },
       "GooglePay": {
         "status": "not_supported",

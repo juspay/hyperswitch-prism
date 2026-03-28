@@ -48,7 +48,6 @@ private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAutho
         }
         authType = AuthenticationType.NO_THREE_DS  // Authentication Details
         returnUrl = "https://example.com/return"  // URLs for Redirection and Webhooks
-        paymentMethodTokenBuilder.value = "probe_pm_token"  // Payment Method Token
     }.build()
 }
 
@@ -163,7 +162,6 @@ fun processCheckoutBank(txnId: String, config: ConnectorConfig = _defaultConfig)
         }
         authType = AuthenticationType.NO_THREE_DS  // Authentication Details
         returnUrl = "https://example.com/return"  // URLs for Redirection and Webhooks
-        paymentMethodTokenBuilder.value = "probe_pm_token"  // Payment Method Token
     }.build())
 
     when (authorizeResponse.status.name) {

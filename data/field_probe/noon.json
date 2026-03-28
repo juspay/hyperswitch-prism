@@ -21,11 +21,11 @@
       },
       "ApplePay": {
         "status": "error",
-        "error": "Stuck on field: payment_method_token — Failed to parse Apple Pay wallet token"
+        "error": "Stuck on field: payment_method_token \u2014 Failed to parse Apple Pay wallet token"
       },
       "ApplePayDecrypted": {
         "status": "error",
-        "error": "Stuck on field: Apple pay encrypted data — Missing required field: Apple pay encrypted data"
+        "error": "Stuck on field: Apple pay encrypted data \u2014 Missing required field: Apple pay encrypted data"
       },
       "Bacs": {
         "status": "not_implemented",
@@ -379,7 +379,7 @@
     "setup_recurring": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: description — Missing required field: description"
+        "error": "Stuck on field: description \u2014 Missing required field: description"
       }
     },
     "tokenize": {

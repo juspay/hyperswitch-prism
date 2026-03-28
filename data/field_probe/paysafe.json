@@ -27,8 +27,7 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
+          "return_url": "https://example.com/return"
         },
         "sample": {
           "url": "https://api.test.paysafe.com/paymenthub/v1/payments",
@@ -57,8 +56,7 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
+          "return_url": "https://example.com/return"
         },
         "sample": {
           "url": "https://api.test.paysafe.com/paymenthub/v1/payments",
@@ -87,8 +85,7 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
+          "return_url": "https://example.com/return"
         },
         "sample": {
           "url": "https://api.test.paysafe.com/paymenthub/v1/payments",
@@ -127,8 +124,7 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
+          "return_url": "https://example.com/return"
         },
         "sample": {
           "url": "https://api.test.paysafe.com/paymenthub/v1/payments",
@@ -175,8 +171,7 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
+          "return_url": "https://example.com/return"
         },
         "sample": {
           "url": "https://api.test.paysafe.com/paymenthub/v1/payments",
@@ -209,8 +204,7 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
+          "return_url": "https://example.com/return"
         },
         "sample": {
           "url": "https://api.test.paysafe.com/paymenthub/v1/payments",
@@ -243,8 +237,7 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
+          "return_url": "https://example.com/return"
         },
         "sample": {
           "url": "https://api.test.paysafe.com/paymenthub/v1/payments",
@@ -275,8 +268,7 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
+          "return_url": "https://example.com/return"
         },
         "sample": {
           "url": "https://api.test.paysafe.com/paymenthub/v1/payments",
@@ -311,8 +303,7 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
+          "return_url": "https://example.com/return"
         },
         "sample": {
           "url": "https://api.test.paysafe.com/paymenthub/v1/payments",
@@ -354,8 +345,7 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
+          "return_url": "https://example.com/return"
         },
         "sample": {
           "url": "https://api.test.paysafe.com/paymenthub/v1/payments",
@@ -400,8 +390,7 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
+          "return_url": "https://example.com/return"
         },
         "sample": {
           "url": "https://api.test.paysafe.com/paymenthub/v1/payments",
@@ -430,8 +419,7 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
+          "return_url": "https://example.com/return"
         },
         "sample": {
           "url": "https://api.test.paysafe.com/paymenthub/v1/payments",
@@ -460,8 +448,7 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
+          "return_url": "https://example.com/return"
         },
         "sample": {
           "url": "https://api.test.paysafe.com/paymenthub/v1/payments",
@@ -492,8 +479,7 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
+          "return_url": "https://example.com/return"
         },
         "sample": {
           "url": "https://api.test.paysafe.com/paymenthub/v1/payments",
@@ -534,8 +520,7 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
+          "return_url": "https://example.com/return"
         },
         "sample": {
           "url": "https://api.test.paysafe.com/paymenthub/v1/payments",
@@ -567,8 +552,7 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
+          "return_url": "https://example.com/return"
         },
         "sample": {
           "url": "https://api.test.paysafe.com/paymenthub/v1/payments",
@@ -599,8 +583,7 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
+          "return_url": "https://example.com/return"
         },
         "sample": {
           "url": "https://api.test.paysafe.com/paymenthub/v1/payments",
@@ -708,7 +691,7 @@
     "recurring_charge": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: mandate_metadata — Missing required field: mandate_metadata"
+        "error": "Stuck on field: mandate_metadata \u2014 Missing required field: mandate_metadata"
       }
     },
     "refund": {

@@ -158,7 +158,7 @@
       },
       "GooglePayDecrypted": {
         "status": "error",
-        "error": "Stuck on field: gpay wallet_token — Missing required field: gpay wallet_token"
+        "error": "Stuck on field: gpay wallet_token \u2014 Missing required field: gpay wallet_token"
       },
       "Ideal": {
         "status": "not_implemented",

@@ -2226,7 +2226,6 @@
     "PaymentMethodServiceGetRequest": {
       "comments": {
         "merchant_payment_method_id": "Identification",
-        "payment_method_token": "Payment Method Information",
         "state": "State Information"
       },
       "field_types": {
@@ -2267,7 +2266,6 @@
       "comments": {
         "error": "Error Information",
         "merchant_payment_method_id": "Reference",
-        "payment_method_token": "Token Information",
         "state": "State Information"
       },
       "field_types": {
@@ -2294,7 +2292,6 @@
         "order_details": "Order Details",
         "order_tax_amount": "Tax amount for the order",
         "payment_method": "Payment method to be used",
-        "payment_method_token": "Payment Method Token",
         "redirection_response": "Redirection Response from client browser",
         "return_url": "URLs for Redirection and Webhooks",
         "session_token": "Session and Token Information",
@@ -2581,7 +2578,6 @@
         "order_tax_amount": "Tax amount, if an initial payment is part of setup",
         "payment_channel": "Describes the channel through which the payment was initiated",
         "payment_experience": "Preferred payment experience",
-        "payment_method_token": "Payment Method Token",
         "request_extended_authorization": "Indicates if extended authorization is requested",
         "request_incremental_authorization": "Indicates if incremental authorization is requested",
         "return_url": "URL to redirect after setup",

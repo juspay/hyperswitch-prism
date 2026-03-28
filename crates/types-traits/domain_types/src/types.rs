@@ -3422,6 +3422,21 @@ impl ForeignTryFrom<(PaymentServiceAuthorizeRequest, Connectors, &MaskedMetadata
             .map(AccessTokenResponseData::foreign_try_from)
             .transpose()?;
 
+        let payment_method_token = value.payment_method.as_ref().and_then(|pm| {
+            pm.payment_method.as_ref().and_then(|method| {
+                if let grpc_api_types::payments::payment_method::PaymentMethod::Token(token_data) =
+                    method
+                {
+                    token_data
+                        .token
+                        .clone()
+                        .map(router_data::PaymentMethodToken::Token)
+                } else {
+                    None
+                }
+            })
+        });
+
         Ok(Self {
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
@@ -3463,9 +3478,7 @@ impl ForeignTryFrom<(PaymentServiceAuthorizeRequest, Connectors, &MaskedMetadata
             access_token,
             session_token: value.session_token,
             reference_id: value.merchant_order_id.clone(),
-            payment_method_token: value
-                .payment_method_token
-                .map(router_data::PaymentMethodToken::Token),
+            payment_method_token,
             preprocessing_id: None,
             connector_api_version: None,
             test_mode: value.test_mode,
@@ -7284,6 +7297,21 @@ impl
             .map(|m| ForeignTryFrom::foreign_try_from((m, "merchant account metadata")))
             .transpose()?;
 
+        let payment_method_token = value.payment_method.as_ref().and_then(|pm| {
+            pm.payment_method.as_ref().and_then(|method| {
+                if let grpc_api_types::payments::payment_method::PaymentMethod::Token(token_data) =
+                    method
+                {
+                    token_data
+                        .token
+                        .clone()
+                        .map(router_data::PaymentMethodToken::Token)
+                } else {
+                    None
+                }
+            })
+        });
+
         Ok(Self {
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
@@ -7319,9 +7347,7 @@ impl
             access_token,
             session_token: value.session_token,
             reference_id: None,
-            payment_method_token: value
-                .payment_method_token
-                .map(router_data::PaymentMethodToken::Token),
+            payment_method_token,
             preprocessing_id: None,
             connector_api_version: None,
             test_mode,
@@ -7391,6 +7417,21 @@ impl
             .map(|m| ForeignTryFrom::foreign_try_from((m, "merchant account metadata")))
             .transpose()?;
 
+        let payment_method_token = value.payment_method.as_ref().and_then(|pm| {
+            pm.payment_method.as_ref().and_then(|method| {
+                if let grpc_api_types::payments::payment_method::PaymentMethod::Token(token_data) =
+                    method
+                {
+                    token_data
+                        .token
+                        .clone()
+                        .map(router_data::PaymentMethodToken::Token)
+                } else {
+                    None
+                }
+            })
+        });
+
         Ok(Self {
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
@@ -7425,9 +7466,7 @@ impl
             access_token,
             session_token: value.session_token,
             reference_id: None,
-            payment_method_token: value
-                .payment_method_token
-                .map(router_data::PaymentMethodToken::Token),
+            payment_method_token,
             preprocessing_id: None,
             connector_api_version: None,
             test_mode: None,

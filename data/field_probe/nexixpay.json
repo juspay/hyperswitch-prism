@@ -41,7 +41,7 @@
       },
       "Card": {
         "status": "error",
-        "error": "Stuck on field: authentication_data — Missing required field: authentication_data (must be present for 3DS flow)"
+        "error": "Stuck on field: authentication_data \u2014 Missing required field: authentication_data (must be present for 3DS flow)"
       },
       "GooglePay": {
         "status": "not_supported",
@@ -162,7 +162,7 @@
     "post_authenticate": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: redirect_response — Missing required field: redirect_response"
+        "error": "Stuck on field: redirect_response \u2014 Missing required field: redirect_response"
       }
     },
     "pre_authenticate": {
