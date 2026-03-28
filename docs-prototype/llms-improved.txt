@@ -1,0 +1,207 @@
+# Connector Service — Improved LLM Navigation Index
+# 
+# This index is optimized for both human and AI consumption.
+# Organized by SCENARIOS (what you want to do) rather than connectors.
+
+## Quick Navigation
+
+**I want to...**
+- [Process a card payment](./scenarios/card-payment.md) (Authorize + Capture)
+- [Process an auto-capture payment](./scenarios/checkout-autocapture.md) (One-step)
+- [Process a wallet payment](./scenarios/wallet-payment.md) (Apple Pay / Google Pay)
+- [Process a bank transfer](./scenarios/bank-transfer.md) (SEPA / ACH)
+- [Issue a refund](./scenarios/refund.md)
+- [Set up recurring billing](./scenarios/recurring.md)
+- [Handle 3D Secure](./scenarios/authentication.md)
+- [Void a payment](./scenarios/void-payment.md)
+
+**I need to...**
+- [Find which connectors support a specific scenario](#scenario-support-matrix)
+- [Compare connectors by features](#connector-comparison)
+- [See all available connectors](./connectors/index.md)
+
+---
+
+## Scenario Support Matrix
+
+### Card Payments (Authorize + Capture)
+
+| Connector | Status | Auth Window | 3DS | Notes |
+|-----------|--------|-------------|-----|-------|
+| stripe | ✅ Full | 7 days | Yes | Default, recommended |
+| adyen | ✅ Full | 28 days | Yes | EU/UK optimized |
+| checkout | ✅ Full | 7 days | Yes | APAC optimized |
+| authorizedotnet | ✅ Partial | 30 days | Limited | US only |
+| worldpay | ✅ Full | 14 days | Yes | Enterprise |
+| [+68 more](./connectors/index.md#card-payments) | | | | |
+
+**Example:**
+```python
+# Works with ALL connectors above
+python examples/scenarios/checkout_card.py --connector=stripe
+```
+
+### Wallet Payments (Apple Pay / Google Pay)
+
+| Connector | Apple Pay | Google Pay | Samsung Pay |
+|-----------|-----------|------------|-------------|
+| stripe | ✅ | ✅ | ❌ |
+| adyen | ✅ | ✅ | ✅ |
+| checkout | ❌ | ✅ | ❌ |
+| cybersource | ✅ | ✅ | ❌ |
+| worldpay | ✅ | ✅ | ❌ |
+| [+32 more](./connectors/index.md#wallet-payments) | | | |
+
+**Example:**
+```python
+python examples/scenarios/checkout_wallet.py --connector=adyen --wallet=apple_pay
+```
+
+### Bank Transfers (SEPA / ACH / BACS)
+
+| Connector | SEPA | ACH | BACS |
+|-----------|------|-----|------|
+| stripe | ✅ | ✅ | ✅ |
+| adyen | ✅ | ❌ | ✅ |
+| checkout | ❌ | ✅ | ❌ |
+| gocardless | ✅ | ❌ | ✅ |
+| [+15 more](./connectors/index.md#bank-transfers) | | | |
+
+**Example:**
+```python
+python examples/scenarios/checkout_bank.py --connector=stripe --method=sepa
+```
+
+---
+
+## Connector Comparison
+
+### By Feature Set
+
+**Full-Featured (All scenarios):**
+- stripe, adyen, checkout, cybersource, worldpay
+
+**Card-Only:**
+- authorizedotnet, barclaycard, tsys, wellsfargo
+
+**Regional Specialists:**
+- razorpay (India), payu (LATAM), trustpay (Czech)
+
+**Enterprise/Gateway:**
+- cybersource, worldpay, globalpay
+
+### By Region
+
+| Region | Recommended | Alternatives |
+|--------|-------------|--------------|
+| US | stripe | authorizedotnet, cybersource |
+| EU/UK | adyen | stripe, worldpay |
+| APAC | checkout | stripe, adyen |
+| India | razorpay | stripe, payu |
+| LATAM | payu | stripe, dlocal |
+
+---
+
+## Implementation Patterns
+
+All scenarios follow the same 4-step pattern:
+
+```
+1. CONFIGURE  → 2. AUTHORIZE  → 3. HANDLE STATUS  → 4. CAPTURE/SETTLE
+```
+
+### Step 1: Configure
+```python
+# Universal pattern - only change connector name
+config = ConnectorConfig(
+    connector="stripe",  # ← Change this
+    environment=Environment.SANDBOX,
+    auth=load_credentials("stripe"),  # Connector-specific
+)
+```
+
+### Step 2: Authorize
+```python
+# Universal request structure across all connectors
+response = client.authorize(
+    merchant_transaction_id="txn_001",
+    amount={"minor_amount": 1000, "currency": "USD"},
+    payment_method={"card": {...}},
+    capture_method="MANUAL",
+)
+```
+
+### Step 3: Handle Status
+```python
+if response.status == "AUTHORIZED":
+    # Proceed to capture
+elif response.status == "PENDING":
+    # Poll or wait for webhook
+elif response.status == "FAILED":
+    # Show error
+```
+
+### Step 4: Capture/Settle
+```python
+client.capture(
+    connector_transaction_id=response.connector_transaction_id,
+    amount_to_capture={"minor_amount": 1000, "currency": "USD"},
+)
+```
+
+---
+
+## Running Examples
+
+### Python
+```bash
+# Card payment with any connector
+python examples/scenarios/checkout_card.py --connector=stripe
+
+# Wallet payment
+python examples/scenarios/checkout_wallet.py --connector=adyen
+
+# Bank transfer
+python examples/scenarios/checkout_bank.py --connector=stripe --method=sepa
+```
+
+### Rust
+```bash
+# Card payment with any connector
+cargo run --example checkout_card -- --connector=stripe
+
+# With credentials
+cargo run --example checkout_card -- --connector=adyen --credentials=creds.json
+```
+
+### All Scenarios
+```bash
+# List all available scenarios
+ls examples/scenarios/
+
+# Run with dry-run (no API calls)
+python examples/scenarios/checkout_card.py --connector=stripe --dry-run
+```
+
+---
+
+## Data Sources
+
+All documentation is auto-generated from:
+- **Probe Data:** `data/field_probe/*.json` (connector capabilities)
+- **Manifest:** `data/field_probe/manifest.json` (flow metadata, scenarios)
+- **Proto Definitions:** Proto files define request/response schemas
+
+**Regenerate:** `make docs`
+
+---
+
+## Legacy Connector Docs
+
+For per-connector detailed documentation (original format):
+- [All Connectors](./connectors/index.md)
+- [Stripe](./connectors/stripe.md)
+- [Adyen](./connectors/adyen.md)
+- [etc...](./connectors/)
+
+**Note:** These are preserved for backward compatibility. New users should start with scenario-based docs above.

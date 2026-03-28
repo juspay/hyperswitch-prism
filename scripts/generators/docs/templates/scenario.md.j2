@@ -1,0 +1,302 @@
+{# Jinja2 Template for Scenario Documentation #}
+{# Usage: render with scenario data from manifest.json #}
+
+{% set display_names = {
+  'stripe': 'Stripe',
+  'adyen': 'Adyen',
+  'checkout': 'Checkout.com',
+  'aci': 'ACI',
+  'airwallex': 'Airwallex',
+  'authorizedotnet': 'Authorize.net',
+  'bambora': 'Bambora',
+  'bamboraapac': 'Bambora APAC',
+  'bankofamerica': 'Bank of America',
+  'barclaycard': 'Barclaycard',
+  'billwerk': 'Billwerk',
+  'bluesnap': 'BlueSnap',
+  'braintree': 'Braintree',
+  'calida': 'Calida',
+  'cashfree': 'Cashfree',
+  'cashtocode': 'Cash to Code',
+  'celero': 'Celero',
+  'cryptopay': 'Cryptopay',
+  'cybersource': 'CyberSource',
+  'datatrans': 'Datatrans',
+  'dlocal': 'dLocal',
+  'elavon': 'Elavon',
+  'finix': 'Finix',
+  'fiserv': 'Fiserv',
+  'fiservemea': 'Fiserv EMEA',
+  'fiuu': 'Fiuu',
+  'forte': 'Forte',
+  'getnet': 'Getnet',
+  'gigadat': 'Gigadat',
+  'globalpay': 'Global Payments',
+  'helcim': 'Helcim',
+  'hipay': 'HiPay',
+  'hyperpg': 'HyperPG',
+  'iatapay': 'IataPay',
+  'jpmorgan': 'J.P. Morgan',
+  'loonio': 'Loonio',
+  'mifinity': 'MiFinity',
+  'mollie': 'Mollie',
+  'multisafepay': 'MultiSafepay',
+  'nexinets': 'Nexi Nets',
+  'nexixpay': 'Nexi XPay',
+  'nmi': 'NMI',
+  'noon': 'Noon',
+  'novalnet': 'Novalnet',
+  'nuvei': 'Nuvei',
+  'paybox': 'Paybox',
+  'payload': 'Payload',
+  'payme': 'PayMe',
+  'paypal': 'PayPal',
+  'paysafe': 'Paysafe',
+  'paytm': 'Paytm',
+  'payu': 'PayU',
+  'phonepe': 'PhonePe',
+  'placetopay': 'PlacetoPay',
+  'powertranz': 'PowerTranz',
+  'rapyd': 'Rapyd',
+  'razorpay': 'Razorpay',
+  'razorpayv2': 'Razorpay V2',
+  'redsys': 'Redsys',
+  'revolut': 'Revolut',
+  'revolv3': 'Revolv3',
+  'shift4': 'Shift4',
+  'silverflow': 'Silverflow',
+  'stax': 'Stax',
+  'truelayer': 'TrueLayer',
+  'trustpay': 'TrustPay',
+  'trustpayments': 'Trust Payments',
+  'tsys': 'TSYS',
+  'volt': 'Volt',
+  'wellsfargo': 'Wells Fargo',
+  'worldpay': 'Worldpay',
+  'worldpayvantiv': 'Worldpay Vantiv',
+  'worldpayxml': 'Worldpay XML',
+  'xendit': 'Xendit',
+  'zift': 'Zift'
+} %}
+
+# {{ title }}
+
+<!--
+This file is auto-generated. Do not edit by hand.
+Source: data/field_probe/manifest.json
+Scenario: {{ key }}
+Regenerate: python3 scripts/generators/docs/generate.py --scenarios
+-->
+
+## Overview
+
+{{ description }}
+
+**Use this for:** {{ use_case }}
+
+**Flows used:** {% for flow in flows %}{{ flow }}{% if not loop.last %}, {% endif %}{% endfor %}
+
+{% if pm_key %}
+**Payment Method:** {{ pm_key }}
+{% endif %}
+
+{% if pm_variants %}
+**Payment Methods:** {% for pm in pm_variants %}{{ pm }}{% if not loop.last %}, {% endif %}{% endfor %}
+{% endif %}
+
+## Quick Start
+
+Choose your SDK language to see a complete working example:
+
+<table>
+<tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
+<tr>
+<td valign="top">
+
+<details><summary>Python Quick Start</summary>
+
+```python
+{{ snippets.python_quickstart }}
+```
+
+</details>
+
+</td>
+<td valign="top">
+
+<details><summary>JavaScript Quick Start</summary>
+
+```javascript
+{{ snippets.javascript_quickstart }}
+```
+
+</details>
+
+</td>
+<td valign="top">
+
+<details><summary>Kotlin Quick Start</summary>
+
+```kotlin
+{{ snippets.kotlin_quickstart }}
+```
+
+</details>
+
+</td>
+<td valign="top">
+
+<details><summary>Rust Quick Start</summary>
+
+```rust
+{{ snippets.rust_quickstart }}
+```
+
+</details>
+
+</td>
+</tr>
+</table>
+
+## Supported Connectors
+
+{% if connectors %}
+This scenario is supported by the following connectors:
+
+| Connector | Status |
+|-----------|--------|
+{% for connector in connectors %}| **{{ display_names.get(connector, connector) }}** | ✅ Supported |
+{% endfor %}
+
+{% else %}
+⚠️ No connectors currently support this scenario.
+{% endif %}
+
+{% if status_handling %}
+## Status Handling
+
+{% for flow, statuses in status_handling.items() %}
+### {{ flow | title }} Flow
+
+| Status | Recommended Action |
+|--------|-------------------|
+{% for status, action in statuses.items() %}| `{{ status }}` | {{ action }} |
+{% endfor %}
+
+{% endfor %}
+{% endif %}
+
+## Connector Implementations
+
+Complete, runnable examples for each connector:
+
+### Python
+
+{% for connector in connectors %}
+<details>
+<summary><b>{{ display_names.get(connector, connector) }}</b></summary>
+
+**Configuration:**
+```python
+{{ snippets.python_config.get(connector, '# Configuration not available') }}
+```
+
+**Full Example:**
+```python
+{{ snippets.python_full.get(connector, '# Example not available') }}
+```
+
+</details>
+
+{% endfor %}
+
+### Rust
+
+{% for connector in connectors %}
+<details>
+<summary><b>{{ display_names.get(connector, connector) }}</b></summary>
+
+**Configuration:**
+```rust
+{{ snippets.rust_config.get(connector, '// Configuration not available') }}
+```
+
+**Full Example:**
+```rust
+{{ snippets.rust_full.get(connector, '// Example not available') }}
+```
+
+</details>
+
+{% endfor %}
+
+### JavaScript
+
+{% for connector in connectors %}
+<details>
+<summary><b>{{ display_names.get(connector, connector) }}</b></summary>
+
+**Configuration:**
+```javascript
+{{ snippets.javascript_config.get(connector, '// Configuration not available') }}
+```
+
+**Full Example:**
+```javascript
+{{ snippets.javascript_full.get(connector, '// Example not available') }}
+```
+
+</details>
+
+{% endfor %}
+
+### Kotlin
+
+{% for connector in connectors %}
+<details>
+<summary><b>{{ display_names.get(connector, connector) }}</b></summary>
+
+**Configuration:**
+```kotlin
+{{ snippets.kotlin_config.get(connector, '// Configuration not available') }}
+```
+
+**Full Example:**
+```kotlin
+{{ snippets.kotlin_full.get(connector, '// Example not available') }}
+```
+
+</details>
+
+{% endfor %}
+
+## Flow Reference
+
+This scenario uses these flows in sequence:
+
+| Step | Flow (Service.RPC) | Purpose | gRPC Request |
+|------|-------------------|---------|--------------|
+{% for flow in flows -%}
+{% set flow_meta = flow_metadata.get(flow, {}) -%}
+| {{ loop.index }} | {{ flow_meta.get('service_rpc', flow) }} | {{ flow_meta.get('description', 'N/A') }} | `{{ flow_meta.get('grpc_request', 'N/A') }}` |
+{% endfor %}
+
+## Common Issues
+
+### "capture_method not supported"
+
+Some connectors only support `AUTOMATIC` (single-step). Use the [Auto-Capture scenario](./checkout-autocapture.md) instead.
+
+### Auth expires before capture
+
+Capture timing varies by connector. Check the connector-specific documentation for auth window details.
+
+## Related Scenarios
+
+{% for scenario in related_scenarios %}
+- [{{ scenario.title }}](./{{ scenario.key }}.md)
+{% endfor %}
+
+---
+
+*This documentation was auto-generated from probe data. Last updated: {{ generation_date }}*
