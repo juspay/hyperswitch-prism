@@ -8,6 +8,7 @@ use Types\ConnectorConfig;
 use Types\FfiConnectorHttpRequest;
 use Types\FfiConnectorHttpResponse;
 use Types\FfiOptions;
+use Types\FfiResult;
 use Types\HttpConfig;
 use Types\RequestConfig;
 use Types\RequestError as RequestErrorProto;
@@ -88,78 +89,115 @@ abstract class ConnectorClientBase
     // ── Error parsing helpers ────────────────────────────────────────────────
 
     /**
-     * Parse FFI req_transformer output as either a success FfiConnectorHttpRequest
-     * or a RequestError. The error is detected by a non-zero PaymentStatus field.
+     * Parse FFI req_transformer output as FfiResult proto.
      *
-     * @throws RequestException on RequestError with non-zero status.
+     * The Rust FFI layer always returns a FfiResult wrapper with an explicit
+     * type discriminator (HTTP_REQUEST = 0, INTEGRATION_ERROR = 2, etc.).
+     *
+     * @throws RequestException  on IntegrationError or ConnectorResponseTransformationError.
+     * @throws ConnectorException on unexpected result types or parse failures.
      */
     private function parseReqResult(string $bytes): FfiConnectorHttpRequest
     {
-        // Attempt to decode as RequestError. Proto parsing can fail with a wire-type
-        // mismatch when the bytes are actually a valid FfiConnectorHttpRequest (success
-        // case), because field 1 of FfiConnectorHttpRequest is a string (LEN wire type)
-        // while field 1 of RequestError is a PaymentStatus enum (varint wire type).
-        // If parsing succeeds and status is non-zero it is definitively an error.
-        // If parsing succeeds and status is zero we fall through to the success parse.
-        // If parsing throws we also fall through, because the bytes are not a RequestError.
         try {
-            $error = new RequestErrorProto();
-            $error->mergeFromString($bytes);
-            if ($error->getStatus() !== 0) {
-                throw new RequestException($error);
-            }
-        } catch (RequestException $e) {
-            throw $e;
-        } catch (\Throwable) {
-            // bytes are not a RequestError — fall through to success parse
-        }
-
-        $req = new FfiConnectorHttpRequest();
-        try {
-            $req->mergeFromString($bytes);
+            $result = new FfiResult();
+            $result->mergeFromString($bytes);
         } catch (\Throwable $e) {
-            // Both parses failed: surface as a ConnectorException with context.
             throw new ConnectorException(
-                'Failed to parse FFI req_transformer output: ' . $e->getMessage()
+                'Failed to parse FFI req_transformer output as FfiResult: ' . $e->getMessage()
             );
         }
-        return $req;
+
+        if ($result->hasHttpRequest()) {
+            return $result->getHttpRequest();
+        }
+
+        if ($result->hasIntegrationError()) {
+            $ie = $result->getIntegrationError();
+            $reqError = new RequestErrorProto();
+            $reqError->setStatus(7); // AUTHORIZATION_FAILED as error marker
+            $reqError->setErrorMessage((string) $ie->getErrorMessage());
+            $reqError->setErrorCode((string) $ie->getErrorCode());
+            throw new RequestException($reqError);
+        }
+
+        if ($result->hasConnectorResponseTransformationError()) {
+            $cte = $result->getConnectorResponseTransformationError();
+            $reqError = new RequestErrorProto();
+            $reqError->setStatus(7);
+            $reqError->setErrorMessage((string) $cte->getErrorMessage());
+            $reqError->setErrorCode((string) $cte->getErrorCode());
+            throw new RequestException($reqError);
+        }
+
+        throw new ConnectorException(
+            'Unexpected FfiResult type from req_transformer: ' . $result->getType()
+        );
     }
 
     /**
-     * Parse FFI res_transformer output as either the expected success message
-     * or a ResponseError. The error is detected by a non-zero PaymentStatus field.
+     * Parse FFI res_transformer output as FfiResult proto and extract
+     * the domain response from the HTTP_RESPONSE body.
+     *
+     * The Rust res_transformer wraps the serialised domain response proto
+     * inside FfiConnectorHttpResponse.body, then wraps that in FfiResult.
      *
      * @template T of object
      * @param class-string<T> $responseClass Fully-qualified PHP class name of the proto response.
      * @return T
-     * @throws ResponseException on ResponseError with non-zero status.
+     * @throws ResponseException on ConnectorResponseTransformationError or IntegrationError.
+     * @throws ConnectorException on parse failures.
      */
     private function parseResResult(string $bytes, string $responseClass): object
     {
-        // Try to decode as ResponseError first; if status is non-zero, it's an error.
         try {
-            $error = new ResponseErrorProto();
-            $error->mergeFromString($bytes);
-            if ($error->getStatus() !== 0) {
-                throw new ResponseException($error);
-            }
-        } catch (ResponseException $e) {
-            throw $e;
-        } catch (\Throwable) {
-            // Not a ResponseError (or status is zero) — fall through
-        }
-
-        /** @var T $response */
-        $response = new $responseClass();
-        try {
-            $response->mergeFromString($bytes);
+            $result = new FfiResult();
+            $result->mergeFromString($bytes);
         } catch (\Throwable $e) {
             throw new ConnectorException(
-                'Failed to parse FFI res_transformer output: ' . $e->getMessage()
+                'Failed to parse FFI res_transformer output as FfiResult: ' . $e->getMessage()
             );
         }
-        return $response;
+
+        if ($result->hasHttpResponse()) {
+            // The domain proto response is serialised inside body
+            $httpResp = $result->getHttpResponse();
+            /** @var T $response */
+            $response = new $responseClass();
+            try {
+                $response->mergeFromString((string) $httpResp->getBody());
+            } catch (\Throwable $e) {
+                throw new ConnectorException(
+                    'Failed to parse domain response from FfiResult body: ' . $e->getMessage()
+                );
+            }
+            return $response;
+        }
+
+        if ($result->hasConnectorResponseTransformationError()) {
+            $cte = $result->getConnectorResponseTransformationError();
+            $resError = new ResponseErrorProto();
+            $resError->setStatus(7); // AUTHORIZATION_FAILED as error marker
+            $resError->setErrorMessage((string) $cte->getErrorMessage());
+            $resError->setErrorCode((string) $cte->getErrorCode());
+            if ($cte->hasHttpStatusCode()) {
+                $resError->setStatusCode($cte->getHttpStatusCode());
+            }
+            throw new ResponseException($resError);
+        }
+
+        if ($result->hasIntegrationError()) {
+            $ie = $result->getIntegrationError();
+            $resError = new ResponseErrorProto();
+            $resError->setStatus(7);
+            $resError->setErrorMessage((string) $ie->getErrorMessage());
+            $resError->setErrorCode((string) $ie->getErrorCode());
+            throw new ResponseException($resError);
+        }
+
+        throw new ConnectorException(
+            'Unexpected FfiResult type from res_transformer: ' . $result->getType()
+        );
     }
 
     // ── Flow execution ───────────────────────────────────────────────────────
