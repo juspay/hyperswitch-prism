@@ -151,6 +151,58 @@ class PaymentClient extends ConnectorClientBase
 
 }
 
+class PayoutClient extends ConnectorClientBase
+{
+    /** PayoutService.Create — Creates a payout. */
+    public function payoutCreate($request, ?RequestConfig $options = null): \Types\PayoutServiceCreateResponse
+    {
+        return $this->executeFlow('payout_create', $request, \Types\PayoutServiceCreateResponse::class, $options);
+    }
+
+    /** PayoutService.CreateLink — Creates a link between the recipient and the payout. */
+    public function payoutCreateLink($request, ?RequestConfig $options = null): \Types\PayoutServiceCreateLinkResponse
+    {
+        return $this->executeFlow('payout_create_link', $request, \Types\PayoutServiceCreateLinkResponse::class, $options);
+    }
+
+    /** PayoutService.CreateRecipient — Create payout recipient. */
+    public function payoutCreateRecipient($request, ?RequestConfig $options = null): \Types\PayoutServiceCreateRecipientResponse
+    {
+        return $this->executeFlow('payout_create_recipient', $request, \Types\PayoutServiceCreateRecipientResponse::class, $options);
+    }
+
+    /** PayoutService.EnrollDisburseAccount — Enroll disburse account. */
+    public function payoutEnrollDisburseAccount($request, ?RequestConfig $options = null): \Types\PayoutServiceEnrollDisburseAccountResponse
+    {
+        return $this->executeFlow('payout_enroll_disburse_account', $request, \Types\PayoutServiceEnrollDisburseAccountResponse::class, $options);
+    }
+
+    /** PayoutService.Get — Retrieve payout details. */
+    public function payoutGet($request, ?RequestConfig $options = null): \Types\PayoutServiceGetResponse
+    {
+        return $this->executeFlow('payout_get', $request, \Types\PayoutServiceGetResponse::class, $options);
+    }
+
+    /** PayoutService.Stage — Stage the payout. */
+    public function payoutStage($request, ?RequestConfig $options = null): \Types\PayoutServiceStageResponse
+    {
+        return $this->executeFlow('payout_stage', $request, \Types\PayoutServiceStageResponse::class, $options);
+    }
+
+    /** PayoutService.Transfer — Creates a payout fund transfer. */
+    public function payoutTransfer($request, ?RequestConfig $options = null): \Types\PayoutServiceTransferResponse
+    {
+        return $this->executeFlow('payout_transfer', $request, \Types\PayoutServiceTransferResponse::class, $options);
+    }
+
+    /** PayoutService.Void — Void a payout. */
+    public function payoutVoid($request, ?RequestConfig $options = null): \Types\PayoutServiceVoidResponse
+    {
+        return $this->executeFlow('payout_void', $request, \Types\PayoutServiceVoidResponse::class, $options);
+    }
+
+}
+
 class RecurringPaymentClient extends ConnectorClientBase
 {
     /** RecurringPaymentService.Charge — Charge using an existing stored recurring payment instruction. Processes repeat payments for subscriptions or recurring billing without collecting payment details. */
