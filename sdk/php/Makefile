@@ -120,11 +120,13 @@ test-package: build-ffi-lib generate-all install-deps
 	@# Copy composer.json for autoloader generation
 	@cp $(SDK_ROOT)/composer.json /tmp/test-hyperswitch-php/
 	@cd /tmp/test-hyperswitch-php && composer dump-autoload --no-interaction --quiet --ignore-platform-req=ext-ffi
-	@# Copy credentials file if it exists
+	@# Copy credentials file if it exists, otherwise create a placeholder so the
+	@# test can run in skip mode (all-skipped now exits 0).
 	@if [ -f $(REPO_ROOT)/creds.json ]; then \
 		cp $(REPO_ROOT)/creds.json /tmp/test-hyperswitch-php/; \
 	else \
-		echo "  Note: creds.json not found, test will use placeholder credentials"; \
+		echo "  Note: creds.json not found, test will skip connectors"; \
+		echo '{"stripe":{"api_key":{"value":"placeholder"}}}' > /tmp/test-hyperswitch-php/creds.json; \
 	fi
 	@cd /tmp/test-hyperswitch-php && php -d ffi.enable=1 test_smoke.php --connectors $(CONNECTORS)
 	@rm -rf /tmp/test-hyperswitch-php
