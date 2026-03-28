@@ -9,7 +9,7 @@ use domain_types::{
         RepeatPaymentData, ResponseId,
     },
     errors,
-    payment_method_data::{BankDebitData, PaymentMethodData, PaymentMethodDataTypes},
+    payment_method_data::{BankDebitData, PaymentMethodData, PaymentMethodDataTypes, WalletData},
     router_data::{ConnectorSpecificConfig, PaysafePaymentMethodDetails},
     router_data_v2::RouterDataV2,
 };
@@ -273,10 +273,46 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         account_id,
                     )
                 }
+                PaymentMethodData::Wallet(WalletData::GooglePay(google_pay_data)) => {
+                    let encrypted_data = google_pay_data
+                        .tokenization_data
+                        .get_encrypted_google_pay_payment_data_mandatory()
+                        .change_context(errors::ConnectorError::MissingRequiredField {
+                            field_name: "google_pay.tokenization_data (encrypted)",
+                        })?;
+
+                    let google_pay_payment_token = PaysafeGooglePayPaymentToken {
+                        api_version: 2,
+                        api_version_minor: 0,
+                        payment_method_data: PaysafeGooglePayPaymentMethodData {
+                            pm_type: google_pay_data.pm_type.clone(),
+                            description: google_pay_data.description.clone(),
+                            info: PaysafeGooglePayCardInfo {
+                                card_network: google_pay_data.info.card_network.clone(),
+                                card_details: google_pay_data.info.card_details.clone(),
+                            },
+                            tokenization_data: PaysafeGooglePayTokenizationData {
+                                token_type: encrypted_data.token_type.clone(),
+                                token: Secret::new(encrypted_data.token.clone()),
+                            },
+                        },
+                    };
+
+                    let account_id = account_id.get_no_three_ds_account_id(currency)?;
+                    (
+                        PaysafePaymentMethod::GooglePay {
+                            google_pay: PaysafeGooglePay {
+                                google_pay_payment_token,
+                            },
+                        },
+                        PaysafePaymentType::Card,
+                        account_id,
+                    )
+                }
                 _ => {
                     return Err(errors::ConnectorError::NotSupported {
                         message:
-                            "Only card and ACH payment methods are supported for PaymentMethodToken"
+                            "Only card, ACH, and GooglePay payment methods are supported for PaymentMethodToken"
                                 .to_string(),
                         connector: "Paysafe",
                     }
@@ -285,9 +321,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             };
 
         // For ACH payments, Paysafe requires settleWithAuth to be true
+        // For GooglePay, same behavior as Card based on capture_method
         let settle_with_auth = match payment_type {
             PaysafePaymentType::Ach => true,
-            PaysafePaymentType::Card => matches!(
+            PaysafePaymentType::Card | PaysafePaymentType::GooglePay => matches!(
                 router_data.request.capture_method,
                 Some(enums::CaptureMethod::Automatic) | None
             ),
@@ -458,13 +495,23 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             )
         };
 
-        // For ACH, use the ach account_id; for cards, use card account_id
+        // For ACH, use the ach account_id; for wallets (GooglePay), always use no_three_ds
+        // because the PaymentMethodToken (payment handle) was created under the no_three_ds
+        // account. For cards, branch on is_three_ds().
+        let is_wallet = matches!(
+            router_data.resource_common_data.payment_method,
+            enums::PaymentMethod::Wallet
+        );
+
         let account_id = Some(if is_ach {
             account_id.get_ach_account_id(router_data.request.currency)?
-        } else if router_data.resource_common_data.is_three_ds() {
-            account_id.get_three_ds_account_id(router_data.request.currency)?
-        } else {
+        } else if is_wallet || !router_data.resource_common_data.is_three_ds() {
+            // Wallets (GooglePay) always use no_three_ds account because the payment handle
+            // (created in PaymentMethodToken flow) uses no_three_ds account.
+            // Non-3DS card payments also use no_three_ds.
             account_id.get_no_three_ds_account_id(router_data.request.currency)?
+        } else {
+            account_id.get_three_ds_account_id(router_data.request.currency)?
         });
 
         Ok(Self {
