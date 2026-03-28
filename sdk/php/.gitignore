@@ -1,0 +1,13 @@
+# Composer dependencies
+/vendor/
+
+# Generated protobuf stubs and native library
+/src/Payments/Generated/
+
+# Build artifacts
+/build/
+*.zip
+*.tar.gz
+
+# PHPUnit cache
+.phpunit.cache/

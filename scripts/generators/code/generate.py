@@ -19,6 +19,7 @@ Usage:
     python3 scripts/generators/code/generate.py --lang javascript
     python3 scripts/generators/code/generate.py --lang kotlin
     python3 scripts/generators/code/generate.py --lang rust
+    python3 scripts/generators/code/generate.py --lang php
 """
 
 import re
@@ -508,6 +509,44 @@ def gen_rust_ffi_flows(flows: list[dict]) -> None:
     )
 
 
+# ── PHP generators ───────────────────────────────────────────────────────────
+
+def gen_php(flows: list[dict], single_flows: list[dict]) -> None:
+    gen_php_flows(flows, single_flows)
+    gen_php_service_clients(flows, single_flows)
+
+
+def gen_php_flows(flows: list[dict], single_flows: list[dict]) -> None:
+    """Generate _GeneratedFlows.php — PHP flow registry used by UniffiClient."""
+    max_len = max((len(f["name"]) for f in flows), default=0)
+    max_len_s = max((len(f["name"]) for f in single_flows), default=0)
+    render(
+        "php/flows.php.j2",
+        SDK_ROOT / "php/src/Payments/_GeneratedFlows.php",
+        flows=flows,
+        single_flows=single_flows,
+        max_len=max_len,
+        max_len_s=max_len_s,
+    )
+
+
+def gen_php_service_clients(flows: list[dict], single_flows: list[dict]) -> None:
+    """Generate _GeneratedServiceClients.php — per-service PHP client classes."""
+    groups = group_by_service(flows)
+    single_groups = group_by_service(single_flows)
+    all_services = sorted(set(groups) | set(single_groups))
+
+    render(
+        "php/clients.php.j2",
+        SDK_ROOT / "php/src/Payments/_GeneratedServiceClients.php",
+        all_services=all_services,
+        groups=groups,
+        single_groups=single_groups,
+    )
+
+
+# ── gRPC generators ─────────────────────────────────────────────────────────
+
 def _grpc_groups() -> tuple[list[str], dict[str, list[dict]]]:
     """Shared helper: all proto RPCs grouped by service (used by JS + Rust gRPC generators).
     
@@ -662,7 +701,7 @@ def main() -> None:
 
     parser.add_argument(
         "--lang",
-        choices=["python", "javascript", "kotlin", "rust", "grpc", "all"],
+        choices=["python", "javascript", "kotlin", "rust", "grpc", "php", "all"],
         default="all",
         help="Which language/SDK to generate (default: all)"
     )
@@ -710,6 +749,10 @@ def main() -> None:
     if args.lang in ("kotlin", "all"):
         print("Generating Kotlin SDK...")
         gen_kotlin(flows, single_flows)
+
+    if args.lang in ("php", "all"):
+        print("Generating PHP SDK...")
+        gen_php(flows, single_flows)
 
     print("\nDone.")
 
