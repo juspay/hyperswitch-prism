@@ -113,6 +113,8 @@ wellsfargo.base_url = "https://apitest.cybersource.com/"
 zift.base_url = "https://sandbox-secure.zift.io/"
 truelayer.base_url = "https://api.truelayer-sandbox.com"
 truelayer.secondary_base_url = "https://auth.truelayer-sandbox.com"
+itaubank.base_url = "https://sandbox.devportal.itau.com.br/itau-ep9-gtw-sispag-ext"
+itaubank.secondary_base_url = "https://sandbox.devportal.itau.com.br"
 
 # Generic Events Configuration
 [events]

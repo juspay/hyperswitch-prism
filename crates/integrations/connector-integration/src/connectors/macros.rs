@@ -1005,6 +1005,7 @@ macro_rules! create_all_prerequisites {
                         ConnectorInputData = [<$connector RouterData>]<$router_data_type, $generic_type>,
                     >,
                 )*
+                pub _marker: std::marker::PhantomData<$generic_type>,
             }
 
             impl<$generic_type: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::marker::Send + 'static + serde::Serialize> Clone for $connector<$generic_type> {
@@ -1016,6 +1017,7 @@ macro_rules! create_all_prerequisites {
                         $(
                             [<$flow_name:snake>]: self.[<$flow_name:snake>],
                         )*
+                        _marker: self._marker,
                     }
                 }
             }
@@ -1032,6 +1034,7 @@ macro_rules! create_all_prerequisites {
                                     [<$flow_response Templating>], $generic_type
                                 >(PhantomData),
                         )*
+                        _marker: std::marker::PhantomData,
                     }
                 }
                 $($function_def)*
@@ -1130,6 +1133,7 @@ pub(crate) use create_all_prerequisites_resolve_templating_type;
 
 macro_rules! expand_imports {
     () => {
+        #[allow(unused_imports)]
         use std::marker::PhantomData;
 
         #[allow(unused_imports)]
@@ -1187,4 +1191,295 @@ macro_rules! create_amount_converter_wrapper {
         }
     };
 }
+
 pub(crate) use create_amount_converter_wrapper;
+
+/// Generates default (empty/no-op) payout trait implementations for a connector.
+///
+/// This macro is the **public entry point** for registering a connector struct with all
+/// payout-related flows. It works in tandem with [`expand_payout_implementation!`], which
+/// does the actual `impl` generation for each individual flow.
+///
+/// # How it works
+///
+/// The macro uses a **recursive list-peeling** pattern with three arms:
+///
+/// 1. **Default arm (no `payout_flows` specified)** – Expands the full list of all eight
+///    payout flows (`PayoutCreate`, `PayoutTransfer`, `PayoutGet`, `PayoutVoid`,
+///    `PayoutStage`, `PayoutCreateLink`, `PayoutCreateRecipient`,
+///    `PayoutEnrollDisburseAccount`) and re-invokes itself with that list.
+///
+/// 2. **Recursive arm (`payout_flows: [head, tail…]`)** – Peels the first flow off the
+///    list, delegates it to [`expand_payout_implementation!`] to emit the trait impls for
+///    that single flow, then recurses on the remaining flows.
+///
+/// 3. **Base-case arm (`payout_flows: []`)** – Empty list; terminates the recursion.
+///
+/// # Generated code
+///
+/// For **each** payout flow `F`, two trait implementations are emitted on
+/// `$connector<$generic_type>`:
+///
+/// - `impl ::interfaces::connector_types::{F}V2`
+///   – The marker trait that flags the connector as supporting flow `F`.
+/// - `impl ::interfaces::connector_integration_v2::ConnectorIntegrationV2<FlowType, FlowData, Request, Response>`
+///   – The default (empty) integration trait, providing no-op behaviour that connectors
+///   can override by supplying their own impl.
+///
+/// # Parameters
+///
+/// | Parameter       | Description |
+/// |-----------------|-------------|
+/// | `connector`     | The connector struct name (e.g. `Razorpay`). |
+/// | `generic_type`  | The generic type parameter on the connector (e.g. `T`). |
+/// | `[ bounds ]`    | Trait bounds for the generic type (e.g. `Send + Sync + 'static`). |
+/// | `payout_flows`  | *(optional)* Explicit list of flows to implement. When omitted, all eight flows are used. |
+///
+/// # Example
+///
+/// ```rust,ignore
+/// // Implements all 8 payout flows with default (no-op) behaviour:
+/// macro_connector_payout_implementation!(
+///     connector: Razorpay,
+///     generic_type: T,
+///     [Send + Sync + 'static]
+/// );
+///
+/// // Implements only a subset of payout flows:
+/// macro_connector_payout_implementation!(
+///     connector: Razorpay,
+///     generic_type: T,
+///     [Send + Sync + 'static],
+///     payout_flows: [PayoutCreate, PayoutGet]
+/// );
+/// ```
+macro_rules! macro_connector_payout_implementation {
+    // Arm 1: Default – no explicit payout_flows list provided.
+    // Supplies the full set of all eight payout flows and re-invokes itself.
+    (
+        connector: $connector: ident,
+        generic_type: $generic_type:tt,
+        [ $($bounds:tt)* ]
+    ) => {
+        $crate::connectors::macros::macro_connector_payout_implementation!(
+            connector: $connector,
+            generic_type: $generic_type,
+            [ $($bounds)* ],
+            payout_flows: [
+                PayoutCreate,
+                PayoutTransfer,
+                PayoutGet,
+                PayoutVoid,
+                PayoutStage,
+                PayoutCreateLink,
+                PayoutCreateRecipient,
+                PayoutEnrollDisburseAccount
+            ]
+        );
+    };
+
+    // Arm 2: Recursive – peel the first flow (`$flow`) from the list, generate its impls
+    // via `expand_payout_implementation!`, then recurse on the remaining flows (`$rest`).
+    (
+        connector: $connector: ident,
+        generic_type: $generic_type:tt,
+        [ $($bounds:tt)* ],
+        payout_flows: [ $flow: ident $(, $rest: ident)* ]
+    ) => {
+        $crate::connectors::macros::expand_payout_implementation!(
+            connector: $connector,
+            flow: $flow,
+            generic_type: $generic_type,
+            [ $($bounds)* ]
+        );
+        $crate::connectors::macros::macro_connector_payout_implementation!(
+            connector: $connector,
+            generic_type: $generic_type,
+            [ $($bounds)* ],
+            payout_flows: [ $($rest),* ]
+        );
+    };
+
+    // Arm 3: Base case – empty flow list; terminate recursion.
+    (
+        connector: $connector: ident,
+        generic_type: $generic_type:tt,
+        [ $($bounds:tt)* ],
+        payout_flows: []
+    ) => {};
+
+}
+pub(crate) use macro_connector_payout_implementation;
+
+/// Emits the concrete trait implementations for a **single** payout flow on a connector.
+///
+/// This macro is the **internal workhorse** called by [`macro_connector_payout_implementation!`].
+/// It pattern-matches on the flow identifier and generates two trait implementations for
+/// the connector:
+///
+/// 1. **Marker trait** (`Payout{Flow}V2`) from `::interfaces::connector_types` –
+///    Declares that the connector supports this particular payout flow.
+///
+/// 2. **Integration trait** (`ConnectorIntegrationV2<Flow, FlowData, Request, Response>`)
+///    from `::interfaces::connector_integration_v2` –
+///    Provides a default (empty) integration implementation. Because the impl body is `{}`,
+///    all methods fall back to the trait's default behaviour (typically returning
+///    `NotImplemented` errors). Connectors that actually support a flow override this with
+///    a concrete implementation elsewhere.
+///
+/// # Supported flows
+///
+/// Each arm maps a flow identifier to the corresponding types:
+///
+/// | Flow identifier              | Marker trait                    | Flow type / Request / Response types                               |
+/// |------------------------------|---------------------------------|--------------------------------------------------------------------|
+/// | `PayoutCreate`               | `PayoutCreateV2`                | `PayoutCreate` / `PayoutCreateRequest` / `PayoutCreateResponse`    |
+/// | `PayoutTransfer`             | `PayoutTransferV2`              | `PayoutTransfer` / `PayoutTransferRequest` / `PayoutTransferResponse` |
+/// | `PayoutGet`                  | `PayoutGetV2`                   | `PayoutGet` / `PayoutGetRequest` / `PayoutGetResponse`             |
+/// | `PayoutVoid`                 | `PayoutVoidV2`                  | `PayoutVoid` / `PayoutVoidRequest` / `PayoutVoidResponse`          |
+/// | `PayoutStage`                | `PayoutStageV2`                 | `PayoutStage` / `PayoutStageRequest` / `PayoutStageResponse`       |
+/// | `PayoutCreateLink`           | `PayoutCreateLinkV2`            | `PayoutCreateLink` / `PayoutCreateLinkRequest` / `PayoutCreateLinkResponse` |
+/// | `PayoutCreateRecipient`      | `PayoutCreateRecipientV2`       | `PayoutCreateRecipient` / `PayoutCreateRecipientRequest` / `PayoutCreateRecipientResponse` |
+/// | `PayoutEnrollDisburseAccount`| `PayoutEnrollDisburseAccountV2` | `PayoutEnrollDisburseAccount` / `PayoutEnrollDisburseAccountRequest` / `PayoutEnrollDisburseAccountResponse` |
+///
+/// All flows share `PayoutFlowData` as the common flow-data type.
+///
+/// # Parameters
+///
+/// | Parameter       | Description |
+/// |-----------------|-------------|
+/// | `connector`     | The connector struct name. |
+/// | `flow`          | One of the eight payout flow identifiers listed above. |
+/// | `generic_type`  | The generic type parameter on the connector. |
+/// | `[ bounds ]`    | Trait bounds for the generic type. |
+macro_rules! expand_payout_implementation {
+    (
+        connector: $connector: ident,
+        flow: PayoutCreate,
+        generic_type: $generic_type:tt,
+        [ $($bounds:tt)* ]
+    ) => {
+        impl<$generic_type: $($bounds)*> ::interfaces::connector_types::PayoutCreateV2 for $connector<$generic_type> {}
+        impl<$generic_type: $($bounds)*>
+            ::interfaces::connector_integration_v2::ConnectorIntegrationV2<
+                ::domain_types::connector_flow::PayoutCreate,
+                ::domain_types::payouts::payouts_types::PayoutFlowData,
+                ::domain_types::payouts::payouts_types::PayoutCreateRequest,
+                ::domain_types::payouts::payouts_types::PayoutCreateResponse,
+            > for $connector<$generic_type>
+        {}
+    };
+    (
+        connector: $connector: ident,
+        flow: PayoutTransfer,
+        generic_type: $generic_type:tt,
+        [ $($bounds:tt)* ]
+    ) => {
+        impl<$generic_type: $($bounds)*> ::interfaces::connector_types::PayoutTransferV2 for $connector<$generic_type> {}
+        impl<$generic_type: $($bounds)*>
+            ::interfaces::connector_integration_v2::ConnectorIntegrationV2<
+                ::domain_types::connector_flow::PayoutTransfer,
+                ::domain_types::payouts::payouts_types::PayoutFlowData,
+                ::domain_types::payouts::payouts_types::PayoutTransferRequest,
+                ::domain_types::payouts::payouts_types::PayoutTransferResponse,
+            > for $connector<$generic_type>
+        {}
+    };
+    (
+        connector: $connector: ident,
+        flow: PayoutGet,
+        generic_type: $generic_type:tt,
+        [ $($bounds:tt)* ]
+    ) => {
+        impl<$generic_type: $($bounds)*> ::interfaces::connector_types::PayoutGetV2 for $connector<$generic_type> {}
+        impl<$generic_type: $($bounds)*>
+            ::interfaces::connector_integration_v2::ConnectorIntegrationV2<
+                ::domain_types::connector_flow::PayoutGet,
+                ::domain_types::payouts::payouts_types::PayoutFlowData,
+                ::domain_types::payouts::payouts_types::PayoutGetRequest,
+                ::domain_types::payouts::payouts_types::PayoutGetResponse,
+            > for $connector<$generic_type>
+        {}
+    };
+    (
+        connector: $connector: ident,
+        flow: PayoutVoid,
+        generic_type: $generic_type:tt,
+        [ $($bounds:tt)* ]
+    ) => {
+        impl<$generic_type: $($bounds)*> ::interfaces::connector_types::PayoutVoidV2 for $connector<$generic_type> {}
+        impl<$generic_type: $($bounds)*>
+            ::interfaces::connector_integration_v2::ConnectorIntegrationV2<
+                ::domain_types::connector_flow::PayoutVoid,
+                ::domain_types::payouts::payouts_types::PayoutFlowData,
+                ::domain_types::payouts::payouts_types::PayoutVoidRequest,
+                ::domain_types::payouts::payouts_types::PayoutVoidResponse,
+            > for $connector<$generic_type>
+        {}
+    };
+    (
+        connector: $connector: ident,
+        flow: PayoutStage,
+        generic_type: $generic_type:tt,
+        [ $($bounds:tt)* ]
+    ) => {
+        impl<$generic_type: $($bounds)*> ::interfaces::connector_types::PayoutStageV2 for $connector<$generic_type> {}
+        impl<$generic_type: $($bounds)*>
+            ::interfaces::connector_integration_v2::ConnectorIntegrationV2<
+                ::domain_types::connector_flow::PayoutStage,
+                ::domain_types::payouts::payouts_types::PayoutFlowData,
+                ::domain_types::payouts::payouts_types::PayoutStageRequest,
+                ::domain_types::payouts::payouts_types::PayoutStageResponse,
+            > for $connector<$generic_type>
+        {}
+    };
+    (
+        connector: $connector: ident,
+        flow: PayoutCreateLink,
+        generic_type: $generic_type:tt,
+        [ $($bounds:tt)* ]
+    ) => {
+        impl<$generic_type: $($bounds)*> ::interfaces::connector_types::PayoutCreateLinkV2 for $connector<$generic_type> {}
+        impl<$generic_type: $($bounds)*>
+            ::interfaces::connector_integration_v2::ConnectorIntegrationV2<
+                ::domain_types::connector_flow::PayoutCreateLink,
+                ::domain_types::payouts::payouts_types::PayoutFlowData,
+                ::domain_types::payouts::payouts_types::PayoutCreateLinkRequest,
+                ::domain_types::payouts::payouts_types::PayoutCreateLinkResponse,
+            > for $connector<$generic_type>
+        {}
+    };
+    (
+        connector: $connector: ident,
+        flow: PayoutCreateRecipient,
+        generic_type: $generic_type:tt,
+        [ $($bounds:tt)* ]
+    ) => {
+        impl<$generic_type: $($bounds)*> ::interfaces::connector_types::PayoutCreateRecipientV2 for $connector<$generic_type> {}
+        impl<$generic_type: $($bounds)*>
+            ::interfaces::connector_integration_v2::ConnectorIntegrationV2<
+                ::domain_types::connector_flow::PayoutCreateRecipient,
+                ::domain_types::payouts::payouts_types::PayoutFlowData,
+                ::domain_types::payouts::payouts_types::PayoutCreateRecipientRequest,
+                ::domain_types::payouts::payouts_types::PayoutCreateRecipientResponse,
+            > for $connector<$generic_type>
+        {}
+    };
+    (
+        connector: $connector: ident,
+        flow: PayoutEnrollDisburseAccount,
+        generic_type: $generic_type:tt,
+        [ $($bounds:tt)* ]
+    ) => {
+        impl<$generic_type: $($bounds)*> ::interfaces::connector_types::PayoutEnrollDisburseAccountV2 for $connector<$generic_type> {}
+        impl<$generic_type: $($bounds)*>
+            ::interfaces::connector_integration_v2::ConnectorIntegrationV2<
+                ::domain_types::connector_flow::PayoutEnrollDisburseAccount,
+                ::domain_types::payouts::payouts_types::PayoutFlowData,
+                ::domain_types::payouts::payouts_types::PayoutEnrollDisburseAccountRequest,
+                ::domain_types::payouts::payouts_types::PayoutEnrollDisburseAccountResponse,
+            > for $connector<$generic_type>
+        {}
+    };
+}
+pub(crate) use expand_payout_implementation;

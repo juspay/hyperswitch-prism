@@ -368,20 +368,6 @@ pub trait PayoutCreateV2:
 {
 }
 
-impl<T> PayoutCreateV2 for T where T: ConnectorCommon + Sync + Send + 'static {}
-
-impl<T>
-    ConnectorIntegrationV2<
-        connector_flow::PayoutCreate,
-        PayoutFlowData,
-        PayoutCreateRequest,
-        PayoutCreateResponse,
-    > for T
-where
-    T: ConnectorCommon + Sync + Send + 'static,
-{
-}
-
 pub trait IncomingWebhook {
     fn verify_webhook_source(
         &self,
@@ -672,20 +658,6 @@ pub trait PayoutTransferV2:
 {
 }
 
-impl<T> PayoutTransferV2 for T where T: ConnectorCommon + Sync + Send + 'static {}
-
-impl<T>
-    ConnectorIntegrationV2<
-        connector_flow::PayoutTransfer,
-        PayoutFlowData,
-        PayoutTransferRequest,
-        PayoutTransferResponse,
-    > for T
-where
-    T: ConnectorCommon + Sync + Send + 'static,
-{
-}
-
 pub trait PayoutGetV2:
     ConnectorIntegrationV2<
     connector_flow::PayoutGet,
@@ -693,20 +665,6 @@ pub trait PayoutGetV2:
     PayoutGetRequest,
     PayoutGetResponse,
 >
-{
-}
-
-impl<T> PayoutGetV2 for T where T: ConnectorCommon + Sync + Send + 'static {}
-
-impl<T>
-    ConnectorIntegrationV2<
-        connector_flow::PayoutGet,
-        PayoutFlowData,
-        PayoutGetRequest,
-        PayoutGetResponse,
-    > for T
-where
-    T: ConnectorCommon + Sync + Send + 'static,
 {
 }
 
@@ -720,20 +678,6 @@ pub trait PayoutVoidV2:
 {
 }
 
-impl<T> PayoutVoidV2 for T where T: ConnectorCommon + Sync + Send + 'static {}
-
-impl<T>
-    ConnectorIntegrationV2<
-        connector_flow::PayoutVoid,
-        PayoutFlowData,
-        PayoutVoidRequest,
-        PayoutVoidResponse,
-    > for T
-where
-    T: ConnectorCommon + Sync + Send + 'static,
-{
-}
-
 pub trait PayoutStageV2:
     ConnectorIntegrationV2<
     connector_flow::PayoutStage,
@@ -741,20 +685,6 @@ pub trait PayoutStageV2:
     PayoutStageRequest,
     PayoutStageResponse,
 >
-{
-}
-
-impl<T> PayoutStageV2 for T where T: ConnectorCommon + Sync + Send + 'static {}
-
-impl<T>
-    ConnectorIntegrationV2<
-        connector_flow::PayoutStage,
-        PayoutFlowData,
-        PayoutStageRequest,
-        PayoutStageResponse,
-    > for T
-where
-    T: ConnectorCommon + Sync + Send + 'static,
 {
 }
 
@@ -768,20 +698,6 @@ pub trait PayoutCreateLinkV2:
 {
 }
 
-impl<T> PayoutCreateLinkV2 for T where T: ConnectorCommon + Sync + Send + 'static {}
-
-impl<T>
-    ConnectorIntegrationV2<
-        connector_flow::PayoutCreateLink,
-        PayoutFlowData,
-        PayoutCreateLinkRequest,
-        PayoutCreateLinkResponse,
-    > for T
-where
-    T: ConnectorCommon + Sync + Send + 'static,
-{
-}
-
 pub trait PayoutCreateRecipientV2:
     ConnectorIntegrationV2<
     connector_flow::PayoutCreateRecipient,
@@ -792,20 +708,6 @@ pub trait PayoutCreateRecipientV2:
 {
 }
 
-impl<T> PayoutCreateRecipientV2 for T where T: ConnectorCommon + Sync + Send + 'static {}
-
-impl<T>
-    ConnectorIntegrationV2<
-        connector_flow::PayoutCreateRecipient,
-        PayoutFlowData,
-        PayoutCreateRecipientRequest,
-        PayoutCreateRecipientResponse,
-    > for T
-where
-    T: ConnectorCommon + Sync + Send + 'static,
-{
-}
-
 pub trait PayoutEnrollDisburseAccountV2:
     ConnectorIntegrationV2<
     connector_flow::PayoutEnrollDisburseAccount,
@@ -813,19 +715,5 @@ pub trait PayoutEnrollDisburseAccountV2:
     PayoutEnrollDisburseAccountRequest,
     PayoutEnrollDisburseAccountResponse,
 >
-{
-}
-
-impl<T> PayoutEnrollDisburseAccountV2 for T where T: ConnectorCommon + Sync + Send + 'static {}
-
-impl<T>
-    ConnectorIntegrationV2<
-        connector_flow::PayoutEnrollDisburseAccount,
-        PayoutFlowData,
-        PayoutEnrollDisburseAccountRequest,
-        PayoutEnrollDisburseAccountResponse,
-    > for T
-where
-    T: ConnectorCommon + Sync + Send + 'static,
 {
 }

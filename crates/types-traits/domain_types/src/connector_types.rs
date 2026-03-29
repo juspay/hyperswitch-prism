@@ -126,6 +126,7 @@ pub enum ConnectorEnum {
     Truelayer,
     Peachpayments,
     Finix,
+    Itaubank,
 }
 
 impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
@@ -211,6 +212,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Truelayer => Ok(Self::Truelayer),
             grpc_api_types::payments::Connector::Peachpayments => Ok(Self::Peachpayments),
             grpc_api_types::payments::Connector::Finix => Ok(Self::Finix),
+            grpc_api_types::payments::Connector::Itaubank => Ok(Self::Itaubank),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(ApplicationErrorResponse::BadRequest(ApiError {
                     sub_code: "UNSPECIFIED_CONNECTOR".to_owned(),

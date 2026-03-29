@@ -2,6 +2,7 @@ pub mod test;
 pub mod transformers;
 use std::sync::LazyLock;
 
+use super::macros;
 use common_enums::{
     AttemptStatus, CaptureMethod, CardNetwork, EventClass, PaymentMethod, PaymentMethodType,
 };
@@ -100,6 +101,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     connector_types::SdkSessionTokenV2 for Razorpay<T>
 {
 }
+
+macros::macro_connector_payout_implementation!(
+    connector: Razorpay,
+    generic_type: T,
+    [PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize]
+);
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Razorpay<T>

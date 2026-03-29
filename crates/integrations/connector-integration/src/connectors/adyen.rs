@@ -331,6 +331,12 @@ macros::create_all_prerequisites!(
     }
 );
 
+macros::macro_connector_payout_implementation!(
+    connector: Adyen,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize]
+);
+
 fn build_env_specific_endpoint(
     base_url: &str,
     test_mode: Option<bool>,

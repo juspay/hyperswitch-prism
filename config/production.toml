@@ -113,6 +113,9 @@ wellsfargo.base_url = "https://api.cybersource.com/"
 zift.base_url = "https://secure.zift.io/"
 truelayer.base_url = "https://api.truelayer.com"
 truelayer.secondary_base_url = "https://auth.truelayer.com"
+itaubank.base_url = "https://api.itau.com.br/sispag"
+itaubank.secondary_base_url = "https://api.itau.com.br"
+
 
 # Generic Events Configuration
 [events]

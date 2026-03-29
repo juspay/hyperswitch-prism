@@ -525,5 +525,10 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             terminal_id: id(),
             base_url: None,
         },
+        ConnectorEnum::Itaubank => ConnectorSpecificConfig::Itaubank {
+            client_id: id(),
+            client_secret: s(),
+            base_url: None,
+        },
     }
 }

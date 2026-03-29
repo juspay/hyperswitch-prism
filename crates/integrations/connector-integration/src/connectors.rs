@@ -232,3 +232,6 @@ pub use self::peachpayments::Peachpayments;
 
 pub mod finix;
 pub use self::finix::Finix;
+
+pub mod itaubank;
+pub use self::itaubank::Itaubank;

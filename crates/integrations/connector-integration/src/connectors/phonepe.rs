@@ -81,6 +81,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     connector_types::SdkSessionTokenV2 for Phonepe<T>
 {
 }
+
+macros::macro_connector_payout_implementation!(
+    connector: Phonepe,
+    generic_type: T,
+    [PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize]
+);
+
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSessionToken for Phonepe<T>
 {

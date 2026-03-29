@@ -288,6 +288,12 @@ macros::create_all_prerequisites!(
     }
 );
 
+macros::macro_connector_payout_implementation!(
+    connector: Airwallex,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize]
+);
+
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Airwallex,

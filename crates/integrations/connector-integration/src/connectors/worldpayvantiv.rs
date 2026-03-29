@@ -107,6 +107,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 {
 }
 
+macros::macro_connector_payout_implementation!(
+    connector: Worldpayvantiv,
+    generic_type: T,
+    [PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize]
+);
+
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     PaymentAuthenticateV2<T> for Worldpayvantiv<T>
 {

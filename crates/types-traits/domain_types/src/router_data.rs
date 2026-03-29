@@ -697,6 +697,11 @@ pub enum ConnectorSpecificConfig {
         terminal_id: Secret<String>,
         base_url: Option<String>,
     },
+    Itaubank {
+        client_id: Secret<String>,
+        client_secret: Secret<String>,
+        base_url: Option<String>,
+    },
 }
 
 impl ConnectorSpecificConfig {
@@ -988,6 +993,10 @@ impl ConnectorSpecificConfig {
                 merchant_id,
                 terminal_id
             },
+            Itaubank {
+                client_id,
+                client_secret
+            }
         )
     }
 
@@ -1366,6 +1375,10 @@ impl ConnectorSpecificConfig {
                     secret,
                     merchant_id,
                     terminal_id
+                },
+                Itaubank {
+                    client_id,
+                    client_secret
                 }
             ),
             serde_json::Value::Object(connector_patch),
@@ -2813,6 +2826,14 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorEnum)>
                     secret: api_secret.clone(),
                     merchant_id: key1.clone(),
                     terminal_id: key2.clone(),
+                    base_url: None,
+                }),
+                _ => Err(err().into()),
+            },
+            ConnectorEnum::Itaubank => match auth {
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Itaubank {
+                    client_id: api_key.clone(),
+                    client_secret: key1.clone(),
                     base_url: None,
                 }),
                 _ => Err(err().into()),
