@@ -437,3 +437,5 @@ sdk/tests/client_sanity/artifacts/
 
 # Generated proto descriptor files
 scripts/generators/code/services.desc
+
+# Duplicate creds.json entry removed - already exists at line 415

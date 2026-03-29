@@ -14,7 +14,8 @@ use domain_types::{
     },
     errors,
     payment_method_data::{
-        BankRedirectData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
+        BankRedirectData, GpayTokenizationData, PaymentMethodData, PaymentMethodDataTypes,
+        RawCardNumber, WalletData,
     },
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -351,6 +352,27 @@ pub struct GlobalpayPaymentMethod<T: PaymentMethodDataTypes> {
     pub card: Option<GlobalpayCard<T>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub apm: Option<GlobalpayApm>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub digital_wallet: Option<GlobalpayDigitalWallet>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct GlobalpayDigitalWallet {
+    pub provider: GlobalpayDigitalWalletProvider,
+    pub payment_token: GlobalpayPaymentToken,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum GlobalpayDigitalWalletProvider {
+    PayByGoogle,
+}
+
+#[derive(Debug, Serialize)]
+pub struct GlobalpayPaymentToken {
+    pub signature: String,
+    pub protocol_version: String,
+    pub signed_message: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -415,6 +437,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         cvv_indicator,
                     }),
                     apm: None,
+                    digital_wallet: None,
                 }
             }
             PaymentMethodData::BankRedirect(bank_redirect) => {
@@ -436,6 +459,35 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     card: None,
                     apm: Some(GlobalpayApm {
                         provider: apm_provider,
+                    }),
+                    digital_wallet: None,
+                }
+            }
+            PaymentMethodData::Wallet(WalletData::GooglePay(google_pay_data)) => {
+                // Get the encrypted token data from Google Pay
+                let encrypted_token = match &google_pay_data.tokenization_data {
+                    GpayTokenizationData::Encrypted(encrypted_data) => encrypted_data,
+                    GpayTokenizationData::Decrypted(_) => {
+                        return Err(error_stack::report!(
+                            errors::ConnectorError::InvalidWalletToken {
+                                wallet_name: "Google Pay".to_string(),
+                            }
+                        ))
+                    }
+                };
+
+                GlobalpayPaymentMethod {
+                    name: item.request.customer_name.clone().map(Secret::new),
+                    entry_mode: constants::ENTRY_MODE_ECOM.to_string(),
+                    card: None,
+                    apm: None,
+                    digital_wallet: Some(GlobalpayDigitalWallet {
+                        provider: GlobalpayDigitalWalletProvider::PayByGoogle,
+                        payment_token: GlobalpayPaymentToken {
+                            signature: "".to_string(), // GlobalPay uses encrypted token as signed_message
+                            protocol_version: encrypted_token.token_type.clone(),
+                            signed_message: encrypted_token.token.clone(),
+                        },
                     }),
                 }
             }
