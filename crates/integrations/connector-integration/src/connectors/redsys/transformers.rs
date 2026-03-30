@@ -37,11 +37,49 @@ pub const SIGNATURE_VERSION: &str = "HMAC_SHA256_V1";
 pub const DS_VERSION: &str = "0.0";
 pub const XMLNS_WEB_URL: &str = "http://webservices.apl02.redsys.es";
 pub const REDSYS_SOAP_ACTION: &str = "consultaOperaciones";
+pub const REDSYS_ORDER_ID_METADATA_KEY: &str = "order_id";
+pub const REDSYS_ORDER_ID_MAX_LENGTH: usize = 12;
 
 static LWV_THRESHOLD: LazyLock<common_utils::types::MinorUnit> =
     LazyLock::new(|| common_utils::types::MinorUnit::new(3000)); // €30
 
 type Error = error_stack::Report<errors::ConnectorError>;
+
+/// Extracts Redsys order ID from metadata if available.
+/// This is used as a fallback when connector_request_reference_id exceeds the 12 character limit.
+fn get_redsys_order_id_from_metadata(
+    metadata: Option<&Secret<serde_json::Value>>,
+) -> Option<String> {
+    metadata
+        .and_then(|meta| meta.peek().as_object())
+        .and_then(|obj| obj.get(REDSYS_ORDER_ID_METADATA_KEY))
+        .and_then(|value| value.as_str())
+        .map(|s| s.to_string())
+        .filter(|s| s.len() <= REDSYS_ORDER_ID_MAX_LENGTH)
+}
+
+/// Gets the Redsys order ID, using metadata as fallback when connector_request_reference_id exceeds 12 characters.
+/// Returns an error if neither source provides a valid order ID.
+fn get_ds_merchant_order(
+    connector_request_reference_id: String,
+    metadata: Option<&Secret<serde_json::Value>>,
+) -> Result<String, Error> {
+    // If connector_request_reference_id is within limit, use it
+    if connector_request_reference_id.len() <= REDSYS_ORDER_ID_MAX_LENGTH {
+        return Ok(connector_request_reference_id);
+    }
+
+    // Otherwise, try to get from metadata
+    get_redsys_order_id_from_metadata(metadata).ok_or_else(|| {
+        errors::ConnectorError::MaxFieldLengthViolated {
+            connector: "Redsys".to_string(),
+            field_name: "ds_merchant_order".to_string(),
+            max_length: REDSYS_ORDER_ID_MAX_LENGTH,
+            received_length: connector_request_reference_id.len(),
+        }
+        .into()
+    })
+}
 
 // Specifies the type of transaction for XML requests
 pub mod transaction_type {
@@ -778,16 +816,17 @@ where
             .connector_request_reference_id
             .clone();
 
-        let ds_merchant_order = if connector_request_reference_id.len() <= 12 {
-            Ok(connector_request_reference_id)
-        } else {
-            Err(errors::ConnectorError::MaxFieldLengthViolated {
-                connector: "Redsys".to_string(),
-                field_name: "ds_merchant_order".to_string(),
-                max_length: 12,
-                received_length: connector_request_reference_id.len(),
-            })
-        }?;
+        let ds_merchant_order =
+            if connector_request_reference_id.len() <= REDSYS_ORDER_ID_MAX_LENGTH {
+                Ok(connector_request_reference_id)
+            } else {
+                Err(errors::ConnectorError::MaxFieldLengthViolated {
+                    connector: "Redsys".to_string(),
+                    field_name: "ds_merchant_order".to_string(),
+                    max_length: REDSYS_ORDER_ID_MAX_LENGTH,
+                    received_length: connector_request_reference_id.len(),
+                })
+            }?;
 
         let payment_request = requests::RedsysPaymentRequest {
             ds_merchant_amount: amount,
@@ -1283,21 +1322,13 @@ where
             requests::RedsysTransactionType::Preauthorization
         };
 
-        let ds_merchant_order = if router_data
-            .resource_common_data
-            .connector_request_reference_id
-            .len()
-            <= 12
-        {
-            Ok(router_data
+        let ds_merchant_order = get_ds_merchant_order(
+            router_data
                 .resource_common_data
                 .connector_request_reference_id
-                .clone())
-        } else {
-            Err(errors::ConnectorError::RequestEncodingFailed).attach_printable(
-                "connector_request_reference_id length should be less than or equal to 12",
-            )
-        }?;
+                .clone(),
+            router_data.request.metadata.as_ref(),
+        )?;
 
         let payment_request = requests::RedsysPaymentRequest {
             ds_merchant_amount: RedsysAmountConvertor::convert(
