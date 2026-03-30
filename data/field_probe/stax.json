@@ -333,6 +333,18 @@
         "status": "not_implemented"
       }
     },
+    "proxied_authorize": {
+      "default": {
+        "status": "error",
+        "error": "Missing card number"
+      }
+    },
+    "proxied_setup_recurring": {
+      "default": {
+        "status": "error",
+        "error": "Customer acceptance is missing"
+      }
+    },
     "recurring_charge": {
       "default": {
         "status": "not_implemented"
@@ -407,6 +419,18 @@
           },
           "body": "{\"method\":\"card\",\"person_name\":\"John Doe\",\"card_number\":\"4111111111111111\",\"card_exp\":\"0330\",\"card_cvv\":\"737\",\"customer_id\":\"cust_probe_123\"}"
         }
+      }
+    },
+    "tokenized_authorize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card and ACH bank debit payments are supported for Stax"
+      }
+    },
+    "tokenized_setup_recurring": {
+      "default": {
+        "status": "error",
+        "error": "Future usage must be specified"
       }
     },
     "void": {

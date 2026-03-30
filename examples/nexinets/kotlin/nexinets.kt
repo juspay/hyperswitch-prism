@@ -1,221 +1,93 @@
-// This file is auto-generated. Do not edit manually.
-// Replace YOUR_API_KEY and placeholder values with real data.
-// Regenerate: python3 scripts/generate-connector-docs.py nexinets
-//
-// Nexinets — all scenarios and flows in one file.
-// Run a scenario:  ./gradlew run --args="nexinets processCheckoutCard"
-
+// Auto-generated for nexinets
 package examples.nexinets
 
-import payments.PaymentClient
-import payments.PaymentServiceAuthorizeRequest
-import payments.PaymentServiceRefundRequest
-import payments.PaymentServiceGetRequest
+import payments.Address
 import payments.AuthenticationType
 import payments.CaptureMethod
-import payments.Currency
+import payments.CardDetails
+import payments.CardNumberType
 import payments.ConnectorConfig
-import payments.SdkOptions
+import payments.Currency
+import payments.DirectPaymentClient
 import payments.Environment
+import payments.Money
+import payments.PaymentAddress
+import payments.PaymentMethod
+import payments.PaymentServiceAuthorizeRequest
+import payments.PaymentServiceGetRequest
+import payments.PaymentServiceRefundRequest
+import payments.SecretString
+import types.PaymentMethods.AppleWallet
 
-
-private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAuthorizeRequest {
-    return PaymentServiceAuthorizeRequest.newBuilder().apply {
-        merchantTransactionId = "probe_txn_001"  // Identification
-        amountBuilder.apply {  // The amount for the payment
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00)
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR")
-        }
-        paymentMethodBuilder.apply {  // Payment method to be used
-            cardBuilder.apply {  // Generic card payment
-                cardNumberBuilder.value = "4111111111111111"  // Card Identification
-                cardExpMonthBuilder.value = "03"
-                cardExpYearBuilder.value = "2030"
-                cardCvcBuilder.value = "737"
-                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information
-            }
-        }
-        captureMethod = CaptureMethod.valueOf(captureMethodStr)  // Method for capturing the payment
-        addressBuilder.apply {  // Address Information
-            billingAddressBuilder.apply {
-            }
-        }
-        authType = AuthenticationType.NO_THREE_DS  // Authentication Details
-        returnUrl = "https://example.com/return"  // URLs for Redirection and Webhooks
-    }.build()
-}
-
-private fun buildGetRequest(connectorTransactionIdStr: String): PaymentServiceGetRequest {
-    return PaymentServiceGetRequest.newBuilder().apply {
-        merchantTransactionId = "probe_merchant_txn_001"  // Identification
-        connectorTransactionId = connectorTransactionIdStr
-        amountBuilder.apply {  // Amount Information
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00)
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR")
-        }
-    }.build()
-}
-
-private fun buildRefundRequest(connectorTransactionIdStr: String): PaymentServiceRefundRequest {
-    return PaymentServiceRefundRequest.newBuilder().apply {
-        merchantRefundId = "probe_refund_001"  // Identification
-        connectorTransactionId = connectorTransactionIdStr
-        paymentAmount = 1000L  // Amount Information
-        refundAmountBuilder.apply {
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00)
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR")
-        }
-        reason = "customer_request"  // Reason for the refund
-    }.build()
-}
-
-val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
-    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    // .setConnectorConfig(...) — set your connector config here
-    .build()
-
-
-// Scenario: Card Payment (Automatic Capture)
-// Authorize and capture in one call using `capture_method=AUTOMATIC`. Use for digital goods or immediate fulfillment.
-fun processCheckoutAutocapture(txnId: String, config: ConnectorConfig = _defaultConfig): Map<String, Any?> {
-    val paymentClient = PaymentClient(config)
+fun processCheckoutAutocapture(txnId: String, config: ConnectorConfig): Map<String, Any?> {
+    // Card Payment (Automatic Capture)
+    val directPaymentClient = DirectPaymentClient(config)
 
     // Step 1: Authorize — reserve funds on the payment method
-    val authorizeResponse = paymentClient.authorize(buildAuthorizeRequest("AUTOMATIC"))
+    val result = directPaymentClient.authorize(PaymentServiceAuthorizeRequest.newBuilder().setMerchantTransactionId("probe_txn_001").setAmount(Money.newBuilder().setMinorAmount(1000).setCurrency(Currency.USD).build()).setPaymentMethod(PaymentMethod.newBuilder().setCard(CardDetails.newBuilder().setCardNumber(CardNumberType.newBuilder().setValue("4111111111111111").build()).setCardExpMonth(SecretString.newBuilder().setValue("03").build()).setCardExpYear(SecretString.newBuilder().setValue("2030").build()).setCardCvc(SecretString.newBuilder().setValue("737").build()).setCardHolderName(SecretString.newBuilder().setValue("John Doe").build()).build()).build()).setCaptureMethod(CaptureMethod.AUTOMATIC).setAddress(PaymentAddress.newBuilder().setBillingAddress(Address.newBuilder().build()).build()).setAuthType(AuthenticationType.NO_THREE_DS).setReturnUrl("https://example.com/return").build())
+    println("[authorize] HTTP ${result.statusCode}")
 
-    when (authorizeResponse.status.name) {
-        "FAILED"  -> throw RuntimeException("Payment failed: ${authorizeResponse.error.unifiedDetails.message}")
-        "PENDING" -> return mapOf("status" to "PENDING")  // await webhook before proceeding
-    }
-
-    return mapOf("status" to authorizeResponse.status.name, "transactionId" to authorizeResponse.connectorTransactionId, "error" to authorizeResponse.error)
+    return mapOf("statusCode" to result.statusCode)
 }
-
-// Scenario: Wallet Payment (Google Pay / Apple Pay)
-// Wallet payments pass an encrypted token from the browser/device SDK. Pass the token blob directly — do not decrypt client-side.
-fun processCheckoutWallet(txnId: String, config: ConnectorConfig = _defaultConfig): Map<String, Any?> {
-    val paymentClient = PaymentClient(config)
+fun processCheckoutWallet(txnId: String, config: ConnectorConfig): Map<String, Any?> {
+    // Wallet Payment (Google Pay / Apple Pay)
+    val directPaymentClient = DirectPaymentClient(config)
 
     // Step 1: Authorize — reserve funds on the payment method
-    val authorizeResponse = paymentClient.authorize(PaymentServiceAuthorizeRequest.newBuilder().apply {
-        merchantTransactionId = "probe_txn_001"  // Identification
-        amountBuilder.apply {  // The amount for the payment
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00)
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR")
-        }
-        paymentMethodBuilder.apply {  // Payment method to be used
-            applePayBuilder.apply {  // Apple Pay
-                paymentDataBuilder.apply {
-                    encryptedData = "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9"  // Encrypted Apple Pay payment data as string
-                }
-                paymentMethodBuilder.apply {
-                    displayName = "Visa 1111"
-                    network = "Visa"
-                    type = "debit"
-                }
-                transactionIdentifier = "probe_txn_id"  // Transaction identifier
-            }
-        }
-        captureMethod = CaptureMethod.AUTOMATIC  // Method for capturing the payment
-        addressBuilder.apply {  // Address Information
-            billingAddressBuilder.apply {
-            }
-        }
-        authType = AuthenticationType.NO_THREE_DS  // Authentication Details
-        returnUrl = "https://example.com/return"  // URLs for Redirection and Webhooks
-    }.build())
+    val result = directPaymentClient.authorize(PaymentServiceAuthorizeRequest.newBuilder().setMerchantTransactionId("probe_txn_001").setAmount(Money.newBuilder().setMinorAmount(1000).setCurrency(Currency.USD).build()).setPaymentMethod(PaymentMethod.newBuilder().setApplePay(AppleWallet.newBuilder().setPaymentData(AppleWallet.PaymentData.newBuilder().setEncryptedData("eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9").build()).setPaymentMethod(PaymentMethod.newBuilder().setDisplayName("Visa 1111").setNetwork("Visa").setType("debit").build()).setTransactionIdentifier("probe_txn_id").build()).build()).setCaptureMethod(CaptureMethod.AUTOMATIC).setAddress(PaymentAddress.newBuilder().setBillingAddress(Address.newBuilder().build()).build()).setAuthType(AuthenticationType.NO_THREE_DS).setReturnUrl("https://example.com/return").build())
+    println("[authorize] HTTP ${result.statusCode}")
 
-    when (authorizeResponse.status.name) {
-        "FAILED"  -> throw RuntimeException("Payment failed: ${authorizeResponse.error.unifiedDetails.message}")
-        "PENDING" -> return mapOf("status" to "PENDING")  // await webhook before proceeding
-    }
-
-    return mapOf("status" to authorizeResponse.status.name, "transactionId" to authorizeResponse.connectorTransactionId, "error" to authorizeResponse.error)
+    return mapOf("statusCode" to result.statusCode)
 }
-
-// Scenario: Refund a Payment
-// Authorize with automatic capture, then refund the captured amount. `connector_transaction_id` from the Authorize response is reused for the Refund call.
-fun processRefund(txnId: String, config: ConnectorConfig = _defaultConfig): Map<String, Any?> {
-    val paymentClient = PaymentClient(config)
+fun processRefund(txnId: String, config: ConnectorConfig): Map<String, Any?> {
+    // Refund a Payment
+    val directPaymentClient = DirectPaymentClient(config)
 
     // Step 1: Authorize — reserve funds on the payment method
-    val authorizeResponse = paymentClient.authorize(buildAuthorizeRequest("AUTOMATIC"))
-
-    when (authorizeResponse.status.name) {
-        "FAILED"  -> throw RuntimeException("Payment failed: ${authorizeResponse.error.unifiedDetails.message}")
-        "PENDING" -> return mapOf("status" to "PENDING")  // await webhook before proceeding
-    }
+    val result1 = directPaymentClient.authorize(PaymentServiceAuthorizeRequest.newBuilder().setMerchantTransactionId("probe_txn_001").setAmount(Money.newBuilder().setMinorAmount(1000).setCurrency(Currency.USD).build()).setPaymentMethod(PaymentMethod.newBuilder().setCard(CardDetails.newBuilder().setCardNumber(CardNumberType.newBuilder().setValue("4111111111111111").build()).setCardExpMonth(SecretString.newBuilder().setValue("03").build()).setCardExpYear(SecretString.newBuilder().setValue("2030").build()).setCardCvc(SecretString.newBuilder().setValue("737").build()).setCardHolderName(SecretString.newBuilder().setValue("John Doe").build()).build()).build()).setCaptureMethod(CaptureMethod.AUTOMATIC).setAddress(PaymentAddress.newBuilder().setBillingAddress(Address.newBuilder().build()).build()).setAuthType(AuthenticationType.NO_THREE_DS).setReturnUrl("https://example.com/return").build())
+    println("[authorize] HTTP ${result1.statusCode}")
 
     // Step 2: Refund — return funds to the customer
-    val refundResponse = paymentClient.refund(buildRefundRequest(authorizeResponse.connectorTransactionId ?: ""))
+    val result2 = directPaymentClient.refund(PaymentServiceRefundRequest.newBuilder().setMerchantRefundId("probe_refund_001").setConnectorTransactionId("probe_connector_txn_001").setPaymentAmount(1000).setRefundAmount(Money.newBuilder().setMinorAmount(1000).setCurrency(Currency.USD).build()).setReason("customer_request").build())
+    println("[refund] HTTP ${result2.statusCode}")
 
-    if (refundResponse.status.name == "FAILED")
-        throw RuntimeException("Refund failed: ${refundResponse.error.unifiedDetails.message}")
-
-    return mapOf("status" to refundResponse.status.name, "error" to refundResponse.error)
+    return mapOf("statusCode" to result2.statusCode)
 }
-
-// Scenario: Get Payment Status
-// Authorize a payment, then poll the connector for its current status using Get. Use this to sync payment state when webhooks are unavailable or delayed.
-fun processGetPayment(txnId: String, config: ConnectorConfig = _defaultConfig): Map<String, Any?> {
-    val paymentClient = PaymentClient(config)
+fun processGetPayment(txnId: String, config: ConnectorConfig): Map<String, Any?> {
+    // Get Payment Status
+    val directPaymentClient = DirectPaymentClient(config)
 
     // Step 1: Authorize — reserve funds on the payment method
-    val authorizeResponse = paymentClient.authorize(buildAuthorizeRequest("MANUAL"))
-
-    when (authorizeResponse.status.name) {
-        "FAILED"  -> throw RuntimeException("Payment failed: ${authorizeResponse.error.unifiedDetails.message}")
-        "PENDING" -> return mapOf("status" to "PENDING")  // await webhook before proceeding
-    }
+    val result1 = directPaymentClient.authorize(PaymentServiceAuthorizeRequest.newBuilder().setMerchantTransactionId("probe_txn_001").setAmount(Money.newBuilder().setMinorAmount(1000).setCurrency(Currency.USD).build()).setPaymentMethod(PaymentMethod.newBuilder().setCard(CardDetails.newBuilder().setCardNumber(CardNumberType.newBuilder().setValue("4111111111111111").build()).setCardExpMonth(SecretString.newBuilder().setValue("03").build()).setCardExpYear(SecretString.newBuilder().setValue("2030").build()).setCardCvc(SecretString.newBuilder().setValue("737").build()).setCardHolderName(SecretString.newBuilder().setValue("John Doe").build()).build()).build()).setCaptureMethod(CaptureMethod.MANUAL).setAddress(PaymentAddress.newBuilder().setBillingAddress(Address.newBuilder().build()).build()).setAuthType(AuthenticationType.NO_THREE_DS).setReturnUrl("https://example.com/return").build())
+    println("[authorize] HTTP ${result1.statusCode}")
 
     // Step 2: Get — retrieve current payment status from the connector
-    val getResponse = paymentClient.get(buildGetRequest(authorizeResponse.connectorTransactionId ?: ""))
+    val result2 = directPaymentClient.get(PaymentServiceGetRequest.newBuilder().setMerchantTransactionId("probe_merchant_txn_001").setConnectorTransactionId("probe_connector_txn_001").setAmount(Money.newBuilder().setMinorAmount(1000).setCurrency(Currency.USD).build()).build())
+    println("[get] HTTP ${result2.statusCode}")
 
-    return mapOf("status" to getResponse.status.name, "transactionId" to getResponse.connectorTransactionId, "error" to getResponse.error)
+    return mapOf("statusCode" to result2.statusCode)
 }
+fun authorize(txnId: String, config: ConnectorConfig): Map<String, Any?> {
+    // Flow: PaymentService.authorize (Card)
+    val directPaymentClient = DirectPaymentClient(config)
 
-// Flow: PaymentService.Authorize (Card)
-fun authorize(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
-    val request = buildAuthorizeRequest("AUTOMATIC")
-    val response = client.authorize(request)
-    when (response.status.name) {
-        "FAILED"  -> throw RuntimeException("Authorize failed: ${response.error.unifiedDetails.message}")
-        "PENDING" -> println("Pending — await webhook before proceeding")
-        else      -> println("Authorized: ${response.connectorTransactionId}")
-    }
+    val result = directPaymentClient.authorize(PaymentServiceAuthorizeRequest.newBuilder().setMerchantTransactionId("probe_txn_001").setAmount(Money.newBuilder().setMinorAmount(1000).setCurrency(Currency.USD).build()).setPaymentMethod(PaymentMethod.newBuilder().setCard(CardDetails.newBuilder().setCardNumber(CardNumberType.newBuilder().setValue("4111111111111111").build()).setCardExpMonth(SecretString.newBuilder().setValue("03").build()).setCardExpYear(SecretString.newBuilder().setValue("2030").build()).setCardCvc(SecretString.newBuilder().setValue("737").build()).setCardHolderName(SecretString.newBuilder().setValue("John Doe").build()).build()).build()).setCaptureMethod(CaptureMethod.AUTOMATIC).setAddress(PaymentAddress.newBuilder().setBillingAddress(Address.newBuilder().build()).build()).setAuthType(AuthenticationType.NO_THREE_DS).setReturnUrl("https://example.com/return").build())
+    println("[authorize] HTTP ${result.statusCode}")
+    return mapOf("statusCode" to result.statusCode)
 }
+fun get(txnId: String, config: ConnectorConfig): Map<String, Any?> {
+    // Flow: PaymentService.get
+    val directPaymentClient = DirectPaymentClient(config)
 
-// Flow: PaymentService.Get
-fun get(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
-    val request = buildGetRequest("probe_connector_txn_001")
-    val response = client.get(request)
-    println("Status: ${response.status.name}")
+    val result = directPaymentClient.get(PaymentServiceGetRequest.newBuilder().setMerchantTransactionId("probe_merchant_txn_001").setConnectorTransactionId("probe_connector_txn_001").setAmount(Money.newBuilder().setMinorAmount(1000).setCurrency(Currency.USD).build()).build())
+    println("[get] HTTP ${result.statusCode}")
+    return mapOf("statusCode" to result.statusCode)
 }
+fun refund(txnId: String, config: ConnectorConfig): Map<String, Any?> {
+    // Flow: PaymentService.refund
+    val directPaymentClient = DirectPaymentClient(config)
 
-// Flow: PaymentService.Refund
-fun refund(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
-    val request = buildRefundRequest("probe_connector_txn_001")
-    val response = client.refund(request)
-    if (response.status.name == "FAILED")
-        throw RuntimeException("Refund failed: ${response.error.unifiedDetails.message}")
-    println("Done: ${response.status.name}")
-}
-
-
-fun main(args: Array<String>) {
-    val txnId = "order_001"
-    val flow = args.firstOrNull() ?: "processCheckoutAutocapture"
-    when (flow) {
-        "processCheckoutAutocapture" -> processCheckoutAutocapture(txnId)
-        "processCheckoutWallet" -> processCheckoutWallet(txnId)
-        "processRefund" -> processRefund(txnId)
-        "processGetPayment" -> processGetPayment(txnId)
-        "authorize" -> authorize(txnId)
-        "get" -> get(txnId)
-        "refund" -> refund(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutWallet, processRefund, processGetPayment, authorize, get, refund")
-    }
+    val result = directPaymentClient.refund(PaymentServiceRefundRequest.newBuilder().setMerchantRefundId("probe_refund_001").setConnectorTransactionId("probe_connector_txn_001").setPaymentAmount(1000).setRefundAmount(Money.newBuilder().setMinorAmount(1000).setCurrency(Currency.USD).build()).setReason("customer_request").build())
+    println("[refund] HTTP ${result.statusCode}")
+    return mapOf("statusCode" to result.statusCode)
 }

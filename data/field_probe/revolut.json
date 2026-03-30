@@ -631,7 +631,7 @@
           "headers": {
             "authorization": "Bearer probe_key",
             "content-type": "application/json",
-            "revolut-api-version": "2025-10-16",
+            "revolut-api-version": "2024-09-01",
             "via": "HyperSwitch"
           },
           "body": "{\"amount\":1000}"
@@ -707,6 +707,18 @@
         "status": "not_implemented"
       }
     },
+    "proxied_authorize": {
+      "default": {
+        "status": "error",
+        "error": "Missing card number"
+      }
+    },
+    "proxied_setup_recurring": {
+      "default": {
+        "status": "error",
+        "error": "Customer acceptance is missing"
+      }
+    },
     "recurring_charge": {
       "default": {
         "status": "not_implemented"
@@ -751,6 +763,41 @@
     "tokenize": {
       "default": {
         "status": "not_implemented"
+      }
+    },
+    "tokenized_authorize": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_tokenized_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "connector_token": "pm_1AbcXyzStripeTestToken",
+          "address": {
+            "billing_address": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://sandbox-merchant.revolut.com//api/orders",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "revolut-api-version": "2024-09-01",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"capture_mode\":\"automatic\",\"merchant_order_data\":{\"url\":\"https://example.com/return\",\"reference\":\"probe_tokenized_txn_001\"},\"redirect_url\":\"https://example.com/return\"}"
+        }
+      }
+    },
+    "tokenized_setup_recurring": {
+      "default": {
+        "status": "error",
+        "error": "Future usage must be specified"
       }
     },
     "void": {

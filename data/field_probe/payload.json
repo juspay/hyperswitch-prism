@@ -180,13 +180,27 @@
         "status": "not_implemented"
       }
     },
+    "proxied_authorize": {
+      "default": {
+        "status": "error",
+        "error": "Missing card number"
+      }
+    },
+    "proxied_setup_recurring": {
+      "default": {
+        "status": "error",
+        "error": "Customer acceptance is missing"
+      }
+    },
     "recurring_charge": {
       "default": {
         "status": "supported",
         "proto_request": {
           "connector_recurring_payment_id": {
             "mandate_id_type": {
-              "connector_mandate_id": "probe-mandate-123"
+              "connector_mandate_id": {
+                "connector_mandate_id": "probe-mandate-123"
+              }
             }
           },
           "amount": {
@@ -194,7 +208,9 @@
             "currency": "USD"
           },
           "payment_method": {
-            "token": "probe_pm_token"
+            "token": {
+              "token": "probe_pm_token"
+            }
           },
           "return_url": "https://example.com/recurring-return",
           "connector_customer_id": "cust_probe_123",
@@ -266,6 +282,18 @@
     "tokenize": {
       "default": {
         "status": "not_implemented"
+      }
+    },
+    "tokenized_authorize": {
+      "default": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      }
+    },
+    "tokenized_setup_recurring": {
+      "default": {
+        "status": "error",
+        "error": "Future usage must be specified"
       }
     },
     "void": {

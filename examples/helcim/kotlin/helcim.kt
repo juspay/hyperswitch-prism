@@ -1,136 +1,60 @@
-// This file is auto-generated. Do not edit manually.
-// Replace YOUR_API_KEY and placeholder values with real data.
-// Regenerate: python3 scripts/generate-connector-docs.py helcim
-//
-// Helcim — all scenarios and flows in one file.
-// Run a scenario:  ./gradlew run --args="helcim processCheckoutCard"
-
+// Auto-generated for helcim
 package examples.helcim
 
-import payments.PaymentClient
+import payments.Address
+import payments.AuthenticationType
+import payments.BrowserInformation
+import payments.CaptureMethod
+import payments.CardDetails
+import payments.CardNumberType
+import payments.ConnectorConfig
+import payments.Currency
+import payments.DirectPaymentClient
+import payments.Environment
+import payments.Money
+import payments.PaymentAddress
+import payments.PaymentMethod
 import payments.PaymentServiceAuthorizeRequest
 import payments.PaymentServiceGetRequest
-import payments.AuthenticationType
-import payments.CaptureMethod
-import payments.Currency
-import payments.ConnectorConfig
-import payments.SdkOptions
-import payments.Environment
+import payments.SecretString
 
-
-private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAuthorizeRequest {
-    return PaymentServiceAuthorizeRequest.newBuilder().apply {
-        merchantTransactionId = "probe_txn_001"  // Identification
-        amountBuilder.apply {  // The amount for the payment
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00)
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR")
-        }
-        paymentMethodBuilder.apply {  // Payment method to be used
-            cardBuilder.apply {  // Generic card payment
-                cardNumberBuilder.value = "4111111111111111"  // Card Identification
-                cardExpMonthBuilder.value = "03"
-                cardExpYearBuilder.value = "2030"
-                cardCvcBuilder.value = "737"
-                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information
-            }
-        }
-        captureMethod = CaptureMethod.valueOf(captureMethodStr)  // Method for capturing the payment
-        addressBuilder.apply {  // Address Information
-            billingAddressBuilder.apply {
-                firstNameBuilder.value = "John"  // Personal Information
-                line1Builder.value = "123 Main St"  // Address Details
-                zipCodeBuilder.value = "98101"
-            }
-        }
-        authType = AuthenticationType.NO_THREE_DS  // Authentication Details
-        returnUrl = "https://example.com/return"  // URLs for Redirection and Webhooks
-        browserInfoBuilder.apply {
-            ipAddress = "1.2.3.4"  // Device Information
-        }
-    }.build()
-}
-
-private fun buildGetRequest(connectorTransactionIdStr: String): PaymentServiceGetRequest {
-    return PaymentServiceGetRequest.newBuilder().apply {
-        merchantTransactionId = "probe_merchant_txn_001"  // Identification
-        connectorTransactionId = connectorTransactionIdStr
-        amountBuilder.apply {  // Amount Information
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00)
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR")
-        }
-    }.build()
-}
-
-val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
-    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    // .setConnectorConfig(...) — set your connector config here
-    .build()
-
-
-// Scenario: Card Payment (Automatic Capture)
-// Authorize and capture in one call using `capture_method=AUTOMATIC`. Use for digital goods or immediate fulfillment.
-fun processCheckoutAutocapture(txnId: String, config: ConnectorConfig = _defaultConfig): Map<String, Any?> {
-    val paymentClient = PaymentClient(config)
+fun processCheckoutAutocapture(txnId: String, config: ConnectorConfig): Map<String, Any?> {
+    // Card Payment (Automatic Capture)
+    val directPaymentClient = DirectPaymentClient(config)
 
     // Step 1: Authorize — reserve funds on the payment method
-    val authorizeResponse = paymentClient.authorize(buildAuthorizeRequest("AUTOMATIC"))
+    val result = directPaymentClient.authorize(PaymentServiceAuthorizeRequest.newBuilder().setMerchantTransactionId("probe_txn_001").setAmount(Money.newBuilder().setMinorAmount(1000).setCurrency(Currency.USD).build()).setPaymentMethod(PaymentMethod.newBuilder().setCard(CardDetails.newBuilder().setCardNumber(CardNumberType.newBuilder().setValue("4111111111111111").build()).setCardExpMonth(SecretString.newBuilder().setValue("03").build()).setCardExpYear(SecretString.newBuilder().setValue("2030").build()).setCardCvc(SecretString.newBuilder().setValue("737").build()).setCardHolderName(SecretString.newBuilder().setValue("John Doe").build()).build()).build()).setCaptureMethod(CaptureMethod.AUTOMATIC).setAddress(PaymentAddress.newBuilder().setBillingAddress(Address.newBuilder().setFirstName(SecretString.newBuilder().setValue("John").build()).setLine1(SecretString.newBuilder().setValue("123 Main St").build()).setZipCode(SecretString.newBuilder().setValue("98101").build()).build()).build()).setAuthType(AuthenticationType.NO_THREE_DS).setReturnUrl("https://example.com/return").setBrowserInfo(BrowserInformation.newBuilder().setIpAddress("1.2.3.4").build()).build())
+    println("[authorize] HTTP ${result.statusCode}")
 
-    when (authorizeResponse.status.name) {
-        "FAILED"  -> throw RuntimeException("Payment failed: ${authorizeResponse.error.unifiedDetails.message}")
-        "PENDING" -> return mapOf("status" to "PENDING")  // await webhook before proceeding
-    }
-
-    return mapOf("status" to authorizeResponse.status.name, "transactionId" to authorizeResponse.connectorTransactionId, "error" to authorizeResponse.error)
+    return mapOf("statusCode" to result.statusCode)
 }
-
-// Scenario: Get Payment Status
-// Authorize a payment, then poll the connector for its current status using Get. Use this to sync payment state when webhooks are unavailable or delayed.
-fun processGetPayment(txnId: String, config: ConnectorConfig = _defaultConfig): Map<String, Any?> {
-    val paymentClient = PaymentClient(config)
+fun processGetPayment(txnId: String, config: ConnectorConfig): Map<String, Any?> {
+    // Get Payment Status
+    val directPaymentClient = DirectPaymentClient(config)
 
     // Step 1: Authorize — reserve funds on the payment method
-    val authorizeResponse = paymentClient.authorize(buildAuthorizeRequest("MANUAL"))
-
-    when (authorizeResponse.status.name) {
-        "FAILED"  -> throw RuntimeException("Payment failed: ${authorizeResponse.error.unifiedDetails.message}")
-        "PENDING" -> return mapOf("status" to "PENDING")  // await webhook before proceeding
-    }
+    val result1 = directPaymentClient.authorize(PaymentServiceAuthorizeRequest.newBuilder().setMerchantTransactionId("probe_txn_001").setAmount(Money.newBuilder().setMinorAmount(1000).setCurrency(Currency.USD).build()).setPaymentMethod(PaymentMethod.newBuilder().setCard(CardDetails.newBuilder().setCardNumber(CardNumberType.newBuilder().setValue("4111111111111111").build()).setCardExpMonth(SecretString.newBuilder().setValue("03").build()).setCardExpYear(SecretString.newBuilder().setValue("2030").build()).setCardCvc(SecretString.newBuilder().setValue("737").build()).setCardHolderName(SecretString.newBuilder().setValue("John Doe").build()).build()).build()).setCaptureMethod(CaptureMethod.MANUAL).setAddress(PaymentAddress.newBuilder().setBillingAddress(Address.newBuilder().setFirstName(SecretString.newBuilder().setValue("John").build()).setLine1(SecretString.newBuilder().setValue("123 Main St").build()).setZipCode(SecretString.newBuilder().setValue("98101").build()).build()).build()).setAuthType(AuthenticationType.NO_THREE_DS).setReturnUrl("https://example.com/return").setBrowserInfo(BrowserInformation.newBuilder().setIpAddress("1.2.3.4").build()).build())
+    println("[authorize] HTTP ${result1.statusCode}")
 
     // Step 2: Get — retrieve current payment status from the connector
-    val getResponse = paymentClient.get(buildGetRequest(authorizeResponse.connectorTransactionId ?: ""))
+    val result2 = directPaymentClient.get(PaymentServiceGetRequest.newBuilder().setMerchantTransactionId("probe_merchant_txn_001").setConnectorTransactionId("probe_connector_txn_001").setAmount(Money.newBuilder().setMinorAmount(1000).setCurrency(Currency.USD).build()).build())
+    println("[get] HTTP ${result2.statusCode}")
 
-    return mapOf("status" to getResponse.status.name, "transactionId" to getResponse.connectorTransactionId, "error" to getResponse.error)
+    return mapOf("statusCode" to result2.statusCode)
 }
+fun authorize(txnId: String, config: ConnectorConfig): Map<String, Any?> {
+    // Flow: PaymentService.authorize (Card)
+    val directPaymentClient = DirectPaymentClient(config)
 
-// Flow: PaymentService.Authorize (Card)
-fun authorize(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
-    val request = buildAuthorizeRequest("AUTOMATIC")
-    val response = client.authorize(request)
-    when (response.status.name) {
-        "FAILED"  -> throw RuntimeException("Authorize failed: ${response.error.unifiedDetails.message}")
-        "PENDING" -> println("Pending — await webhook before proceeding")
-        else      -> println("Authorized: ${response.connectorTransactionId}")
-    }
+    val result = directPaymentClient.authorize(PaymentServiceAuthorizeRequest.newBuilder().setMerchantTransactionId("probe_txn_001").setAmount(Money.newBuilder().setMinorAmount(1000).setCurrency(Currency.USD).build()).setPaymentMethod(PaymentMethod.newBuilder().setCard(CardDetails.newBuilder().setCardNumber(CardNumberType.newBuilder().setValue("4111111111111111").build()).setCardExpMonth(SecretString.newBuilder().setValue("03").build()).setCardExpYear(SecretString.newBuilder().setValue("2030").build()).setCardCvc(SecretString.newBuilder().setValue("737").build()).setCardHolderName(SecretString.newBuilder().setValue("John Doe").build()).build()).build()).setCaptureMethod(CaptureMethod.AUTOMATIC).setAddress(PaymentAddress.newBuilder().setBillingAddress(Address.newBuilder().setFirstName(SecretString.newBuilder().setValue("John").build()).setLine1(SecretString.newBuilder().setValue("123 Main St").build()).setZipCode(SecretString.newBuilder().setValue("98101").build()).build()).build()).setAuthType(AuthenticationType.NO_THREE_DS).setReturnUrl("https://example.com/return").setBrowserInfo(BrowserInformation.newBuilder().setIpAddress("1.2.3.4").build()).build())
+    println("[authorize] HTTP ${result.statusCode}")
+    return mapOf("statusCode" to result.statusCode)
 }
+fun get(txnId: String, config: ConnectorConfig): Map<String, Any?> {
+    // Flow: PaymentService.get
+    val directPaymentClient = DirectPaymentClient(config)
 
-// Flow: PaymentService.Get
-fun get(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
-    val request = buildGetRequest("probe_connector_txn_001")
-    val response = client.get(request)
-    println("Status: ${response.status.name}")
-}
-
-
-fun main(args: Array<String>) {
-    val txnId = "order_001"
-    val flow = args.firstOrNull() ?: "processCheckoutAutocapture"
-    when (flow) {
-        "processCheckoutAutocapture" -> processCheckoutAutocapture(txnId)
-        "processGetPayment" -> processGetPayment(txnId)
-        "authorize" -> authorize(txnId)
-        "get" -> get(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processGetPayment, authorize, get")
-    }
+    val result = directPaymentClient.get(PaymentServiceGetRequest.newBuilder().setMerchantTransactionId("probe_merchant_txn_001").setConnectorTransactionId("probe_connector_txn_001").setAmount(Money.newBuilder().setMinorAmount(1000).setCurrency(Currency.USD).build()).build())
+    println("[get] HTTP ${result.statusCode}")
+    return mapOf("statusCode" to result.statusCode)
 }

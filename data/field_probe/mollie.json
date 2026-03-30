@@ -182,6 +182,18 @@
         "status": "not_implemented"
       }
     },
+    "proxied_authorize": {
+      "default": {
+        "status": "error",
+        "error": "Missing card number"
+      }
+    },
+    "proxied_setup_recurring": {
+      "default": {
+        "status": "error",
+        "error": "Customer acceptance is missing"
+      }
+    },
     "recurring_charge": {
       "default": {
         "status": "not_implemented"
@@ -226,6 +238,18 @@
       "default": {
         "status": "error",
         "error": "Invalid Configuration: profile_token"
+      }
+    },
+    "tokenized_authorize": {
+      "default": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      }
+    },
+    "tokenized_setup_recurring": {
+      "default": {
+        "status": "error",
+        "error": "Future usage must be specified"
       }
     },
     "void": {

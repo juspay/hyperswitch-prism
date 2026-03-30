@@ -721,6 +721,18 @@
         "status": "not_implemented"
       }
     },
+    "proxied_authorize": {
+      "default": {
+        "status": "error",
+        "error": "Missing card number"
+      }
+    },
+    "proxied_setup_recurring": {
+      "default": {
+        "status": "error",
+        "error": "Customer acceptance is missing"
+      }
+    },
     "recurring_charge": {
       "default": {
         "status": "not_implemented"
@@ -795,6 +807,18 @@
           },
           "body": "{\"type\":\"PAYMENT_CARD\",\"name\":\"John Doe\",\"number\":\"4111111111111111\",\"security_code\":\"737\",\"expiration_month\":3,\"expiration_year\":2030,\"identity\":\"cust_probe_123\",\"tags\":null}"
         }
+      }
+    },
+    "tokenized_authorize": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token (source) - Call CreateConnectorCustomer and PaymentMethodToken first, or ensure connector_customer_id is set"
+      }
+    },
+    "tokenized_setup_recurring": {
+      "default": {
+        "status": "error",
+        "error": "Future usage must be specified"
       }
     },
     "void": {

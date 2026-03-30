@@ -223,6 +223,18 @@
         "status": "not_implemented"
       }
     },
+    "proxied_authorize": {
+      "default": {
+        "status": "error",
+        "error": "Missing card number"
+      }
+    },
+    "proxied_setup_recurring": {
+      "default": {
+        "status": "error",
+        "error": "Customer acceptance is missing"
+      }
+    },
     "recurring_charge": {
       "default": {
         "status": "not_implemented"
@@ -271,6 +283,18 @@
     "tokenize": {
       "default": {
         "status": "not_implemented"
+      }
+    },
+    "tokenized_authorize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported"
+      }
+    },
+    "tokenized_setup_recurring": {
+      "default": {
+        "status": "error",
+        "error": "Future usage must be specified"
       }
     },
     "void": {

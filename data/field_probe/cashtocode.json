@@ -131,6 +131,18 @@
         "status": "not_implemented"
       }
     },
+    "proxied_authorize": {
+      "default": {
+        "status": "error",
+        "error": "Missing card number"
+      }
+    },
+    "proxied_setup_recurring": {
+      "default": {
+        "status": "error",
+        "error": "Customer acceptance is missing"
+      }
+    },
     "recurring_charge": {
       "default": {
         "status": "not_implemented"
@@ -154,6 +166,18 @@
     "tokenize": {
       "default": {
         "status": "not_implemented"
+      }
+    },
+    "tokenized_authorize": {
+      "default": {
+        "status": "not_supported",
+        "error": "The given currency method is not configured with the given connector"
+      }
+    },
+    "tokenized_setup_recurring": {
+      "default": {
+        "status": "error",
+        "error": "Future usage must be specified"
       }
     },
     "void": {

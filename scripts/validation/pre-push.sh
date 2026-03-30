@@ -92,7 +92,7 @@ else
     if cargo +nightly fmt --all --check 2>&1 | grep -q "Diff"; then
         print_error "Formatting issues found"
         echo ""
-        echo -e "${YELLOW}💡 Tip:${NC} Run with --fix to auto-fix formatting issues"
+        echo -e "${YELLOW}💡 Tip:${NC} Run `cargo +nightly fmt --all` to auto-fix formatting issues"
         echo ""
         cargo +nightly fmt --all --check 2>&1 | head -20
         exit 3

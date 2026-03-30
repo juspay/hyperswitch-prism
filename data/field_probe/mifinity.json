@@ -8,72 +8,72 @@
     },
     "authorize": {
       "Ach": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through Mifinity"
+        "status": "error",
+        "error": "Invalid Configuration: brand_id"
       },
       "Affirm": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through Mifinity"
+        "status": "error",
+        "error": "Invalid Configuration: brand_id"
       },
       "Afterpay": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through Mifinity"
+        "status": "error",
+        "error": "Invalid Configuration: brand_id"
       },
       "ApplePay": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through Mifinity"
+        "status": "error",
+        "error": "Invalid Configuration: brand_id"
       },
       "ApplePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through Mifinity"
+        "status": "error",
+        "error": "Invalid Configuration: brand_id"
       },
       "Bacs": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through Mifinity"
+        "status": "error",
+        "error": "Invalid Configuration: brand_id"
       },
       "Becs": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through Mifinity"
+        "status": "error",
+        "error": "Invalid Configuration: brand_id"
       },
       "Blik": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through Mifinity"
+        "status": "error",
+        "error": "Invalid Configuration: brand_id"
       },
       "Card": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through Mifinity"
+        "status": "error",
+        "error": "Invalid Configuration: brand_id"
       },
       "GooglePay": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through Mifinity"
+        "status": "error",
+        "error": "Invalid Configuration: brand_id"
       },
       "GooglePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through Mifinity"
+        "status": "error",
+        "error": "Invalid Configuration: brand_id"
       },
       "Ideal": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through Mifinity"
+        "status": "error",
+        "error": "Invalid Configuration: brand_id"
       },
       "Klarna": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through Mifinity"
+        "status": "error",
+        "error": "Invalid Configuration: brand_id"
       },
       "PaypalRedirect": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through Mifinity"
+        "status": "error",
+        "error": "Invalid Configuration: brand_id"
       },
       "SamsungPay": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through Mifinity"
+        "status": "error",
+        "error": "Invalid Configuration: brand_id"
       },
       "Sepa": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through Mifinity"
+        "status": "error",
+        "error": "Invalid Configuration: brand_id"
       },
       "UpiCollect": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through Mifinity"
+        "status": "error",
+        "error": "Invalid Configuration: brand_id"
       }
     },
     "capture": {
@@ -150,6 +150,18 @@
         "status": "not_implemented"
       }
     },
+    "proxied_authorize": {
+      "default": {
+        "status": "error",
+        "error": "Missing card number"
+      }
+    },
+    "proxied_setup_recurring": {
+      "default": {
+        "status": "error",
+        "error": "Customer acceptance is missing"
+      }
+    },
     "recurring_charge": {
       "default": {
         "status": "not_implemented"
@@ -173,6 +185,18 @@
     "tokenize": {
       "default": {
         "status": "not_implemented"
+      }
+    },
+    "tokenized_authorize": {
+      "default": {
+        "status": "error",
+        "error": "Invalid Configuration: brand_id"
+      }
+    },
+    "tokenized_setup_recurring": {
+      "default": {
+        "status": "error",
+        "error": "Future usage must be specified"
       }
     },
     "void": {

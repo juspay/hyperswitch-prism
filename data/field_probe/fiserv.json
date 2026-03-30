@@ -134,7 +134,7 @@
             "timestamp": "0000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":{\"total\":10.0,\"currency\":\"USD\"},\"transactionDetails\":{\"captureFlag\":true,\"merchantTransactionId\":\"probe_capture_001\",\"operationType\":\"CAPTURE\"},\"merchantDetails\":{\"merchantId\":\"probe_merchant\",\"terminalId\":\"probe_terminal\"},\"referenceTransactionDetails\":{\"referenceTransactionId\":\"probe_connector_txn_001\"},\"order\":{\"orderId\":null}}"
+          "body": "{\"amount\":{\"total\":10.0,\"currency\":\"USD\"},\"transactionDetails\":{\"captureFlag\":true,\"merchantTransactionId\":\"probe_capture_001\",\"operationType\":\"CAPTURE\"},\"merchantDetails\":{\"merchantId\":\"probe_merchant\",\"terminalId\":null},\"referenceTransactionDetails\":{\"referenceTransactionId\":\"probe_connector_txn_001\"},\"order\":{\"orderId\":null}}"
         }
       }
     },
@@ -210,6 +210,18 @@
         "status": "not_implemented"
       }
     },
+    "proxied_authorize": {
+      "default": {
+        "status": "error",
+        "error": "Missing card number"
+      }
+    },
+    "proxied_setup_recurring": {
+      "default": {
+        "status": "error",
+        "error": "Customer acceptance is missing"
+      }
+    },
     "recurring_charge": {
       "default": {
         "status": "not_implemented"
@@ -259,6 +271,18 @@
         "status": "not_implemented"
       }
     },
+    "tokenized_authorize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      }
+    },
+    "tokenized_setup_recurring": {
+      "default": {
+        "status": "error",
+        "error": "Future usage must be specified"
+      }
+    },
     "void": {
       "default": {
         "status": "supported",
@@ -278,7 +302,7 @@
             "timestamp": "0000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"transactionDetails\":{\"merchantTransactionId\":\"probe_void_001\"},\"merchantDetails\":{\"merchantId\":\"probe_merchant\",\"terminalId\":\"probe_terminal\"},\"referenceTransactionDetails\":{\"referenceTransactionId\":\"probe_connector_txn_001\"}}"
+          "body": "{\"transactionDetails\":{\"merchantTransactionId\":\"probe_void_001\"},\"merchantDetails\":{\"merchantId\":\"probe_merchant\",\"terminalId\":null},\"referenceTransactionDetails\":{\"referenceTransactionId\":\"probe_connector_txn_001\"}}"
         }
       }
     }

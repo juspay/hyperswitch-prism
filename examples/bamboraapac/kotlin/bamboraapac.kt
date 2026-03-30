@@ -1,363 +1,146 @@
-// This file is auto-generated. Do not edit manually.
-// Replace YOUR_API_KEY and placeholder values with real data.
-// Regenerate: python3 scripts/generate-connector-docs.py bamboraapac
-//
-// Bamboraapac — all scenarios and flows in one file.
-// Run a scenario:  ./gradlew run --args="bamboraapac processCheckoutCard"
-
+// Auto-generated for bamboraapac
 package examples.bamboraapac
 
-import payments.PaymentClient
-import payments.RecurringPaymentClient
-import payments.PaymentServiceAuthorizeRequest
-import payments.PaymentServiceCaptureRequest
-import payments.PaymentServiceRefundRequest
-import payments.PaymentServiceSetupRecurringRequest
-import payments.RecurringPaymentServiceChargeRequest
-import payments.PaymentServiceGetRequest
 import payments.AcceptanceType
+import payments.Address
 import payments.AuthenticationType
 import payments.CaptureMethod
-import payments.Currency
-import payments.FutureUsage
-import payments.PaymentMethodType
+import payments.CardDetails
+import payments.CardNumberType
 import payments.ConnectorConfig
-import payments.SdkOptions
+import payments.Currency
+import payments.CustomerAcceptance
+import payments.DirectPaymentClient
 import payments.Environment
+import payments.FutureUsage
+import payments.Money
+import payments.PaymentAddress
+import payments.PaymentMethod
+import payments.PaymentMethodType
+import payments.PaymentServiceAuthorizeRequest
+import payments.PaymentServiceCaptureRequest
+import payments.PaymentServiceGetRequest
+import payments.PaymentServiceRefundRequest
+import payments.PaymentServiceSetupRecurringRequest
+import payments.RecurringPaymentClient
+import payments.RecurringPaymentServiceChargeRequest
+import payments.SecretString
+import payments.TokenPaymentMethodType
+import types.Payment.ConnectorMandateReferenceId
+import types.Payment.MandateReference
 
-
-private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAuthorizeRequest {
-    return PaymentServiceAuthorizeRequest.newBuilder().apply {
-        merchantTransactionId = "probe_txn_001"  // Identification
-        amountBuilder.apply {  // The amount for the payment
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00)
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR")
-        }
-        paymentMethodBuilder.apply {  // Payment method to be used
-            cardBuilder.apply {  // Generic card payment
-                cardNumberBuilder.value = "4111111111111111"  // Card Identification
-                cardExpMonthBuilder.value = "03"
-                cardExpYearBuilder.value = "2030"
-                cardCvcBuilder.value = "737"
-                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information
-            }
-        }
-        captureMethod = CaptureMethod.valueOf(captureMethodStr)  // Method for capturing the payment
-        addressBuilder.apply {  // Address Information
-            billingAddressBuilder.apply {
-            }
-        }
-        authType = AuthenticationType.NO_THREE_DS  // Authentication Details
-        returnUrl = "https://example.com/return"  // URLs for Redirection and Webhooks
-    }.build()
-}
-
-private fun buildCaptureRequest(connectorTransactionIdStr: String): PaymentServiceCaptureRequest {
-    return PaymentServiceCaptureRequest.newBuilder().apply {
-        merchantCaptureId = "probe_capture_001"  // Identification
-        connectorTransactionId = connectorTransactionIdStr
-        amountToCaptureBuilder.apply {  // Capture Details
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00)
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR")
-        }
-    }.build()
-}
-
-private fun buildGetRequest(connectorTransactionIdStr: String): PaymentServiceGetRequest {
-    return PaymentServiceGetRequest.newBuilder().apply {
-        merchantTransactionId = "probe_merchant_txn_001"  // Identification
-        connectorTransactionId = connectorTransactionIdStr
-        amountBuilder.apply {  // Amount Information
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00)
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR")
-        }
-    }.build()
-}
-
-private fun buildRefundRequest(connectorTransactionIdStr: String): PaymentServiceRefundRequest {
-    return PaymentServiceRefundRequest.newBuilder().apply {
-        merchantRefundId = "probe_refund_001"  // Identification
-        connectorTransactionId = connectorTransactionIdStr
-        paymentAmount = 1000L  // Amount Information
-        refundAmountBuilder.apply {
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00)
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR")
-        }
-        reason = "customer_request"  // Reason for the refund
-    }.build()
-}
-
-val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
-    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    // .setConnectorConfig(...) — set your connector config here
-    .build()
-
-
-// Scenario: Card Payment (Authorize + Capture)
-// Reserve funds with Authorize, then settle with a separate Capture call. Use for physical goods or delayed fulfillment where capture happens later.
-fun processCheckoutCard(txnId: String, config: ConnectorConfig = _defaultConfig): Map<String, Any?> {
-    val paymentClient = PaymentClient(config)
+fun processCheckoutCard(txnId: String, config: ConnectorConfig): Map<String, Any?> {
+    // Card Payment (Authorize + Capture)
+    val directPaymentClient = DirectPaymentClient(config)
 
     // Step 1: Authorize — reserve funds on the payment method
-    val authorizeResponse = paymentClient.authorize(buildAuthorizeRequest("MANUAL"))
-
-    when (authorizeResponse.status.name) {
-        "FAILED"  -> throw RuntimeException("Payment failed: ${authorizeResponse.error.unifiedDetails.message}")
-        "PENDING" -> return mapOf("status" to "PENDING")  // await webhook before proceeding
-    }
+    val result1 = directPaymentClient.authorize(PaymentServiceAuthorizeRequest.newBuilder().setMerchantTransactionId("probe_txn_001").setAmount(Money.newBuilder().setMinorAmount(1000).setCurrency(Currency.USD).build()).setPaymentMethod(PaymentMethod.newBuilder().setCard(CardDetails.newBuilder().setCardNumber(CardNumberType.newBuilder().setValue("4111111111111111").build()).setCardExpMonth(SecretString.newBuilder().setValue("03").build()).setCardExpYear(SecretString.newBuilder().setValue("2030").build()).setCardCvc(SecretString.newBuilder().setValue("737").build()).setCardHolderName(SecretString.newBuilder().setValue("John Doe").build()).build()).build()).setCaptureMethod(CaptureMethod.MANUAL).setAddress(PaymentAddress.newBuilder().setBillingAddress(Address.newBuilder().build()).build()).setAuthType(AuthenticationType.NO_THREE_DS).setReturnUrl("https://example.com/return").build())
+    println("[authorize] HTTP ${result1.statusCode}")
 
     // Step 2: Capture — settle the reserved funds
-    val captureResponse = paymentClient.capture(buildCaptureRequest(authorizeResponse.connectorTransactionId ?: ""))
+    val result2 = directPaymentClient.capture(PaymentServiceCaptureRequest.newBuilder().setMerchantCaptureId("probe_capture_001").setConnectorTransactionId("probe_connector_txn_001").setAmountToCapture(Money.newBuilder().setMinorAmount(1000).setCurrency(Currency.USD).build()).build())
+    println("[capture] HTTP ${result2.statusCode}")
 
-    if (captureResponse.status.name == "FAILED")
-        throw RuntimeException("Capture failed: ${captureResponse.error.unifiedDetails.message}")
-
-    return mapOf("status" to captureResponse.status.name, "transactionId" to authorizeResponse.connectorTransactionId, "error" to authorizeResponse.error)
+    return mapOf("statusCode" to result2.statusCode)
 }
-
-// Scenario: Card Payment (Automatic Capture)
-// Authorize and capture in one call using `capture_method=AUTOMATIC`. Use for digital goods or immediate fulfillment.
-fun processCheckoutAutocapture(txnId: String, config: ConnectorConfig = _defaultConfig): Map<String, Any?> {
-    val paymentClient = PaymentClient(config)
+fun processCheckoutAutocapture(txnId: String, config: ConnectorConfig): Map<String, Any?> {
+    // Card Payment (Automatic Capture)
+    val directPaymentClient = DirectPaymentClient(config)
 
     // Step 1: Authorize — reserve funds on the payment method
-    val authorizeResponse = paymentClient.authorize(buildAuthorizeRequest("AUTOMATIC"))
+    val result = directPaymentClient.authorize(PaymentServiceAuthorizeRequest.newBuilder().setMerchantTransactionId("probe_txn_001").setAmount(Money.newBuilder().setMinorAmount(1000).setCurrency(Currency.USD).build()).setPaymentMethod(PaymentMethod.newBuilder().setCard(CardDetails.newBuilder().setCardNumber(CardNumberType.newBuilder().setValue("4111111111111111").build()).setCardExpMonth(SecretString.newBuilder().setValue("03").build()).setCardExpYear(SecretString.newBuilder().setValue("2030").build()).setCardCvc(SecretString.newBuilder().setValue("737").build()).setCardHolderName(SecretString.newBuilder().setValue("John Doe").build()).build()).build()).setCaptureMethod(CaptureMethod.AUTOMATIC).setAddress(PaymentAddress.newBuilder().setBillingAddress(Address.newBuilder().build()).build()).setAuthType(AuthenticationType.NO_THREE_DS).setReturnUrl("https://example.com/return").build())
+    println("[authorize] HTTP ${result.statusCode}")
 
-    when (authorizeResponse.status.name) {
-        "FAILED"  -> throw RuntimeException("Payment failed: ${authorizeResponse.error.unifiedDetails.message}")
-        "PENDING" -> return mapOf("status" to "PENDING")  // await webhook before proceeding
-    }
-
-    return mapOf("status" to authorizeResponse.status.name, "transactionId" to authorizeResponse.connectorTransactionId, "error" to authorizeResponse.error)
+    return mapOf("statusCode" to result.statusCode)
 }
-
-// Scenario: Refund a Payment
-// Authorize with automatic capture, then refund the captured amount. `connector_transaction_id` from the Authorize response is reused for the Refund call.
-fun processRefund(txnId: String, config: ConnectorConfig = _defaultConfig): Map<String, Any?> {
-    val paymentClient = PaymentClient(config)
+fun processRefund(txnId: String, config: ConnectorConfig): Map<String, Any?> {
+    // Refund a Payment
+    val directPaymentClient = DirectPaymentClient(config)
 
     // Step 1: Authorize — reserve funds on the payment method
-    val authorizeResponse = paymentClient.authorize(buildAuthorizeRequest("AUTOMATIC"))
-
-    when (authorizeResponse.status.name) {
-        "FAILED"  -> throw RuntimeException("Payment failed: ${authorizeResponse.error.unifiedDetails.message}")
-        "PENDING" -> return mapOf("status" to "PENDING")  // await webhook before proceeding
-    }
+    val result1 = directPaymentClient.authorize(PaymentServiceAuthorizeRequest.newBuilder().setMerchantTransactionId("probe_txn_001").setAmount(Money.newBuilder().setMinorAmount(1000).setCurrency(Currency.USD).build()).setPaymentMethod(PaymentMethod.newBuilder().setCard(CardDetails.newBuilder().setCardNumber(CardNumberType.newBuilder().setValue("4111111111111111").build()).setCardExpMonth(SecretString.newBuilder().setValue("03").build()).setCardExpYear(SecretString.newBuilder().setValue("2030").build()).setCardCvc(SecretString.newBuilder().setValue("737").build()).setCardHolderName(SecretString.newBuilder().setValue("John Doe").build()).build()).build()).setCaptureMethod(CaptureMethod.AUTOMATIC).setAddress(PaymentAddress.newBuilder().setBillingAddress(Address.newBuilder().build()).build()).setAuthType(AuthenticationType.NO_THREE_DS).setReturnUrl("https://example.com/return").build())
+    println("[authorize] HTTP ${result1.statusCode}")
 
     // Step 2: Refund — return funds to the customer
-    val refundResponse = paymentClient.refund(buildRefundRequest(authorizeResponse.connectorTransactionId ?: ""))
+    val result2 = directPaymentClient.refund(PaymentServiceRefundRequest.newBuilder().setMerchantRefundId("probe_refund_001").setConnectorTransactionId("probe_connector_txn_001").setPaymentAmount(1000).setRefundAmount(Money.newBuilder().setMinorAmount(1000).setCurrency(Currency.USD).build()).setReason("customer_request").build())
+    println("[refund] HTTP ${result2.statusCode}")
 
-    if (refundResponse.status.name == "FAILED")
-        throw RuntimeException("Refund failed: ${refundResponse.error.unifiedDetails.message}")
-
-    return mapOf("status" to refundResponse.status.name, "error" to refundResponse.error)
+    return mapOf("statusCode" to result2.statusCode)
 }
-
-// Scenario: Recurring / Mandate Payments
-// Store a payment mandate with SetupRecurring, then charge it repeatedly with RecurringPaymentService.Charge without requiring customer action.
-fun processRecurring(txnId: String, config: ConnectorConfig = _defaultConfig): Map<String, Any?> {
-    val paymentClient = PaymentClient(config)
+fun processRecurring(txnId: String, config: ConnectorConfig): Map<String, Any?> {
+    // Recurring / Mandate Payments
+    val directPaymentClient = DirectPaymentClient(config)
     val recurringPaymentClient = RecurringPaymentClient(config)
 
     // Step 1: Setup Recurring — store the payment mandate
-    val setupResponse = paymentClient.setup_recurring(PaymentServiceSetupRecurringRequest.newBuilder().apply {
-        merchantRecurringPaymentId = "probe_mandate_001"  // Identification
-        amountBuilder.apply {  // Mandate Details
-            minorAmount = 0L  // Amount in minor units (e.g., 1000 = $10.00)
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR")
-        }
-        paymentMethodBuilder.apply {
-            cardBuilder.apply {  // Generic card payment
-                cardNumberBuilder.value = "4111111111111111"  // Card Identification
-                cardExpMonthBuilder.value = "03"
-                cardExpYearBuilder.value = "2030"
-                cardCvcBuilder.value = "737"
-                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information
-            }
-        }
-        addressBuilder.apply {  // Address Information
-            billingAddressBuilder.apply {
-            }
-        }
-        authType = AuthenticationType.NO_THREE_DS  // Type of authentication to be used
-        enrolledFor3Ds = false  // Indicates if the customer is enrolled for 3D Secure
-        returnUrl = "https://example.com/mandate-return"  // URL to redirect after setup
-        setupFutureUsage = FutureUsage.OFF_SESSION  // Indicates future usage intention
-        requestIncrementalAuthorization = false  // Indicates if incremental authorization is requested
-        customerAcceptanceBuilder.apply {  // Details of customer acceptance
-            acceptanceType = AcceptanceType.OFFLINE  // Type of acceptance (e.g., online, offline).
-            acceptedAt = 0L  // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
-        }
-    }.build())
-
-    if (setupResponse.status.name == "FAILED")
-        throw RuntimeException("Setup failed: ${setupResponse.error.unifiedDetails.message}")
+    val result1 = directPaymentClient.setup_recurring(PaymentServiceSetupRecurringRequest.newBuilder().setMerchantRecurringPaymentId("probe_mandate_001").setAmount(Money.newBuilder().setMinorAmount(0).setCurrency(Currency.USD).build()).setPaymentMethod(PaymentMethod.newBuilder().setCard(CardDetails.newBuilder().setCardNumber(CardNumberType.newBuilder().setValue("4111111111111111").build()).setCardExpMonth(SecretString.newBuilder().setValue("03").build()).setCardExpYear(SecretString.newBuilder().setValue("2030").build()).setCardCvc(SecretString.newBuilder().setValue("737").build()).setCardHolderName(SecretString.newBuilder().setValue("John Doe").build()).build()).build()).setAddress(PaymentAddress.newBuilder().setBillingAddress(Address.newBuilder().build()).build()).setAuthType(AuthenticationType.NO_THREE_DS).setEnrolledFor3Ds(false).setReturnUrl("https://example.com/mandate-return").setSetupFutureUsage(FutureUsage.OFF_SESSION).setRequestIncrementalAuthorization(false).setCustomerAcceptance(CustomerAcceptance.newBuilder().setAcceptanceType(AcceptanceType.OFFLINE).setAcceptedAt(0).build()).build())
+    println("[setup_recurring] HTTP ${result1.statusCode}")
 
     // Step 2: Recurring Charge — charge against the stored mandate
-    val recurringResponse = recurringPaymentClient.charge(RecurringPaymentServiceChargeRequest.newBuilder().apply {
-        amountBuilder.apply {  // Amount Information
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00)
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR")
-        }
-        returnUrl = "https://example.com/recurring-return"
-        connectorCustomerId = "cust_probe_123"
-        offSession = true  // Behavioral Flags and Preferences
-        connectorRecurringPaymentIdBuilder.apply {
-            connectorMandateIdBuilder.apply {
-                connectorMandateId = setupResponse.mandateReference.connectorMandateId.connectorMandateId  // from SetupRecurring
-            }
-        }
-    }.build())
+    val result2 = recurringPaymentClient.charge(RecurringPaymentServiceChargeRequest.newBuilder().setConnectorRecurringPaymentId(MandateReference.newBuilder().setConnectorMandateId(ConnectorMandateReferenceId.newBuilder().setConnectorMandateId("probe-mandate-123").build()).build()).setAmount(Money.newBuilder().setMinorAmount(1000).setCurrency(Currency.USD).build()).setPaymentMethod(PaymentMethod.newBuilder().setToken(TokenPaymentMethodType.newBuilder().setToken(SecretString.newBuilder().setValue("probe_pm_token").build()).build()).build()).setReturnUrl("https://example.com/recurring-return").setConnectorCustomerId("cust_probe_123").setPaymentMethodType(PaymentMethodType.PAY_PAL).setOffSession(true).build())
+    println("[recurring_charge] HTTP ${result2.statusCode}")
 
-    if (recurringResponse.status.name == "FAILED")
-        throw RuntimeException("Recurring Charge failed: ${recurringResponse.error.unifiedDetails.message}")
-
-    return mapOf("status" to recurringResponse.status.name, "transactionId" to (recurringResponse.connectorTransactionId ?: ""), "error" to recurringResponse.error)
+    return mapOf("statusCode" to result2.statusCode)
 }
-
-// Scenario: Get Payment Status
-// Authorize a payment, then poll the connector for its current status using Get. Use this to sync payment state when webhooks are unavailable or delayed.
-fun processGetPayment(txnId: String, config: ConnectorConfig = _defaultConfig): Map<String, Any?> {
-    val paymentClient = PaymentClient(config)
+fun processGetPayment(txnId: String, config: ConnectorConfig): Map<String, Any?> {
+    // Get Payment Status
+    val directPaymentClient = DirectPaymentClient(config)
 
     // Step 1: Authorize — reserve funds on the payment method
-    val authorizeResponse = paymentClient.authorize(buildAuthorizeRequest("MANUAL"))
-
-    when (authorizeResponse.status.name) {
-        "FAILED"  -> throw RuntimeException("Payment failed: ${authorizeResponse.error.unifiedDetails.message}")
-        "PENDING" -> return mapOf("status" to "PENDING")  // await webhook before proceeding
-    }
+    val result1 = directPaymentClient.authorize(PaymentServiceAuthorizeRequest.newBuilder().setMerchantTransactionId("probe_txn_001").setAmount(Money.newBuilder().setMinorAmount(1000).setCurrency(Currency.USD).build()).setPaymentMethod(PaymentMethod.newBuilder().setCard(CardDetails.newBuilder().setCardNumber(CardNumberType.newBuilder().setValue("4111111111111111").build()).setCardExpMonth(SecretString.newBuilder().setValue("03").build()).setCardExpYear(SecretString.newBuilder().setValue("2030").build()).setCardCvc(SecretString.newBuilder().setValue("737").build()).setCardHolderName(SecretString.newBuilder().setValue("John Doe").build()).build()).build()).setCaptureMethod(CaptureMethod.MANUAL).setAddress(PaymentAddress.newBuilder().setBillingAddress(Address.newBuilder().build()).build()).setAuthType(AuthenticationType.NO_THREE_DS).setReturnUrl("https://example.com/return").build())
+    println("[authorize] HTTP ${result1.statusCode}")
 
     // Step 2: Get — retrieve current payment status from the connector
-    val getResponse = paymentClient.get(buildGetRequest(authorizeResponse.connectorTransactionId ?: ""))
+    val result2 = directPaymentClient.get(PaymentServiceGetRequest.newBuilder().setMerchantTransactionId("probe_merchant_txn_001").setConnectorTransactionId("probe_connector_txn_001").setAmount(Money.newBuilder().setMinorAmount(1000).setCurrency(Currency.USD).build()).build())
+    println("[get] HTTP ${result2.statusCode}")
 
-    return mapOf("status" to getResponse.status.name, "transactionId" to getResponse.connectorTransactionId, "error" to getResponse.error)
+    return mapOf("statusCode" to result2.statusCode)
 }
+fun authorize(txnId: String, config: ConnectorConfig): Map<String, Any?> {
+    // Flow: PaymentService.authorize (Card)
+    val directPaymentClient = DirectPaymentClient(config)
 
-// Flow: PaymentService.Authorize (Card)
-fun authorize(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
-    val request = buildAuthorizeRequest("AUTOMATIC")
-    val response = client.authorize(request)
-    when (response.status.name) {
-        "FAILED"  -> throw RuntimeException("Authorize failed: ${response.error.unifiedDetails.message}")
-        "PENDING" -> println("Pending — await webhook before proceeding")
-        else      -> println("Authorized: ${response.connectorTransactionId}")
-    }
+    val result = directPaymentClient.authorize(PaymentServiceAuthorizeRequest.newBuilder().setMerchantTransactionId("probe_txn_001").setAmount(Money.newBuilder().setMinorAmount(1000).setCurrency(Currency.USD).build()).setPaymentMethod(PaymentMethod.newBuilder().setCard(CardDetails.newBuilder().setCardNumber(CardNumberType.newBuilder().setValue("4111111111111111").build()).setCardExpMonth(SecretString.newBuilder().setValue("03").build()).setCardExpYear(SecretString.newBuilder().setValue("2030").build()).setCardCvc(SecretString.newBuilder().setValue("737").build()).setCardHolderName(SecretString.newBuilder().setValue("John Doe").build()).build()).build()).setCaptureMethod(CaptureMethod.AUTOMATIC).setAddress(PaymentAddress.newBuilder().setBillingAddress(Address.newBuilder().build()).build()).setAuthType(AuthenticationType.NO_THREE_DS).setReturnUrl("https://example.com/return").build())
+    println("[authorize] HTTP ${result.statusCode}")
+    return mapOf("statusCode" to result.statusCode)
 }
+fun capture(txnId: String, config: ConnectorConfig): Map<String, Any?> {
+    // Flow: PaymentService.capture
+    val directPaymentClient = DirectPaymentClient(config)
 
-// Flow: PaymentService.Capture
-fun capture(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
-    val request = buildCaptureRequest("probe_connector_txn_001")
-    val response = client.capture(request)
-    if (response.status.name == "FAILED")
-        throw RuntimeException("Capture failed: ${response.error.unifiedDetails.message}")
-    println("Done: ${response.status.name}")
+    val result = directPaymentClient.capture(PaymentServiceCaptureRequest.newBuilder().setMerchantCaptureId("probe_capture_001").setConnectorTransactionId("probe_connector_txn_001").setAmountToCapture(Money.newBuilder().setMinorAmount(1000).setCurrency(Currency.USD).build()).build())
+    println("[capture] HTTP ${result.statusCode}")
+    return mapOf("statusCode" to result.statusCode)
 }
+fun get(txnId: String, config: ConnectorConfig): Map<String, Any?> {
+    // Flow: PaymentService.get
+    val directPaymentClient = DirectPaymentClient(config)
 
-// Flow: PaymentService.Get
-fun get(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
-    val request = buildGetRequest("probe_connector_txn_001")
-    val response = client.get(request)
-    println("Status: ${response.status.name}")
+    val result = directPaymentClient.get(PaymentServiceGetRequest.newBuilder().setMerchantTransactionId("probe_merchant_txn_001").setConnectorTransactionId("probe_connector_txn_001").setAmount(Money.newBuilder().setMinorAmount(1000).setCurrency(Currency.USD).build()).build())
+    println("[get] HTTP ${result.statusCode}")
+    return mapOf("statusCode" to result.statusCode)
 }
+fun recurring_charge(txnId: String, config: ConnectorConfig): Map<String, Any?> {
+    // Flow: RecurringPaymentService.recurring_charge
+    val recurringPaymentClient = RecurringPaymentClient(config)
 
-// Flow: RecurringPaymentService.Charge
-fun recurringCharge(txnId: String) {
-    val client = RecurringPaymentClient(_defaultConfig)
-    val request = RecurringPaymentServiceChargeRequest.newBuilder().apply {
-        connectorRecurringPaymentIdBuilder.apply {  // Reference to existing mandate
-            connectorMandateIdBuilder.apply {  // mandate_id sent by the connector
-                connectorMandateId = "probe-mandate-123"
-            }
-        }
-        amountBuilder.apply {  // Amount Information
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00)
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR")
-        }
-        paymentMethodBuilder.apply {  // Optional payment Method Information (for network transaction flows)
-            tokenBuilder.apply {  // Payment tokens
-                tokenBuilder.value = "probe_pm_token"
-            }
-        }
-        returnUrl = "https://example.com/recurring-return"
-        connectorCustomerId = "cust_probe_123"
-        paymentMethodType = PaymentMethodType.PAY_PAL
-        offSession = true  // Behavioral Flags and Preferences
-    }.build()
-    val response = client.charge(request)
-    if (response.status.name == "FAILED")
-        throw RuntimeException("Recurring_Charge failed: ${response.error.unifiedDetails.message}")
-    println("Done: ${response.status.name}")
+    val result = recurringPaymentClient.charge(RecurringPaymentServiceChargeRequest.newBuilder().setConnectorRecurringPaymentId(MandateReference.newBuilder().setConnectorMandateId(ConnectorMandateReferenceId.newBuilder().setConnectorMandateId("probe-mandate-123").build()).build()).setAmount(Money.newBuilder().setMinorAmount(1000).setCurrency(Currency.USD).build()).setPaymentMethod(PaymentMethod.newBuilder().setToken(TokenPaymentMethodType.newBuilder().setToken(SecretString.newBuilder().setValue("probe_pm_token").build()).build()).build()).setReturnUrl("https://example.com/recurring-return").setConnectorCustomerId("cust_probe_123").setPaymentMethodType(PaymentMethodType.PAY_PAL).setOffSession(true).build())
+    println("[recurring_charge] HTTP ${result.statusCode}")
+    return mapOf("statusCode" to result.statusCode)
 }
+fun refund(txnId: String, config: ConnectorConfig): Map<String, Any?> {
+    // Flow: PaymentService.refund
+    val directPaymentClient = DirectPaymentClient(config)
 
-// Flow: PaymentService.Refund
-fun refund(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
-    val request = buildRefundRequest("probe_connector_txn_001")
-    val response = client.refund(request)
-    if (response.status.name == "FAILED")
-        throw RuntimeException("Refund failed: ${response.error.unifiedDetails.message}")
-    println("Done: ${response.status.name}")
+    val result = directPaymentClient.refund(PaymentServiceRefundRequest.newBuilder().setMerchantRefundId("probe_refund_001").setConnectorTransactionId("probe_connector_txn_001").setPaymentAmount(1000).setRefundAmount(Money.newBuilder().setMinorAmount(1000).setCurrency(Currency.USD).build()).setReason("customer_request").build())
+    println("[refund] HTTP ${result.statusCode}")
+    return mapOf("statusCode" to result.statusCode)
 }
+fun setup_recurring(txnId: String, config: ConnectorConfig): Map<String, Any?> {
+    // Flow: PaymentService.setup_recurring
+    val directPaymentClient = DirectPaymentClient(config)
 
-// Flow: PaymentService.SetupRecurring
-fun setupRecurring(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
-    val request = PaymentServiceSetupRecurringRequest.newBuilder().apply {
-        merchantRecurringPaymentId = "probe_mandate_001"  // Identification
-        amountBuilder.apply {  // Mandate Details
-            minorAmount = 0L  // Amount in minor units (e.g., 1000 = $10.00)
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR")
-        }
-        paymentMethodBuilder.apply {
-            cardBuilder.apply {  // Generic card payment
-                cardNumberBuilder.value = "4111111111111111"  // Card Identification
-                cardExpMonthBuilder.value = "03"
-                cardExpYearBuilder.value = "2030"
-                cardCvcBuilder.value = "737"
-                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information
-            }
-        }
-        addressBuilder.apply {  // Address Information
-            billingAddressBuilder.apply {
-            }
-        }
-        authType = AuthenticationType.NO_THREE_DS  // Type of authentication to be used
-        enrolledFor3Ds = false  // Indicates if the customer is enrolled for 3D Secure
-        returnUrl = "https://example.com/mandate-return"  // URL to redirect after setup
-        setupFutureUsage = FutureUsage.OFF_SESSION  // Indicates future usage intention
-        requestIncrementalAuthorization = false  // Indicates if incremental authorization is requested
-        customerAcceptanceBuilder.apply {  // Details of customer acceptance
-            acceptanceType = AcceptanceType.OFFLINE  // Type of acceptance (e.g., online, offline).
-            acceptedAt = 0L  // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
-        }
-    }.build()
-    val response = client.setup_recurring(request)
-    when (response.status.name) {
-        "FAILED" -> throw RuntimeException("Setup failed: ${response.error.unifiedDetails.message}")
-        else     -> println("Mandate stored: ${response.connectorRecurringPaymentId}")
-    }
-}
-
-
-fun main(args: Array<String>) {
-    val txnId = "order_001"
-    val flow = args.firstOrNull() ?: "processCheckoutCard"
-    when (flow) {
-        "processCheckoutCard" -> processCheckoutCard(txnId)
-        "processCheckoutAutocapture" -> processCheckoutAutocapture(txnId)
-        "processRefund" -> processRefund(txnId)
-        "processRecurring" -> processRecurring(txnId)
-        "processGetPayment" -> processGetPayment(txnId)
-        "authorize" -> authorize(txnId)
-        "capture" -> capture(txnId)
-        "get" -> get(txnId)
-        "recurringCharge" -> recurringCharge(txnId)
-        "refund" -> refund(txnId)
-        "setupRecurring" -> setupRecurring(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutCard, processCheckoutAutocapture, processRefund, processRecurring, processGetPayment, authorize, capture, get, recurringCharge, refund, setupRecurring")
-    }
+    val result = directPaymentClient.setup_recurring(PaymentServiceSetupRecurringRequest.newBuilder().setMerchantRecurringPaymentId("probe_mandate_001").setAmount(Money.newBuilder().setMinorAmount(0).setCurrency(Currency.USD).build()).setPaymentMethod(PaymentMethod.newBuilder().setCard(CardDetails.newBuilder().setCardNumber(CardNumberType.newBuilder().setValue("4111111111111111").build()).setCardExpMonth(SecretString.newBuilder().setValue("03").build()).setCardExpYear(SecretString.newBuilder().setValue("2030").build()).setCardCvc(SecretString.newBuilder().setValue("737").build()).setCardHolderName(SecretString.newBuilder().setValue("John Doe").build()).build()).build()).setAddress(PaymentAddress.newBuilder().setBillingAddress(Address.newBuilder().build()).build()).setAuthType(AuthenticationType.NO_THREE_DS).setEnrolledFor3Ds(false).setReturnUrl("https://example.com/mandate-return").setSetupFutureUsage(FutureUsage.OFF_SESSION).setRequestIncrementalAuthorization(false).setCustomerAcceptance(CustomerAcceptance.newBuilder().setAcceptanceType(AcceptanceType.OFFLINE).setAcceptedAt(0).build()).build())
+    println("[setup_recurring] HTTP ${result.statusCode}")
+    return mapOf("statusCode" to result.statusCode)
 }

@@ -1,153 +1,61 @@
-// This file is auto-generated. Do not edit manually.
-// Replace YOUR_API_KEY and placeholder values with real data.
-// Regenerate: python3 scripts/generate-connector-docs.py nexixpay
-//
-// Nexixpay — all scenarios and flows in one file.
-// Run a scenario:  ./gradlew run --args="nexixpay processCheckoutCard"
-
+// Auto-generated for nexixpay
 package examples.nexixpay
 
-import payments.PaymentClient
+import payments.Address
+import payments.CardDetails
+import payments.CardNumberType
+import payments.ConnectorConfig
+import payments.Currency
+import payments.DirectPaymentClient
+import payments.Environment
+import payments.Money
+import payments.PaymentAddress
+import payments.PaymentMethod
 import payments.PaymentMethodAuthenticationClient
+import payments.PaymentMethodAuthenticationServicePreAuthenticateRequest
 import payments.PaymentServiceCaptureRequest
 import payments.PaymentServiceGetRequest
-import payments.PaymentMethodAuthenticationServicePreAuthenticateRequest
 import payments.PaymentServiceRefundRequest
 import payments.PaymentServiceVoidRequest
-import payments.Currency
-import payments.ConnectorConfig
-import payments.SdkOptions
-import payments.Environment
+import payments.SecretString
 
+fun capture(txnId: String, config: ConnectorConfig): Map<String, Any?> {
+    // Flow: PaymentService.capture
+    val directPaymentClient = DirectPaymentClient(config)
 
-private fun buildCaptureRequest(connectorTransactionIdStr: String): PaymentServiceCaptureRequest {
-    return PaymentServiceCaptureRequest.newBuilder().apply {
-        merchantCaptureId = "probe_capture_001"  // Identification
-        connectorTransactionId = connectorTransactionIdStr
-        amountToCaptureBuilder.apply {  // Capture Details
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00)
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR")
-        }
-    }.build()
+    val result = directPaymentClient.capture(PaymentServiceCaptureRequest.newBuilder().setMerchantCaptureId("probe_capture_001").setConnectorTransactionId("probe_connector_txn_001").setAmountToCapture(Money.newBuilder().setMinorAmount(1000).setCurrency(Currency.USD).build()).build())
+    println("[capture] HTTP ${result.statusCode}")
+    return mapOf("statusCode" to result.statusCode)
 }
+fun get(txnId: String, config: ConnectorConfig): Map<String, Any?> {
+    // Flow: PaymentService.get
+    val directPaymentClient = DirectPaymentClient(config)
 
-private fun buildGetRequest(connectorTransactionIdStr: String): PaymentServiceGetRequest {
-    return PaymentServiceGetRequest.newBuilder().apply {
-        merchantTransactionId = "probe_merchant_txn_001"  // Identification
-        connectorTransactionId = connectorTransactionIdStr
-        amountBuilder.apply {  // Amount Information
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00)
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR")
-        }
-    }.build()
+    val result = directPaymentClient.get(PaymentServiceGetRequest.newBuilder().setMerchantTransactionId("probe_merchant_txn_001").setConnectorTransactionId("probe_connector_txn_001").setAmount(Money.newBuilder().setMinorAmount(1000).setCurrency(Currency.USD).build()).build())
+    println("[get] HTTP ${result.statusCode}")
+    return mapOf("statusCode" to result.statusCode)
 }
+fun pre_authenticate(txnId: String, config: ConnectorConfig): Map<String, Any?> {
+    // Flow: PaymentMethodAuthenticationService.pre_authenticate
+    val paymentMethodAuthenticationClient = PaymentMethodAuthenticationClient(config)
 
-private fun buildRefundRequest(connectorTransactionIdStr: String): PaymentServiceRefundRequest {
-    return PaymentServiceRefundRequest.newBuilder().apply {
-        merchantRefundId = "probe_refund_001"  // Identification
-        connectorTransactionId = connectorTransactionIdStr
-        paymentAmount = 1000L  // Amount Information
-        refundAmountBuilder.apply {
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00)
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR")
-        }
-        reason = "customer_request"  // Reason for the refund
-    }.build()
+    val result = paymentMethodAuthenticationClient.pre_authenticate(PaymentMethodAuthenticationServicePreAuthenticateRequest.newBuilder().setAmount(Money.newBuilder().setMinorAmount(1000).setCurrency(Currency.USD).build()).setPaymentMethod(PaymentMethod.newBuilder().setCard(CardDetails.newBuilder().setCardNumber(CardNumberType.newBuilder().setValue("4111111111111111").build()).setCardExpMonth(SecretString.newBuilder().setValue("03").build()).setCardExpYear(SecretString.newBuilder().setValue("2030").build()).setCardCvc(SecretString.newBuilder().setValue("737").build()).setCardHolderName(SecretString.newBuilder().setValue("John Doe").build()).build()).build()).setAddress(PaymentAddress.newBuilder().setBillingAddress(Address.newBuilder().build()).build()).setEnrolledFor3Ds(false).setReturnUrl("https://example.com/3ds-return").build())
+    println("[pre_authenticate] HTTP ${result.statusCode}")
+    return mapOf("statusCode" to result.statusCode)
 }
+fun refund(txnId: String, config: ConnectorConfig): Map<String, Any?> {
+    // Flow: PaymentService.refund
+    val directPaymentClient = DirectPaymentClient(config)
 
-private fun buildVoidRequest(connectorTransactionIdStr: String): PaymentServiceVoidRequest {
-    return PaymentServiceVoidRequest.newBuilder().apply {
-        merchantVoidId = "probe_void_001"  // Identification
-        connectorTransactionId = connectorTransactionIdStr
-        amountBuilder.apply {  // Amount Information
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00)
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR")
-        }
-    }.build()
+    val result = directPaymentClient.refund(PaymentServiceRefundRequest.newBuilder().setMerchantRefundId("probe_refund_001").setConnectorTransactionId("probe_connector_txn_001").setPaymentAmount(1000).setRefundAmount(Money.newBuilder().setMinorAmount(1000).setCurrency(Currency.USD).build()).setReason("customer_request").build())
+    println("[refund] HTTP ${result.statusCode}")
+    return mapOf("statusCode" to result.statusCode)
 }
+fun void(txnId: String, config: ConnectorConfig): Map<String, Any?> {
+    // Flow: PaymentService.void
+    val directPaymentClient = DirectPaymentClient(config)
 
-val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
-    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    // .setConnectorConfig(...) — set your connector config here
-    .build()
-
-
-// Flow: PaymentService.Capture
-fun capture(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
-    val request = buildCaptureRequest("probe_connector_txn_001")
-    val response = client.capture(request)
-    if (response.status.name == "FAILED")
-        throw RuntimeException("Capture failed: ${response.error.unifiedDetails.message}")
-    println("Done: ${response.status.name}")
-}
-
-// Flow: PaymentService.Get
-fun get(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
-    val request = buildGetRequest("probe_connector_txn_001")
-    val response = client.get(request)
-    println("Status: ${response.status.name}")
-}
-
-// Flow: PaymentMethodAuthenticationService.PreAuthenticate
-fun preAuthenticate(txnId: String) {
-    val client = PaymentMethodAuthenticationClient(_defaultConfig)
-    val request = PaymentMethodAuthenticationServicePreAuthenticateRequest.newBuilder().apply {
-        amountBuilder.apply {  // Amount Information
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00)
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR")
-        }
-        paymentMethodBuilder.apply {  // Payment Method
-            cardBuilder.apply {  // Generic card payment
-                cardNumberBuilder.value = "4111111111111111"  // Card Identification
-                cardExpMonthBuilder.value = "03"
-                cardExpYearBuilder.value = "2030"
-                cardCvcBuilder.value = "737"
-                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information
-            }
-        }
-        addressBuilder.apply {  // Address Information
-            billingAddressBuilder.apply {
-            }
-        }
-        enrolledFor3Ds = false  // Authentication Details
-        returnUrl = "https://example.com/3ds-return"  // URLs for Redirection
-    }.build()
-    val response = client.pre_authenticate(request)
-    println("Status: ${response.status.name}")
-}
-
-// Flow: PaymentService.Refund
-fun refund(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
-    val request = buildRefundRequest("probe_connector_txn_001")
-    val response = client.refund(request)
-    if (response.status.name == "FAILED")
-        throw RuntimeException("Refund failed: ${response.error.unifiedDetails.message}")
-    println("Done: ${response.status.name}")
-}
-
-// Flow: PaymentService.Void
-fun void(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
-    val request = buildVoidRequest("probe_connector_txn_001")
-    val response = client.void(request)
-    if (response.status.name == "FAILED")
-        throw RuntimeException("Void failed: ${response.error.unifiedDetails.message}")
-    println("Done: ${response.status.name}")
-}
-
-
-fun main(args: Array<String>) {
-    val txnId = "order_001"
-    val flow = args.firstOrNull() ?: "capture"
-    when (flow) {
-        "capture" -> capture(txnId)
-        "get" -> get(txnId)
-        "preAuthenticate" -> preAuthenticate(txnId)
-        "refund" -> refund(txnId)
-        "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: capture, get, preAuthenticate, refund, void")
-    }
+    val result = directPaymentClient.void(PaymentServiceVoidRequest.newBuilder().setMerchantVoidId("probe_void_001").setConnectorTransactionId("probe_connector_txn_001").setAmount(Money.newBuilder().setMinorAmount(1000).setCurrency(Currency.USD).build()).build())
+    println("[void] HTTP ${result.statusCode}")
+    return mapOf("statusCode" to result.statusCode)
 }
