@@ -9,13 +9,17 @@
 
 use crate::connectors::*;
 use domain_types::{
-    connector_flow::VerifyWebhookSource, connector_types::VerifyWebhookSourceFlowData,
+    connector_flow::{SplitSettlement, VerifyWebhookSource},
+    connector_types::{
+        PaymentFlowData, SplitSettlementData, SplitSettlementResponseData,
+        VerifyWebhookSourceFlowData,
+    },
     payment_method_data::PaymentMethodDataTypes,
     router_request_types::VerifyWebhookSourceRequestData,
     router_response_types::VerifyWebhookSourceResponseData,
 };
 use interfaces::connector_integration_v2::ConnectorIntegrationV2;
-use interfaces::connector_types::VerifyWebhookSourceV2;
+use interfaces::connector_types::{SplitSettlementV2, VerifyWebhookSourceV2};
 
 /// Macro to generate empty implementations of VerifyWebhookSourceV2 for connectors
 /// that don't need external webhook verification.
@@ -126,3 +130,109 @@ default_impl_verify_webhook_source_v2!(
     Ppro
 );
 // PayPal has its own implementation in paypal.rs
+
+/// Macro to generate empty implementations of SplitSettlementV2 for connectors
+/// that don't support split settlement operations.
+#[macro_export]
+macro_rules! default_impl_split_settlement_v2 {
+    ($($connector:ident),*) => {
+        $(
+            impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + serde::Serialize>
+                SplitSettlementV2 for $connector<T>
+            {
+            }
+
+            impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + serde::Serialize>
+                ConnectorIntegrationV2<
+                    SplitSettlement,
+                    PaymentFlowData,
+                    SplitSettlementData,
+                    SplitSettlementResponseData,
+                > for $connector<T>
+            {
+            }
+        )*
+    };
+}
+
+// Generate default (NotImplemented) implementations for all connectors except Razorpay
+default_impl_split_settlement_v2!(
+    Adyen,
+    Aci,
+    Airwallex,
+    Authipay,
+    Authorizedotnet,
+    Bambora,
+    Bamboraapac,
+    Bankofamerica,
+    Barclaycard,
+    Billwerk,
+    Bluesnap,
+    Braintree,
+    Calida,
+    Cashfree,
+    Cashtocode,
+    Celero,
+    Checkout,
+    Cryptopay,
+    Cybersource,
+    Datatrans,
+    Dlocal,
+    Elavon,
+    Fiserv,
+    Fiservcommercehub,
+    Fiservemea,
+    Fiuu,
+    Forte,
+    Getnet,
+    Gigadat,
+    Globalpay,
+    Helcim,
+    Hipay,
+    Hyperpg,
+    Iatapay,
+    Jpmorgan,
+    Loonio,
+    Mifinity,
+    Mollie,
+    Multisafepay,
+    Nexinets,
+    Nexixpay,
+    Nmi,
+    Noon,
+    Novalnet,
+    Nuvei,
+    Paybox,
+    Payload,
+    Payme,
+    Paypal,
+    Paysafe,
+    Paytm,
+    Payu,
+    Peachpayments,
+    Phonepe,
+    Placetopay,
+    Powertranz,
+    Ppro,
+    Rapyd,
+    RazorpayV2,
+    Redsys,
+    Revolut,
+    Revolv3,
+    Finix,
+    Shift4,
+    Silverflow,
+    Stax,
+    Stripe,
+    Trustpay,
+    Trustpayments,
+    Truelayer,
+    Tsys,
+    Volt,
+    Wellsfargo,
+    Worldpay,
+    Worldpayvantiv,
+    Worldpayxml,
+    Xendit,
+    Zift
+);

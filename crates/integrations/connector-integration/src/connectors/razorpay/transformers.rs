@@ -4,11 +4,11 @@ use base64::{engine::general_purpose::STANDARD, Engine};
 use common_enums::{self, AttemptStatus, CardNetwork};
 use common_utils::{ext_traits::ByteSliceExt, pii::Email, request::Method, types::MinorUnit};
 use domain_types::{
-    connector_flow::{Authorize, Capture, CreateOrder, RSync, Refund},
+    connector_flow::{Authorize, Capture, CreateOrder, RSync, Refund, SplitSettlement},
     connector_types::{
         PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentsAuthorizeData,
         PaymentsCaptureData, PaymentsResponseData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId,
+        RefundsResponseData, ResponseId, SplitSettlementData, SplitSettlementResponseData,
     },
     errors,
     payment_method_data::{Card, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
@@ -1651,5 +1651,99 @@ pub fn json_value_to_string(value: &serde_json::Value) -> String {
     match value {
         serde_json::Value::String(s) => s.clone(),
         _ => value.to_string(), // For Number, Bool, Null, Object, Array - serialize as JSON
+    }
+}
+
+// ============ Split Settlement Types ============
+
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Serialize)]
+pub struct RazorpaySplitSettlementTransfer {
+    pub account: String,
+    pub amount: i64,
+    pub currency: String,
+    pub on_hold: Option<bool>,
+    pub notes: Option<serde_json::Value>,
+    pub linked_account_notes: Option<Vec<String>>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct RazorpaySplitSettlementRequest {
+    pub transfers: Vec<RazorpaySplitSettlementTransfer>,
+}
+
+impl TryFrom<&SplitSettlementData> for RazorpaySplitSettlementRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(data: &SplitSettlementData) -> Result<Self, Self::Error> {
+        let transfers = data
+            .transfers
+            .iter()
+            .map(|t| RazorpaySplitSettlementTransfer {
+                account: t.account_id.clone(),
+                amount: t.amount,
+                currency: t.currency.to_string(),
+                on_hold: None,
+                notes: None,
+                linked_account_notes: None,
+            })
+            .collect();
+
+        Ok(Self { transfers })
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RazorpaySplitSettlementTransferItem {
+    pub id: String,
+    pub entity: String,
+    pub status: String,
+    pub source: String,
+    pub recipient: String,
+    pub amount: i64,
+    pub currency: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RazorpaySplitSettlementResponse {
+    pub entity: String,
+    pub count: i64,
+    pub items: Vec<RazorpaySplitSettlementTransferItem>,
+}
+
+impl ForeignTryFrom<(RazorpaySplitSettlementResponse, Self, u16)>
+    for RouterDataV2<
+        SplitSettlement,
+        PaymentFlowData,
+        SplitSettlementData,
+        SplitSettlementResponseData,
+    >
+{
+    type Error = errors::ConnectorError;
+
+    fn foreign_try_from(
+        (response, data, http_code): (RazorpaySplitSettlementResponse, Self, u16),
+    ) -> Result<Self, Self::Error> {
+        let transfer_ids: Vec<String> = response.items.iter().map(|t| t.id.clone()).collect();
+        let status = if transfer_ids.is_empty() {
+            "failed".to_string()
+        } else {
+            response
+                .items
+                .first()
+                .map(|t| t.status.clone())
+                .unwrap_or_else(|| "created".to_string())
+        };
+
+        let split_settlement_response_data = SplitSettlementResponseData {
+            status,
+            transfer_ids,
+            status_code: http_code,
+        };
+
+        Ok(Self {
+            response: Ok(split_settlement_response_data),
+            ..data
+        })
     }
 }

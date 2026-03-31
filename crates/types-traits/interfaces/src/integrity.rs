@@ -14,7 +14,7 @@ use domain_types::connector_types::{
     PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
     PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsSdkSessionTokenData,
     PaymentsSyncData, RefundSyncData, RefundsData, RepeatPaymentData, SessionTokenRequestData,
-    SetupMandateRequestData, SubmitEvidenceData,
+    SetupMandateRequestData, SplitSettlementData, SubmitEvidenceData,
 };
 use domain_types::payouts::payouts_types::{
     PayoutCreateLinkRequest, PayoutCreateRecipientRequest, PayoutCreateRequest,
@@ -39,7 +39,8 @@ use domain_types::{
         PaymentVoidPostCaptureIntegrityObject, PostAuthenticateIntegrityObject,
         PreAuthenticateIntegrityObject, RefundIntegrityObject, RefundSyncIntegrityObject,
         RepeatPaymentIntegrityObject, SessionTokenIntegrityObject, SetupMandateIntegrityObject,
-        SubmitEvidenceIntegrityObject, VerifyWebhookSourceIntegrityObject,
+        SplitSettlementIntegrityObject, SubmitEvidenceIntegrityObject,
+        VerifyWebhookSourceIntegrityObject,
     },
 };
 
@@ -183,6 +184,7 @@ impl_check_integrity!(ConnectorCustomerData);
 impl_check_integrity!(PaymentsSdkSessionTokenData);
 impl_check_integrity!(PaymentsIncrementalAuthorizationData);
 impl_check_integrity!(MandateRevokeRequestData);
+impl_check_integrity!(SplitSettlementData);
 impl_check_integrity!(VerifyWebhookSourceRequestData);
 impl_check_integrity!(PayoutCreateRequest);
 impl_check_integrity!(PayoutTransferRequest);
@@ -391,6 +393,16 @@ impl GetIntegrityObject<MandateRevokeIntegrityObject> for MandateRevokeRequestDa
         MandateRevokeIntegrityObject {
             mandate_id: self.mandate_id.clone(),
         }
+    }
+}
+
+impl GetIntegrityObject<SplitSettlementIntegrityObject> for SplitSettlementData {
+    fn get_response_integrity_object(&self) -> Option<SplitSettlementIntegrityObject> {
+        None
+    }
+
+    fn get_request_integrity_object(&self) -> SplitSettlementIntegrityObject {
+        SplitSettlementIntegrityObject {}
     }
 }
 
@@ -945,6 +957,19 @@ impl FlowIntegrity for MandateRevokeIntegrityObject {
         }
 
         check_integrity_result(mismatched_fields, connector_transaction_id)
+    }
+}
+
+impl FlowIntegrity for SplitSettlementIntegrityObject {
+    type IntegrityObject = Self;
+
+    fn compare(
+        _req_integrity_object: Self,
+        _res_integrity_object: Self,
+        _connector_transaction_id: Option<String>,
+    ) -> Result<(), IntegrityCheckError> {
+        // No integrity fields to compare for split settlement
+        Ok(())
     }
 }
 

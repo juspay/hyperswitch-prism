@@ -14,7 +14,7 @@ use domain_types::{
         Authenticate, Authorize, Capture, CreateAccessToken, CreateConnectorCustomer, CreateOrder,
         CreateSessionToken, IncrementalAuthorization, MandateRevoke, PSync, PaymentMethodToken,
         PostAuthenticate, PreAuthenticate, Refund, RepeatPayment, SdkSessionToken, SetupMandate,
-        Void, VoidPC,
+        SplitSettlement, VerifyWebhookSource, Void, VoidPC,
     },
     connector_types::{
         AccessTokenRequestData, AccessTokenResponseData, ConnectorCustomerData,
@@ -26,7 +26,8 @@ use domain_types::{
         PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsResponseData,
         PaymentsSdkSessionTokenData, PaymentsSyncData, RawConnectorRequestResponse, RefundFlowData,
         RefundsData, RefundsResponseData, RepeatPaymentData, SessionTokenRequestData,
-        SessionTokenResponseData, SetupMandateRequestData,
+        SessionTokenResponseData, SetupMandateRequestData, SplitSettlementData,
+        SplitSettlementResponseData, VerifyWebhookSourceFlowData,
     },
     errors::ApplicationErrorResponse,
     payment_method_data::{DefaultPCIHolder, PaymentMethodDataTypes, VaultTokenHolder},
@@ -70,6 +71,7 @@ use grpc_api_types::payments::{
     PaymentServiceIncrementalAuthorizationResponse, PaymentServiceRefundRequest,
     PaymentServiceReverseRequest, PaymentServiceReverseResponse,
     PaymentServiceSetupRecurringRequest, PaymentServiceSetupRecurringResponse,
+    PaymentServiceSplitSettlementRequest, PaymentServiceSplitSettlementResponse,
     PaymentServiceVerifyRedirectResponseRequest, PaymentServiceVerifyRedirectResponseResponse,
     PaymentServiceVoidRequest, PaymentServiceVoidResponse, PayoutMethodEligibilityRequest,
     PayoutMethodEligibilityResponse, RecurringPaymentServiceChargeRequest,
@@ -218,6 +220,13 @@ trait RecurringPaymentOperational {
         &self,
         request: RequestData<RecurringPaymentServiceRevokeRequest>,
     ) -> Result<tonic::Response<RecurringPaymentServiceRevokeResponse>, tonic::Status>;
+}
+
+trait SplitSettlementOperational {
+    async fn internal_split_settlement(
+        &self,
+        request: RequestData<PaymentServiceSplitSettlementRequest>,
+    ) -> Result<tonic::Response<PaymentServiceSplitSettlementResponse>, tonic::Status>;
 }
 
 trait MerchantAuthenticationOperational {
@@ -2389,6 +2398,47 @@ impl PaymentService for Payments {
         )
         .await
     }
+
+    #[tracing::instrument(
+        name = "split_settlement",
+        fields(
+            name = common_utils::consts::NAME,
+            service_name = common_utils::consts::PAYMENT_SERVICE_NAME,
+            service_method = FlowName::SplitSettlement.as_str(),
+            request_body = tracing::field::Empty,
+            response_body = tracing::field::Empty,
+            error_message = tracing::field::Empty,
+            merchant_id = tracing::field::Empty,
+            gateway = tracing::field::Empty,
+            request_id = tracing::field::Empty,
+            status_code = tracing::field::Empty,
+            message_ = "Golden Log Line (incoming)",
+            response_time = tracing::field::Empty,
+            tenant_id = tracing::field::Empty,
+            flow = FlowName::SplitSettlement.as_str(),
+            flow_specific_fields.status = tracing::field::Empty,
+        ),
+        skip(self, request)
+    )]
+    async fn split_settlement(
+        &self,
+        request: tonic::Request<PaymentServiceSplitSettlementRequest>,
+    ) -> Result<tonic::Response<PaymentServiceSplitSettlementResponse>, tonic::Status> {
+        let service_name = request
+            .extensions()
+            .get::<String>()
+            .cloned()
+            .unwrap_or_else(|| "PaymentService".to_string());
+        let config = get_config_from_request(&request)?;
+        grpc_logging_wrapper(
+            request,
+            &service_name,
+            config.clone(),
+            FlowName::SplitSettlement,
+            |request_data| async move { self.internal_split_settlement(request_data).await },
+        )
+        .await
+    }
 }
 
 #[tonic::async_trait]
@@ -3649,6 +3699,75 @@ pub fn generate_mandate_revoke_response(
             merchant_revoke_id: e.connector_transaction_id,
             raw_connector_response,
             raw_connector_request,
+        }),
+    }
+}
+
+// ============================================================================
+// SplitSettlement Flow
+// ============================================================================
+
+impl SplitSettlementOperational for Payments {
+    implement_connector_operation!(
+        fn_name: internal_split_settlement,
+        log_prefix: "SPLIT_SETTLEMENT",
+        request_type: PaymentServiceSplitSettlementRequest,
+        response_type: PaymentServiceSplitSettlementResponse,
+        flow_marker: SplitSettlement,
+        resource_common_data_type: PaymentFlowData,
+        request_data_type: SplitSettlementData,
+        response_data_type: SplitSettlementResponseData,
+        request_data_constructor: SplitSettlementData::foreign_try_from,
+        common_flow_data_constructor: PaymentFlowData::foreign_try_from,
+        generate_response_fn: generate_split_settlement_response,
+        all_keys_required: None
+    );
+}
+
+pub fn generate_split_settlement_response(
+    router_data_v2: RouterDataV2<
+        SplitSettlement,
+        PaymentFlowData,
+        SplitSettlementData,
+        SplitSettlementResponseData,
+    >,
+) -> Result<PaymentServiceSplitSettlementResponse, error_stack::Report<ApplicationErrorResponse>> {
+    let raw_connector_response = router_data_v2
+        .resource_common_data
+        .get_raw_connector_response();
+    let raw_connector_request = router_data_v2
+        .resource_common_data
+        .get_raw_connector_request();
+    let response_headers = router_data_v2
+        .resource_common_data
+        .get_connector_response_headers_as_map();
+
+    match router_data_v2.response {
+        Ok(response) => Ok(PaymentServiceSplitSettlementResponse {
+            status: response.status,
+            transfer_ids: response.transfer_ids,
+            status_code: response.status_code.into(),
+            error: None,
+            raw_connector_response,
+            raw_connector_request,
+            response_headers,
+        }),
+        Err(e) => Ok(PaymentServiceSplitSettlementResponse {
+            status: "failed".to_string(),
+            transfer_ids: vec![],
+            status_code: e.status_code.into(),
+            error: Some(grpc_api_types::payments::ErrorInfo {
+                unified_details: None,
+                connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
+                    code: Some(e.code),
+                    message: Some(e.message.clone()),
+                    reason: e.reason.clone(),
+                }),
+                issuer_details: None,
+            }),
+            raw_connector_response,
+            raw_connector_request,
+            response_headers,
         }),
     }
 }

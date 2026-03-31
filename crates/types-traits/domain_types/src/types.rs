@@ -33,8 +33,9 @@ use grpc_api_types::payments::{
     PaymentServiceCreateOrderResponse, PaymentServiceGetResponse,
     PaymentServiceIncrementalAuthorizationRequest, PaymentServiceIncrementalAuthorizationResponse,
     PaymentServiceReverseResponse, PaymentServiceSetupRecurringRequest,
-    PaymentServiceSetupRecurringResponse, PaymentServiceVoidRequest, PaymentServiceVoidResponse,
-    RecurringPaymentServiceRevokeRequest, RefundResponse,
+    PaymentServiceSetupRecurringResponse, PaymentServiceSplitSettlementRequest,
+    PaymentServiceVoidRequest, PaymentServiceVoidResponse, RecurringPaymentServiceRevokeRequest,
+    RefundResponse,
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -11499,4 +11500,99 @@ pub fn generate_payment_post_authenticate_response<T: PaymentMethodDataTypes>(
         }
     };
     Ok(response)
+}
+
+// ============================================================================
+// SplitSettlement Flow Conversions
+// ============================================================================
+impl ForeignTryFrom<PaymentServiceSplitSettlementRequest> for connector_types::SplitSettlementData {
+    type Error = ApplicationErrorResponse;
+
+    fn foreign_try_from(
+        value: PaymentServiceSplitSettlementRequest,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let transfers = value
+            .transfers
+            .into_iter()
+            .map(|t| {
+                let currency = common_enums::Currency::from_str(&t.currency).map_err(|_| {
+                    error_stack::Report::new(ApplicationErrorResponse::BadRequest(ApiError {
+                        sub_code: "HE".to_string(),
+                        error_identifier: 0,
+                        error_message: format!("Invalid currency: {}", t.currency),
+                        error_object: None,
+                    }))
+                })?;
+                Ok(connector_types::SplitSettlementTransfer {
+                    account_id: t.account_id,
+                    amount: t.amount,
+                    currency,
+                })
+            })
+            .collect::<Result<Vec<_>, error_stack::Report<ApplicationErrorResponse>>>()?;
+
+        Ok(Self {
+            payment_id: value.payment_id,
+            transfers,
+        })
+    }
+}
+
+impl
+    ForeignTryFrom<(
+        PaymentServiceSplitSettlementRequest,
+        Connectors,
+        &MaskedMetadata,
+    )> for connector_types::PaymentFlowData
+{
+    type Error = ApplicationErrorResponse;
+
+    fn foreign_try_from(
+        (value, connectors, metadata): (
+            PaymentServiceSplitSettlementRequest,
+            Connectors,
+            &MaskedMetadata,
+        ),
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let merchant_id_from_header = extract_merchant_id_from_metadata(metadata)?;
+
+        Ok(Self {
+            merchant_id: merchant_id_from_header,
+            payment_id: value.payment_id.clone(),
+            attempt_id: "SPLIT_SETTLEMENT_ATTEMPT_ID".to_string(),
+            status: common_enums::AttemptStatus::Pending,
+            payment_method: common_enums::PaymentMethod::Card,
+            address: PaymentAddress::default(),
+            auth_type: common_enums::AuthenticationType::default(),
+            connector_request_reference_id: value.payment_id.clone(),
+            customer_id: None,
+            connector_customer: None,
+            description: Some("Split settlement operation".to_string()),
+            return_url: None,
+            connector_feature_data: None,
+            amount_captured: None,
+            minor_amount_captured: None,
+            access_token: None,
+            session_token: None,
+            reference_id: None,
+            payment_method_token: None,
+            preprocessing_id: None,
+            connector_api_version: None,
+            test_mode: None,
+            connector_http_status_code: None,
+            external_latency: None,
+            connectors,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            connector_response_headers: None,
+            vault_headers: None,
+            minor_amount_capturable: None,
+            amount: None,
+            connector_response: None,
+            recurring_mandate_payment_data: None,
+            order_details: None,
+            minor_amount_authorized: None,
+            l2_l3_data: None,
+        })
+    }
 }

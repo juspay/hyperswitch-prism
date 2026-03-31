@@ -1673,6 +1673,34 @@ pub struct MandateRevokeResponseData {
     pub status_code: u16,
 }
 
+/// A single transfer within a split settlement request
+#[derive(Debug, Clone)]
+pub struct SplitSettlementTransfer {
+    pub account_id: String,
+    pub amount: i64,
+    pub currency: common_enums::Currency,
+}
+
+/// Request data for the SplitSettlement flow
+#[derive(Debug, Clone)]
+pub struct SplitSettlementData {
+    /// The Razorpay payment ID to split
+    pub payment_id: String,
+    /// List of transfers to create
+    pub transfers: Vec<SplitSettlementTransfer>,
+}
+
+/// Response data from the SplitSettlement flow
+#[derive(Debug, Clone)]
+pub struct SplitSettlementResponseData {
+    /// Status of the split settlement (e.g., "created", "failed")
+    pub status: String,
+    /// IDs of created transfers
+    pub transfer_ids: Vec<String>,
+    /// HTTP status code from connector
+    pub status_code: u16,
+}
+
 #[derive(Debug, Default, Clone)]
 pub struct RefundSyncData {
     pub connector_transaction_id: String,

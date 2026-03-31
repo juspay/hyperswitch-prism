@@ -2646,6 +2646,41 @@ message RecurringPaymentServiceRevokeResponse {
 }
 
 // ============================================================================
+// SPLIT SETTLEMENT FLOW MESSAGES
+// ============================================================================
+
+// A single transfer within a split settlement
+message SplitSettlementTransferItem {
+  string account_id = 1;
+  int64 amount = 2;
+  string currency = 3;
+}
+
+// Request message for split settlement (payment transfer) operation
+message PaymentServiceSplitSettlementRequest {
+  // The payment ID on the connector to split
+  string payment_id = 1;
+  // List of transfers to create
+  repeated SplitSettlementTransferItem transfers = 2;
+}
+
+// Response message for split settlement operation
+message PaymentServiceSplitSettlementResponse {
+  // Status of the operation (e.g., "created", "failed")
+  string status = 1;
+  // IDs of created transfers
+  repeated string transfer_ids = 2;
+  // HTTP status code from connector
+  uint32 status_code = 3;
+  // Error details if any
+  optional ErrorInfo error = 4;
+  // Raw Response/Request for debugging
+  optional SecretString raw_connector_response = 5;
+  optional SecretString raw_connector_request = 6;
+  map<string, string> response_headers = 7;
+}
+
+// ============================================================================
 // 3DS AUTHENTICATION FLOW MESSAGES
 // ============================================================================
 

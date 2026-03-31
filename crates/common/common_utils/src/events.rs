@@ -320,6 +320,7 @@ pub enum FlowName {
     PostAuthenticate,
     SdkSessionToken,
     MandateRevoke,
+    SplitSettlement,
     Unknown,
     IncrementalAuthorization,
     PayoutCreate,
@@ -369,6 +370,7 @@ impl FlowName {
             Self::PayoutCreateRecipient => "PayoutCreateRecipient",
             Self::PayoutEnrollDisburseAccount => "PayoutEnrollDisburseAccount",
             Self::MandateRevoke => "MandateRevoke",
+            Self::SplitSettlement => "SplitSettlement",
             Self::Unknown => "Unknown",
         }
     }
