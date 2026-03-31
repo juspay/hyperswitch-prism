@@ -868,31 +868,30 @@ impl<
             + PartialEq
             + Serialize
             + serde::de::DeserializeOwned
-            + Clone
-            + CardConversionHelper<T>,
-    > ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethodData<T>
+            + Clone,
+    > PaymentMethodData<T>
 {
-    type Error = ApplicationErrorResponse;
-
-    fn foreign_try_from(
+    /// Converts a gRPC PaymentMethod to PaymentMethodData, supporting ONLY non-card payment methods.
+    /// Card flow variants (`Card`, `CardProxy`) are rejected with an explicit error.
+    pub fn convert_to_domain_model_for_non_card_payment_methods(
         value: grpc_api_types::payments::PaymentMethod,
-    ) -> Result<Self, error_stack::Report<Self::Error>> {
-        tracing::info!("PaymentMethod data received: {:?}", value);
+    ) -> Result<Self, error_stack::Report<ApplicationErrorResponse>> {
+        tracing::info!("Non-card PaymentMethod data received: {:?}", value);
 
         match value.payment_method {
             Some(data) => match data {
                 // ============================================================================
                 // CARD METHODS
                 // ============================================================================
-                grpc_api_types::payments::payment_method::PaymentMethod::Card(card_details) => {
-                    let card = payment_method_data::Card::<T>::foreign_try_from(card_details)?;
-                    Ok(Self::Card(card))
-                }
-                grpc_api_types::payments::payment_method::PaymentMethod::CardProxy(
-                    card_details,
-                ) => {
-                    let card = payment_method_data::Card::<T>::foreign_try_from(card_details)?;
-                    Ok(Self::Card(card))
+                grpc_api_types::payments::payment_method::PaymentMethod::Card(_) |
+                grpc_api_types::payments::payment_method::PaymentMethod::CardProxy(_) => {
+                    //do proper error handling
+                    Err(report!(ApplicationErrorResponse::BadRequest(ApiError {
+                    sub_code: "UNSUPPORTED_PAYMENT_METHOD".to_owned(),
+                    error_identifier: 400,
+                    error_message: "This payment method type cannot use this flow".to_owned(),
+                    error_object: None,
+                    })))
                 }
                 grpc_api_types::payments::payment_method::PaymentMethod::CardRedirect(
                     card_redirect,
@@ -2342,25 +2341,53 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
     }
 }
 
-// Helper trait for generic card conversion
-pub trait CardConversionHelper<T: PaymentMethodDataTypes> {
-    fn convert_card_details(
-        card: grpc_api_types::payments::CardDetails,
-    ) -> Result<payment_method_data::Card<T>, error_stack::Report<ApplicationErrorResponse>>;
+
+pub enum PaymentMethodDataAction {
+    Card(grpc_api_types::payments::CardDetails),
+    CardProxy(grpc_api_types::payments::ProxyCardDetails),
+    Default,
 }
 
-// Implementation for DefaultPCIHolder
-impl CardConversionHelper<Self> for DefaultPCIHolder {
-    fn convert_card_details(
+impl From<grpc_api_types::payments::payment_method::PaymentMethod> for PaymentMethodDataAction {
+    fn from(value: grpc_api_types::payments::payment_method::PaymentMethod) -> Self {
+        match value {
+                grpc_api_types::payments::payment_method::PaymentMethod::Card(card) => Self::Card(card),
+                grpc_api_types::payments::payment_method::PaymentMethod::CardProxy(proxy_card) => Self::CardProxy(proxy_card),
+                _ => Self::Default,
+        }
+    }
+}
+
+impl PaymentMethodDataAction {
+    pub fn get_payment_method_data_action(
+        payment_method: grpc_api_types::payments::PaymentMethod,
+    ) -> Result<Self, error_stack::Report<ApplicationErrorResponse>> {
+        match payment_method.payment_method {
+            Some(data) => Ok(data.into()),
+             None => Err(ApplicationErrorResponse::BadRequest(ApiError {
+                sub_code: "INVALID_PAYMENT_METHOD_DATA".to_owned(),
+                error_identifier: 400,
+                error_message: "Payment method data is required".to_owned(),
+                error_object: None,
+            })
+            .into()),
+        }
+    }
+}
+
+impl ForeignTryFrom<grpc_api_types::payments::CardDetails>
+    for payment_method_data::Card<DefaultPCIHolder>
+{
+    type Error = ApplicationErrorResponse;
+    fn foreign_try_from(
         card: grpc_api_types::payments::CardDetails,
-    ) -> Result<payment_method_data::Card<Self>, error_stack::Report<ApplicationErrorResponse>>
-    {
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
         let card_network = match card.card_network() {
             grpc_api_types::payments::CardNetwork::Unspecified => None,
             _ => Some(CardNetwork::foreign_try_from(card.card_network())?),
         };
         Ok(payment_method_data::Card {
-            card_number: RawCardNumber::<Self>(card.card_number.ok_or(
+            card_number: RawCardNumber(card.card_number.ok_or(
                 ApplicationErrorResponse::BadRequest(ApiError {
                     sub_code: "MISSING_CARD_NUMBER".to_owned(),
                     error_identifier: 400,
@@ -2404,23 +2431,22 @@ impl CardConversionHelper<Self> for DefaultPCIHolder {
     }
 }
 
-// Implementation for VaultTokenHolder
-impl CardConversionHelper<Self> for VaultTokenHolder {
-    fn convert_card_details(
-        card: grpc_api_types::payments::CardDetails,
-    ) -> Result<payment_method_data::Card<Self>, error_stack::Report<ApplicationErrorResponse>>
-    {
+impl ForeignTryFrom<grpc_api_types::payments::ProxyCardDetails>
+    for payment_method_data::Card<VaultTokenHolder>
+{
+    type Error = ApplicationErrorResponse;
+    fn foreign_try_from(
+        card: grpc_api_types::payments::ProxyCardDetails,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
         Ok(payment_method_data::Card {
-            card_number: RawCardNumber(
-                card.card_number
-                    .ok_or(ApplicationErrorResponse::BadRequest(ApiError {
-                        sub_code: "MISSING_CARD_NUMBER".to_owned(),
-                        error_identifier: 400,
-                        error_message: "Missing card number".to_owned(),
-                        error_object: None,
-                    }))
-                    .map(|cn| cn.get_card_no())?,
-            ),
+            card_number: RawCardNumber(card.card_number.ok_or(
+                ApplicationErrorResponse::BadRequest(ApiError {
+                    sub_code: "MISSING_CARD_NUMBER".to_owned(),
+                    error_identifier: 400,
+                    error_message: "Missing card number".to_owned(),
+                    error_object: None,
+                }),
+            )?),
             card_exp_month: card
                 .card_exp_month
                 .ok_or(ApplicationErrorResponse::BadRequest(ApiError {
@@ -2454,28 +2480,6 @@ impl CardConversionHelper<Self> for VaultTokenHolder {
             card_holder_name: card.card_holder_name,
             co_badged_card_data: None,
         })
-    }
-}
-
-// Generic ForeignTryFrom implementation using the helper trait
-impl<T> ForeignTryFrom<grpc_api_types::payments::CardDetails> for payment_method_data::Card<T>
-where
-    T: PaymentMethodDataTypes
-        + Default
-        + Debug
-        + Send
-        + Eq
-        + PartialEq
-        + Serialize
-        + serde::de::DeserializeOwned
-        + Clone
-        + CardConversionHelper<T>,
-{
-    type Error = ApplicationErrorResponse;
-    fn foreign_try_from(
-        card: grpc_api_types::payments::CardDetails,
-    ) -> Result<Self, error_stack::Report<Self::Error>> {
-        T::convert_card_details(card)
     }
 }
 
@@ -2649,14 +2653,14 @@ impl<
             + PartialEq
             + Serialize
             + serde::de::DeserializeOwned
-            + Clone
-            + CardConversionHelper<T>,
-    > ForeignTryFrom<PaymentServiceAuthorizeRequest> for PaymentsAuthorizeData<T>
+            + Clone,
+    > ForeignTryFrom<(PaymentServiceAuthorizeRequest, PaymentMethodData<T>)>
+    for PaymentsAuthorizeData<T>
 {
     type Error = ApplicationErrorResponse;
 
     fn foreign_try_from(
-        value: PaymentServiceAuthorizeRequest,
+        (value, payment_method_data): (PaymentServiceAuthorizeRequest, PaymentMethodData<T>),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let amount = match value.amount {
             Some(amount) => amount,
@@ -2765,16 +2769,7 @@ impl<
         Ok(Self {
             authentication_data,
             capture_method: Some(CaptureMethod::foreign_try_from(value.capture_method())?),
-            payment_method_data: PaymentMethodData::<T>::foreign_try_from(
-                value.payment_method.clone().ok_or_else(|| {
-                    ApplicationErrorResponse::BadRequest(ApiError {
-                        sub_code: "INVALID_PAYMENT_METHOD_DATA".to_owned(),
-                        error_identifier: 400,
-                        error_message: "Payment method data is required".to_owned(),
-                        error_object: None,
-                    })
-                })?,
-            )?,
+            payment_method_data,
             amount: common_utils::types::MinorUnit::new(amount.minor_amount),
             currency: common_enums::Currency::foreign_try_from(amount.currency())?,
             confirm: true,
@@ -7456,14 +7451,13 @@ impl<
             + PartialEq
             + Serialize
             + serde::de::DeserializeOwned
-            + Clone
-            + CardConversionHelper<T>,
-    > ForeignTryFrom<PaymentServiceSetupRecurringRequest> for SetupMandateRequestData<T>
+            + Clone,
+    > ForeignTryFrom<(PaymentServiceSetupRecurringRequest, PaymentMethodData<T>)> for SetupMandateRequestData<T>
 {
     type Error = ApplicationErrorResponse;
 
     fn foreign_try_from(
-        value: PaymentServiceSetupRecurringRequest,
+        (value, payment_method_data): (PaymentServiceSetupRecurringRequest, PaymentMethodData<T>)
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let email: Option<Email> = match value.customer.clone().and_then(|customer| customer.email)
         {
@@ -7534,16 +7528,7 @@ impl<
 
         Ok(Self {
             currency: amount.currency,
-            payment_method_data: PaymentMethodData::<T>::foreign_try_from(
-                value.payment_method.clone().ok_or_else(|| {
-                    ApplicationErrorResponse::BadRequest(ApiError {
-                        sub_code: "INVALID_PAYMENT_METHOD_DATA".to_owned(),
-                        error_identifier: 400,
-                        error_message: "Payment method data is required".to_owned(),
-                        error_object: None,
-                    })
-                })?,
-            )?,
+            payment_method_data,
             amount: Some(amount.amount.get_amount_as_i64()),
             confirm: true,
             customer_acceptance: Some(mandates::CustomerAcceptance::foreign_try_from(
@@ -9035,15 +9020,14 @@ impl<
             + PartialEq
             + Serialize
             + serde::de::DeserializeOwned
-            + Clone
-            + CardConversionHelper<T>,
-    > ForeignTryFrom<grpc_api_types::payments::PaymentMethodServiceTokenizeRequest>
+            + Clone,
+    > ForeignTryFrom<(grpc_api_types::payments::PaymentMethodServiceTokenizeRequest, PaymentMethodData<T>)>
     for PaymentMethodTokenizationData<T>
 {
     type Error = ApplicationErrorResponse;
 
     fn foreign_try_from(
-        value: grpc_api_types::payments::PaymentMethodServiceTokenizeRequest,
+        (value, payment_method_data): (grpc_api_types::payments::PaymentMethodServiceTokenizeRequest, PaymentMethodData<T>),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let money = match value.amount {
             Some(amount) => Ok(common_utils::types::Money {
@@ -9062,16 +9046,7 @@ impl<
         Ok(Self {
             amount: money.amount,
             currency,
-            payment_method_data: PaymentMethodData::<T>::foreign_try_from(
-                value.payment_method.clone().ok_or_else(|| {
-                    ApplicationErrorResponse::BadRequest(ApiError {
-                        sub_code: "INVALID_PAYMENT_METHOD_DATA".to_owned(),
-                        error_identifier: 400,
-                        error_message: "Payment method data is required".to_owned(),
-                        error_object: None,
-                    })
-                })?,
-            )?,
+            payment_method_data,
             browser_info: None,
             capture_method: None,
             customer_acceptance: None,
@@ -9372,15 +9347,14 @@ impl<
             + PartialEq
             + Serialize
             + serde::de::DeserializeOwned
-            + Clone
-            + CardConversionHelper<T>,
-    > ForeignTryFrom<grpc_api_types::payments::RecurringPaymentServiceChargeRequest>
+            + Clone,
+    > ForeignTryFrom<(grpc_api_types::payments::RecurringPaymentServiceChargeRequest, PaymentMethodData<T>)>
     for RepeatPaymentData<T>
 {
     type Error = ApplicationErrorResponse;
 
     fn foreign_try_from(
-        value: grpc_api_types::payments::RecurringPaymentServiceChargeRequest,
+        (value, payment_method_data): (grpc_api_types::payments::RecurringPaymentServiceChargeRequest, PaymentMethodData<T>),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         // Extract values first to avoid partial move
         let merchant_configured_currency = match value.merchant_configured_currency {
@@ -9451,12 +9425,6 @@ impl<
                 error_object: None,
             }))?,
         };
-
-        let payment_method_data = value
-            .payment_method
-            .map(PaymentMethodData::<T>::foreign_try_from)
-            .transpose()?
-            .unwrap_or(PaymentMethodData::MandatePayment);
 
         let billing_descriptor =
             value
@@ -10325,17 +10293,16 @@ impl<
             + PartialEq
             + Serialize
             + serde::de::DeserializeOwned
-            + Clone
-            + CardConversionHelper<T>,
+            + Clone,
     >
     ForeignTryFrom<
-        grpc_api_types::payments::PaymentMethodAuthenticationServicePreAuthenticateRequest,
+        (grpc_api_types::payments::PaymentMethodAuthenticationServicePreAuthenticateRequest, Option<PaymentMethodData<T>>)
     > for PaymentsPreAuthenticateData<T>
 {
     type Error = ApplicationErrorResponse;
 
     fn foreign_try_from(
-        value: grpc_api_types::payments::PaymentMethodAuthenticationServicePreAuthenticateRequest,
+        (value, payment_method_data): (grpc_api_types::payments::PaymentMethodAuthenticationServicePreAuthenticateRequest, Option<PaymentMethodData<T>>)
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let email: Option<Email> = match value.customer.and_then(|c| c.email) {
             Some(ref email_str) => {
@@ -10370,10 +10337,7 @@ impl<
         let payment_method_clone = value.payment_method.clone();
 
         Ok(Self {
-            payment_method_data: value
-                .payment_method
-                .map(PaymentMethodData::<T>::foreign_try_from)
-                .transpose()?,
+            payment_method_data,
             amount: amount.amount,
             currency: Some(amount.currency),
             email,
@@ -10433,16 +10397,15 @@ impl<
             + PartialEq
             + Serialize
             + serde::de::DeserializeOwned
-            + Clone
-            + CardConversionHelper<T>,
+            + Clone,
     >
-    ForeignTryFrom<grpc_api_types::payments::PaymentMethodAuthenticationServiceAuthenticateRequest>
+    ForeignTryFrom<(grpc_api_types::payments::PaymentMethodAuthenticationServiceAuthenticateRequest, Option<PaymentMethodData<T>>)>
     for PaymentsAuthenticateData<T>
 {
     type Error = ApplicationErrorResponse;
 
     fn foreign_try_from(
-        value: grpc_api_types::payments::PaymentMethodAuthenticationServiceAuthenticateRequest,
+        (value, payment_method_data): (grpc_api_types::payments::PaymentMethodAuthenticationServiceAuthenticateRequest, Option<PaymentMethodData<T>>),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let email: Option<Email> = match value.customer.and_then(|c| c.email) {
             Some(ref email_str) => {
@@ -10490,10 +10453,7 @@ impl<
                 });
 
         Ok(Self {
-            payment_method_data: value
-                .payment_method
-                .map(PaymentMethodData::<T>::foreign_try_from)
-                .transpose()?,
+            payment_method_data,
             amount: amount.amount,
             email,
             currency: Some(amount.currency),
@@ -10556,17 +10516,16 @@ impl<
             + PartialEq
             + Serialize
             + serde::de::DeserializeOwned
-            + Clone
-            + CardConversionHelper<T>,
+            + Clone,
     >
     ForeignTryFrom<
-        grpc_api_types::payments::PaymentMethodAuthenticationServicePostAuthenticateRequest,
+        (grpc_api_types::payments::PaymentMethodAuthenticationServicePostAuthenticateRequest, Option<PaymentMethodData<T>>)
     > for PaymentsPostAuthenticateData<T>
 {
     type Error = ApplicationErrorResponse;
 
     fn foreign_try_from(
-        value: grpc_api_types::payments::PaymentMethodAuthenticationServicePostAuthenticateRequest,
+        (value, payment_method_data): (grpc_api_types::payments::PaymentMethodAuthenticationServicePostAuthenticateRequest, Option<PaymentMethodData<T>>),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let email: Option<Email> = match value.customer.and_then(|c| c.email) {
             Some(ref email_str) => {
@@ -10613,10 +10572,7 @@ impl<
                     ))),
                 });
         Ok(Self {
-            payment_method_data: value
-                .payment_method
-                .map(PaymentMethodData::<T>::foreign_try_from)
-                .transpose()?,
+            payment_method_data,
             amount: amount.amount,
             currency: Some(amount.currency),
             email,

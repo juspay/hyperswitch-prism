@@ -3,7 +3,6 @@ use domain_types::{
     errors::{ApiError, ApplicationErrorResponse},
     payment_method_data::PaymentMethodDataTypes,
     router_data::ConnectorSpecificConfig,
-    types::CardConversionHelper,
     utils::ForeignTryFrom,
 };
 use error_stack::ResultExt;
@@ -33,7 +32,6 @@ pub fn process_webhook_event<
         + serde::de::DeserializeOwned
         + Clone
         + Sync
-        + CardConversionHelper<T>
         + 'static,
 >(
     connector_data: ConnectorData<T>,
@@ -190,7 +188,6 @@ pub fn get_refunds_webhook_content<
         + serde::de::DeserializeOwned
         + Clone
         + Sync
-        + CardConversionHelper<T>
         + 'static,
 >(
     connector_data: ConnectorData<T>,
@@ -232,7 +229,6 @@ pub fn get_disputes_webhook_content<
         + serde::de::DeserializeOwned
         + Clone
         + Sync
-        + CardConversionHelper<T>
         + 'static,
 >(
     connector_data: ConnectorData<T>,
