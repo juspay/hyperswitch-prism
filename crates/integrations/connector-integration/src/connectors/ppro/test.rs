@@ -16,6 +16,7 @@ mod tests {
         RequestDetails {
             method: HttpMethod::Post,
             uri: None,
+            url: None,
             headers: HashMap::new(),
             body: body.to_vec(),
             query_params: None,
@@ -385,6 +386,7 @@ mod tests {
         RequestDetails {
             method: HttpMethod::Post,
             uri: None,
+            url: None,
             headers,
             body: body.to_vec(),
             query_params: None,

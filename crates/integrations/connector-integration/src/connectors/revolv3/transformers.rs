@@ -4,7 +4,7 @@ use common_utils::{pii::Email, types::FloatMajorUnit};
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, RepeatPayment, SetupMandate, Void},
     connector_types::{
-        BillingDescriptor, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
+        BillingDescriptor, EventType, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
         PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
         RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
         SetupMandateRequestData,
@@ -1352,5 +1352,190 @@ pub fn validate_psync(
 
     match operation_metadata {
         Revolv3OperationMetadata::PsyncAllowed => Ok(()),
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct Revolv3WebhookBody {
+    pub body: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum Revolv3WebhookBodyData {
+    TestData(TestData),
+    InvoiceData(Revolv3InvoiceWebhookBody),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct TestData {
+    event_type: TestEventType,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub enum TestEventType {
+    WebhookTest,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct Revolv3InvoiceWebhookBody {
+    pub invoice: Revolv3WebhookInvoiceData,
+    pub event_date_time: Option<String>,
+    pub event_type: Option<String>,
+    pub revolv_merchant_id: Option<i64>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct Revolv3PaymentMethodWebhookResponse {
+    pub payment_method_id: Option<i64>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct Revolv3WebhookInvoiceData {
+    pub invoice_id: i64,
+    pub merchant_invoice_ref_id: Option<String>,
+    pub invoice_status: WebhookInvoiceStatus,
+    pub network_transaction_id: Option<String>,
+    pub invoice_attempts: Option<Vec<Revolv3WebhookInvoiceAttempt>>,
+    pub payment_method: Option<Revolv3PaymentMethodWebhookResponse>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct Revolv3WebhookInvoiceAttempt {
+    pub invoice_attempt_date: String,
+    pub response_code: Option<String>,
+    pub response_message: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub enum WebhookInvoiceStatus {
+    Paid,
+    MerchantPaid,
+    Void,
+    Pending,
+    Recycle,
+    Noncollectable,
+    Refund,
+    MerchantCancelled,
+    OneTimePaymentPending,
+    PartialRefund,
+    BatchPending,
+    CapturePending,
+    RefundPending,
+    RefundDeclined,
+    RefundFailed,
+    Failed,
+}
+
+impl Revolv3InvoiceWebhookBody {
+    pub fn get_invoice_id(&self) -> String {
+        self.invoice.invoice_id.to_string()
+    }
+    pub fn get_invoice_status(&self) -> WebhookInvoiceStatus {
+        self.invoice.invoice_status.clone()
+    }
+    pub fn get_network_transaction_id(&self) -> Option<String> {
+        self.invoice.network_transaction_id.clone()
+    }
+    pub fn get_merchant_invoice_ref_id(&self) -> Option<String> {
+        self.invoice.merchant_invoice_ref_id.clone()
+    }
+    pub fn get_error_code(&self) -> Option<String> {
+        let latest_attempt = self.get_latest_attempt();
+        latest_attempt.and_then(|attempt| attempt.response_code.clone())
+    }
+    pub fn get_error_message(&self) -> Option<String> {
+        let latest_attempt = self.get_latest_attempt();
+        latest_attempt.and_then(|attempt| attempt.response_message.clone())
+    }
+
+    pub fn get_mandate_reference(&self) -> Option<domain_types::connector_types::MandateReference> {
+        self.invoice
+            .payment_method
+            .as_ref()
+            .and_then(|payment_method| {
+                payment_method
+                    .payment_method_id
+                    .as_ref()
+                    .map(
+                        |connector_mandate_id| domain_types::connector_types::MandateReference {
+                            connector_mandate_id: Some(connector_mandate_id.to_string()),
+                            payment_method_id: None,
+                            connector_mandate_request_reference_id: None,
+                        },
+                    )
+            })
+    }
+
+    pub fn get_latest_attempt(&self) -> Option<&Revolv3WebhookInvoiceAttempt> {
+        self.invoice
+            .invoice_attempts
+            .as_ref()?
+            .iter()
+            .filter_map(|attempt| {
+                PrimitiveDateTime::parse(&attempt.invoice_attempt_date, &Iso8601::DEFAULT)
+                    .ok()
+                    .map(|dt| (dt, attempt))
+            })
+            .max_by_key(|(dt, _)| *dt)
+            .map(|(_, attempt)| attempt)
+    }
+}
+
+impl WebhookInvoiceStatus {
+    pub fn to_event_type(&self) -> EventType {
+        match self {
+            Self::Paid | Self::MerchantPaid => EventType::PaymentIntentSuccess,
+            Self::Void | Self::MerchantCancelled => EventType::PaymentIntentCancelled,
+            Self::Refund | Self::PartialRefund => EventType::RefundSuccess,
+            Self::RefundDeclined | Self::RefundFailed => EventType::RefundFailure,
+            Self::Pending
+            | Self::Recycle
+            | Self::OneTimePaymentPending
+            | Self::BatchPending
+            | Self::CapturePending
+            | Self::RefundPending => EventType::PaymentIntentProcessing,
+            Self::Noncollectable | Self::Failed => EventType::PaymentIntentFailure,
+        }
+    }
+
+    pub fn to_attempt_status(&self) -> Result<AttemptStatus, errors::ConnectorError> {
+        match self {
+            Self::Paid | Self::MerchantPaid => Ok(AttemptStatus::Charged),
+            Self::Void | Self::MerchantCancelled => Ok(AttemptStatus::Voided),
+            Self::Pending
+            | Self::Recycle
+            | Self::OneTimePaymentPending
+            | Self::BatchPending
+            | Self::CapturePending
+            | Self::RefundPending => Ok(AttemptStatus::Pending),
+            Self::Noncollectable | Self::Failed => Ok(AttemptStatus::Failure),
+            Self::Refund | Self::PartialRefund | Self::RefundDeclined | Self::RefundFailed => {
+                Err(errors::ConnectorError::UnexpectedResponseError(
+                    bytes::Bytes::from("received refund status in payments webhook".to_string()),
+                ))
+            }
+        }
+    }
+
+    pub fn to_refund_status(&self) -> Result<RefundStatus, errors::ConnectorError> {
+        match self {
+            Self::Refund => Ok(RefundStatus::Success),
+            Self::PartialRefund => Ok(RefundStatus::Success),
+            Self::RefundPending => Ok(RefundStatus::Pending),
+            Self::RefundDeclined => Ok(RefundStatus::Failure),
+            Self::RefundFailed => Ok(RefundStatus::Failure),
+            _ => Err(errors::ConnectorError::UnexpectedResponseError(
+                bytes::Bytes::from("received payment status in refund webhook".to_string()),
+            )),
+        }
     }
 }
