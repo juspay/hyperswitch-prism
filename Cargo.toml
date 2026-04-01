@@ -22,7 +22,6 @@ members = [
   "crates/ffi/ffi",
   "crates/internal/uniffi-bindgen",
   "crates/internal/field-probe",
-  "crates/internal/ucs-connector-tests",
   "crates/internal/integration-tests"
 ]
 exclude = [

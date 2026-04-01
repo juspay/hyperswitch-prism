@@ -1,7 +1,0 @@
-{
-  "connector": "cryptopay",
-  "supported_suites": [
-    "authorize",
-    "get"
-  ]
-}
