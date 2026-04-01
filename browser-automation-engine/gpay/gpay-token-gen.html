@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Google Pay Token Generator</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, sans-serif; padding: 24px; background: #f5f5f5; }
+    h1 { font-size: 20px; margin-bottom: 16px; color: #333; }
+    .config-summary { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin-bottom: 16px; font-size: 13px; }
+    .config-summary dt { font-weight: 600; color: #555; display: inline; }
+    .config-summary dd { display: inline; margin-left: 4px; margin-right: 16px; color: #222; }
+    #gpay-container { margin: 16px 0; min-height: 48px; }
+    #status { margin: 16px 0; padding: 12px; border-radius: 8px; font-size: 13px; display: none; }
+    #status.info    { display: block; background: #e3f2fd; border: 1px solid #90caf9; color: #1565c0; }
+    #status.success { display: block; background: #e8f5e9; border: 1px solid #a5d6a7; color: #2e7d32; }
+    #status.error   { display: block; background: #ffebee; border: 1px solid #ef9a9a; color: #c62828; }
+    #gpay-result-container { display: none; margin-top: 16px; }
+    #gpay-result-container.visible { display: block; }
+    #gpay-result-container h2 { font-size: 16px; margin-bottom: 8px; color: #333; }
+    pre#gpay-result {
+      background: #1e1e1e; color: #d4d4d4; padding: 16px; border-radius: 8px;
+      font-size: 12px; line-height: 1.5; overflow-x: auto; max-height: 600px; overflow-y: auto;
+      white-space: pre-wrap; word-break: break-all;
+    }
+    .token-only { margin-top: 12px; }
+    .token-only h3 { font-size: 14px; margin-bottom: 4px; color: #555; }
+    pre#gpay-token {
+      background: #263238; color: #80cbc4; padding: 12px; border-radius: 8px;
+      font-size: 12px; line-height: 1.5; overflow-x: auto; max-height: 300px; overflow-y: auto;
+      white-space: pre-wrap; word-break: break-all;
+    }
+  </style>
+</head>
+<body>
+  <h1>Google Pay Token Generator</h1>
+
+  <div class="config-summary" id="config-summary"></div>
+
+  <div id="gpay-container"></div>
+
+  <div id="status"></div>
+
+  <div id="gpay-result-container">
+    <h2>Full PaymentData Response</h2>
+    <pre id="gpay-result"></pre>
+    <div class="token-only">
+      <h3>Tokenization Token (for connector API)</h3>
+      <pre id="gpay-token"></pre>
+    </div>
+  </div>
+
+  <script>
+    // ---- All functions defined first so nothing is called before it exists ----
+
+    // Expose result globally for Playwright extraction
+    window.__gpayResult = null;
+    window.__gpayError  = null;
+    window.__gpayDone   = false;
+
+    // ---- Status helper ----
+    function setStatus(message, type) {
+      var el = document.getElementById("status");
+      el.textContent = message;
+      el.className = type;
+    }
+
+    // ---- Parse config from URL query params ----
+    var params = new URLSearchParams(window.location.search);
+
+    // Extra tokenization parameters (e.g. stripe:publishableKey, stripe:version)
+    var extraTokenParams = {};
+    try {
+      var tokenParamsRaw = params.get("tokenParams");
+      if (tokenParamsRaw) extraTokenParams = JSON.parse(tokenParamsRaw);
+    } catch(e) {}
+
+    var config = {
+      gateway:          params.get("gateway")          || "cybersource",
+      gatewayMerchantId:params.get("gatewayMerchantId")|| "",
+      merchantName:     params.get("merchantName")     || "Test Merchant",
+      merchantId:       params.get("merchantId")       || "",
+      amount:           params.get("amount")           || "10.00",
+      currency:         params.get("currency")         || "USD",
+      countryCode:      params.get("countryCode")      || "US",
+      cardNetworks:    (params.get("cardNetworks")     || "VISA,MASTERCARD,AMEX,DISCOVER").split(","),
+      authMethods:     (params.get("authMethods")      || "PAN_ONLY,CRYPTOGRAM_3DS").split(","),
+      environment:      params.get("environment")      || "TEST"
+    };
+
+    // ---- Render config summary (using textContent to avoid XSS) ----
+    (function renderConfigSummary() {
+      var el = document.getElementById("config-summary");
+      el.innerHTML = "";
+      var dl = document.createElement("dl");
+
+      function addRow(label, value) {
+        var dt = document.createElement("dt");
+        dt.textContent = label;
+        var dd = document.createElement("dd");
+        dd.textContent = value;
+        dl.appendChild(dt);
+        dl.appendChild(dd);
+        dl.appendChild(document.createElement("br"));
+      }
+
+      addRow("Gateway:",            config.gateway);
+      addRow("Gateway Merchant ID:", config.gatewayMerchantId);
+      addRow("Merchant:",           config.merchantName);
+      addRow("Amount:",             config.amount + " " + config.currency);
+      addRow("Country:",            config.countryCode);
+      addRow("Networks:",           config.cardNetworks.join(", "));
+      addRow("Auth Methods:",       config.authMethods.join(", "));
+      addRow("Environment:",        config.environment);
+
+      el.appendChild(dl);
+    })();
+
+    setStatus("Loading pay.js from pay.google.com...", "info");
+
+    // ---- Google Pay helpers ----
+    var paymentsClient = null;
+
+    function getBaseCardPaymentMethod() {
+      return {
+        type: "CARD",
+        parameters: {
+          allowedAuthMethods:  config.authMethods,
+          allowedCardNetworks: config.cardNetworks
+        }
+      };
+    }
+
+    function getTokenizationSpecification() {
+      var tokenParams = Object.assign({ gateway: config.gateway }, extraTokenParams);
+      if (config.gatewayMerchantId) tokenParams.gatewayMerchantId = config.gatewayMerchantId;
+      return {
+        type: "PAYMENT_GATEWAY",
+        parameters: tokenParams
+      };
+    }
+
+    function getPaymentDataRequest() {
+      var req = {
+        apiVersion: 2,
+        apiVersionMinor: 0,
+        allowedPaymentMethods: [Object.assign({}, getBaseCardPaymentMethod(), {
+          tokenizationSpecification: getTokenizationSpecification()
+        })],
+        merchantInfo: {
+          merchantName: config.merchantName
+        },
+        transactionInfo: {
+          totalPriceStatus: "FINAL",
+          totalPrice:       config.amount,
+          currencyCode:     config.currency,
+          countryCode:      config.countryCode
+        }
+      };
+      // Only include merchantId in PRODUCTION mode
+      if (config.merchantId && config.environment === "PRODUCTION") {
+        req.merchantInfo.merchantId = config.merchantId;
+      }
+      return req;
+    }
+
+    function addGooglePayButton() {
+      var button = paymentsClient.createButton({
+        onClick:        onGooglePayButtonClicked,
+        buttonColor:    "black",
+        buttonType:     "pay",
+        buttonSizeMode: "fill"
+      });
+      document.getElementById("gpay-container").appendChild(button);
+    }
+
+    function onGooglePayButtonClicked() {
+      setStatus("Opening Google Pay payment sheet...", "info");
+      paymentsClient.loadPaymentData(getPaymentDataRequest())
+        .then(function(paymentData) {
+          window.__gpayResult = paymentData;
+          window.__gpayDone   = true;
+          setStatus("Token generated successfully!", "success");
+          document.getElementById("gpay-result-container").className = "visible";
+          document.getElementById("gpay-result").textContent = JSON.stringify(paymentData, null, 2);
+          try {
+            var token = paymentData.paymentMethodData.tokenizationData.token;
+            try {
+              document.getElementById("gpay-token").textContent = JSON.stringify(JSON.parse(token), null, 2);
+            } catch(e) {
+              document.getElementById("gpay-token").textContent = token;
+            }
+          } catch(e) {
+            document.getElementById("gpay-token").textContent = "(could not extract token)";
+          }
+        })
+        .catch(function(err) {
+          window.__gpayError = err.message || String(err);
+          window.__gpayDone  = true;
+          if (err.statusCode === "CANCELED") {
+            setStatus("Payment cancelled by user.", "info");
+            window.__gpayError = null; // cancellation is not a hard error
+          } else {
+            setStatus("Error: " + (err.message || String(err)), "error");
+          }
+          console.error("loadPaymentData error:", err);
+        });
+    }
+
+    // ---- Called by pay.js once it has loaded ----
+    function onGooglePayLoaded() {
+      setStatus("pay.js loaded. Checking Google Pay readiness...", "info");
+      paymentsClient = new google.payments.api.PaymentsClient({ environment: config.environment });
+      paymentsClient.isReadyToPay({
+        apiVersion: 2,
+        apiVersionMinor: 0,
+        allowedPaymentMethods: [getBaseCardPaymentMethod()]
+      })
+      .then(function(response) {
+        if (response.result) {
+          addGooglePayButton();
+          setStatus("Google Pay is ready. Click the button to generate a token.", "info");
+        } else {
+          setStatus("Google Pay is not available in this browser/environment.", "error");
+          window.__gpayError = "isReadyToPay returned false";
+          window.__gpayDone  = true;
+        }
+      })
+      .catch(function(err) {
+        setStatus("Error checking Google Pay readiness: " + err.message, "error");
+        window.__gpayError = err.message || String(err);
+        window.__gpayDone  = true;
+        console.error("isReadyToPay error:", err);
+      });
+    }
+
+    // ---- Dynamically load pay.js so the callback is guaranteed to exist ----
+    (function() {
+      var script = document.createElement("script");
+      script.src = "https://pay.google.com/gp/p/js/pay.js";
+      script.async = true;
+      script.onload = function() { onGooglePayLoaded(); };
+      script.onerror = function() {
+        setStatus("Failed to load pay.js from pay.google.com. Check network / CSP.", "error");
+        window.__gpayError = "pay.js failed to load";
+        window.__gpayDone  = true;
+      };
+      document.head.appendChild(script);
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+{
+  "connector": "paypal",
+  "supported_suites": [
+    "create_access_token",
+    "authorize",
+    "complete_authorize",
+    "capture",
+    "void",
+    "refund",
+    "get",
+    "refund_sync",
+    "setup_recurring",
+    "recurring_charge"
+  ]
+}

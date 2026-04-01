@@ -1,0 +1,7 @@
+{
+  "connector": "novalnet",
+  "supported_suites": [
+    "authorize",
+    "refund"
+  ]
+}

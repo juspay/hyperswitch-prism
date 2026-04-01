@@ -1,0 +1,12 @@
+{
+  "connector": "braintree",
+  "supported_suites": [
+    "tokenize_payment_method",
+    "authorize",
+    "capture",
+    "void",
+    "refund",
+    "refund_sync",
+    "get"
+  ]
+}

@@ -1,0 +1,99 @@
+{
+  "authorize": {
+    "no3ds_auto_capture_google_pay_encrypted": {
+      "grpc_req": {
+        "payment_method_token": { "value": "" }
+      }
+    },
+    "no3ds_auto_capture_credit_card": {
+      "grpc_req": {
+        "payment_method_token": { "value": "" }
+      }
+    },
+    "no3ds_auto_capture_debit_card": {
+      "grpc_req": {
+        "payment_method_token": { "value": "" }
+      }
+    },
+    "no3ds_manual_capture_credit_card": {
+      "grpc_req": {
+        "payment_method_token": { "value": "" }
+      }
+    },
+    "no3ds_manual_capture_debit_card": {
+      "grpc_req": {
+        "payment_method_token": { "value": "" }
+      }
+    },
+    "threeds_manual_capture_credit_card": {
+      "grpc_req": {
+        "payment_method_token": { "value": "" }
+      }
+    },
+    "no3ds_auto_capture_ideal": {
+      "grpc_req": {
+        "payment_method_token": { "value": "" }
+      }
+    },
+    "no3ds_auto_capture_giropay": {
+      "grpc_req": {
+        "payment_method_token": { "value": "" }
+      }
+    },
+    "no3ds_auto_capture_bancontact": {
+      "grpc_req": {
+        "payment_method_token": { "value": "" }
+      }
+    },
+    "no3ds_auto_capture_klarna": {
+      "grpc_req": {
+        "payment_method_token": { "value": "" }
+      }
+    },
+    "no3ds_auto_capture_affirm": {
+      "grpc_req": {
+        "payment_method_token": { "value": "" }
+      }
+    },
+    "no3ds_auto_capture_afterpay_clearpay": {
+      "grpc_req": {
+        "payment_method_token": { "value": "" }
+      }
+    },
+    "no3ds_fail_payment": {
+      "grpc_req": {
+        "payment_method_token": { "value": "" }
+      }
+    },
+    "no3ds_auto_capture_przelewy24": {
+      "grpc_req": {
+        "payment_method_token": { "value": "" }
+      }
+    },
+    "no3ds_auto_capture_alipay": {
+      "grpc_req": {
+        "payment_method_token": { "value": "" }
+      }
+    },
+    "no3ds_auto_capture_eps": {
+      "grpc_req": {
+        "payment_method_token": { "value": "" }
+      }
+    },
+    "no3ds_auto_capture_sepa_bank_transfer": {
+      "grpc_req": {
+        "payment_method_token": { "value": "" }
+      }
+    },
+    "no3ds_auto_capture_ach_bank_transfer": {
+      "grpc_req": {
+        "payment_method_token": { "value": "" }
+      }
+    },
+    "no3ds_auto_capture_bacs_bank_transfer": {
+      "grpc_req": {
+        "payment_method_token": { "value": "" }
+      }
+    }
+  }
+}

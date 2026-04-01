@@ -1,0 +1,21 @@
+{
+  "suite": "refund_sync",
+  "suite_type": "dependent",
+  "depends_on": [
+    "create_access_token",
+    "create_customer",
+    "tokenize_payment_method",
+    {
+      "suite": "authorize",
+      "scenario": "no3ds_auto_capture_credit_card"
+    },
+    {
+      "suite": "refund",
+      "context_map": {
+        "refund_id": "res.connector_refund_id"
+      }
+    }
+  ],
+  "dependency_scope": "scenario",
+  "strict_dependencies": false
+}

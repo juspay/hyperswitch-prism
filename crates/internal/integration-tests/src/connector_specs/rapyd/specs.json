@@ -1,0 +1,10 @@
+{
+  "connector": "rapyd",
+  "supported_suites": [
+    "authorize",
+    "capture",
+    "void",
+    "refund",
+    "get"
+  ]
+}

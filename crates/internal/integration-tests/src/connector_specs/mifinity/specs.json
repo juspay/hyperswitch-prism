@@ -1,0 +1,7 @@
+{
+  "connector": "mifinity",
+  "supported_suites": [
+    "authorize",
+    "get"
+  ]
+}

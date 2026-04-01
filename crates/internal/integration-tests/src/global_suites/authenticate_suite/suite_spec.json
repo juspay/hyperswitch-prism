@@ -1,0 +1,16 @@
+{
+  "suite": "authenticate",
+  "suite_type": "dependent",
+  "depends_on": [
+    {
+      "suite": "pre_authenticate",
+      "context_map": {
+        "merchant_order_id": "res.merchant_order_id",
+        "state": "res.state",
+        "authentication_data": "res.authentication_data",
+        "redirection_response.params": "res.redirection_data.form.form_fields.reference_id"
+      }
+    }
+  ],
+  "strict_dependencies": false
+}

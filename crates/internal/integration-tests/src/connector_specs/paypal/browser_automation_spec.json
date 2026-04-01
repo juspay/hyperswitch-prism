@@ -1,0 +1,41 @@
+{
+  "hooks": [
+    {
+      "suite": "complete_authorize",
+      "scenarios": [
+        "threeds_complete_authorize_credit_card"
+      ],
+      "phase": "before_request",
+      "after_dependency_suite": "authorize",
+      "after_dependency_scenario": "threeds_manual_capture_credit_card",
+      "endpoint_path": "redirection_data.form.endpoint",
+      "query_params_path": "redirection_data.form.form_fields",
+      "redirect_uri_fallback_request_path": "complete_authorize_url",
+      "rules": [
+        {
+          "action": "waitFor",
+          "selector": "button",
+          "timeoutMs": 15000
+        },
+        {
+          "action": "extractAll",
+          "selector": "button",
+          "as": "buttonTexts"
+        },
+        {
+          "action": "click",
+          "selector": "button"
+        },
+        {
+          "action": "waitFor",
+          "urlContains": "{{redirect_uri}}",
+          "timeoutMs": 30000
+        },
+        {
+          "action": "screenshot",
+          "as": "after3ds"
+        }
+      ]
+    }
+  ]
+}

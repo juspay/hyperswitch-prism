@@ -1,0 +1,24 @@
+{
+  "create_access_token": {
+    "grpc_req": {
+      "merchant_access_token_id": "auto_generate",
+      "connector": "STRIPE",
+      "test_mode": true
+    },
+    "assert": {
+      "status": {
+        "one_of": [
+          "OPERATION_STATUS_SUCCESS"
+        ]
+      },
+      "access_token": {
+        "must_exist": true
+      },
+      "error": {
+        "must_not_exist": true
+      }
+    },
+    "is_default": true,
+    "display_name": "Create Access Token"
+  }
+}
