@@ -440,3 +440,14 @@ opencode.json
 
 # Generated proto descriptor files
 scripts/generators/code/services.desc
+
+# Local Netlify folder
+.netlify
+
+# UCS Connector Test Runtime Artifacts
+crates/internal/integration-tests/report.json
+crates/internal/integration-tests/test_report/
+*.test.log
+/tmp/*test*.log
+.grpc-server.pid
+.env.connector-tests
