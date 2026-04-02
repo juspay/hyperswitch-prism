@@ -373,6 +373,118 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 "Only ACH Bank Debit is supported".to_string(),
             )
             .into()),
+            PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                domain_types::payment_method_data::WalletData::GooglePay(google_pay_data) => {
+                    match &google_pay_data.tokenization_data {
+                        domain_types::payment_method_data::GpayTokenizationData::Decrypted(
+                            google_pay_decrypted_data,
+                        ) => {
+                            let capture_method =
+                                map_capture_method(router_data.request.capture_method)?;
+
+                            let auth = JpmorganAuthType::try_from(&router_data.connector_config)?;
+
+                            let merchant = requests::JpmorganMerchant {
+                                merchant_software: requests::JpmorganMerchantSoftware {
+                                    company_name: auth.company_name.clone().ok_or(
+                                        errors::ConnectorError::MissingRequiredField {
+                                            field_name: "company_name",
+                                        },
+                                    )?,
+                                    product_name: auth.product_name.clone().ok_or(
+                                        errors::ConnectorError::MissingRequiredField {
+                                            field_name: "product_name",
+                                        },
+                                    )?,
+                                },
+                                soft_merchant: requests::JpmorganSoftMerchant {
+                                    merchant_purchase_description: auth
+                                        .merchant_purchase_description
+                                        .clone()
+                                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                                            field_name: "merchant_purchase_description",
+                                        })?,
+                                },
+                            };
+
+                            let expiry = requests::Expiry {
+                                month: Secret::new(
+                                    google_pay_decrypted_data
+                                        .get_expiry_month()
+                                        .change_context(
+                                            errors::ConnectorError::RequestEncodingFailed,
+                                        )?
+                                        .peek()
+                                        .parse::<i32>()
+                                        .change_context(
+                                            errors::ConnectorError::RequestEncodingFailed,
+                                        )?,
+                                ),
+                                year: Secret::new(
+                                    google_pay_decrypted_data
+                                        .get_four_digit_expiry_year()
+                                        .change_context(
+                                            errors::ConnectorError::RequestEncodingFailed,
+                                        )?
+                                        .peek()
+                                        .parse::<i32>()
+                                        .change_context(
+                                            errors::ConnectorError::RequestEncodingFailed,
+                                        )?,
+                                ),
+                            };
+
+                            let card = requests::JpmorganCard {
+                                account_number: domain_types::payment_method_data::RawCardNumber(
+                                    google_pay_decrypted_data
+                                        .application_primary_account_number
+                                        .clone(),
+                                ),
+                                expiry,
+                            };
+
+                            let payment_method_type = requests::JpmorganPaymentMethodType {
+                                card: Some(card),
+                                ach: None,
+                            };
+
+                            let amount = JpmorganAmountConvertor::convert(
+                                router_data.request.minor_amount,
+                                router_data.request.currency,
+                            )?;
+
+                            // Use placeholder values for account_holder and statement_descriptor
+                            let account_holder = requests::JpmorganAccountHolder {
+                                first_name: Secret::new("NA".to_string()),
+                                last_name: Secret::new("NA".to_string()),
+                            };
+                            let statement_descriptor =
+                                Secret::new("Statement Descriptor".to_string());
+
+                            Ok(Self {
+                                capture_method,
+                                currency: router_data.request.currency,
+                                amount,
+                                merchant,
+                                payment_method_type,
+                                account_holder,
+                                statement_descriptor,
+                            })
+                        }
+                        domain_types::payment_method_data::GpayTokenizationData::Encrypted(_) => {
+                            Err(errors::ConnectorError::NotSupported {
+                                message: "Encrypted Google Pay token is not supported".to_string(),
+                                connector: "jpmorgan",
+                            }
+                            .into())
+                        }
+                    }
+                }
+                _ => Err(errors::ConnectorError::NotImplemented(
+                    "Wallet not supported".to_string(),
+                )
+                .into()),
+            },
             _ => Err(errors::ConnectorError::NotImplemented(
                 "Payment method not supported".to_string(),
             )
