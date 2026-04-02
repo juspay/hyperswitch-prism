@@ -137,6 +137,7 @@ pub enum ConnectorEnum {
     Peachpayments,
     Finix,
     Itaubank,
+    Archipel,
 }
 
 impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
@@ -223,6 +224,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Peachpayments => Ok(Self::Peachpayments),
             grpc_api_types::payments::Connector::Finix => Ok(Self::Finix),
             grpc_api_types::payments::Connector::Itaubank => Ok(Self::Itaubank),
+            grpc_api_types::payments::Connector::Archipel => Ok(Self::Archipel),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(ApplicationErrorResponse::BadRequest(ApiError {
                     sub_code: "UNSPECIFIED_CONNECTOR".to_owned(),
@@ -3774,6 +3776,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Zift(_) => Ok(Self::Zift),
             AuthType::Truelayer(_) => Ok(Self::Truelayer),
             AuthType::Fiservcommercehub(_) => Ok(Self::Fiservcommercehub),
+            AuthType::Archipel(_) => Ok(Self::Archipel),
             AuthType::Screenstream(_) => Err(error_stack::Report::new(
                 ApplicationErrorResponse::BadRequest(ApiError {
                     sub_code: "UNSUPPORTED_CONNECTOR".to_string(),

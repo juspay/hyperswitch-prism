@@ -277,6 +277,7 @@ fn create_payment_sync_request(
         connector_order_reference_id: None,
         test_mode: None,
         payment_experience: None,
+        connector_metadata: std::collections::HashMap::new(),
     }
 }
 

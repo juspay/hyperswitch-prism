@@ -140,6 +140,8 @@ def techspec(connector, folder, urls, output, test_only, verbose, mock_server, e
     # Run the async workflow
     asyncio.run(run_techspec())
 
+
+
 def main():
     """Main entry point for Grace CLI."""
     try:

@@ -605,5 +605,6 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             client_secret: s(),
             base_url: None,
         },
+        ConnectorEnum::Archipel => ConnectorSpecificConfig::Archipel { api_key: k() },
     }
 }

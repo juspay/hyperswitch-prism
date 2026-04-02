@@ -114,6 +114,7 @@ zift.base_url = "https://secure.zift.io/"
 truelayer.base_url = "https://api.truelayer.com"
 truelayer.secondary_base_url = "https://auth.truelayer.com"
 itaubank.base_url = "https://api.itau.com.br"
+archipel.base_url = "https://{{merchant_endpoint_prefix}}/ArchiPEL/Transaction/v1"
 
 # Generic Events Configuration
 [events]

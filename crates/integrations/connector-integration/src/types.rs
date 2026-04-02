@@ -102,6 +102,7 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
             ConnectorEnum::Hyperpg => Box::new(connectors::Hyperpg::new()),
             ConnectorEnum::Zift => Box::new(connectors::Zift::new()),
             ConnectorEnum::Ppro => Box::new(connectors::Ppro::new()),
+            ConnectorEnum::Archipel => Box::new(connectors::Archipel::new()),
             ConnectorEnum::Truelayer => Box::new(connectors::Truelayer::new()),
             ConnectorEnum::Itaubank => Box::new(connectors::Itaubank::new()),
         }

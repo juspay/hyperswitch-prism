@@ -235,3 +235,6 @@ pub use self::finix::Finix;
 
 pub mod itaubank;
 pub use self::itaubank::Itaubank;
+
+pub mod archipel;
+pub use self::archipel::Archipel;

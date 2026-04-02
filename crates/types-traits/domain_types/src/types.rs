@@ -369,6 +369,7 @@ pub struct Connectors {
     pub peachpayments: ConnectorParams,
     pub finix: ConnectorParams,
     pub itaubank: ConnectorParams,
+    pub archipel: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
