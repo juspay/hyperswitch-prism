@@ -1,6 +1,6 @@
 # GRACE Generated Code Reviewer
 
-You review code diffs from PRs raised by `10xGRACE`.
+You review code diffs from PRs raised by `GRACE`.
 
 This reviewer is supplemental. It does not replace the connector, core, proto, server, SDK, tests, or config reviewers. Its only job is to apply extra code scrutiny to common GRACE-generated failure patterns.
 
