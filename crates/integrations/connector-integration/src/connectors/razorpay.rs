@@ -334,10 +334,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentsResponseData,
         >,
     {
+        let content_type = match &req.request.payment_method_data {
+            PaymentMethodData::Upi(_) => "application/x-www-form-urlencoded",
+            _ => "application/json",
+        };
         let mut header = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
-                "application/x-www-form-urlencoded".to_string().into(),
+                content_type.to_string().into(),
             ),
             (
                 headers::ACCEPT.to_string(),
@@ -1200,6 +1204,67 @@ static RAZORPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                         supported_card_networks: razorpay_supported_card_network.clone(),
                     },
                 )),
+            },
+        );
+
+        razorpay_supported_payment_methods.add(
+            PaymentMethod::Wallet,
+            PaymentMethodType::LazyPay,
+            PaymentMethodDetails {
+                mandates: FeatureStatus::NotSupported,
+                refunds: FeatureStatus::Supported,
+                supported_capture_methods: vec![CaptureMethod::Automatic],
+                specific_features: None,
+            },
+        );
+        razorpay_supported_payment_methods.add(
+            PaymentMethod::Wallet,
+            PaymentMethodType::PhonePe,
+            PaymentMethodDetails {
+                mandates: FeatureStatus::NotSupported,
+                refunds: FeatureStatus::Supported,
+                supported_capture_methods: vec![CaptureMethod::Automatic],
+                specific_features: None,
+            },
+        );
+        razorpay_supported_payment_methods.add(
+            PaymentMethod::Wallet,
+            PaymentMethodType::BillDesk,
+            PaymentMethodDetails {
+                mandates: FeatureStatus::NotSupported,
+                refunds: FeatureStatus::Supported,
+                supported_capture_methods: vec![CaptureMethod::Automatic],
+                specific_features: None,
+            },
+        );
+        razorpay_supported_payment_methods.add(
+            PaymentMethod::Wallet,
+            PaymentMethodType::Cashfree,
+            PaymentMethodDetails {
+                mandates: FeatureStatus::NotSupported,
+                refunds: FeatureStatus::Supported,
+                supported_capture_methods: vec![CaptureMethod::Automatic],
+                specific_features: None,
+            },
+        );
+        razorpay_supported_payment_methods.add(
+            PaymentMethod::Wallet,
+            PaymentMethodType::PayU,
+            PaymentMethodDetails {
+                mandates: FeatureStatus::NotSupported,
+                refunds: FeatureStatus::Supported,
+                supported_capture_methods: vec![CaptureMethod::Automatic],
+                specific_features: None,
+            },
+        );
+        razorpay_supported_payment_methods.add(
+            PaymentMethod::Wallet,
+            PaymentMethodType::EaseBuzz,
+            PaymentMethodDetails {
+                mandates: FeatureStatus::NotSupported,
+                refunds: FeatureStatus::Supported,
+                supported_capture_methods: vec![CaptureMethod::Automatic],
+                specific_features: None,
             },
         );
 

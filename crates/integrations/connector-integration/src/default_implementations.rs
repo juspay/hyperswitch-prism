@@ -50,6 +50,7 @@ macro_rules! default_impl_verify_webhook_source_v2 {
 default_impl_verify_webhook_source_v2!(
     Adyen,
     Aci,
+    Amazonpay,
     Airwallex,
     Authipay,
     Authorizedotnet,

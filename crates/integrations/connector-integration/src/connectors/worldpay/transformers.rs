@@ -193,7 +193,14 @@ fn fetch_payment_instrument<
             | WalletDataPaymentMethod::BluecodeRedirect {}
             | WalletDataPaymentMethod::MbWay(_)
             | WalletDataPaymentMethod::Satispay(_)
-            | WalletDataPaymentMethod::Wero(_) => {
+            | WalletDataPaymentMethod::Wero(_)
+            | WalletDataPaymentMethod::LazyPayRedirect(_)
+            | WalletDataPaymentMethod::PhonePeRedirect(_)
+            | WalletDataPaymentMethod::BillDeskRedirect(_)
+            | WalletDataPaymentMethod::CashfreeRedirect(_)
+            | WalletDataPaymentMethod::PayURedirect(_)
+            | WalletDataPaymentMethod::EaseBuzzRedirect(_)
+            | WalletDataPaymentMethod::AmazonPayDirect(_) => {
                 Err(ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("worldpay"),
                 )

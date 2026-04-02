@@ -266,6 +266,12 @@ pub enum ConnectorSpecificConfig {
         base_url: Option<String>,
     },
 
+    Amazonpay {
+        api_key: Secret<String>,
+        api_secret: Option<Secret<String>>,
+        base_url: Option<String>,
+    },
+
     // --- Two-field connectors ---
     Razorpay {
         api_key: Secret<String>,
@@ -716,6 +722,7 @@ impl ConnectorSpecificConfig {
         }
         extract_base_url!(
             Stripe { api_key },
+            Amazonpay { api_key },
             Calida { api_key },
             Celero { api_key },
             Helcim { api_key },
@@ -1099,6 +1106,7 @@ impl ConnectorSpecificConfig {
         connectors.insert(
             connector_key!(
                 Stripe { api_key },
+                Amazonpay { api_key },
                 Calida { api_key },
                 Celero { api_key },
                 Helcim { api_key },
@@ -2158,6 +2166,20 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorEnum)>
                     kid: None,
                     base_url: None,
                     secondary_base_url: None,
+                }),
+                _ => Err(err().into()),
+            },
+
+            ConnectorEnum::Amazonpay => match auth {
+                ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Amazonpay {
+                    api_key: api_key.clone(),
+                    api_secret: None,
+                    base_url: None,
+                }),
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Amazonpay {
+                    api_key: api_key.clone(),
+                    api_secret: Some(key1.clone()),
+                    base_url: None,
                 }),
                 _ => Err(err().into()),
             },
