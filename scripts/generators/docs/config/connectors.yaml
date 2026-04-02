@@ -1,0 +1,34 @@
+# Connector display names for documentation
+# Extracted from generate.py _DISPLAY_NAMES
+# Format: connector_key: Display Name
+connectors:
+  stripe: Stripe
+  adyen: Adyen
+  razorpay: Razorpay
+  razorpayv2: Razorpay V2
+  authorizedotnet: Authorize.net
+  braintree: Braintree
+  cybersource: CyberSource
+  checkout: Checkout.com
+  payu: PayU
+  novalnet: Novalnet
+  nexinets: Nexinets
+  noon: Noon
+  fiserv: Fiserv
+  elavon: Elavon
+  xendit: Xendit
+  mifinity: MiFinity
+  phonepe: PhonePe
+  cashfree: Cashfree
+  paytm: Paytm
+  cashtocode: CashtoCode
+  volt: Volt
+  dlocal: dLocal
+  helcim: Helcim
+  placetopay: PlacetoPay
+  rapyd: Rapyd
+  aci: ACI
+  trustpay: TrustPay
+  fiuu: Fiuu
+  calida: Calida
+  cryptopay: CryptoPay

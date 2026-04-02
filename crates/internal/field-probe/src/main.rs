@@ -38,6 +38,7 @@ use rayon::prelude::*;
 mod auth;
 mod config;
 mod error_parsing;
+mod flow_graph;
 mod flow_metadata;
 mod flow_registry;
 mod json_utils;
@@ -52,10 +53,13 @@ mod status;
 mod types;
 
 use config::get_config;
+use flow_graph::build_flow_graph;
 use flow_metadata::{parse_message_schemas, parse_services_proto};
 use orchestrator::probe_connector;
 use registry::all_connectors;
-use types::{CompactConnectorResult, CompactFlowResult, ErrorStats, ProbeManifest};
+use types::{
+    CompactConnectorResult, CompactFlowResult, ConnectorResultWithGraph, ErrorStats, ProbeManifest,
+};
 
 fn main() {
     // Load config first (initializes PROBE_CONFIG)
@@ -184,12 +188,22 @@ fn main() {
         total_not_supported += not_supported_count;
 
         let compact_result = CompactConnectorResult {
+            connector: result.connector.clone(),
+            flows: compact_flows.clone(),
+        };
+
+        // Build flow graph for this connector
+        let flow_graph = build_flow_graph(&result.connector, &compact_result);
+
+        // Create extended result with flow graph
+        let result_with_graph = ConnectorResultWithGraph {
             connector: result.connector,
             flows: compact_flows,
+            flow_graph,
         };
 
         // Write formatted JSON with proper indentation
-        let connector_json = serde_json::to_string_pretty(&compact_result)
+        let connector_json = serde_json::to_string_pretty(&result_with_graph)
             .expect("Failed to serialize connector results");
 
         let connector_file = output_dir.join(format!("{}.json", connector_name));

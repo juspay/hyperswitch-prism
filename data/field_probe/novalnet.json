@@ -44,11 +44,27 @@
           "body": "{\"merchant\":{\"signature\":\"probe_key\",\"tariff\":\"probe_id\"},\"customer\":{\"first_name\":null,\"last_name\":null,\"email\":\"test@example.com\",\"mobile\":null,\"billing\":{\"house_no\":null,\"street\":null,\"city\":null,\"zip\":null,\"country_code\":null},\"no_nc\":1,\"birth_date\":null},\"transaction\":{\"test_mode\":0,\"payment_type\":\"DIRECT_DEBIT_ACH\",\"amount\":\"1000\",\"currency\":\"USD\",\"order_no\":\"probe_txn_001\",\"payment_data\":{\"account_holder\":\"John Doe\",\"account_number\":\"000123456789\",\"routing_number\":\"110000000\"},\"hook_url\":\"https://example.com/webhook\",\"return_url\":\"https://example.com/return\",\"error_return_url\":\"https://example.com/return\",\"enforce_3d\":null,\"create_token\":null},\"custom\":{\"lang\":\"en\"}}"
         }
       },
+      "AchBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
       "Affirm": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: Selected payment method through novalnet"
       },
       "Afterpay": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "Alfamart": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "AliPayRedirect": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "AmazonPayRedirect": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: Selected payment method through novalnet"
       },
@@ -99,15 +115,51 @@
         "status": "error",
         "error": "Stuck on field: Apple pay encrypted data — Missing required field: Apple pay encrypted data"
       },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
       "Bacs": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: Selected payment method through Novalnet"
+      },
+      "BacsBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "BancontactCard": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "BcaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
       },
       "Becs": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: Selected payment method through Novalnet"
       },
+      "Bizum": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
       "Blik": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "Bluecode": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "Boleto": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "BriVaBankTransfer": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: Selected payment method through novalnet"
       },
@@ -151,6 +203,58 @@
           },
           "body": "{\"merchant\":{\"signature\":\"probe_key\",\"tariff\":\"probe_id\"},\"customer\":{\"first_name\":\"John\",\"last_name\":null,\"email\":\"test@example.com\",\"mobile\":null,\"billing\":{\"house_no\":null,\"street\":null,\"city\":null,\"zip\":null,\"country_code\":null},\"no_nc\":1,\"birth_date\":null},\"transaction\":{\"test_mode\":0,\"payment_type\":\"CREDITCARD\",\"amount\":\"1000\",\"currency\":\"USD\",\"order_no\":\"probe_txn_001\",\"payment_data\":{\"card_number\":\"4111111111111111\",\"card_expiry_month\":\"03\",\"card_expiry_year\":\"2030\",\"card_cvc\":\"737\",\"card_holder\":\"John\"},\"hook_url\":\"https://example.com/webhook\",\"return_url\":\"https://example.com/return\",\"error_return_url\":\"https://example.com/return\",\"enforce_3d\":null,\"create_token\":null},\"custom\":{\"lang\":\"en\"}}"
         }
+      },
+      "CashappQr": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "ClassicReward": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
+      "EVoucher": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "Efecty": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "Eft": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "Eps": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "FamilyMart": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "Giropay": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
       },
       "GooglePay": {
         "status": "supported",
@@ -202,13 +306,125 @@
         "status": "error",
         "error": "Stuck on field: gpay wallet_token — Missing required field: gpay wallet_token"
       },
+      "GooglePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
       "Ideal": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "Indomaret": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "InstantBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "Interac": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: Selected payment method through novalnet"
       },
       "Klarna": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "Lawson": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "LocalBankRedirect": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "LocalBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "MbWay": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "Mifinity": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "MiniStop": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "OpenBanking": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
+      "OpenBankingUk": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "Oxxo": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "PagoEfectivo": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "PayEasy": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "PaySafeCard": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
       },
       "PaypalRedirect": {
         "status": "supported",
@@ -245,7 +461,51 @@
           "body": "{\"merchant\":{\"signature\":\"probe_key\",\"tariff\":\"probe_id\"},\"customer\":{\"first_name\":null,\"last_name\":null,\"email\":\"test@example.com\",\"mobile\":null,\"billing\":{\"house_no\":null,\"street\":null,\"city\":null,\"zip\":null,\"country_code\":null},\"no_nc\":1,\"birth_date\":null},\"transaction\":{\"test_mode\":0,\"payment_type\":\"PAYPAL\",\"amount\":\"1000\",\"currency\":\"USD\",\"order_no\":\"probe_txn_001\",\"payment_data\":null,\"hook_url\":\"https://example.com/webhook\",\"return_url\":\"https://example.com/return\",\"error_return_url\":\"https://example.com/return\",\"enforce_3d\":null,\"create_token\":null},\"custom\":{\"lang\":\"en\"}}"
         }
       },
+      "PaypalSdk": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
+      "PermataBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "Pix": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "Przelewy24": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "Pse": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "RedCompra": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "RedPagos": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "RevolutPay": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
       "SamsungPay": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "Satispay": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "Seicomart": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: Selected payment method through novalnet"
       },
@@ -285,7 +545,43 @@
           "body": "{\"merchant\":{\"signature\":\"probe_key\",\"tariff\":\"probe_id\"},\"customer\":{\"first_name\":null,\"last_name\":null,\"email\":\"test@example.com\",\"mobile\":null,\"billing\":{\"house_no\":null,\"street\":null,\"city\":null,\"zip\":null,\"country_code\":null},\"no_nc\":1,\"birth_date\":null},\"transaction\":{\"test_mode\":0,\"payment_type\":\"DIRECT_DEBIT_SEPA\",\"amount\":\"1000\",\"currency\":\"USD\",\"order_no\":\"probe_txn_001\",\"payment_data\":{\"account_holder\":\"John Doe\",\"iban\":\"DE89370400440532013000\"},\"hook_url\":\"https://example.com/webhook\",\"return_url\":\"https://example.com/return\",\"error_return_url\":\"https://example.com/return\",\"enforce_3d\":null,\"create_token\":null},\"custom\":{\"lang\":\"en\"}}"
         }
       },
+      "SepaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through Novalnet"
+      },
+      "SevenEleven": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "Sofort": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "Trustly": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
       "UpiCollect": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "UpiIntent": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "UpiQr": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "WeChatPayQr": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      },
+      "Wero": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: Selected payment method through novalnet"
       }
@@ -381,13 +677,101 @@
         "status": "not_implemented"
       }
     },
+    "proxy_authorize": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_proxy_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe"
+          },
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {
+              "first_name": "John"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "webhook_url": "https://example.com/webhook"
+        },
+        "sample": {
+          "url": "https://payport.novalnet.de/v2/payment",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-nn-access-key": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA=="
+          },
+          "body": "{\"merchant\":{\"signature\":\"probe_key\",\"tariff\":\"probe_id\"},\"customer\":{\"first_name\":\"John\",\"last_name\":null,\"email\":\"test@example.com\",\"mobile\":null,\"billing\":{\"house_no\":null,\"street\":null,\"city\":null,\"zip\":null,\"country_code\":null},\"no_nc\":1,\"birth_date\":null},\"transaction\":{\"test_mode\":0,\"payment_type\":\"CREDITCARD\",\"amount\":\"1000\",\"currency\":\"USD\",\"order_no\":\"probe_proxy_txn_001\",\"payment_data\":{\"card_number\":\"4111111111111111\",\"card_expiry_month\":\"03\",\"card_expiry_year\":\"2030\",\"card_cvc\":\"123\",\"card_holder\":\"John\"},\"hook_url\":\"https://example.com/webhook\",\"return_url\":\"https://example.com/return\",\"error_return_url\":\"https://example.com/return\",\"enforce_3d\":null,\"create_token\":null},\"custom\":{\"lang\":\"en\"}}"
+        }
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_proxy_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe"
+          },
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {
+              "first_name": "John"
+            }
+          },
+          "return_url": "https://example.com/return",
+          "webhook_url": "https://example.com/webhook",
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          },
+          "auth_type": "NO_THREE_DS",
+          "setup_future_usage": "OFF_SESSION"
+        },
+        "sample": {
+          "url": "https://payport.novalnet.de/v2/payment",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-nn-access-key": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA=="
+          },
+          "body": "{\"merchant\":{\"signature\":\"probe_key\",\"tariff\":\"probe_id\"},\"customer\":{\"first_name\":\"John\",\"last_name\":null,\"email\":\"test@example.com\",\"mobile\":null,\"billing\":{\"house_no\":null,\"street\":null,\"city\":null,\"zip\":null,\"country_code\":null},\"no_nc\":1,\"birth_date\":null},\"transaction\":{\"test_mode\":0,\"payment_type\":\"CREDITCARD\",\"amount\":0,\"currency\":\"USD\",\"order_no\":\"probe_proxy_mandate_001\",\"payment_data\":{\"card_number\":\"4111111111111111\",\"card_expiry_month\":\"03\",\"card_expiry_year\":\"2030\",\"card_cvc\":\"123\",\"card_holder\":\"John\"},\"hook_url\":\"https://example.com/webhook\",\"return_url\":\"https://example.com/return\",\"error_return_url\":\"https://example.com/return\",\"enforce_3d\":null,\"create_token\":1},\"custom\":{\"lang\":\"en\"}}"
+        }
+      }
+    },
     "recurring_charge": {
       "default": {
         "status": "supported",
         "proto_request": {
           "connector_recurring_payment_id": {
             "mandate_id_type": {
-              "connector_mandate_id": "probe-mandate-123"
+              "connector_mandate_id": {
+                "connector_mandate_id": "probe-mandate-123"
+              }
             }
           },
           "amount": {
@@ -395,7 +779,9 @@
             "currency": "USD"
           },
           "payment_method": {
-            "token": "probe_pm_token"
+            "token": {
+              "token": "probe_pm_token"
+            }
           },
           "webhook_url": "https://example.com/webhook",
           "return_url": "https://example.com/recurring-return",
@@ -495,6 +881,18 @@
         }
       }
     },
+    "token_authorize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through novalnet"
+      }
+    },
     "tokenize": {
       "default": {
         "status": "not_implemented"
@@ -519,5 +917,229 @@
         }
       }
     }
+  },
+  "flow_graph": {
+    "nodes": {
+      "authenticate": {
+        "node_type": "dependent",
+        "description": "authenticate"
+      },
+      "authorize": {
+        "node_type": "entry_point",
+        "description": "Authorize a payment, reserving funds",
+        "provides": {
+          "connector_transaction_id": {
+            "response_path": "connector_transaction_id",
+            "description": "Transaction ID for subsequent operations"
+          }
+        },
+        "requires": {
+          "access_token": {
+            "from_flow": "create_access_token",
+            "from_field": "access_token",
+            "request_path": "state.access_token.token.value"
+          },
+          "order_id": {
+            "from_flow": "create_order",
+            "from_field": "order_id",
+            "request_path": "merchant_order_id"
+          }
+        }
+      },
+      "capture": {
+        "node_type": "dependent",
+        "description": "Capture previously authorized funds",
+        "requires": {
+          "connector_transaction_id": {
+            "from_flow": "authorize",
+            "from_field": "connector_transaction_id",
+            "request_path": "connector_transaction_id"
+          }
+        }
+      },
+      "create_access_token": {
+        "node_type": "prerequisite",
+        "description": "Obtain OAuth2 access token for API authentication",
+        "provides": {
+          "access_token": {
+            "response_path": "state.access_token.token.value",
+            "description": "OAuth2 access token for API calls"
+          }
+        }
+      },
+      "create_customer": {
+        "node_type": "prerequisite",
+        "description": "Create a customer profile for recurring payments",
+        "provides": {
+          "connector_customer_id": {
+            "response_path": "connector_customer_id",
+            "description": "Customer ID for recurring payments"
+          }
+        }
+      },
+      "create_order": {
+        "node_type": "prerequisite",
+        "description": "Create an order before payment authorization",
+        "provides": {
+          "order_id": {
+            "response_path": "connector_order_id",
+            "description": "Order ID for payment authorization"
+          }
+        }
+      },
+      "create_session_token": {
+        "node_type": "dependent",
+        "description": "create_session_token"
+      },
+      "dispute_accept": {
+        "node_type": "dependent",
+        "description": "dispute_accept"
+      },
+      "dispute_defend": {
+        "node_type": "dependent",
+        "description": "dispute_defend"
+      },
+      "dispute_submit_evidence": {
+        "node_type": "dependent",
+        "description": "dispute_submit_evidence"
+      },
+      "get": {
+        "node_type": "dependent",
+        "description": "Retrieve payment status and details",
+        "requires": {
+          "connector_transaction_id": {
+            "from_flow": "authorize",
+            "from_field": "connector_transaction_id",
+            "request_path": "connector_transaction_id"
+          }
+        }
+      },
+      "post_authenticate": {
+        "node_type": "dependent",
+        "description": "post_authenticate"
+      },
+      "pre_authenticate": {
+        "node_type": "entry_point",
+        "description": "Pre-authenticate before capture"
+      },
+      "proxy_authorize": {
+        "node_type": "dependent",
+        "description": "proxy_authorize"
+      },
+      "proxy_setup_recurring": {
+        "node_type": "dependent",
+        "description": "proxy_setup_recurring"
+      },
+      "recurring_charge": {
+        "node_type": "dependent",
+        "description": "Charge against an existing mandate",
+        "requires": {
+          "connector_customer_id": {
+            "from_flow": "create_customer",
+            "from_field": "connector_customer_id",
+            "request_path": "connector_customer_id"
+          },
+          "connector_recurring_payment_id": {
+            "from_flow": "setup_recurring",
+            "from_field": "mandate_reference",
+            "request_path": "connector_recurring_payment_id.connector_mandate_id.connector_mandate_id"
+          }
+        }
+      },
+      "refund": {
+        "node_type": "dependent",
+        "description": "Refund a completed payment",
+        "provides": {
+          "refund_id": {
+            "response_path": "connector_refund_id",
+            "description": "Refund ID for tracking"
+          }
+        },
+        "requires": {
+          "connector_transaction_id": {
+            "from_flow": "authorize",
+            "from_field": "connector_transaction_id",
+            "request_path": "connector_transaction_id"
+          }
+        }
+      },
+      "reverse": {
+        "node_type": "dependent",
+        "description": "reverse"
+      },
+      "setup_recurring": {
+        "node_type": "entry_point",
+        "description": "Set up a mandate for recurring charges",
+        "provides": {
+          "mandate_reference": {
+            "response_path": "mandate_reference.connector_mandate_id.connector_mandate_id",
+            "description": "Mandate reference for recurring charges"
+          }
+        }
+      },
+      "token_authorize": {
+        "node_type": "dependent",
+        "description": "token_authorize"
+      },
+      "token_setup_recurring": {
+        "node_type": "dependent",
+        "description": "token_setup_recurring"
+      },
+      "tokenize": {
+        "node_type": "entry_point",
+        "description": "Tokenize a payment method for later use",
+        "provides": {
+          "payment_method_token": {
+            "response_path": "payment_method_token",
+            "description": "Tokenized payment method"
+          }
+        }
+      },
+      "void": {
+        "node_type": "dependent",
+        "description": "Cancel an uncaptured authorization",
+        "requires": {
+          "connector_transaction_id": {
+            "from_flow": "authorize",
+            "from_field": "connector_transaction_id",
+            "request_path": "connector_transaction_id"
+          }
+        }
+      }
+    },
+    "edges": [
+      {
+        "from": "authorize",
+        "to": "capture"
+      },
+      {
+        "from": "authorize",
+        "to": "get"
+      },
+      {
+        "from": "authorize",
+        "to": "refund"
+      },
+      {
+        "from": "authorize",
+        "to": "void"
+      },
+      {
+        "from": "create_access_token",
+        "to": "authorize"
+      },
+      {
+        "from": "create_customer",
+        "to": "recurring_charge"
+      },
+      {
+        "from": "create_order",
+        "to": "authorize"
+      },
+      {
+        "from": "setup_recurring",
+        "to": "recurring_charge"
+      }
+    ]
   }
 }

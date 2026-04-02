@@ -11,11 +11,27 @@
         "status": "not_implemented",
         "error": "This step has not been implemented for: Selected payment method through fiserv"
       },
+      "AchBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
       "Affirm": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: Selected payment method through fiserv"
       },
       "Afterpay": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "Alfamart": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "AliPayRedirect": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "AmazonPayRedirect": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: Selected payment method through fiserv"
       },
@@ -27,7 +43,23 @@
         "status": "not_implemented",
         "error": "This step has not been implemented for: Selected payment method through fiserv"
       },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
       "Bacs": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "BacsBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "BancontactCard": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "BcaBankTransfer": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: Selected payment method through fiserv"
       },
@@ -35,7 +67,27 @@
         "status": "not_implemented",
         "error": "This step has not been implemented for: Selected payment method through fiserv"
       },
+      "Bizum": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
       "Blik": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "Bluecode": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "Boleto": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "BriVaBankTransfer": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: Selected payment method through fiserv"
       },
@@ -78,6 +130,58 @@
           "body": "{\"amount\":{\"total\":10.0,\"currency\":\"USD\"},\"merchantDetails\":{\"merchantId\":\"probe_merchant\",\"terminalId\":null},\"source\":{\"sourceType\":\"PaymentCard\",\"card\":{\"cardData\":\"4111111111111111\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"securityCode\":\"737\"}},\"transactionInteraction\":{\"origin\":\"ECOM\",\"eciIndicator\":\"CHANNEL_ENCRYPTED\",\"posConditionCode\":\"CARD_NOT_PRESENT_ECOM\"},\"transactionDetails\":{\"captureFlag\":true,\"merchantTransactionId\":\"probe_txn_001\"}}"
         }
       },
+      "CashappQr": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "ClassicReward": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
+      "EVoucher": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "Efecty": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "Eft": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "Eps": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "FamilyMart": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "Giropay": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
       "GooglePay": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: Selected payment method through fiserv"
@@ -86,7 +190,35 @@
         "status": "not_implemented",
         "error": "This step has not been implemented for: Selected payment method through fiserv"
       },
+      "GooglePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
       "Ideal": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "Indomaret": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "InstantBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "Interac": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: Selected payment method through fiserv"
       },
@@ -94,7 +226,127 @@
         "status": "not_implemented",
         "error": "This step has not been implemented for: Selected payment method through fiserv"
       },
+      "Lawson": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "LocalBankRedirect": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "LocalBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "MbWay": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "Mifinity": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "MiniStop": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "OpenBanking": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
+      "OpenBankingUk": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "Oxxo": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "PagoEfectivo": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "PayEasy": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "PaySafeCard": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
       "PaypalRedirect": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "PaypalSdk": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
+      "PermataBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "Pix": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "Przelewy24": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "Pse": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "RedCompra": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "RedPagos": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "RevolutPay": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: Selected payment method through fiserv"
       },
@@ -102,11 +354,55 @@
         "status": "not_implemented",
         "error": "This step has not been implemented for: Selected payment method through fiserv"
       },
+      "Satispay": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "Seicomart": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
       "Sepa": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: Selected payment method through fiserv"
       },
+      "SepaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "SevenEleven": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "Sofort": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "Trustly": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
       "UpiCollect": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "UpiIntent": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "UpiQr": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "WeChatPayQr": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      },
+      "Wero": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: Selected payment method through fiserv"
       }
@@ -134,7 +430,7 @@
             "timestamp": "0000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":{\"total\":10.0,\"currency\":\"USD\"},\"transactionDetails\":{\"captureFlag\":true,\"merchantTransactionId\":\"probe_capture_001\",\"operationType\":\"CAPTURE\"},\"merchantDetails\":{\"merchantId\":\"probe_merchant\",\"terminalId\":\"probe_terminal\"},\"referenceTransactionDetails\":{\"referenceTransactionId\":\"probe_connector_txn_001\"},\"order\":{\"orderId\":null}}"
+          "body": "{\"amount\":{\"total\":10.0,\"currency\":\"USD\"},\"transactionDetails\":{\"captureFlag\":true,\"merchantTransactionId\":\"probe_capture_001\",\"operationType\":\"CAPTURE\"},\"merchantDetails\":{\"merchantId\":\"probe_merchant\",\"terminalId\":null},\"referenceTransactionDetails\":{\"referenceTransactionId\":\"probe_connector_txn_001\"},\"order\":{\"orderId\":null}}"
         }
       }
     },
@@ -210,6 +506,50 @@
         "status": "not_implemented"
       }
     },
+    "proxy_authorize": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_proxy_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://cert.api.fiservapps.com/ch/payments/v1/charges",
+          "method": "Post",
+          "headers": {
+            "api-key": "probe_key",
+            "auth-token-type": "HMAC",
+            "authorization": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "client-request-id": "00000000-0000-0000-0000-000000000000",
+            "content-type": "application/json",
+            "timestamp": "0000000000",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":{\"total\":10.0,\"currency\":\"USD\"},\"merchantDetails\":{\"merchantId\":\"probe_merchant\",\"terminalId\":null},\"source\":{\"sourceType\":\"PaymentCard\",\"card\":{\"cardData\":\"4111111111111111\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"securityCode\":\"123\"}},\"transactionInteraction\":{\"origin\":\"ECOM\",\"eciIndicator\":\"CHANNEL_ENCRYPTED\",\"posConditionCode\":\"CARD_NOT_PRESENT_ECOM\"},\"transactionDetails\":{\"captureFlag\":true,\"merchantTransactionId\":\"probe_proxy_txn_001\"}}"
+        }
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "recurring_charge": {
       "default": {
         "status": "not_implemented"
@@ -254,6 +594,17 @@
         "status": "not_implemented"
       }
     },
+    "token_authorize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through fiserv"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "tokenize": {
       "default": {
         "status": "not_implemented"
@@ -278,9 +629,233 @@
             "timestamp": "0000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"transactionDetails\":{\"merchantTransactionId\":\"probe_void_001\"},\"merchantDetails\":{\"merchantId\":\"probe_merchant\",\"terminalId\":\"probe_terminal\"},\"referenceTransactionDetails\":{\"referenceTransactionId\":\"probe_connector_txn_001\"}}"
+          "body": "{\"transactionDetails\":{\"merchantTransactionId\":\"probe_void_001\"},\"merchantDetails\":{\"merchantId\":\"probe_merchant\",\"terminalId\":null},\"referenceTransactionDetails\":{\"referenceTransactionId\":\"probe_connector_txn_001\"}}"
         }
       }
     }
+  },
+  "flow_graph": {
+    "nodes": {
+      "authenticate": {
+        "node_type": "dependent",
+        "description": "authenticate"
+      },
+      "authorize": {
+        "node_type": "entry_point",
+        "description": "Authorize a payment, reserving funds",
+        "provides": {
+          "connector_transaction_id": {
+            "response_path": "connector_transaction_id",
+            "description": "Transaction ID for subsequent operations"
+          }
+        },
+        "requires": {
+          "access_token": {
+            "from_flow": "create_access_token",
+            "from_field": "access_token",
+            "request_path": "state.access_token.token.value"
+          },
+          "order_id": {
+            "from_flow": "create_order",
+            "from_field": "order_id",
+            "request_path": "merchant_order_id"
+          }
+        }
+      },
+      "capture": {
+        "node_type": "dependent",
+        "description": "Capture previously authorized funds",
+        "requires": {
+          "connector_transaction_id": {
+            "from_flow": "authorize",
+            "from_field": "connector_transaction_id",
+            "request_path": "connector_transaction_id"
+          }
+        }
+      },
+      "create_access_token": {
+        "node_type": "prerequisite",
+        "description": "Obtain OAuth2 access token for API authentication",
+        "provides": {
+          "access_token": {
+            "response_path": "state.access_token.token.value",
+            "description": "OAuth2 access token for API calls"
+          }
+        }
+      },
+      "create_customer": {
+        "node_type": "prerequisite",
+        "description": "Create a customer profile for recurring payments",
+        "provides": {
+          "connector_customer_id": {
+            "response_path": "connector_customer_id",
+            "description": "Customer ID for recurring payments"
+          }
+        }
+      },
+      "create_order": {
+        "node_type": "prerequisite",
+        "description": "Create an order before payment authorization",
+        "provides": {
+          "order_id": {
+            "response_path": "connector_order_id",
+            "description": "Order ID for payment authorization"
+          }
+        }
+      },
+      "create_session_token": {
+        "node_type": "dependent",
+        "description": "create_session_token"
+      },
+      "dispute_accept": {
+        "node_type": "dependent",
+        "description": "dispute_accept"
+      },
+      "dispute_defend": {
+        "node_type": "dependent",
+        "description": "dispute_defend"
+      },
+      "dispute_submit_evidence": {
+        "node_type": "dependent",
+        "description": "dispute_submit_evidence"
+      },
+      "get": {
+        "node_type": "dependent",
+        "description": "Retrieve payment status and details",
+        "requires": {
+          "connector_transaction_id": {
+            "from_flow": "authorize",
+            "from_field": "connector_transaction_id",
+            "request_path": "connector_transaction_id"
+          }
+        }
+      },
+      "post_authenticate": {
+        "node_type": "dependent",
+        "description": "post_authenticate"
+      },
+      "pre_authenticate": {
+        "node_type": "entry_point",
+        "description": "Pre-authenticate before capture"
+      },
+      "proxy_authorize": {
+        "node_type": "dependent",
+        "description": "proxy_authorize"
+      },
+      "proxy_setup_recurring": {
+        "node_type": "dependent",
+        "description": "proxy_setup_recurring"
+      },
+      "recurring_charge": {
+        "node_type": "dependent",
+        "description": "Charge against an existing mandate",
+        "requires": {
+          "connector_customer_id": {
+            "from_flow": "create_customer",
+            "from_field": "connector_customer_id",
+            "request_path": "connector_customer_id"
+          },
+          "connector_recurring_payment_id": {
+            "from_flow": "setup_recurring",
+            "from_field": "mandate_reference",
+            "request_path": "connector_recurring_payment_id.connector_mandate_id.connector_mandate_id"
+          }
+        }
+      },
+      "refund": {
+        "node_type": "dependent",
+        "description": "Refund a completed payment",
+        "provides": {
+          "refund_id": {
+            "response_path": "connector_refund_id",
+            "description": "Refund ID for tracking"
+          }
+        },
+        "requires": {
+          "connector_transaction_id": {
+            "from_flow": "authorize",
+            "from_field": "connector_transaction_id",
+            "request_path": "connector_transaction_id"
+          }
+        }
+      },
+      "reverse": {
+        "node_type": "dependent",
+        "description": "reverse"
+      },
+      "setup_recurring": {
+        "node_type": "entry_point",
+        "description": "Set up a mandate for recurring charges",
+        "provides": {
+          "mandate_reference": {
+            "response_path": "mandate_reference.connector_mandate_id.connector_mandate_id",
+            "description": "Mandate reference for recurring charges"
+          }
+        }
+      },
+      "token_authorize": {
+        "node_type": "dependent",
+        "description": "token_authorize"
+      },
+      "token_setup_recurring": {
+        "node_type": "dependent",
+        "description": "token_setup_recurring"
+      },
+      "tokenize": {
+        "node_type": "entry_point",
+        "description": "Tokenize a payment method for later use",
+        "provides": {
+          "payment_method_token": {
+            "response_path": "payment_method_token",
+            "description": "Tokenized payment method"
+          }
+        }
+      },
+      "void": {
+        "node_type": "dependent",
+        "description": "Cancel an uncaptured authorization",
+        "requires": {
+          "connector_transaction_id": {
+            "from_flow": "authorize",
+            "from_field": "connector_transaction_id",
+            "request_path": "connector_transaction_id"
+          }
+        }
+      }
+    },
+    "edges": [
+      {
+        "from": "authorize",
+        "to": "capture"
+      },
+      {
+        "from": "authorize",
+        "to": "get"
+      },
+      {
+        "from": "authorize",
+        "to": "refund"
+      },
+      {
+        "from": "authorize",
+        "to": "void"
+      },
+      {
+        "from": "create_access_token",
+        "to": "authorize"
+      },
+      {
+        "from": "create_customer",
+        "to": "recurring_charge"
+      },
+      {
+        "from": "create_order",
+        "to": "authorize"
+      },
+      {
+        "from": "setup_recurring",
+        "to": "recurring_charge"
+      }
+    ]
   }
 }

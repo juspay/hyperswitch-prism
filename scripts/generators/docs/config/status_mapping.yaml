@@ -1,0 +1,47 @@
+# Status value mappings per language
+#
+# Abstract status values (from scenarios.yaml) are mapped to language-specific
+# enums, constants, or string literals.
+#
+# This ensures all 4 languages check the same status values while using
+# idiomatic syntax for each language.
+
+# Python: Uses string comparisons
+python:
+  FAILED: '"FAILED"'
+  AUTHORIZATION_FAILED: '"AUTHORIZATION_FAILED"'
+  PENDING: '"PENDING"'
+  SUCCESS: '"SUCCESS"'
+  CANCELLED: '"CANCELLED"'
+  PROCESSING: '"PROCESSING"'
+  REFUND_FAILURE: '"REFUND_FAILURE"'
+
+# JavaScript: Uses string comparisons  
+javascript:
+  FAILED: '"FAILED"'
+  AUTHORIZATION_FAILED: '"AUTHORIZATION_FAILED"'
+  PENDING: '"PENDING"'
+  SUCCESS: '"SUCCESS"'
+  CANCELLED: '"CANCELLED"'
+  PROCESSING: '"PROCESSING"'
+  REFUND_FAILURE: '"REFUND_FAILURE"'
+
+# Kotlin: Uses string comparisons
+kotlin:
+  FAILED: '"FAILED"'
+  AUTHORIZATION_FAILED: '"AUTHORIZATION_FAILED"'
+  PENDING: '"PENDING"'
+  SUCCESS: '"SUCCESS"'
+  CANCELLED: '"CANCELLED"'
+  PROCESSING: '"PROCESSING"'
+  REFUND_FAILURE: '"REFUND_FAILURE"'
+
+# Rust: Uses quoted string literals (not enum variants, which break for non-refund flows)
+rust:
+  FAILED: '"FAILED"'
+  AUTHORIZATION_FAILED: '"AUTHORIZATION_FAILED"'
+  PENDING: '"PENDING"'
+  SUCCESS: '"SUCCESS"'
+  CANCELLED: '"CANCELLED"'
+  PROCESSING: '"PROCESSING"'
+  REFUND_FAILURE: '"REFUND_FAILURE"'

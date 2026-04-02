@@ -41,6 +41,36 @@
           "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
         }
       },
+      "AchBankTransfer": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "ach_bank_transfer": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
       "Affirm": {
         "status": "supported",
         "proto_request": {
@@ -81,6 +111,96 @@
           },
           "payment_method": {
             "afterpay_clearpay": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "Alfamart": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "alfamart": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "AliPayRedirect": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "ali_pay_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "AmazonPayRedirect": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "amazon_pay_redirect": {}
           },
           "capture_method": "AUTOMATIC",
           "address": {
@@ -189,6 +309,38 @@
           "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
         }
       },
+      "ApplePayThirdPartySdk": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "apple_pay_third_party_sdk": {
+              "token": "probe_apple_pay_third_party_token"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
       "Bacs": {
         "status": "supported",
         "proto_request": {
@@ -203,6 +355,101 @@
               "sort_code": "200000",
               "bank_account_holder_name": "John Doe"
             }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "BacsBankTransfer": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "bacs_bank_transfer": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "BancontactCard": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "bancontact_card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "BcaBankTransfer": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "bca_bank_transfer": {}
           },
           "capture_method": "AUTOMATIC",
           "address": {
@@ -257,6 +504,36 @@
           "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
         }
       },
+      "Bizum": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "bizum": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
       "Blik": {
         "status": "supported",
         "proto_request": {
@@ -269,6 +546,126 @@
             "blik": {
               "blik_code": "777124"
             }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "Bluecode": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "bluecode": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "BniVaBankTransfer": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "bni_va_bank_transfer": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "Boleto": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "boleto": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "BriVaBankTransfer": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "bri_va_bank_transfer": {}
           },
           "capture_method": "AUTOMATIC",
           "address": {
@@ -324,6 +721,320 @@
           },
           "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
         }
+      },
+      "CashappQr": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "cashapp_qr": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "CimbVaBankTransfer": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "cimb_va_bank_transfer": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "ClassicReward": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "classic_reward": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "danamon_va_bank_transfer": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
+      "EVoucher": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "e_voucher": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "Efecty": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "efecty": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "Eft": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "eft": {
+              "provider": "ozow"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "Eps": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "eps": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "FamilyMart": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "family_mart": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "Giropay": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "giropay": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
       },
       "GooglePay": {
         "status": "supported",
@@ -414,6 +1125,38 @@
           "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
         }
       },
+      "GooglePayThirdPartySdk": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay_third_party_sdk": {
+              "token": "probe_google_pay_third_party_token"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
       "Ideal": {
         "status": "supported",
         "proto_request": {
@@ -424,6 +1167,186 @@
           },
           "payment_method": {
             "ideal": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "Indomaret": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "indomaret": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "IndonesianBankTransfer": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "indonesian_bank_transfer": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "InstantBankTransfer": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "instant_bank_transfer": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "InstantBankTransferFinland": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "instant_bank_transfer_finland": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "InstantBankTransferPoland": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "instant_bank_transfer_poland": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "Interac": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "interac": {}
           },
           "capture_method": "AUTOMATIC",
           "address": {
@@ -474,6 +1397,599 @@
           "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
         }
       },
+      "Lawson": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "lawson": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "LocalBankRedirect": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "local_bank_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "LocalBankTransfer": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "local_bank_transfer": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "MandiriVaBankTransfer": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "mandiri_va_bank_transfer": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "MbWay": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "mb_way": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "Mifinity": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "mifinity": {
+              "date_of_birth": "1990-01-01",
+              "language_preference": "en"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "MiniStop": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "mini_stop": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "MultibancoBankTransfer": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "multibanco_bank_transfer": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "online_banking_czech_republic": {
+              "issuer": "CeskaSporitelna"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "OnlineBankingFinland": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "online_banking_finland": {
+              "email": "test@example.com"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "OnlineBankingFpx": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "online_banking_fpx": {
+              "issuer": "Maybank"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "OnlineBankingPoland": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "online_banking_poland": {
+              "issuer": "BankPekaoSa"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "OnlineBankingSlovakia": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "online_banking_slovakia": {
+              "issuer": "TatraPay"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "OnlineBankingThailand": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "online_banking_thailand": {
+              "issuer": "BangkokBank"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "OpenBanking": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "open_banking": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
+      "OpenBankingUk": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "open_banking_uk": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "Oxxo": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "oxxo": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "PagoEfectivo": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "pago_efectivo": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "PayEasy": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "pay_easy": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "PaySafeCard": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
       "PaypalRedirect": {
         "status": "supported",
         "proto_request": {
@@ -486,6 +2002,252 @@
             "paypal_redirect": {
               "email": "test@example.com"
             }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "PaypalSdk": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "paypal_sdk": {
+              "token": "probe_paypal_sdk_token"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
+      "PermataBankTransfer": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "permata_bank_transfer": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "Pix": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "pix": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "Przelewy24": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "przelewy24": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "Pse": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "pse": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "RedCompra": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "red_compra": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "RedPagos": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "red_pagos": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "RevolutPay": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "revolut_pay": {}
           },
           "capture_method": "AUTOMATIC",
           "address": {
@@ -548,6 +2310,66 @@
           "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
         }
       },
+      "Satispay": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "satispay": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "Seicomart": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "seicomart": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
       "Sepa": {
         "status": "supported",
         "proto_request": {
@@ -581,6 +2403,159 @@
           "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
         }
       },
+      "SepaBankTransfer": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "sepa_bank_transfer": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "SepaGuaranteedDebit": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "sepa_guaranteed_debit": {
+              "iban": "DE89370400440532013000",
+              "bank_account_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "SevenEleven": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "seven_eleven": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "Sofort": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "sofort": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "Trustly": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "trustly": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
       "UpiCollect": {
         "status": "supported",
         "proto_request": {
@@ -593,6 +2568,126 @@
             "upi_collect": {
               "vpa_id": "test@upi"
             }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "UpiIntent": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "upi_intent": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "UpiQr": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "upi_qr": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "WeChatPayQr": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "we_chat_pay_qr": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      },
+      "Wero": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "wero": {}
           },
           "capture_method": "AUTOMATIC",
           "address": {
@@ -706,6 +2801,17 @@
         "status": "not_implemented"
       }
     },
+    "proxy_authorize": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "recurring_charge": {
       "default": {
         "status": "not_implemented"
@@ -742,6 +2848,17 @@
       }
     },
     "setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+      }
+    },
+    "token_setup_recurring": {
       "default": {
         "status": "not_implemented"
       }
@@ -798,5 +2915,229 @@
         }
       }
     }
+  },
+  "flow_graph": {
+    "nodes": {
+      "authenticate": {
+        "node_type": "dependent",
+        "description": "authenticate"
+      },
+      "authorize": {
+        "node_type": "entry_point",
+        "description": "Authorize a payment, reserving funds",
+        "provides": {
+          "connector_transaction_id": {
+            "response_path": "connector_transaction_id",
+            "description": "Transaction ID for subsequent operations"
+          }
+        },
+        "requires": {
+          "access_token": {
+            "from_flow": "create_access_token",
+            "from_field": "access_token",
+            "request_path": "state.access_token.token.value"
+          },
+          "order_id": {
+            "from_flow": "create_order",
+            "from_field": "order_id",
+            "request_path": "merchant_order_id"
+          }
+        }
+      },
+      "capture": {
+        "node_type": "dependent",
+        "description": "Capture previously authorized funds",
+        "requires": {
+          "connector_transaction_id": {
+            "from_flow": "authorize",
+            "from_field": "connector_transaction_id",
+            "request_path": "connector_transaction_id"
+          }
+        }
+      },
+      "create_access_token": {
+        "node_type": "prerequisite",
+        "description": "Obtain OAuth2 access token for API authentication",
+        "provides": {
+          "access_token": {
+            "response_path": "state.access_token.token.value",
+            "description": "OAuth2 access token for API calls"
+          }
+        }
+      },
+      "create_customer": {
+        "node_type": "prerequisite",
+        "description": "Create a customer profile for recurring payments",
+        "provides": {
+          "connector_customer_id": {
+            "response_path": "connector_customer_id",
+            "description": "Customer ID for recurring payments"
+          }
+        }
+      },
+      "create_order": {
+        "node_type": "prerequisite",
+        "description": "Create an order before payment authorization",
+        "provides": {
+          "order_id": {
+            "response_path": "connector_order_id",
+            "description": "Order ID for payment authorization"
+          }
+        }
+      },
+      "create_session_token": {
+        "node_type": "dependent",
+        "description": "create_session_token"
+      },
+      "dispute_accept": {
+        "node_type": "dependent",
+        "description": "dispute_accept"
+      },
+      "dispute_defend": {
+        "node_type": "dependent",
+        "description": "dispute_defend"
+      },
+      "dispute_submit_evidence": {
+        "node_type": "dependent",
+        "description": "dispute_submit_evidence"
+      },
+      "get": {
+        "node_type": "dependent",
+        "description": "Retrieve payment status and details",
+        "requires": {
+          "connector_transaction_id": {
+            "from_flow": "authorize",
+            "from_field": "connector_transaction_id",
+            "request_path": "connector_transaction_id"
+          }
+        }
+      },
+      "post_authenticate": {
+        "node_type": "dependent",
+        "description": "post_authenticate"
+      },
+      "pre_authenticate": {
+        "node_type": "entry_point",
+        "description": "Pre-authenticate before capture"
+      },
+      "proxy_authorize": {
+        "node_type": "dependent",
+        "description": "proxy_authorize"
+      },
+      "proxy_setup_recurring": {
+        "node_type": "dependent",
+        "description": "proxy_setup_recurring"
+      },
+      "recurring_charge": {
+        "node_type": "dependent",
+        "description": "Charge against an existing mandate",
+        "requires": {
+          "connector_customer_id": {
+            "from_flow": "create_customer",
+            "from_field": "connector_customer_id",
+            "request_path": "connector_customer_id"
+          },
+          "connector_recurring_payment_id": {
+            "from_flow": "setup_recurring",
+            "from_field": "mandate_reference",
+            "request_path": "connector_recurring_payment_id.connector_mandate_id.connector_mandate_id"
+          }
+        }
+      },
+      "refund": {
+        "node_type": "dependent",
+        "description": "Refund a completed payment",
+        "provides": {
+          "refund_id": {
+            "response_path": "connector_refund_id",
+            "description": "Refund ID for tracking"
+          }
+        },
+        "requires": {
+          "connector_transaction_id": {
+            "from_flow": "authorize",
+            "from_field": "connector_transaction_id",
+            "request_path": "connector_transaction_id"
+          }
+        }
+      },
+      "reverse": {
+        "node_type": "dependent",
+        "description": "reverse"
+      },
+      "setup_recurring": {
+        "node_type": "entry_point",
+        "description": "Set up a mandate for recurring charges",
+        "provides": {
+          "mandate_reference": {
+            "response_path": "mandate_reference.connector_mandate_id.connector_mandate_id",
+            "description": "Mandate reference for recurring charges"
+          }
+        }
+      },
+      "token_authorize": {
+        "node_type": "dependent",
+        "description": "token_authorize"
+      },
+      "token_setup_recurring": {
+        "node_type": "dependent",
+        "description": "token_setup_recurring"
+      },
+      "tokenize": {
+        "node_type": "entry_point",
+        "description": "Tokenize a payment method for later use",
+        "provides": {
+          "payment_method_token": {
+            "response_path": "payment_method_token",
+            "description": "Tokenized payment method"
+          }
+        }
+      },
+      "void": {
+        "node_type": "dependent",
+        "description": "Cancel an uncaptured authorization",
+        "requires": {
+          "connector_transaction_id": {
+            "from_flow": "authorize",
+            "from_field": "connector_transaction_id",
+            "request_path": "connector_transaction_id"
+          }
+        }
+      }
+    },
+    "edges": [
+      {
+        "from": "authorize",
+        "to": "capture"
+      },
+      {
+        "from": "authorize",
+        "to": "get"
+      },
+      {
+        "from": "authorize",
+        "to": "refund"
+      },
+      {
+        "from": "authorize",
+        "to": "void"
+      },
+      {
+        "from": "create_access_token",
+        "to": "authorize"
+      },
+      {
+        "from": "create_customer",
+        "to": "recurring_charge"
+      },
+      {
+        "from": "create_order",
+        "to": "authorize"
+      },
+      {
+        "from": "setup_recurring",
+        "to": "recurring_charge"
+      }
+    ]
   }
 }

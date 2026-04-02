@@ -11,11 +11,27 @@
         "status": "not_implemented",
         "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
       },
+      "AchBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
       "Affirm": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
       },
       "Afterpay": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "Alfamart": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "AliPayRedirect": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "AmazonPayRedirect": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
       },
@@ -27,7 +43,23 @@
         "status": "not_implemented",
         "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
       },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
       "Bacs": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "BacsBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "BancontactCard": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "BcaBankTransfer": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
       },
@@ -35,7 +67,27 @@
         "status": "not_implemented",
         "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
       },
+      "Bizum": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
       "Blik": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "Bluecode": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "Boleto": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "BriVaBankTransfer": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
       },
@@ -74,6 +126,58 @@
           "body": "{\"currency\":\"USD\",\"refno\":\"probe_txn_001\",\"amount\":1000,\"card\":{\"expiryMonth\":\"03\",\"expiryYear\":\"30\",\"number\":\"4111111111111111\",\"cvv\":\"737\",\"type\":\"PLAIN\"},\"autoSettle\":true,\"option\":null}"
         }
       },
+      "CashappQr": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "ClassicReward": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
+      "EVoucher": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "Efecty": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "Eft": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "Eps": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "FamilyMart": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "Giropay": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
       "GooglePay": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
@@ -82,7 +186,35 @@
         "status": "not_implemented",
         "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
       },
+      "GooglePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
       "Ideal": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "Indomaret": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "InstantBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "Interac": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
       },
@@ -90,7 +222,127 @@
         "status": "not_implemented",
         "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
       },
+      "Lawson": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "LocalBankRedirect": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "LocalBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "MbWay": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "Mifinity": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "MiniStop": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "OpenBanking": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
+      "OpenBankingUk": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "Oxxo": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "PagoEfectivo": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "PayEasy": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "PaySafeCard": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
       "PaypalRedirect": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "PaypalSdk": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
+      "PermataBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "Pix": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "Przelewy24": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "Pse": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "RedCompra": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "RedPagos": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "RevolutPay": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
       },
@@ -98,11 +350,55 @@
         "status": "not_implemented",
         "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
       },
+      "Satispay": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "Seicomart": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
       "Sepa": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
       },
+      "SepaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "SevenEleven": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "Sofort": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "Trustly": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
       "UpiCollect": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "UpiIntent": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "UpiQr": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "WeChatPayQr": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      },
+      "Wero": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
       }
@@ -197,6 +493,46 @@
         "status": "not_implemented"
       }
     },
+    "proxy_authorize": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_proxy_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.sandbox.datatrans.com/v1/transactions/authorize",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"currency\":\"USD\",\"refno\":\"probe_proxy_txn_001\",\"amount\":1000,\"card\":{\"expiryMonth\":\"03\",\"expiryYear\":\"30\",\"number\":\"4111111111111111\",\"cvv\":\"123\",\"type\":\"PLAIN\"},\"autoSettle\":true,\"option\":null}"
+        }
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "recurring_charge": {
       "default": {
         "status": "not_implemented"
@@ -237,6 +573,17 @@
         "status": "not_implemented"
       }
     },
+    "token_authorize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Only card payments are supported for Datatrans"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "tokenize": {
       "default": {
         "status": "not_implemented"
@@ -261,5 +608,229 @@
         }
       }
     }
+  },
+  "flow_graph": {
+    "nodes": {
+      "authenticate": {
+        "node_type": "dependent",
+        "description": "authenticate"
+      },
+      "authorize": {
+        "node_type": "entry_point",
+        "description": "Authorize a payment, reserving funds",
+        "provides": {
+          "connector_transaction_id": {
+            "response_path": "connector_transaction_id",
+            "description": "Transaction ID for subsequent operations"
+          }
+        },
+        "requires": {
+          "access_token": {
+            "from_flow": "create_access_token",
+            "from_field": "access_token",
+            "request_path": "state.access_token.token.value"
+          },
+          "order_id": {
+            "from_flow": "create_order",
+            "from_field": "order_id",
+            "request_path": "merchant_order_id"
+          }
+        }
+      },
+      "capture": {
+        "node_type": "dependent",
+        "description": "Capture previously authorized funds",
+        "requires": {
+          "connector_transaction_id": {
+            "from_flow": "authorize",
+            "from_field": "connector_transaction_id",
+            "request_path": "connector_transaction_id"
+          }
+        }
+      },
+      "create_access_token": {
+        "node_type": "prerequisite",
+        "description": "Obtain OAuth2 access token for API authentication",
+        "provides": {
+          "access_token": {
+            "response_path": "state.access_token.token.value",
+            "description": "OAuth2 access token for API calls"
+          }
+        }
+      },
+      "create_customer": {
+        "node_type": "prerequisite",
+        "description": "Create a customer profile for recurring payments",
+        "provides": {
+          "connector_customer_id": {
+            "response_path": "connector_customer_id",
+            "description": "Customer ID for recurring payments"
+          }
+        }
+      },
+      "create_order": {
+        "node_type": "prerequisite",
+        "description": "Create an order before payment authorization",
+        "provides": {
+          "order_id": {
+            "response_path": "connector_order_id",
+            "description": "Order ID for payment authorization"
+          }
+        }
+      },
+      "create_session_token": {
+        "node_type": "dependent",
+        "description": "create_session_token"
+      },
+      "dispute_accept": {
+        "node_type": "dependent",
+        "description": "dispute_accept"
+      },
+      "dispute_defend": {
+        "node_type": "dependent",
+        "description": "dispute_defend"
+      },
+      "dispute_submit_evidence": {
+        "node_type": "dependent",
+        "description": "dispute_submit_evidence"
+      },
+      "get": {
+        "node_type": "dependent",
+        "description": "Retrieve payment status and details",
+        "requires": {
+          "connector_transaction_id": {
+            "from_flow": "authorize",
+            "from_field": "connector_transaction_id",
+            "request_path": "connector_transaction_id"
+          }
+        }
+      },
+      "post_authenticate": {
+        "node_type": "dependent",
+        "description": "post_authenticate"
+      },
+      "pre_authenticate": {
+        "node_type": "entry_point",
+        "description": "Pre-authenticate before capture"
+      },
+      "proxy_authorize": {
+        "node_type": "dependent",
+        "description": "proxy_authorize"
+      },
+      "proxy_setup_recurring": {
+        "node_type": "dependent",
+        "description": "proxy_setup_recurring"
+      },
+      "recurring_charge": {
+        "node_type": "dependent",
+        "description": "Charge against an existing mandate",
+        "requires": {
+          "connector_customer_id": {
+            "from_flow": "create_customer",
+            "from_field": "connector_customer_id",
+            "request_path": "connector_customer_id"
+          },
+          "connector_recurring_payment_id": {
+            "from_flow": "setup_recurring",
+            "from_field": "mandate_reference",
+            "request_path": "connector_recurring_payment_id.connector_mandate_id.connector_mandate_id"
+          }
+        }
+      },
+      "refund": {
+        "node_type": "dependent",
+        "description": "Refund a completed payment",
+        "provides": {
+          "refund_id": {
+            "response_path": "connector_refund_id",
+            "description": "Refund ID for tracking"
+          }
+        },
+        "requires": {
+          "connector_transaction_id": {
+            "from_flow": "authorize",
+            "from_field": "connector_transaction_id",
+            "request_path": "connector_transaction_id"
+          }
+        }
+      },
+      "reverse": {
+        "node_type": "dependent",
+        "description": "reverse"
+      },
+      "setup_recurring": {
+        "node_type": "entry_point",
+        "description": "Set up a mandate for recurring charges",
+        "provides": {
+          "mandate_reference": {
+            "response_path": "mandate_reference.connector_mandate_id.connector_mandate_id",
+            "description": "Mandate reference for recurring charges"
+          }
+        }
+      },
+      "token_authorize": {
+        "node_type": "dependent",
+        "description": "token_authorize"
+      },
+      "token_setup_recurring": {
+        "node_type": "dependent",
+        "description": "token_setup_recurring"
+      },
+      "tokenize": {
+        "node_type": "entry_point",
+        "description": "Tokenize a payment method for later use",
+        "provides": {
+          "payment_method_token": {
+            "response_path": "payment_method_token",
+            "description": "Tokenized payment method"
+          }
+        }
+      },
+      "void": {
+        "node_type": "dependent",
+        "description": "Cancel an uncaptured authorization",
+        "requires": {
+          "connector_transaction_id": {
+            "from_flow": "authorize",
+            "from_field": "connector_transaction_id",
+            "request_path": "connector_transaction_id"
+          }
+        }
+      }
+    },
+    "edges": [
+      {
+        "from": "authorize",
+        "to": "capture"
+      },
+      {
+        "from": "authorize",
+        "to": "get"
+      },
+      {
+        "from": "authorize",
+        "to": "refund"
+      },
+      {
+        "from": "authorize",
+        "to": "void"
+      },
+      {
+        "from": "create_access_token",
+        "to": "authorize"
+      },
+      {
+        "from": "create_customer",
+        "to": "recurring_charge"
+      },
+      {
+        "from": "create_order",
+        "to": "authorize"
+      },
+      {
+        "from": "setup_recurring",
+        "to": "recurring_charge"
+      }
+    ]
   }
 }

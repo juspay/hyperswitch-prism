@@ -11,11 +11,27 @@
         "status": "not_supported",
         "error": "Payment method is not supported by Shift4"
       },
+      "AchBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
       "Affirm": {
         "status": "not_supported",
         "error": "Payment method is not supported by Shift4"
       },
       "Afterpay": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "Alfamart": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "AliPayRedirect": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "AmazonPayRedirect": {
         "status": "not_supported",
         "error": "Payment method is not supported by Shift4"
       },
@@ -27,7 +43,23 @@
         "status": "not_supported",
         "error": "Payment method is not supported by Shift4"
       },
+      "ApplePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
       "Bacs": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "BacsBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "BancontactCard": {
+        "status": "not_supported",
+        "error": "BankRedirect type BancontactCard { card_number: Some(CardNumber(411111**********)), card_exp_month: Some(*** alloc::string::String ***), card_exp_year: Some(*** alloc::string::String ***), card_holder_name: Some(*** alloc::string::String ***) } is not supported by Shift4 is not supported by Shift4"
+      },
+      "BcaBankTransfer": {
         "status": "not_supported",
         "error": "Payment method is not supported by Shift4"
       },
@@ -35,9 +67,29 @@
         "status": "not_supported",
         "error": "Payment method is not supported by Shift4"
       },
+      "Bizum": {
+        "status": "not_supported",
+        "error": "BankRedirect type Bizum is not supported by Shift4 is not supported by Shift4"
+      },
       "Blik": {
         "status": "not_supported",
         "error": "BankRedirect type Blik { blik_code: Some(\"777124\") } is not supported by Shift4 is not supported by Shift4"
+      },
+      "Bluecode": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "Boleto": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "BriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
       },
       "Card": {
         "status": "supported",
@@ -76,11 +128,92 @@
           "body": "{\"amount\":1000,\"currency\":\"USD\",\"captured\":true,\"card\":{\"number\":\"4111111111111111\",\"expMonth\":\"03\",\"expYear\":\"2030\",\"cardholderName\":\"John\"}}"
         }
       },
+      "CashappQr": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "ClassicReward": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
+      "EVoucher": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "Efecty": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "Eft": {
+        "status": "not_supported",
+        "error": "BankRedirect type Eft { provider: \"ozow\" } is not supported by Shift4 is not supported by Shift4"
+      },
+      "Eps": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "eps": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.shift4.com/charges",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"captured\":true,\"paymentMethod\":{\"type\":\"eps\",\"billing\":{\"name\":null,\"email\":null,\"address\":{\"line1\":null,\"line2\":null,\"city\":null,\"state\":null,\"zip\":null,\"country\":null}}},\"flow\":{\"returnUrl\":\"https://example.com/return\"}}"
+        }
+      },
+      "FamilyMart": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "Giropay": {
+        "status": "not_supported",
+        "error": "BankRedirect type Giropay { bank_account_bic: None, bank_account_iban: None, country: None } is not supported by Shift4 is not supported by Shift4"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
       "GooglePay": {
         "status": "not_supported",
         "error": "Payment method is not supported by Shift4"
       },
       "GooglePayDecrypted": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "GooglePayThirdPartySdk": {
         "status": "not_supported",
         "error": "Payment method is not supported by Shift4"
       },
@@ -113,11 +246,155 @@
           "body": "{\"amount\":1000,\"currency\":\"USD\",\"captured\":true,\"paymentMethod\":{\"type\":\"ideal\",\"billing\":{\"name\":null,\"email\":null,\"address\":{\"line1\":null,\"line2\":null,\"city\":null,\"state\":null,\"zip\":null,\"country\":null}}},\"flow\":{\"returnUrl\":\"https://example.com/return\"}}"
         }
       },
+      "Indomaret": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "InstantBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "Interac": {
+        "status": "not_supported",
+        "error": "BankRedirect type Interac { country: None, email: None } is not supported by Shift4 is not supported by Shift4"
+      },
       "Klarna": {
         "status": "not_supported",
         "error": "Payment method is not supported by Shift4"
       },
+      "Lawson": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "LocalBankRedirect": {
+        "status": "not_supported",
+        "error": "BankRedirect type LocalBankRedirect is not supported by Shift4 is not supported by Shift4"
+      },
+      "LocalBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "MbWay": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "Mifinity": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "MiniStop": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_supported",
+        "error": "BankRedirect type OnlineBankingCzechRepublic { issuer: CeskaSporitelna } is not supported by Shift4 is not supported by Shift4"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_supported",
+        "error": "BankRedirect type OnlineBankingFinland { email: Some(Email(****@example.com)) } is not supported by Shift4 is not supported by Shift4"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_supported",
+        "error": "BankRedirect type OnlineBankingFpx { issuer: Maybank } is not supported by Shift4 is not supported by Shift4"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_supported",
+        "error": "BankRedirect type OnlineBankingPoland { issuer: BankPekaoSa } is not supported by Shift4 is not supported by Shift4"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_supported",
+        "error": "BankRedirect type OnlineBankingSlovakia { issuer: TatraPay } is not supported by Shift4 is not supported by Shift4"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_supported",
+        "error": "BankRedirect type OnlineBankingThailand { issuer: BangkokBank } is not supported by Shift4 is not supported by Shift4"
+      },
+      "OpenBanking": {
+        "status": "not_supported",
+        "error": "BankRedirect type OpenBanking is not supported by Shift4 is not supported by Shift4"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
+      "OpenBankingUk": {
+        "status": "not_supported",
+        "error": "BankRedirect type OpenBankingUk { issuer: None, country: None } is not supported by Shift4 is not supported by Shift4"
+      },
+      "Oxxo": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "PagoEfectivo": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "PayEasy": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "PaySafeCard": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
       "PaypalRedirect": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "PaypalSdk": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
+      "PermataBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "Pix": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "Przelewy24": {
+        "status": "not_supported",
+        "error": "BankRedirect type Przelewy24 { bank_name: None } is not supported by Shift4 is not supported by Shift4"
+      },
+      "Pse": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "RedCompra": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "RedPagos": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "RevolutPay": {
         "status": "not_supported",
         "error": "Payment method is not supported by Shift4"
       },
@@ -125,11 +402,55 @@
         "status": "not_supported",
         "error": "Payment method is not supported by Shift4"
       },
+      "Satispay": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "Seicomart": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
       "Sepa": {
         "status": "not_supported",
         "error": "Payment method is not supported by Shift4"
       },
+      "SepaBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "SevenEleven": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "Sofort": {
+        "status": "not_supported",
+        "error": "BankRedirect type Sofort { country: None, preferred_language: None } is not supported by Shift4 is not supported by Shift4"
+      },
+      "Trustly": {
+        "status": "not_supported",
+        "error": "BankRedirect type Trustly { country: None } is not supported by Shift4 is not supported by Shift4"
+      },
       "UpiCollect": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "UpiIntent": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "UpiQr": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "WeChatPayQr": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "Wero": {
         "status": "not_supported",
         "error": "Payment method is not supported by Shift4"
       }
@@ -223,6 +544,48 @@
         "status": "not_implemented"
       }
     },
+    "proxy_authorize": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_proxy_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe"
+          },
+          "address": {
+            "billing_address": {
+              "first_name": "John"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.shift4.com/charges",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"captured\":true,\"card\":{\"number\":\"4111111111111111\",\"expMonth\":\"03\",\"expYear\":\"2030\",\"cardholderName\":\"John\"}}"
+        }
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "recurring_charge": {
       "default": {
         "status": "not_implemented"
@@ -263,6 +626,17 @@
         "status": "not_implemented"
       }
     },
+    "token_authorize": {
+      "default": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "tokenize": {
       "default": {
         "status": "not_implemented"
@@ -273,5 +647,229 @@
         "status": "not_implemented"
       }
     }
+  },
+  "flow_graph": {
+    "nodes": {
+      "authenticate": {
+        "node_type": "dependent",
+        "description": "authenticate"
+      },
+      "authorize": {
+        "node_type": "entry_point",
+        "description": "Authorize a payment, reserving funds",
+        "provides": {
+          "connector_transaction_id": {
+            "response_path": "connector_transaction_id",
+            "description": "Transaction ID for subsequent operations"
+          }
+        },
+        "requires": {
+          "access_token": {
+            "from_flow": "create_access_token",
+            "from_field": "access_token",
+            "request_path": "state.access_token.token.value"
+          },
+          "order_id": {
+            "from_flow": "create_order",
+            "from_field": "order_id",
+            "request_path": "merchant_order_id"
+          }
+        }
+      },
+      "capture": {
+        "node_type": "dependent",
+        "description": "Capture previously authorized funds",
+        "requires": {
+          "connector_transaction_id": {
+            "from_flow": "authorize",
+            "from_field": "connector_transaction_id",
+            "request_path": "connector_transaction_id"
+          }
+        }
+      },
+      "create_access_token": {
+        "node_type": "prerequisite",
+        "description": "Obtain OAuth2 access token for API authentication",
+        "provides": {
+          "access_token": {
+            "response_path": "state.access_token.token.value",
+            "description": "OAuth2 access token for API calls"
+          }
+        }
+      },
+      "create_customer": {
+        "node_type": "prerequisite",
+        "description": "Create a customer profile for recurring payments",
+        "provides": {
+          "connector_customer_id": {
+            "response_path": "connector_customer_id",
+            "description": "Customer ID for recurring payments"
+          }
+        }
+      },
+      "create_order": {
+        "node_type": "prerequisite",
+        "description": "Create an order before payment authorization",
+        "provides": {
+          "order_id": {
+            "response_path": "connector_order_id",
+            "description": "Order ID for payment authorization"
+          }
+        }
+      },
+      "create_session_token": {
+        "node_type": "dependent",
+        "description": "create_session_token"
+      },
+      "dispute_accept": {
+        "node_type": "dependent",
+        "description": "dispute_accept"
+      },
+      "dispute_defend": {
+        "node_type": "dependent",
+        "description": "dispute_defend"
+      },
+      "dispute_submit_evidence": {
+        "node_type": "dependent",
+        "description": "dispute_submit_evidence"
+      },
+      "get": {
+        "node_type": "dependent",
+        "description": "Retrieve payment status and details",
+        "requires": {
+          "connector_transaction_id": {
+            "from_flow": "authorize",
+            "from_field": "connector_transaction_id",
+            "request_path": "connector_transaction_id"
+          }
+        }
+      },
+      "post_authenticate": {
+        "node_type": "dependent",
+        "description": "post_authenticate"
+      },
+      "pre_authenticate": {
+        "node_type": "entry_point",
+        "description": "Pre-authenticate before capture"
+      },
+      "proxy_authorize": {
+        "node_type": "dependent",
+        "description": "proxy_authorize"
+      },
+      "proxy_setup_recurring": {
+        "node_type": "dependent",
+        "description": "proxy_setup_recurring"
+      },
+      "recurring_charge": {
+        "node_type": "dependent",
+        "description": "Charge against an existing mandate",
+        "requires": {
+          "connector_customer_id": {
+            "from_flow": "create_customer",
+            "from_field": "connector_customer_id",
+            "request_path": "connector_customer_id"
+          },
+          "connector_recurring_payment_id": {
+            "from_flow": "setup_recurring",
+            "from_field": "mandate_reference",
+            "request_path": "connector_recurring_payment_id.connector_mandate_id.connector_mandate_id"
+          }
+        }
+      },
+      "refund": {
+        "node_type": "dependent",
+        "description": "Refund a completed payment",
+        "provides": {
+          "refund_id": {
+            "response_path": "connector_refund_id",
+            "description": "Refund ID for tracking"
+          }
+        },
+        "requires": {
+          "connector_transaction_id": {
+            "from_flow": "authorize",
+            "from_field": "connector_transaction_id",
+            "request_path": "connector_transaction_id"
+          }
+        }
+      },
+      "reverse": {
+        "node_type": "dependent",
+        "description": "reverse"
+      },
+      "setup_recurring": {
+        "node_type": "entry_point",
+        "description": "Set up a mandate for recurring charges",
+        "provides": {
+          "mandate_reference": {
+            "response_path": "mandate_reference.connector_mandate_id.connector_mandate_id",
+            "description": "Mandate reference for recurring charges"
+          }
+        }
+      },
+      "token_authorize": {
+        "node_type": "dependent",
+        "description": "token_authorize"
+      },
+      "token_setup_recurring": {
+        "node_type": "dependent",
+        "description": "token_setup_recurring"
+      },
+      "tokenize": {
+        "node_type": "entry_point",
+        "description": "Tokenize a payment method for later use",
+        "provides": {
+          "payment_method_token": {
+            "response_path": "payment_method_token",
+            "description": "Tokenized payment method"
+          }
+        }
+      },
+      "void": {
+        "node_type": "dependent",
+        "description": "Cancel an uncaptured authorization",
+        "requires": {
+          "connector_transaction_id": {
+            "from_flow": "authorize",
+            "from_field": "connector_transaction_id",
+            "request_path": "connector_transaction_id"
+          }
+        }
+      }
+    },
+    "edges": [
+      {
+        "from": "authorize",
+        "to": "capture"
+      },
+      {
+        "from": "authorize",
+        "to": "get"
+      },
+      {
+        "from": "authorize",
+        "to": "refund"
+      },
+      {
+        "from": "authorize",
+        "to": "void"
+      },
+      {
+        "from": "create_access_token",
+        "to": "authorize"
+      },
+      {
+        "from": "create_customer",
+        "to": "recurring_charge"
+      },
+      {
+        "from": "create_order",
+        "to": "authorize"
+      },
+      {
+        "from": "setup_recurring",
+        "to": "recurring_charge"
+      }
+    ]
   }
 }

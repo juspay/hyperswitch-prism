@@ -11,11 +11,27 @@
         "status": "not_implemented",
         "error": "This step has not been implemented for: Selected payment method through nexinets"
       },
+      "AchBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
       "Affirm": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: Selected payment method through nexinets"
       },
       "Afterpay": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "Alfamart": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "AliPayRedirect": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "AmazonPayRedirect": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: Selected payment method through nexinets"
       },
@@ -62,7 +78,23 @@
         "status": "error",
         "error": "Stuck on field: Apple pay encrypted data — Missing required field: Apple pay encrypted data"
       },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
       "Bacs": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "BacsBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "BancontactCard": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "BcaBankTransfer": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: Selected payment method through nexinets"
       },
@@ -70,7 +102,27 @@
         "status": "not_implemented",
         "error": "This step has not been implemented for: Selected payment method through nexinets"
       },
+      "Bizum": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
       "Blik": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "Bluecode": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "Boleto": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "BriVaBankTransfer": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: Selected payment method through nexinets"
       },
@@ -109,11 +161,117 @@
           "body": "{\"initialAmount\":1000,\"currency\":\"USD\",\"channel\":\"ECOM\",\"product\":\"creditcard\",\"payment\":{\"cardNumber\":\"4111111111111111\",\"expiryMonth\":\"03\",\"expiryYear\":\"2030\",\"verification\":\"737\",\"cofContract\":null},\"async\":{\"successUrl\":\"https://example.com/return\",\"cancelUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\"},\"merchantOrderId\":\"probe_txn_001\"}"
         }
       },
+      "CashappQr": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "ClassicReward": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
+      "EVoucher": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "Efecty": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "Eft": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "Eps": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "eps": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://apitest.payengine.de/v1/orders/debit",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfbWVyY2hhbnQ6cHJvYmVfa2V5",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"initialAmount\":1000,\"currency\":\"USD\",\"channel\":\"ECOM\",\"product\":\"eps\",\"payment\":null,\"async\":{\"successUrl\":\"https://example.com/return\",\"cancelUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\"},\"merchantOrderId\":null}"
+        }
+      },
+      "FamilyMart": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "Giropay": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "giropay": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://apitest.payengine.de/v1/orders/debit",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfbWVyY2hhbnQ6cHJvYmVfa2V5",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"initialAmount\":1000,\"currency\":\"USD\",\"channel\":\"ECOM\",\"product\":\"giropay\",\"payment\":null,\"async\":{\"successUrl\":\"https://example.com/return\",\"cancelUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\"},\"merchantOrderId\":null}"
+        }
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
       "GooglePay": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: Selected payment method through nexinets"
       },
       "GooglePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "GooglePayThirdPartySdk": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: Selected payment method through nexinets"
       },
@@ -146,9 +304,117 @@
           "body": "{\"initialAmount\":1000,\"currency\":\"USD\",\"channel\":\"ECOM\",\"product\":\"ideal\",\"payment\":{\"bic\":null},\"async\":{\"successUrl\":\"https://example.com/return\",\"cancelUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\"},\"merchantOrderId\":null}"
         }
       },
+      "Indomaret": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "InstantBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "Interac": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
       "Klarna": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "Lawson": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "LocalBankRedirect": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "LocalBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "MbWay": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "Mifinity": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "MiniStop": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "OpenBanking": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
+      "OpenBankingUk": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "Oxxo": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "PagoEfectivo": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "PayEasy": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "PaySafeCard": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
       },
       "PaypalRedirect": {
         "status": "supported",
@@ -181,7 +447,51 @@
           "body": "{\"initialAmount\":1000,\"currency\":\"USD\",\"channel\":\"ECOM\",\"product\":\"paypal\",\"payment\":null,\"async\":{\"successUrl\":\"https://example.com/return\",\"cancelUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\"},\"merchantOrderId\":null}"
         }
       },
+      "PaypalSdk": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
+      "PermataBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "Pix": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "Przelewy24": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "Pse": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "RedCompra": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "RedPagos": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "RevolutPay": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
       "SamsungPay": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "Satispay": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "Seicomart": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: Selected payment method through nexinets"
       },
@@ -189,7 +499,68 @@
         "status": "not_implemented",
         "error": "This step has not been implemented for: Selected payment method through nexinets"
       },
+      "SepaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "SevenEleven": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "Sofort": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "sofort": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://apitest.payengine.de/v1/orders/debit",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfbWVyY2hhbnQ6cHJvYmVfa2V5",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"initialAmount\":1000,\"currency\":\"USD\",\"channel\":\"ECOM\",\"product\":\"sofort\",\"payment\":null,\"async\":{\"successUrl\":\"https://example.com/return\",\"cancelUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\"},\"merchantOrderId\":null}"
+        }
+      },
+      "Trustly": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
       "UpiCollect": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "UpiIntent": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "UpiQr": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "WeChatPayQr": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      },
+      "Wero": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: Selected payment method through nexinets"
       }
@@ -268,6 +639,46 @@
         "status": "not_implemented"
       }
     },
+    "proxy_authorize": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_proxy_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://apitest.payengine.de/v1/orders/debit",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfbWVyY2hhbnQ6cHJvYmVfa2V5",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"initialAmount\":1000,\"currency\":\"USD\",\"channel\":\"ECOM\",\"product\":\"creditcard\",\"payment\":{\"cardNumber\":\"4111111111111111\",\"expiryMonth\":\"03\",\"expiryYear\":\"2030\",\"verification\":\"123\",\"cofContract\":null},\"async\":{\"successUrl\":\"https://example.com/return\",\"cancelUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\"},\"merchantOrderId\":\"probe_proxy_txn_001\"}"
+        }
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "recurring_charge": {
       "default": {
         "status": "not_implemented"
@@ -308,6 +719,17 @@
         "status": "not_implemented"
       }
     },
+    "token_authorize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through nexinets"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "tokenize": {
       "default": {
         "status": "not_implemented"
@@ -319,5 +741,229 @@
         "error": "Parsing failed"
       }
     }
+  },
+  "flow_graph": {
+    "nodes": {
+      "authenticate": {
+        "node_type": "dependent",
+        "description": "authenticate"
+      },
+      "authorize": {
+        "node_type": "entry_point",
+        "description": "Authorize a payment, reserving funds",
+        "provides": {
+          "connector_transaction_id": {
+            "response_path": "connector_transaction_id",
+            "description": "Transaction ID for subsequent operations"
+          }
+        },
+        "requires": {
+          "access_token": {
+            "from_flow": "create_access_token",
+            "from_field": "access_token",
+            "request_path": "state.access_token.token.value"
+          },
+          "order_id": {
+            "from_flow": "create_order",
+            "from_field": "order_id",
+            "request_path": "merchant_order_id"
+          }
+        }
+      },
+      "capture": {
+        "node_type": "dependent",
+        "description": "Capture previously authorized funds",
+        "requires": {
+          "connector_transaction_id": {
+            "from_flow": "authorize",
+            "from_field": "connector_transaction_id",
+            "request_path": "connector_transaction_id"
+          }
+        }
+      },
+      "create_access_token": {
+        "node_type": "prerequisite",
+        "description": "Obtain OAuth2 access token for API authentication",
+        "provides": {
+          "access_token": {
+            "response_path": "state.access_token.token.value",
+            "description": "OAuth2 access token for API calls"
+          }
+        }
+      },
+      "create_customer": {
+        "node_type": "prerequisite",
+        "description": "Create a customer profile for recurring payments",
+        "provides": {
+          "connector_customer_id": {
+            "response_path": "connector_customer_id",
+            "description": "Customer ID for recurring payments"
+          }
+        }
+      },
+      "create_order": {
+        "node_type": "prerequisite",
+        "description": "Create an order before payment authorization",
+        "provides": {
+          "order_id": {
+            "response_path": "connector_order_id",
+            "description": "Order ID for payment authorization"
+          }
+        }
+      },
+      "create_session_token": {
+        "node_type": "dependent",
+        "description": "create_session_token"
+      },
+      "dispute_accept": {
+        "node_type": "dependent",
+        "description": "dispute_accept"
+      },
+      "dispute_defend": {
+        "node_type": "dependent",
+        "description": "dispute_defend"
+      },
+      "dispute_submit_evidence": {
+        "node_type": "dependent",
+        "description": "dispute_submit_evidence"
+      },
+      "get": {
+        "node_type": "dependent",
+        "description": "Retrieve payment status and details",
+        "requires": {
+          "connector_transaction_id": {
+            "from_flow": "authorize",
+            "from_field": "connector_transaction_id",
+            "request_path": "connector_transaction_id"
+          }
+        }
+      },
+      "post_authenticate": {
+        "node_type": "dependent",
+        "description": "post_authenticate"
+      },
+      "pre_authenticate": {
+        "node_type": "entry_point",
+        "description": "Pre-authenticate before capture"
+      },
+      "proxy_authorize": {
+        "node_type": "dependent",
+        "description": "proxy_authorize"
+      },
+      "proxy_setup_recurring": {
+        "node_type": "dependent",
+        "description": "proxy_setup_recurring"
+      },
+      "recurring_charge": {
+        "node_type": "dependent",
+        "description": "Charge against an existing mandate",
+        "requires": {
+          "connector_customer_id": {
+            "from_flow": "create_customer",
+            "from_field": "connector_customer_id",
+            "request_path": "connector_customer_id"
+          },
+          "connector_recurring_payment_id": {
+            "from_flow": "setup_recurring",
+            "from_field": "mandate_reference",
+            "request_path": "connector_recurring_payment_id.connector_mandate_id.connector_mandate_id"
+          }
+        }
+      },
+      "refund": {
+        "node_type": "dependent",
+        "description": "Refund a completed payment",
+        "provides": {
+          "refund_id": {
+            "response_path": "connector_refund_id",
+            "description": "Refund ID for tracking"
+          }
+        },
+        "requires": {
+          "connector_transaction_id": {
+            "from_flow": "authorize",
+            "from_field": "connector_transaction_id",
+            "request_path": "connector_transaction_id"
+          }
+        }
+      },
+      "reverse": {
+        "node_type": "dependent",
+        "description": "reverse"
+      },
+      "setup_recurring": {
+        "node_type": "entry_point",
+        "description": "Set up a mandate for recurring charges",
+        "provides": {
+          "mandate_reference": {
+            "response_path": "mandate_reference.connector_mandate_id.connector_mandate_id",
+            "description": "Mandate reference for recurring charges"
+          }
+        }
+      },
+      "token_authorize": {
+        "node_type": "dependent",
+        "description": "token_authorize"
+      },
+      "token_setup_recurring": {
+        "node_type": "dependent",
+        "description": "token_setup_recurring"
+      },
+      "tokenize": {
+        "node_type": "entry_point",
+        "description": "Tokenize a payment method for later use",
+        "provides": {
+          "payment_method_token": {
+            "response_path": "payment_method_token",
+            "description": "Tokenized payment method"
+          }
+        }
+      },
+      "void": {
+        "node_type": "dependent",
+        "description": "Cancel an uncaptured authorization",
+        "requires": {
+          "connector_transaction_id": {
+            "from_flow": "authorize",
+            "from_field": "connector_transaction_id",
+            "request_path": "connector_transaction_id"
+          }
+        }
+      }
+    },
+    "edges": [
+      {
+        "from": "authorize",
+        "to": "capture"
+      },
+      {
+        "from": "authorize",
+        "to": "get"
+      },
+      {
+        "from": "authorize",
+        "to": "refund"
+      },
+      {
+        "from": "authorize",
+        "to": "void"
+      },
+      {
+        "from": "create_access_token",
+        "to": "authorize"
+      },
+      {
+        "from": "create_customer",
+        "to": "recurring_charge"
+      },
+      {
+        "from": "create_order",
+        "to": "authorize"
+      },
+      {
+        "from": "setup_recurring",
+        "to": "recurring_charge"
+      }
+    ]
   }
 }

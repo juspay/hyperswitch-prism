@@ -11,11 +11,27 @@
         "status": "not_implemented",
         "error": "This step has not been implemented for: payment method"
       },
+      "AchBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
       "Affirm": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: payment method"
       },
       "Afterpay": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "Alfamart": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "AliPayRedirect": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "AmazonPayRedirect": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: payment method"
       },
@@ -27,7 +43,23 @@
         "status": "not_implemented",
         "error": "This step has not been implemented for: payment method"
       },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
       "Bacs": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "BacsBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "BancontactCard": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "BcaBankTransfer": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: payment method"
       },
@@ -35,7 +67,27 @@
         "status": "not_implemented",
         "error": "This step has not been implemented for: payment method"
       },
+      "Bizum": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
       "Blik": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "Bluecode": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "Boleto": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "BriVaBankTransfer": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: payment method"
       },
@@ -82,6 +134,58 @@
           "body": "{\"amount\":10.0,\"currency\":\"USD\",\"ipAddress\":\"1.2.3.4\",\"cardData\":{\"cardNumber\":\"4111111111111111\",\"cardExpiry\":\"0330\",\"cardCVV\":\"737\"},\"invoice\":{\"invoiceNumber\":\"probe_txn_001\",\"lineItems\":[{\"description\":\"No Description\",\"quantity\":1,\"price\":10.0,\"total\":10.0}]},\"billingAddress\":{\"name\":\"John\",\"street1\":\"123 Main St\",\"postalCode\":\"98101\"}}"
         }
       },
+      "CashappQr": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "ClassicReward": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
+      "EVoucher": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "Efecty": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "Eft": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "Eps": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "FamilyMart": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "Giropay": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
       "GooglePay": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: payment method"
@@ -90,7 +194,35 @@
         "status": "not_implemented",
         "error": "This step has not been implemented for: payment method"
       },
+      "GooglePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
       "Ideal": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "Indomaret": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "InstantBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "Interac": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: payment method"
       },
@@ -98,7 +230,127 @@
         "status": "not_implemented",
         "error": "This step has not been implemented for: payment method"
       },
+      "Lawson": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "LocalBankRedirect": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "LocalBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "MbWay": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "Mifinity": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "MiniStop": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "OpenBanking": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
+      "OpenBankingUk": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "Oxxo": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "PagoEfectivo": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "PayEasy": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "PaySafeCard": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
       "PaypalRedirect": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "PaypalSdk": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
+      "PermataBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "Pix": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "Przelewy24": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "Pse": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "RedCompra": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "RedPagos": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "RevolutPay": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: payment method"
       },
@@ -106,19 +358,94 @@
         "status": "not_implemented",
         "error": "This step has not been implemented for: payment method"
       },
+      "Satispay": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "Seicomart": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
       "Sepa": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "SepaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "SevenEleven": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "Sofort": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "Trustly": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: payment method"
       },
       "UpiCollect": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: payment method"
+      },
+      "UpiIntent": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "UpiQr": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "WeChatPayQr": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "Wero": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
       }
     },
     "capture": {
       "default": {
-        "status": "error",
-        "error": "Failed to encode connector request"
+        "status": "supported",
+        "proto_request": {
+          "merchant_capture_id": "probe_capture_001",
+          "connector_transaction_id": "12345",
+          "amount_to_capture": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "browser_info": {
+            "color_depth": 24,
+            "screen_height": 900,
+            "screen_width": 1440,
+            "java_enabled": false,
+            "java_script_enabled": true,
+            "language": "en-US",
+            "time_zone_offset_minutes": -480,
+            "accept_header": "application/json",
+            "user_agent": "Mozilla/5.0 (probe-bot)",
+            "accept_language": "en-US,en;q=0.9",
+            "ip_address": "1.2.3.4"
+          }
+        },
+        "sample": {
+          "url": "https://api.helcim.com/v2/payment/capture",
+          "method": "Post",
+          "headers": {
+            "api-token": "probe_key",
+            "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"preAuthTransactionId\":12345,\"amount\":10.0,\"ipAddress\":\"1.2.3.4\"}"
+        }
       }
     },
     "create_access_token": {
@@ -161,14 +488,14 @@
         "status": "supported",
         "proto_request": {
           "merchant_transaction_id": "probe_merchant_txn_001",
-          "connector_transaction_id": "probe_connector_txn_001",
+          "connector_transaction_id": "12345",
           "amount": {
             "minor_amount": 1000,
             "currency": "USD"
           }
         },
         "sample": {
-          "url": "https://api.helcim.com/v2/card-transactions/probe_connector_txn_001",
+          "url": "https://api.helcim.com/v2/card-transactions/12345",
           "method": "Get",
           "headers": {
             "api-token": "probe_key",
@@ -189,6 +516,54 @@
         "status": "not_implemented"
       }
     },
+    "proxy_authorize": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_proxy_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe"
+          },
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "line1": "123 Main St",
+              "zip_code": "98101"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "browser_info": {
+            "ip_address": "1.2.3.4"
+          }
+        },
+        "sample": {
+          "url": "https://api.helcim.com/v2/payment/purchase",
+          "method": "Post",
+          "headers": {
+            "api-token": "probe_key",
+            "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":10.0,\"currency\":\"USD\",\"ipAddress\":\"1.2.3.4\",\"cardData\":{\"cardNumber\":\"4111111111111111\",\"cardExpiry\":\"0330\",\"cardCVV\":\"123\"},\"invoice\":{\"invoiceNumber\":\"probe_proxy_txn_001\",\"lineItems\":[{\"description\":\"No Description\",\"quantity\":1,\"price\":10.0,\"total\":10.0}]},\"billingAddress\":{\"name\":\"John\",\"street1\":\"123 Main St\",\"postalCode\":\"98101\"}}"
+        }
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "recurring_charge": {
       "default": {
         "status": "not_implemented"
@@ -196,8 +571,31 @@
     },
     "refund": {
       "default": {
-        "status": "error",
-        "error": "Failed to encode connector request"
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "12345",
+          "payment_amount": 1000,
+          "refund_amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "reason": "customer_request",
+          "browser_info": {
+            "ip_address": "1.2.3.4"
+          }
+        },
+        "sample": {
+          "url": "https://api.helcim.com/v2/payment/refund",
+          "method": "Post",
+          "headers": {
+            "api-token": "probe_key",
+            "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":10.0,\"originalTransactionId\":12345,\"ipAddress\":\"1.2.3.4\"}"
+        }
       }
     },
     "reverse": {
@@ -210,6 +608,17 @@
         "status": "not_implemented"
       }
     },
+    "token_authorize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "tokenize": {
       "default": {
         "status": "not_implemented"
@@ -217,9 +626,260 @@
     },
     "void": {
       "default": {
-        "status": "error",
-        "error": "Failed to encode connector request"
+        "status": "supported",
+        "proto_request": {
+          "merchant_void_id": "probe_void_001",
+          "connector_transaction_id": "12345",
+          "browser_info": {
+            "color_depth": 24,
+            "screen_height": 900,
+            "screen_width": 1440,
+            "java_enabled": false,
+            "java_script_enabled": true,
+            "language": "en-US",
+            "time_zone_offset_minutes": -480,
+            "accept_header": "application/json",
+            "user_agent": "Mozilla/5.0 (probe-bot)",
+            "accept_language": "en-US,en;q=0.9",
+            "ip_address": "1.2.3.4"
+          }
+        },
+        "sample": {
+          "url": "https://api.helcim.com/v2/payment/reverse",
+          "method": "Post",
+          "headers": {
+            "api-token": "probe_key",
+            "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"cardTransactionId\":12345,\"ipAddress\":\"1.2.3.4\"}"
+        }
       }
     }
+  },
+  "flow_graph": {
+    "nodes": {
+      "authenticate": {
+        "node_type": "dependent",
+        "description": "authenticate"
+      },
+      "authorize": {
+        "node_type": "entry_point",
+        "description": "Authorize a payment, reserving funds",
+        "provides": {
+          "connector_transaction_id": {
+            "response_path": "connector_transaction_id",
+            "description": "Transaction ID for subsequent operations"
+          }
+        },
+        "requires": {
+          "access_token": {
+            "from_flow": "create_access_token",
+            "from_field": "access_token",
+            "request_path": "state.access_token.token.value"
+          },
+          "order_id": {
+            "from_flow": "create_order",
+            "from_field": "order_id",
+            "request_path": "merchant_order_id"
+          }
+        }
+      },
+      "capture": {
+        "node_type": "dependent",
+        "description": "Capture previously authorized funds",
+        "requires": {
+          "connector_transaction_id": {
+            "from_flow": "authorize",
+            "from_field": "connector_transaction_id",
+            "request_path": "connector_transaction_id"
+          }
+        }
+      },
+      "create_access_token": {
+        "node_type": "prerequisite",
+        "description": "Obtain OAuth2 access token for API authentication",
+        "provides": {
+          "access_token": {
+            "response_path": "state.access_token.token.value",
+            "description": "OAuth2 access token for API calls"
+          }
+        }
+      },
+      "create_customer": {
+        "node_type": "prerequisite",
+        "description": "Create a customer profile for recurring payments",
+        "provides": {
+          "connector_customer_id": {
+            "response_path": "connector_customer_id",
+            "description": "Customer ID for recurring payments"
+          }
+        }
+      },
+      "create_order": {
+        "node_type": "prerequisite",
+        "description": "Create an order before payment authorization",
+        "provides": {
+          "order_id": {
+            "response_path": "connector_order_id",
+            "description": "Order ID for payment authorization"
+          }
+        }
+      },
+      "create_session_token": {
+        "node_type": "dependent",
+        "description": "create_session_token"
+      },
+      "dispute_accept": {
+        "node_type": "dependent",
+        "description": "dispute_accept"
+      },
+      "dispute_defend": {
+        "node_type": "dependent",
+        "description": "dispute_defend"
+      },
+      "dispute_submit_evidence": {
+        "node_type": "dependent",
+        "description": "dispute_submit_evidence"
+      },
+      "get": {
+        "node_type": "dependent",
+        "description": "Retrieve payment status and details",
+        "requires": {
+          "connector_transaction_id": {
+            "from_flow": "authorize",
+            "from_field": "connector_transaction_id",
+            "request_path": "connector_transaction_id"
+          }
+        }
+      },
+      "post_authenticate": {
+        "node_type": "dependent",
+        "description": "post_authenticate"
+      },
+      "pre_authenticate": {
+        "node_type": "entry_point",
+        "description": "Pre-authenticate before capture"
+      },
+      "proxy_authorize": {
+        "node_type": "dependent",
+        "description": "proxy_authorize"
+      },
+      "proxy_setup_recurring": {
+        "node_type": "dependent",
+        "description": "proxy_setup_recurring"
+      },
+      "recurring_charge": {
+        "node_type": "dependent",
+        "description": "Charge against an existing mandate",
+        "requires": {
+          "connector_customer_id": {
+            "from_flow": "create_customer",
+            "from_field": "connector_customer_id",
+            "request_path": "connector_customer_id"
+          },
+          "connector_recurring_payment_id": {
+            "from_flow": "setup_recurring",
+            "from_field": "mandate_reference",
+            "request_path": "connector_recurring_payment_id.connector_mandate_id.connector_mandate_id"
+          }
+        }
+      },
+      "refund": {
+        "node_type": "dependent",
+        "description": "Refund a completed payment",
+        "provides": {
+          "refund_id": {
+            "response_path": "connector_refund_id",
+            "description": "Refund ID for tracking"
+          }
+        },
+        "requires": {
+          "connector_transaction_id": {
+            "from_flow": "authorize",
+            "from_field": "connector_transaction_id",
+            "request_path": "connector_transaction_id"
+          }
+        }
+      },
+      "reverse": {
+        "node_type": "dependent",
+        "description": "reverse"
+      },
+      "setup_recurring": {
+        "node_type": "entry_point",
+        "description": "Set up a mandate for recurring charges",
+        "provides": {
+          "mandate_reference": {
+            "response_path": "mandate_reference.connector_mandate_id.connector_mandate_id",
+            "description": "Mandate reference for recurring charges"
+          }
+        }
+      },
+      "token_authorize": {
+        "node_type": "dependent",
+        "description": "token_authorize"
+      },
+      "token_setup_recurring": {
+        "node_type": "dependent",
+        "description": "token_setup_recurring"
+      },
+      "tokenize": {
+        "node_type": "entry_point",
+        "description": "Tokenize a payment method for later use",
+        "provides": {
+          "payment_method_token": {
+            "response_path": "payment_method_token",
+            "description": "Tokenized payment method"
+          }
+        }
+      },
+      "void": {
+        "node_type": "dependent",
+        "description": "Cancel an uncaptured authorization",
+        "requires": {
+          "connector_transaction_id": {
+            "from_flow": "authorize",
+            "from_field": "connector_transaction_id",
+            "request_path": "connector_transaction_id"
+          }
+        }
+      }
+    },
+    "edges": [
+      {
+        "from": "authorize",
+        "to": "capture"
+      },
+      {
+        "from": "authorize",
+        "to": "get"
+      },
+      {
+        "from": "authorize",
+        "to": "refund"
+      },
+      {
+        "from": "authorize",
+        "to": "void"
+      },
+      {
+        "from": "create_access_token",
+        "to": "authorize"
+      },
+      {
+        "from": "create_customer",
+        "to": "recurring_charge"
+      },
+      {
+        "from": "create_order",
+        "to": "authorize"
+      },
+      {
+        "from": "setup_recurring",
+        "to": "recurring_charge"
+      }
+    ]
   }
 }

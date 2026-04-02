@@ -25,9 +25,18 @@ import json
 from pathlib import Path
 from typing import Optional
 
-import sys
-sys.path.insert(0, str(Path(__file__).parent.parent))
-from snippet_examples import generate as snippets
+# Import new architecture modules  
+sys.path.insert(0, str(Path(__file__).parent))
+from core.coverage import CoverageReporter
+from core.validator import ConfigValidator, format_validation_errors
+from core.integration import generate_scenario_examples, load_scenarios
+from core.snippet_bridge import (
+    detect_scenarios, render_consolidated_python, render_consolidated_javascript,
+    render_consolidated_kotlin, render_consolidated_rust, render_config_section,
+    render_llms_txt_entry, _to_camel, JS_RESERVED, _set_probe_data_cache
+)
+from generators import markdown
+from renderers.base import configure_from_manifest
 
 # ─── Probe Data ───────────────────────────────────────────────────────────────
 
@@ -232,13 +241,8 @@ def load_probe_data(probe_path: Optional[Path]) -> dict[str, dict]:
             manifest = json.load(f)
         _FLOW_METADATA = manifest.get("flow_metadata", [])
         _MESSAGE_SCHEMAS = manifest.get("message_schemas", {})
+        configure_from_manifest(_FLOW_METADATA)  # Populate renderer proto-type registry
         connector_names = manifest.get("connectors", [])
-        snippets.set_scenario_groups(manifest.get("scenario_groups", []))
-
-        # Load proto type map for wrapper-type detection (SecretString, CardNumberType, etc.)
-        proto_dir = probe_dir.parent.parent / "crates" / "types-traits" / "grpc-api-types" / "proto"
-        if proto_dir.exists():
-            snippets.load_proto_type_map(proto_dir)
 
         _PROBE_DATA = {}
         for conn_name in connector_names:
@@ -350,7 +354,7 @@ _BANK_PM_CURRENCY_OVERRIDES: dict[str, str] = {
 
 def _get_flow_proto_requests(
     probe_connector: dict,
-    scenario: "snippets.ScenarioSpec",
+    scenario: "snippet_bridge.ScenarioSpec",
 ) -> dict[str, dict]:
     """
     Build flow_key → proto_request dict for the flows in a scenario.
@@ -442,10 +446,10 @@ def _scenario_search(sdk: str, scenario_key: str) -> str:
 def _flow_search(sdk: str, flow_key: str) -> str:
     """Return the function-name search string for a flow in a given SDK."""
     tmpl = _FLOW_FUNC_SEARCH[sdk]
-    camel = snippets._to_camel(flow_key)  # type: ignore[attr-defined]
+    camel = _to_camel(flow_key)  # type: ignore[attr-defined]
     camel = camel[0].lower() + camel[1:]
     # JS reserved words are renamed with a "Payment" suffix in the generated file
-    if sdk == "javascript" and flow_key in snippets.JS_RESERVED:  # type: ignore[attr-defined]
+    if sdk == "javascript" and flow_key in JS_RESERVED:  # type: ignore[attr-defined]
         camel = f"{flow_key}Payment"
     return tmpl.format(key=flow_key, camel=camel)
 
@@ -465,13 +469,13 @@ def generate_scenario_files(
       flow_lines[flow_key][sdk]         = 1-based line of the flow function (py/js only)
     """
     flow_metadata = get_flow_metadata()
-    scenarios     = snippets.detect_scenarios(probe_connector)
+    scenarios     = detect_scenarios(probe_connector)
 
     # Pair each scenario with its payloads; skip scenarios with no data
     scenarios_with_payloads = [
         (s, fp)
         for s in scenarios
-        for fp in [_get_flow_proto_requests(probe_connector, s)]
+        for fp in [markdown._get_flow_proto_requests(probe_connector, s, _PROBE_PM_DISPLAY, _PM_AWARE_FLOWS)]
         if fp
     ]
 
@@ -489,8 +493,8 @@ def generate_scenario_files(
     flow_lines: dict[str, dict[str, int]] = {}
 
     for sdk, ext, render_fn in [
-        ("python",     "py", snippets.render_consolidated_python),
-        ("javascript", "ts", snippets.render_consolidated_javascript),
+        ("python",     "py", render_consolidated_python),
+        ("javascript", "ts", render_consolidated_javascript),
     ]:
         out_dir  = examples_dir / connector_name / sdk
         out_dir.mkdir(parents=True, exist_ok=True)
@@ -552,11 +556,11 @@ def generate_flow_files(
     flow_items = _collect_flow_items(probe_connector, exclude_keys=set())
 
     # Compute scenarios_with_payloads (same logic as generate_scenario_files)
-    scenarios = snippets.detect_scenarios(probe_connector)
+    scenarios = detect_scenarios(probe_connector)
     scenarios_with_payloads = [
         (s, fp)
         for s in scenarios
-        for fp in [_get_flow_proto_requests(probe_connector, s)]
+        for fp in [markdown._get_flow_proto_requests(probe_connector, s, _PROBE_PM_DISPLAY, _PM_AWARE_FLOWS)]
         if fp
     ]
 
@@ -573,15 +577,14 @@ def generate_flow_files(
     all_flow_keys = set(probe_connector.get("flows", {}).keys())
 
     for sdk, ext, render_fn in [
-        ("kotlin", "kt", snippets.render_consolidated_kotlin),
-        ("rust",   "rs", snippets.render_consolidated_rust),
+        ("kotlin", "kt", render_consolidated_kotlin),
+        ("rust",   "rs", render_consolidated_rust),
     ]:
         out_dir  = examples_dir / connector_name / sdk
         out_dir.mkdir(parents=True, exist_ok=True)
         out_path = out_dir / f"{connector_name}.{ext}"
         content  = render_fn(
-            connector_name, flow_items, flow_metadata, _MESSAGE_SCHEMAS,
-            scenarios_with_payloads=scenarios_with_payloads,
+            connector_name, scenarios_with_payloads, flow_metadata, _MESSAGE_SCHEMAS, flow_items
         )
         out_path.write_text(content, encoding="utf-8")
         written.append(out_path)
@@ -641,8 +644,8 @@ def generate_llms_txt(probe_data: dict[str, dict], docs_dir: Path) -> None:
     for connector_name in sorted(probe_data.keys()):
         probe_connector = probe_data[connector_name]
         name            = display_name(connector_name)
-        scenarios       = snippets.detect_scenarios(probe_connector)
-        entry           = snippets.render_llms_txt_entry(
+        scenarios       = detect_scenarios(probe_connector)
+        entry           = render_llms_txt_entry(
             connector_name, name, probe_connector, scenarios
         )
         lines.append(entry)
@@ -657,168 +660,33 @@ def generate_connector_doc(
     probe_data: Optional[dict] = None,
     scenario_line_numbers: Optional[dict[str, dict[str, int]]] = None,
     flow_line_numbers: Optional[dict[str, dict[str, int]]] = None,
+    render_config_section_fn=None,
+    detect_scenarios_fn=None,
+    render_llms_txt_entry_fn=None,
 ) -> Optional[str]:
     """Generate complete markdown documentation for a connector.
 
     scenario_line_numbers: {scenario_key: {sdk: line_number}} — from generate_scenario_files.
     flow_line_numbers:      {flow_key:     {sdk: line_number}} — from generate_flow_files.
     """
-    scenario_line_numbers = scenario_line_numbers or {}
-    flow_line_numbers     = flow_line_numbers or {}
-    probe_connector = (probe_data or {}).get(connector_name, {})
-    
-    # Get flows from probe data
-    flows = get_flows_from_probe(probe_connector)
-    if not flows:
-        print(f"  No flows found for '{connector_name}' – skipping.", file=sys.stderr)
-        return None
-
-    name = display_name(connector_name)
-
-    out: list[str] = []
-    a = out.append  # shorthand
-
-    # ── Front-matter comment ────────────────────────────────────────────────
-    a(f"# {name}")
-    a("")
-    a("<!--")
-    a("This file is auto-generated. Do not edit by hand.")
-    a(f"Source: data/field_probe/{connector_name}.json")
-    a(f"Regenerate: python3 scripts/generators/docs/generate.py {connector_name}")
-    a("-->")
-    a("")
-
-    # ── SDK Configuration (once per connector) ──────────────────────────────
-    for line in snippets.render_config_section(connector_name):
-        a(line)
-
-    # ── Integration Scenarios ────────────────────────────────────────────────
-    scenarios     = snippets.detect_scenarios(probe_connector)
-    flow_metadata = get_flow_metadata()
-    if scenarios:
-        a("## Integration Scenarios")
-        a("")
-        a(
-            "Complete, runnable examples for common integration patterns. "
-            "Each example shows the full flow with status handling. "
-            "Copy-paste into your app and replace placeholder values."
-        )
-        a("")
-        for scenario in scenarios:
-            flow_payloads = _get_flow_proto_requests(probe_connector, scenario)
-            for line in snippets.render_scenario_section(
-                scenario, connector_name, flow_payloads,
-                flow_metadata, _MESSAGE_SCHEMAS, {},
-                line_numbers=scenario_line_numbers.get(scenario.key, {}),
-            ):
-                a(line)
-
-    # ── API Reference ────────────────────────────────────────────────────────
-    a("## API Reference")
-    a("")
-    a("| Flow (Service.RPC) | Category | gRPC Request Message |")
-    a("|--------------------|----------|----------------------|")
-    for f in flows:
-        meta = get_flow_meta(f)
-        cat = meta.get("category", "Other")
-        req_msg = meta.get("grpc_request", "—")
-        service = meta.get("service_name", "")
-        rpc = meta.get("rpc_name", f)
-        flow_display = f"{service}.{rpc}" if service else f
-        # VS Code/GitHub auto-generate anchors: lowercase, remove dots/special chars
-        anchor = flow_display.lower().replace(".", "").replace(" ", "-")
-        a(f"| [{flow_display}](#{anchor}) | {cat} | `{req_msg}` |")
-    a("")
-
-    # ── Per-flow detail ──────────────────────────────────────────────────────
-    # Group by category
-    by_cat: dict[str, list[str]] = {}
-    for f in flows:
-        meta = get_flow_meta(f)
-        cat = meta.get("category", "Other")
-        by_cat.setdefault(cat, []).append(f)
-
-    for cat in CATEGORY_ORDER:
-        if cat not in by_cat:
-            continue
-        a(f"### {cat}")
-        a("")
-
-        for f in by_cat[cat]:
-            meta = get_flow_meta(f)
-
-            service = meta.get("service_name", "")
-            rpc = meta.get("rpc_name", f)
-            flow_heading = f"{service}.{rpc}" if service else f
-            a(f"#### {flow_heading}")
-            a("")
-
-            if meta.get("description"):
-                a(meta["description"])
-                a("")
-
-            # gRPC messages
-            if meta.get("grpc_request"):
-                a(f"| | Message |")
-                a(f"|---|---------|")
-                a(f"| **Request** | `{meta['grpc_request']}` |")
-                a(f"| **Response** | `{meta.get('grpc_response', '—')}` |")
-                a("")
-
-            # Payment method type support (from field-probe)
-            pm_support = _probe_pm_support(probe_connector, f)
-            if pm_support:
-                a("**Supported payment method types:**")
-                a("")
-                a("| Payment Method | Supported |")
-                a("|----------------|:---------:|")
-                for pm_key, pm_label in _PROBE_PM_DISPLAY.items():
-                    if pm_key in pm_support:
-                        pm_status = probe_connector.get("flows", {}).get("authorize", {}).get(pm_key, {}).get("status", "unknown")
-                        mark = _status_to_mark(pm_status)
-                        a(f"| {pm_label} | {mark} |")
-                a("")
-
-            # Inline PM reference right after Authorize (where it's most useful)
-            if f == "authorize":
-                for line in snippets.render_pm_reference_section(
-                    probe_connector, flow_metadata, _MESSAGE_SCHEMAS
-                ):
-                    a(line)
-
-            # Link to per-flow example files
-            flow_data = probe_connector.get("flows", {}).get(f, {})
-            has_payload = (
-                flow_data.get("default", {}).get("status") == "supported"
-                or any(
-                    v.get("status") == "supported"
-                    for k, v in flow_data.items()
-                    if k != "default"
-                )
-            )
-            if has_payload:
-                base_py = f"../../examples/{connector_name}/python/{connector_name}.py"
-                base_js = f"../../examples/{connector_name}/javascript/{connector_name}.js"
-                base_kt = f"../../examples/{connector_name}/kotlin/{connector_name}.kt"
-                base_rs = f"../../examples/{connector_name}/rust/{connector_name}.rs"
-                
-                # Get line numbers from flow_line_numbers
-                flow_lines = flow_line_numbers.get(f, {}) if flow_line_numbers else {}
-                ln_py = flow_lines.get("python", 0)
-                ln_js = flow_lines.get("javascript", 0)
-                ln_kt = flow_lines.get("kotlin", 0)
-                ln_rs = flow_lines.get("rust", 0)
-                
-                # Build links with line numbers when available
-                py_link = f"{base_py}#L{ln_py}" if ln_py else base_py
-                js_link = f"{base_js}#L{ln_js}" if ln_js else base_js
-                kt_link = f"{base_kt}#L{ln_kt}" if ln_kt else base_kt
-                rs_link = f"{base_rs}#L{ln_rs}" if ln_rs else base_rs
-                
-                a(f"**Examples:** [Python]({py_link}) · [JavaScript]({js_link}) · [Kotlin]({kt_link}) · [Rust]({rs_link})")
-                a("")
-
-    return "\n".join(out)
+    # Delegate to markdown module with all required dependencies
+    return markdown.generate_connector_doc(
+        connector_name=connector_name,
+        probe_data=probe_data,
+        scenario_line_numbers=scenario_line_numbers,
+        flow_line_numbers=flow_line_numbers,
+        display_name_fn=display_name,
+        get_flows_fn=get_flows_from_probe,
+        get_flow_meta_fn=get_flow_meta,
+        get_flow_metadata_fn=get_flow_metadata,
+        probe_pm_display=_PROBE_PM_DISPLAY,
+        probe_pm_by_category=_PROBE_PM_BY_CATEGORY,
+        message_schemas=_MESSAGE_SCHEMAS,
+        pm_aware_flows=_PM_AWARE_FLOWS,
+        render_config_section_fn=render_config_section_fn or render_config_section,
+        detect_scenarios_fn=detect_scenarios_fn or detect_scenarios,
+        render_llms_txt_entry_fn=render_llms_txt_entry_fn or render_llms_txt_entry,
+    )
 
 
 # ─── Connector Discovery ──────────────────────────────────────────────────────
@@ -960,6 +828,9 @@ def cmd_generate(connectors: list[str], output_dir: Path, probe_path: Optional[P
         print("Error: No probe data available. Run field-probe first.", file=sys.stderr)
         sys.exit(1)
     
+    # Set probe data cache for snippet_bridge module
+    _set_probe_data_cache(probe_data)
+    
     print(f"Loaded probe data for {len(probe_data)} connectors from {probe_path}\n")
 
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -1004,6 +875,9 @@ def cmd_generate(connectors: list[str], output_dir: Path, probe_path: Optional[P
             probe_data=probe_data,
             scenario_line_numbers=scenario_lines,
             flow_line_numbers=merged_flow_lines,
+            render_config_section_fn=render_config_section,
+            detect_scenarios_fn=detect_scenarios,
+            render_llms_txt_entry_fn=render_llms_txt_entry,
         )
         if doc:
             out = output_dir / f"{name}.md"
@@ -1024,254 +898,22 @@ def cmd_generate(connectors: list[str], output_dir: Path, probe_path: Optional[P
 
 # ─── All Connectors Coverage Document ─────────────────────────────────────────
 
-def _status_to_mark(status: str) -> str:
-    """Map a probe status string to a display icon."""
-    if status == "supported":
-        return "✓"
-    elif status == "not_supported":
-        return "x"
-    elif status == "not_implemented":
-        return "⚠"
-    else:
-        return "?"
 
-
-def _get_flow_status(flows: dict, flow_key: str) -> tuple[str, str]:
-    """
-    Get the status of a flow from probe data.
-    Returns (status_mark, notes) tuple.
-    """
-    flow_data = flows.get(flow_key, {})
-
-    # For PM-aware flows, check if there's any supported PM
-    if flow_key in _PM_AWARE_FLOWS:
-        supported_pms = [
-            pm for pm, data in flow_data.items()
-            if pm != "default" and data.get("status") == "supported"
-        ]
-        if supported_pms:
-            return ("✓", f"{len(supported_pms)} PMs")
-        # Check if all PM entries are not_implemented → ⚠
-        pm_entries = [pm for pm in flow_data.keys() if pm != "default"]
-        if pm_entries:
-            statuses = {flow_data[pm].get("status") for pm in pm_entries}
-            if statuses == {"not_implemented"}:
-                return ("⚠", "")
-            return ("x", "")
-
-    # For flows with only 'default' entry
-    default_entry = flow_data.get("default", {})
-    status = default_entry.get("status", "unknown")
-
-    if status == "supported":
-        return ("✓", "")
-    elif status == "error":
-        error_msg = default_entry.get("error", "")
-        if len(error_msg) > 60:
-            error_msg = error_msg[:57] + "..."
-        return ("?", error_msg if error_msg else "Error")
-    elif status == "not_supported":
-        return ("x", "")
-    elif status == "not_implemented":
-        return ("⚠", "")
-    else:
-        return ("?", "")
 
 
 def generate_all_connector_doc(probe_data: dict[str, dict], output_dir: Path) -> None:
     """
     Generate all_connector.md - a comprehensive connector-wise flow coverage document.
-    
-    This creates a unified view showing:
-    - For each flow, which connectors support which payment methods
-    - Summary statistics for each connector and flow
-    - Flow names follow proto service definitions from services.proto
+    Delegates to markdown module.
     """
-    out: list[str] = []
-    a = out.append
-    
-    # ── Header ────────────────────────────────────────────────────────────────
-    a("# Connector Flow Coverage")
-    a("")
-    a("<!--")
-    a("This file is auto-generated. Do not edit by hand.")
-    a("Source: data/field_probe/")
-    a("Regenerate: python3 scripts/generators/docs/generate.py --all-connectors-doc")
-    a("-->")
-    a("")
-    a("This document provides a comprehensive overview of payment method support")
-    a("across all connectors for each payment flow. Flow names follow the gRPC")
-    a("service definitions from `crates/types-traits/grpc-api-types/proto/services.proto`.")
-    a("")
-    
-    # Get all connectors that have probe data
-    connectors_with_probe = sorted(probe_data.keys())
-    
-    if not connectors_with_probe:
-        a("No probe data available.")
-        output_dir.mkdir(parents=True, exist_ok=True)
-        out_path = output_dir.parent / "all_connector.md"
-        out_path.write_text("\n".join(out), encoding="utf-8")
-        return
-    
-    # ── Per-Service Flow Coverage Tables ───────────────────────────────────────
-    a("## Flow Coverage")
-    a("")
-    a("Flow names follow the gRPC service definitions. Each flow is prefixed with")
-    a("its service name (e.g., `PaymentService.Authorize`, `RefundService.Get`).")
-    a("")
-    
-    # Group flows by service
-    services_order = [
-        "PaymentService",
-        "RecurringPaymentService", 
-        "RefundService",
-        "CustomerService",
-        "PaymentMethodService",
-        "MerchantAuthenticationService",
-        "PaymentMethodAuthenticationService",
-        "DisputeService",
-    ]
-    
-    # Build service -> flows mapping from flow_metadata loaded from probe.json
-    proto_flow_defs = get_proto_flow_definitions()
-    if not proto_flow_defs:
-        print("Warning: No flow metadata loaded from probe.json", file=sys.stderr)
-    service_flows: dict[str, list[tuple[str, str, str]]] = {}
-    for flow_key, (service_name, rpc_name, description) in proto_flow_defs.items():
-        service_flows.setdefault(service_name, []).append((flow_key, rpc_name, description))
-    
-    # Separate PM-aware flows from simple status flows
-    pm_aware_flows_data = []
-    simple_flows_data = []
-    
-    for service_name in services_order:
-        if service_name not in service_flows:
-            continue
-        
-        flows_in_service = service_flows[service_name]
-        
-        for flow_key, rpc_name, description in flows_in_service:
-            # Check if any connector has data for this flow
-            has_data = any(
-                probe_data[c].get("flows", {}).get(flow_key)
-                for c in connectors_with_probe
-            )
-            if not has_data:
-                continue
-            
-            if flow_key in _PM_AWARE_FLOWS:
-                pm_aware_flows_data.append((service_name, flow_key, rpc_name, description))
-            else:
-                simple_flows_data.append((service_name, flow_key, rpc_name, description))
-    
-    # Render PM-aware flows (like Authorize) with full payment method breakdown
-    for service_name, flow_key, rpc_name, description in pm_aware_flows_data:
-        a(f"### {service_name}.{rpc_name}")
-        a("")
-        a(description)
-        a("")
-        
-        # Build display names with category prefix for clarity
-        pm_display_with_category = []
-        pm_keys_ordered = []
-        for category, pm_list in _PROBE_PM_BY_CATEGORY:
-            for pm_key, pm_name in pm_list:
-                pm_keys_ordered.append(pm_key)
-                # Shorten category names for compact display
-                short_cat = {
-                    "Card": "CARD",
-                    "Wallet": "WALLET", 
-                    "BNPL": "BNPL",
-                    "UPI": "UPI",
-                    "Online Banking": "Online Banking",
-                    "Open Banking": "Open Banking",
-                    "Bank Redirect": "Bank Redirect",
-                    "Bank Transfer": "Bank Transfer",
-                    "Bank Debit": "Bank Debit",
-                    "Alternative": "Alternate PMs "
-                }.get(category, category[:4].upper())
-                pm_display_with_category.append(f"{short_cat} / {pm_name}")
-        
-        # Legend at top for clarity
-        a("**Legend:** ✓ Supported | x Not Supported | ⚠ Not Implemented | ? Error / Missing required fields")
-        a("")
-        
-        a("| Connector | " + " | ".join(pm_display_with_category) + " |")
-        a("|-----------|" + "|".join([":---:" for _ in pm_display_with_category]) + "|")
-        
-        for conn_name in connectors_with_probe:
-            conn_data = probe_data[conn_name]
-            flow_data = conn_data.get("flows", {}).get(flow_key, {})
-            
-            display = _DISPLAY_NAMES.get(conn_name, conn_name.replace("_", " ").title())
-            row = [f"[{display}](connectors/{conn_name}.md)"]
-            
-            for pm_key in pm_keys_ordered:
-                pm_data = flow_data.get(pm_key, {})
-                status = pm_data.get("status", "unknown")
-                row.append(_status_to_mark(status))
-            
-            a("| " + " | ".join(row) + " |")
-        a("")
-    
-    # Render consolidated table for all simple flows (Get, Void, Refund, etc.)
-    if simple_flows_data:
-        a("### Other Flows")
-        a("")
-        a("Consolidated view of Get, Void, Refund, Capture, Reverse, CreateOrder, and other non-payment flows.")
-        a("")
-        
-        # Build header with flow names
-        flow_headers = []
-        for service_name, flow_key, rpc_name, description in simple_flows_data:
-            # Shorten service name for compact display
-            short_service = service_name.replace("Service", "").replace("Payment", "Pay").replace("Recurring", "Rec")
-            flow_headers.append(f"{short_service}.{rpc_name}")
-        
-        # Legend at top for clarity
-        a("**Legend:** ✓ Supported | x Not Supported | ⚠ Not Implemented | ? Error / Missing required fields")
-        a("")
-        
-        a("| Connector | " + " | ".join(flow_headers) + " |")
-        a("|-----------|" + "|".join([":---:" for _ in simple_flows_data]) + "|")
-        
-        for conn_name in connectors_with_probe:
-            conn_data = probe_data[conn_name]
-            flows = conn_data.get("flows", {})
-            
-            display = _DISPLAY_NAMES.get(conn_name, conn_name.replace("_", " ").title())
-            row = [f"[{display}](connectors/{conn_name}.md)"]
-            
-            for service_name, flow_key, rpc_name, description in simple_flows_data:
-                status_mark, _ = _get_flow_status(flows, flow_key)
-                row.append(status_mark)
-            
-            a("| " + " | ".join(row) + " |")
-        a("")
-    
-    # ── Services Reference ─────────────────────────────────────────────────────
-    a("## Services Reference")
-    a("")
-    a("Flow definitions are derived from `crates/types-traits/grpc-api-types/proto/services.proto`:")
-    a("")
-    a("| Service | Description |")
-    a("|---------|-------------|")
-    a("| PaymentService | Process payments from authorization to settlement |")
-    a("| RecurringPaymentService | Charge and revoke recurring payments |")
-    a("| RefundService | Retrieve and synchronize refund statuses |")
-    a("| CustomerService | Create and manage customer profiles |")
-    a("| PaymentMethodService | Tokenize and retrieve payment methods |")
-    a("| MerchantAuthenticationService | Generate access tokens and session credentials |")
-    a("| PaymentMethodAuthenticationService | Execute 3D Secure authentication flows |")
-    a("| DisputeService | Manage chargeback disputes |")
-    a("")
-    
-    # Write output
-    output_dir.mkdir(parents=True, exist_ok=True)
-    out_path = output_dir.parent / "all_connector.md"
-    out_path.write_text("\n".join(out), encoding="utf-8")
-    print(f"  ✓ Generated {out_path.relative_to(REPO_ROOT)}")
+    markdown.generate_all_connector_doc(
+        probe_data=probe_data,
+        output_dir=output_dir,
+        display_names=_DISPLAY_NAMES,
+        get_proto_flow_defs_fn=get_proto_flow_definitions,
+        probe_pm_by_category=_PROBE_PM_BY_CATEGORY,
+        repo_root=REPO_ROOT,
+    )
 
 
 def cmd_all_connectors_doc(output_dir: Path, probe_path: Optional[Path] = None):
@@ -1398,6 +1040,22 @@ def main():
         default=DOCS_DIR,
         help="Output directory for generated docs (default: docs-generated/connectors)"
     )
+    parser.add_argument(
+        "--coverage",
+        action="store_true",
+        help="Print scenario coverage report for all connectors"
+    )
+    parser.add_argument(
+        "--coverage-md",
+        type=Path,
+        metavar="PATH",
+        help="Generate markdown coverage report to specified path"
+    )
+    parser.add_argument(
+        "--validate-configs",
+        action="store_true",
+        help="Validate all YAML configuration files"
+    )
     
     args = parser.parse_args()
     
@@ -1405,6 +1063,28 @@ def main():
     
     if args.list:
         cmd_list()
+        return
+    
+    if args.validate_configs:
+        config_dir = Path(__file__).parent / "config"
+        validator = ConfigValidator(config_dir)
+        is_valid, errors = validator.validate_all()
+        print(format_validation_errors(errors))
+        sys.exit(0 if is_valid else 1)
+    
+    if args.coverage:
+        scenarios_path = Path(__file__).parent / "specs" / "scenarios.yaml"
+        reporter = CoverageReporter(args.probe_path, scenarios_path)
+        print(reporter.generate_summary())
+        return
+    
+    if args.coverage_md:
+        scenarios_path = Path(__file__).parent / "specs" / "scenarios.yaml"
+        reporter = CoverageReporter(args.probe_path, scenarios_path)
+        report = reporter.generate_markdown_report()
+        args.coverage_md.parent.mkdir(parents=True, exist_ok=True)
+        args.coverage_md.write_text(report, encoding="utf-8")
+        print(f"Coverage report written to: {args.coverage_md}")
         return
     
     if args.all_connectors_doc:

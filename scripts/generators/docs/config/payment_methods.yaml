@@ -1,0 +1,215 @@
+# Payment methods grouped by category
+# Extracted from generate.py _PROBE_PM_BY_CATEGORY
+# Format: category: list of {key, display_name}
+payment_methods:
+  - category: Card
+    methods:
+      - key: Card
+        display: Card
+      - key: BancontactCard
+        display: Bancontact
+
+  - category: Wallet
+    methods:
+      - key: ApplePay
+        display: Apple Pay
+      - key: ApplePayDecrypted
+        display: Apple Pay Dec
+      - key: ApplePayThirdPartySdk
+        display: Apple Pay SDK
+      - key: GooglePay
+        display: Google Pay
+      - key: GooglePayDecrypted
+        display: Google Pay Dec
+      - key: GooglePayThirdPartySdk
+        display: Google Pay SDK
+      - key: PaypalSdk
+        display: PayPal SDK
+      - key: AmazonPayRedirect
+        display: Amazon Pay
+      - key: CashappQr
+        display: Cash App
+      - key: PaypalRedirect
+        display: PayPal
+      - key: WeChatPayQr
+        display: WeChat Pay
+      - key: AliPayRedirect
+        display: Alipay
+      - key: RevolutPay
+        display: Revolut Pay
+      - key: Mifinity
+        display: MiFinity
+      - key: Bluecode
+        display: Bluecode
+      - key: Paze
+        display: Paze
+      - key: SamsungPay
+        display: Samsung Pay
+      - key: MbWay
+        display: MB Way
+      - key: Satispay
+        display: Satispay
+      - key: Wero
+        display: Wero
+
+  - category: BNPL
+    methods:
+      - key: Affirm
+        display: Affirm
+      - key: Afterpay
+        display: Afterpay
+      - key: Klarna
+        display: Klarna
+
+  - category: UPI
+    methods:
+      - key: UpiCollect
+        display: UPI Collect
+      - key: UpiIntent
+        display: UPI Intent
+      - key: UpiQr
+        display: UPI QR
+
+  - category: Online Banking
+    methods:
+      - key: OnlineBankingThailand
+        display: Thailand
+      - key: OnlineBankingCzechRepublic
+        display: Czech
+      - key: OnlineBankingFinland
+        display: Finland
+      - key: OnlineBankingFpx
+        display: FPX
+      - key: OnlineBankingPoland
+        display: Poland
+      - key: OnlineBankingSlovakia
+        display: Slovakia
+
+  - category: Open Banking
+    methods:
+      - key: OpenBankingUk
+        display: UK
+      - key: OpenBankingPis
+        display: PIS
+      - key: OpenBanking
+        display: Generic
+
+  - category: Bank Redirect
+    methods:
+      - key: LocalBankRedirect
+        display: Local
+      - key: Ideal
+        display: iDEAL
+      - key: Sofort
+        display: Sofort
+      - key: Trustly
+        display: Trustly
+      - key: Giropay
+        display: Giropay
+      - key: Eps
+        display: EPS
+      - key: Przelewy24
+        display: Przelewy24
+      - key: Pse
+        display: PSE
+      - key: Blik
+        display: BLIK
+      - key: Interac
+        display: Interac
+      - key: Bizum
+        display: Bizum
+      - key: Eft
+        display: EFT
+      - key: DuitNow
+        display: DuitNow
+
+  - category: Bank Transfer
+    methods:
+      - key: AchBankTransfer
+        display: ACH
+      - key: SepaBankTransfer
+        display: SEPA
+      - key: BacsBankTransfer
+        display: BACS
+      - key: MultibancoBankTransfer
+        display: Multibanco
+      - key: InstantBankTransfer
+        display: Instant
+      - key: InstantBankTransferFinland
+        display: Instant FI
+      - key: InstantBankTransferPoland
+        display: Instant PL
+      - key: Pix
+        display: Pix
+      - key: PermataBankTransfer
+        display: Permata
+      - key: BcaBankTransfer
+        display: BCA
+      - key: BniVaBankTransfer
+        display: BNI VA
+      - key: BriVaBankTransfer
+        display: BRI VA
+      - key: CimbVaBankTransfer
+        display: CIMB VA
+      - key: DanamonVaBankTransfer
+        display: Danamon VA
+      - key: MandiriVaBankTransfer
+        display: Mandiri VA
+      - key: LocalBankTransfer
+        display: Local
+      - key: IndonesianBankTransfer
+        display: Indonesian
+
+  - category: Bank Debit
+    methods:
+      - key: Ach
+        display: ACH
+      - key: Sepa
+        display: SEPA
+      - key: Bacs
+        display: BACS
+      - key: Becs
+        display: BECS
+      - key: SepaGuaranteedDebit
+        display: SEPA Guaranteed
+
+  - category: Alternative
+    methods:
+      - key: Crypto
+        display: Crypto
+      - key: ClassicReward
+        display: Reward
+      - key: Givex
+        display: Givex
+      - key: PaySafeCard
+        display: PaySafeCard
+      - key: EVoucher
+        display: E-Voucher
+      - key: Boleto
+        display: Boleto
+      - key: Efecty
+        display: Efecty
+      - key: PagoEfectivo
+        display: Pago Efectivo
+      - key: RedCompra
+        display: Red Compra
+      - key: RedPagos
+        display: Red Pagos
+      - key: Alfamart
+        display: Alfamart
+      - key: Indomaret
+        display: Indomaret
+      - key: Oxxo
+        display: Oxxo
+      - key: SevenEleven
+        display: 7-Eleven
+      - key: Lawson
+        display: Lawson
+      - key: MiniStop
+        display: Mini Stop
+      - key: FamilyMart
+        display: Family Mart
+      - key: Seicomart
+        display: Seicomart
+      - key: PayEasy
+        display: Pay Easy

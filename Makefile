@@ -110,6 +110,11 @@ field-probe:
 	@echo "▶ Running field-probe to generate connector flow data…"
 	-cargo run -p field-probe
 
+## Run documentation generator tests
+test-docs:
+	@echo "▶ Running documentation generator tests…"
+	python -m pytest scripts/generators/docs/tests/ -v
+
 ## Run comprehensive pre-push validation (format, check, clippy, generate, docs)
 validate-pre-push:
 	@echo "▶ Running pre-push validation..."
@@ -261,6 +266,7 @@ help:
 	@echo "Docs Targets:"
 	@echo "  docs         Regenerate connector docs (default: stripe; CONNECTORS=all for all)"
 	@echo "  docs-check   Report which connectors are missing annotation files"
+	@echo "  test-docs    Run documentation generator tests"
 	@echo "Certification Targets:"
 	@echo "  certify-client-sanity  Run cross-language transport parity certification"
 	@echo

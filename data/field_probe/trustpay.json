@@ -11,11 +11,27 @@
         "status": "not_implemented",
         "error": "This step has not been implemented for: Selected payment method through trustpay"
       },
+      "AchBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
       "Affirm": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: Selected payment method through trustpay"
       },
       "Afterpay": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "Alfamart": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "AliPayRedirect": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "AmazonPayRedirect": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: Selected payment method through trustpay"
       },
@@ -27,11 +43,31 @@
         "status": "not_implemented",
         "error": "This step has not been implemented for: Selected payment method through trustpay"
       },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
       "Bacs": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: Selected payment method through trustpay"
       },
+      "BacsBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "BancontactCard": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "BcaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
       "Becs": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "Bizum": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: Selected payment method through trustpay"
       },
@@ -81,6 +117,22 @@
           },
           "body": "{\"paymentMethod\":\"Blik\",\"merchantIdentification\":{\"ProjectId\":\"probe_id\"},\"paymentInformation\":{\"Amount\":{\"Amount\":\"10.00\",\"Currency\":\"USD\"},\"References\":{\"MerchantReference\":\"probe_txn_001\"},\"Debtor\":{\"Name\":\"John\",\"Email\":\"test@example.com\"}},\"callbackUrls\":{\"success\":\"https://example.com/return?status=SuccessOk\",\"cancel\":\"https://example.com/return\",\"error\":\"https://example.com/return\"}}"
         }
+      },
+      "Bluecode": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "Boleto": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "BriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
       },
       "Card": {
         "status": "supported",
@@ -137,11 +189,143 @@
           "body": "amount=10.00&currency=USD&pan=4111111111111111&cvv=737&exp=03%2F30&cardholder=John&reference=probe_txn_001&redirectUrl=https%3A%2F%2Fexample.com%2Freturn&billing%5Bcity%5D=Seattle&billing%5Bcountry%5D=US&billing%5Bstreet1%5D=123+Main+St&billing%5Bpostcode%5D=98101&customer%5Bemail%5D=test%40example.com&customer%5BipAddress%5D=1.2.3.4&browser%5BacceptHeader%5D=*&browser%5Blanguage%5D=en-US&browser%5BscreenHeight%5D=1080&browser%5BscreenWidth%5D=1920&browser%5Btimezone%5D=3600&browser%5BuserAgent%5D=Mozilla%2F5.0+%28probe-bot%29&browser%5BjavaEnabled%5D=false&browser%5BjavaScriptEnabled%5D=true&browser%5BscreenColorDepth%5D=24&browser%5BchallengeWindow%5D=1&browser%5BpaymentType%5D=Plain"
         }
       },
+      "CashappQr": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "ClassicReward": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
+      "EVoucher": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "Efecty": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "Eft": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "Eps": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "eps": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "line1": "123 Main St",
+              "city": "Seattle",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://aapi.trustpay.eu/api/Payments/Payment",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"paymentMethod\":\"EPS\",\"merchantIdentification\":{\"ProjectId\":\"probe_id\"},\"paymentInformation\":{\"Amount\":{\"Amount\":\"10.00\",\"Currency\":\"USD\"},\"References\":{\"MerchantReference\":\"probe_txn_001\"}},\"callbackUrls\":{\"success\":\"https://example.com/return?status=SuccessOk\",\"cancel\":\"https://example.com/return\",\"error\":\"https://example.com/return\"}}"
+        }
+      },
+      "FamilyMart": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "Giropay": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "giropay": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "line1": "123 Main St",
+              "city": "Seattle",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://aapi.trustpay.eu/api/Payments/Payment",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"paymentMethod\":\"Giropay\",\"merchantIdentification\":{\"ProjectId\":\"probe_id\"},\"paymentInformation\":{\"Amount\":{\"Amount\":\"10.00\",\"Currency\":\"USD\"},\"References\":{\"MerchantReference\":\"probe_txn_001\"}},\"callbackUrls\":{\"success\":\"https://example.com/return?status=SuccessOk\",\"cancel\":\"https://example.com/return\",\"error\":\"https://example.com/return\"}}"
+        }
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
       "GooglePay": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: Selected payment method through trustpay"
       },
       "GooglePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "GooglePayThirdPartySdk": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: Selected payment method through trustpay"
       },
@@ -187,11 +371,278 @@
           "body": "{\"paymentMethod\":\"IDeal\",\"merchantIdentification\":{\"ProjectId\":\"probe_id\"},\"paymentInformation\":{\"Amount\":{\"Amount\":\"10.00\",\"Currency\":\"USD\"},\"References\":{\"MerchantReference\":\"probe_txn_001\"}},\"callbackUrls\":{\"success\":\"https://example.com/return?status=SuccessOk\",\"cancel\":\"https://example.com/return\",\"error\":\"https://example.com/return\"}}"
         }
       },
+      "Indomaret": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "InstantBankTransfer": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "instant_bank_transfer": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "line1": "123 Main St",
+              "city": "Seattle",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://aapi.trustpay.eu/api/Payments/Payment",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"paymentMethod\":\"Wire\",\"merchantIdentification\":{\"ProjectId\":\"probe_id\"},\"paymentInformation\":{\"Amount\":{\"Amount\":\"10.00\",\"Currency\":\"USD\"},\"References\":{\"MerchantReference\":\"probe_txn_001\"},\"Debtor\":{\"Name\":\"John\",\"Email\":\"test@example.com\"}},\"callbackUrls\":{\"success\":\"https://example.com/return?status=SuccessOk\",\"cancel\":\"https://example.com/return\",\"error\":\"https://example.com/return\"}}"
+        }
+      },
+      "InstantBankTransferFinland": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "instant_bank_transfer_finland": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "line1": "123 Main St",
+              "city": "Seattle",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://aapi.trustpay.eu/api/Payments/Payment",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"paymentMethod\":\"InstantBankTransferFI\",\"merchantIdentification\":{\"ProjectId\":\"probe_id\"},\"paymentInformation\":{\"Amount\":{\"Amount\":\"10.00\",\"Currency\":\"USD\"},\"References\":{\"MerchantReference\":\"probe_txn_001\"},\"Debtor\":{\"Name\":\"John\",\"Email\":\"test@example.com\"}},\"callbackUrls\":{\"success\":\"https://example.com/return?status=SuccessOk\",\"cancel\":\"https://example.com/return\",\"error\":\"https://example.com/return\"}}"
+        }
+      },
+      "InstantBankTransferPoland": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "instant_bank_transfer_poland": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "line1": "123 Main St",
+              "city": "Seattle",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://aapi.trustpay.eu/api/Payments/Payment",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"paymentMethod\":\"InstantBankTransferPL\",\"merchantIdentification\":{\"ProjectId\":\"probe_id\"},\"paymentInformation\":{\"Amount\":{\"Amount\":\"10.00\",\"Currency\":\"USD\"},\"References\":{\"MerchantReference\":\"probe_txn_001\"},\"Debtor\":{\"Name\":\"John\",\"Email\":\"test@example.com\"}},\"callbackUrls\":{\"success\":\"https://example.com/return?status=SuccessOk\",\"cancel\":\"https://example.com/return\",\"error\":\"https://example.com/return\"}}"
+        }
+      },
+      "Interac": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
       "Klarna": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: Selected payment method through trustpay"
       },
+      "Lawson": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "LocalBankRedirect": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "LocalBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "MbWay": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "Mifinity": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "MiniStop": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "OpenBanking": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
+      "OpenBankingUk": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "Oxxo": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "PagoEfectivo": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "PayEasy": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "PaySafeCard": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
       "PaypalRedirect": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "PaypalSdk": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
+      "PermataBankTransfer": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "Pix": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "Przelewy24": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "Pse": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "RedCompra": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "RedPagos": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "RevolutPay": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: Selected payment method through trustpay"
       },
@@ -199,11 +650,134 @@
         "status": "not_implemented",
         "error": "This step has not been implemented for: Selected payment method through trustpay"
       },
+      "Satispay": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "Seicomart": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
       "Sepa": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: Selected payment method through trustpay"
       },
+      "SepaBankTransfer": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "sepa_bank_transfer": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "line1": "123 Main St",
+              "city": "Seattle",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://aapi.trustpay.eu/api/Payments/Payment",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"paymentMethod\":\"SepaCreditTransfer\",\"merchantIdentification\":{\"ProjectId\":\"probe_id\"},\"paymentInformation\":{\"Amount\":{\"Amount\":\"10.00\",\"Currency\":\"USD\"},\"References\":{\"MerchantReference\":\"probe_txn_001\"},\"Debtor\":{\"Name\":\"John\",\"Email\":\"test@example.com\"}},\"callbackUrls\":{\"success\":\"https://example.com/return?status=SuccessOk\",\"cancel\":\"https://example.com/return\",\"error\":\"https://example.com/return\"}}"
+        }
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "SevenEleven": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "Sofort": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "sofort": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "line1": "123 Main St",
+              "city": "Seattle",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://aapi.trustpay.eu/api/Payments/Payment",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"paymentMethod\":\"Sofort\",\"merchantIdentification\":{\"ProjectId\":\"probe_id\"},\"paymentInformation\":{\"Amount\":{\"Amount\":\"10.00\",\"Currency\":\"USD\"},\"References\":{\"MerchantReference\":\"probe_txn_001\"}},\"callbackUrls\":{\"success\":\"https://example.com/return?status=SuccessOk\",\"cancel\":\"https://example.com/return\",\"error\":\"https://example.com/return\"}}"
+        }
+      },
+      "Trustly": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
       "UpiCollect": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "UpiIntent": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "UpiQr": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "WeChatPayQr": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      },
+      "Wero": {
         "status": "not_implemented",
         "error": "This step has not been implemented for: Selected payment method through trustpay"
       }
@@ -323,6 +897,66 @@
         "status": "not_implemented"
       }
     },
+    "proxy_authorize": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_proxy_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe"
+          },
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "line1": "123 Main St",
+              "city": "Seattle",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "browser_info": {
+            "user_agent": "Mozilla/5.0 (probe-bot)",
+            "ip_address": "1.2.3.4"
+          },
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://test-tpgw.trustpay.eu/api/v1/purchase",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "amount=10.00&currency=USD&pan=4111111111111111&cvv=123&exp=03%2F30&cardholder=John&reference=probe_proxy_txn_001&redirectUrl=https%3A%2F%2Fexample.com%2Freturn&billing%5Bcity%5D=Seattle&billing%5Bcountry%5D=US&billing%5Bstreet1%5D=123+Main+St&billing%5Bpostcode%5D=98101&customer%5Bemail%5D=test%40example.com&customer%5BipAddress%5D=1.2.3.4&browser%5BacceptHeader%5D=*&browser%5Blanguage%5D=en-US&browser%5BscreenHeight%5D=1080&browser%5BscreenWidth%5D=1920&browser%5Btimezone%5D=3600&browser%5BuserAgent%5D=Mozilla%2F5.0+%28probe-bot%29&browser%5BjavaEnabled%5D=false&browser%5BjavaScriptEnabled%5D=true&browser%5BscreenColorDepth%5D=24&browser%5BchallengeWindow%5D=1&browser%5BpaymentType%5D=Plain"
+        }
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "recurring_charge": {
       "default": {
         "status": "not_implemented"
@@ -370,6 +1004,17 @@
         "status": "not_implemented"
       }
     },
+    "token_authorize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through trustpay"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "tokenize": {
       "default": {
         "status": "not_implemented"
@@ -380,5 +1025,229 @@
         "status": "not_implemented"
       }
     }
+  },
+  "flow_graph": {
+    "nodes": {
+      "authenticate": {
+        "node_type": "dependent",
+        "description": "authenticate"
+      },
+      "authorize": {
+        "node_type": "entry_point",
+        "description": "Authorize a payment, reserving funds",
+        "provides": {
+          "connector_transaction_id": {
+            "response_path": "connector_transaction_id",
+            "description": "Transaction ID for subsequent operations"
+          }
+        },
+        "requires": {
+          "access_token": {
+            "from_flow": "create_access_token",
+            "from_field": "access_token",
+            "request_path": "state.access_token.token.value"
+          },
+          "order_id": {
+            "from_flow": "create_order",
+            "from_field": "order_id",
+            "request_path": "merchant_order_id"
+          }
+        }
+      },
+      "capture": {
+        "node_type": "dependent",
+        "description": "Capture previously authorized funds",
+        "requires": {
+          "connector_transaction_id": {
+            "from_flow": "authorize",
+            "from_field": "connector_transaction_id",
+            "request_path": "connector_transaction_id"
+          }
+        }
+      },
+      "create_access_token": {
+        "node_type": "prerequisite",
+        "description": "Obtain OAuth2 access token for API authentication",
+        "provides": {
+          "access_token": {
+            "response_path": "state.access_token.token.value",
+            "description": "OAuth2 access token for API calls"
+          }
+        }
+      },
+      "create_customer": {
+        "node_type": "prerequisite",
+        "description": "Create a customer profile for recurring payments",
+        "provides": {
+          "connector_customer_id": {
+            "response_path": "connector_customer_id",
+            "description": "Customer ID for recurring payments"
+          }
+        }
+      },
+      "create_order": {
+        "node_type": "prerequisite",
+        "description": "Create an order before payment authorization",
+        "provides": {
+          "order_id": {
+            "response_path": "connector_order_id",
+            "description": "Order ID for payment authorization"
+          }
+        }
+      },
+      "create_session_token": {
+        "node_type": "dependent",
+        "description": "create_session_token"
+      },
+      "dispute_accept": {
+        "node_type": "dependent",
+        "description": "dispute_accept"
+      },
+      "dispute_defend": {
+        "node_type": "dependent",
+        "description": "dispute_defend"
+      },
+      "dispute_submit_evidence": {
+        "node_type": "dependent",
+        "description": "dispute_submit_evidence"
+      },
+      "get": {
+        "node_type": "dependent",
+        "description": "Retrieve payment status and details",
+        "requires": {
+          "connector_transaction_id": {
+            "from_flow": "authorize",
+            "from_field": "connector_transaction_id",
+            "request_path": "connector_transaction_id"
+          }
+        }
+      },
+      "post_authenticate": {
+        "node_type": "dependent",
+        "description": "post_authenticate"
+      },
+      "pre_authenticate": {
+        "node_type": "entry_point",
+        "description": "Pre-authenticate before capture"
+      },
+      "proxy_authorize": {
+        "node_type": "dependent",
+        "description": "proxy_authorize"
+      },
+      "proxy_setup_recurring": {
+        "node_type": "dependent",
+        "description": "proxy_setup_recurring"
+      },
+      "recurring_charge": {
+        "node_type": "dependent",
+        "description": "Charge against an existing mandate",
+        "requires": {
+          "connector_customer_id": {
+            "from_flow": "create_customer",
+            "from_field": "connector_customer_id",
+            "request_path": "connector_customer_id"
+          },
+          "connector_recurring_payment_id": {
+            "from_flow": "setup_recurring",
+            "from_field": "mandate_reference",
+            "request_path": "connector_recurring_payment_id.connector_mandate_id.connector_mandate_id"
+          }
+        }
+      },
+      "refund": {
+        "node_type": "dependent",
+        "description": "Refund a completed payment",
+        "provides": {
+          "refund_id": {
+            "response_path": "connector_refund_id",
+            "description": "Refund ID for tracking"
+          }
+        },
+        "requires": {
+          "connector_transaction_id": {
+            "from_flow": "authorize",
+            "from_field": "connector_transaction_id",
+            "request_path": "connector_transaction_id"
+          }
+        }
+      },
+      "reverse": {
+        "node_type": "dependent",
+        "description": "reverse"
+      },
+      "setup_recurring": {
+        "node_type": "entry_point",
+        "description": "Set up a mandate for recurring charges",
+        "provides": {
+          "mandate_reference": {
+            "response_path": "mandate_reference.connector_mandate_id.connector_mandate_id",
+            "description": "Mandate reference for recurring charges"
+          }
+        }
+      },
+      "token_authorize": {
+        "node_type": "dependent",
+        "description": "token_authorize"
+      },
+      "token_setup_recurring": {
+        "node_type": "dependent",
+        "description": "token_setup_recurring"
+      },
+      "tokenize": {
+        "node_type": "entry_point",
+        "description": "Tokenize a payment method for later use",
+        "provides": {
+          "payment_method_token": {
+            "response_path": "payment_method_token",
+            "description": "Tokenized payment method"
+          }
+        }
+      },
+      "void": {
+        "node_type": "dependent",
+        "description": "Cancel an uncaptured authorization",
+        "requires": {
+          "connector_transaction_id": {
+            "from_flow": "authorize",
+            "from_field": "connector_transaction_id",
+            "request_path": "connector_transaction_id"
+          }
+        }
+      }
+    },
+    "edges": [
+      {
+        "from": "authorize",
+        "to": "capture"
+      },
+      {
+        "from": "authorize",
+        "to": "get"
+      },
+      {
+        "from": "authorize",
+        "to": "refund"
+      },
+      {
+        "from": "authorize",
+        "to": "void"
+      },
+      {
+        "from": "create_access_token",
+        "to": "authorize"
+      },
+      {
+        "from": "create_customer",
+        "to": "recurring_charge"
+      },
+      {
+        "from": "create_order",
+        "to": "authorize"
+      },
+      {
+        "from": "setup_recurring",
+        "to": "recurring_charge"
+      }
+    ]
   }
 }

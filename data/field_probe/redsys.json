@@ -12,11 +12,27 @@
         "status": "not_supported",
         "error": "Cards No3DS is not supported by Redsys"
       },
+      "AchBankTransfer": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
       "Affirm": {
         "status": "not_supported",
         "error": "Cards No3DS is not supported by Redsys"
       },
       "Afterpay": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "Alfamart": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "AliPayRedirect": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "AmazonPayRedirect": {
         "status": "not_supported",
         "error": "Cards No3DS is not supported by Redsys"
       },
@@ -28,7 +44,23 @@
         "status": "not_supported",
         "error": "Cards No3DS is not supported by Redsys"
       },
+      "ApplePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
       "Bacs": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "BacsBankTransfer": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "BancontactCard": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "BcaBankTransfer": {
         "status": "not_supported",
         "error": "Cards No3DS is not supported by Redsys"
       },
@@ -36,13 +68,85 @@
         "status": "not_supported",
         "error": "Cards No3DS is not supported by Redsys"
       },
+      "Bizum": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
       "Blik": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "Bluecode": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "Boleto": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "BriVaBankTransfer": {
         "status": "not_supported",
         "error": "Cards No3DS is not supported by Redsys"
       },
       "Card": {
         "status": "not_supported",
         "error": "Cards No3DS is not supported by Redsys"
+      },
+      "CashappQr": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "ClassicReward": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
+      "EVoucher": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "Efecty": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "Eft": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "Eps": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "FamilyMart": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "Giropay": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
       },
       "GooglePay": {
         "status": "not_supported",
@@ -52,7 +156,35 @@
         "status": "not_supported",
         "error": "Cards No3DS is not supported by Redsys"
       },
+      "GooglePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
       "Ideal": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "Indomaret": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "InstantBankTransfer": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "Interac": {
         "status": "not_supported",
         "error": "Cards No3DS is not supported by Redsys"
       },
@@ -60,7 +192,127 @@
         "status": "not_supported",
         "error": "Cards No3DS is not supported by Redsys"
       },
+      "Lawson": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "LocalBankRedirect": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "LocalBankTransfer": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "MbWay": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "Mifinity": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "MiniStop": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "OpenBanking": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
+      "OpenBankingUk": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "Oxxo": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "PagoEfectivo": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "PayEasy": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "PaySafeCard": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
       "PaypalRedirect": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "PaypalSdk": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
+      "PermataBankTransfer": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "Pix": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "Przelewy24": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "Pse": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "RedCompra": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "RedPagos": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "RevolutPay": {
         "status": "not_supported",
         "error": "Cards No3DS is not supported by Redsys"
       },
@@ -68,11 +320,55 @@
         "status": "not_supported",
         "error": "Cards No3DS is not supported by Redsys"
       },
+      "Satispay": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "Seicomart": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
       "Sepa": {
         "status": "not_supported",
         "error": "Cards No3DS is not supported by Redsys"
       },
+      "SepaBankTransfer": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "SevenEleven": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "Sofort": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "Trustly": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
       "UpiCollect": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "UpiIntent": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "UpiQr": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "WeChatPayQr": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "Wero": {
         "status": "not_supported",
         "error": "Cards No3DS is not supported by Redsys"
       }
@@ -196,6 +492,17 @@
         }
       }
     },
+    "proxy_authorize": {
+      "default": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "recurring_charge": {
       "default": {
         "status": "not_implemented"
@@ -235,6 +542,17 @@
         "status": "not_implemented"
       }
     },
+    "token_authorize": {
+      "default": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "tokenize": {
       "default": {
         "status": "not_implemented"
@@ -262,5 +580,229 @@
         }
       }
     }
+  },
+  "flow_graph": {
+    "nodes": {
+      "authenticate": {
+        "node_type": "dependent",
+        "description": "authenticate"
+      },
+      "authorize": {
+        "node_type": "entry_point",
+        "description": "Authorize a payment, reserving funds",
+        "provides": {
+          "connector_transaction_id": {
+            "response_path": "connector_transaction_id",
+            "description": "Transaction ID for subsequent operations"
+          }
+        },
+        "requires": {
+          "access_token": {
+            "from_flow": "create_access_token",
+            "from_field": "access_token",
+            "request_path": "state.access_token.token.value"
+          },
+          "order_id": {
+            "from_flow": "create_order",
+            "from_field": "order_id",
+            "request_path": "merchant_order_id"
+          }
+        }
+      },
+      "capture": {
+        "node_type": "dependent",
+        "description": "Capture previously authorized funds",
+        "requires": {
+          "connector_transaction_id": {
+            "from_flow": "authorize",
+            "from_field": "connector_transaction_id",
+            "request_path": "connector_transaction_id"
+          }
+        }
+      },
+      "create_access_token": {
+        "node_type": "prerequisite",
+        "description": "Obtain OAuth2 access token for API authentication",
+        "provides": {
+          "access_token": {
+            "response_path": "state.access_token.token.value",
+            "description": "OAuth2 access token for API calls"
+          }
+        }
+      },
+      "create_customer": {
+        "node_type": "prerequisite",
+        "description": "Create a customer profile for recurring payments",
+        "provides": {
+          "connector_customer_id": {
+            "response_path": "connector_customer_id",
+            "description": "Customer ID for recurring payments"
+          }
+        }
+      },
+      "create_order": {
+        "node_type": "prerequisite",
+        "description": "Create an order before payment authorization",
+        "provides": {
+          "order_id": {
+            "response_path": "connector_order_id",
+            "description": "Order ID for payment authorization"
+          }
+        }
+      },
+      "create_session_token": {
+        "node_type": "dependent",
+        "description": "create_session_token"
+      },
+      "dispute_accept": {
+        "node_type": "dependent",
+        "description": "dispute_accept"
+      },
+      "dispute_defend": {
+        "node_type": "dependent",
+        "description": "dispute_defend"
+      },
+      "dispute_submit_evidence": {
+        "node_type": "dependent",
+        "description": "dispute_submit_evidence"
+      },
+      "get": {
+        "node_type": "dependent",
+        "description": "Retrieve payment status and details",
+        "requires": {
+          "connector_transaction_id": {
+            "from_flow": "authorize",
+            "from_field": "connector_transaction_id",
+            "request_path": "connector_transaction_id"
+          }
+        }
+      },
+      "post_authenticate": {
+        "node_type": "dependent",
+        "description": "post_authenticate"
+      },
+      "pre_authenticate": {
+        "node_type": "entry_point",
+        "description": "Pre-authenticate before capture"
+      },
+      "proxy_authorize": {
+        "node_type": "dependent",
+        "description": "proxy_authorize"
+      },
+      "proxy_setup_recurring": {
+        "node_type": "dependent",
+        "description": "proxy_setup_recurring"
+      },
+      "recurring_charge": {
+        "node_type": "dependent",
+        "description": "Charge against an existing mandate",
+        "requires": {
+          "connector_customer_id": {
+            "from_flow": "create_customer",
+            "from_field": "connector_customer_id",
+            "request_path": "connector_customer_id"
+          },
+          "connector_recurring_payment_id": {
+            "from_flow": "setup_recurring",
+            "from_field": "mandate_reference",
+            "request_path": "connector_recurring_payment_id.connector_mandate_id.connector_mandate_id"
+          }
+        }
+      },
+      "refund": {
+        "node_type": "dependent",
+        "description": "Refund a completed payment",
+        "provides": {
+          "refund_id": {
+            "response_path": "connector_refund_id",
+            "description": "Refund ID for tracking"
+          }
+        },
+        "requires": {
+          "connector_transaction_id": {
+            "from_flow": "authorize",
+            "from_field": "connector_transaction_id",
+            "request_path": "connector_transaction_id"
+          }
+        }
+      },
+      "reverse": {
+        "node_type": "dependent",
+        "description": "reverse"
+      },
+      "setup_recurring": {
+        "node_type": "entry_point",
+        "description": "Set up a mandate for recurring charges",
+        "provides": {
+          "mandate_reference": {
+            "response_path": "mandate_reference.connector_mandate_id.connector_mandate_id",
+            "description": "Mandate reference for recurring charges"
+          }
+        }
+      },
+      "token_authorize": {
+        "node_type": "dependent",
+        "description": "token_authorize"
+      },
+      "token_setup_recurring": {
+        "node_type": "dependent",
+        "description": "token_setup_recurring"
+      },
+      "tokenize": {
+        "node_type": "entry_point",
+        "description": "Tokenize a payment method for later use",
+        "provides": {
+          "payment_method_token": {
+            "response_path": "payment_method_token",
+            "description": "Tokenized payment method"
+          }
+        }
+      },
+      "void": {
+        "node_type": "dependent",
+        "description": "Cancel an uncaptured authorization",
+        "requires": {
+          "connector_transaction_id": {
+            "from_flow": "authorize",
+            "from_field": "connector_transaction_id",
+            "request_path": "connector_transaction_id"
+          }
+        }
+      }
+    },
+    "edges": [
+      {
+        "from": "authorize",
+        "to": "capture"
+      },
+      {
+        "from": "authorize",
+        "to": "get"
+      },
+      {
+        "from": "authorize",
+        "to": "refund"
+      },
+      {
+        "from": "authorize",
+        "to": "void"
+      },
+      {
+        "from": "create_access_token",
+        "to": "authorize"
+      },
+      {
+        "from": "create_customer",
+        "to": "recurring_charge"
+      },
+      {
+        "from": "create_order",
+        "to": "authorize"
+      },
+      {
+        "from": "setup_recurring",
+        "to": "recurring_charge"
+      }
+    ]
   }
 }

@@ -1,5 +1,5 @@
 # Connector Service — LLM Navigation Index
-# Connectors: 76
+# Connectors: 80
 #
 # This file helps AI coding assistants navigate connector-service documentation.
 # Each connector block lists: doc path, scenarios, supported payment methods,
@@ -8,7 +8,7 @@
 # Usage: fetch this file first, then fetch the specific connector doc or example.
 
 overview:
-  total_connectors: 76
+  total_connectors: 80
   docs_root: docs-generated/connectors/
   examples_root: examples/
   all_connectors_matrix: docs-generated/all_connector.md
@@ -22,610 +22,883 @@ integration_pattern:
 
 ---
 
-## ACI
-connector_id: aci
-doc: docs/connectors/aci.md
-scenarios: checkout_card, checkout_autocapture, refund, recurring, void_payment, get_payment
-payment_methods: Affirm, Afterpay, Card, Ideal, Klarna
-flows: authorize, capture, get, recurring_charge, refund, setup_recurring, void
-examples_python: examples/aci/python/aci.py
-
-## Adyen
-connector_id: adyen
-doc: docs/connectors/adyen.md
-scenarios: checkout_card, checkout_autocapture, checkout_wallet, checkout_bank, refund, recurring, void_payment
-payment_methods: Ach, Affirm, Afterpay, ApplePay, ApplePayDecrypted, Bacs, Blik, Card, GooglePay, GooglePayDecrypted, Ideal, Klarna, Sepa
-flows: authorize, capture, dispute_accept, dispute_defend, dispute_submit_evidence, recurring_charge, refund, setup_recurring, void
-examples_python: examples/adyen/python/adyen.py
-
-## Airwallex
-connector_id: airwallex
-doc: docs/connectors/airwallex.md
-scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment
-payment_methods: Blik, Card, Ideal
-flows: authorize, capture, create_access_token, create_order, get, refund, void
-examples_python: examples/airwallex/python/airwallex.py
-
-## Authipay
-connector_id: authipay
-doc: docs/connectors/authipay.md
-scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment
-payment_methods: Card
-flows: authorize, capture, get, refund, void
-examples_python: examples/authipay/python/authipay.py
-
-## Authorize.net
-connector_id: authorizedotnet
-doc: docs/connectors/authorizedotnet.md
-scenarios: checkout_card, checkout_autocapture, checkout_bank, refund, recurring, void_payment, get_payment, create_customer
-payment_methods: Ach, Card
-flows: authorize, capture, create_customer, get, recurring_charge, refund, setup_recurring, void
-examples_python: examples/authorizedotnet/python/authorizedotnet.py
-
-## Bambora
-connector_id: bambora
-doc: docs/connectors/bambora.md
-scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment
-payment_methods: Card
-flows: authorize, capture, get, refund, void
-examples_python: examples/bambora/python/bambora.py
-
-## Bamboraapac
-connector_id: bamboraapac
-doc: docs/connectors/bamboraapac.md
-scenarios: checkout_card, checkout_autocapture, refund, recurring, get_payment
-payment_methods: Card
-flows: authorize, capture, get, recurring_charge, refund, setup_recurring
-examples_python: examples/bamboraapac/python/bamboraapac.py
-
-## Bankofamerica
-connector_id: bankofamerica
-doc: docs/connectors/bankofamerica.md
-scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment
-payment_methods: Card
-flows: authorize, capture, get, refund, setup_recurring, void
-examples_python: examples/bankofamerica/python/bankofamerica.py
-
-## Barclaycard
-connector_id: barclaycard
-doc: docs/connectors/barclaycard.md
-scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment
-payment_methods: Card
-flows: authorize, capture, get, refund, void
-examples_python: examples/barclaycard/python/barclaycard.py
-
-## Billwerk
-connector_id: billwerk
-doc: docs/connectors/billwerk.md
-scenarios: checkout_card, checkout_autocapture, checkout_wallet, checkout_bank, refund, void_payment, get_payment, tokenize
-payment_methods: Ach, Affirm, Afterpay, ApplePay, ApplePayDecrypted, Bacs, Becs, Blik, Card, GooglePay, GooglePayDecrypted, Ideal, Klarna, PaypalRedirect, SamsungPay, Sepa, UpiCollect
-flows: authorize, capture, get, refund, tokenize, void
-examples_python: examples/billwerk/python/billwerk.py
-
-## Bluesnap
-connector_id: bluesnap
-doc: docs/connectors/bluesnap.md
-scenarios: checkout_card, checkout_autocapture, checkout_wallet, checkout_bank, refund, void_payment, get_payment
-payment_methods: Ach, ApplePay, ApplePayDecrypted, Card, GooglePay, GooglePayDecrypted
-flows: authorize, capture, get, refund, void
-examples_python: examples/bluesnap/python/bluesnap.py
-
-## Braintree
-connector_id: braintree
-doc: docs/connectors/braintree.md
-scenarios: checkout_card, checkout_autocapture, void_payment, get_payment, tokenize
-payment_methods: Card
-flows: authorize, capture, get, tokenize, void
-examples_python: examples/braintree/python/braintree.py
-
-## Calida
-connector_id: calida
-doc: docs/connectors/calida.md
-scenarios: none
-payment_methods: none
-flows: get
-examples_python: none
-
-## Cashfree
-connector_id: cashfree
-doc: docs/connectors/cashfree.md
-scenarios: none
-payment_methods: UpiCollect
-flows: authorize
-examples_python: none
-
-## CashtoCode
-connector_id: cashtocode
-doc: docs/connectors/cashtocode.md
-scenarios: none
-payment_methods: none
-flows: 
-examples_python: none
-
-## Celero
-connector_id: celero
-doc: docs/connectors/celero.md
-scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment
-payment_methods: Card
-flows: authorize, capture, get, refund, void
-examples_python: examples/celero/python/celero.py
-
-## Checkout.com
-connector_id: checkout
-doc: docs/connectors/checkout.md
-scenarios: checkout_card, checkout_autocapture, checkout_bank, refund, recurring, void_payment, get_payment
-payment_methods: Ach, ApplePayDecrypted, Card, GooglePayDecrypted
-flows: authorize, capture, get, recurring_charge, refund, setup_recurring, void
-examples_python: examples/checkout/python/checkout.py
-
-## CryptoPay
-connector_id: cryptopay
-doc: docs/connectors/cryptopay.md
-scenarios: none
-payment_methods: none
-flows: get
-examples_python: none
-
-## CyberSource
-connector_id: cybersource
-doc: docs/connectors/cybersource.md
-scenarios: checkout_card, checkout_autocapture, checkout_wallet, refund, recurring, void_payment, get_payment
-payment_methods: ApplePay, ApplePayDecrypted, Card, GooglePay, GooglePayDecrypted
-flows: authorize, capture, get, pre_authenticate, recurring_charge, refund, setup_recurring, void
-examples_python: examples/cybersource/python/cybersource.py
-
-## Datatrans
-connector_id: datatrans
-doc: docs/connectors/datatrans.md
-scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment
-payment_methods: Card
-flows: authorize, capture, get, refund, void
-examples_python: examples/datatrans/python/datatrans.py
-
-## dLocal
-connector_id: dlocal
-doc: docs/connectors/dlocal.md
-scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment
-payment_methods: Card
-flows: authorize, capture, get, refund, void
-examples_python: examples/dlocal/python/dlocal.py
-
-## Elavon
-connector_id: elavon
-doc: docs/connectors/elavon.md
-scenarios: checkout_card, checkout_autocapture, refund, get_payment
-payment_methods: Card
-flows: authorize, capture, get, refund
-examples_python: examples/elavon/python/elavon.py
-
-## Finix
-connector_id: finix
-doc: docs/connectors/finix.md
-scenarios: checkout_card, checkout_autocapture, checkout_wallet, checkout_bank, refund, void_payment, get_payment, create_customer, tokenize
-payment_methods: Ach, Affirm, Afterpay, ApplePay, ApplePayDecrypted, Bacs, Becs, Blik, Card, GooglePay, GooglePayDecrypted, Ideal, Klarna, PaypalRedirect, SamsungPay, Sepa, UpiCollect
-flows: authorize, capture, create_customer, get, refund, tokenize, void
-examples_python: examples/finix/python/finix.py
-
-## Fiserv
-connector_id: fiserv
-doc: docs/connectors/fiserv.md
-scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment
-payment_methods: Card
-flows: authorize, capture, get, refund, void
-examples_python: examples/fiserv/python/fiserv.py
-
-## Fiservemea
-connector_id: fiservemea
-doc: docs/connectors/fiservemea.md
-scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment
-payment_methods: Card
-flows: authorize, capture, get, refund, void
-examples_python: examples/fiservemea/python/fiservemea.py
-
-## Fiuu
-connector_id: fiuu
-doc: docs/connectors/fiuu.md
-scenarios: checkout_card, checkout_autocapture, checkout_wallet, refund, void_payment, get_payment
-payment_methods: ApplePayDecrypted, Card, GooglePay
-flows: authorize, capture, get, recurring_charge, refund, void
-examples_python: examples/fiuu/python/fiuu.py
-
-## Forte
-connector_id: forte
-doc: docs/connectors/forte.md
-scenarios: checkout_autocapture, checkout_bank, void_payment, get_payment
-payment_methods: Ach, Card
-flows: authorize, get, void
-examples_python: examples/forte/python/forte.py
-
-## Getnet
-connector_id: getnet
-doc: docs/connectors/getnet.md
-scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment
-payment_methods: Card
-flows: authorize, capture, create_access_token, get, refund, void
-examples_python: examples/getnet/python/getnet.py
-
-## Gigadat
-connector_id: gigadat
-doc: docs/connectors/gigadat.md
-scenarios: none
-payment_methods: none
-flows: get, refund
-examples_python: none
-
-## Globalpay
-connector_id: globalpay
-doc: docs/connectors/globalpay.md
-scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment
-payment_methods: Card, Ideal
-flows: authorize, capture, create_access_token, get, refund, void
-examples_python: examples/globalpay/python/globalpay.py
-
-## Helcim
-connector_id: helcim
-doc: docs/connectors/helcim.md
-scenarios: checkout_autocapture, get_payment
-payment_methods: Card
-flows: authorize, get
-examples_python: examples/helcim/python/helcim.py
-
-## Hipay
-connector_id: hipay
-doc: docs/connectors/hipay.md
-scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment, tokenize
-payment_methods: Card
-flows: authorize, capture, get, refund, tokenize, void
-examples_python: examples/hipay/python/hipay.py
-
-## Hyperpg
-connector_id: hyperpg
-doc: docs/connectors/hyperpg.md
-scenarios: checkout_autocapture, refund, get_payment
-payment_methods: Card
-flows: authorize, get, refund
-examples_python: examples/hyperpg/python/hyperpg.py
-
-## Iatapay
-connector_id: iatapay
-doc: docs/connectors/iatapay.md
-scenarios: none
-payment_methods: Ideal, UpiCollect
-flows: authorize, create_access_token, get, refund
-examples_python: none
-
-## Jpmorgan
-connector_id: jpmorgan
-doc: docs/connectors/jpmorgan.md
-scenarios: checkout_card, checkout_autocapture, checkout_bank, refund, void_payment, get_payment
-payment_methods: Ach, Card
-flows: authorize, capture, create_access_token, get, refund, void
-examples_python: examples/jpmorgan/python/jpmorgan.py
-
-## Loonio
-connector_id: loonio
-doc: docs/connectors/loonio.md
-scenarios: none
-payment_methods: none
-flows: get
-examples_python: none
-
-## MiFinity
-connector_id: mifinity
-doc: docs/connectors/mifinity.md
-scenarios: none
-payment_methods: none
-flows: get
-examples_python: none
-
-## Mollie
-connector_id: mollie
-doc: docs/connectors/mollie.md
-scenarios: checkout_autocapture, refund, void_payment, get_payment
-payment_methods: Card
-flows: authorize, get, refund, void
-examples_python: examples/mollie/python/mollie.py
-
-## Multisafepay
-connector_id: multisafepay
-doc: docs/connectors/multisafepay.md
-scenarios: checkout_autocapture, checkout_wallet, refund, get_payment
-payment_methods: Card, GooglePay, GooglePayDecrypted, Ideal, PaypalRedirect
-flows: authorize, get, refund
-examples_python: examples/multisafepay/python/multisafepay.py
-
-## Nexinets
-connector_id: nexinets
-doc: docs/connectors/nexinets.md
-scenarios: checkout_autocapture, checkout_wallet, refund, get_payment
-payment_methods: ApplePay, Card, Ideal, PaypalRedirect
-flows: authorize, get, refund
-examples_python: examples/nexinets/python/nexinets.py
-
-## Nexixpay
-connector_id: nexixpay
-doc: docs/connectors/nexixpay.md
-scenarios: none
-payment_methods: none
-flows: capture, get, pre_authenticate, refund, void
-examples_python: none
-
-## Nmi
-connector_id: nmi
-doc: docs/connectors/nmi.md
-scenarios: checkout_card, checkout_autocapture, checkout_bank, refund, void_payment, get_payment
-payment_methods: Ach, Card
-flows: authorize, capture, get, refund, void
-examples_python: examples/nmi/python/nmi.py
-
-## Noon
-connector_id: noon
-doc: docs/connectors/noon.md
-scenarios: checkout_card, checkout_autocapture, checkout_wallet, refund, void_payment, get_payment
-payment_methods: Card, GooglePay, GooglePayDecrypted, PaypalRedirect
-flows: authorize, capture, get, recurring_charge, refund, void
-examples_python: examples/noon/python/noon.py
-
-## Novalnet
-connector_id: novalnet
-doc: docs/connectors/novalnet.md
-scenarios: checkout_card, checkout_autocapture, checkout_wallet, checkout_bank, refund, recurring, void_payment, get_payment
-payment_methods: Ach, ApplePay, Card, GooglePay, PaypalRedirect, Sepa
-flows: authorize, capture, get, recurring_charge, refund, setup_recurring, void
-examples_python: examples/novalnet/python/novalnet.py
-
-## Nuvei
-connector_id: nuvei
-doc: docs/connectors/nuvei.md
-scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment
-payment_methods: Card
-flows: authorize, capture, create_session_token, get, refund, void
-examples_python: examples/nuvei/python/nuvei.py
-
-## Paybox
-connector_id: paybox
-doc: docs/connectors/paybox.md
-scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment
-payment_methods: Card
-flows: authorize, capture, get, refund, void
-examples_python: examples/paybox/python/paybox.py
-
-## Payload
-connector_id: payload
-doc: docs/connectors/payload.md
-scenarios: none
-payment_methods: none
-flows: capture, get, recurring_charge, refund, void
-examples_python: none
-
-## Payme
-connector_id: payme
-doc: docs/connectors/payme.md
-scenarios: none
-payment_methods: none
-flows: capture, create_order, get, refund, void
-examples_python: none
-
-## Paypal
-connector_id: paypal
-doc: docs/connectors/paypal.md
-scenarios: checkout_card, checkout_autocapture, refund, recurring, void_payment, get_payment
-payment_methods: Card, Ideal, PaypalRedirect
-flows: authorize, capture, create_access_token, get, recurring_charge, refund, setup_recurring, void
-examples_python: examples/paypal/python/paypal.py
-
-## Paysafe
-connector_id: paysafe
-doc: docs/connectors/paysafe.md
-scenarios: checkout_card, checkout_autocapture, checkout_wallet, checkout_bank, refund, void_payment, get_payment, tokenize
-payment_methods: Ach, Affirm, Afterpay, ApplePay, ApplePayDecrypted, Bacs, Becs, Blik, Card, GooglePay, GooglePayDecrypted, Ideal, Klarna, PaypalRedirect, SamsungPay, Sepa, UpiCollect
-flows: authorize, capture, get, refund, tokenize, void
-examples_python: examples/paysafe/python/paysafe.py
-
-## Paytm
-connector_id: paytm
-doc: docs/connectors/paytm.md
-scenarios: none
-payment_methods: UpiCollect
-flows: authorize, create_session_token, get
-examples_python: none
-
-## PayU
-connector_id: payu
-doc: docs/connectors/payu.md
-scenarios: none
-payment_methods: UpiCollect
-flows: authorize, get
-examples_python: none
-
-## PhonePe
-connector_id: phonepe
-doc: docs/connectors/phonepe.md
-scenarios: none
-payment_methods: UpiCollect
-flows: authorize, get
-examples_python: none
-
-## PlacetoPay
-connector_id: placetopay
-doc: docs/connectors/placetopay.md
-scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment
-payment_methods: Card
-flows: authorize, capture, get, refund, void
-examples_python: examples/placetopay/python/placetopay.py
-
-## Powertranz
-connector_id: powertranz
-doc: docs/connectors/powertranz.md
-scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment
-payment_methods: Card
-flows: authorize, capture, get, refund, void
-examples_python: examples/powertranz/python/powertranz.py
-
-## Rapyd
-connector_id: rapyd
-doc: docs/connectors/rapyd.md
-scenarios: checkout_card, checkout_autocapture, checkout_wallet, refund, void_payment, get_payment
-payment_methods: ApplePay, Card, GooglePay, PaypalRedirect, SamsungPay
-flows: authorize, capture, get, refund, void
-examples_python: examples/rapyd/python/rapyd.py
-
-## Razorpay
-connector_id: razorpay
-doc: docs/connectors/razorpay.md
-scenarios: checkout_card, checkout_autocapture, refund, get_payment
-payment_methods: Card, UpiCollect
-flows: authorize, capture, create_order, get, refund
-examples_python: examples/razorpay/python/razorpay.py
-
-## Razorpay V2
-connector_id: razorpayv2
-doc: docs/connectors/razorpayv2.md
-scenarios: checkout_autocapture, checkout_wallet, checkout_bank, refund, get_payment
-payment_methods: Ach, Affirm, Afterpay, ApplePay, ApplePayDecrypted, Bacs, Becs, Blik, Card, GooglePay, GooglePayDecrypted, Ideal, Klarna, PaypalRedirect, SamsungPay, Sepa, UpiCollect
-flows: authorize, create_order, get, refund
-examples_python: examples/razorpayv2/python/razorpayv2.py
-
-## Redsys
-connector_id: redsys
-doc: docs/connectors/redsys.md
-scenarios: none
-payment_methods: none
-flows: capture, get, pre_authenticate, refund, void
-examples_python: none
-
-## Revolut
-connector_id: revolut
-doc: docs/connectors/revolut.md
-scenarios: checkout_card, checkout_autocapture, checkout_wallet, checkout_bank, refund, get_payment
-payment_methods: Ach, Affirm, Afterpay, ApplePay, ApplePayDecrypted, Bacs, Becs, Blik, Card, GooglePay, GooglePayDecrypted, Ideal, Klarna, PaypalRedirect, SamsungPay, Sepa, UpiCollect
-flows: authorize, capture, get, refund
-examples_python: examples/revolut/python/revolut.py
-
-## Revolv3
-connector_id: revolv3
-doc: docs/connectors/revolv3.md
-scenarios: checkout_card, checkout_autocapture, refund, void_payment
-payment_methods: Card
-flows: authorize, capture, refund, setup_recurring, void
-examples_python: examples/revolv3/python/revolv3.py
-
-## Shift4
-connector_id: shift4
-doc: docs/connectors/shift4.md
-scenarios: checkout_card, checkout_autocapture, refund, get_payment
-payment_methods: Card, Ideal
-flows: authorize, capture, get, refund
-examples_python: examples/shift4/python/shift4.py
-
-## Silverflow
-connector_id: silverflow
-doc: docs/connectors/silverflow.md
-scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment
-payment_methods: Card
-flows: authorize, capture, get, refund, void
-examples_python: examples/silverflow/python/silverflow.py
-
-## Stax
-connector_id: stax
-doc: docs/connectors/stax.md
-scenarios: checkout_card, checkout_autocapture, checkout_bank, refund, void_payment, get_payment, create_customer, tokenize
-payment_methods: Ach, Bacs, Becs, Card, Sepa
-flows: authorize, capture, create_customer, get, refund, tokenize, void
-examples_python: examples/stax/python/stax.py
-
-## Stripe
-connector_id: stripe
-doc: docs/connectors/stripe.md
-scenarios: checkout_card, checkout_autocapture, checkout_wallet, checkout_bank, refund, recurring, void_payment, get_payment, create_customer, tokenize
-payment_methods: Ach, Affirm, Afterpay, ApplePay, ApplePayDecrypted, Bacs, Becs, Blik, Card, GooglePay, Ideal, Klarna, Sepa
-flows: authorize, capture, create_customer, get, recurring_charge, refund, setup_recurring, tokenize, void
-examples_python: examples/stripe/python/stripe.py
-
-## Truelayer
-connector_id: truelayer
-doc: docs/connectors/truelayer.md
-scenarios: none
-payment_methods: none
-flows: create_access_token, get
-examples_python: none
-
-## TrustPay
-connector_id: trustpay
-doc: docs/connectors/trustpay.md
-scenarios: checkout_autocapture, refund, get_payment
-payment_methods: Blik, Card, Ideal
-flows: authorize, create_access_token, create_order, get, refund
-examples_python: examples/trustpay/python/trustpay.py
-
-## Trustpayments
-connector_id: trustpayments
-doc: docs/connectors/trustpayments.md
-scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment
-payment_methods: Card
-flows: authorize, capture, get, refund, void
-examples_python: examples/trustpayments/python/trustpayments.py
-
-## Tsys
-connector_id: tsys
-doc: docs/connectors/tsys.md
-scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment
-payment_methods: Card
-flows: authorize, capture, get, refund, void
-examples_python: examples/tsys/python/tsys.py
-
-## Volt
-connector_id: volt
-doc: docs/connectors/volt.md
-scenarios: none
-payment_methods: none
-flows: create_access_token, get, refund
-examples_python: none
-
-## Wellsfargo
-connector_id: wellsfargo
-doc: docs/connectors/wellsfargo.md
-scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment
-payment_methods: Card
-flows: authorize, capture, get, refund, setup_recurring, void
-examples_python: examples/wellsfargo/python/wellsfargo.py
-
-## Worldpay
-connector_id: worldpay
-doc: docs/connectors/worldpay.md
-scenarios: checkout_card, checkout_autocapture, checkout_wallet, refund, void_payment, get_payment
-payment_methods: ApplePay, Card, GooglePay
-flows: authorize, capture, get, recurring_charge, refund, void
-examples_python: examples/worldpay/python/worldpay.py
-
-## Worldpayvantiv
-connector_id: worldpayvantiv
-doc: docs/connectors/worldpayvantiv.md
-scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment
-payment_methods: Card
-flows: authorize, capture, get, refund, reverse, void
-examples_python: examples/worldpayvantiv/python/worldpayvantiv.py
-
-## Worldpayxml
-connector_id: worldpayxml
-doc: docs/connectors/worldpayxml.md
-scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment
-payment_methods: Card
-flows: authorize, capture, get, refund, void
-examples_python: examples/worldpayxml/python/worldpayxml.py
-
-## Xendit
-connector_id: xendit
-doc: docs/connectors/xendit.md
-scenarios: checkout_card, checkout_autocapture, refund, get_payment
-payment_methods: Card
-flows: authorize, capture, get, refund
-examples_python: examples/xendit/python/xendit.py
-
-## Zift
-connector_id: zift
-doc: docs/connectors/zift.md
-scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment
-payment_methods: Card
-flows: authorize, capture, get, refund, setup_recurring, void
-examples_python: examples/zift/python/zift.py
+
+connector: aci
+  display_name: ACI
+  doc: docs-generated/connectors/aci.md
+  examples:
+    python: examples/aci/python/aci.py
+    javascript: examples/aci/javascript/aci.js
+    kotlin: examples/aci/kotlin/aci.kt
+    rust: examples/aci/rust/aci.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, refund_payment, setup_recurring, recurring_charge, void_authorization, get_payment_status, partial_refund, multi_capture, incremental_authorization, checkout_3ds, checkout_bnpl
+
+connector: adyen
+  display_name: Adyen
+  doc: docs-generated/connectors/adyen.md
+  examples:
+    python: examples/adyen/python/adyen.py
+    javascript: examples/adyen/javascript/adyen.js
+    kotlin: examples/adyen/kotlin/adyen.kt
+    rust: examples/adyen/rust/adyen.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, checkout_bank, checkout_wallet, refund_payment, setup_recurring, recurring_charge, void_authorization, partial_refund, multi_capture, incremental_authorization, checkout_3ds, checkout_bnpl, checkout_voucher
+
+connector: airwallex
+  display_name: Airwallex
+  doc: docs-generated/connectors/airwallex.md
+  examples:
+    python: examples/airwallex/python/airwallex.py
+    javascript: examples/airwallex/javascript/airwallex.js
+    kotlin: examples/airwallex/kotlin/airwallex.kt
+    rust: examples/airwallex/rust/airwallex.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, refund_payment, void_authorization, get_payment_status, partial_refund, multi_capture, incremental_authorization, checkout_3ds
+
+connector: authipay
+  display_name: Authipay
+  doc: docs-generated/connectors/authipay.md
+  examples:
+    python: examples/authipay/python/authipay.py
+    javascript: examples/authipay/javascript/authipay.js
+    kotlin: examples/authipay/kotlin/authipay.kt
+    rust: examples/authipay/rust/authipay.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, refund_payment, void_authorization, get_payment_status, partial_refund, multi_capture, incremental_authorization, checkout_3ds
+
+connector: authorizedotnet
+  display_name: Authorize.net
+  doc: docs-generated/connectors/authorizedotnet.md
+  examples:
+    python: examples/authorizedotnet/python/authorizedotnet.py
+    javascript: examples/authorizedotnet/javascript/authorizedotnet.js
+    kotlin: examples/authorizedotnet/kotlin/authorizedotnet.kt
+    rust: examples/authorizedotnet/rust/authorizedotnet.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, checkout_bank, refund_payment, setup_recurring, recurring_charge, void_authorization, get_payment_status, partial_refund, multi_capture, incremental_authorization, checkout_3ds
+
+connector: bambora
+  display_name: Bambora
+  doc: docs-generated/connectors/bambora.md
+  examples:
+    python: examples/bambora/python/bambora.py
+    javascript: examples/bambora/javascript/bambora.js
+    kotlin: examples/bambora/kotlin/bambora.kt
+    rust: examples/bambora/rust/bambora.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, refund_payment, void_authorization, get_payment_status, partial_refund, multi_capture, incremental_authorization, checkout_3ds
+
+connector: bamboraapac
+  display_name: Bamboraapac
+  doc: docs-generated/connectors/bamboraapac.md
+  examples:
+    python: examples/bamboraapac/python/bamboraapac.py
+    javascript: examples/bamboraapac/javascript/bamboraapac.js
+    kotlin: examples/bamboraapac/kotlin/bamboraapac.kt
+    rust: examples/bamboraapac/rust/bamboraapac.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, refund_payment, setup_recurring, recurring_charge, get_payment_status, partial_refund, multi_capture, incremental_authorization, checkout_3ds
+
+connector: bankofamerica
+  display_name: Bankofamerica
+  doc: docs-generated/connectors/bankofamerica.md
+  examples:
+    python: examples/bankofamerica/python/bankofamerica.py
+    javascript: examples/bankofamerica/javascript/bankofamerica.js
+    kotlin: examples/bankofamerica/kotlin/bankofamerica.kt
+    rust: examples/bankofamerica/rust/bankofamerica.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, refund_payment, setup_recurring, void_authorization, get_payment_status, partial_refund, multi_capture, incremental_authorization, checkout_3ds
+
+connector: barclaycard
+  display_name: Barclaycard
+  doc: docs-generated/connectors/barclaycard.md
+  examples:
+    python: examples/barclaycard/python/barclaycard.py
+    javascript: examples/barclaycard/javascript/barclaycard.js
+    kotlin: examples/barclaycard/kotlin/barclaycard.kt
+    rust: examples/barclaycard/rust/barclaycard.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, refund_payment, void_authorization, get_payment_status, partial_refund, multi_capture, incremental_authorization, checkout_3ds
+
+connector: billwerk
+  display_name: Billwerk
+  doc: docs-generated/connectors/billwerk.md
+  examples:
+    python: examples/billwerk/python/billwerk.py
+    javascript: examples/billwerk/javascript/billwerk.js
+    kotlin: examples/billwerk/kotlin/billwerk.kt
+    rust: examples/billwerk/rust/billwerk.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, checkout_bank, checkout_wallet, refund_payment, tokenize_payment_method, void_authorization, get_payment_status, partial_refund, multi_capture, incremental_authorization, checkout_3ds, checkout_bnpl, checkout_voucher
+
+connector: bluesnap
+  display_name: Bluesnap
+  doc: docs-generated/connectors/bluesnap.md
+  examples:
+    python: examples/bluesnap/python/bluesnap.py
+    javascript: examples/bluesnap/javascript/bluesnap.js
+    kotlin: examples/bluesnap/kotlin/bluesnap.kt
+    rust: examples/bluesnap/rust/bluesnap.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, checkout_bank, checkout_wallet, refund_payment, void_authorization, get_payment_status, partial_refund, multi_capture, incremental_authorization, checkout_3ds
+
+connector: braintree
+  display_name: Braintree
+  doc: docs-generated/connectors/braintree.md
+  examples:
+    python: examples/braintree/python/braintree.py
+    javascript: examples/braintree/javascript/braintree.js
+    kotlin: examples/braintree/kotlin/braintree.kt
+    rust: examples/braintree/rust/braintree.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, checkout_wallet, tokenize_payment_method, void_authorization, get_payment_status, multi_capture, incremental_authorization, checkout_3ds
+
+connector: calida
+  display_name: Calida
+  doc: docs-generated/connectors/calida.md
+  examples:
+    python: examples/calida/python/calida.py
+    javascript: examples/calida/javascript/calida.js
+    kotlin: examples/calida/kotlin/calida.kt
+    rust: examples/calida/rust/calida.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: get_payment_status
+
+connector: cashfree
+  display_name: Cashfree
+  doc: docs-generated/connectors/cashfree.md
+  examples:
+    python: examples/cashfree/python/cashfree.py
+    javascript: examples/cashfree/javascript/cashfree.js
+    kotlin: examples/cashfree/kotlin/cashfree.kt
+    rust: examples/cashfree/rust/cashfree.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: 
+
+connector: cashtocode
+  display_name: CashtoCode
+  doc: docs-generated/connectors/cashtocode.md
+  examples:
+    python: examples/cashtocode/python/cashtocode.py
+    javascript: examples/cashtocode/javascript/cashtocode.js
+    kotlin: examples/cashtocode/kotlin/cashtocode.kt
+    rust: examples/cashtocode/rust/cashtocode.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: 
+
+connector: celero
+  display_name: Celero
+  doc: docs-generated/connectors/celero.md
+  examples:
+    python: examples/celero/python/celero.py
+    javascript: examples/celero/javascript/celero.js
+    kotlin: examples/celero/kotlin/celero.kt
+    rust: examples/celero/rust/celero.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, refund_payment, void_authorization, get_payment_status, partial_refund, multi_capture, incremental_authorization, checkout_3ds
+
+connector: checkout
+  display_name: Checkout.com
+  doc: docs-generated/connectors/checkout.md
+  examples:
+    python: examples/checkout/python/checkout.py
+    javascript: examples/checkout/javascript/checkout.js
+    kotlin: examples/checkout/kotlin/checkout.kt
+    rust: examples/checkout/rust/checkout.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, checkout_bank, refund_payment, setup_recurring, recurring_charge, void_authorization, get_payment_status, partial_refund, multi_capture, incremental_authorization, checkout_3ds
+
+connector: cryptopay
+  display_name: CryptoPay
+  doc: docs-generated/connectors/cryptopay.md
+  examples:
+    python: examples/cryptopay/python/cryptopay.py
+    javascript: examples/cryptopay/javascript/cryptopay.js
+    kotlin: examples/cryptopay/kotlin/cryptopay.kt
+    rust: examples/cryptopay/rust/cryptopay.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: get_payment_status
+
+connector: cybersource
+  display_name: CyberSource
+  doc: docs-generated/connectors/cybersource.md
+  examples:
+    python: examples/cybersource/python/cybersource.py
+    javascript: examples/cybersource/javascript/cybersource.js
+    kotlin: examples/cybersource/kotlin/cybersource.kt
+    rust: examples/cybersource/rust/cybersource.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, checkout_wallet, refund_payment, setup_recurring, recurring_charge, void_authorization, get_payment_status, partial_refund, multi_capture, incremental_authorization, checkout_3ds
+
+connector: datatrans
+  display_name: Datatrans
+  doc: docs-generated/connectors/datatrans.md
+  examples:
+    python: examples/datatrans/python/datatrans.py
+    javascript: examples/datatrans/javascript/datatrans.js
+    kotlin: examples/datatrans/kotlin/datatrans.kt
+    rust: examples/datatrans/rust/datatrans.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, refund_payment, void_authorization, get_payment_status, partial_refund, multi_capture, incremental_authorization, checkout_3ds
+
+connector: dlocal
+  display_name: dLocal
+  doc: docs-generated/connectors/dlocal.md
+  examples:
+    python: examples/dlocal/python/dlocal.py
+    javascript: examples/dlocal/javascript/dlocal.js
+    kotlin: examples/dlocal/kotlin/dlocal.kt
+    rust: examples/dlocal/rust/dlocal.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, refund_payment, void_authorization, get_payment_status, partial_refund, multi_capture, incremental_authorization, checkout_3ds
+
+connector: elavon
+  display_name: Elavon
+  doc: docs-generated/connectors/elavon.md
+  examples:
+    python: examples/elavon/python/elavon.py
+    javascript: examples/elavon/javascript/elavon.js
+    kotlin: examples/elavon/kotlin/elavon.kt
+    rust: examples/elavon/rust/elavon.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, refund_payment, get_payment_status, partial_refund, multi_capture, incremental_authorization, checkout_3ds
+
+connector: finix
+  display_name: Finix
+  doc: docs-generated/connectors/finix.md
+  examples:
+    python: examples/finix/python/finix.py
+    javascript: examples/finix/javascript/finix.js
+    kotlin: examples/finix/kotlin/finix.kt
+    rust: examples/finix/rust/finix.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, checkout_bank, checkout_wallet, refund_payment, tokenize_payment_method, void_authorization, get_payment_status, partial_refund, multi_capture, incremental_authorization, checkout_3ds, checkout_bnpl, checkout_voucher
+
+connector: fiserv
+  display_name: Fiserv
+  doc: docs-generated/connectors/fiserv.md
+  examples:
+    python: examples/fiserv/python/fiserv.py
+    javascript: examples/fiserv/javascript/fiserv.js
+    kotlin: examples/fiserv/kotlin/fiserv.kt
+    rust: examples/fiserv/rust/fiserv.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, refund_payment, void_authorization, get_payment_status, partial_refund, multi_capture, incremental_authorization, checkout_3ds
+
+connector: fiservcommercehub
+  display_name: Fiservcommercehub
+  doc: docs-generated/connectors/fiservcommercehub.md
+  examples:
+    python: examples/fiservcommercehub/python/fiservcommercehub.py
+    javascript: examples/fiservcommercehub/javascript/fiservcommercehub.js
+    kotlin: examples/fiservcommercehub/kotlin/fiservcommercehub.kt
+    rust: examples/fiservcommercehub/rust/fiservcommercehub.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: refund_payment, void_authorization, get_payment_status
+
+connector: fiservemea
+  display_name: Fiservemea
+  doc: docs-generated/connectors/fiservemea.md
+  examples:
+    python: examples/fiservemea/python/fiservemea.py
+    javascript: examples/fiservemea/javascript/fiservemea.js
+    kotlin: examples/fiservemea/kotlin/fiservemea.kt
+    rust: examples/fiservemea/rust/fiservemea.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, refund_payment, void_authorization, get_payment_status, partial_refund, multi_capture, incremental_authorization, checkout_3ds
+
+connector: fiuu
+  display_name: Fiuu
+  doc: docs-generated/connectors/fiuu.md
+  examples:
+    python: examples/fiuu/python/fiuu.py
+    javascript: examples/fiuu/javascript/fiuu.js
+    kotlin: examples/fiuu/kotlin/fiuu.kt
+    rust: examples/fiuu/rust/fiuu.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, checkout_wallet, refund_payment, recurring_charge, void_authorization, get_payment_status, partial_refund, multi_capture, incremental_authorization, checkout_3ds
+
+connector: forte
+  display_name: Forte
+  doc: docs-generated/connectors/forte.md
+  examples:
+    python: examples/forte/python/forte.py
+    javascript: examples/forte/javascript/forte.js
+    kotlin: examples/forte/kotlin/forte.kt
+    rust: examples/forte/rust/forte.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, checkout_bank, void_authorization, get_payment_status, incremental_authorization, checkout_3ds
+
+connector: getnet
+  display_name: Getnet
+  doc: docs-generated/connectors/getnet.md
+  examples:
+    python: examples/getnet/python/getnet.py
+    javascript: examples/getnet/javascript/getnet.js
+    kotlin: examples/getnet/kotlin/getnet.kt
+    rust: examples/getnet/rust/getnet.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, refund_payment, void_authorization, get_payment_status, partial_refund, multi_capture, incremental_authorization, checkout_3ds
+
+connector: gigadat
+  display_name: Gigadat
+  doc: docs-generated/connectors/gigadat.md
+  examples:
+    python: examples/gigadat/python/gigadat.py
+    javascript: examples/gigadat/javascript/gigadat.js
+    kotlin: examples/gigadat/kotlin/gigadat.kt
+    rust: examples/gigadat/rust/gigadat.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: refund_payment, get_payment_status
+
+connector: globalpay
+  display_name: Globalpay
+  doc: docs-generated/connectors/globalpay.md
+  examples:
+    python: examples/globalpay/python/globalpay.py
+    javascript: examples/globalpay/javascript/globalpay.js
+    kotlin: examples/globalpay/kotlin/globalpay.kt
+    rust: examples/globalpay/rust/globalpay.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, refund_payment, void_authorization, get_payment_status, partial_refund, multi_capture, incremental_authorization, checkout_3ds
+
+connector: helcim
+  display_name: Helcim
+  doc: docs-generated/connectors/helcim.md
+  examples:
+    python: examples/helcim/python/helcim.py
+    javascript: examples/helcim/javascript/helcim.js
+    kotlin: examples/helcim/kotlin/helcim.kt
+    rust: examples/helcim/rust/helcim.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, refund_payment, void_authorization, get_payment_status, partial_refund, multi_capture, incremental_authorization, checkout_3ds
+
+connector: hipay
+  display_name: Hipay
+  doc: docs-generated/connectors/hipay.md
+  examples:
+    python: examples/hipay/python/hipay.py
+    javascript: examples/hipay/javascript/hipay.js
+    kotlin: examples/hipay/kotlin/hipay.kt
+    rust: examples/hipay/rust/hipay.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, refund_payment, tokenize_payment_method, void_authorization, get_payment_status, partial_refund, multi_capture, incremental_authorization, checkout_3ds
+
+connector: hyperpg
+  display_name: Hyperpg
+  doc: docs-generated/connectors/hyperpg.md
+  examples:
+    python: examples/hyperpg/python/hyperpg.py
+    javascript: examples/hyperpg/javascript/hyperpg.js
+    kotlin: examples/hyperpg/kotlin/hyperpg.kt
+    rust: examples/hyperpg/rust/hyperpg.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, refund_payment, get_payment_status, partial_refund, incremental_authorization, checkout_3ds
+
+connector: iatapay
+  display_name: Iatapay
+  doc: docs-generated/connectors/iatapay.md
+  examples:
+    python: examples/iatapay/python/iatapay.py
+    javascript: examples/iatapay/javascript/iatapay.js
+    kotlin: examples/iatapay/kotlin/iatapay.kt
+    rust: examples/iatapay/rust/iatapay.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: refund_payment, get_payment_status
+
+connector: itaubank
+  display_name: Itaubank
+  doc: docs-generated/connectors/itaubank.md
+  examples:
+    python: examples/itaubank/python/itaubank.py
+    javascript: examples/itaubank/javascript/itaubank.js
+    kotlin: examples/itaubank/kotlin/itaubank.kt
+    rust: examples/itaubank/rust/itaubank.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: 
+
+connector: jpmorgan
+  display_name: Jpmorgan
+  doc: docs-generated/connectors/jpmorgan.md
+  examples:
+    python: examples/jpmorgan/python/jpmorgan.py
+    javascript: examples/jpmorgan/javascript/jpmorgan.js
+    kotlin: examples/jpmorgan/kotlin/jpmorgan.kt
+    rust: examples/jpmorgan/rust/jpmorgan.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, checkout_bank, refund_payment, void_authorization, get_payment_status, partial_refund, multi_capture, incremental_authorization, checkout_3ds
+
+connector: loonio
+  display_name: Loonio
+  doc: docs-generated/connectors/loonio.md
+  examples:
+    python: examples/loonio/python/loonio.py
+    javascript: examples/loonio/javascript/loonio.js
+    kotlin: examples/loonio/kotlin/loonio.kt
+    rust: examples/loonio/rust/loonio.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: get_payment_status
+
+connector: mifinity
+  display_name: MiFinity
+  doc: docs-generated/connectors/mifinity.md
+  examples:
+    python: examples/mifinity/python/mifinity.py
+    javascript: examples/mifinity/javascript/mifinity.js
+    kotlin: examples/mifinity/kotlin/mifinity.kt
+    rust: examples/mifinity/rust/mifinity.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: get_payment_status
+
+connector: mollie
+  display_name: Mollie
+  doc: docs-generated/connectors/mollie.md
+  examples:
+    python: examples/mollie/python/mollie.py
+    javascript: examples/mollie/javascript/mollie.js
+    kotlin: examples/mollie/kotlin/mollie.kt
+    rust: examples/mollie/rust/mollie.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, refund_payment, void_authorization, get_payment_status, partial_refund, incremental_authorization, checkout_3ds
+
+connector: multisafepay
+  display_name: Multisafepay
+  doc: docs-generated/connectors/multisafepay.md
+  examples:
+    python: examples/multisafepay/python/multisafepay.py
+    javascript: examples/multisafepay/javascript/multisafepay.js
+    kotlin: examples/multisafepay/kotlin/multisafepay.kt
+    rust: examples/multisafepay/rust/multisafepay.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, checkout_wallet, refund_payment, get_payment_status, partial_refund, incremental_authorization, checkout_3ds
+
+connector: nexinets
+  display_name: Nexinets
+  doc: docs-generated/connectors/nexinets.md
+  examples:
+    python: examples/nexinets/python/nexinets.py
+    javascript: examples/nexinets/javascript/nexinets.js
+    kotlin: examples/nexinets/kotlin/nexinets.kt
+    rust: examples/nexinets/rust/nexinets.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, checkout_wallet, refund_payment, get_payment_status, partial_refund, incremental_authorization, checkout_3ds
+
+connector: nexixpay
+  display_name: Nexixpay
+  doc: docs-generated/connectors/nexixpay.md
+  examples:
+    python: examples/nexixpay/python/nexixpay.py
+    javascript: examples/nexixpay/javascript/nexixpay.js
+    kotlin: examples/nexixpay/kotlin/nexixpay.kt
+    rust: examples/nexixpay/rust/nexixpay.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: refund_payment, void_authorization, get_payment_status
+
+connector: nmi
+  display_name: Nmi
+  doc: docs-generated/connectors/nmi.md
+  examples:
+    python: examples/nmi/python/nmi.py
+    javascript: examples/nmi/javascript/nmi.js
+    kotlin: examples/nmi/kotlin/nmi.kt
+    rust: examples/nmi/rust/nmi.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, checkout_bank, refund_payment, void_authorization, get_payment_status, partial_refund, multi_capture, incremental_authorization, checkout_3ds
+
+connector: noon
+  display_name: Noon
+  doc: docs-generated/connectors/noon.md
+  examples:
+    python: examples/noon/python/noon.py
+    javascript: examples/noon/javascript/noon.js
+    kotlin: examples/noon/kotlin/noon.kt
+    rust: examples/noon/rust/noon.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, checkout_wallet, refund_payment, recurring_charge, void_authorization, get_payment_status, partial_refund, multi_capture, incremental_authorization, checkout_3ds
+
+connector: novalnet
+  display_name: Novalnet
+  doc: docs-generated/connectors/novalnet.md
+  examples:
+    python: examples/novalnet/python/novalnet.py
+    javascript: examples/novalnet/javascript/novalnet.js
+    kotlin: examples/novalnet/kotlin/novalnet.kt
+    rust: examples/novalnet/rust/novalnet.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, checkout_bank, checkout_wallet, refund_payment, setup_recurring, recurring_charge, void_authorization, get_payment_status, partial_refund, multi_capture, incremental_authorization, checkout_3ds
+
+connector: nuvei
+  display_name: Nuvei
+  doc: docs-generated/connectors/nuvei.md
+  examples:
+    python: examples/nuvei/python/nuvei.py
+    javascript: examples/nuvei/javascript/nuvei.js
+    kotlin: examples/nuvei/kotlin/nuvei.kt
+    rust: examples/nuvei/rust/nuvei.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, refund_payment, void_authorization, get_payment_status, partial_refund, multi_capture, incremental_authorization, checkout_3ds
+
+connector: paybox
+  display_name: Paybox
+  doc: docs-generated/connectors/paybox.md
+  examples:
+    python: examples/paybox/python/paybox.py
+    javascript: examples/paybox/javascript/paybox.js
+    kotlin: examples/paybox/kotlin/paybox.kt
+    rust: examples/paybox/rust/paybox.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, refund_payment, void_authorization, get_payment_status, partial_refund, multi_capture, incremental_authorization, checkout_3ds
+
+connector: payload
+  display_name: Payload
+  doc: docs-generated/connectors/payload.md
+  examples:
+    python: examples/payload/python/payload.py
+    javascript: examples/payload/javascript/payload.js
+    kotlin: examples/payload/kotlin/payload.kt
+    rust: examples/payload/rust/payload.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: refund_payment, recurring_charge, void_authorization, get_payment_status
+
+connector: payme
+  display_name: Payme
+  doc: docs-generated/connectors/payme.md
+  examples:
+    python: examples/payme/python/payme.py
+    javascript: examples/payme/javascript/payme.js
+    kotlin: examples/payme/kotlin/payme.kt
+    rust: examples/payme/rust/payme.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: refund_payment, void_authorization, get_payment_status
+
+connector: paypal
+  display_name: Paypal
+  doc: docs-generated/connectors/paypal.md
+  examples:
+    python: examples/paypal/python/paypal.py
+    javascript: examples/paypal/javascript/paypal.js
+    kotlin: examples/paypal/kotlin/paypal.kt
+    rust: examples/paypal/rust/paypal.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, checkout_wallet, refund_payment, setup_recurring, recurring_charge, void_authorization, get_payment_status, partial_refund, multi_capture, incremental_authorization, checkout_3ds
+
+connector: paysafe
+  display_name: Paysafe
+  doc: docs-generated/connectors/paysafe.md
+  examples:
+    python: examples/paysafe/python/paysafe.py
+    javascript: examples/paysafe/javascript/paysafe.js
+    kotlin: examples/paysafe/kotlin/paysafe.kt
+    rust: examples/paysafe/rust/paysafe.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, checkout_bank, checkout_wallet, refund_payment, tokenize_payment_method, void_authorization, get_payment_status, partial_refund, multi_capture, incremental_authorization, checkout_3ds, checkout_bnpl, checkout_voucher
+
+connector: paytm
+  display_name: Paytm
+  doc: docs-generated/connectors/paytm.md
+  examples:
+    python: examples/paytm/python/paytm.py
+    javascript: examples/paytm/javascript/paytm.js
+    kotlin: examples/paytm/kotlin/paytm.kt
+    rust: examples/paytm/rust/paytm.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: get_payment_status
+
+connector: payu
+  display_name: PayU
+  doc: docs-generated/connectors/payu.md
+  examples:
+    python: examples/payu/python/payu.py
+    javascript: examples/payu/javascript/payu.js
+    kotlin: examples/payu/kotlin/payu.kt
+    rust: examples/payu/rust/payu.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: get_payment_status
+
+connector: peachpayments
+  display_name: Peachpayments
+  doc: docs-generated/connectors/peachpayments.md
+  examples:
+    python: examples/peachpayments/python/peachpayments.py
+    javascript: examples/peachpayments/javascript/peachpayments.js
+    kotlin: examples/peachpayments/kotlin/peachpayments.kt
+    rust: examples/peachpayments/rust/peachpayments.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, refund_payment, void_authorization, get_payment_status, partial_refund, multi_capture, incremental_authorization, checkout_3ds
+
+connector: phonepe
+  display_name: PhonePe
+  doc: docs-generated/connectors/phonepe.md
+  examples:
+    python: examples/phonepe/python/phonepe.py
+    javascript: examples/phonepe/javascript/phonepe.js
+    kotlin: examples/phonepe/kotlin/phonepe.kt
+    rust: examples/phonepe/rust/phonepe.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: get_payment_status
+
+connector: placetopay
+  display_name: PlacetoPay
+  doc: docs-generated/connectors/placetopay.md
+  examples:
+    python: examples/placetopay/python/placetopay.py
+    javascript: examples/placetopay/javascript/placetopay.js
+    kotlin: examples/placetopay/kotlin/placetopay.kt
+    rust: examples/placetopay/rust/placetopay.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, refund_payment, void_authorization, get_payment_status, partial_refund, multi_capture, incremental_authorization, checkout_3ds
+
+connector: powertranz
+  display_name: Powertranz
+  doc: docs-generated/connectors/powertranz.md
+  examples:
+    python: examples/powertranz/python/powertranz.py
+    javascript: examples/powertranz/javascript/powertranz.js
+    kotlin: examples/powertranz/kotlin/powertranz.kt
+    rust: examples/powertranz/rust/powertranz.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, refund_payment, void_authorization, get_payment_status, partial_refund, multi_capture, incremental_authorization, checkout_3ds
+
+connector: ppro
+  display_name: Ppro
+  doc: docs-generated/connectors/ppro.md
+  examples:
+    python: examples/ppro/python/ppro.py
+    javascript: examples/ppro/javascript/ppro.js
+    kotlin: examples/ppro/kotlin/ppro.kt
+    rust: examples/ppro/rust/ppro.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: refund_payment, recurring_charge, get_payment_status
+
+connector: rapyd
+  display_name: Rapyd
+  doc: docs-generated/connectors/rapyd.md
+  examples:
+    python: examples/rapyd/python/rapyd.py
+    javascript: examples/rapyd/javascript/rapyd.js
+    kotlin: examples/rapyd/kotlin/rapyd.kt
+    rust: examples/rapyd/rust/rapyd.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, checkout_wallet, refund_payment, void_authorization, get_payment_status, partial_refund, multi_capture, incremental_authorization, checkout_3ds
+
+connector: razorpay
+  display_name: Razorpay
+  doc: docs-generated/connectors/razorpay.md
+  examples:
+    python: examples/razorpay/python/razorpay.py
+    javascript: examples/razorpay/javascript/razorpay.js
+    kotlin: examples/razorpay/kotlin/razorpay.kt
+    rust: examples/razorpay/rust/razorpay.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, refund_payment, get_payment_status, partial_refund, multi_capture, incremental_authorization, checkout_3ds
+
+connector: razorpayv2
+  display_name: Razorpay V2
+  doc: docs-generated/connectors/razorpayv2.md
+  examples:
+    python: examples/razorpayv2/python/razorpayv2.py
+    javascript: examples/razorpayv2/javascript/razorpayv2.js
+    kotlin: examples/razorpayv2/kotlin/razorpayv2.kt
+    rust: examples/razorpayv2/rust/razorpayv2.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, checkout_bank, checkout_wallet, refund_payment, get_payment_status, partial_refund, incremental_authorization, checkout_3ds, checkout_bnpl, checkout_voucher
+
+connector: redsys
+  display_name: Redsys
+  doc: docs-generated/connectors/redsys.md
+  examples:
+    python: examples/redsys/python/redsys.py
+    javascript: examples/redsys/javascript/redsys.js
+    kotlin: examples/redsys/kotlin/redsys.kt
+    rust: examples/redsys/rust/redsys.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: refund_payment, void_authorization, get_payment_status
+
+connector: revolut
+  display_name: Revolut
+  doc: docs-generated/connectors/revolut.md
+  examples:
+    python: examples/revolut/python/revolut.py
+    javascript: examples/revolut/javascript/revolut.js
+    kotlin: examples/revolut/kotlin/revolut.kt
+    rust: examples/revolut/rust/revolut.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, checkout_bank, checkout_wallet, refund_payment, get_payment_status, partial_refund, multi_capture, incremental_authorization, checkout_3ds, checkout_bnpl, checkout_voucher
+
+connector: revolv3
+  display_name: Revolv3
+  doc: docs-generated/connectors/revolv3.md
+  examples:
+    python: examples/revolv3/python/revolv3.py
+    javascript: examples/revolv3/javascript/revolv3.js
+    kotlin: examples/revolv3/kotlin/revolv3.kt
+    rust: examples/revolv3/rust/revolv3.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, refund_payment, setup_recurring, void_authorization, partial_refund, multi_capture, incremental_authorization, checkout_3ds
+
+connector: shift4
+  display_name: Shift4
+  doc: docs-generated/connectors/shift4.md
+  examples:
+    python: examples/shift4/python/shift4.py
+    javascript: examples/shift4/javascript/shift4.js
+    kotlin: examples/shift4/kotlin/shift4.kt
+    rust: examples/shift4/rust/shift4.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, refund_payment, get_payment_status, partial_refund, multi_capture, incremental_authorization, checkout_3ds
+
+connector: silverflow
+  display_name: Silverflow
+  doc: docs-generated/connectors/silverflow.md
+  examples:
+    python: examples/silverflow/python/silverflow.py
+    javascript: examples/silverflow/javascript/silverflow.js
+    kotlin: examples/silverflow/kotlin/silverflow.kt
+    rust: examples/silverflow/rust/silverflow.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, refund_payment, void_authorization, get_payment_status, partial_refund, multi_capture, incremental_authorization, checkout_3ds
+
+connector: stax
+  display_name: Stax
+  doc: docs-generated/connectors/stax.md
+  examples:
+    python: examples/stax/python/stax.py
+    javascript: examples/stax/javascript/stax.js
+    kotlin: examples/stax/kotlin/stax.kt
+    rust: examples/stax/rust/stax.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, checkout_bank, refund_payment, tokenize_payment_method, void_authorization, get_payment_status, partial_refund, multi_capture, incremental_authorization, checkout_3ds
+
+connector: stripe
+  display_name: Stripe
+  doc: docs-generated/connectors/stripe.md
+  examples:
+    python: examples/stripe/python/stripe.py
+    javascript: examples/stripe/javascript/stripe.js
+    kotlin: examples/stripe/kotlin/stripe.kt
+    rust: examples/stripe/rust/stripe.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, checkout_bank, checkout_wallet, refund_payment, setup_recurring, recurring_charge, tokenize_payment_method, void_authorization, get_payment_status, partial_refund, multi_capture, incremental_authorization, checkout_3ds, checkout_bnpl
+
+connector: truelayer
+  display_name: Truelayer
+  doc: docs-generated/connectors/truelayer.md
+  examples:
+    python: examples/truelayer/python/truelayer.py
+    javascript: examples/truelayer/javascript/truelayer.js
+    kotlin: examples/truelayer/kotlin/truelayer.kt
+    rust: examples/truelayer/rust/truelayer.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: get_payment_status
+
+connector: trustpay
+  display_name: TrustPay
+  doc: docs-generated/connectors/trustpay.md
+  examples:
+    python: examples/trustpay/python/trustpay.py
+    javascript: examples/trustpay/javascript/trustpay.js
+    kotlin: examples/trustpay/kotlin/trustpay.kt
+    rust: examples/trustpay/rust/trustpay.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, refund_payment, get_payment_status, partial_refund, incremental_authorization, checkout_3ds
+
+connector: trustpayments
+  display_name: Trustpayments
+  doc: docs-generated/connectors/trustpayments.md
+  examples:
+    python: examples/trustpayments/python/trustpayments.py
+    javascript: examples/trustpayments/javascript/trustpayments.js
+    kotlin: examples/trustpayments/kotlin/trustpayments.kt
+    rust: examples/trustpayments/rust/trustpayments.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, refund_payment, void_authorization, get_payment_status, partial_refund, multi_capture, incremental_authorization, checkout_3ds
+
+connector: tsys
+  display_name: Tsys
+  doc: docs-generated/connectors/tsys.md
+  examples:
+    python: examples/tsys/python/tsys.py
+    javascript: examples/tsys/javascript/tsys.js
+    kotlin: examples/tsys/kotlin/tsys.kt
+    rust: examples/tsys/rust/tsys.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, refund_payment, void_authorization, get_payment_status, partial_refund, multi_capture, incremental_authorization, checkout_3ds
+
+connector: volt
+  display_name: Volt
+  doc: docs-generated/connectors/volt.md
+  examples:
+    python: examples/volt/python/volt.py
+    javascript: examples/volt/javascript/volt.js
+    kotlin: examples/volt/kotlin/volt.kt
+    rust: examples/volt/rust/volt.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: refund_payment, get_payment_status
+
+connector: wellsfargo
+  display_name: Wellsfargo
+  doc: docs-generated/connectors/wellsfargo.md
+  examples:
+    python: examples/wellsfargo/python/wellsfargo.py
+    javascript: examples/wellsfargo/javascript/wellsfargo.js
+    kotlin: examples/wellsfargo/kotlin/wellsfargo.kt
+    rust: examples/wellsfargo/rust/wellsfargo.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, refund_payment, setup_recurring, void_authorization, get_payment_status, partial_refund, multi_capture, incremental_authorization, checkout_3ds
+
+connector: worldpay
+  display_name: Worldpay
+  doc: docs-generated/connectors/worldpay.md
+  examples:
+    python: examples/worldpay/python/worldpay.py
+    javascript: examples/worldpay/javascript/worldpay.js
+    kotlin: examples/worldpay/kotlin/worldpay.kt
+    rust: examples/worldpay/rust/worldpay.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, checkout_wallet, refund_payment, recurring_charge, void_authorization, get_payment_status, partial_refund, multi_capture, incremental_authorization, checkout_3ds
+
+connector: worldpayvantiv
+  display_name: Worldpayvantiv
+  doc: docs-generated/connectors/worldpayvantiv.md
+  examples:
+    python: examples/worldpayvantiv/python/worldpayvantiv.py
+    javascript: examples/worldpayvantiv/javascript/worldpayvantiv.js
+    kotlin: examples/worldpayvantiv/kotlin/worldpayvantiv.kt
+    rust: examples/worldpayvantiv/rust/worldpayvantiv.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, refund_payment, void_authorization, get_payment_status, partial_refund, multi_capture, incremental_authorization, checkout_3ds
+
+connector: worldpayxml
+  display_name: Worldpayxml
+  doc: docs-generated/connectors/worldpayxml.md
+  examples:
+    python: examples/worldpayxml/python/worldpayxml.py
+    javascript: examples/worldpayxml/javascript/worldpayxml.js
+    kotlin: examples/worldpayxml/kotlin/worldpayxml.kt
+    rust: examples/worldpayxml/rust/worldpayxml.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, refund_payment, void_authorization, get_payment_status, partial_refund, multi_capture, incremental_authorization, checkout_3ds
+
+connector: xendit
+  display_name: Xendit
+  doc: docs-generated/connectors/xendit.md
+  examples:
+    python: examples/xendit/python/xendit.py
+    javascript: examples/xendit/javascript/xendit.js
+    kotlin: examples/xendit/kotlin/xendit.kt
+    rust: examples/xendit/rust/xendit.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, refund_payment, get_payment_status, partial_refund, multi_capture, incremental_authorization, checkout_3ds
+
+connector: zift
+  display_name: Zift
+  doc: docs-generated/connectors/zift.md
+  examples:
+    python: examples/zift/python/zift.py
+    javascript: examples/zift/javascript/zift.js
+    kotlin: examples/zift/kotlin/zift.kt
+    rust: examples/zift/rust/zift.rs
+  flows: authenticate, authorize, capture, create_access_token, create_customer, create_order, create_session_token, dispute_accept, dispute_defend, dispute_submit_evidence...
+  scenarios: checkout_card, refund_payment, setup_recurring, void_authorization, get_payment_status, partial_refund, multi_capture, incremental_authorization, checkout_3ds

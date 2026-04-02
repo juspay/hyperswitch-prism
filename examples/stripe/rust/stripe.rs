@@ -1,601 +1,315 @@
-// This file is auto-generated. Do not edit manually.
-// Replace YOUR_API_KEY and placeholder values with real data.
-// Regenerate: python3 scripts/generate-connector-docs.py stripe
-//
-// Stripe — all scenarios and flows in one file.
-// Run a scenario:  cargo run --example stripe -- process_checkout_card
+// stripe SDK Examples
 
-use grpc_api_types::payments::*;
-use hyperswitch_payments_client::ConnectorClient;
-use std::collections::HashMap;
+use serde_json::json;
 
-#[allow(dead_code)]
-fn build_client() -> ConnectorClient {
-    // Set connector_config to authenticate: use ConnectorSpecificConfig with your StripeConfig
-    let config = ConnectorConfig {
-        connector_config: None, // TODO: Some(ConnectorSpecificConfig { config: Some(...) })
-        options: Some(SdkOptions {
-            environment: Environment::Sandbox.into(),
-        }),
-    };
-    ConnectorClient::new(config, None).unwrap()
-}
-
-pub fn build_authorize_request(capture_method: &str) -> PaymentServiceAuthorizeRequest {
-    serde_json::from_value::<PaymentServiceAuthorizeRequest>(serde_json::json!({
-    "merchant_transaction_id": "probe_txn_001",  // Identification
-    "amount": {  // The amount for the payment
-        "minor_amount": 1000,  // Amount in minor units (e.g., 1000 = $10.00)
-        "currency": "USD",  // ISO 4217 currency code (e.g., "USD", "EUR")
-    },
-    "payment_method": {  // Payment method to be used
-        "payment_method": {
-            "card": {  // Generic card payment
-                "card_number": "4111111111111111",  // Card Identification
-                "card_exp_month": "03",
-                "card_exp_year": "2030",
-                "card_cvc": "737",
-                "card_holder_name": "John Doe",  // Cardholder Information
-            },
+fn _build_authorize_request(arg: Option<&str>) -> serde_json::Value {
+    let mut payload = serde_json::json!({"merchant_transaction_id": "probe_txn_001", "amount": {"minor_amount": 1000, "currency": "USD"}, "payment_method": {"card": {"card_number": "4111111111111111", "card_exp_month": "03", "card_exp_year": "2030", "card_cvc": "737", "card_holder_name": "John Doe"}}, "capture_method": "AUTOMATIC", "address": {"billing_address": {}}, "auth_type": "NO_THREE_DS", "return_url": "https://example.com/return"});
+    if let Some(a) = arg {
+        match a {
+            "AUTOMATIC" | "MANUAL" => { payload["capture_method"] = json!(a); }
+            _ => { payload["connector_transaction_id"] = json!(a); }
         }
-    },
-    "capture_method": capture_method,  // Method for capturing the payment
-    "address": {  // Address Information
-        "billing_address": {
-        },
-    },
-    "auth_type": "NO_THREE_DS",  // Authentication Details
-    "return_url": "https://example.com/return",  // URLs for Redirection and Webhooks
-    "order_details": []  // Order Details
-    }))
-    .unwrap_or_default()
+    }
+    payload
 }
 
-pub fn build_capture_request(connector_transaction_id: &str) -> PaymentServiceCaptureRequest {
-    serde_json::from_value::<PaymentServiceCaptureRequest>(serde_json::json!({
-    "merchant_capture_id": "probe_capture_001",  // Identification
-    "connector_transaction_id": connector_transaction_id,
-    "amount_to_capture": {  // Capture Details
-        "minor_amount": 1000,  // Amount in minor units (e.g., 1000 = $10.00)
-        "currency": "USD",  // ISO 4217 currency code (e.g., "USD", "EUR")
-    },
-    }))
-    .unwrap_or_default()
-}
-
-pub fn build_create_customer_request() -> CustomerServiceCreateRequest {
-    serde_json::from_value::<CustomerServiceCreateRequest>(serde_json::json!({
-    "merchant_customer_id": "cust_probe_123",  // Identification
-    "customer_name": "John Doe",  // Name of the customer
-    "email": "test@example.com",  // Email address of the customer
-    "phone_number": "4155552671",  // Phone number of the customer
-    }))
-    .unwrap_or_default()
-}
-
-pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetRequest {
-    serde_json::from_value::<PaymentServiceGetRequest>(serde_json::json!({
-    "merchant_transaction_id": "probe_merchant_txn_001",  // Identification
-    "connector_transaction_id": connector_transaction_id,
-    "amount": {  // Amount Information
-        "minor_amount": 1000,  // Amount in minor units (e.g., 1000 = $10.00)
-        "currency": "USD",  // ISO 4217 currency code (e.g., "USD", "EUR")
-    },
-    }))
-    .unwrap_or_default()
-}
-
-pub fn build_recurring_charge_request() -> RecurringPaymentServiceChargeRequest {
-    serde_json::from_value::<RecurringPaymentServiceChargeRequest>(serde_json::json!({
-    "connector_recurring_payment_id": {  // Reference to existing mandate
-        "mandate_id_type": {
-            "connector_mandate_id": {
-                "connector_mandate_id": "probe-mandate-123",
-            },
-        },
-    },
-    "amount": {  // Amount Information
-        "minor_amount": 1000,  // Amount in minor units (e.g., 1000 = $10.00)
-        "currency": "USD",  // ISO 4217 currency code (e.g., "USD", "EUR")
-    },
-    "payment_method": {  // Optional payment Method Information (for network transaction flows)
-        "payment_method": {
-            "token": {  // Payment tokens
-                "token": "probe_pm_token",  // The token string representing a payment method.
-            },
+fn _build_capture_request(arg: Option<&str>) -> serde_json::Value {
+    let mut payload = serde_json::json!({"merchant_capture_id": "probe_capture_001", "connector_transaction_id": "probe_connector_txn_001", "amount_to_capture": {"minor_amount": 1000, "currency": "USD"}});
+    if let Some(a) = arg {
+        match a {
+            "AUTOMATIC" | "MANUAL" => { payload["capture_method"] = json!(a); }
+            _ => { payload["connector_transaction_id"] = json!(a); }
         }
-    },
-    "return_url": "https://example.com/recurring-return",
-    "connector_customer_id": "cust_probe_123",
-    "payment_method_type": "PAY_PAL",
-    "off_session": true,  // Behavioral Flags and Preferences
-    }))
-    .unwrap_or_default()
+    }
+    payload
 }
 
-pub fn build_refund_request(connector_transaction_id: &str) -> PaymentServiceRefundRequest {
-    serde_json::from_value::<PaymentServiceRefundRequest>(serde_json::json!({
-    "merchant_refund_id": "probe_refund_001",  // Identification
-    "connector_transaction_id": connector_transaction_id,
-    "payment_amount": 1000,  // Amount Information
-    "refund_amount": {
-        "minor_amount": 1000,  // Amount in minor units (e.g., 1000 = $10.00)
-        "currency": "USD",  // ISO 4217 currency code (e.g., "USD", "EUR")
-    },
-    "reason": "customer_request",  // Reason for the refund
-    }))
-    .unwrap_or_default()
-}
-
-pub fn build_setup_recurring_request() -> PaymentServiceSetupRecurringRequest {
-    serde_json::from_value::<PaymentServiceSetupRecurringRequest>(serde_json::json!({
-    "merchant_recurring_payment_id": "probe_mandate_001",  // Identification
-    "amount": {  // Mandate Details
-        "minor_amount": 0,  // Amount in minor units (e.g., 1000 = $10.00)
-        "currency": "USD",  // ISO 4217 currency code (e.g., "USD", "EUR")
-    },
-    "payment_method": {
-        "payment_method": {
-            "card": {  // Generic card payment
-                "card_number": "4111111111111111",  // Card Identification
-                "card_exp_month": "03",
-                "card_exp_year": "2030",
-                "card_cvc": "737",
-                "card_holder_name": "John Doe",  // Cardholder Information
-            },
+fn _build_refund_request(arg: Option<&str>) -> serde_json::Value {
+    let mut payload = serde_json::json!({"merchant_refund_id": "probe_refund_001", "connector_transaction_id": "probe_connector_txn_001", "payment_amount": 1000, "refund_amount": {"minor_amount": 1000, "currency": "USD"}, "reason": "customer_request"});
+    if let Some(a) = arg {
+        match a {
+            "AUTOMATIC" | "MANUAL" => { payload["capture_method"] = json!(a); }
+            _ => { payload["connector_transaction_id"] = json!(a); }
         }
-    },
-    "address": {  // Address Information
-        "billing_address": {
-        },
-    },
-    "auth_type": "NO_THREE_DS",  // Type of authentication to be used
-    "enrolled_for_3ds": false,  // Indicates if the customer is enrolled for 3D Secure
-    "return_url": "https://example.com/mandate-return",  // URL to redirect after setup
-    "setup_future_usage": "OFF_SESSION",  // Indicates future usage intention
-    "request_incremental_authorization": false,  // Indicates if incremental authorization is requested
-    "customer_acceptance": {  // Details of customer acceptance
-        "acceptance_type": "OFFLINE",  // Type of acceptance (e.g., online, offline).
-        "accepted_at": 0,  // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
-    },
-    }))
-    .unwrap_or_default()
+    }
+    payload
 }
 
-pub fn build_tokenize_request() -> PaymentMethodServiceTokenizeRequest {
-    serde_json::from_value::<PaymentMethodServiceTokenizeRequest>(serde_json::json!({
-    "amount": {  // Payment Information
-        "minor_amount": 1000,  // Amount in minor units (e.g., 1000 = $10.00)
-        "currency": "USD",  // ISO 4217 currency code (e.g., "USD", "EUR")
-    },
-    "payment_method": {
-        "payment_method": {
-            "card": {  // Generic card payment
-                "card_number": "4111111111111111",  // Card Identification
-                "card_exp_month": "03",
-                "card_exp_year": "2030",
-                "card_cvc": "737",
-                "card_holder_name": "John Doe",  // Cardholder Information
-            },
+fn _build_setup_recurring_request(arg: Option<&str>) -> serde_json::Value {
+    let mut payload = serde_json::json!({"merchant_recurring_payment_id": "probe_mandate_001", "amount": {"minor_amount": 0, "currency": "USD"}, "payment_method": {"card": {"card_number": "4111111111111111", "card_exp_month": "03", "card_exp_year": "2030", "card_cvc": "737", "card_holder_name": "John Doe"}}, "address": {"billing_address": {}}, "auth_type": "NO_THREE_DS", "enrolled_for_3ds": false, "return_url": "https://example.com/mandate-return", "setup_future_usage": "OFF_SESSION", "request_incremental_authorization": false, "customer_acceptance": {"acceptance_type": "OFFLINE", "accepted_at": 0}});
+    if let Some(a) = arg {
+        match a {
+            "AUTOMATIC" | "MANUAL" => { payload["capture_method"] = json!(a); }
+            _ => { payload["connector_transaction_id"] = json!(a); }
         }
-    },
-    "address": {  // Address Information
-        "billing_address": {
-        },
-    },
-    }))
-    .unwrap_or_default()
+    }
+    payload
 }
 
-pub fn build_void_request(connector_transaction_id: &str) -> PaymentServiceVoidRequest {
-    serde_json::from_value::<PaymentServiceVoidRequest>(serde_json::json!({
-    "merchant_void_id": "probe_void_001",  // Identification
-    "connector_transaction_id": connector_transaction_id,
-    }))
-    .unwrap_or_default()
-}
-
-// Scenario: One-step Payment (Authorize + Capture)
-// Simple payment that authorizes and captures in one call. Use for immediate charges.
-#[allow(dead_code)]
-pub async fn process_checkout_autocapture(
-    client: &ConnectorClient,
-    _merchant_transaction_id: &str,
-) -> Result<String, Box<dyn std::error::Error>> {
-    // Step 1: Authorize — reserve funds on the payment method
-    let authorize_response = client
-        .authorize(build_authorize_request("AUTOMATIC"), &HashMap::new(), None)
-        .await?;
-
-    match authorize_response.status() {
-        PaymentStatus::Failure | PaymentStatus::AuthorizationFailed => {
-            return Err(format!("Payment failed: {:?}", authorize_response.error).into())
+fn _build_recurring_charge_request(arg: Option<&str>) -> serde_json::Value {
+    let mut payload = serde_json::json!({"connector_recurring_payment_id": {"mandate_id_type": {"connector_mandate_id": {"connector_mandate_id": "probe-mandate-123"}}}, "amount": {"minor_amount": 1000, "currency": "USD"}, "payment_method": {"token": {"token": "probe_pm_token"}}, "return_url": "https://example.com/recurring-return", "connector_customer_id": "cust_probe_123", "payment_method_type": "PAY_PAL", "off_session": true});
+    if let Some(a) = arg {
+        match a {
+            "AUTOMATIC" | "MANUAL" => { payload["capture_method"] = json!(a); }
+            _ => { payload["connector_transaction_id"] = json!(a); }
         }
-        PaymentStatus::Pending => return Ok("pending — awaiting webhook".to_string()),
-        _ => {}
+    }
+    payload
+}
+
+fn _build_tokenize_request(arg: Option<&str>) -> serde_json::Value {
+    let mut payload = serde_json::json!({"amount": {"minor_amount": 1000, "currency": "USD"}, "payment_method": {"card": {"card_number": "4111111111111111", "card_exp_month": "03", "card_exp_year": "2030", "card_cvc": "737", "card_holder_name": "John Doe"}}, "address": {"billing_address": {}}});
+    if let Some(a) = arg {
+        match a {
+            "AUTOMATIC" | "MANUAL" => { payload["capture_method"] = json!(a); }
+            _ => { payload["connector_transaction_id"] = json!(a); }
+        }
+    }
+    payload
+}
+
+fn _build_void_request(arg: Option<&str>) -> serde_json::Value {
+    let mut payload = serde_json::json!({"merchant_void_id": "probe_void_001", "connector_transaction_id": "probe_connector_txn_001"});
+    if let Some(a) = arg {
+        match a {
+            "AUTOMATIC" | "MANUAL" => { payload["capture_method"] = json!(a); }
+            _ => { payload["connector_transaction_id"] = json!(a); }
+        }
+    }
+    payload
+}
+
+fn _build_get_request(arg: Option<&str>) -> serde_json::Value {
+    let mut payload = serde_json::json!({"merchant_transaction_id": "probe_merchant_txn_001", "connector_transaction_id": "probe_connector_txn_001", "amount": {"minor_amount": 1000, "currency": "USD"}});
+    if let Some(a) = arg {
+        match a {
+            "AUTOMATIC" | "MANUAL" => { payload["capture_method"] = json!(a); }
+            _ => { payload["connector_transaction_id"] = json!(a); }
+        }
+    }
+    payload
+}
+
+async fn process_checkout_card() -> Result<serde_json::Value, Box<dyn std::error::Error>> {
+    // Standard card authorization and capture flow
+    let request = serde_json::json!({"merchant_transaction_id": "probe_txn_001", "amount": serde_json::json!({"minor_amount": 1000, "currency": "USD"}), "payment_method": serde_json::json!({"card": serde_json::json!({"card_number": "4111111111111111", "card_exp_month": "03", "card_exp_year": "2030", "card_cvc": "737", "card_holder_name": "John Doe"})}), "capture_method": "AUTOMATIC", "address": serde_json::json!({"billing_address": serde_json::json!({})}), "auth_type": "NO_THREE_DS", "return_url": "https://example.com/return"});
+    let authorize_response = client.authorize(&request).await?;
+    if ["FAILED", "AUTHORIZATION_FAILED"].contains(&authorize_response["status"].as_str().unwrap_or("")) {
+        return Err(format!("Payment authorization failed: {}", authorize_response["error"]).into());
     }
 
-    Ok(format!(
-        "Payment: {:?} — {}",
-        authorize_response.status(),
-        authorize_response
-            .connector_transaction_id
-            .as_deref()
-            .unwrap_or("")
-    ))
-}
-
-// Scenario: Card Payment (Authorize + Capture)
-// Two-step card payment. First authorize, then capture. Use when you need to verify funds before finalizing.
-#[allow(dead_code)]
-pub async fn process_checkout_card(
-    client: &ConnectorClient,
-    _merchant_transaction_id: &str,
-) -> Result<String, Box<dyn std::error::Error>> {
-    // Step 1: Authorize — reserve funds on the payment method
-    let authorize_response = client
-        .authorize(build_authorize_request("MANUAL"), &HashMap::new(), None)
-        .await?;
-
-    match authorize_response.status() {
-        PaymentStatus::Failure | PaymentStatus::AuthorizationFailed => {
-            return Err(format!("Payment failed: {:?}", authorize_response.error).into())
-        }
-        PaymentStatus::Pending => return Ok("pending — awaiting webhook".to_string()),
-        _ => {}
+    if authorize_response["status"].as_str() == Some("PENDING") {
+        return Ok(serde_json::json!({ "status": authorize_response["status"], "transaction_id": authorize_response["connector_transaction_id"] }));
     }
 
-    // Step 2: Capture — settle the reserved funds
-    let capture_response = client
-        .capture(
-            build_capture_request(
-                authorize_response
-                    .connector_transaction_id
-                    .as_deref()
-                    .unwrap_or(""),
-            ),
-            &HashMap::new(),
-            None,
-        )
-        .await?;
 
-    if capture_response.status() == PaymentStatus::Failure {
-        return Err(format!("Capture failed: {:?}", capture_response.error).into());
+    let request = serde_json::json!({"merchant_capture_id": "probe_capture_001", "connector_transaction_id": authorize_response["connector_transaction_id"], "amount_to_capture": serde_json::json!({"minor_amount": 1000, "currency": "USD"})});
+    let capture_response = client.capture(&request).await?;
+    if capture_response["status"].as_str() == Some("FAILED") {
+        return Err(format!("Capture failed: {}", capture_response["error"]).into());
     }
 
-    Ok(format!(
-        "Payment completed: {}",
-        authorize_response
-            .connector_transaction_id
-            .as_deref()
-            .unwrap_or("")
-    ))
+
+    Ok(serde_json::json!({ "status": capture_response["status"], "transaction_id": capture_response["connector_transaction_id"], "amount": capture_response["amount"] }))
 }
 
-// Scenario: Refund
-// Return funds to the customer for a completed payment.
-#[allow(dead_code)]
-pub async fn process_refund(
-    client: &ConnectorClient,
-    _merchant_transaction_id: &str,
-) -> Result<String, Box<dyn std::error::Error>> {
-    // Step 1: Authorize — reserve funds on the payment method
-    let authorize_response = client
-        .authorize(build_authorize_request("AUTOMATIC"), &HashMap::new(), None)
-        .await?;
-
-    match authorize_response.status() {
-        PaymentStatus::Failure | PaymentStatus::AuthorizationFailed => {
-            return Err(format!("Payment failed: {:?}", authorize_response.error).into())
-        }
-        PaymentStatus::Pending => return Ok("pending — awaiting webhook".to_string()),
-        _ => {}
+async fn process_checkout_bank() -> Result<serde_json::Value, Box<dyn std::error::Error>> {
+    // Bank transfer or debit payment flow
+    let request = serde_json::json!({"merchant_transaction_id": "probe_txn_001", "amount": serde_json::json!({"minor_amount": 1000, "currency": "USD"}), "payment_method": serde_json::json!({"ach": serde_json::json!({"account_number": "000123456789", "routing_number": "110000000", "bank_account_holder_name": "John Doe"})}), "capture_method": "AUTOMATIC", "address": serde_json::json!({"billing_address": serde_json::json!({})}), "auth_type": "NO_THREE_DS", "return_url": "https://example.com/return"});
+    let authorize_response = client.authorize(&request).await?;
+    if authorize_response["status"].as_str() == Some("FAILED") {
+        return Err(format!("Bank transfer failed: {}", authorize_response["error"]).into());
     }
 
-    // Step 2: Refund — return funds to the customer
-    let refund_response = client
-        .refund(
-            build_refund_request(
-                authorize_response
-                    .connector_transaction_id
-                    .as_deref()
-                    .unwrap_or(""),
-            ),
-            &HashMap::new(),
-            None,
-        )
-        .await?;
 
-    if refund_response.status() == RefundStatus::RefundFailure {
-        return Err(format!("Refund failed: {:?}", refund_response.error).into());
+    Ok(serde_json::json!({ "status": authorize_response["status"], "transaction_id": authorize_response["connector_transaction_id"] }))
+}
+
+async fn process_checkout_wallet() -> Result<serde_json::Value, Box<dyn std::error::Error>> {
+    // Apple Pay, Google Pay, or other wallet payment
+    let request = serde_json::json!({"merchant_transaction_id": "probe_txn_001", "amount": serde_json::json!({"minor_amount": 1000, "currency": "USD"}), "payment_method": serde_json::json!({"apple_pay": serde_json::json!({"payment_data": serde_json::json!({"encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9"}), "payment_method": serde_json::json!({"display_name": "Visa 1111", "network": "Visa", "type": "debit"}), "transaction_identifier": "probe_txn_id"})}), "capture_method": "AUTOMATIC", "address": serde_json::json!({"billing_address": serde_json::json!({})}), "auth_type": "NO_THREE_DS", "return_url": "https://example.com/return", "payment_method_token": "probe_pm_token"});
+    let authorize_response = client.authorize(&request).await?;
+    if ["FAILED", "AUTHORIZATION_FAILED"].contains(&authorize_response["status"].as_str().unwrap_or("")) {
+        return Err(format!("Wallet payment failed: {}", authorize_response["error"]).into());
     }
 
-    Ok(format!("Refunded: {:?}", refund_response.status()))
+
+    let request = serde_json::json!({"merchant_capture_id": "probe_capture_001", "connector_transaction_id": authorize_response["connector_transaction_id"], "amount_to_capture": serde_json::json!({"minor_amount": 1000, "currency": "USD"})});
+    let capture_response = client.capture(&request).await?;
+
+    Ok(serde_json::json!({ "status": capture_response["status"], "transaction_id": capture_response["connector_transaction_id"] }))
 }
 
-// Scenario: Void Payment
-// Cancel an authorized but not-yet-captured payment.
-#[allow(dead_code)]
-pub async fn process_void_payment(
-    client: &ConnectorClient,
-    _merchant_transaction_id: &str,
-) -> Result<String, Box<dyn std::error::Error>> {
-    // Step 1: Authorize — reserve funds on the payment method
-    let authorize_response = client
-        .authorize(build_authorize_request("MANUAL"), &HashMap::new(), None)
-        .await?;
-
-    match authorize_response.status() {
-        PaymentStatus::Failure | PaymentStatus::AuthorizationFailed => {
-            return Err(format!("Payment failed: {:?}", authorize_response.error).into())
-        }
-        PaymentStatus::Pending => return Ok("pending — awaiting webhook".to_string()),
-        _ => {}
+async fn process_refund_payment() -> Result<serde_json::Value, Box<dyn std::error::Error>> {
+    // Refund a completed payment
+    let request = serde_json::json!({"merchant_refund_id": "probe_refund_001", "connector_transaction_id": authorize_response["connector_transaction_id"], "payment_amount": 1000, "refund_amount": serde_json::json!({"minor_amount": 1000, "currency": "USD"}), "reason": "customer_request"});
+    let refund_response = client.refund(&request).await?;
+    if refund_response["status"].as_str() == Some("FAILED") {
+        return Err(format!("Refund failed: {}", refund_response["error"]).into());
     }
 
-    // Step 2: Void — release reserved funds (cancel authorization)
-    let void_response = client
-        .void(
-            build_void_request(
-                authorize_response
-                    .connector_transaction_id
-                    .as_deref()
-                    .unwrap_or(""),
-            ),
-            &HashMap::new(),
-            None,
-        )
-        .await?;
 
-    Ok(format!("Voided: {:?}", void_response.status()))
+    Ok(serde_json::json!({ "status": refund_response["status"], "refund_id": refund_response["connector_refund_id"] }))
 }
 
-// Scenario: Get Payment Status
-// Retrieve current payment status from the connector.
-#[allow(dead_code)]
-pub async fn process_get_payment(
-    client: &ConnectorClient,
-    _merchant_transaction_id: &str,
-) -> Result<String, Box<dyn std::error::Error>> {
-    // Step 1: Authorize — reserve funds on the payment method
-    let authorize_response = client
-        .authorize(build_authorize_request("MANUAL"), &HashMap::new(), None)
-        .await?;
-
-    match authorize_response.status() {
-        PaymentStatus::Failure | PaymentStatus::AuthorizationFailed => {
-            return Err(format!("Payment failed: {:?}", authorize_response.error).into())
-        }
-        PaymentStatus::Pending => return Ok("pending — awaiting webhook".to_string()),
-        _ => {}
+async fn process_setup_recurring() -> Result<serde_json::Value, Box<dyn std::error::Error>> {
+    // Create a mandate for recurring charges
+    let request = serde_json::json!({"merchant_recurring_payment_id": "probe_mandate_001", "amount": serde_json::json!({"minor_amount": 0, "currency": "USD"}), "payment_method": serde_json::json!({"card": serde_json::json!({"card_number": "4111111111111111", "card_exp_month": "03", "card_exp_year": "2030", "card_cvc": "737", "card_holder_name": "John Doe"})}), "address": serde_json::json!({"billing_address": serde_json::json!({})}), "auth_type": "NO_THREE_DS", "enrolled_for_3ds": false, "return_url": "https://example.com/mandate-return", "setup_future_usage": "OFF_SESSION", "request_incremental_authorization": false, "customer_acceptance": serde_json::json!({"acceptance_type": "OFFLINE", "accepted_at": 0})});
+    let setup_recurring_response = client.setup_recurring(&request).await?;
+    if setup_recurring_response["status"].as_str() == Some("FAILED") {
+        return Err(format!("Failed to setup recurring payment: {}", setup_recurring_response["error"]).into());
     }
 
-    // Step 2: Get — retrieve current payment status from the connector
-    let get_response = client
-        .get(
-            build_get_request(
-                authorize_response
-                    .connector_transaction_id
-                    .as_deref()
-                    .unwrap_or(""),
-            ),
-            &HashMap::new(),
-            None,
-        )
-        .await?;
 
-    Ok(format!("Status: {:?}", get_response.status()))
+    Ok(serde_json::json!({ "status": setup_recurring_response["status"], "mandate_id": setup_recurring_response["mandate_reference.connector_mandate_id"] }))
 }
 
-// Flow: PaymentService.Authorize (Card)
-#[allow(dead_code)]
-pub async fn authorize(
-    client: &ConnectorClient,
-    _merchant_transaction_id: &str,
-) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client
-        .authorize(build_authorize_request("AUTOMATIC"), &HashMap::new(), None)
-        .await?;
-    match response.status() {
-        PaymentStatus::Failure | PaymentStatus::AuthorizationFailed => {
-            Err(format!("Authorize failed: {:?}", response.error).into())
-        }
-        PaymentStatus::Pending => Ok("pending — await webhook".to_string()),
-        _ => Ok(format!(
-            "Authorized: {}",
-            response.connector_transaction_id.as_deref().unwrap_or("")
-        )),
+async fn process_recurring_charge() -> Result<serde_json::Value, Box<dyn std::error::Error>> {
+    // Charge against an existing mandate
+    // Prerequisite: Create customer profile
+    let request = serde_json::json!({"merchant_customer_id": "cust_probe_123", "customer_name": "John Doe", "email": "test@example.com", "phone_number": "4155552671"});
+    let create_customer_response = client.create_customer(&request).await?;
+
+    let request = serde_json::json!({"connector_recurring_payment_id": serde_json::json!({"mandate_id_type": serde_json::json!({"connector_mandate_id": serde_json::json!({"connector_mandate_id": "probe-mandate-123"})}), "connector_mandate_id": serde_json::json!({"connector_mandate_id": setup_recurring_response["mandate_reference"]})}), "amount": serde_json::json!({"minor_amount": 1000, "currency": "USD"}), "payment_method": serde_json::json!({"token": serde_json::json!({"token": "probe_pm_token"})}), "return_url": "https://example.com/recurring-return", "connector_customer_id": create_customer_response["connector_customer_id"], "payment_method_type": "PAY_PAL", "off_session": true});
+    let recurring_charge_response = client.recurring_charge(&request).await?;
+    if recurring_charge_response["status"].as_str() == Some("FAILED") {
+        return Err(format!("Recurring charge failed: {}", recurring_charge_response["error"]).into());
     }
+
+
+    Ok(serde_json::json!({ "status": recurring_charge_response["status"], "transaction_id": recurring_charge_response["connector_transaction_id"] }))
 }
 
-// Flow: PaymentService.Capture
-#[allow(dead_code)]
-pub async fn capture(
-    client: &ConnectorClient,
-    _merchant_transaction_id: &str,
-) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client
-        .capture(
-            build_capture_request("probe_connector_txn_001"),
-            &HashMap::new(),
-            None,
-        )
-        .await?;
-    Ok(format!("status: {:?}", response.status()))
-}
-
-// Flow: CustomerService.Create
-#[allow(dead_code)]
-pub async fn create_customer(
-    client: &ConnectorClient,
-    _merchant_transaction_id: &str,
-) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client
-        .create_customer(build_create_customer_request(), &HashMap::new(), None)
-        .await?;
-    Ok(format!("customer_id: {}", response.connector_customer_id))
-}
-
-// Flow: PaymentService.Get
-#[allow(dead_code)]
-pub async fn get(
-    client: &ConnectorClient,
-    _merchant_transaction_id: &str,
-) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client
-        .get(
-            build_get_request("probe_connector_txn_001"),
-            &HashMap::new(),
-            None,
-        )
-        .await?;
-    Ok(format!("status: {:?}", response.status()))
-}
-
-// Flow: PaymentService.proxy_authorize
-#[allow(dead_code)]
-pub async fn proxy_authorize(
-    client: &ConnectorClient,
-    _merchant_transaction_id: &str,
-) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client
-        .proxy_authorize(
-            serde_json::from_value(serde_json::json!({
-            "merchant_transaction_id": "probe_proxy_txn_001",
-            "amount": {
-                "minor_amount": 1000,
-                "currency": "USD",
-            },
-            "card_proxy": {
-                "card_number": "4111111111111111",
-                "card_exp_month": "03",
-                "card_exp_year": "2030",
-                "card_cvc": "123",
-                "card_holder_name": "John Doe",
-            },
-            "address": {
-                "billing_address": {
-                },
-            },
-            "capture_method": "AUTOMATIC",
-            "auth_type": "NO_THREE_DS",
-            "return_url": "https://example.com/return",
-            }))
-            .unwrap_or_default(),
-            &HashMap::new(),
-            None,
-        )
-        .await?;
-    Ok(format!("status: {:?}", response.status()))
-}
-
-// Flow: RecurringPaymentService.Charge
-#[allow(dead_code)]
-pub async fn recurring_charge(
-    client: &ConnectorClient,
-    _merchant_transaction_id: &str,
-) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client
-        .recurring_charge(build_recurring_charge_request(), &HashMap::new(), None)
-        .await?;
-    Ok(format!("status: {:?}", response.status()))
-}
-
-// Flow: PaymentService.Refund
-#[allow(dead_code)]
-pub async fn refund(
-    client: &ConnectorClient,
-    _merchant_transaction_id: &str,
-) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client
-        .refund(
-            build_refund_request("probe_connector_txn_001"),
-            &HashMap::new(),
-            None,
-        )
-        .await?;
-    Ok(format!("status: {:?}", response.status()))
-}
-
-// Flow: PaymentService.SetupRecurring
-#[allow(dead_code)]
-pub async fn setup_recurring(
-    client: &ConnectorClient,
-    _merchant_transaction_id: &str,
-) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client
-        .setup_recurring(build_setup_recurring_request(), &HashMap::new(), None)
-        .await?;
-    if response.status() == PaymentStatus::Failure {
-        return Err(format!("Setup failed: {:?}", response.error).into());
+async fn process_tokenize_payment_method() -> Result<serde_json::Value, Box<dyn std::error::Error>> {
+    // Tokenize a card or bank account for later use
+    let request = serde_json::json!({"amount": serde_json::json!({"minor_amount": 1000, "currency": "USD"}), "payment_method": serde_json::json!({"card": serde_json::json!({"card_number": "4111111111111111", "card_exp_month": "03", "card_exp_year": "2030", "card_cvc": "737", "card_holder_name": "John Doe"})}), "address": serde_json::json!({"billing_address": serde_json::json!({})})});
+    let tokenize_response = client.tokenize(&request).await?;
+    if tokenize_response["status"].as_str() == Some("FAILED") {
+        return Err(format!("Tokenization failed: {}", tokenize_response["error"]).into());
     }
-    Ok(format!(
-        "Mandate: {}",
-        response
-            .connector_recurring_payment_id
-            .as_deref()
-            .unwrap_or("")
-    ))
+
+
+    Ok(serde_json::json!({ "status": tokenize_response["status"], "token": tokenize_response["payment_method_token"] }))
 }
 
-// Flow: PaymentMethodService.Tokenize
-#[allow(dead_code)]
-pub async fn tokenize(
-    client: &ConnectorClient,
-    _merchant_transaction_id: &str,
-) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client
-        .tokenize(build_tokenize_request(), &HashMap::new(), None)
-        .await?;
-    Ok(format!("token: {}", response.payment_method_token))
-}
-
-// Flow: PaymentService.Void
-#[allow(dead_code)]
-pub async fn void(
-    client: &ConnectorClient,
-    _merchant_transaction_id: &str,
-) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client
-        .void(
-            build_void_request("probe_connector_txn_001"),
-            &HashMap::new(),
-            None,
-        )
-        .await?;
-    Ok(format!("status: {:?}", response.status()))
-}
-
-#[allow(dead_code)]
-#[tokio::main]
-async fn main() {
-    let client = build_client();
-    let flow = std::env::args()
-        .nth(1)
-        .unwrap_or_else(|| "process_checkout_autocapture".to_string());
-    let result: Result<String, Box<dyn std::error::Error>> = match flow.as_str() {
-        "process_checkout_autocapture" => process_checkout_autocapture(&client, "order_001").await,
-        "process_checkout_card" => process_checkout_card(&client, "order_001").await,
-        "process_refund" => process_refund(&client, "order_001").await,
-        "process_void_payment" => process_void_payment(&client, "order_001").await,
-        "process_get_payment" => process_get_payment(&client, "order_001").await,
-        "authorize" => authorize(&client, "order_001").await,
-        "capture" => capture(&client, "order_001").await,
-        "create_customer" => create_customer(&client, "order_001").await,
-        "get" => get(&client, "order_001").await,
-        "proxy_authorize" => proxy_authorize(&client, "order_001").await,
-        "recurring_charge" => recurring_charge(&client, "order_001").await,
-        "refund" => refund(&client, "order_001").await,
-        "setup_recurring" => setup_recurring(&client, "order_001").await,
-        "tokenize" => tokenize(&client, "order_001").await,
-        "void" => void(&client, "order_001").await,
-        _ => {
-            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, authorize, capture, create_customer, get, proxy_authorize, recurring_charge, refund, setup_recurring, tokenize, void", flow);
-            return;
-        }
-    };
-    match result {
-        Ok(msg) => println!("✓ {msg}"),
-        Err(e) => eprintln!("✗ {e}"),
+async fn process_void_authorization() -> Result<serde_json::Value, Box<dyn std::error::Error>> {
+    // Cancel an uncaptured authorization
+    let request = serde_json::json!({"merchant_void_id": "probe_void_001", "connector_transaction_id": authorize_response["connector_transaction_id"]});
+    let void_response = client.void(&request).await?;
+    if void_response["status"].as_str() == Some("FAILED") {
+        return Err(format!("Void failed: {}", void_response["error"]).into());
     }
+
+
+    Ok(serde_json::json!({ "status": void_response["status"] }))
+}
+
+async fn process_get_payment_status() -> Result<serde_json::Value, Box<dyn std::error::Error>> {
+    // Retrieve current status of a payment
+    let request = serde_json::json!({"merchant_transaction_id": "probe_merchant_txn_001", "connector_transaction_id": authorize_response["connector_transaction_id"], "amount": serde_json::json!({"minor_amount": 1000, "currency": "USD"})});
+    let get_response = client.get(&request).await?;
+
+    Ok(serde_json::json!({ "status": get_response["status"], "amount": get_response["amount"] }))
+}
+
+async fn process_partial_refund() -> Result<serde_json::Value, Box<dyn std::error::Error>> {
+    // Refund a portion of a captured payment
+    let request = serde_json::json!({"merchant_transaction_id": "probe_txn_001", "amount": serde_json::json!({"minor_amount": 1000, "currency": "USD"}), "payment_method": serde_json::json!({"card": serde_json::json!({"card_number": "4111111111111111", "card_exp_month": "03", "card_exp_year": "2030", "card_cvc": "737", "card_holder_name": "John Doe"})}), "capture_method": "AUTOMATIC", "address": serde_json::json!({"billing_address": serde_json::json!({})}), "auth_type": "NO_THREE_DS", "return_url": "https://example.com/return"});
+    let authorize_response = client.authorize(&request).await?;
+    if ["FAILED", "AUTHORIZATION_FAILED"].contains(&authorize_response["status"].as_str().unwrap_or("")) {
+        return Err(format!("Payment authorization failed: {}", authorize_response["error"]).into());
+    }
+
+
+    let request = serde_json::json!({"merchant_capture_id": "probe_capture_001", "connector_transaction_id": authorize_response["connector_transaction_id"], "amount_to_capture": serde_json::json!({"minor_amount": 1000, "currency": "USD"})});
+    let capture_response = client.capture(&request).await?;
+    if capture_response["status"].as_str() == Some("FAILED") {
+        return Err(format!("Capture failed: {}", capture_response["error"]).into());
+    }
+
+
+    let request = serde_json::json!({"merchant_refund_id": "probe_refund_001", "connector_transaction_id": authorize_response["connector_transaction_id"], "payment_amount": 1000, "refund_amount": serde_json::json!({"minor_amount": 1000, "currency": "USD"}), "reason": "customer_request"});
+    let refund_response = client.refund(&request).await?;
+    if refund_response["status"].as_str() == Some("FAILED") {
+        return Err(format!("Refund failed: {}", refund_response["error"]).into());
+    }
+
+
+    Ok(serde_json::json!({ "status": refund_response["status"], "refund_id": refund_response["connector_refund_id"], "refunded_amount": refund_response["amount"] }))
+}
+
+async fn process_multi_capture() -> Result<serde_json::Value, Box<dyn std::error::Error>> {
+    // Split a single authorization into multiple captures (e.g., for split shipments)
+    let request = serde_json::json!({"merchant_transaction_id": "probe_txn_001", "amount": serde_json::json!({"minor_amount": 1000, "currency": "USD"}), "payment_method": serde_json::json!({"card": serde_json::json!({"card_number": "4111111111111111", "card_exp_month": "03", "card_exp_year": "2030", "card_cvc": "737", "card_holder_name": "John Doe"})}), "capture_method": "AUTOMATIC", "address": serde_json::json!({"billing_address": serde_json::json!({})}), "auth_type": "NO_THREE_DS", "return_url": "https://example.com/return"});
+    let authorize_response = client.authorize(&request).await?;
+    if ["FAILED", "AUTHORIZATION_FAILED"].contains(&authorize_response["status"].as_str().unwrap_or("")) {
+        return Err(format!("Payment authorization failed: {}", authorize_response["error"]).into());
+    }
+
+
+    let request = serde_json::json!({"merchant_capture_id": "probe_capture_001", "connector_transaction_id": authorize_response["connector_transaction_id"], "amount_to_capture": serde_json::json!({"minor_amount": 1000, "currency": "USD"})});
+    let capture_response = client.capture(&request).await?;
+    if capture_response["status"].as_str() == Some("FAILED") {
+        return Err(format!("Capture failed: {}", capture_response["error"]).into());
+    }
+
+
+    Ok(serde_json::json!({ "status": capture_response["status"], "transaction_id": capture_response["connector_transaction_id"], "captured_amount": capture_response["amount"] }))
+}
+
+async fn process_incremental_authorization() -> Result<serde_json::Value, Box<dyn std::error::Error>> {
+    // Increase the authorized amount after initial authorization
+    let request = serde_json::json!({"merchant_transaction_id": "probe_txn_001", "amount": serde_json::json!({"minor_amount": 1000, "currency": "USD"}), "payment_method": serde_json::json!({"card": serde_json::json!({"card_number": "4111111111111111", "card_exp_month": "03", "card_exp_year": "2030", "card_cvc": "737", "card_holder_name": "John Doe"})}), "capture_method": "AUTOMATIC", "address": serde_json::json!({"billing_address": serde_json::json!({})}), "auth_type": "NO_THREE_DS", "return_url": "https://example.com/return"});
+    let authorize_response = client.authorize(&request).await?;
+    if ["FAILED", "AUTHORIZATION_FAILED"].contains(&authorize_response["status"].as_str().unwrap_or("")) {
+        return Err(format!("Payment authorization failed: {}", authorize_response["error"]).into());
+    }
+
+
+    let request = serde_json::json!({"merchant_capture_id": "probe_capture_001", "connector_transaction_id": authorize_response["connector_transaction_id"], "amount_to_capture": serde_json::json!({"minor_amount": 1000, "currency": "USD"})});
+    let capture_response = client.capture(&request).await?;
+
+    Ok(serde_json::json!({ "status": capture_response["status"], "transaction_id": capture_response["connector_transaction_id"], "authorized_amount": capture_response["amount"] }))
+}
+
+async fn process_checkout_3ds() -> Result<serde_json::Value, Box<dyn std::error::Error>> {
+    // Card payment with 3D Secure authentication
+    let request = serde_json::json!({"merchant_transaction_id": "probe_txn_001", "amount": serde_json::json!({"minor_amount": 1000, "currency": "USD"}), "payment_method": serde_json::json!({"card": serde_json::json!({"card_number": "4111111111111111", "card_exp_month": "03", "card_exp_year": "2030", "card_cvc": "737", "card_holder_name": "John Doe"})}), "capture_method": "AUTOMATIC", "address": serde_json::json!({"billing_address": serde_json::json!({})}), "auth_type": "NO_THREE_DS", "return_url": "https://example.com/return"});
+    let authorize_response = client.authorize(&request).await?;
+    if ["FAILED", "AUTHORIZATION_FAILED"].contains(&authorize_response["status"].as_str().unwrap_or("")) {
+        return Err(format!("Payment authorization failed: {}", authorize_response["error"]).into());
+    }
+
+    if authorize_response["status"].as_str() == Some("PENDING_AUTHENTICATION") {
+        return Ok(serde_json::json!({ "status": authorize_response["status"], "transaction_id": authorize_response["connector_transaction_id"], "redirect_url": authorize_response["next_action.redirect_url"] }));
+    }
+
+
+    let request = serde_json::json!({"merchant_capture_id": "probe_capture_001", "connector_transaction_id": authorize_response["connector_transaction_id"], "amount_to_capture": serde_json::json!({"minor_amount": 1000, "currency": "USD"})});
+    let capture_response = client.capture(&request).await?;
+
+    Ok(serde_json::json!({ "status": capture_response["status"], "transaction_id": capture_response["connector_transaction_id"] }))
+}
+
+async fn process_checkout_bnpl() -> Result<serde_json::Value, Box<dyn std::error::Error>> {
+    // Buy Now Pay Later payment flow (Klarna, Afterpay, Affirm)
+    let request = serde_json::json!({"merchant_transaction_id": "probe_txn_001", "amount": serde_json::json!({"minor_amount": 1000, "currency": "USD"}), "payment_method": serde_json::json!({"klarna": serde_json::json!({})}), "capture_method": "AUTOMATIC", "address": serde_json::json!({"billing_address": serde_json::json!({})}), "auth_type": "NO_THREE_DS", "return_url": "https://example.com/return"});
+    let authorize_response = client.authorize(&request).await?;
+    if ["FAILED", "AUTHORIZATION_FAILED"].contains(&authorize_response["status"].as_str().unwrap_or("")) {
+        return Err(format!("BNPL authorization failed: {}", authorize_response["error"]).into());
+    }
+
+    if authorize_response["status"].as_str() == Some("PENDING_AUTHENTICATION") {
+        return Ok(serde_json::json!({ "status": authorize_response["status"], "transaction_id": authorize_response["connector_transaction_id"], "redirect_url": authorize_response["next_action.redirect_url"] }));
+    }
+
+
+    let request = serde_json::json!({"merchant_capture_id": "probe_capture_001", "connector_transaction_id": authorize_response["connector_transaction_id"], "amount_to_capture": serde_json::json!({"minor_amount": 1000, "currency": "USD"})});
+    let capture_response = client.capture(&request).await?;
+    if capture_response["status"].as_str() == Some("FAILED") {
+        return Err(format!("BNPL capture failed: {}", capture_response["error"]).into());
+    }
+
+
+    Ok(serde_json::json!({ "status": capture_response["status"], "transaction_id": capture_response["connector_transaction_id"] }))
 }

@@ -1,0 +1,1109 @@
+{
+  "connector": "ppro",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "not_supported",
+        "error": "payment method ach is not supported by PPRO is not supported by ppro"
+      },
+      "AchBankTransfer": {
+        "status": "not_supported",
+        "error": "payment method ach is not supported by PPRO is not supported by ppro"
+      },
+      "Affirm": {
+        "status": "not_supported",
+        "error": "payment method affirm is not supported by PPRO is not supported by ppro"
+      },
+      "Afterpay": {
+        "status": "not_supported",
+        "error": "payment method afterpay_clearpay is not supported by PPRO is not supported by ppro"
+      },
+      "Alfamart": {
+        "status": "not_supported",
+        "error": "payment method alfamart is not supported by PPRO is not supported by ppro"
+      },
+      "AliPayRedirect": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "ali_pay_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "merchant-id": "probe_merchant",
+            "request-idempotency-key": "probe_txn_001",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"paymentMethod\":\"ALIPAY\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}]}"
+        }
+      },
+      "AmazonPayRedirect": {
+        "status": "not_supported",
+        "error": "payment method amazon_pay is not supported by PPRO is not supported by ppro"
+      },
+      "ApplePay": {
+        "status": "not_supported",
+        "error": "payment method apple_pay is not supported by PPRO is not supported by ppro"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_supported",
+        "error": "payment method apple_pay is not supported by PPRO is not supported by ppro"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "payment method apple_pay is not supported by PPRO is not supported by ppro"
+      },
+      "Bacs": {
+        "status": "not_supported",
+        "error": "payment method bacs is not supported by PPRO is not supported by ppro"
+      },
+      "BacsBankTransfer": {
+        "status": "not_supported",
+        "error": "payment method bacs is not supported by PPRO is not supported by ppro"
+      },
+      "BancontactCard": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "bancontact_card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "merchant-id": "probe_merchant",
+            "request-idempotency-key": "probe_txn_001",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"paymentMethod\":\"BANCONTACT\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}]}"
+        }
+      },
+      "BcaBankTransfer": {
+        "status": "not_supported",
+        "error": "payment method bca_bank_transfer is not supported by PPRO is not supported by ppro"
+      },
+      "Becs": {
+        "status": "not_supported",
+        "error": "payment method becs is not supported by PPRO is not supported by ppro"
+      },
+      "Bizum": {
+        "status": "not_supported",
+        "error": "payment method bizum is not supported by PPRO is not supported by ppro"
+      },
+      "Blik": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "blik": {
+              "blik_code": "777124"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "merchant-id": "probe_merchant",
+            "request-idempotency-key": "probe_txn_001",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"paymentMethod\":\"BLIK\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}]}"
+        }
+      },
+      "Bluecode": {
+        "status": "not_supported",
+        "error": "payment method bluecode is not supported by PPRO is not supported by ppro"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_supported",
+        "error": "payment method bni_va is not supported by PPRO is not supported by ppro"
+      },
+      "Boleto": {
+        "status": "not_supported",
+        "error": "payment method boleto is not supported by PPRO is not supported by ppro"
+      },
+      "BriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "payment method bri_va is not supported by PPRO is not supported by ppro"
+      },
+      "Card": {
+        "status": "not_supported",
+        "error": "payment method card is not supported by PPRO is not supported by ppro"
+      },
+      "CashappQr": {
+        "status": "not_supported",
+        "error": "payment method cashapp is not supported by PPRO is not supported by ppro"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_supported",
+        "error": "payment method cimb_va is not supported by PPRO is not supported by ppro"
+      },
+      "ClassicReward": {
+        "status": "not_supported",
+        "error": "payment method classic_reward is not supported by PPRO is not supported by ppro"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_supported",
+        "error": "payment method danamon_va is not supported by PPRO is not supported by ppro"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
+      "EVoucher": {
+        "status": "not_supported",
+        "error": "payment method evoucher is not supported by PPRO is not supported by ppro"
+      },
+      "Efecty": {
+        "status": "not_supported",
+        "error": "payment method efecty is not supported by PPRO is not supported by ppro"
+      },
+      "Eft": {
+        "status": "not_supported",
+        "error": "payment method eft is not supported by PPRO is not supported by ppro"
+      },
+      "Eps": {
+        "status": "not_supported",
+        "error": "payment method eps is not supported by PPRO is not supported by ppro"
+      },
+      "FamilyMart": {
+        "status": "not_supported",
+        "error": "payment method family_mart is not supported by PPRO is not supported by ppro"
+      },
+      "Giropay": {
+        "status": "not_supported",
+        "error": "payment method giropay is not supported by PPRO is not supported by ppro"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
+      "GooglePay": {
+        "status": "not_supported",
+        "error": "payment method google_pay is not supported by PPRO is not supported by ppro"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_supported",
+        "error": "payment method google_pay is not supported by PPRO is not supported by ppro"
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "payment method google_pay is not supported by PPRO is not supported by ppro"
+      },
+      "Ideal": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "ideal": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "merchant-id": "probe_merchant",
+            "request-idempotency-key": "probe_txn_001",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"paymentMethod\":\"IDEAL\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}]}"
+        }
+      },
+      "Indomaret": {
+        "status": "not_supported",
+        "error": "payment method indomaret is not supported by PPRO is not supported by ppro"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_supported",
+        "error": "payment method indonesian_bank_transfer is not supported by PPRO is not supported by ppro"
+      },
+      "InstantBankTransfer": {
+        "status": "not_supported",
+        "error": "payment method instant_bank_transfer is not supported by PPRO is not supported by ppro"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_supported",
+        "error": "payment method instant_bank_transfer_finland is not supported by PPRO is not supported by ppro"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_supported",
+        "error": "payment method instant_bank_transfer_poland is not supported by PPRO is not supported by ppro"
+      },
+      "Interac": {
+        "status": "not_supported",
+        "error": "payment method interac is not supported by PPRO is not supported by ppro"
+      },
+      "Klarna": {
+        "status": "not_supported",
+        "error": "payment method klarna is not supported by PPRO is not supported by ppro"
+      },
+      "Lawson": {
+        "status": "not_supported",
+        "error": "payment method lawson is not supported by PPRO is not supported by ppro"
+      },
+      "LocalBankRedirect": {
+        "status": "not_supported",
+        "error": "payment method local_bank_redirect is not supported by PPRO is not supported by ppro"
+      },
+      "LocalBankTransfer": {
+        "status": "not_supported",
+        "error": "payment method local_bank_transfer is not supported by PPRO is not supported by ppro"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "payment method mandiri_va is not supported by PPRO is not supported by ppro"
+      },
+      "MbWay": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "mb_way": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "merchant-id": "probe_merchant",
+            "request-idempotency-key": "probe_txn_001",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"paymentMethod\":\"MBWAY\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}]}"
+        }
+      },
+      "Mifinity": {
+        "status": "not_supported",
+        "error": "payment method mifinity is not supported by PPRO is not supported by ppro"
+      },
+      "MiniStop": {
+        "status": "not_supported",
+        "error": "payment method mini_stop is not supported by PPRO is not supported by ppro"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_supported",
+        "error": "payment method multibanco is not supported by PPRO is not supported by ppro"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_supported",
+        "error": "payment method online_banking_czech_republic is not supported by PPRO is not supported by ppro"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_supported",
+        "error": "payment method online_banking_finland is not supported by PPRO is not supported by ppro"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_supported",
+        "error": "payment method online_banking_fpx is not supported by PPRO is not supported by ppro"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_supported",
+        "error": "payment method online_banking_poland is not supported by PPRO is not supported by ppro"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_supported",
+        "error": "payment method online_banking_slovakia is not supported by PPRO is not supported by ppro"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_supported",
+        "error": "payment method online_banking_thailand is not supported by PPRO is not supported by ppro"
+      },
+      "OpenBanking": {
+        "status": "not_supported",
+        "error": "payment method open_banking is not supported by PPRO is not supported by ppro"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
+      "OpenBankingUk": {
+        "status": "not_supported",
+        "error": "payment method open_banking_uk is not supported by PPRO is not supported by ppro"
+      },
+      "Oxxo": {
+        "status": "not_supported",
+        "error": "payment method oxxo is not supported by PPRO is not supported by ppro"
+      },
+      "PagoEfectivo": {
+        "status": "not_supported",
+        "error": "payment method pago_efectivo is not supported by PPRO is not supported by ppro"
+      },
+      "PayEasy": {
+        "status": "not_supported",
+        "error": "payment method pay_easy is not supported by PPRO is not supported by ppro"
+      },
+      "PaySafeCard": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
+      "PaypalRedirect": {
+        "status": "not_supported",
+        "error": "payment method paypal is not supported by PPRO is not supported by ppro"
+      },
+      "PaypalSdk": {
+        "status": "not_supported",
+        "error": "payment method paypal is not supported by PPRO is not supported by ppro"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
+      "PermataBankTransfer": {
+        "status": "not_supported",
+        "error": "payment method permata_bank_transfer is not supported by PPRO is not supported by ppro"
+      },
+      "Pix": {
+        "status": "not_supported",
+        "error": "payment method pix is not supported by PPRO is not supported by ppro"
+      },
+      "Przelewy24": {
+        "status": "not_supported",
+        "error": "payment method przelewy24 is not supported by PPRO is not supported by ppro"
+      },
+      "Pse": {
+        "status": "not_supported",
+        "error": "payment method pse is not supported by PPRO is not supported by ppro"
+      },
+      "RedCompra": {
+        "status": "not_supported",
+        "error": "payment method red_compra is not supported by PPRO is not supported by ppro"
+      },
+      "RedPagos": {
+        "status": "not_supported",
+        "error": "payment method red_pagos is not supported by PPRO is not supported by ppro"
+      },
+      "RevolutPay": {
+        "status": "not_supported",
+        "error": "payment method revolut_pay is not supported by PPRO is not supported by ppro"
+      },
+      "SamsungPay": {
+        "status": "not_supported",
+        "error": "payment method samsung_pay is not supported by PPRO is not supported by ppro"
+      },
+      "Satispay": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "satispay": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "merchant-id": "probe_merchant",
+            "request-idempotency-key": "probe_txn_001",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"paymentMethod\":\"SATISPAY\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}]}"
+        }
+      },
+      "Seicomart": {
+        "status": "not_supported",
+        "error": "payment method seicomart is not supported by PPRO is not supported by ppro"
+      },
+      "Sepa": {
+        "status": "not_supported",
+        "error": "payment method sepa is not supported by PPRO is not supported by ppro"
+      },
+      "SepaBankTransfer": {
+        "status": "not_supported",
+        "error": "payment method sepa_bank_transfer is not supported by PPRO is not supported by ppro"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_supported",
+        "error": "payment method sepa_guaranteed_debit is not supported by PPRO is not supported by ppro"
+      },
+      "SevenEleven": {
+        "status": "not_supported",
+        "error": "payment method seven_eleven is not supported by PPRO is not supported by ppro"
+      },
+      "Sofort": {
+        "status": "not_supported",
+        "error": "payment method sofort is not supported by PPRO is not supported by ppro"
+      },
+      "Trustly": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "trustly": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "merchant-id": "probe_merchant",
+            "request-idempotency-key": "probe_txn_001",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"paymentMethod\":\"TRUSTLY\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}]}"
+        }
+      },
+      "UpiCollect": {
+        "status": "not_supported",
+        "error": "payment method upi_collect is not supported by PPRO is not supported by ppro"
+      },
+      "UpiIntent": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "upi_intent": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "merchant-id": "probe_merchant",
+            "request-idempotency-key": "probe_txn_001",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"paymentMethod\":\"UPI\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}]}"
+        }
+      },
+      "UpiQr": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "upi_qr": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "merchant-id": "probe_merchant",
+            "request-idempotency-key": "probe_txn_001",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"paymentMethod\":\"UPI\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}]}"
+        }
+      },
+      "WeChatPayQr": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "we_chat_pay_qr": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "merchant-id": "probe_merchant",
+            "request-idempotency-key": "probe_txn_001",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"paymentMethod\":\"WECHATPAY\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}]}"
+        }
+      },
+      "Wero": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "wero": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "merchant-id": "probe_merchant",
+            "request-idempotency-key": "probe_txn_001",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"paymentMethod\":\"WERO\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}]}"
+        }
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_capture_id": "probe_capture_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount_to_capture": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges/probe_connector_txn_001/captures",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "merchant-id": "probe_merchant",
+            "request-idempotency-key": "probe_capture_001",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":1000}"
+        }
+      }
+    },
+    "create_access_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_customer": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_session_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_merchant_txn_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges/probe_connector_txn_001",
+          "method": "Get",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "merchant-id": "probe_merchant",
+            "via": "HyperSwitch"
+          },
+          "body": null
+        }
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "not_supported",
+        "error": "payment method card is not supported by PPRO is not supported by ppro"
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_supported",
+        "error": "payment method card is not supported for PPRO mandates is not supported by ppro"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "connector_recurring_payment_id": {
+            "mandate_id_type": {
+              "connector_mandate_id": {
+                "connector_mandate_id": "probe-mandate-123"
+              }
+            }
+          },
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "token": {
+              "token": "probe_pm_token"
+            }
+          },
+          "return_url": "https://example.com/recurring-return",
+          "connector_customer_id": "cust_probe_123",
+          "payment_method_type": "PAY_PAL",
+          "off_session": true
+        },
+        "sample": {
+          "url": "https://api.sandbox.eu.ppro.com/v1/payment-agreements/probe-mandate-123/payment-charges",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "merchant-id": "probe_merchant",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"scheduleType\":\"UNSCHEDULED\",\"autoCapture\":true,\"initiator\":\"MERCHANT\"}"
+        }
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "payment_amount": 1000,
+          "refund_amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "reason": "customer_request"
+        },
+        "sample": {
+          "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges/probe_connector_txn_001/refunds",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "merchant-id": "probe_merchant",
+            "request-idempotency-key": "probe_refund_001",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":1000,\"refundReason\":\"CUSTOMER_REQUEST\"}"
+        }
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "not_supported",
+        "error": "payment method card is not supported for PPRO mandates is not supported by ppro"
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: payment_method_type — Missing required field: payment_method_type"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: payment_method_type — Missing required field: payment_method_type"
+      }
+    },
+    "tokenize": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: amount or minor_amount_authorized — Missing required field: amount or minor_amount_authorized"
+      }
+    }
+  },
+  "flow_graph": {
+    "nodes": {
+      "authenticate": {
+        "node_type": "dependent",
+        "description": "authenticate"
+      },
+      "authorize": {
+        "node_type": "entry_point",
+        "description": "Authorize a payment, reserving funds",
+        "provides": {
+          "connector_transaction_id": {
+            "response_path": "connector_transaction_id",
+            "description": "Transaction ID for subsequent operations"
+          }
+        },
+        "requires": {
+          "access_token": {
+            "from_flow": "create_access_token",
+            "from_field": "access_token",
+            "request_path": "state.access_token.token.value"
+          },
+          "order_id": {
+            "from_flow": "create_order",
+            "from_field": "order_id",
+            "request_path": "merchant_order_id"
+          }
+        }
+      },
+      "capture": {
+        "node_type": "dependent",
+        "description": "Capture previously authorized funds",
+        "requires": {
+          "connector_transaction_id": {
+            "from_flow": "authorize",
+            "from_field": "connector_transaction_id",
+            "request_path": "connector_transaction_id"
+          }
+        }
+      },
+      "create_access_token": {
+        "node_type": "prerequisite",
+        "description": "Obtain OAuth2 access token for API authentication",
+        "provides": {
+          "access_token": {
+            "response_path": "state.access_token.token.value",
+            "description": "OAuth2 access token for API calls"
+          }
+        }
+      },
+      "create_customer": {
+        "node_type": "prerequisite",
+        "description": "Create a customer profile for recurring payments",
+        "provides": {
+          "connector_customer_id": {
+            "response_path": "connector_customer_id",
+            "description": "Customer ID for recurring payments"
+          }
+        }
+      },
+      "create_order": {
+        "node_type": "prerequisite",
+        "description": "Create an order before payment authorization",
+        "provides": {
+          "order_id": {
+            "response_path": "connector_order_id",
+            "description": "Order ID for payment authorization"
+          }
+        }
+      },
+      "create_session_token": {
+        "node_type": "dependent",
+        "description": "create_session_token"
+      },
+      "dispute_accept": {
+        "node_type": "dependent",
+        "description": "dispute_accept"
+      },
+      "dispute_defend": {
+        "node_type": "dependent",
+        "description": "dispute_defend"
+      },
+      "dispute_submit_evidence": {
+        "node_type": "dependent",
+        "description": "dispute_submit_evidence"
+      },
+      "get": {
+        "node_type": "dependent",
+        "description": "Retrieve payment status and details",
+        "requires": {
+          "connector_transaction_id": {
+            "from_flow": "authorize",
+            "from_field": "connector_transaction_id",
+            "request_path": "connector_transaction_id"
+          }
+        }
+      },
+      "post_authenticate": {
+        "node_type": "dependent",
+        "description": "post_authenticate"
+      },
+      "pre_authenticate": {
+        "node_type": "entry_point",
+        "description": "Pre-authenticate before capture"
+      },
+      "proxy_authorize": {
+        "node_type": "dependent",
+        "description": "proxy_authorize"
+      },
+      "proxy_setup_recurring": {
+        "node_type": "dependent",
+        "description": "proxy_setup_recurring"
+      },
+      "recurring_charge": {
+        "node_type": "dependent",
+        "description": "Charge against an existing mandate",
+        "requires": {
+          "connector_customer_id": {
+            "from_flow": "create_customer",
+            "from_field": "connector_customer_id",
+            "request_path": "connector_customer_id"
+          },
+          "connector_recurring_payment_id": {
+            "from_flow": "setup_recurring",
+            "from_field": "mandate_reference",
+            "request_path": "connector_recurring_payment_id.connector_mandate_id.connector_mandate_id"
+          }
+        }
+      },
+      "refund": {
+        "node_type": "dependent",
+        "description": "Refund a completed payment",
+        "provides": {
+          "refund_id": {
+            "response_path": "connector_refund_id",
+            "description": "Refund ID for tracking"
+          }
+        },
+        "requires": {
+          "connector_transaction_id": {
+            "from_flow": "authorize",
+            "from_field": "connector_transaction_id",
+            "request_path": "connector_transaction_id"
+          }
+        }
+      },
+      "reverse": {
+        "node_type": "dependent",
+        "description": "reverse"
+      },
+      "setup_recurring": {
+        "node_type": "entry_point",
+        "description": "Set up a mandate for recurring charges",
+        "provides": {
+          "mandate_reference": {
+            "response_path": "mandate_reference.connector_mandate_id.connector_mandate_id",
+            "description": "Mandate reference for recurring charges"
+          }
+        }
+      },
+      "token_authorize": {
+        "node_type": "dependent",
+        "description": "token_authorize"
+      },
+      "token_setup_recurring": {
+        "node_type": "dependent",
+        "description": "token_setup_recurring"
+      },
+      "tokenize": {
+        "node_type": "entry_point",
+        "description": "Tokenize a payment method for later use",
+        "provides": {
+          "payment_method_token": {
+            "response_path": "payment_method_token",
+            "description": "Tokenized payment method"
+          }
+        }
+      },
+      "void": {
+        "node_type": "dependent",
+        "description": "Cancel an uncaptured authorization",
+        "requires": {
+          "connector_transaction_id": {
+            "from_flow": "authorize",
+            "from_field": "connector_transaction_id",
+            "request_path": "connector_transaction_id"
+          }
+        }
+      }
+    },
+    "edges": [
+      {
+        "from": "authorize",
+        "to": "capture"
+      },
+      {
+        "from": "authorize",
+        "to": "get"
+      },
+      {
+        "from": "authorize",
+        "to": "refund"
+      },
+      {
+        "from": "authorize",
+        "to": "void"
+      },
+      {
+        "from": "create_access_token",
+        "to": "authorize"
+      },
+      {
+        "from": "create_customer",
+        "to": "recurring_charge"
+      },
+      {
+        "from": "create_order",
+        "to": "authorize"
+      },
+      {
+        "from": "setup_recurring",
+        "to": "recurring_charge"
+      }
+    ]
+  }
+}

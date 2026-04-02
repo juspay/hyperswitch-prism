@@ -1,0 +1,190 @@
+// adyen SDK Examples
+
+function _buildauthorizeRequest(arg) {
+    const payload = {
+    "merchant_transaction_id": "probe_txn_001",
+    "amount": {
+        "minor_amount": 1000,
+        "currency": "USD"
+    },
+    "payment_method": {
+        "card": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "737",
+            "card_holder_name": "John Doe"
+        }
+    },
+    "capture_method": "AUTOMATIC",
+    "address": {
+        "billing_address": {}
+    },
+    "auth_type": "NO_THREE_DS",
+    "return_url": "https://example.com/return",
+    "browser_info": {
+        "color_depth": 24,
+        "screen_height": 900,
+        "screen_width": 1440,
+        "java_enabled": false,
+        "java_script_enabled": true,
+        "language": "en-US",
+        "time_zone_offset_minutes": -480,
+        "accept_header": "application/json",
+        "user_agent": "Mozilla/5.0 (probe-bot)",
+        "accept_language": "en-US,en;q=0.9",
+        "ip_address": "1.2.3.4"
+    }
+};
+    if (arg) {
+        if (arg === 'AUTOMATIC' || arg === 'MANUAL') {
+            payload.capture_method = arg;
+        } else if (typeof arg === 'string') {
+            payload.connector_transaction_id = arg;
+        }
+    }
+    return payload;
+}
+
+function _buildcaptureRequest(arg) {
+    const payload = {
+    "merchant_capture_id": "probe_capture_001",
+    "connector_transaction_id": "probe_connector_txn_001",
+    "amount_to_capture": {
+        "minor_amount": 1000,
+        "currency": "USD"
+    }
+};
+    if (arg) {
+        if (arg === 'AUTOMATIC' || arg === 'MANUAL') {
+            payload.capture_method = arg;
+        } else if (typeof arg === 'string') {
+            payload.connector_transaction_id = arg;
+        }
+    }
+    return payload;
+}
+
+function _buildrefundRequest(arg) {
+    const payload = {
+    "merchant_refund_id": "probe_refund_001",
+    "connector_transaction_id": "probe_connector_txn_001",
+    "payment_amount": 1000,
+    "refund_amount": {
+        "minor_amount": 1000,
+        "currency": "USD"
+    },
+    "reason": "customer_request"
+};
+    if (arg) {
+        if (arg === 'AUTOMATIC' || arg === 'MANUAL') {
+            payload.capture_method = arg;
+        } else if (typeof arg === 'string') {
+            payload.connector_transaction_id = arg;
+        }
+    }
+    return payload;
+}
+
+function _buildsetupRecurringRequest(arg) {
+    const payload = {
+    "merchant_recurring_payment_id": "probe_mandate_001",
+    "amount": {
+        "minor_amount": 0,
+        "currency": "USD"
+    },
+    "payment_method": {
+        "card": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "737",
+            "card_holder_name": "John Doe"
+        }
+    },
+    "customer": {
+        "id": "cust_probe_123"
+    },
+    "address": {
+        "billing_address": {}
+    },
+    "auth_type": "NO_THREE_DS",
+    "enrolled_for_3ds": false,
+    "return_url": "https://example.com/mandate-return",
+    "setup_future_usage": "OFF_SESSION",
+    "request_incremental_authorization": false,
+    "customer_acceptance": {
+        "acceptance_type": "OFFLINE",
+        "accepted_at": 0
+    },
+    "browser_info": {
+        "color_depth": 24,
+        "screen_height": 900,
+        "screen_width": 1440,
+        "java_enabled": false,
+        "java_script_enabled": true,
+        "language": "en-US",
+        "time_zone_offset_minutes": -480,
+        "accept_header": "application/json",
+        "user_agent": "Mozilla/5.0 (probe-bot)",
+        "accept_language": "en-US,en;q=0.9",
+        "ip_address": "1.2.3.4"
+    }
+};
+    if (arg) {
+        if (arg === 'AUTOMATIC' || arg === 'MANUAL') {
+            payload.capture_method = arg;
+        } else if (typeof arg === 'string') {
+            payload.connector_transaction_id = arg;
+        }
+    }
+    return payload;
+}
+
+function _buildrecurringChargeRequest(arg) {
+    const payload = {
+    "connector_recurring_payment_id": {
+        "mandate_id_type": {
+            "connector_mandate_id": {
+                "connector_mandate_id": "probe-mandate-123"
+            }
+        }
+    },
+    "amount": {
+        "minor_amount": 1000,
+        "currency": "USD"
+    },
+    "payment_method": {
+        "token": {
+            "token": "probe_pm_token"
+        }
+    },
+    "return_url": "https://example.com/recurring-return",
+    "connector_customer_id": "cust_probe_123",
+    "payment_method_type": "PAY_PAL",
+    "off_session": true
+};
+    if (arg) {
+        if (arg === 'AUTOMATIC' || arg === 'MANUAL') {
+            payload.capture_method = arg;
+        } else if (typeof arg === 'string') {
+            payload.connector_transaction_id = arg;
+        }
+    }
+    return payload;
+}
+
+function _buildvoidRequest(arg) {
+    const payload = {
+    "merchant_void_id": "probe_void_001",
+    "connector_transaction_id": "probe_connector_txn_001"
+};
+    if (arg) {
+        if (arg === 'AUTOMATIC' || arg === 'MANUAL') {
+            payload.capture_method = arg;
+        } else if (typeof arg === 'string') {
+            payload.connector_transaction_id = arg;
+        }
+    }
+    return payload;
+}

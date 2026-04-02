@@ -26,7 +26,7 @@
 //!
 //! ```no_run
 //! use tracing_kafka::KafkaWriter;
-//! use rdkafka::message::OwnedHeaders;
+//! use rdkafka::message::{Header, OwnedHeaders};
 //!
 //! let writer = KafkaWriter::new(
 //!     vec!["localhost:9092".to_string()],
@@ -34,7 +34,7 @@
 //!     None, None, None, None, None, None
 //! ).expect("Failed to create KafkaWriter");
 //!
-//! let headers = OwnedHeaders::new().add("my-header", "my-value");
+//! let headers = OwnedHeaders::new().insert(Header { key: "my-header", value: Some("my-value") });
 //!
 //! let result = writer.publish_event(
 //!     "custom-events",

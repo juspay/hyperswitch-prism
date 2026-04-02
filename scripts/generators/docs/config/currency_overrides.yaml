@@ -1,0 +1,8 @@
+# Currency overrides for bank payment methods
+# Bank PMs that require a specific currency rather than the probe default (USD)
+# Extracted from generate.py _BANK_PM_CURRENCY_OVERRIDES
+currency_overrides:
+  Sepa: EUR
+  Bacs: GBP
+  Becs: AUD
+  # Ach is USD - no override needed

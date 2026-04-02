@@ -11,6 +11,10 @@
         "status": "not_supported",
         "error": "Payment method BankDebit(AchBankDebit { account_number: *** alloc::string::String ***, routing_number: *** alloc::string::String ***, card_holder_name: None, bank_account_holder_name: Some(*** alloc::string::String ***), bank_name: None, bank_type: None, bank_holder_type: None }) is not supported by Nexixpay"
       },
+      "AchBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method BankTransfer(AchBankTransfer) is not supported by Nexixpay"
+      },
       "Affirm": {
         "status": "not_supported",
         "error": "Payment method PayLater(AffirmRedirect) is not supported by Nexixpay"
@@ -18,6 +22,18 @@
       "Afterpay": {
         "status": "not_supported",
         "error": "Payment method PayLater(AfterpayClearpayRedirect) is not supported by Nexixpay"
+      },
+      "Alfamart": {
+        "status": "not_supported",
+        "error": "Payment method Voucher(Alfamart(AlfamartVoucherData)) is not supported by Nexixpay"
+      },
+      "AliPayRedirect": {
+        "status": "not_supported",
+        "error": "Payment method Wallet(AliPayRedirect(AliPayRedirection)) is not supported by Nexixpay"
+      },
+      "AmazonPayRedirect": {
+        "status": "not_supported",
+        "error": "Payment method Wallet(AmazonPayRedirect(AmazonPayRedirectData)) is not supported by Nexixpay"
       },
       "ApplePay": {
         "status": "not_supported",
@@ -27,21 +43,109 @@
         "status": "not_supported",
         "error": "Payment method Wallet(ApplePay(ApplePayWalletData { payment_data: Decrypted(ApplePayDecryptedData { application_primary_account_number: CardNumber(411111**********), application_expiration_month: *** alloc::string::String ***, application_expiration_year: *** alloc::string::String ***, payment_data: ApplePayCryptogramData { online_payment_cryptogram: *** alloc::string::String ***, eci_indicator: Some(\"05\") } }), payment_method: ApplepayPaymentMethod { display_name: \"Visa 1111\", network: \"Visa\", pm_type: \"debit\" }, transaction_identifier: \"probe_txn_id\" })) is not supported by Nexixpay"
       },
+      "ApplePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "Payment method Wallet(ApplePayThirdPartySdk(ApplePayThirdPartySdkData { token: Some(*** alloc::string::String ***) })) is not supported by Nexixpay"
+      },
       "Bacs": {
         "status": "not_supported",
         "error": "Payment method BankDebit(BacsBankDebit { account_number: *** alloc::string::String ***, sort_code: *** alloc::string::String ***, bank_account_holder_name: Some(*** alloc::string::String ***) }) is not supported by Nexixpay"
+      },
+      "BacsBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method BankTransfer(BacsBankTransfer) is not supported by Nexixpay"
+      },
+      "BancontactCard": {
+        "status": "not_supported",
+        "error": "Payment method BankRedirect(BancontactCard { card_number: Some(CardNumber(411111**********)), card_exp_month: Some(*** alloc::string::String ***), card_exp_year: Some(*** alloc::string::String ***), card_holder_name: Some(*** alloc::string::String ***) }) is not supported by Nexixpay"
+      },
+      "BcaBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method BankTransfer(BcaBankTransfer) is not supported by Nexixpay"
       },
       "Becs": {
         "status": "not_supported",
         "error": "Payment method BankDebit(BecsBankDebit { account_number: *** alloc::string::String ***, bsb_number: *** alloc::string::String ***, bank_account_holder_name: Some(*** alloc::string::String ***) }) is not supported by Nexixpay"
       },
+      "Bizum": {
+        "status": "not_supported",
+        "error": "Payment method BankRedirect(Bizum) is not supported by Nexixpay"
+      },
       "Blik": {
         "status": "not_supported",
         "error": "Payment method BankRedirect(Blik { blik_code: Some(\"777124\") }) is not supported by Nexixpay"
       },
+      "Bluecode": {
+        "status": "not_supported",
+        "error": "Payment method Wallet(BluecodeRedirect) is not supported by Nexixpay"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method BankTransfer(BniVaBankTransfer) is not supported by Nexixpay"
+      },
+      "Boleto": {
+        "status": "not_supported",
+        "error": "Payment method Voucher(Boleto(BoletoVoucherData { social_security_number: None })) is not supported by Nexixpay"
+      },
+      "BriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method BankTransfer(BriVaBankTransfer) is not supported by Nexixpay"
+      },
       "Card": {
         "status": "error",
         "error": "Stuck on field: authentication_data — Missing required field: authentication_data (must be present for 3DS flow)"
+      },
+      "CashappQr": {
+        "status": "not_supported",
+        "error": "Payment method Wallet(CashappQr(CashappQr)) is not supported by Nexixpay"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method BankTransfer(CimbVaBankTransfer) is not supported by Nexixpay"
+      },
+      "ClassicReward": {
+        "status": "not_supported",
+        "error": "Payment method Reward is not supported by Nexixpay"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method BankTransfer(DanamonVaBankTransfer) is not supported by Nexixpay"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
+      "EVoucher": {
+        "status": "not_supported",
+        "error": "Payment method Reward is not supported by Nexixpay"
+      },
+      "Efecty": {
+        "status": "not_supported",
+        "error": "Payment method Voucher(Efecty) is not supported by Nexixpay"
+      },
+      "Eft": {
+        "status": "not_supported",
+        "error": "Payment method BankRedirect(Eft { provider: \"ozow\" }) is not supported by Nexixpay"
+      },
+      "Eps": {
+        "status": "not_supported",
+        "error": "Payment method BankRedirect(Eps { bank_name: None, country: None }) is not supported by Nexixpay"
+      },
+      "FamilyMart": {
+        "status": "not_supported",
+        "error": "Payment method Voucher(FamilyMart(JCSVoucherData)) is not supported by Nexixpay"
+      },
+      "Giropay": {
+        "status": "not_supported",
+        "error": "Payment method BankRedirect(Giropay { bank_account_bic: None, bank_account_iban: None, country: None }) is not supported by Nexixpay"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
       },
       "GooglePay": {
         "status": "not_supported",
@@ -51,29 +155,221 @@
         "status": "not_supported",
         "error": "Payment method Wallet(GooglePay(GooglePayWalletData { pm_type: \"CARD\", description: \"Visa 1111\", info: GooglePayPaymentMethodInfo { card_network: \"VISA\", card_details: \"1111\", assurance_details: None }, tokenization_data: Decrypted(GooglePayDecryptedData { card_exp_month: *** alloc::string::String ***, card_exp_year: *** alloc::string::String ***, application_primary_account_number: CardNumber(411111**********), cryptogram: Some(*** alloc::string::String ***), eci_indicator: Some(\"05\") }) })) is not supported by Nexixpay"
       },
+      "GooglePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "Payment method Wallet(GooglePayThirdPartySdk(GooglePayThirdPartySdkData { token: Some(*** alloc::string::String ***) })) is not supported by Nexixpay"
+      },
       "Ideal": {
         "status": "not_supported",
         "error": "Payment method BankRedirect(Ideal { bank_name: None }) is not supported by Nexixpay"
+      },
+      "Indomaret": {
+        "status": "not_supported",
+        "error": "Payment method Voucher(Indomaret(IndomaretVoucherData)) is not supported by Nexixpay"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method BankTransfer(IndonesianBankTransfer { bank_name: None }) is not supported by Nexixpay"
+      },
+      "InstantBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method BankTransfer(InstantBankTransfer) is not supported by Nexixpay"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_supported",
+        "error": "Payment method BankTransfer(InstantBankTransferFinland) is not supported by Nexixpay"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_supported",
+        "error": "Payment method BankTransfer(InstantBankTransferPoland) is not supported by Nexixpay"
+      },
+      "Interac": {
+        "status": "not_supported",
+        "error": "Payment method BankRedirect(Interac { country: None, email: None }) is not supported by Nexixpay"
       },
       "Klarna": {
         "status": "not_supported",
         "error": "Payment method PayLater(KlarnaRedirect) is not supported by Nexixpay"
       },
+      "Lawson": {
+        "status": "not_supported",
+        "error": "Payment method Voucher(Lawson(JCSVoucherData)) is not supported by Nexixpay"
+      },
+      "LocalBankRedirect": {
+        "status": "not_supported",
+        "error": "Payment method BankRedirect(LocalBankRedirect) is not supported by Nexixpay"
+      },
+      "LocalBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method BankTransfer(LocalBankTransfer { bank_code: None }) is not supported by Nexixpay"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method BankTransfer(MandiriVaBankTransfer) is not supported by Nexixpay"
+      },
+      "MbWay": {
+        "status": "not_supported",
+        "error": "Payment method Wallet(MbWay(MbWayData)) is not supported by Nexixpay"
+      },
+      "Mifinity": {
+        "status": "not_supported",
+        "error": "Payment method Wallet(Mifinity(MifinityData { date_of_birth: *** time::date::Date ***, language_preference: Some(\"en\") })) is not supported by Nexixpay"
+      },
+      "MiniStop": {
+        "status": "not_supported",
+        "error": "Payment method Voucher(MiniStop(JCSVoucherData)) is not supported by Nexixpay"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method BankTransfer(MultibancoBankTransfer) is not supported by Nexixpay"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_supported",
+        "error": "Payment method BankRedirect(OnlineBankingCzechRepublic { issuer: CeskaSporitelna }) is not supported by Nexixpay"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_supported",
+        "error": "Payment method BankRedirect(OnlineBankingFinland { email: Some(Email(****@example.com)) }) is not supported by Nexixpay"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_supported",
+        "error": "Payment method BankRedirect(OnlineBankingFpx { issuer: Maybank }) is not supported by Nexixpay"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_supported",
+        "error": "Payment method BankRedirect(OnlineBankingPoland { issuer: BankPekaoSa }) is not supported by Nexixpay"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_supported",
+        "error": "Payment method BankRedirect(OnlineBankingSlovakia { issuer: TatraPay }) is not supported by Nexixpay"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_supported",
+        "error": "Payment method BankRedirect(OnlineBankingThailand { issuer: BangkokBank }) is not supported by Nexixpay"
+      },
+      "OpenBanking": {
+        "status": "not_supported",
+        "error": "Payment method BankRedirect(OpenBanking) is not supported by Nexixpay"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
+      "OpenBankingUk": {
+        "status": "not_supported",
+        "error": "Payment method BankRedirect(OpenBankingUk { issuer: None, country: None }) is not supported by Nexixpay"
+      },
+      "Oxxo": {
+        "status": "not_supported",
+        "error": "Payment method Voucher(Oxxo) is not supported by Nexixpay"
+      },
+      "PagoEfectivo": {
+        "status": "not_supported",
+        "error": "Payment method Voucher(PagoEfectivo) is not supported by Nexixpay"
+      },
+      "PayEasy": {
+        "status": "not_supported",
+        "error": "Payment method Voucher(PayEasy(JCSVoucherData)) is not supported by Nexixpay"
+      },
+      "PaySafeCard": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
       "PaypalRedirect": {
         "status": "not_supported",
         "error": "Payment method Wallet(PaypalRedirect(PaypalRedirection { email: Some(Email(****@example.com)) })) is not supported by Nexixpay"
+      },
+      "PaypalSdk": {
+        "status": "not_supported",
+        "error": "Payment method Wallet(PaypalSdk(PayPalWalletData { token: \"probe_paypal_sdk_token\" })) is not supported by Nexixpay"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
+      "PermataBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method BankTransfer(PermataBankTransfer) is not supported by Nexixpay"
+      },
+      "Pix": {
+        "status": "not_supported",
+        "error": "Payment method BankTransfer(Pix { pix_key: None, cpf: None, cnpj: None, source_bank_account_id: None, destination_bank_account_id: None, expiry_date: None }) is not supported by Nexixpay"
+      },
+      "Przelewy24": {
+        "status": "not_supported",
+        "error": "Payment method BankRedirect(Przelewy24 { bank_name: None }) is not supported by Nexixpay"
+      },
+      "Pse": {
+        "status": "not_supported",
+        "error": "Payment method BankTransfer(Pse) is not supported by Nexixpay"
+      },
+      "RedCompra": {
+        "status": "not_supported",
+        "error": "Payment method Voucher(RedCompra) is not supported by Nexixpay"
+      },
+      "RedPagos": {
+        "status": "not_supported",
+        "error": "Payment method Voucher(RedPagos) is not supported by Nexixpay"
+      },
+      "RevolutPay": {
+        "status": "not_supported",
+        "error": "Payment method Wallet(RevolutPay(RevolutPayData)) is not supported by Nexixpay"
       },
       "SamsungPay": {
         "status": "not_supported",
         "error": "Payment method Wallet(SamsungPay(SamsungPayWalletData { payment_credential: SamsungPayWalletCredentials { method: Some(\"3DS\"), recurring_payment: Some(false), card_brand: Visa, dpan_last_four_digits: None, card_last_four_digits: \"1234\", token_data: SamsungPayTokenData { three_ds_type: Some(\"S\"), version: \"100\", data: *** alloc::string::String *** } } })) is not supported by Nexixpay"
       },
+      "Satispay": {
+        "status": "not_supported",
+        "error": "Payment method Wallet(Satispay(SatispayData)) is not supported by Nexixpay"
+      },
+      "Seicomart": {
+        "status": "not_supported",
+        "error": "Payment method Voucher(Seicomart(JCSVoucherData)) is not supported by Nexixpay"
+      },
       "Sepa": {
         "status": "not_supported",
         "error": "Payment method BankDebit(SepaBankDebit { iban: *** alloc::string::String ***, bank_account_holder_name: Some(*** alloc::string::String ***) }) is not supported by Nexixpay"
       },
+      "SepaBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method BankTransfer(SepaBankTransfer) is not supported by Nexixpay"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_supported",
+        "error": "Payment method BankDebit(SepaGuaranteedBankDebit { iban: *** alloc::string::String ***, bank_account_holder_name: Some(*** alloc::string::String ***) }) is not supported by Nexixpay"
+      },
+      "SevenEleven": {
+        "status": "not_supported",
+        "error": "Payment method Voucher(SevenEleven(JCSVoucherData)) is not supported by Nexixpay"
+      },
+      "Sofort": {
+        "status": "not_supported",
+        "error": "Payment method BankRedirect(Sofort { country: None, preferred_language: None }) is not supported by Nexixpay"
+      },
+      "Trustly": {
+        "status": "not_supported",
+        "error": "Payment method BankRedirect(Trustly { country: None }) is not supported by Nexixpay"
+      },
       "UpiCollect": {
         "status": "not_supported",
         "error": "Payment method Upi(UpiCollect(UpiCollectData { vpa_id: Some(****@upi), upi_source: None })) is not supported by Nexixpay"
+      },
+      "UpiIntent": {
+        "status": "not_supported",
+        "error": "Payment method Upi(UpiIntent(UpiIntentData { upi_source: None, app_name: None })) is not supported by Nexixpay"
+      },
+      "UpiQr": {
+        "status": "not_supported",
+        "error": "Payment method Upi(UpiQr(UpiQrData { upi_source: None })) is not supported by Nexixpay"
+      },
+      "WeChatPayQr": {
+        "status": "not_supported",
+        "error": "Payment method Wallet(WeChatPayQr(WeChatPayQr)) is not supported by Nexixpay"
+      },
+      "Wero": {
+        "status": "not_supported",
+        "error": "Payment method Wallet(Wero(WeroData)) is not supported by Nexixpay"
       }
     },
     "capture": {
@@ -201,6 +497,17 @@
         }
       }
     },
+    "proxy_authorize": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: authentication_data — Missing required field: authentication_data (must be present for 3DS flow)"
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "recurring_charge": {
       "default": {
         "status": "not_implemented"
@@ -243,6 +550,17 @@
         "status": "not_implemented"
       }
     },
+    "token_authorize": {
+      "default": {
+        "status": "not_supported",
+        "error": "Payment method CardToken(CardToken { card_holder_name: None, card_cvc: None }) is not supported by Nexixpay"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "tokenize": {
       "default": {
         "status": "not_implemented"
@@ -273,5 +591,229 @@
         }
       }
     }
+  },
+  "flow_graph": {
+    "nodes": {
+      "authenticate": {
+        "node_type": "dependent",
+        "description": "authenticate"
+      },
+      "authorize": {
+        "node_type": "entry_point",
+        "description": "Authorize a payment, reserving funds",
+        "provides": {
+          "connector_transaction_id": {
+            "response_path": "connector_transaction_id",
+            "description": "Transaction ID for subsequent operations"
+          }
+        },
+        "requires": {
+          "access_token": {
+            "from_flow": "create_access_token",
+            "from_field": "access_token",
+            "request_path": "state.access_token.token.value"
+          },
+          "order_id": {
+            "from_flow": "create_order",
+            "from_field": "order_id",
+            "request_path": "merchant_order_id"
+          }
+        }
+      },
+      "capture": {
+        "node_type": "dependent",
+        "description": "Capture previously authorized funds",
+        "requires": {
+          "connector_transaction_id": {
+            "from_flow": "authorize",
+            "from_field": "connector_transaction_id",
+            "request_path": "connector_transaction_id"
+          }
+        }
+      },
+      "create_access_token": {
+        "node_type": "prerequisite",
+        "description": "Obtain OAuth2 access token for API authentication",
+        "provides": {
+          "access_token": {
+            "response_path": "state.access_token.token.value",
+            "description": "OAuth2 access token for API calls"
+          }
+        }
+      },
+      "create_customer": {
+        "node_type": "prerequisite",
+        "description": "Create a customer profile for recurring payments",
+        "provides": {
+          "connector_customer_id": {
+            "response_path": "connector_customer_id",
+            "description": "Customer ID for recurring payments"
+          }
+        }
+      },
+      "create_order": {
+        "node_type": "prerequisite",
+        "description": "Create an order before payment authorization",
+        "provides": {
+          "order_id": {
+            "response_path": "connector_order_id",
+            "description": "Order ID for payment authorization"
+          }
+        }
+      },
+      "create_session_token": {
+        "node_type": "dependent",
+        "description": "create_session_token"
+      },
+      "dispute_accept": {
+        "node_type": "dependent",
+        "description": "dispute_accept"
+      },
+      "dispute_defend": {
+        "node_type": "dependent",
+        "description": "dispute_defend"
+      },
+      "dispute_submit_evidence": {
+        "node_type": "dependent",
+        "description": "dispute_submit_evidence"
+      },
+      "get": {
+        "node_type": "dependent",
+        "description": "Retrieve payment status and details",
+        "requires": {
+          "connector_transaction_id": {
+            "from_flow": "authorize",
+            "from_field": "connector_transaction_id",
+            "request_path": "connector_transaction_id"
+          }
+        }
+      },
+      "post_authenticate": {
+        "node_type": "dependent",
+        "description": "post_authenticate"
+      },
+      "pre_authenticate": {
+        "node_type": "entry_point",
+        "description": "Pre-authenticate before capture"
+      },
+      "proxy_authorize": {
+        "node_type": "dependent",
+        "description": "proxy_authorize"
+      },
+      "proxy_setup_recurring": {
+        "node_type": "dependent",
+        "description": "proxy_setup_recurring"
+      },
+      "recurring_charge": {
+        "node_type": "dependent",
+        "description": "Charge against an existing mandate",
+        "requires": {
+          "connector_customer_id": {
+            "from_flow": "create_customer",
+            "from_field": "connector_customer_id",
+            "request_path": "connector_customer_id"
+          },
+          "connector_recurring_payment_id": {
+            "from_flow": "setup_recurring",
+            "from_field": "mandate_reference",
+            "request_path": "connector_recurring_payment_id.connector_mandate_id.connector_mandate_id"
+          }
+        }
+      },
+      "refund": {
+        "node_type": "dependent",
+        "description": "Refund a completed payment",
+        "provides": {
+          "refund_id": {
+            "response_path": "connector_refund_id",
+            "description": "Refund ID for tracking"
+          }
+        },
+        "requires": {
+          "connector_transaction_id": {
+            "from_flow": "authorize",
+            "from_field": "connector_transaction_id",
+            "request_path": "connector_transaction_id"
+          }
+        }
+      },
+      "reverse": {
+        "node_type": "dependent",
+        "description": "reverse"
+      },
+      "setup_recurring": {
+        "node_type": "entry_point",
+        "description": "Set up a mandate for recurring charges",
+        "provides": {
+          "mandate_reference": {
+            "response_path": "mandate_reference.connector_mandate_id.connector_mandate_id",
+            "description": "Mandate reference for recurring charges"
+          }
+        }
+      },
+      "token_authorize": {
+        "node_type": "dependent",
+        "description": "token_authorize"
+      },
+      "token_setup_recurring": {
+        "node_type": "dependent",
+        "description": "token_setup_recurring"
+      },
+      "tokenize": {
+        "node_type": "entry_point",
+        "description": "Tokenize a payment method for later use",
+        "provides": {
+          "payment_method_token": {
+            "response_path": "payment_method_token",
+            "description": "Tokenized payment method"
+          }
+        }
+      },
+      "void": {
+        "node_type": "dependent",
+        "description": "Cancel an uncaptured authorization",
+        "requires": {
+          "connector_transaction_id": {
+            "from_flow": "authorize",
+            "from_field": "connector_transaction_id",
+            "request_path": "connector_transaction_id"
+          }
+        }
+      }
+    },
+    "edges": [
+      {
+        "from": "authorize",
+        "to": "capture"
+      },
+      {
+        "from": "authorize",
+        "to": "get"
+      },
+      {
+        "from": "authorize",
+        "to": "refund"
+      },
+      {
+        "from": "authorize",
+        "to": "void"
+      },
+      {
+        "from": "create_access_token",
+        "to": "authorize"
+      },
+      {
+        "from": "create_customer",
+        "to": "recurring_charge"
+      },
+      {
+        "from": "create_order",
+        "to": "authorize"
+      },
+      {
+        "from": "setup_recurring",
+        "to": "recurring_charge"
+      }
+    ]
   }
 }

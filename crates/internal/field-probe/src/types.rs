@@ -102,3 +102,92 @@ pub(crate) struct CompactConnectorResult {
     pub(crate) connector: String,
     pub(crate) flows: BTreeMap<String, BTreeMap<String, CompactFlowResult>>,
 }
+
+// ============================================================================
+// Flow Graph Types - Added for documentation generator refactoring
+// ============================================================================
+
+/// Node type classification in the flow graph
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum FlowNodeType {
+    /// Must run before entry points (create_access_token, create_customer, create_order)
+    Prerequisite,
+    /// Starts payment lifecycle (authorize, setup_recurring, tokenize)
+    EntryPoint,
+    /// Requires prior flow output (capture, refund, void, recurring_charge)
+    Dependent,
+}
+
+/// A field that a flow provides in its response
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+pub(crate) struct FieldProvider {
+    /// JSON path in the response (e.g., "connector_transaction_id")
+    pub(crate) response_path: String,
+    /// Human-readable description
+    pub(crate) description: String,
+}
+
+/// A field that a flow requires from a prior flow's response
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+pub(crate) struct FieldRequirement {
+    /// Source flow that provides this field
+    pub(crate) from_flow: String,
+    /// Key in the source flow's "provides" (e.g., "connector_transaction_id")
+    pub(crate) from_field: String,
+    /// Path in this flow's request where the value goes
+    pub(crate) request_path: String,
+}
+
+/// One flow in the connector's flow graph
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub(crate) struct FlowNode {
+    /// Type of node (prerequisite, entry_point, dependent)
+    pub(crate) node_type: FlowNodeType,
+    /// Human-readable description
+    #[serde(skip_serializing_if = "String::is_empty", default)]
+    pub(crate) description: String,
+    /// Fields this flow provides in its response
+    #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
+    pub(crate) provides: BTreeMap<String, FieldProvider>,
+    /// Fields this flow requires from prior flows
+    #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
+    pub(crate) requires: BTreeMap<String, FieldRequirement>,
+}
+
+impl Default for FlowNode {
+    fn default() -> Self {
+        Self {
+            node_type: FlowNodeType::Dependent,
+            description: String::new(),
+            provides: BTreeMap::new(),
+            requires: BTreeMap::new(),
+        }
+    }
+}
+
+/// Directed edge: from_flow must complete before to_flow can run
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub(crate) struct FlowEdge {
+    pub(crate) from: String,
+    pub(crate) to: String,
+}
+
+/// Connector-specific flow dependency graph
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+pub(crate) struct FlowGraph {
+    /// All flows keyed by flow name
+    pub(crate) nodes: BTreeMap<String, FlowNode>,
+    /// Dependencies between flows
+    pub(crate) edges: Vec<FlowEdge>,
+}
+
+/// Connector result with flow graph (extends CompactConnectorResult)
+#[derive(Debug, Serialize, Deserialize, Default)]
+pub(crate) struct ConnectorResultWithGraph {
+    pub(crate) connector: String,
+    pub(crate) flows: BTreeMap<String, BTreeMap<String, CompactFlowResult>>,
+    /// Flow dependency graph for this connector
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) flow_graph: Option<FlowGraph>,
+}

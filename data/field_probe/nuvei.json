@@ -11,11 +11,27 @@
         "status": "not_supported",
         "error": "Payment method not supported is not supported by nuvei"
       },
+      "AchBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: metadata for ACH details — Missing required field: metadata for ACH details"
+      },
       "Affirm": {
         "status": "not_supported",
         "error": "Payment method not supported is not supported by nuvei"
       },
       "Afterpay": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by nuvei"
+      },
+      "Alfamart": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by nuvei"
+      },
+      "AliPayRedirect": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by nuvei"
+      },
+      "AmazonPayRedirect": {
         "status": "not_supported",
         "error": "Payment method not supported is not supported by nuvei"
       },
@@ -27,17 +43,53 @@
         "status": "not_supported",
         "error": "Payment method not supported is not supported by nuvei"
       },
+      "ApplePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by nuvei"
+      },
       "Bacs": {
         "status": "not_supported",
         "error": "Payment method not supported is not supported by nuvei"
       },
+      "BacsBankTransfer": {
+        "status": "not_supported",
+        "error": "BacsBankTransfer is not supported for Nuvei is not supported by nuvei"
+      },
+      "BancontactCard": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by nuvei"
+      },
+      "BcaBankTransfer": {
+        "status": "not_supported",
+        "error": "BcaBankTransfer is not supported for Nuvei is not supported by nuvei"
+      },
       "Becs": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by nuvei"
+      },
+      "Bizum": {
         "status": "not_supported",
         "error": "Payment method not supported is not supported by nuvei"
       },
       "Blik": {
         "status": "not_supported",
         "error": "Payment method not supported is not supported by nuvei"
+      },
+      "Bluecode": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by nuvei"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_supported",
+        "error": "BniVaBankTransfer is not supported for Nuvei is not supported by nuvei"
+      },
+      "Boleto": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by nuvei"
+      },
+      "BriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "BriVaBankTransfer is not supported for Nuvei is not supported by nuvei"
       },
       "Card": {
         "status": "supported",
@@ -91,6 +143,58 @@
           "body": "{\"sessionToken\":\"probe_session_token\",\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"clientRequestId\":\"probe_txn_001\",\"amount\":\"10.00\",\"currency\":\"USD\",\"clientUniqueId\":\"probe_txn_001\",\"paymentOption\":{\"card\":{\"cardNumber\":\"4111111111111111\",\"cardHolderName\":\"Doe\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"CVV\":\"737\"}},\"transactionType\":\"Sale\",\"deviceDetails\":{\"ipAddress\":\"1.2.3.4\"},\"billingAddress\":{\"email\":\"test@example.com\",\"country\":\"US\",\"lastName\":\"Doe\"},\"urlDetails\":{\"successUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\",\"pendingUrl\":\"https://example.com/return\"},\"timeStamp\":\"00000000000000\",\"checksum\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
         }
       },
+      "CashappQr": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by nuvei"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_supported",
+        "error": "CimbVaBankTransfer is not supported for Nuvei is not supported by nuvei"
+      },
+      "ClassicReward": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by nuvei"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_supported",
+        "error": "DanamonVaBankTransfer is not supported for Nuvei is not supported by nuvei"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
+      "EVoucher": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by nuvei"
+      },
+      "Efecty": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by nuvei"
+      },
+      "Eft": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by nuvei"
+      },
+      "Eps": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by nuvei"
+      },
+      "FamilyMart": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by nuvei"
+      },
+      "Giropay": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by nuvei"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
       "GooglePay": {
         "status": "not_supported",
         "error": "Payment method not supported is not supported by nuvei"
@@ -99,7 +203,35 @@
         "status": "not_supported",
         "error": "Payment method not supported is not supported by nuvei"
       },
+      "GooglePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by nuvei"
+      },
       "Ideal": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by nuvei"
+      },
+      "Indomaret": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by nuvei"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_supported",
+        "error": "IndonesianBankTransfer { bank_name: None } is not supported for Nuvei is not supported by nuvei"
+      },
+      "InstantBankTransfer": {
+        "status": "not_supported",
+        "error": "InstantBankTransfer is not supported for Nuvei is not supported by nuvei"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_supported",
+        "error": "InstantBankTransferFinland is not supported for Nuvei is not supported by nuvei"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_supported",
+        "error": "InstantBankTransferPoland is not supported for Nuvei is not supported by nuvei"
+      },
+      "Interac": {
         "status": "not_supported",
         "error": "Payment method not supported is not supported by nuvei"
       },
@@ -107,7 +239,127 @@
         "status": "not_supported",
         "error": "Payment method not supported is not supported by nuvei"
       },
+      "Lawson": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by nuvei"
+      },
+      "LocalBankRedirect": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by nuvei"
+      },
+      "LocalBankTransfer": {
+        "status": "not_supported",
+        "error": "LocalBankTransfer { bank_code: None } is not supported for Nuvei is not supported by nuvei"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "MandiriVaBankTransfer is not supported for Nuvei is not supported by nuvei"
+      },
+      "MbWay": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by nuvei"
+      },
+      "Mifinity": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by nuvei"
+      },
+      "MiniStop": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by nuvei"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_supported",
+        "error": "MultibancoBankTransfer is not supported for Nuvei is not supported by nuvei"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by nuvei"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by nuvei"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by nuvei"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by nuvei"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by nuvei"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by nuvei"
+      },
+      "OpenBanking": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by nuvei"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
+      "OpenBankingUk": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by nuvei"
+      },
+      "Oxxo": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by nuvei"
+      },
+      "PagoEfectivo": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by nuvei"
+      },
+      "PayEasy": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by nuvei"
+      },
+      "PaySafeCard": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
       "PaypalRedirect": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by nuvei"
+      },
+      "PaypalSdk": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by nuvei"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Unsupported payment method"
+      },
+      "PermataBankTransfer": {
+        "status": "not_supported",
+        "error": "PermataBankTransfer is not supported for Nuvei is not supported by nuvei"
+      },
+      "Pix": {
+        "status": "not_supported",
+        "error": "Pix { pix_key: None, cpf: None, cnpj: None, source_bank_account_id: None, destination_bank_account_id: None, expiry_date: None } is not supported for Nuvei is not supported by nuvei"
+      },
+      "Przelewy24": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by nuvei"
+      },
+      "Pse": {
+        "status": "not_supported",
+        "error": "Pse is not supported for Nuvei is not supported by nuvei"
+      },
+      "RedCompra": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by nuvei"
+      },
+      "RedPagos": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by nuvei"
+      },
+      "RevolutPay": {
         "status": "not_supported",
         "error": "Payment method not supported is not supported by nuvei"
       },
@@ -115,11 +367,55 @@
         "status": "not_supported",
         "error": "Payment method not supported is not supported by nuvei"
       },
+      "Satispay": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by nuvei"
+      },
+      "Seicomart": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by nuvei"
+      },
       "Sepa": {
         "status": "not_supported",
         "error": "Payment method not supported is not supported by nuvei"
       },
+      "SepaBankTransfer": {
+        "status": "not_supported",
+        "error": "SepaBankTransfer is not supported for Nuvei is not supported by nuvei"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by nuvei"
+      },
+      "SevenEleven": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by nuvei"
+      },
+      "Sofort": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by nuvei"
+      },
+      "Trustly": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by nuvei"
+      },
       "UpiCollect": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by nuvei"
+      },
+      "UpiIntent": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by nuvei"
+      },
+      "UpiQr": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by nuvei"
+      },
+      "WeChatPayQr": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by nuvei"
+      },
+      "Wero": {
         "status": "not_supported",
         "error": "Payment method not supported is not supported by nuvei"
       }
@@ -228,6 +524,17 @@
         "status": "not_implemented"
       }
     },
+    "proxy_authorize": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: session_token — Missing required field: session_token"
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "recurring_charge": {
       "default": {
         "status": "not_implemented"
@@ -267,6 +574,17 @@
         "status": "not_implemented"
       }
     },
+    "token_authorize": {
+      "default": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by nuvei"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "tokenize": {
       "default": {
         "status": "not_implemented"
@@ -294,5 +612,229 @@
         }
       }
     }
+  },
+  "flow_graph": {
+    "nodes": {
+      "authenticate": {
+        "node_type": "dependent",
+        "description": "authenticate"
+      },
+      "authorize": {
+        "node_type": "entry_point",
+        "description": "Authorize a payment, reserving funds",
+        "provides": {
+          "connector_transaction_id": {
+            "response_path": "connector_transaction_id",
+            "description": "Transaction ID for subsequent operations"
+          }
+        },
+        "requires": {
+          "access_token": {
+            "from_flow": "create_access_token",
+            "from_field": "access_token",
+            "request_path": "state.access_token.token.value"
+          },
+          "order_id": {
+            "from_flow": "create_order",
+            "from_field": "order_id",
+            "request_path": "merchant_order_id"
+          }
+        }
+      },
+      "capture": {
+        "node_type": "dependent",
+        "description": "Capture previously authorized funds",
+        "requires": {
+          "connector_transaction_id": {
+            "from_flow": "authorize",
+            "from_field": "connector_transaction_id",
+            "request_path": "connector_transaction_id"
+          }
+        }
+      },
+      "create_access_token": {
+        "node_type": "prerequisite",
+        "description": "Obtain OAuth2 access token for API authentication",
+        "provides": {
+          "access_token": {
+            "response_path": "state.access_token.token.value",
+            "description": "OAuth2 access token for API calls"
+          }
+        }
+      },
+      "create_customer": {
+        "node_type": "prerequisite",
+        "description": "Create a customer profile for recurring payments",
+        "provides": {
+          "connector_customer_id": {
+            "response_path": "connector_customer_id",
+            "description": "Customer ID for recurring payments"
+          }
+        }
+      },
+      "create_order": {
+        "node_type": "prerequisite",
+        "description": "Create an order before payment authorization",
+        "provides": {
+          "order_id": {
+            "response_path": "connector_order_id",
+            "description": "Order ID for payment authorization"
+          }
+        }
+      },
+      "create_session_token": {
+        "node_type": "dependent",
+        "description": "create_session_token"
+      },
+      "dispute_accept": {
+        "node_type": "dependent",
+        "description": "dispute_accept"
+      },
+      "dispute_defend": {
+        "node_type": "dependent",
+        "description": "dispute_defend"
+      },
+      "dispute_submit_evidence": {
+        "node_type": "dependent",
+        "description": "dispute_submit_evidence"
+      },
+      "get": {
+        "node_type": "dependent",
+        "description": "Retrieve payment status and details",
+        "requires": {
+          "connector_transaction_id": {
+            "from_flow": "authorize",
+            "from_field": "connector_transaction_id",
+            "request_path": "connector_transaction_id"
+          }
+        }
+      },
+      "post_authenticate": {
+        "node_type": "dependent",
+        "description": "post_authenticate"
+      },
+      "pre_authenticate": {
+        "node_type": "entry_point",
+        "description": "Pre-authenticate before capture"
+      },
+      "proxy_authorize": {
+        "node_type": "dependent",
+        "description": "proxy_authorize"
+      },
+      "proxy_setup_recurring": {
+        "node_type": "dependent",
+        "description": "proxy_setup_recurring"
+      },
+      "recurring_charge": {
+        "node_type": "dependent",
+        "description": "Charge against an existing mandate",
+        "requires": {
+          "connector_customer_id": {
+            "from_flow": "create_customer",
+            "from_field": "connector_customer_id",
+            "request_path": "connector_customer_id"
+          },
+          "connector_recurring_payment_id": {
+            "from_flow": "setup_recurring",
+            "from_field": "mandate_reference",
+            "request_path": "connector_recurring_payment_id.connector_mandate_id.connector_mandate_id"
+          }
+        }
+      },
+      "refund": {
+        "node_type": "dependent",
+        "description": "Refund a completed payment",
+        "provides": {
+          "refund_id": {
+            "response_path": "connector_refund_id",
+            "description": "Refund ID for tracking"
+          }
+        },
+        "requires": {
+          "connector_transaction_id": {
+            "from_flow": "authorize",
+            "from_field": "connector_transaction_id",
+            "request_path": "connector_transaction_id"
+          }
+        }
+      },
+      "reverse": {
+        "node_type": "dependent",
+        "description": "reverse"
+      },
+      "setup_recurring": {
+        "node_type": "entry_point",
+        "description": "Set up a mandate for recurring charges",
+        "provides": {
+          "mandate_reference": {
+            "response_path": "mandate_reference.connector_mandate_id.connector_mandate_id",
+            "description": "Mandate reference for recurring charges"
+          }
+        }
+      },
+      "token_authorize": {
+        "node_type": "dependent",
+        "description": "token_authorize"
+      },
+      "token_setup_recurring": {
+        "node_type": "dependent",
+        "description": "token_setup_recurring"
+      },
+      "tokenize": {
+        "node_type": "entry_point",
+        "description": "Tokenize a payment method for later use",
+        "provides": {
+          "payment_method_token": {
+            "response_path": "payment_method_token",
+            "description": "Tokenized payment method"
+          }
+        }
+      },
+      "void": {
+        "node_type": "dependent",
+        "description": "Cancel an uncaptured authorization",
+        "requires": {
+          "connector_transaction_id": {
+            "from_flow": "authorize",
+            "from_field": "connector_transaction_id",
+            "request_path": "connector_transaction_id"
+          }
+        }
+      }
+    },
+    "edges": [
+      {
+        "from": "authorize",
+        "to": "capture"
+      },
+      {
+        "from": "authorize",
+        "to": "get"
+      },
+      {
+        "from": "authorize",
+        "to": "refund"
+      },
+      {
+        "from": "authorize",
+        "to": "void"
+      },
+      {
+        "from": "create_access_token",
+        "to": "authorize"
+      },
+      {
+        "from": "create_customer",
+        "to": "recurring_charge"
+      },
+      {
+        "from": "create_order",
+        "to": "authorize"
+      },
+      {
+        "from": "setup_recurring",
+        "to": "recurring_charge"
+      }
+    ]
   }
 }

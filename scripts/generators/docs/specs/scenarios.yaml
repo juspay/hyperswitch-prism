@@ -1,0 +1,526 @@
+# Behavioral Specifications for SDK Examples
+#
+# This file defines WHAT each scenario should do, not HOW to do it.
+# Language-specific syntax lives in renderers/{language}.py.
+#
+# Design Principles:
+# - Each scenario is a sequence of flows
+# - Flows can be required (must exist) or optional (skip if unsupported)
+# - StatusRule defines behavior all 4 languages must implement identically
+# - The renderer only decides syntax (Python `raise`, JS `throw`, etc.)
+
+scenarios:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Card Payment Scenarios
+  # ─────────────────────────────────────────────────────────────────────────────
+  
+  - key: "checkout_card"
+    name: "Card Checkout"
+    description: "Standard card authorization and capture flow"
+    flows:
+      - name: "authorize"
+        pm_type_variants: ["Card", "GooglePay", "ApplePay"]  # Try in order
+        required: true
+        capture_method: "MANUAL"
+        # Set capture_method to MANUAL for two-step authorization + capture flow
+        request_overrides:
+          capture_method: "MANUAL"
+        status_handling:
+          - status: ["FAILED", "AUTHORIZATION_FAILED"]
+            action: "error"
+            message: "Payment authorization failed: {error}"
+          - status: ["PENDING"]
+            action: "return_early"
+            return_fields:
+              status: "response.status"
+              transaction_id: "response.connector_transaction_id"
+      
+      - name: "capture"
+        required: false  # Skip if connector auto-captures
+        depends_on: "authorize"
+        use_from_previous: ["connector_transaction_id"]
+        status_handling:
+          - status: ["FAILED"]
+            action: "error"
+            message: "Capture failed: {error}"
+    return_fields:
+      status: "response.status"
+      transaction_id: "response.connector_transaction_id"
+      amount: "response.amount"
+
+  - key: "checkout_bank"
+    name: "Bank Transfer Checkout"
+    description: "Bank transfer or debit payment flow"
+    flows:
+      - name: "authorize"
+        pm_type_variants: ["Ach", "Sepa", "Bacs", "Pix"]
+        required: true
+        status_handling:
+          - status: ["FAILED"]
+            action: "error"
+            message: "Bank transfer failed: {error}"
+    return_fields:
+      status: "response.status"
+      transaction_id: "response.connector_transaction_id"
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Wallet Payment Scenarios
+  # ─────────────────────────────────────────────────────────────────────────────
+  
+  - key: "checkout_wallet"
+    name: "Digital Wallet Checkout"
+    description: "Apple Pay, Google Pay, or other wallet payment"
+    flows:
+      - name: "authorize"
+        pm_type_variants: ["ApplePay", "GooglePay", "PaypalSdk"]
+        required: true
+        status_handling:
+          - status: ["FAILED", "AUTHORIZATION_FAILED"]
+            action: "error"
+            message: "Wallet payment failed: {error}"
+      
+      - name: "capture"
+        required: false
+        depends_on: "authorize"
+        use_from_previous: ["connector_transaction_id"]
+    return_fields:
+      status: "response.status"
+      transaction_id: "response.connector_transaction_id"
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Refund Scenarios
+  # ─────────────────────────────────────────────────────────────────────────────
+  
+  - key: "refund_payment"
+    name: "Refund Payment"
+    description: "Refund a completed payment"
+    flows:
+      - name: "refund"
+        required: true
+        depends_on: "authorize"
+        use_from_previous: ["connector_transaction_id"]
+        status_handling:
+          - status: ["FAILED"]
+            action: "error"
+            message: "Refund failed: {error}"
+    return_fields:
+      status: "response.status"
+      refund_id: "response.connector_refund_id"
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Recurring Payment Scenarios
+  # ─────────────────────────────────────────────────────────────────────────────
+  
+  - key: "setup_recurring"
+    name: "Setup Recurring Payment"
+    description: "Create a mandate for recurring charges"
+    flows:
+      - name: "setup_recurring"
+        required: true
+        status_handling:
+          - status: ["FAILED"]
+            action: "error"
+            message: "Failed to setup recurring payment: {error}"
+    return_fields:
+      status: "response.status"
+      mandate_id: "response.mandate_reference.connector_mandate_id"
+
+  - key: "recurring_charge"
+    name: "Recurring Charge"
+    description: "Charge against an existing mandate"
+    flows:
+      - name: "recurring_charge"
+        required: true
+        depends_on: "setup_recurring"
+        use_from_previous: ["connector_recurring_payment_id"]
+        status_handling:
+          - status: ["FAILED"]
+            action: "error"
+            message: "Recurring charge failed: {error}"
+    return_fields:
+      status: "response.status"
+      transaction_id: "response.connector_transaction_id"
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Tokenization Scenarios
+  # ─────────────────────────────────────────────────────────────────────────────
+  
+  - key: "tokenize_payment_method"
+    name: "Tokenize Payment Method"
+    description: "Tokenize a card or bank account for later use"
+    flows:
+      - name: "tokenize"
+        required: true
+        status_handling:
+          - status: ["FAILED"]
+            action: "error"
+            message: "Tokenization failed: {error}"
+    return_fields:
+      status: "response.status"
+      token: "response.payment_method_token"
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Void/Cancel Scenarios
+  # ─────────────────────────────────────────────────────────────────────────────
+  
+  - key: "void_authorization"
+    name: "Void Authorization"
+    description: "Cancel an uncaptured authorization"
+    flows:
+      - name: "void"
+        required: true
+        depends_on: "authorize"
+        use_from_previous: ["connector_transaction_id"]
+        status_handling:
+          - status: ["FAILED"]
+            action: "error"
+            message: "Void failed: {error}"
+    return_fields:
+      status: "response.status"
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Status Check Scenarios
+  # ─────────────────────────────────────────────────────────────────────────────
+  
+  - key: "get_payment_status"
+    name: "Get Payment Status"
+    description: "Retrieve current status of a payment"
+    flows:
+      - name: "get"
+        required: true
+        depends_on: "authorize"
+        use_from_previous: ["connector_transaction_id"]
+    return_fields:
+      status: "response.status"
+      amount: "response.amount"
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Partial Refund Scenario
+  # ─────────────────────────────────────────────────────────────────────────────
+  
+  - key: "partial_refund"
+    name: "Partial Refund"
+    description: "Refund a portion of a captured payment"
+    flows:
+      - name: "authorize"
+        pm_type_variants: ["Card", "GooglePay", "ApplePay"]
+        required: true
+        status_handling:
+          - status: ["FAILED", "AUTHORIZATION_FAILED"]
+            action: "error"
+            message: "Payment authorization failed: {error}"
+      
+      - name: "capture"
+        required: false
+        depends_on: "authorize"
+        use_from_previous: ["connector_transaction_id"]
+        status_handling:
+          - status: ["FAILED"]
+            action: "error"
+            message: "Capture failed: {error}"
+      
+      - name: "refund"
+        required: true
+        depends_on: "capture"
+        use_from_previous: ["connector_transaction_id", "amount"]
+        status_handling:
+          - status: ["FAILED"]
+            action: "error"
+            message: "Refund failed: {error}"
+    return_fields:
+      status: "response.status"
+      refund_id: "response.connector_refund_id"
+      refunded_amount: "response.amount"
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Multi-Capture Scenario (for split shipments)
+  # ─────────────────────────────────────────────────────────────────────────────
+  
+  - key: "multi_capture"
+    name: "Multiple Captures"
+    description: "Split a single authorization into multiple captures (e.g., for split shipments)"
+    flows:
+      - name: "authorize"
+        pm_type_variants: ["Card", "GooglePay", "ApplePay"]
+        required: true
+        status_handling:
+          - status: ["FAILED", "AUTHORIZATION_FAILED"]
+            action: "error"
+            message: "Payment authorization failed: {error}"
+      
+      - name: "capture"
+        required: true
+        depends_on: "authorize"
+        use_from_previous: ["connector_transaction_id"]
+        allow_multiple: true
+        status_handling:
+          - status: ["FAILED"]
+            action: "error"
+            message: "Capture failed: {error}"
+    return_fields:
+      status: "response.status"
+      transaction_id: "response.connector_transaction_id"
+      captured_amount: "response.amount"
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Incremental Authorization Scenario
+  # ─────────────────────────────────────────────────────────────────────────────
+  
+  - key: "incremental_authorization"
+    name: "Incremental Authorization"
+    description: "Increase the authorized amount after initial authorization"
+    flows:
+      - name: "authorize"
+        pm_type_variants: ["Card"]
+        required: true
+        status_handling:
+          - status: ["FAILED", "AUTHORIZATION_FAILED"]
+            action: "error"
+            message: "Payment authorization failed: {error}"
+      
+      - name: "authorize"
+        variant: "incremental"
+        required: false
+        depends_on: "authorize"
+        use_from_previous: ["connector_transaction_id"]
+        status_handling:
+          - status: ["FAILED"]
+            action: "error"
+            message: "Incremental authorization failed: {error}"
+      
+      - name: "capture"
+        required: false
+        depends_on: "authorize"
+        use_from_previous: ["connector_transaction_id"]
+    return_fields:
+      status: "response.status"
+      transaction_id: "response.connector_transaction_id"
+      authorized_amount: "response.amount"
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # 3D Secure Authentication Scenario
+  # ─────────────────────────────────────────────────────────────────────────────
+  
+  - key: "checkout_3ds"
+    name: "3D Secure Checkout"
+    description: "Card payment with 3D Secure authentication"
+    flows:
+      - name: "authorize"
+        pm_type_variants: ["Card"]
+        required: true
+        requires_3ds: true
+        status_handling:
+          - status: ["FAILED", "AUTHORIZATION_FAILED"]
+            action: "error"
+            message: "Payment authorization failed: {error}"
+          - status: ["PENDING_AUTHENTICATION"]
+            action: "return_early"
+            return_fields:
+              status: "response.status"
+              transaction_id: "response.connector_transaction_id"
+              redirect_url: "response.next_action.redirect_url"
+      
+      - name: "authenticate"
+        required: false
+        depends_on: "authorize"
+        use_from_previous: ["connector_transaction_id"]
+        status_handling:
+          - status: ["AUTHENTICATION_FAILED"]
+            action: "error"
+            message: "3D Secure authentication failed"
+      
+      - name: "capture"
+        required: false
+        depends_on: "authorize"
+        use_from_previous: ["connector_transaction_id"]
+    return_fields:
+      status: "response.status"
+      transaction_id: "response.connector_transaction_id"
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # BNPL (Buy Now Pay Later) Scenarios
+  # ─────────────────────────────────────────────────────────────────────────────
+  
+  - key: "checkout_bnpl"
+    name: "BNPL Checkout"
+    description: "Buy Now Pay Later payment flow (Klarna, Afterpay, Affirm)"
+    flows:
+      - name: "authorize"
+        pm_type_variants: ["Klarna", "AfterpayClearpay", "Affirm", "PayBright"]
+        required: true
+        status_handling:
+          - status: ["FAILED", "AUTHORIZATION_FAILED"]
+            action: "error"
+            message: "BNPL authorization failed: {error}"
+          - status: ["PENDING_AUTHENTICATION"]
+            action: "return_early"
+            return_fields:
+              status: "response.status"
+              transaction_id: "response.connector_transaction_id"
+              redirect_url: "response.next_action.redirect_url"
+      
+      - name: "capture"
+        required: false
+        depends_on: "authorize"
+        use_from_previous: ["connector_transaction_id"]
+        status_handling:
+          - status: ["FAILED"]
+            action: "error"
+            message: "BNPL capture failed: {error}"
+    return_fields:
+      status: "response.status"
+      transaction_id: "response.connector_transaction_id"
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Cryptocurrency Scenarios
+  # ─────────────────────────────────────────────────────────────────────────────
+  
+  - key: "checkout_crypto"
+    name: "Cryptocurrency Checkout"
+    description: "Pay with cryptocurrency (Bitcoin, Ethereum, etc.)"
+    flows:
+      - name: "authorize"
+        pm_type_variants: ["CryptoCurrency"]
+        required: true
+        status_handling:
+          - status: ["FAILED", "AUTHORIZATION_FAILED"]
+            action: "error"
+            message: "Crypto payment failed: {error}"
+          - status: ["PENDING", "REQUIRES_CUSTOMER_ACTION"]
+            action: "return_early"
+            return_fields:
+              status: "response.status"
+              transaction_id: "response.connector_transaction_id"
+              payment_url: "response.next_action.redirect_url"
+              crypto_address: "response.crypto_address"
+      
+      - name: "get"
+        required: false
+        depends_on: "authorize"
+        use_from_previous: ["connector_transaction_id"]
+        status_handling:
+          - status: ["SUCCEEDED"]
+            action: "continue"
+          - status: ["FAILED"]
+            action: "error"
+            message: "Crypto payment failed on blockchain: {error}"
+    return_fields:
+      status: "response.status"
+      transaction_id: "response.connector_transaction_id"
+      crypto_amount: "response.crypto_amount"
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Voucher / Cash Payment Scenarios
+  # ─────────────────────────────────────────────────────────────────────────────
+  
+  - key: "checkout_voucher"
+    name: "Voucher Payment"
+    description: "Generate voucher for cash payment at retail location"
+    flows:
+      - name: "authorize"
+        pm_type_variants: ["Oxxo", "Boleto", "Multibanco", "Efecty", "PagoEfectivo"]
+        required: true
+        status_handling:
+          - status: ["FAILED", "AUTHORIZATION_FAILED"]
+            action: "error"
+            message: "Voucher generation failed: {error}"
+          - status: ["PENDING", "REQUIRES_CUSTOMER_ACTION"]
+            action: "return_early"
+            return_fields:
+              status: "response.status"
+              transaction_id: "response.connector_transaction_id"
+              voucher_code: "response.voucher_code"
+              voucher_url: "response.voucher_url"
+              expires_at: "response.expires_at"
+      
+      - name: "get"
+        required: false
+        depends_on: "authorize"
+        use_from_previous: ["connector_transaction_id"]
+        status_handling:
+          - status: ["SUCCEEDED"]
+            action: "continue"
+          - status: ["EXPIRED"]
+            action: "error"
+            message: "Voucher expired without payment"
+    return_fields:
+      status: "response.status"
+      transaction_id: "response.connector_transaction_id"
+      voucher_code: "response.voucher_code"
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Gift Card Scenarios
+  # ─────────────────────────────────────────────────────────────────────────────
+  
+  - key: "checkout_gift_card"
+    name: "Gift Card Payment"
+    description: "Pay using gift card balance"
+    flows:
+      - name: "authorize"
+        pm_type_variants: ["GiftCard"]
+        required: true
+        status_handling:
+          - status: ["FAILED", "AUTHORIZATION_FAILED"]
+            action: "error"
+            message: "Gift card payment failed: {error}"
+          - status: ["PARTIAL_AMOUNT"]
+            action: "continue"
+            message: "Gift card partially covers amount, additional payment needed"
+    return_fields:
+      status: "response.status"
+      transaction_id: "response.connector_transaction_id"
+      remaining_balance: "response.gift_card_balance"
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # PayPal Specific Scenarios
+  # ─────────────────────────────────────────────────────────────────────────────
+  
+  - key: "checkout_paypal"
+    name: "PayPal Checkout"
+    description: "PayPal Express Checkout flow with order creation"
+    flows:
+      - name: "create_access_token"
+        required: false
+        status_handling:
+          - status: ["FAILED"]
+            action: "error"
+            message: "Failed to get PayPal access token"
+      
+      - name: "authorize"
+        pm_type_variants: ["Paypal"]
+        required: true
+        status_handling:
+          - status: ["FAILED", "AUTHORIZATION_FAILED"]
+            action: "error"
+            message: "PayPal authorization failed: {error}"
+          - status: ["PENDING", "REQUIRES_CUSTOMER_ACTION"]
+            action: "return_early"
+            return_fields:
+              status: "response.status"
+              transaction_id: "response.connector_transaction_id"
+              approval_url: "response.next_action.redirect_url"
+      
+      - name: "capture"
+        required: false
+        depends_on: "authorize"
+        use_from_previous: ["connector_transaction_id"]
+    return_fields:
+      status: "response.status"
+      transaction_id: "response.connector_transaction_id"
+      paypal_order_id: "response.paypal_order_id"
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Webhook Handling Scenario
+  # ─────────────────────────────────────────────────────────────────────────────
+  
+  - key: "handle_webhook"
+    name: "Handle Webhook"
+    description: "Process incoming webhook from payment provider"
+    flows:
+      - name: "webhook"
+        required: true
+        webhook_types: ["payment.success", "payment.failed", "refund.completed"]
+    return_fields:
+      event_type: "webhook.event_type"
+      transaction_id: "webhook.data.connector_transaction_id"
+      status: "webhook.data.status"
