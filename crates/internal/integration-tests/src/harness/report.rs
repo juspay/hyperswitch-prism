@@ -36,6 +36,9 @@ pub struct ReportEntry {
     pub suite: String,
     /// Scenario name inside the suite.
     pub scenario: String,
+    /// Optional human-friendly scenario name from scenario definition.
+    #[serde(default)]
+    pub scenario_display_name: Option<String>,
     /// Connector slug used for execution.
     pub connector: String,
     /// Payment method extracted from request template, when available.
@@ -1216,6 +1219,7 @@ mod tests {
                     run_at_epoch_ms: now_epoch_ms(),
                     suite: "authorize".to_string(),
                     scenario: "no3ds_auto_capture_credit_card".to_string(),
+                    scenario_display_name: None,
                     connector: "stripe".to_string(),
                     pm: Some("card".to_string()),
                     pmt: Some("credit".to_string()),
@@ -1234,6 +1238,7 @@ mod tests {
                     run_at_epoch_ms: now_epoch_ms(),
                     suite: "create_customer".to_string(),
                     scenario: "create_customer".to_string(),
+                    scenario_display_name: None,
                     connector: "paypal".to_string(),
                     pm: None,
                     pmt: None,
@@ -1252,6 +1257,7 @@ mod tests {
                     run_at_epoch_ms: now_epoch_ms(),
                     suite: "authorize".to_string(),
                     scenario: "no3ds_auto_capture_credit_card".to_string(),
+                    scenario_display_name: None,
                     connector: "paypal".to_string(),
                     pm: Some("card".to_string()),
                     pmt: Some("credit".to_string()),
@@ -1358,6 +1364,7 @@ mod tests {
             run_at_epoch_ms: now_epoch_ms(),
             suite: "authorize".to_string(),
             scenario: "no3ds_auto_capture_credit_card".to_string(),
+            scenario_display_name: None,
             connector: "stripe".to_string(),
             pm: Some("card".to_string()),
             pmt: Some("credit".to_string()),

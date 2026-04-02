@@ -14,6 +14,7 @@ use integration_tests::harness::{
         run_all_suites_with_options, run_suite_test_with_options, ExecutionBackend,
         SuiteRunOptions, SuiteRunSummary, DEFAULT_CONNECTOR, DEFAULT_ENDPOINT,
     },
+    scenario_loader::load_suite_scenarios,
 };
 use serde::Deserialize;
 use serde_json::Value;
@@ -184,9 +185,14 @@ fn print_suite_results(
         let req_for_report = result.req_body.as_ref().or(template_req.as_ref());
         let (pm, pmt) = extract_pm_and_pmt(req_for_report);
         if report {
+            let scenario_display_name = load_suite_scenarios(&result.suite)
+                .ok()
+                .and_then(|scenarios| scenarios.get(&result.scenario).cloned())
+                .and_then(|scenario_def| scenario_def.display_name);
             report_entries.push(write_report_entry(
                 &result.suite,
                 &result.scenario,
+                scenario_display_name,
                 &summary.connector,
                 endpoint,
                 pm.as_deref(),
@@ -291,6 +297,7 @@ fn flush_report_entries(report_entries: &mut Vec<ReportEntry>) {
 fn write_report_entry(
     suite: &str,
     scenario: &str,
+    scenario_display_name: Option<String>,
     connector: &str,
     endpoint: &str,
     pm: Option<&str>,
@@ -309,6 +316,7 @@ fn write_report_entry(
         run_at_epoch_ms: now_epoch_ms(),
         suite: suite.to_string(),
         scenario: scenario.to_string(),
+        scenario_display_name,
         connector: connector.to_string(),
         pm: pm.map(ToString::to_string),
         pmt: pmt.map(ToString::to_string),

@@ -16,6 +16,7 @@ use integration_tests::harness::{
         get_the_grpc_req_for_connector, run_test, DEFAULT_CONNECTOR, DEFAULT_ENDPOINT,
         DEFAULT_SCENARIO, DEFAULT_SUITE,
     },
+    scenario_loader::load_suite_scenarios,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -93,6 +94,13 @@ fn main() {
     let suite = args.suite.as_deref().unwrap_or(DEFAULT_SUITE);
     let scenario = args.scenario.as_deref().unwrap_or(DEFAULT_SCENARIO);
     let connector = args.connector.as_deref().unwrap_or(DEFAULT_CONNECTOR);
+
+    // Load scenario display name from scenario definition
+    let scenario_display_name = load_suite_scenarios(suite)
+        .ok()
+        .and_then(|scenarios| scenarios.get(scenario).cloned())
+        .and_then(|scenario_def| scenario_def.display_name);
+
     let mut grpc_req = match get_the_grpc_req_for_connector(suite, scenario, connector) {
         Ok(req) => req,
         Err(error) => {
@@ -100,6 +108,7 @@ fn main() {
                 args.report,
                 suite,
                 scenario,
+                scenario_display_name.clone(),
                 connector,
                 &endpoint_value,
                 None,
@@ -123,6 +132,7 @@ fn main() {
             args.report,
             suite,
             scenario,
+            scenario_display_name.clone(),
             connector,
             &endpoint_value,
             None,
@@ -147,6 +157,7 @@ fn main() {
             args.report,
             suite,
             scenario,
+            scenario_display_name.clone(),
             connector,
             &endpoint_value,
             pm.as_deref(),
@@ -181,6 +192,7 @@ fn main() {
                 args.report,
                 suite,
                 scenario,
+                scenario_display_name.clone(),
                 connector,
                 &endpoint_value,
                 pm.as_deref(),
@@ -220,6 +232,7 @@ fn main() {
                         args.report,
                         suite,
                         scenario,
+                        scenario_display_name.clone(),
                         connector,
                         &endpoint_value,
                         pm.as_deref(),
@@ -250,6 +263,7 @@ fn main() {
                         args.report,
                         suite,
                         scenario,
+                        scenario_display_name.clone(),
                         connector,
                         &endpoint_value,
                         pm.as_deref(),
@@ -276,6 +290,7 @@ fn main() {
                         args.report,
                         suite,
                         scenario,
+                        scenario_display_name.clone(),
                         connector,
                         &endpoint_value,
                         pm.as_deref(),
@@ -295,6 +310,7 @@ fn main() {
                         args.report,
                         suite,
                         scenario,
+                        scenario_display_name.clone(),
                         connector,
                         &endpoint_value,
                         pm.as_deref(),
@@ -319,6 +335,7 @@ fn main() {
                 args.report,
                 suite,
                 scenario,
+                scenario_display_name.clone(),
                 connector,
                 &endpoint_value,
                 pm.as_deref(),
@@ -412,6 +429,7 @@ fn write_report_entry(
     report: bool,
     suite: &str,
     scenario: &str,
+    scenario_display_name: Option<String>,
     connector: &str,
     endpoint: &str,
     pm: Option<&str>,
@@ -433,6 +451,7 @@ fn write_report_entry(
         run_at_epoch_ms: now_epoch_ms(),
         suite: suite.to_string(),
         scenario: scenario.to_string(),
+        scenario_display_name,
         connector: connector.to_string(),
         pm: pm.map(ToString::to_string),
         pmt: pmt.map(ToString::to_string),
