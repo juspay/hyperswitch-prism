@@ -437,6 +437,12 @@ pub enum ConnectorSpecificConfig {
         base_url: Option<String>,
         merchant_name: Option<Secret<String>>,
     },
+    Trustly {
+        username: Secret<String>,
+        password: Secret<String>,
+        private_key: Secret<String>,
+        base_url: Option<String>,
+    },
 
     // --- Three-field connectors ---
     Adyen {
@@ -993,6 +999,11 @@ impl ConnectorSpecificConfig {
                 merchant_id,
                 terminal_id
             },
+            Trustly {
+                username,
+                password,
+                private_key
+            },
             Itaubank {
                 client_id,
                 client_secret
@@ -1375,6 +1386,11 @@ impl ConnectorSpecificConfig {
                     secret,
                     merchant_id,
                     terminal_id
+                },
+                Trustly {
+                    username,
+                    password,
+                    private_key
                 },
                 Itaubank {
                     client_id,
@@ -1841,6 +1857,12 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 client_secret: paypal.client_secret.ok_or_else(err)?,
                 payer_id: paypal.payer_id,
                 base_url: paypal.base_url,
+            }),
+            AuthType::Trustly(trustly) => Ok(Self::Trustly {
+                username: trustly.username.ok_or_else(err)?,
+                password: trustly.password.ok_or_else(err)?,
+                private_key: trustly.private_key.ok_or_else(err)?,
+                base_url: trustly.base_url,
             }),
             AuthType::Truelayer(truelayer) => Ok(Self::Truelayer {
                 client_id: truelayer.client_id.ok_or_else(err)?,
@@ -2665,6 +2687,19 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorEnum)>
                     user_name: api_key.clone(),
                     password: api_secret.clone(),
                     account_id: key1.clone(),
+                    base_url: None,
+                }),
+                _ => Err(err().into()),
+            },
+            ConnectorEnum::Trustly => match auth {
+                ConnectorAuthType::SignatureKey {
+                    api_key,
+                    key1,
+                    api_secret,
+                } => Ok(Self::Trustly {
+                    username: api_key.clone(),
+                    password: key1.clone(),
+                    private_key: api_secret.clone(),
                     base_url: None,
                 }),
                 _ => Err(err().into()),

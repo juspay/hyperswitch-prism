@@ -136,6 +136,7 @@ pub enum ConnectorEnum {
     Truelayer,
     Peachpayments,
     Finix,
+    Trustly,
     Itaubank,
 }
 
@@ -222,6 +223,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Truelayer => Ok(Self::Truelayer),
             grpc_api_types::payments::Connector::Peachpayments => Ok(Self::Peachpayments),
             grpc_api_types::payments::Connector::Finix => Ok(Self::Finix),
+            grpc_api_types::payments::Connector::Trustly => Ok(Self::Trustly),
             grpc_api_types::payments::Connector::Itaubank => Ok(Self::Itaubank),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(ApplicationErrorResponse::BadRequest(ApiError {
@@ -3772,6 +3774,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Hyperpg(_) => Ok(Self::Hyperpg),
             AuthType::Peachpayments(_) => Ok(Self::Peachpayments),
             AuthType::Zift(_) => Ok(Self::Zift),
+            AuthType::Trustly(_) => Ok(Self::Trustly),
             AuthType::Truelayer(_) => Ok(Self::Truelayer),
             AuthType::Fiservcommercehub(_) => Ok(Self::Fiservcommercehub),
             AuthType::Itaubank(_) => Ok(Self::Itaubank),
