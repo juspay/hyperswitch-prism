@@ -741,3 +741,21 @@ pub enum MandateReferenceId {
 **Document Maintainers**: Grace-UCS Team
 **Last Updated**: 2025-11-11
 **Next Review**: When new connectors add RepeatPayment support
+
+## Prerequisite Trait Impls (MANDATORY)
+
+RepeatPayment requires `SetupMandate` to be implemented first. Both flows need their
+empty trait marker impls present or the connector will not compile:
+
+```rust
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    connector_types::SetupMandateV2<T> for {{ConnectorName}}<T>
+{}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    connector_types::RepeatPaymentV2<T> for {{ConnectorName}}<T>
+{}
+```
+
+No `ValidationTrait` override is needed for RepeatPayment — the flow is dispatched
+based on the presence of a stored mandate token in the request, not a `should_do_*` flag.

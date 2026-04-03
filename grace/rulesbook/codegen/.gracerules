@@ -197,6 +197,14 @@ You are the Foundation Setup Subagent. Your ONLY responsibility is to establish 
 # If script fails, analyze error and fix before proceeding
 ```
 
+#### STEP 3.5: ValidationTrait Override (MANDATORY if using pre-auth flows)
+```bash
+# If this connector implements any pre-auth flow (CreateOrder, CreateSessionToken,
+# CreateAccessToken, PaymentMethodToken), read and follow:
+Read: grace/rulesbook/codegen/guides/foundation_checklist.md
+# Add the required ValidationTrait override or the flow will be silently skipped at runtime.
+```
+
 #### STEP 4: Cargo Build Validation
 ```bash
 # Execute: cargo build

@@ -625,3 +625,31 @@ CreateOrder flow requires:
 5. **Use in Authorize**: Read `reference_id` in Authorize request transformation
 
 The key architectural principle is that `reference_id` in `PaymentFlowData` serves as the bridge between CreateOrder and Authorize flows, carrying the connector's order identifier from the first step to the second.
+
+## ValidationTrait Override (MANDATORY)
+
+**Without this override the CreateOrder flow compiles but is NEVER invoked at runtime.**
+The `connector_types::ValidationTrait::should_do_order_create()` method defaults to `false`.
+You MUST override it to `true` in your connector file.
+
+Add this impl block to `crates/integrations/connector-integration/src/connectors/{connector}.rs`:
+
+```rust
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    connector_types::ValidationTrait for {{ConnectorName}}<T>
+{
+    fn should_do_order_create(&self) -> bool {
+        true
+    }
+}
+```
+
+Also add the empty trait marker impl:
+
+```rust
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentOrderCreate for {{ConnectorName}}<T>
+{}
+```
+
+Real connectors that do this: `Razorpay`, `Cashfree`, `Payme`, `Paytm`, `Revolut`

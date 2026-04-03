@@ -48,14 +48,92 @@ impl<T: PaymentMethodDataTypes> {{CONNECTOR_NAME_PASCAL}}<T> {
 }
 
 // =============================================================================
-// MAIN CONNECTOR INTEGRATION IMPLEMENTATIONS
+// TRAIT IMPLEMENTATIONS — Core flows (always include these 7)
 // =============================================================================
-// Primary authorize implementation - customize as needed
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::ConnectorServiceTrait<T> for {{CONNECTOR_NAME_PASCAL}}<T> {}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentAuthorizeV2<T> for {{CONNECTOR_NAME_PASCAL}}<T> {}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentSyncV2 for {{CONNECTOR_NAME_PASCAL}}<T> {}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentCapture for {{CONNECTOR_NAME_PASCAL}}<T> {}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentVoidV2 for {{CONNECTOR_NAME_PASCAL}}<T> {}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::RefundV2 for {{CONNECTOR_NAME_PASCAL}}<T> {}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::RefundSyncV2 for {{CONNECTOR_NAME_PASCAL}}<T> {}
+
 // =============================================================================
-// MAIN CONNECTOR INTEGRATION IMPLEMENTATIONS
+// TRAIT IMPLEMENTATIONS — Pre-auth flows
+// Uncomment only those whose flow appears in create_all_prerequisites!
 // =============================================================================
-// Primary authorize implementation - customize as needed
-// ... Authorize implementation is now valid generated code ...
+// impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+//     connector_types::PaymentOrderCreate for {{CONNECTOR_NAME_PASCAL}}<T> {}  // CreateOrder
+
+// impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+//     connector_types::PaymentAccessToken for {{CONNECTOR_NAME_PASCAL}}<T> {}  // CreateAccessToken
+
+// impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+//     connector_types::CreateConnectorCustomer for {{CONNECTOR_NAME_PASCAL}}<T> {}  // CreateConnectorCustomer
+
+// impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+//     connector_types::PaymentTokenV2<T> for {{CONNECTOR_NAME_PASCAL}}<T> {}  // PaymentMethodToken
+
+// impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+//     connector_types::SdkSessionTokenV2 for {{CONNECTOR_NAME_PASCAL}}<T> {}  // SdkSessionToken
+
+// impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+//     connector_types::PaymentSessionToken for {{CONNECTOR_NAME_PASCAL}}<T> {}  // CreateSessionToken
+
+// =============================================================================
+// TRAIT IMPLEMENTATIONS — Mandate / repeat payment flows
+// =============================================================================
+// impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+//     connector_types::SetupMandateV2<T> for {{CONNECTOR_NAME_PASCAL}}<T> {}
+
+// impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+//     connector_types::RepeatPaymentV2<T> for {{CONNECTOR_NAME_PASCAL}}<T> {}
+
+// impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+//     connector_types::MandateRevokeV2 for {{CONNECTOR_NAME_PASCAL}}<T> {}
+
+// =============================================================================
+// TRAIT IMPLEMENTATIONS — Void post-capture
+// =============================================================================
+// impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+//     connector_types::PaymentVoidPostCaptureV2 for {{CONNECTOR_NAME_PASCAL}}<T> {}
+
+// =============================================================================
+// TRAIT IMPLEMENTATIONS — Webhook
+// =============================================================================
+// impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+//     connector_types::IncomingWebhook for {{CONNECTOR_NAME_PASCAL}}<T> {}
+
+// =============================================================================
+// TRAIT IMPLEMENTATIONS — Dispute flows
+// =============================================================================
+// impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+//     connector_types::AcceptDispute for {{CONNECTOR_NAME_PASCAL}}<T> {}
+
+// impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+//     connector_types::SubmitEvidenceV2 for {{CONNECTOR_NAME_PASCAL}}<T> {}
+
+// impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+//     connector_types::DisputeDefend for {{CONNECTOR_NAME_PASCAL}}<T> {}
+
+// =============================================================================
+// TRAIT IMPLEMENTATIONS — Incremental authorization
+// =============================================================================
+// impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+//     connector_types::PaymentIncrementalAuthorization for {{CONNECTOR_NAME_PASCAL}}<T> {}
 
 // =============================================================================
 // CONNECTOR COMMON IMPLEMENTATION

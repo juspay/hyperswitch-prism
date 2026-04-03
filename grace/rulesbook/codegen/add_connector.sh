@@ -25,24 +25,29 @@ set -euo pipefail  # Strict error handling
 readonly SCRIPT_VERSION="2.0.0"
 readonly SCRIPT_NAME="Hyperswitch Connector Generator"
 
-# Paths configuration
-readonly ROOT_DIR="$(pwd)"
-readonly TEMPLATE_DIR="$ROOT_DIR/grace/rulesbook/codegen/template-generation"
-readonly BACKEND_DIR="$ROOT_DIR/backend"
+# Paths configuration — ROOT_DIR is always the repo root, regardless of cwd
+readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly ROOT_DIR="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+readonly TEMPLATE_DIR="$SCRIPT_DIR/template-generation"
+readonly BACKEND_DIR="$ROOT_DIR/backend"                              # output dir for generated connector files
+readonly CRATES_TRAITS="$ROOT_DIR/crates/types-traits"
+readonly CRATES_INTEGRATIONS="$ROOT_DIR/crates/integrations"
+readonly CRATES_INTERNAL="$ROOT_DIR/crates/internal"
 readonly CONFIG_DIR="$ROOT_DIR/config"
 
 # File paths
-readonly CONNECTOR_TYPES_FILE="$BACKEND_DIR/interfaces/src/connector_types.rs"
-readonly DOMAIN_TYPES_FILE="$BACKEND_DIR/domain_types/src/connector_types.rs"
-readonly DOMAIN_TYPES_TYPES_FILE="$BACKEND_DIR/domain_types/src/types.rs"
-readonly INTEGRATION_TYPES_FILE="$BACKEND_DIR/connector-integration/src/types.rs"
-readonly CONNECTORS_MODULE_FILE="$BACKEND_DIR/connector-integration/src/connectors.rs"
-readonly PROTO_FILE="$BACKEND_DIR/grpc-api-types/proto/payment.proto"
-readonly ROUTER_DATA_FILE="$BACKEND_DIR/domain_types/src/router_data.rs"
+readonly CONNECTOR_TYPES_FILE="$CRATES_TRAITS/interfaces/src/connector_types.rs"
+readonly DOMAIN_TYPES_FILE="$CRATES_TRAITS/domain_types/src/connector_types.rs"
+readonly DOMAIN_TYPES_TYPES_FILE="$CRATES_TRAITS/domain_types/src/types.rs"
+readonly INTEGRATION_TYPES_FILE="$CRATES_INTEGRATIONS/connector-integration/src/types.rs"
+readonly DEFAULT_IMPL_FILE="$CRATES_INTEGRATIONS/connector-integration/src/default_implementations.rs"
+readonly CONNECTORS_MODULE_FILE="$CRATES_INTEGRATIONS/connector-integration/src/connectors.rs"
+readonly PROTO_FILE="$CRATES_TRAITS/grpc-api-types/proto/payment.proto"
+readonly ROUTER_DATA_FILE="$CRATES_TRAITS/domain_types/src/router_data.rs"
 readonly CONFIG_FILE="$CONFIG_DIR/development.toml"
 readonly SANDBOX_CONFIG_FILE="$CONFIG_DIR/sandbox.toml"
 readonly PRODUCTION_CONFIG_FILE="$CONFIG_DIR/production.toml"
-readonly FIELD_PROBE_FILE="$BACKEND_DIR/field-probe/src/main.rs"
+readonly FIELD_PROBE_FILE="$CRATES_INTERNAL/field-probe/src/auth.rs"
 
 # Template files
 readonly CONNECTOR_TEMPLATE="$TEMPLATE_DIR/connector.rs.template"
@@ -563,6 +568,7 @@ validate_environment() {
     validate_file_exists "$CONNECTOR_TYPES_FILE" "Connector types file"
     validate_file_exists "$DOMAIN_TYPES_FILE" "Domain types file"
     validate_file_exists "$INTEGRATION_TYPES_FILE" "Integration types file"
+    validate_file_exists "$DEFAULT_IMPL_FILE" "Default implementations file"
     validate_file_exists "$CONNECTORS_MODULE_FILE" "Connectors module file"
     validate_file_exists "$PROTO_FILE" "Protocol buffer file"
     validate_file_exists "$FIELD_PROBE_FILE" "Field probe file"
@@ -611,8 +617,8 @@ check_naming_conflicts() {
     log_step "Checking for naming conflicts"
 
     # Check if connector files already exist
-    local connector_file="$BACKEND_DIR/connector-integration/src/connectors/$NAME_SNAKE.rs"
-    local connector_dir="$BACKEND_DIR/connector-integration/src/connectors/$NAME_SNAKE"
+    local connector_file="$CRATES_INTEGRATIONS/connector-integration/src/connectors/$NAME_SNAKE.rs"
+    local connector_dir="$CRATES_INTEGRATIONS/connector-integration/src/connectors/$NAME_SNAKE"
 
     if [[ -f "$connector_file" ]] || [[ -d "$connector_dir" ]]; then
         if [[ "$FORCE_MODE" == "false" ]]; then
@@ -679,6 +685,7 @@ create_backup() {
         "$DOMAIN_TYPES_TYPES_FILE"
         "$CONNECTORS_MODULE_FILE"
         "$INTEGRATION_TYPES_FILE"
+        "$DEFAULT_IMPL_FILE"
         "$ROUTER_DATA_FILE"
         "$CONFIG_FILE"
         "$SANDBOX_CONFIG_FILE"
@@ -695,6 +702,9 @@ create_backup() {
             elif [[ "$file" == "$INTEGRATION_TYPES_FILE" ]]; then
                 cp "$file" "$BACKUP_DIR/integration_types.rs"
                 log_debug "Backed up: connector-integration/types.rs"
+            elif [[ "$file" == "$DEFAULT_IMPL_FILE" ]]; then
+                cp "$file" "$BACKUP_DIR/default_implementations.rs"
+                log_debug "Backed up: connector-integration/default_implementations.rs"
             elif [[ "$file" == "$ROUTER_DATA_FILE" ]]; then
                 cp "$file" "$BACKUP_DIR/router_data.rs"
                 log_debug "Backed up: domain_types/router_data.rs"
@@ -724,7 +734,7 @@ substitute_template_variables() {
 create_connector_files() {
     log_step "Creating connector files"
 
-    local connectors_dir="$BACKEND_DIR/connector-integration/src/connectors"
+    local connectors_dir="$CRATES_INTEGRATIONS/connector-integration/src/connectors"
     local connector_subdir="$connectors_dir/$NAME_SNAKE"
 
     # Create main connector file from template
@@ -764,28 +774,31 @@ generate_dynamic_implementations() {
 // 3. The script will not regenerate moved implementations
 // =============================================================================
 
-// ===== CONNECTOR SERVICE TRAIT IMPLEMENTATIONS =====
-// Main service trait - aggregates all other traits
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::ConnectorServiceTrait<T> for {{CONNECTOR_NAME_PASCAL}}<T>
-{
-}
-
 // ===== FLOW TRAIT IMPLEMENTATIONS =====
 EOF
-    
-    # Substitute connector name in the header
-    sed -i.tmp "s/{{CONNECTOR_NAME_PASCAL}}/$NAME_PASCAL/g" "$temp_file"
-    rm -f "${temp_file}.tmp"
-    
+
     # Generate trait implementations for each flow
+    # Skip:
+    #   ConnectorCommon           — handled separately by ConnectorCommon impl block
+    #   VerifyWebhookSourceV2     — handled by default_impl_verify_webhook_source_v2! macro
+    #   PayoutCreate/Transfer/etc — have blanket impls in interfaces crate (E0119 if re-implemented)
+    #   ConnectorServiceTrait     — already in connector.rs.template
+    #   PaymentAuthorizeV2        — already in connector.rs.template
+    #   PaymentSyncV2             — already in connector.rs.template
+    #   PaymentCapture            — already in connector.rs.template
+    #   PaymentVoidV2             — already in connector.rs.template
+    #   RefundV2                  — already in connector.rs.template
+    #   RefundSyncV2              — already in connector.rs.template
     local flow
     for flow in "${AVAILABLE_FLOWS[@]}"; do
-        # Skip special traits that don't need standard implementation
-        if [[ "$flow" == "ConnectorCommon" ]]; then
-            continue
-        fi
-        
+        case "$flow" in
+            ConnectorCommon|VerifyWebhookSourceV2|\
+            PayoutCreateV2|PayoutTransferV2|PayoutGetV2|PayoutVoidV2|\
+            PayoutStageV2|PayoutCreateLinkV2|PayoutCreateRecipientV2|PayoutEnrollDisburseAccountV2|\
+            ConnectorServiceTrait|PaymentAuthorizeV2|PaymentSyncV2|PaymentCapture|PaymentVoidV2|RefundV2|RefundSyncV2)
+                continue
+                ;;
+        esac
         generate_trait_impl "$flow" >> "$temp_file"
     done
     
@@ -797,10 +810,13 @@ EOF
     
     # Generate ConnectorIntegrationV2 implementations
     for flow in "${AVAILABLE_FLOWS[@]}"; do
-        if [[ "$flow" == "ConnectorCommon" ]] || [[ "$flow" == "IncomingWebhook" ]] || [[ "$flow" == "ValidationTrait" ]] || [[ "$flow" == "VerifyRedirectResponse" ]]; then
-            continue
-        fi
-        
+        case "$flow" in
+            ConnectorCommon|IncomingWebhook|ValidationTrait|VerifyRedirectResponse|\
+            VerifyWebhookSourceV2|\
+            PayoutCreateV2|PayoutTransferV2|PayoutGetV2|PayoutVoidV2|\
+            PayoutStageV2|PayoutCreateLinkV2|PayoutCreateRecipientV2|PayoutEnrollDisburseAccountV2)
+                continue ;;
+        esac
         generate_connector_integration_impl "$flow" >> "$temp_file"
     done
     
@@ -875,6 +891,12 @@ update_domain_types() {
 
 update_domain_types_file() {
     log_step "Updating domain types types.rs file"
+
+    # Check if already exists
+    if grep -q "^[[:space:]]*pub $NAME_SNAKE: ConnectorParams," "$DOMAIN_TYPES_TYPES_FILE" 2>/dev/null; then
+        log_warning "Skipping types.rs update - $NAME_SNAKE already exists"
+        return 0
+    fi
 
     # Add connector field to Connectors struct
     # Insert before the closing brace of the struct
@@ -1005,6 +1027,11 @@ update_router_data_grpc_auth() {
 update_connectors_module() {
     log_step "Updating connectors module"
 
+    if grep -q "^pub mod $NAME_SNAKE;" "$CONNECTORS_MODULE_FILE" 2>/dev/null; then
+        log_warning "Skipping connectors module update - $NAME_SNAKE already exists"
+        return 0
+    fi
+
     # Add module declaration and use statement
     cat >> "$CONNECTORS_MODULE_FILE" << EOF
 
@@ -1018,14 +1045,44 @@ EOF
 update_integration_types() {
     log_step "Updating integration types"
 
+    if grep -q "ConnectorEnum::$NAME_PASCAL =>" "$INTEGRATION_TYPES_FILE" 2>/dev/null; then
+        log_warning "Skipping integration types update - $NAME_PASCAL already exists"
+        return 0
+    fi
+
     # Add enum mapping to the convert_connector match statement
-    # Insert before the closing brace of the match statement
     sed -i.bak "/ConnectorEnum::Paypal => Box::new(connectors::Paypal::new()),/a\\
-            ConnectorEnum::$NAME_PASCAL => Box::new(connectors::$NAME_PASCAL::new())," "$INTEGRATION_TYPES_FILE"
+            ConnectorEnum::$NAME_PASCAL => Box::new(connectors::$NAME_PASCAL::<T>::new())," "$INTEGRATION_TYPES_FILE"
 
     rm -f "$INTEGRATION_TYPES_FILE.bak"
 
     log_success "Updated integration types with $NAME_PASCAL mapping"
+}
+
+update_default_implementations() {
+    log_step "Updating default_implementations.rs"
+
+    if grep -q "[[:space:]]$NAME_PASCAL[[:space:],]" "$DEFAULT_IMPL_FILE" 2>/dev/null || grep -q "[[:space:]]$NAME_PASCAL$" "$DEFAULT_IMPL_FILE" 2>/dev/null; then
+        log_warning "Skipping default_implementations update - $NAME_PASCAL already exists"
+        return 0
+    fi
+
+    # Add connector to default_impl_verify_webhook_source_v2! macro.
+    # The macro's last entry has no trailing comma; add one and append the new connector.
+    python3 - "$NAME_PASCAL" "$DEFAULT_IMPL_FILE" <<'PYEOF'
+import sys, re
+name_pascal = sys.argv[1]
+path = sys.argv[2]
+content = open(path).read()
+content = re.sub(
+    r'(\n    \w+)\n\);',
+    lambda m: m.group(1) + ',\n    ' + name_pascal + '\n);',
+    content
+)
+open(path, 'w').write(content)
+PYEOF
+
+    log_success "Registered $NAME_PASCAL in default_impl_verify_webhook_source_v2!"
 }
 
 update_config_file() {
@@ -1066,7 +1123,7 @@ update_config() {
 }
 
 update_field_probe() {
-    log_step "Updating field-probe (ConnectorEnum match arm)"
+    log_step "Updating field-probe auth.rs (ConnectorEnum match arm)"
 
     # Check if already exists
     if grep -q "ConnectorEnum::$NAME_PASCAL =>" "$FIELD_PROBE_FILE" 2>/dev/null; then
@@ -1074,17 +1131,25 @@ update_field_probe() {
         return 0
     fi
 
-    # Add match arm after the last entry (Finix) in the ConnectorEnum -> ConnectorSpecificConfig match
-    sed -i.bak "/ConnectorEnum::Finix => ConnectorSpecificConfig::Finix/,/},/ {
-        /},/ a\\
-\\        ConnectorEnum::$NAME_PASCAL => ConnectorSpecificConfig::$NAME_PASCAL {\\
-            api_key: k(),\\
-            base_url: None,\\
-        },
-    }" "$FIELD_PROBE_FILE"
-    rm -f "$FIELD_PROBE_FILE.bak"
+    # Insert the new match arm before the closing `    }\n}` of the dummy_auth function.
+    # Using Python for robust insertion regardless of which connector is last.
+    python3 - "$NAME_PASCAL" "$FIELD_PROBE_FILE" <<'PYEOF'
+import sys, re
+name = sys.argv[1]
+path = sys.argv[2]
+content = open(path).read()
+arm = (
+    f"        ConnectorEnum::{name} => ConnectorSpecificConfig::{name} {{\n"
+    f"            api_key: k(),\n"
+    f"            base_url: None,\n"
+    f"        }},\n"
+)
+# Insert before the closing `    }\n}` of the match/function
+content = re.sub(r'(\n    \}\n\})', lambda m: '\n' + arm + m.group(1), content, count=1)
+open(path, 'w').write(content)
+PYEOF
 
-    log_success "Updated field-probe with $NAME_PASCAL match arm"
+    log_success "Updated field-probe auth.rs with $NAME_PASCAL match arm"
 }
 
 # =============================================================================
@@ -1138,8 +1203,8 @@ emergency_rollback() {
 
     if [[ -n "$BACKUP_DIR" ]] && [[ -d "$BACKUP_DIR" ]]; then
         # Remove created files
-        rm -f "$BACKEND_DIR/connector-integration/src/connectors/$NAME_SNAKE.rs"
-        rm -rf "$BACKEND_DIR/connector-integration/src/connectors/$NAME_SNAKE"
+        rm -f "$CRATES_INTEGRATIONS/connector-integration/src/connectors/$NAME_SNAKE.rs"
+        rm -rf "$CRATES_INTEGRATIONS/connector-integration/src/connectors/$NAME_SNAKE"
 
         # Restore backed up files
         local backup_file
@@ -1159,6 +1224,9 @@ emergency_rollback() {
                         ;;
                     "integration_types.rs")
                         cp "$backup_file" "$INTEGRATION_TYPES_FILE"
+                        ;;
+                    "default_implementations.rs")
+                        cp "$backup_file" "$DEFAULT_IMPL_FILE"
                         ;;
                     "router_data.rs")
                         cp "$backup_file" "$ROUTER_DATA_FILE"
@@ -1292,6 +1360,7 @@ main() {
     update_router_data_grpc_auth
     update_connectors_module
     update_integration_types
+    update_default_implementations
     update_config
     update_field_probe
 

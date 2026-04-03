@@ -1067,3 +1067,39 @@ mod session_token_tests {
 - **Error Propagation**: Not properly propagating session token errors to prevent authorization attempts
 
 This pattern document provides a comprehensive template for implementing CreateSessionToken flows in payment connectors, ensuring consistency and completeness across all implementations.
+
+## ValidationTrait Override (MANDATORY)
+
+**Without this override the CreateSessionToken flow compiles but is NEVER invoked at runtime.**
+Add this only if your connector implements the CreateSessionToken flow.
+
+Add this impl block to your connector file:
+
+```rust
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    connector_types::ValidationTrait for {{ConnectorName}}<T>
+{
+    fn should_do_session_token(&self) -> bool {
+        true
+    }
+}
+```
+
+Also add the empty trait marker impl for `CreateSessionToken`:
+
+```rust
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentSessionToken for {{ConnectorName}}<T>
+{}
+```
+
+> **Note:** `SdkSessionTokenV2` is a separate flow (`SdkSessionToken`), not `CreateSessionToken`.
+> Add it only if your connector also implements `SdkSessionToken`:
+>
+> ```rust
+> impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+>     connector_types::SdkSessionTokenV2 for {{ConnectorName}}<T>
+> {}
+> ```
+
+Real connectors: `Nuvei`, `Paytm`

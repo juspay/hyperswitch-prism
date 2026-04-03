@@ -110,6 +110,16 @@ macros::create_all_prerequisites!(
         ) -> &'a str {
             &req.resource_common_data.connectors.stripe.base_url
         }
+
+        // For Refund and RSync flows — typed against RefundFlowData, NOT PaymentFlowData.
+        // Using connector_base_url() in a Refund/RSync macro_connector_implementation!
+        // causes a compile-time type mismatch. Always use this variant for those flows.
+        pub fn connector_base_url_refunds<'a, F, Req, Res>(
+            &self,
+            req: &'a RouterDataV2<F, RefundFlowData, Req, Res>,
+        ) -> &'a str {
+            &req.resource_common_data.connectors.{{connector_name_lower}}.base_url
+        }
     }
 );
 ```
@@ -169,6 +179,48 @@ macros::macro_connector_implementation!(
 - `FormData(Type)` - For multipart form data
 - `FormUrlEncoded(Type)` - For URL-encoded forms
 - `RawData(Type)` - For raw data
+
+### XML Connectors: `preprocess_response: true`
+
+For connectors that return XML instead of JSON, set `preprocess_response: true`.
+This triggers the `preprocess_xml_response_bytes()` utility defined in
+`crates/integrations/connector-integration/src/utils/webhook_utils.rs`,
+which converts the raw XML bytes to a JSON-compatible form before deserialization.
+
+```rust
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Authorizedotnet,
+    curl_request: RawData(AuthorizedotnetPaymentRequest),
+    curl_response: AuthorizedotnetPaymentResponse,
+    flow_name: Authorize,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsAuthorizeData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    preprocess_response: true,     // ← required for XML responses
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, errors::ConnectorError> {
+            Ok(format!("{}/xml/v1/request.api", self.connector_base_url(req)))
+        }
+    }
+);
+```
+
+When `preprocess_response: true`, your `curl_response` type's `Deserialize` impl
+receives pre-processed bytes. Your response struct should still use `#[derive(Deserialize)]`
+as normal.
 
 **Example (With Request Body):**
 ```rust
@@ -253,6 +305,41 @@ macros::macro_connector_implementation!(
 - **AcceptDisputeData** - For Accept flow
 - **SubmitEvidenceData** - For SubmitEvidence flow
 - **DisputeDefendData** - For DefendDispute flow
+- **RepeatPaymentData<T>** - For RepeatPayment flow
+- **MandateRevokeRequestData** - For MandateRevoke flow
+- **PaymentMethodTokenizationData<T>** - For PaymentMethodToken flow
+- **SessionTokenRequestData** - For CreateSessionToken flow
+- **AccessTokenRequestData** - For CreateAccessToken flow
+- **ConnectorCustomerData<T>** - For CreateConnectorCustomer flow
+- **PaymentsIncrementalAuthorizationData** - For IncrementalAuthorization flow
+
+### Advanced Flow `router_data` Examples
+
+Use these exact `router_data` lines inside `create_all_prerequisites!` for the
+advanced flows:
+
+```rust
+// RepeatPayment
+router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+
+// MandateRevoke
+router_data: RouterDataV2<MandateRevoke, PaymentFlowData, MandateRevokeRequestData, PaymentsResponseData>,
+
+// PaymentMethodToken
+router_data: RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentsResponseData>,
+
+// CreateSessionToken
+router_data: RouterDataV2<CreateSessionToken, PaymentFlowData, SessionTokenRequestData, PaymentsResponseData>,
+
+// CreateAccessToken
+router_data: RouterDataV2<CreateAccessToken, PaymentFlowData, AccessTokenRequestData, PaymentsResponseData>,
+
+// CreateConnectorCustomer
+router_data: RouterDataV2<CreateConnectorCustomer, PaymentFlowData, ConnectorCustomerData<T>, PaymentsResponseData>,
+
+// IncrementalAuthorization
+router_data: RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
+```
 
 ### Response Data Types (from domain_types::connector_types)
 - **PaymentsResponseData** - For all payment flows
@@ -599,6 +686,25 @@ macros::macro_connector_implementation!(
     flow_name: Authorize,  // ✅ Must match
     ...
 );
+```
+
+### Issue 4: Wrong base URL getter in Refund/RSync flows
+
+**Problem:** `connector_base_url` is typed against `PaymentFlowData`. Calling it inside
+a `macro_connector_implementation!` for `Refund` or `RSync` (which use `RefundFlowData`)
+produces a compile-time type mismatch error.
+
+**Solution:**
+```rust
+// Wrong — type mismatch for Refund/RSync
+fn get_url(&self, req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>) -> ... {
+    Ok(format!("{}/refunds", self.connector_base_url(req)))  // ❌ PaymentFlowData expected
+}
+
+// Correct
+fn get_url(&self, req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>) -> ... {
+    Ok(format!("{}/refunds", self.connector_base_url_refunds(req)))  // ✅
+}
 ```
 
 ## Macro Expansion Understanding

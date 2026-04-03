@@ -1211,3 +1211,37 @@ By following these patterns, you can implement a production-ready PaymentMethodT
 - [pattern_setup_mandate.md](./pattern_setup_mandate.md) - Mandate setup patterns
 - [repeat_payment_flow_patterns.md](./repeat_payment_flow_patterns.md) - Using tokens for repeat payments
 - [../connector_integration_guide.md](../connector_integration_guide.md) - Complete UCS integration process
+
+## ValidationTrait Override (MANDATORY)
+
+**Without this override the PaymentMethodToken flow compiles but is NEVER invoked at runtime.**
+
+Add this impl block to your connector file. Adjust the `matches!` arms to match the
+payment methods your connector actually tokenizes:
+
+```rust
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    connector_types::ValidationTrait for {{ConnectorName}}<T>
+{
+    fn should_do_payment_method_token(
+        &self,
+        payment_method: common_enums::PaymentMethod,
+        _payment_method_type: Option<common_enums::PaymentMethodType>,
+    ) -> bool {
+        matches!(
+            payment_method,
+            common_enums::PaymentMethod::Card | common_enums::PaymentMethod::BankDebit
+        )
+    }
+}
+```
+
+Also add the empty trait marker impl:
+
+```rust
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentTokenV2<T> for {{ConnectorName}}<T>
+{}
+```
+
+Real connectors: `Stax`, `Braintree`, `Paysafe`, `Finix`, `Mollie`, `Hipay`

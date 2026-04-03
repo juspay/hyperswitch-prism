@@ -585,3 +585,32 @@ The key variations are:
 - **Auth transport**: HTTP Basic header vs request body
 - **Content type**: JSON vs form-urlencoded
 - **Request body**: Empty vs populated with credentials
+
+## ValidationTrait Override (MANDATORY)
+
+**Without this override the CreateAccessToken flow compiles but is NEVER invoked at runtime.**
+
+Add this impl block to your connector file:
+
+```rust
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    connector_types::ValidationTrait for {{ConnectorName}}<T>
+{
+    fn should_do_access_token(
+        &self,
+        _payment_method: Option<common_enums::PaymentMethod>,
+    ) -> bool {
+        true
+    }
+}
+```
+
+Also add the empty trait marker impl:
+
+```rust
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentAccessToken for {{ConnectorName}}<T>
+{}
+```
+
+Real connectors: `Paypal`, `TrueLayer`, `JPMorgan`, `Getnet`, `Volt`, `Globalpay`, `Airwallex`

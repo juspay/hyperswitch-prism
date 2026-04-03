@@ -54,15 +54,19 @@ REGARDLESS of which model you are currently running on (kimi-latest, glm-latest,
 - `Task` - For delegating work to subagents
 - `TaskOutput` - For retrieving results from background subagents
 
-**FORBIDDEN TOOLS** (Do not use directly):
-- `Read` - Subagent should read files
-- `Write` - Subagent should write files
-- `Edit` - Subagent should edit files
-- `Glob` - Subagent should find files
-- `Grep` - Subagent should search content
-- `Bash` - Subagent should execute commands
-- `WebSearch` / `WebFetch` - Subagent should do web research
-- `Any other tool` - Delegate to subagent
+**FORBIDDEN TOOLS for the Controller** (the Controller must not use these directly):
+- `Read` — delegate to subagent
+- `Write` — delegate to subagent
+- `Edit` — delegate to subagent
+- `Glob` — delegate to subagent
+- `Grep` — delegate to subagent
+- `Bash` — delegate to subagent
+- `WebSearch` / `WebFetch` — delegate to subagent
+- Any other tool — delegate to subagent
+
+**Note:** Subagents dispatched by the Controller ARE permitted to use all tools
+including Read, Write, Edit, Glob, Grep, and Bash. The restriction applies only
+to the Controller role itself.
 
 ## WORKFLOW OVERVIEW
 
@@ -84,7 +88,11 @@ This workflow adds specific flows to an existing connector implementation.
 2. **DELEGATE TO**: Connector Mod Subagent
    - Add connector to `crates/integrations/connector-integration/src/connectors.rs` mod list
    - **WAIT FOR COMPLETION**
-3. **THEN PROCEED** to Phase 1
+3. **IF** this connector will implement any pre-auth flow (CreateOrder, CreateSessionToken, CreateAccessToken, PaymentMethodToken):
+   - **DELEGATE TO**: ValidationTrait Subagent
+   - Read `grace/rulesbook/codegen/guides/foundation_checklist.md` and add the required override
+   - **WAIT FOR COMPLETION**
+4. **THEN PROCEED** to Phase 1
 
 **IF CONNECTOR EXISTS:**
 - Skip Phase 0 and proceed directly to Phase 1
@@ -178,6 +186,7 @@ Output: ["Capture", "Refund", "Void"]
 
 ```
 FLOW_DEPENDENCIES = {
+    # Core flows
     "Authorize": [],
     "PSync": ["Authorize"],
     "Capture": ["Authorize"],
@@ -186,7 +195,24 @@ FLOW_DEPENDENCIES = {
     "RSync": ["Refund"],
     "SetupMandate": ["Authorize"],
     "RepeatPayment": ["SetupMandate"],
-    "IncomingWebhook": ["PSync"]
+    "IncomingWebhook": ["PSync"],
+
+    # Pre-auth flows (no prerequisites — run before Authorize)
+    "CreateOrder": [],
+    "CreateAccessToken": [],
+    "CreateConnectorCustomer": [],
+    "PaymentMethodToken": [],
+    "CreateSessionToken": [],
+
+    # Post-auth / mandate flows
+    "VoidPC": ["Capture"],
+    "MandateRevoke": ["SetupMandate"],
+    "IncrementalAuthorization": ["Authorize"],
+
+    # Dispute flows
+    "Accept": [],
+    "SubmitEvidence": ["Accept"],
+    "DefendDispute": [],
 }
 
 function resolve_dependencies(requested_flows):

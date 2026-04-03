@@ -2,44 +2,51 @@
 
 This directory contains comprehensive implementation patterns for each payment flow in the UCS (Universal Connector Service) system. Each pattern file provides complete, reusable templates that can be consumed by AI to generate consistent, production-ready connector code.
 
-## 🆕 New Structure (2025)
+## Structure
 
-Patterns are now organized hierarchically for better discoverability and modular workflows:
+Pattern files live flat in this directory:
 
 ```
 guides/patterns/
-├── README.md                    # This file
-├── flow_macro_guide.md          # Shared macro patterns
-├── macro_patterns_reference.md  # Complete macro reference
-└── flows/                       # Flow-specific patterns
-    ├── README.md                # Flow patterns index
-    ├── authorize/               # Authorization flow with payment methods
-    │   ├── pattern_authorize.md # Core authorize pattern
-    │   ├── card.md              # Card payments
-    │   ├── wallet.md            # Digital wallets (Apple Pay, Google Pay)
-    │   ├── bank_transfer.md     # Bank transfers
-    │   ├── bank_debit.md        # Bank debits
-    │   ├── bank_redirect.md     # Bank redirects (iDEAL, etc.)
-    │   ├── upi.md               # UPI payments
-    │   ├── bnpl.md              # Buy Now Pay Later
-    │   ├── crypto.md            # Cryptocurrency
-    │   ├── gift_card.md         # Gift cards
-    │   ├── mobile_payment.md    # Mobile payments
-    │   └── reward.md            # Reward points
-    ├── capture/                 # Capture flow
-    ├── refund/                  # Refund flow
-    ├── void/                    # Void flow
-    ├── psync/                   # Payment sync
-    ├── rsync/                   # Refund sync
-    ├── setup_mandate/           # Mandate setup
-    ├── repeat_payment/          # Repeat payments
-    ├── IncomingWebhook/         # Webhook handling
-    └── ... (other advanced flows)
+├── README.md                             # This file
+├── flow_macro_guide.md                   # Shared macro patterns
+├── macro_patterns_reference.md           # Complete macro reference
+├── pattern_authorize.md                  # Authorization flow
+├── pattern_capture.md                    # Capture flow
+├── pattern_void.md                       # Void flow
+├── pattern_psync.md                      # Payment sync
+├── pattern_refund.md                     # Refund flow
+├── pattern_rsync.md                      # Refund sync
+├── pattern_createorder.md                # CreateOrder pre-auth
+├── pattern_CreateAccessToken_flow.md     # CreateAccessToken pre-auth
+├── pattern_session_token.md              # CreateSessionToken pre-auth
+├── pattern_payment_method_token.md       # PaymentMethodToken pre-auth
+├── pattern_setup_mandate.md              # SetupMandate
+├── pattern_repeat_payment_flow.md        # RepeatPayment
+├── pattern_mandate_revoke.md             # MandateRevoke
+├── pattern_void_pc.md                    # VoidPC
+├── pattern_IncrementalAuthorization_flow.md  # IncrementalAuthorization
+├── pattern_IncomingWebhook_flow.md       # IncomingWebhook
+├── pattern_accept_dispute.md             # AcceptDispute
+├── pattern_submit_evidence.md            # SubmitEvidence
+├── pattern_defend_dispute.md             # DefendDispute
+├── pattern_dsync.md                      # DSync
+└── authorize/                            # Payment-method-specific authorize patterns
+    ├── card/pattern_authorize_card.md
+    ├── wallet/pattern_authorize_wallet.md
+    ├── bank_debit/pattern_authorize_bank_debit.md
+    ├── bank_transfer/pattern_authorize_bank_transfer.md
+    ├── bank_redirect/pattern_authorize_bank_redirect.md
+    ├── upi/pattern_authorize_upi.md
+    ├── bnpl/pattern_authorize_bnpl.md
+    ├── crypto/pattern_authorize_crypto.md
+    ├── gift_card/pattern_authorize_gift_card.md
+    ├── mobile_payment/pattern_authorize_mobile_payment.md
+    └── reward/pattern_authorize_reward.md
 ```
 
-### Legacy Patterns (Being Migrated)
-
-The flat pattern files in this directory are being migrated to the new `flows/` structure. During migration, both locations are valid, but new implementations should use the `flows/` directory.
+> **Note:** A `flows/` subdirectory layout was planned but not implemented.
+> All pattern files currently live flat in this directory.
 
 ## 📚 Available Patterns
 
@@ -47,43 +54,45 @@ The flat pattern files in this directory are being migrated to the new `flows/` 
 
 | Flow | Pattern File | Status | Description |
 |------|--------------|--------|-------------|
-| **Authorize** | [`flows/authorize/pattern_authorize.md`](./flows/authorize/pattern_authorize.md) | ✅ Complete | Complete authorization flow patterns |
-| **Capture** | [`flows/capture/pattern_capture.md`](./flows/capture/pattern_capture.md) | ✅ Complete | Payment capture flow patterns |
-| **PSync** | [`flows/psync/pattern_psync.md`](./flows/psync/pattern_psync.md) | ✅ Complete | Payment status synchronization |
-| **Void** | [`flows/void/pattern_void.md`](./flows/void/pattern_void.md) | ✅ Complete | Void/cancel authorization |
-| **Refund** | [`flows/refund/pattern_refund.md`](./flows/refund/pattern_refund.md) | ✅ Complete | Full and partial refunds |
-| **RSync** | [`flows/rsync/pattern_rsync.md`](./flows/rsync/pattern_rsync.md) | ✅ Complete | Refund status synchronization |
+| **Authorize** | [`./pattern_authorize.md`](./pattern_authorize.md) | ✅ Complete | Complete authorization flow patterns |
+| **Capture** | [`./pattern_capture.md`](./pattern_capture.md) | ✅ Complete | Payment capture flow patterns |
+| **PSync** | [`./pattern_psync.md`](./pattern_psync.md) | ✅ Complete | Payment status synchronization |
+| **Void** | [`./pattern_void.md`](./pattern_void.md) | ✅ Complete | Void/cancel authorization |
+| **Refund** | [`./pattern_refund.md`](./pattern_refund.md) | ✅ Complete | Full and partial refunds |
+| **RSync** | [`./pattern_rsync.md`](./pattern_rsync.md) | ✅ Complete | Refund status synchronization |
 
 ### Advanced Flows
 
 | Flow | Pattern File | Status | Description |
 |------|--------------|--------|-------------|
-| **IncomingWebhook** | [`flows/IncomingWebhook/`](./flows/IncomingWebhook/) | ✅ Complete | Webhook handling and signature verification |
-| **SetupMandate** | [`flows/setup_mandate/`](./flows/setup_mandate/) | ✅ Complete | Recurring payment setup |
-| **RepeatPayment** | [`flows/repeat_payment/`](./flows/repeat_payment/) | ✅ Complete | Process recurring payments |
-| **MandateRevoke** | [`flows/mandate_revoke/`](./flows/mandate_revoke/) | ✅ Complete | Cancel stored mandates |
-| **PaymentMethodToken** | [`flows/payment_method_token/`](./flows/payment_method_token/) | ✅ Complete | Payment method tokenization |
-| **CreateOrder** | [`flows/createorder/`](./flows/createorder/) | ✅ Complete | Multi-step payment initiation |
-| **SessionToken** | [`flows/session_token/`](./flows/session_token/) | ✅ Complete | Secure session management |
-| **DefendDispute** | [`flows/defend_dispute/`](./flows/defend_dispute/) | ✅ Complete | Defend against disputes |
-| **AcceptDispute** | [`flows/accept_dispute/`](./flows/accept_dispute/) | ✅ Complete | Accept chargeback |
-| **DSync** | [`flows/dsync/`](./flows/dsync/) | ✅ Complete | Dispute status sync |
+| **IncomingWebhook** | [`./pattern_IncomingWebhook_flow.md`](./pattern_IncomingWebhook_flow.md) | ✅ Complete | Webhook handling and signature verification |
+| **IncrementalAuthorization** | [`pattern_IncrementalAuthorization_flow.md`](./pattern_IncrementalAuthorization_flow.md) | ✅ Complete | Incremental/partial capture authorization |
+| **SetupMandate** | [`./pattern_setup_mandate.md`](./pattern_setup_mandate.md) | ✅ Complete | Recurring payment setup |
+| **RepeatPayment** | [`./pattern_repeat_payment_flow.md`](./pattern_repeat_payment_flow.md) | ✅ Complete | Process recurring payments |
+| **MandateRevoke** | [`./pattern_mandate_revoke.md`](./pattern_mandate_revoke.md) | ✅ Complete | Cancel stored mandates |
+| **PaymentMethodToken** | [`./pattern_payment_method_token.md`](./pattern_payment_method_token.md) | ✅ Complete | Payment method tokenization |
+| **CreateOrder** | [`./pattern_createorder.md`](./pattern_createorder.md) | ✅ Complete | Multi-step payment initiation |
+| **SessionToken** | [`./pattern_session_token.md`](./pattern_session_token.md) | ✅ Complete | Secure session management |
+| **DefendDispute** | [`./pattern_defend_dispute.md`](./pattern_defend_dispute.md) | ✅ Complete | Defend against disputes |
+| **AcceptDispute** | [`./pattern_accept_dispute.md`](./pattern_accept_dispute.md) | ✅ Complete | Accept chargeback |
+| **SubmitEvidence** | [`pattern_submit_evidence.md`](./pattern_submit_evidence.md) | ✅ Complete | Dispute evidence submission |
+| **DSync** | [`./pattern_dsync.md`](./pattern_dsync.md) | ✅ Complete | Dispute status sync |
 
 ### Payment Method Patterns (Authorize Flow)
 
 | Payment Method | Pattern File | Supported Flows |
 |----------------|--------------|-----------------|
-| **Card** | [`flows/authorize/card.md`](./flows/authorize/card.md) | All flows |
-| **Wallet** | [`flows/authorize/wallet.md`](./flows/authorize/wallet.md) | Authorize, Refund |
-| **Bank Transfer** | [`flows/authorize/bank_transfer.md`](./flows/authorize/bank_transfer.md) | Authorize, Refund |
-| **Bank Debit** | [`flows/authorize/bank_debit.md`](./flows/authorize/bank_debit.md) | Authorize, Refund |
-| **Bank Redirect** | [`flows/authorize/bank_redirect.md`](./flows/authorize/bank_redirect.md) | Authorize |
-| **UPI** | [`flows/authorize/upi.md`](./flows/authorize/upi.md) | Authorize, Refund |
-| **BNPL** | [`flows/authorize/bnpl.md`](./flows/authorize/bnpl.md) | Authorize, Refund |
-| **Crypto** | [`flows/authorize/crypto.md`](./flows/authorize/crypto.md) | Authorize |
-| **Gift Card** | [`flows/authorize/gift_card.md`](./flows/authorize/gift_card.md) | Authorize |
-| **Mobile Payment** | [`flows/authorize/mobile_payment.md`](./flows/authorize/mobile_payment.md) | Authorize, Refund |
-| **Reward** | [`flows/authorize/reward.md`](./flows/authorize/reward.md) | Authorize |
+| **Card** | [`./authorize/card/pattern_authorize_card.md`](./authorize/card/pattern_authorize_card.md) | All flows |
+| **Wallet** | [`./authorize/wallet/pattern_authorize_wallet.md`](./authorize/wallet/pattern_authorize_wallet.md) | Authorize, Refund |
+| **Bank Transfer** | [`./authorize/bank_transfer/pattern_authorize_bank_transfer.md`](./authorize/bank_transfer/pattern_authorize_bank_transfer.md) | Authorize, Refund |
+| **Bank Debit** | [`./authorize/bank_debit/pattern_authorize_bank_debit.md`](./authorize/bank_debit/pattern_authorize_bank_debit.md) | Authorize, Refund |
+| **Bank Redirect** | [`./authorize/bank_redirect/pattern_authorize_bank_redirect.md`](./authorize/bank_redirect/pattern_authorize_bank_redirect.md) | Authorize |
+| **UPI** | [`./authorize/upi/pattern_authorize_upi.md`](./authorize/upi/pattern_authorize_upi.md) | Authorize, Refund |
+| **BNPL** | [`./authorize/bnpl/pattern_authorize_bnpl.md`](./authorize/bnpl/pattern_authorize_bnpl.md) | Authorize, Refund |
+| **Crypto** | [`./authorize/crypto/pattern_authorize_crypto.md`](./authorize/crypto/pattern_authorize_crypto.md) | Authorize |
+| **Gift Card** | [`./authorize/gift_card/pattern_authorize_gift_card.md`](./authorize/gift_card/pattern_authorize_gift_card.md) | Authorize |
+| **Mobile Payment** | [`./authorize/mobile_payment/pattern_authorize_mobile_payment.md`](./authorize/mobile_payment/pattern_authorize_mobile_payment.md) | Authorize, Refund |
+| **Reward** | [`./authorize/reward/pattern_authorize_reward.md`](./authorize/reward/pattern_authorize_reward.md) | Authorize |
 
 ## 🎯 Workflow Controllers
 
@@ -247,9 +256,8 @@ All pattern files maintain:
 - [`../../README.md`](../../README.md) - GRACE-UCS overview and usage
 
 ### Pattern Reference
-- [`flows/README.md`](./flows/README.md) - Flow patterns index
-- [`flow_macro_guide.md`](./flow_macro_guide.md) - Macro usage reference
-- [`macro_patterns_reference.md`](./macro_patterns_reference.md) - Complete macro documentation
+- [`flow_macro_guide.md`](./flow_macro_guide.md) - Flow patterns index
+- [`macro_patterns_reference.md`](./macro_patterns_reference.md) - Complete macro reference
 
 ### Quality & Standards
 - [`../feedback.md`](../feedback.md) - Quality feedback database and review template

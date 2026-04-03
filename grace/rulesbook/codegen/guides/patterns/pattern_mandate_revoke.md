@@ -915,3 +915,20 @@ This pattern document provides comprehensive templates for implementing MandateR
 - **Comprehensive Checklists**: Pre-implementation through validation
 
 By following these patterns, you can implement a production-ready MandateRevoke flow for any payment connector in 20-30 minutes.
+
+## Prerequisite Trait Impls (MANDATORY)
+
+MandateRevoke requires `SetupMandate` to be implemented first. Both empty trait marker
+impls must be present:
+
+```rust
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    connector_types::SetupMandateV2<T> for {{ConnectorName}}<T>
+{}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    connector_types::MandateRevokeV2 for {{ConnectorName}}<T>
+{}
+```
+
+No `ValidationTrait` override is needed for MandateRevoke.
