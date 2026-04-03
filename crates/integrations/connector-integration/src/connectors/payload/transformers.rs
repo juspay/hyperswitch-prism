@@ -14,7 +14,7 @@ use domain_types::{
         RefundsResponseData, ResponseId, SetupMandateRequestData,
     },
     errors::{ConnectorResponseTransformationError, IntegrationError},
-    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
+    payment_method_data::{BankDebitData, PaymentMethodData, PaymentMethodDataTypes},
     router_data::{
         AdditionalPaymentMethodConnectorResponse, ConnectorResponseData, ConnectorSpecificConfig,
         ErrorResponse,
@@ -30,8 +30,8 @@ use crate::connectors::payload::{PayloadAmountConvertor, PayloadRouterData};
 use crate::types::ResponseRouterData;
 
 pub use super::requests::{
-    PayloadCaptureRequest, PayloadCardsRequestData, PayloadPaymentsRequest, PayloadRefundRequest,
-    PayloadRepeatPaymentRequest, PayloadVoidRequest,
+    PayloadBankAccountRequestData, PayloadCaptureRequest, PayloadCardsRequestData,
+    PayloadPaymentsRequest, PayloadRefundRequest, PayloadRepeatPaymentRequest, PayloadVoidRequest,
 };
 pub use super::responses::{
     PayloadAuthorizeResponse, PayloadCaptureResponse, PayloadErrorResponse, PayloadEventDetails,
@@ -181,6 +181,76 @@ fn build_payload_cards_request_data<T: PaymentMethodDataTypes>(
     }
 }
 
+// Helper function to build bank account (ACH) request data
+fn build_payload_bank_account_request_data(
+    bank_debit_data: &BankDebitData,
+    connector_config: &ConnectorSpecificConfig,
+    currency: enums::Currency,
+    amount: FloatMajorUnit,
+    capture_method: Option<enums::CaptureMethod>,
+    resource_common_data: &PaymentFlowData,
+) -> Result<PayloadBankAccountRequestData, Error> {
+    match bank_debit_data {
+        BankDebitData::AchBankDebit {
+            account_number,
+            routing_number,
+            bank_account_holder_name,
+            card_holder_name,
+            bank_type,
+            ..
+        } => {
+            let payload_auth = PayloadAuth::try_from((connector_config, currency))?;
+
+            let account_holder = bank_account_holder_name
+                .clone()
+                .or_else(|| card_holder_name.clone())
+                .or_else(|| resource_common_data.get_billing_full_name().ok())
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "bank_account_holder_name",
+                    context: Default::default(),
+                })?;
+
+            let account_type = match bank_type {
+                Some(enums::BankType::Savings) => requests::PayloadBankAccountType::Savings,
+                Some(enums::BankType::Checking) | None => {
+                    requests::PayloadBankAccountType::Checking
+                }
+            };
+
+            let bank_account = requests::PayloadBankAccount {
+                account_number: account_number.clone(),
+                routing_number: routing_number.clone(),
+                account_type,
+            };
+
+            let status = if is_manual_capture(capture_method) {
+                Some(responses::PayloadPaymentStatus::Authorized)
+            } else {
+                None
+            };
+
+            Ok(PayloadBankAccountRequestData {
+                amount,
+                bank_account,
+                transaction_types: requests::TransactionTypes::Payment,
+                payment_method_type: requests::PAYMENT_METHOD_TYPE_BANK_ACCOUNT.to_string(),
+                account_holder,
+                status,
+                processing_id: payload_auth.processing_account_id,
+                keep_active: false,
+            })
+        }
+        BankDebitData::SepaBankDebit { .. }
+        | BankDebitData::SepaGuaranteedBankDebit { .. }
+        | BankDebitData::BecsBankDebit { .. }
+        | BankDebitData::BacsBankDebit { .. } => Err(IntegrationError::NotImplemented(
+            domain_types::utils::get_unimplemented_payment_method_error_message("Payload"),
+            Default::default(),
+        )
+        .into()),
+    }
+}
+
 // TryFrom implementations for request bodies
 
 // SetupMandate request
@@ -285,6 +355,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 )?;
 
                 Ok(Self::PayloadCardsRequest(Box::new(cards_data)))
+            }
+            PaymentMethodData::BankDebit(bank_debit_data) => {
+                let bank_account_data = build_payload_bank_account_request_data(
+                    bank_debit_data,
+                    &router_data.connector_config,
+                    router_data.request.currency,
+                    amount,
+                    router_data.request.capture_method,
+                    &router_data.resource_common_data,
+                )?;
+
+                Ok(Self::PayloadBankAccountRequest(Box::new(bank_account_data)))
             }
             // Payload connector supports GooglePay and ApplePay wallets, but not yet integrated
             PaymentMethodData::Wallet(wallet_data) => match wallet_data {

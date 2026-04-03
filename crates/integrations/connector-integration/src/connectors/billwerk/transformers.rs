@@ -9,11 +9,12 @@ use common_utils::{
 use crate::{connectors::billwerk::BillwerkRouterData, types::ResponseRouterData, utils};
 
 use domain_types::{
-    connector_flow::{Authorize, Capture, PaymentMethodToken, RSync},
+    connector_flow::{Authorize, Capture, PaymentMethodToken, RSync, RepeatPayment, SetupMandate},
     connector_types::{
-        PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
-        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
+        MandateReference, MandateReferenceId, PaymentFlowData, PaymentMethodTokenResponse,
+        PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsResponseData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
+        RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
     errors::{ConnectorResponseTransformationError, IntegrationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
@@ -82,7 +83,33 @@ pub struct BillwerkPaymentsRequest {
     customer: BillwerkCustomerObject,
     metadata: Option<common_utils::pii::SecretSerdeValue>,
     settle: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    recurring: Option<bool>,
 }
+
+#[derive(Debug, Serialize)]
+pub struct BillwerkRepeatPaymentRequest {
+    handle: String,
+    amount: MinorUnit,
+    source: Secret<String>,
+    currency: common_enums::Currency,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    customer_handle: Option<String>,
+    settle: bool,
+}
+
+#[derive(Debug, Serialize)]
+pub struct BillwerkSetupMandateRequest {
+    handle: String,
+    amount: MinorUnit,
+    source: Secret<String>,
+    currency: common_enums::Currency,
+    customer: BillwerkCustomerObject,
+    settle: bool,
+    recurring: bool,
+}
+
+pub type BillwerkSetupMandateResponse = BillwerkPaymentsResponse;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
@@ -118,7 +145,10 @@ pub struct BillwerkPaymentsResponse {
     handle: String,
     error: Option<String>,
     error_state: Option<String>,
+    recurring_payment_method: Option<String>,
 }
+
+pub type BillwerkRepeatPaymentResponse = BillwerkPaymentsResponse;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -250,6 +280,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .router_data
             .resource_common_data
             .get_payment_method_token()?;
+        let recurring = if item.router_data.request.setup_future_usage.is_some() {
+            Some(true)
+        } else {
+            None
+        };
         Ok(Self {
             handle: item
                 .router_data
@@ -289,6 +324,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             },
             metadata: item.router_data.request.metadata.clone(),
             settle: item.router_data.request.is_auto_capture(),
+            recurring,
         })
     }
 }
@@ -348,10 +384,17 @@ impl<F, T> TryFrom<ResponseRouterData<BillwerkPaymentsResponse, Self>>
         } else {
             None
         };
+        let mandate_reference = response.recurring_payment_method.as_ref().map(|rpm| {
+            Box::new(MandateReference {
+                connector_mandate_id: Some(rpm.clone()),
+                payment_method_id: None,
+                connector_mandate_request_reference_id: None,
+            })
+        });
         let payments_response = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(response.handle.clone()),
             redirection_data: None,
-            mandate_reference: None,
+            mandate_reference,
             connector_metadata: None,
             network_txn_id: None,
             connector_response_reference_id: Some(response.handle),
@@ -482,6 +525,152 @@ impl TryFrom<ResponseRouterData<RefundResponse, Self>>
                 status_code: item.http_code,
             }),
             ..item.router_data
+        })
+    }
+}
+
+// SetupMandate (CIT) request transformer
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        BillwerkRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for BillwerkSetupMandateRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: BillwerkRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let PaymentMethodTokenFlow::Token(source) = item
+            .router_data
+            .resource_common_data
+            .get_payment_method_token()?;
+        let amount = item
+            .router_data
+            .request
+            .minor_amount
+            .unwrap_or(MinorUnit::new(0));
+        Ok(Self {
+            handle: item
+                .router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
+            amount,
+            source,
+            currency: item.router_data.request.currency,
+            customer: BillwerkCustomerObject {
+                handle: item.router_data.resource_common_data.customer_id.clone(),
+                email: item.router_data.request.email.clone(),
+                address: item
+                    .router_data
+                    .resource_common_data
+                    .get_optional_billing_line1(),
+                address2: item
+                    .router_data
+                    .resource_common_data
+                    .get_optional_billing_line2(),
+                city: item
+                    .router_data
+                    .resource_common_data
+                    .get_optional_billing_city(),
+                country: item
+                    .router_data
+                    .resource_common_data
+                    .get_optional_billing_country(),
+                first_name: item
+                    .router_data
+                    .resource_common_data
+                    .get_optional_billing_first_name(),
+                last_name: item
+                    .router_data
+                    .resource_common_data
+                    .get_optional_billing_last_name(),
+            },
+            settle: false,
+            recurring: true,
+        })
+    }
+}
+
+// RepeatPayment (MIT) request transformer
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        BillwerkRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for BillwerkRepeatPaymentRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: BillwerkRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+
+        // Extract the stored card reference (ca_...) from mandate
+        let source = match &router_data.request.mandate_reference {
+            MandateReferenceId::ConnectorMandateId(connector_mandate_ids) => {
+                let connector_mandate_id = connector_mandate_ids.get_connector_mandate_id().ok_or(
+                    IntegrationError::MissingRequiredField {
+                        field_name: "connector_mandate_id",
+                        context: Default::default(),
+                    },
+                )?;
+                Secret::new(connector_mandate_id)
+            }
+            MandateReferenceId::NetworkMandateId(_)
+            | MandateReferenceId::NetworkTokenWithNTI(_) => {
+                return Err(IntegrationError::not_implemented(
+                    "Network mandate ID is not supported for Billwerk",
+                )
+                .into())
+            }
+        };
+
+        Ok(Self {
+            handle: router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
+            amount: router_data.request.minor_amount,
+            source,
+            currency: router_data.request.currency,
+            customer_handle: router_data
+                .resource_common_data
+                .customer_id
+                .as_ref()
+                .map(|id| id.get_string_repr().to_owned()),
+            settle: router_data.request.is_auto_capture(),
         })
     }
 }
