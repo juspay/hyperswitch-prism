@@ -15,6 +15,7 @@ use integration_tests::harness::{
         SuiteRunOptions, SuiteRunSummary, DEFAULT_CONNECTOR, DEFAULT_ENDPOINT,
     },
     scenario_loader::load_suite_scenarios,
+    sdk_executor::{sdk_coverage_report, ALL_PROTO_SUITES},
 };
 use serde::Deserialize;
 use serde_json::Value;
@@ -46,6 +47,9 @@ fn main() {
         print_usage();
         std::process::exit(2);
     }
+
+    // Print gRPC interface coverage relative to the full proto service suite list.
+    print_grpc_interface_coverage();
 
     let suite = args.suite.as_deref();
 
@@ -454,6 +458,29 @@ fn load_defaults() -> StoredDefaults {
     };
 
     serde_json::from_str(&content).unwrap_or_default()
+}
+
+/// Prints a one-time coverage summary showing that the gRPC interface supports
+/// all proto service suites, and contrasts with the SDK/FFI interface.
+fn print_grpc_interface_coverage() {
+    let sdk_report = sdk_coverage_report();
+    let total = ALL_PROTO_SUITES.len();
+    let sdk_missing = sdk_report.not_supported.len();
+
+    eprintln!(
+        "[suite_run_test] interface=gRPC  proto suites={total}  supported={total}  not yet supported=0",
+    );
+    eprintln!(
+        "[suite_run_test]   all proto suites: {}",
+        ALL_PROTO_SUITES.join(", ")
+    );
+    eprintln!(
+        "[suite_run_test]   note: SDK/FFI interface supports {sup}/{total} suites; \
+         {missing} not yet implemented there: {missing_list}",
+        sup = total - sdk_missing,
+        missing = sdk_missing,
+        missing_list = sdk_report.not_supported.join(", "),
+    );
 }
 
 /// Prints usage/help text for suite runner.

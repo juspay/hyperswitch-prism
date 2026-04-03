@@ -15,6 +15,7 @@ use integration_tests::harness::{
         SuiteRunOptions, SuiteRunSummary, DEFAULT_CONNECTOR, DEFAULT_ENDPOINT,
     },
     scenario_loader::load_suite_scenarios,
+    sdk_executor::sdk_coverage_report,
 };
 use serde::Deserialize;
 use serde_json::Value;
@@ -46,6 +47,9 @@ fn main() {
         print_usage();
         std::process::exit(2);
     }
+
+    // Print SDK interface coverage relative to the full proto service suite list.
+    print_sdk_interface_coverage();
 
     let suite = args.suite.as_deref();
 
@@ -431,6 +435,27 @@ fn load_defaults() -> StoredDefaults {
     };
 
     serde_json::from_str(&content).unwrap_or_default()
+}
+
+/// Prints a one-time coverage summary showing which proto service suites are
+/// supported by the SDK/FFI interface and which are not yet implemented.
+fn print_sdk_interface_coverage() {
+    let report = sdk_coverage_report();
+
+    eprintln!(
+        "[sdk_run_test] interface=SDK/FFI  proto suites={total}  supported={sup}  not yet supported={missing}",
+        total = report.supported.len() + report.not_supported.len(),
+        sup = report.supported.len(),
+        missing = report.not_supported.len(),
+    );
+    eprintln!(
+        "[sdk_run_test]   supported suites    : {}",
+        report.supported.join(", ")
+    );
+    eprintln!(
+        "[sdk_run_test]   not yet supported   : {}",
+        report.not_supported.join(", ")
+    );
 }
 
 /// Prints usage/help text for SDK suite runner.
