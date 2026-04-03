@@ -75,7 +75,7 @@ grpcurl -H "x-connector: stripe" \
   localhost:8080 types.PaymentService/Authorize
 ```
 
-Test credentials stay consistent across all 50+ connector examples. Developers copy-paste and it works.
+Test credentials stay consistent across all 60+ connector examples. Developers copy-paste and it works.
 
 ## Keeping Docs in Sync
 
