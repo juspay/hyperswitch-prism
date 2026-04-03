@@ -1,9 +1,10 @@
 use common_utils::{ext_traits::OptionExt, request::Method, FloatMajorUnit, StringMajorUnit};
 use domain_types::{
-    connector_flow::{Authorize, Capture},
+    connector_flow::{Authorize, Capture, RepeatPayment},
     connector_types::{
-        PaymentFlowData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
-        RefundFlowData, RefundsData, RefundsResponseData, ResponseId,
+        MandateReferenceId, PaymentFlowData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsResponseData, RefundFlowData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        ResponseId,
     },
     errors::{ConnectorResponseTransformationError, IntegrationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData},
@@ -391,6 +392,19 @@ pub struct RapydPaymentsResponse {
     pub data: Option<ResponseData>,
 }
 
+// Wrapper types for each flow to avoid macro templating conflicts
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RapydAuthorizeResponse(pub RapydPaymentsResponse);
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RapydCaptureResponse(pub RapydPaymentsResponse);
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RapydPSyncResponse(pub RapydPaymentsResponse);
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RapydVoidResponse(pub RapydPaymentsResponse);
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Status {
     pub error_code: String,
@@ -570,3 +584,104 @@ impl<F, T> TryFrom<ResponseRouterData<RefundResponse, Self>>
         })
     }
 }
+
+// MIT (Merchant Initiated Transaction) Request
+#[derive(Default, Debug, Serialize)]
+pub struct RapydMitRequest {
+    pub amount: StringMajorUnit,
+    pub currency: common_enums::Currency,
+    pub payment_method: Option<String>, // Can be a saved payment method ID
+    pub merchant_reference_id: Option<String>,
+    pub capture: Option<bool>,
+    pub description: Option<String>,
+    pub initiation_type: String,
+    pub original_payment: Option<String>, // Required for sandbox/industry-specific MIT
+    pub complete_payment_url: Option<String>,
+    pub error_payment_url: Option<String>,
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        RapydRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for RapydMitRequest
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: RapydRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        // Map MIT category to Rapyd initiation_type
+        let initiation_type = match item.router_data.request.mit_category {
+            Some(common_enums::MitCategory::Recurring) => "recurring".to_string(),
+            Some(common_enums::MitCategory::Installment) => "installment".to_string(),
+            Some(common_enums::MitCategory::Unscheduled) => "unscheduled".to_string(),
+            Some(common_enums::MitCategory::Resubmission) => "delayed_charges".to_string(),
+            _ => "unscheduled".to_string(), // Default to unscheduled
+        };
+
+        // Get the saved payment method ID from mandate reference
+        let payment_method = match &item.router_data.request.mandate_reference {
+            MandateReferenceId::ConnectorMandateId(connector_mandate_ids) => {
+                connector_mandate_ids.get_connector_mandate_id()
+            }
+            _ => None,
+        };
+
+        // Get original payment ID from mandate metadata if available
+        // Note: In sandbox mode for industry-specific MIT types, the original_payment
+        // field is required. This can be passed through connector_testing_data if needed.
+        let original_payment = None; // Can be populated from metadata if required
+
+        let amount = item
+            .connector
+            .amount_converter
+            .convert(
+                item.router_data.request.minor_amount,
+                item.router_data.request.currency,
+            )
+            .change_context(ConnectorError::RequestEncodingFailed)?;
+
+        let return_url = item.router_data.request.get_router_return_url()?;
+
+        Ok(Self {
+            amount,
+            currency: item.router_data.request.currency,
+            payment_method,
+            initiation_type,
+            original_payment,
+            capture: Some(matches!(
+                item.router_data.request.capture_method,
+                Some(common_enums::CaptureMethod::Automatic)
+                    | Some(common_enums::CaptureMethod::SequentialAutomatic)
+                    | None
+            )),
+            merchant_reference_id: Some(
+                item.router_data
+                    .resource_common_data
+                    .connector_request_reference_id
+                    .clone(),
+            ),
+            description: None,
+            complete_payment_url: Some(return_url.clone()),
+            error_payment_url: Some(return_url),
+        })
+    }
+}
+
+// MIT Response handling - uses same response structure as Authorize
+// The macro generates the TryFrom implementation, so we don't need to define it manually
