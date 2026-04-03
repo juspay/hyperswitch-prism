@@ -1,0 +1,9 @@
+{
+  "connector": "gigadat",
+  "supported_suites": [],
+  "unsupported_suites": [
+    "authorize",
+    "get",
+    "refund"
+  ]
+}

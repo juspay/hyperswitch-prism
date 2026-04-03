@@ -1,0 +1,8 @@
+{
+  "connector": "phonepe",
+  "supported_suites": [],
+  "unsupported_suites": [
+    "authorize",
+    "get"
+  ]
+}

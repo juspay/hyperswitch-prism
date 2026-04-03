@@ -1,0 +1,11 @@
+{
+  "connector": "fiservcommercehub",
+  "supported_suites": [],
+  "unsupported_suites": [
+    "authorize",
+    "get",
+    "void",
+    "refund",
+    "refund_sync"
+  ]
+}

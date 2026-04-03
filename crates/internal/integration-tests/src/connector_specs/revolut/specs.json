@@ -1,0 +1,11 @@
+{
+  "connector": "revolut",
+  "supported_suites": [],
+  "unsupported_suites": [
+    "authorize",
+    "get",
+    "capture",
+    "refund",
+    "refund_sync"
+  ]
+}

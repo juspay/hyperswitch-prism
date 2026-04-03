@@ -1,12 +1,19 @@
-//! Verify that every flow listed in a connector's `create_all_prerequisites!`
-//! macro is accounted for in that connector's `connector_specs/<name>/specs.json`
-//! (either in `supported_suites` or `unsupported_suites`).
+//! Two-phase check for connector integration-test coverage.
+//!
+//! **Phase 1 — connector list parity**
+//! Verifies that every `.rs` file in `crates/integrations/connector-integration/src/connectors/`
+//! (excluding `macros.rs`) has a matching directory in
+//! `crates/internal/integration-tests/src/connector_specs/`, and vice-versa.
+//! Exits non-zero if the two sets diverge.
+//!
+//! **Phase 2 — flow → suite coverage**
+//! For every connector that has a `create_all_prerequisites!` macro, verifies
+//! that every flow listed there is accounted for in that connector's
+//! `connector_specs/<name>/specs.json` (either in `supported_suites` or
+//! `unsupported_suites`).  Exits non-zero if any suite is missing.
 //!
 //! Run with:
 //!   cargo run --bin check_connector_specs
-//!
-//! Exits non-zero if any connector has a flow whose mapped suite is absent
-//! from both `supported_suites` and `unsupported_suites`.
 
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -70,7 +77,7 @@ fn flow_to_suites(flow: &str) -> Option<&'static [&'static str]> {
 // Specs.json schema
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Default)]
 struct ConnectorSpecs {
     #[serde(default)]
     supported_suites: Vec<String>,
@@ -158,26 +165,97 @@ fn main() {
     let connectors_src = root.join("crates/integrations/connector-integration/src/connectors");
     let specs_root = root.join("crates/internal/integration-tests/src/connector_specs");
 
-    // Collect all connector names from connector_specs/ directory.
-    let mut connectors: Vec<String> = fs::read_dir(&specs_root)
+    // -----------------------------------------------------------------------
+    // Phase 1: connector list parity
+    // -----------------------------------------------------------------------
+    println!("{}", "=".repeat(80));
+    println!("PHASE 1 — CONNECTOR LIST PARITY CHECK");
+    println!("{}", "=".repeat(80));
+    println!();
+
+    // Connector names from integration .rs files (exclude macros.rs).
+    let integration_connectors: BTreeSet<String> = fs::read_dir(&connectors_src)
+        .expect("failed to read connectors src dir")
+        .flatten()
+        .filter_map(|e| {
+            let path = e.path();
+            if path.extension().map(|x| x == "rs").unwrap_or(false) {
+                let stem = path.file_stem()?.to_str()?.to_string();
+                if stem != "macros" {
+                    return Some(stem);
+                }
+            }
+            None
+        })
+        .collect();
+
+    // Connector names from connector_specs/ subdirectories.
+    let spec_connectors: BTreeSet<String> = fs::read_dir(&specs_root)
         .expect("failed to read connector_specs dir")
         .flatten()
         .filter(|e| e.path().is_dir())
         .filter_map(|e| e.file_name().to_str().map(str::to_string))
         .collect();
-    connectors.sort();
 
+    let only_in_integration: Vec<&String> = integration_connectors
+        .difference(&spec_connectors)
+        .collect();
+    let only_in_specs: Vec<&String> = spec_connectors
+        .difference(&integration_connectors)
+        .collect();
+
+    let phase1_ok = only_in_integration.is_empty() && only_in_specs.is_empty();
+
+    if phase1_ok {
+        println!(
+            "[OK]   Both sets are in sync ({} connectors).",
+            integration_connectors.len()
+        );
+    } else {
+        if !only_in_integration.is_empty() {
+            println!(
+                "[FAIL] {} connector(s) have integration code but NO connector_specs/ directory:",
+                only_in_integration.len()
+            );
+            for name in &only_in_integration {
+                println!("       MISSING SPECS  {name}");
+            }
+            println!();
+        }
+        if !only_in_specs.is_empty() {
+            println!(
+                "[FAIL] {} connector(s) have a connector_specs/ directory but NO integration .rs file:",
+                only_in_specs.len()
+            );
+            for name in &only_in_specs {
+                println!("       ORPHAN SPECS   {name}");
+            }
+            println!();
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Phase 2: flow → suite coverage (only for connectors present in both)
+    // -----------------------------------------------------------------------
+    println!();
     println!("{}", "=".repeat(80));
-    println!("CONNECTOR FLOW → SPECS.JSON COVERAGE CHECK");
+    println!("PHASE 2 — FLOW → SPECS.JSON COVERAGE CHECK");
     println!("{}", "=".repeat(80));
     println!();
+
+    // Work from the intersection so Phase 2 is not confused by Phase 1 failures.
+    let mut connectors: Vec<String> = integration_connectors
+        .intersection(&spec_connectors)
+        .cloned()
+        .collect();
+    connectors.sort();
 
     // connector_name → list of (flow, suite) pairs that are missing from specs
     let mut errors: BTreeMap<String, Vec<(String, String)>> = BTreeMap::new();
     // connector_name → list of (flow, suite) pairs that are covered
     let mut covered_summary: BTreeMap<String, Vec<(String, String)>> = BTreeMap::new();
-    // connectors where no source .rs was found
-    let mut no_source: Vec<String> = Vec::new();
+    // connectors where no create_all_prerequisites! macro was found
+    let mut no_macro: Vec<String> = Vec::new();
 
     for connector in &connectors {
         let src_path = connectors_src.join(format!("{connector}.rs"));
@@ -185,14 +263,14 @@ fn main() {
         let src = match fs::read_to_string(&src_path) {
             Ok(s) => s,
             Err(_) => {
-                no_source.push(connector.clone());
+                no_macro.push(connector.clone());
                 continue;
             }
         };
 
         let flows = extract_flows_from_source(&src);
         if flows.is_empty() {
-            no_source.push(connector.clone());
+            no_macro.push(connector.clone());
             continue;
         }
 
@@ -234,15 +312,15 @@ fn main() {
     }
 
     // -----------------------------------------------------------------------
-    // Print per-connector results
+    // Print per-connector Phase 2 results
     // -----------------------------------------------------------------------
     for connector in &connectors {
         let has_errors = errors.contains_key(connector.as_str());
         let covered = covered_summary.get(connector.as_str());
         let missing = errors.get(connector.as_str());
 
-        if no_source.contains(connector) {
-            println!("[SKIP] {connector}  (no source .rs or no create_all_prerequisites!)");
+        if no_macro.contains(connector) {
+            println!("[SKIP] {connector}  (no create_all_prerequisites! macro)");
             continue;
         }
 
@@ -269,20 +347,42 @@ fn main() {
     println!("{}", "=".repeat(80));
     println!("SUMMARY");
     println!("{}", "=".repeat(80));
-    let total = connectors.len() - no_source.len();
-    let fail_count = errors.len();
-    let ok_count = total - fail_count;
-    println!("Connectors checked:   {total}");
-    println!("All flows accounted:  {ok_count}");
-    println!("With missing suites:  {fail_count}");
-    println!("Skipped (no source):  {}", no_source.len());
 
-    if !no_source.is_empty() {
-        println!();
-        println!("Skipped connectors: {}", no_source.join(", "));
+    println!();
+    println!("--- Phase 1: Connector list parity ---");
+    println!("Integration connectors:   {}", integration_connectors.len());
+    println!("Spec directories:         {}", spec_connectors.len());
+    if phase1_ok {
+        println!("Result:                   OK — sets match");
+    } else {
+        println!(
+            "Result:                   FAIL — {} missing spec dir(s), {} orphan spec dir(s)",
+            only_in_integration.len(),
+            only_in_specs.len()
+        );
     }
 
-    if !errors.is_empty() {
+    println!();
+    println!("--- Phase 2: Flow coverage ---");
+    let total = connectors.len() - no_macro.len();
+    let fail_count = errors.len();
+    let ok_count = total - fail_count;
+    println!("Connectors checked:       {total}");
+    println!("All flows accounted:      {ok_count}");
+    println!("With missing suites:      {fail_count}");
+    println!("Skipped (no macro):       {}", no_macro.len());
+
+    if !no_macro.is_empty() {
+        println!();
+        println!("Skipped connectors: {}", no_macro.join(", "));
+    }
+
+    // -----------------------------------------------------------------------
+    // Final verdict
+    // -----------------------------------------------------------------------
+    let has_phase2_errors = !errors.is_empty();
+
+    if has_phase2_errors {
         println!();
         println!("{}", "=".repeat(80));
         println!("ERRORS — flows whose suite is missing from specs.json");
@@ -293,22 +393,27 @@ fn main() {
             }
         }
         println!();
-        eprintln!(
-            "ERROR: {} connector(s) have flows not accounted for in specs.json",
-            errors.len()
-        );
-        std::process::exit(1);
-    } else {
-        println!();
-        println!("All connector flows are accounted for in specs.json. OK.");
     }
-}
 
-impl Default for ConnectorSpecs {
-    fn default() -> Self {
-        Self {
-            supported_suites: Vec::new(),
-            unsupported_suites: Vec::new(),
+    if !phase1_ok || has_phase2_errors {
+        let mut reasons = Vec::new();
+        if !phase1_ok {
+            reasons.push(format!(
+                "{} connector(s) missing from specs / {} orphan spec(s)",
+                only_in_integration.len(),
+                only_in_specs.len()
+            ));
         }
+        if has_phase2_errors {
+            reasons.push(format!(
+                "{} connector(s) have flows not in specs.json",
+                errors.len()
+            ));
+        }
+        eprintln!("ERROR: {}", reasons.join("; "));
+        std::process::exit(1);
     }
+
+    println!();
+    println!("All checks passed. OK.");
 }

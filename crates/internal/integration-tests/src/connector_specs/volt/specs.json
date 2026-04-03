@@ -1,0 +1,9 @@
+{
+  "connector": "volt",
+  "supported_suites": [],
+  "unsupported_suites": [
+    "authorize",
+    "get",
+    "refund"
+  ]
+}

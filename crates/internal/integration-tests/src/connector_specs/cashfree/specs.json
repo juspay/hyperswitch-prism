@@ -1,0 +1,7 @@
+{
+  "connector": "cashfree",
+  "supported_suites": [],
+  "unsupported_suites": [
+    "authorize"
+  ]
+}

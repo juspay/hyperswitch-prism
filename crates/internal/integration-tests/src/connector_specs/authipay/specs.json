@@ -1,0 +1,12 @@
+{
+  "connector": "authipay",
+  "supported_suites": [],
+  "unsupported_suites": [
+    "authorize",
+    "get",
+    "capture",
+    "void",
+    "refund",
+    "refund_sync"
+  ]
+}

@@ -1,0 +1,5 @@
+{
+  "connector": "razorpay",
+  "supported_suites": [],
+  "unsupported_suites": []
+}
