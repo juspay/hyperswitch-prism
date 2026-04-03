@@ -158,6 +158,32 @@ jobs:
         shell: bash
         run: cargo +nightly fmt --all --check
 
+  connector-specs:
+    name: Connector Specs Coverage Check
+    runs-on: ubuntu-latest
+
+    env:
+      RUSTFLAGS: "-D warnings"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: Swatinem/rust-cache@v2.7.8
+
+      - name: Run connector specs check
+        run: cargo run --bin check_connector_specs
+
   sdk-test:
     name: SDK Tests
     runs-on: macos-latest
