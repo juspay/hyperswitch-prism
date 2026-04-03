@@ -1,4 +1,4 @@
-use common_utils::{pii, types::StringMajorUnit};
+use common_utils::{pii, request::Method, types::StringMajorUnit};
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
     connector_types::{
@@ -7,14 +7,17 @@ use domain_types::{
         RefundsResponseData, ResponseId,
     },
     payment_method_data::{
-        BankTransferData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
+        BankRedirectData, BankTransferData, PaymentMethodData, PaymentMethodDataTypes,
+        RawCardNumber,
     },
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
+    router_response_types::RedirectForm,
 };
 use error_stack::{Report, ResultExt};
 use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
+use url::Url;
 
 use super::NuveiRouterData;
 use crate::types::ResponseRouterData;
@@ -155,17 +158,88 @@ pub struct NuveiCard<
     pub cvv: Secret<String>,
 }
 
-// ACH Bank Transfer specific structures
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum AlternativePaymentMethodType {
+    #[serde(rename = "apmgw_Giropay")]
+    Giropay,
+    #[serde(rename = "apmgw_Sofort")]
+    Sofort,
+    #[serde(rename = "apmgw_iDeal")]
+    Ideal,
+    #[serde(rename = "apmgw_EPS")]
+    Eps,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum NuveiBIC {
+    #[serde(rename = "ABNANL2A")]
+    Abnamro,
+    #[serde(rename = "ASNBNL21")]
+    AsnBank,
+    #[serde(rename = "BUNQNL2A")]
+    Bunq,
+    #[serde(rename = "INGBNL2A")]
+    Ing,
+    #[serde(rename = "KNABNL2H")]
+    Knab,
+    #[serde(rename = "RABONL2U")]
+    Rabobank,
+    #[serde(rename = "RBRBNL21")]
+    Regiobank,
+    #[serde(rename = "SNSBNL2A")]
+    SnsBank,
+    #[serde(rename = "TRIONL2U")]
+    TriodosBank,
+    #[serde(rename = "FVLBNL22")]
+    VanLanschotBankiers,
+    #[serde(rename = "MOYONL21")]
+    Moneyou,
+}
+
+impl TryFrom<common_enums::BankNames> for NuveiBIC {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(bank: common_enums::BankNames) -> Result<Self, Self::Error> {
+        match bank {
+            common_enums::BankNames::AbnAmro => Ok(Self::Abnamro),
+            common_enums::BankNames::AsnBank => Ok(Self::AsnBank),
+            common_enums::BankNames::Bunq => Ok(Self::Bunq),
+            common_enums::BankNames::Ing => Ok(Self::Ing),
+            common_enums::BankNames::Knab => Ok(Self::Knab),
+            common_enums::BankNames::Rabobank => Ok(Self::Rabobank),
+            common_enums::BankNames::Regiobank => Ok(Self::Regiobank),
+            common_enums::BankNames::SnsBank => Ok(Self::SnsBank),
+            common_enums::BankNames::TriodosBank => Ok(Self::TriodosBank),
+            common_enums::BankNames::VanLanschot => Ok(Self::VanLanschotBankiers),
+            common_enums::BankNames::Moneyou => Ok(Self::Moneyou),
+            _ => Err(errors::ConnectorError::NotImplemented(format!(
+                "Bank not supported by Nuvei iDEAL: {}",
+                bank
+            ))
+            .into()),
+        }
+    }
+}
+#[serde_with::skip_serializing_none]
 #[derive(Debug, Serialize)]
-pub struct NuveiAlternativePaymentMethod {
-    #[serde(rename = "paymentMethod")]
-    pub payment_method: String,
-    #[serde(rename = "AccountNumber")]
-    pub account_number: Secret<String>,
-    #[serde(rename = "RoutingNumber")]
-    pub routing_number: Secret<String>,
-    #[serde(rename = "SECCode", skip_serializing_if = "Option::is_none")]
-    pub sec_code: Option<String>,
+#[serde(untagged)]
+pub enum NuveiAlternativePaymentMethod {
+    Ach {
+        #[serde(rename = "paymentMethod")]
+        payment_method: String,
+        #[serde(rename = "AccountNumber")]
+        account_number: Secret<String>,
+        #[serde(rename = "RoutingNumber")]
+        routing_number: Secret<String>,
+        #[serde(rename = "SECCode", skip_serializing_if = "Option::is_none")]
+        sec_code: Option<String>,
+    },
+    Redirect {
+        #[serde(rename = "paymentMethod")]
+        payment_method: AlternativePaymentMethodType,
+        #[serde(rename = "BIC")]
+        bank_id: Option<NuveiBIC>,
+    },
 }
 
 #[derive(Debug, Serialize)]
@@ -220,6 +294,15 @@ pub struct NuveiPaymentResponse {
     pub client_unique_id: Option<String>,
     pub client_request_id: Option<String>,
     pub internal_request_id: Option<i64>,
+    #[serde(rename = "paymentOption")]
+    pub payment_option: Option<PaymentOption>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaymentOption {
+    #[serde(rename = "redirectUrl")]
+    pub redirect_url: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
@@ -710,7 +793,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
                         NuveiPaymentOption {
                             card: None,
-                            alternative_payment_method: Some(NuveiAlternativePaymentMethod {
+                            alternative_payment_method: Some(NuveiAlternativePaymentMethod::Ach {
                                 payment_method: "apmgw_ACH".to_string(),
                                 account_number: Secret::new(account_number.to_string()),
                                 routing_number: Secret::new(routing_number.to_string()),
@@ -726,6 +809,45 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         }
                         .into())
                     }
+                }
+            }
+            PaymentMethodData::BankRedirect(ref redirect_data) => {
+                let payment_method = match redirect_data {
+                    BankRedirectData::Eps { .. } => AlternativePaymentMethodType::Eps,
+                    BankRedirectData::Giropay { .. } => AlternativePaymentMethodType::Giropay,
+                    BankRedirectData::Ideal { bank_name } => {
+                        if let Some(ref bank) = bank_name {
+                            let _ = NuveiBIC::try_from(*bank)?;
+                        }
+                        AlternativePaymentMethodType::Ideal
+                    }
+                    BankRedirectData::Sofort { .. } => AlternativePaymentMethodType::Sofort,
+                    other => {
+                        return Err(errors::ConnectorError::NotSupported {
+                            message: format!(
+                                "Bank redirect method {:?} not supported by Nuvei",
+                                other
+                            ),
+                            connector: "nuvei",
+                        }
+                        .into())
+                    }
+                };
+
+                let bank_id = match redirect_data {
+                    BankRedirectData::Ideal { bank_name } => bank_name
+                        .as_ref()
+                        .map(|bank| NuveiBIC::try_from(*bank))
+                        .transpose()?,
+                    _ => None,
+                };
+
+                NuveiPaymentOption {
+                    card: None,
+                    alternative_payment_method: Some(NuveiAlternativePaymentMethod::Redirect {
+                        payment_method,
+                        bank_id,
+                    }),
                 }
             }
             _ => {
@@ -980,9 +1102,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 )
             })?;
 
+        let redirection_data = response
+            .payment_option
+            .as_ref()
+            .and_then(|payment_option| payment_option.redirect_url.clone())
+            .and_then(|url| Url::parse(&url).ok())
+            .map(|url| Box::new(RedirectForm::from((url, Method::Get))));
+
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(connector_transaction_id),
-            redirection_data: None,
+            redirection_data,
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
