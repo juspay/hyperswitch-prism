@@ -82,5 +82,15 @@
         "off_session": null
       }
     }
+  },
+  "revoke_mandate": {
+    "revoke_with_reason": {
+      "assert": {
+        "status": {
+          "one_of": ["REVOKED", "INACTIVE", "MANDATE_REVOKE_FAILED"]
+        },
+        "error": null
+      }
+    }
   }
 }

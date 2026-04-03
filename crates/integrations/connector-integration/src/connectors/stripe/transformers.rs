@@ -12,16 +12,17 @@ use common_utils::{
 use domain_types::{
     connector_flow::{
         Authorize, Capture, ClientAuthenticationToken, CreateConnectorCustomer,
-        IncrementalAuthorization, PaymentMethodToken, RepeatPayment, SetupMandate, Void,
+        IncrementalAuthorization, MandateRevoke, PaymentMethodToken, RepeatPayment, SetupMandate,
+        Void,
     },
     connector_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
         ConnectorCustomerResponse, ConnectorSpecificClientAuthenticationResponse, MandateReference,
-        MandateReferenceId, PaymentFlowData, PaymentMethodTokenResponse,
-        PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        ResponseId, SetupMandateRequestData,
+        MandateReferenceId, MandateRevokeRequestData, MandateRevokeResponseData, PaymentFlowData,
+        PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
         StripeClientAuthenticationResponse as StripeClientAuthenticationResponseDomain,
     },
     errors::{ConnectorResponseTransformationError, IntegrationError},
@@ -5433,6 +5434,49 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             currency,
             automatic_payment_methods_enabled: Some(true),
             meta_data,
+        })
+    }
+}
+
+/// Response from Stripe's `POST /v1/payment_methods/{pm_id}/detach` endpoint.
+///
+/// Stripe returns the detached PaymentMethod object; we only need the `id` to
+/// confirm success and the (now-null) `customer` field to infer the revoke status.
+#[derive(Debug, Deserialize, Serialize)]
+pub struct StripeMandateRevokeResponse {
+    /// The payment-method ID (pm_xxx).
+    pub id: String,
+    /// `null` after a successful detach; non-null if still attached.
+    #[serde(default)]
+    pub customer: Option<String>,
+}
+
+impl TryFrom<ResponseRouterData<StripeMandateRevokeResponse, Self>>
+    for RouterDataV2<
+        MandateRevoke,
+        PaymentFlowData,
+        MandateRevokeRequestData,
+        MandateRevokeResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+
+    fn try_from(
+        item: ResponseRouterData<StripeMandateRevokeResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        // A successful detach leaves `customer` as null.
+        let mandate_status = if item.response.customer.is_none() {
+            common_enums::MandateStatus::Revoked
+        } else {
+            common_enums::MandateStatus::Active
+        };
+
+        Ok(Self {
+            response: Ok(MandateRevokeResponseData {
+                mandate_status,
+                status_code: item.http_code,
+            }),
+            ..item.router_data
         })
     }
 }

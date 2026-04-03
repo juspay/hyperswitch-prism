@@ -14,14 +14,14 @@
     "tokenize_payment_method",
     "revoke_mandate",
     "incremental_authorization",
-    "create_session_token",
-    "create_sdk_session_token",
     "token_authorize",
     "token_setup_recurring",
     "proxy_authorize",
     "proxy_setup_recurring"
   ],
   "unsupported_suites": [
-    "payment_method_eligibility"
+    "payment_method_eligibility",
+    "create_session_token",
+    "create_sdk_session_token"
   ]
 }

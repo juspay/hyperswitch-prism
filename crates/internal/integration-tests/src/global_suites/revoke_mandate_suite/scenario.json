@@ -47,6 +47,7 @@
     "assert": {
       "status": {
         "one_of": [
+          "MANDATE_REVOKE_FAILED",
           "FAILED",
           "PROCESSING_ERROR"
         ]

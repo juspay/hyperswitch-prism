@@ -1231,6 +1231,7 @@ fn context_deferred_paths(connector: &str) -> Vec<String> {
         "state.access_token.expires_in_seconds".to_string(),
         "connector_feature_data.value".to_string(),
         "connector_transaction_id.id".to_string(),
+        "connector_mandate_id".to_string(),
         "refund_id".to_string(),
     ];
     base_paths.extend(context_deferred_paths_for_connector(connector));
@@ -1431,6 +1432,13 @@ fn source_path_candidates(path: &str) -> Vec<String> {
 
     if path == "refund_id" {
         candidates.push("connector_refund_id".to_string());
+    }
+
+    if path == "connector_mandate_id" {
+        candidates.push(
+            "mandate_reference.connector_mandate_id.connector_mandate_id".to_string(),
+        );
+        candidates.push("mandate_reference_id.connector_mandate_id.connector_mandate_id".to_string());
     }
 
     if let Some(rest) = path.strip_prefix("mandate_reference_id.") {

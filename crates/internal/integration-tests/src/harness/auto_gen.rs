@@ -273,6 +273,7 @@ fn is_context_deferred_path(path: &str) -> bool {
             | "connector_feature_data.value"
             | "connector_transaction_id"
             | "connector_transaction_id.id"
+            | "connector_mandate_id"
             | "refund_id"
     )
 }

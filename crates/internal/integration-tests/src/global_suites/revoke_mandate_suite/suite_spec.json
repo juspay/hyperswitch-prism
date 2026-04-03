@@ -2,6 +2,7 @@
   "suite": "revoke_mandate",
   "suite_type": "dependent",
   "depends_on": [
+    "create_customer",
     "setup_recurring"
   ],
   "strict_dependencies": true
