@@ -573,26 +573,47 @@ pub enum StripePaymentMethodData<
 
 #[derive(Debug, Clone, Default, Eq, PartialEq, Serialize)]
 pub struct StripeBillingAddressCardToken {
-    #[serde(rename = "billing_details[name]")]
+    #[serde(
+        rename = "billing_details[name]",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub name: Option<Secret<String>>,
-    #[serde(rename = "billing_details[email]")]
+    #[serde(
+        rename = "billing_details[email]",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub email: Option<Email>,
-    #[serde(rename = "billing_details[phone]")]
+    #[serde(
+        rename = "billing_details[phone]",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub phone: Option<Secret<String>>,
-    #[serde(rename = "billing_details[address][line1]")]
+    #[serde(
+        rename = "billing_details[address][line1]",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub address_line1: Option<Secret<String>>,
-    #[serde(rename = "billing_details[address][line2]")]
+    #[serde(
+        rename = "billing_details[address][line2]",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub address_line2: Option<Secret<String>>,
-    #[serde(rename = "billing_details[address][state]")]
+    #[serde(
+        rename = "billing_details[address][state]",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub state: Option<Secret<String>>,
-    #[serde(rename = "billing_details[address][city]")]
+    #[serde(
+        rename = "billing_details[address][city]",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub city: Option<Secret<String>>,
 }
 
 // Struct to call the Stripe tokens API to create a PSP token for the card details provided.
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripeCardToken<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> {
-    #[serde(rename = "type")]
+    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
     pub payment_method_type: Option<StripePaymentMethodType>,
     #[serde(rename = "card[number]")]
     pub token_card_number: RawCardNumber<T>,
@@ -1508,12 +1529,32 @@ fn create_stripe_payment_method<
             .into()),
         },
 
+        PaymentMethodData::CardToken(_card_token) => {
+            // Use the connector-issued PSP token (e.g. tok_xxx from /v1/tokens) to
+            // authorize via payment_method_data[card][token] in the PaymentIntents API.
+            match payment_request_details.payment_method_token {
+                Some(domain_types::router_data::PaymentMethodToken::Token(psp_token)) => Ok((
+                    StripePaymentMethodData::Wallet(StripeWallet::ApplepayPayment(
+                        ApplepayPayment {
+                            token: psp_token,
+                            payment_method_types: StripePaymentMethodType::Card,
+                        },
+                    )),
+                    Some(StripePaymentMethodType::Card),
+                    payment_request_details.billing_address,
+                )),
+                _ => Err(IntegrationError::not_implemented(
+                    get_unimplemented_payment_method_error_message("stripe"),
+                )
+                .into()),
+            }
+        }
+
         PaymentMethodData::Upi(_)
         | PaymentMethodData::RealTimePayment(_)
         | PaymentMethodData::MobilePayment(_)
         | PaymentMethodData::MandatePayment
         | PaymentMethodData::OpenBanking(_)
-        | PaymentMethodData::CardToken(_)
         | PaymentMethodData::NetworkToken(_)
         | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
         | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => Err(
@@ -4631,6 +4672,28 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     .into())
                 }
             },
+            PaymentMethodData::CardToken(_card_token) => {
+                // Use the connector-issued PSP token to set up a mandate.
+                // The token value lives in resource_common_data.payment_method_token.
+                match item
+                    .router_data
+                    .resource_common_data
+                    .payment_method_token
+                    .clone()
+                {
+                    Some(domain_types::router_data::PaymentMethodToken::Token(psp_token)) => Ok(
+                        Self::Wallet(StripeWallet::ApplepayPayment(ApplepayPayment {
+                            token: psp_token,
+                            payment_method_types: StripePaymentMethodType::Card,
+                        })),
+                    ),
+                    _ => Err(IntegrationError::not_implemented(
+                        get_unimplemented_payment_method_error_message("stripe"),
+                    )
+                    .into()),
+                }
+            }
+
             PaymentMethodData::MandatePayment
             | PaymentMethodData::Crypto(_)
             | PaymentMethodData::Reward
@@ -4641,7 +4704,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::OpenBanking(_)
-            | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
@@ -5256,48 +5318,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let billing_address = StripeBillingAddressCardToken {
-            name: item
-                .router_data
-                .resource_common_data
-                .get_optional_billing_full_name(),
-            email: item
-                .router_data
-                .resource_common_data
-                .get_optional_billing_email(),
-            phone: item
-                .router_data
-                .resource_common_data
-                .get_optional_billing_phone_number(),
-            address_line1: item
-                .router_data
-                .resource_common_data
-                .get_optional_billing_line1(),
-            address_line2: item
-                .router_data
-                .resource_common_data
-                .get_optional_billing_line2(),
-            city: item
-                .router_data
-                .resource_common_data
-                .get_optional_billing_city(),
-            state: item
-                .router_data
-                .resource_common_data
-                .get_optional_billing_state(),
-        };
-
         // Card flow for tokenization is handled separately because of API contact difference.
         // /v1/tokens only accepts card[*] fields — do NOT include `type` or `billing_details[*]`.
         let request_payment_data = match &item.router_data.request.payment_method_data {
             PaymentMethodData::Card(card_details) => {
                 StripePaymentMethodData::CardToken(StripeCardToken {
-                    payment_method_type: Some(StripePaymentMethodType::Card),
+                    payment_method_type: None,
                     token_card_number: card_details.card_number.clone(),
                     token_card_exp_month: card_details.card_exp_month.clone(),
                     token_card_exp_year: card_details.card_exp_year.clone(),
                     token_card_cvc: card_details.card_cvc.clone(),
-                    billing: billing_address,
+                    billing: StripeBillingAddressCardToken::default(),
                 })
             }
             _ => {

@@ -121,6 +121,21 @@ make cargo ARGS="run -p integration-tests --bin sdk_run_test -- \
 cargo run -p integration-tests --bin render_report
 ```
 
+### Coverage Analysis Commands
+
+```bash
+# Check which gRPC proto services have test suite coverage
+cargo run --bin check_coverage
+
+# Run test suite for specific connector
+./test_suite.sh stripe
+
+# Run specific suite
+./test_suite.sh stripe authorize
+```
+
+**Note:** Coverage checker currently ignores PayoutService and DisputeService.
+
 ### Scenario Display Names
 
 Scenario display names are human-readable labels shown in markdown reports instead of raw scenario keys.
