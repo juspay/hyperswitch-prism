@@ -9,6 +9,7 @@ pub type RedsysAuthorizeRequest = super::transformers::RedsysTransaction;
 pub type RedsysCaptureRequest = super::transformers::RedsysTransaction;
 pub type RedsysVoidRequest = super::transformers::RedsysTransaction;
 pub type RedsysRefundRequest = super::transformers::RedsysTransaction;
+pub type RedsysRepeatPaymentRequest = super::transformers::RedsysTransaction;
 
 /// Main payment request structure for Redsys API
 #[derive(Debug, Serialize)]
@@ -175,6 +176,57 @@ pub struct RedsysOperationRequest {
     pub ds_merchant_order: String,
     pub ds_merchant_terminal: Secret<String>,
     pub ds_merchant_transactiontype: RedsysTransactionType,
+}
+
+/// MIT (Merchant Initiated Transaction) request for repeat payments
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub struct RedsysMitRequest {
+    pub ds_merchant_amount: StringMinorUnit,
+    // Redsys uses numeric ISO 4217 currency codes (e.g., "978" for EUR)
+    // not 3-letter codes, so we use String here
+    pub ds_merchant_currency: String,
+    pub ds_merchant_cof_ini: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ds_merchant_cof_txnid: Option<String>,
+    pub ds_merchant_cof_type: RedsysCofType,
+    pub ds_merchant_direct_payment: String,
+    pub ds_merchant_excep_sca: String,
+    pub ds_merchant_identifier: String,
+    pub ds_merchant_merchantcode: Secret<String>,
+    pub ds_merchant_order: String,
+    pub ds_merchant_terminal: Secret<String>,
+    pub ds_merchant_transactiontype: RedsysTransactionType,
+}
+
+/// COF (Credential on File) types for MIT transactions
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum RedsysCofType {
+    /// I = Installments (Pago aplazado)
+    #[serde(rename = "I")]
+    Installments,
+    /// R = Recurring (Pago recurrente)
+    #[serde(rename = "R")]
+    Recurring,
+    /// H = Reauthorisation
+    #[serde(rename = "H")]
+    Reauthorisation,
+    /// E = Resubmission
+    #[serde(rename = "E")]
+    Resubmission,
+    /// D = Delayed
+    #[serde(rename = "D")]
+    Delayed,
+    /// M = Incremental
+    #[serde(rename = "M")]
+    Incremental,
+    /// N = No Show
+    #[serde(rename = "N")]
+    NoShow,
+    /// C = Others
+    #[serde(rename = "C")]
+    Others,
 }
 
 /// SOAP XML messages container for sync operations
