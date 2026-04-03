@@ -8,5 +8,9 @@
     "refund",
     "refund_sync",
     "get"
+  ],
+  "unsupported_suites": [
+    "create_sdk_session_token",
+    "recurring_charge"
   ]
 }

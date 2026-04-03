@@ -7,5 +7,9 @@
     "refund",
     "get",
     "refund_sync"
+  ],
+  "unsupported_suites": [
+    "setup_recurring",
+    "recurring_charge"
   ]
 }

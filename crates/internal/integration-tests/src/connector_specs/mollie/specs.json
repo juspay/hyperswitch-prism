@@ -13,5 +13,8 @@
     "revoke_mandate",
     "setup_recurring",
     "void"
+  ],
+  "unsupported_suites": [
+    "tokenize_payment_method"
   ]
 }

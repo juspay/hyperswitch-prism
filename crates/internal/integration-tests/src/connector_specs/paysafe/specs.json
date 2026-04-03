@@ -7,5 +7,9 @@
     "refund",
     "refund_sync",
     "get"
+  ],
+  "unsupported_suites": [
+    "tokenize_payment_method",
+    "recurring_charge"
   ]
 }

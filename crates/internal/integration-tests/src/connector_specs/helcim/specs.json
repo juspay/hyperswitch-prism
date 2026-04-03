@@ -6,5 +6,8 @@
     "void",
     "get",
     "refund"
+  ],
+  "unsupported_suites": [
+    "refund_sync"
   ]
 }

@@ -7,6 +7,12 @@
     "complete_authorize",
     "refund"
   ],
+  "unsupported_suites": [
+    "get",
+    "capture",
+    "void",
+    "refund_sync"
+  ],
   "request_id_source_field": "merchant_order_id",
   "request_id_prefix": "pay_",
   "request_id_length": 12

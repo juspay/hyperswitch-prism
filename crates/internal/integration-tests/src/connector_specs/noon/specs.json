@@ -6,5 +6,11 @@
     "refund",
     "refund_sync",
     "get"
+  ],
+  "unsupported_suites": [
+    "capture",
+    "setup_recurring",
+    "recurring_charge",
+    "revoke_mandate"
   ]
 }
