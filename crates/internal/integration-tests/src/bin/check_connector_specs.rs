@@ -15,9 +15,11 @@
 //! the flow-to-suite mapping in `flow_to_suites` (map it to `None` instead).
 //!
 //! **Phase 3 — testable suite report**
-//! For every known proto suite, reports whether it has a `scenario.json` and
-//! at least one connector declaring support. Suites missing either are printed
-//! as informational gaps (does not cause a non-zero exit).
+//! Derives the known suite list directly from `grpc_method_for_suite` in
+//! `scenario_api.rs` (the single source of truth). For every suite found there,
+//! reports whether it has a `scenario.json` and at least one connector declaring
+//! support. Suites missing either are printed as informational gaps (does not
+//! cause a non-zero exit).
 //!
 //! Run with:
 //!   cargo run --bin check_connector_specs
@@ -30,6 +32,12 @@ use std::{
 
 use regex::Regex;
 use serde::Deserialize;
+
+// ---------------------------------------------------------------------------
+// Services excluded from Phase 3 (out of scope for integration tests)
+// ---------------------------------------------------------------------------
+
+const IGNORE_SERVICES: &[&str] = &["PayoutService", "DisputeService"];
 
 // ---------------------------------------------------------------------------
 // Flow → suite mapping
@@ -150,43 +158,38 @@ fn extract_balanced_parens(src: &str, start: usize) -> &str {
     &src[start..]
 }
 
-// ---------------------------------------------------------------------------
-// Known proto suites (mirrors ALL_PROTO_SUITES in sdk_executor.rs)
-// ---------------------------------------------------------------------------
+/// Derive the known suite list from `grpc_method_for_suite` in `scenario_api.rs`.
+///
+/// Parses every `"suite_name" => "types.Service/Method"` arm in the match block
+/// and returns them sorted, excluding suites whose service is in `IGNORE_SERVICES`.
+///
+/// This is the single source of truth — no hardcoded list needed here.
+fn extract_suites_from_scenario_api(scenario_api_path: &PathBuf) -> Vec<String> {
+    let src = fs::read_to_string(scenario_api_path).expect("failed to read scenario_api.rs");
 
-/// Complete list of proto service suites known to the gRPC interface.
-/// Keep in sync with `grpc_method_for_suite` in `scenario_api.rs`.
-const ALL_PROTO_SUITES: &[&str] = &[
-    "server_authentication_token",
-    "server_session_authentication_token",
-    "client_authentication_token",
-    "create_customer",
-    "pre_authenticate",
-    "authenticate",
-    "post_authenticate",
-    "authorize",
-    "complete_authorize",
-    "capture",
-    "refund",
-    "void",
-    "get",
-    "refund_sync",
-    "setup_recurring",
-    "recurring_charge",
-    "create_order",
-    "tokenize_payment_method",
-    "revoke_mandate",
-    "incremental_authorization",
-    "reverse",
-    "create_session_token",
-    "create_sdk_session_token",
-    "verify_redirect_response",
-    "token_authorize",
-    "token_setup_recurring",
-    "proxy_authorize",
-    "proxy_setup_recurring",
-    "payment_method_eligibility",
-];
+    // Match arms of the form:
+    //   "suite_name" => "types.ServiceName/Method"
+    // or multi-line:
+    //   "suite_name" => {
+    //       "types.ServiceName/Method"
+    //   }
+    let arm_re =
+        Regex::new(r#""([a-z_]+)"\s*=>\s*\{?\s*"types\.([A-Za-z]+)/[A-Za-z]+"\s*\}?"#).unwrap();
+
+    let mut suites: BTreeSet<String> = BTreeSet::new();
+
+    for caps in arm_re.captures_iter(&src) {
+        let suite = caps[1].to_string();
+        let service = caps[2].to_string();
+        // Skip services that are out of scope.
+        if IGNORE_SERVICES.contains(&service.as_str()) {
+            continue;
+        }
+        suites.insert(suite);
+    }
+
+    suites.into_iter().collect()
+}
 
 // ---------------------------------------------------------------------------
 // main
@@ -208,6 +211,10 @@ fn main() {
     let connectors_src = root.join("crates/integrations/connector-integration/src/connectors");
     let specs_root = root.join("crates/internal/integration-tests/src/connector_specs");
     let suites_root = root.join("crates/internal/integration-tests/src/global_suites");
+    let scenario_api = root.join("crates/internal/integration-tests/src/harness/scenario_api.rs");
+
+    // Derive the known suite list from scenario_api.rs at runtime.
+    let all_proto_suites = extract_suites_from_scenario_api(&scenario_api);
 
     // -----------------------------------------------------------------------
     // Phase 1: connector list parity
@@ -381,33 +388,18 @@ fn main() {
     }
 
     // -----------------------------------------------------------------------
-    // Summary
-    // -----------------------------------------------------------------------
-    println!("{}", "=".repeat(80));
-    println!("SUMMARY");
-    println!("{}", "=".repeat(80));
-
-    println!();
-    println!("--- Phase 1: Connector list parity ---");
-    println!("Integration connectors:   {}", integration_connectors.len());
-    println!("Spec directories:         {}", spec_connectors.len());
-    if phase1_ok {
-        println!("Result:                   OK — sets match");
-    } else {
-        println!(
-            "Result:                   FAIL — {} missing spec dir(s), {} orphan spec dir(s)",
-            only_in_integration.len(),
-            only_in_specs.len()
-        );
-    }
-
-    // -----------------------------------------------------------------------
-    // Phase 3: testable suite report
+    // Phase 3: testable suite report (suite list derived from scenario_api.rs)
     // -----------------------------------------------------------------------
     println!();
     println!("{}", "=".repeat(80));
     println!("PHASE 3 — TESTABLE SUITE REPORT");
     println!("{}", "=".repeat(80));
+    println!();
+    println!(
+        "Suite list derived from grpc_method_for_suite in scenario_api.rs ({} suites, excluding: {}).",
+        all_proto_suites.len(),
+        IGNORE_SERVICES.join(", ")
+    );
     println!();
     println!(
         "{:<35} {:<12} {:<12} {}",
@@ -434,9 +426,9 @@ fn main() {
     }
 
     let mut testable_count = 0usize;
-    let mut not_testable: Vec<(&str, &str)> = Vec::new(); // (suite, reason)
+    let mut not_testable: Vec<(String, &str)> = Vec::new();
 
-    for &suite in ALL_PROTO_SUITES {
+    for suite in &all_proto_suites {
         let suite_dir = suites_root.join(format!("{suite}_suite"));
         let has_scenario = suite_dir.join("scenario.json").exists();
         let connector_list = suite_connectors.get(suite).cloned().unwrap_or_default();
@@ -459,15 +451,15 @@ fn main() {
                 format!("TESTABLE   ({connector_count} connectors: {examples}{suffix})")
             }
             (true, false) => {
-                not_testable.push((suite, "no connector declares support"));
+                not_testable.push((suite.clone(), "no connector declares support"));
                 "NOT READY  (no connector support)".to_string()
             }
             (false, true) => {
-                not_testable.push((suite, "missing scenario.json"));
+                not_testable.push((suite.clone(), "missing scenario.json"));
                 "NOT READY  (no scenario.json)".to_string()
             }
             (false, false) => {
-                not_testable.push((suite, "no scenario.json and no connector support"));
+                not_testable.push((suite.clone(), "no scenario.json and no connector support"));
                 "NOT READY  (no scenarios, no connectors)".to_string()
             }
         };
@@ -481,16 +473,26 @@ fn main() {
         );
     }
 
+    // -----------------------------------------------------------------------
+    // Summary
+    // -----------------------------------------------------------------------
     println!();
-    println!(
-        "Testable suites:   {testable_count} / {}",
-        ALL_PROTO_SUITES.len()
-    );
-    if !not_testable.is_empty() {
-        println!("Not yet testable:");
-        for (suite, reason) in &not_testable {
-            println!("  {suite:<35} ({reason})");
-        }
+    println!("{}", "=".repeat(80));
+    println!("SUMMARY");
+    println!("{}", "=".repeat(80));
+
+    println!();
+    println!("--- Phase 1: Connector list parity ---");
+    println!("Integration connectors:   {}", integration_connectors.len());
+    println!("Spec directories:         {}", spec_connectors.len());
+    if phase1_ok {
+        println!("Result:                   OK — sets match");
+    } else {
+        println!(
+            "Result:                   FAIL — {} missing spec dir(s), {} orphan spec dir(s)",
+            only_in_integration.len(),
+            only_in_specs.len()
+        );
     }
 
     println!();
@@ -512,9 +514,14 @@ fn main() {
     println!("--- Phase 3: Testable suites ---");
     println!(
         "Testable:                 {testable_count} / {}",
-        ALL_PROTO_SUITES.len()
+        all_proto_suites.len()
     );
     println!("Not yet testable:         {}", not_testable.len());
+    if !not_testable.is_empty() {
+        for (suite, reason) in &not_testable {
+            println!("  {suite:<35} ({reason})");
+        }
+    }
 
     // -----------------------------------------------------------------------
     // Final verdict

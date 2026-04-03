@@ -4292,6 +4292,49 @@ fn grpc_method_for_suite(suite: &str, spec: Option<&SuiteSpec>) -> Result<String
     Ok(method.to_string())
 }
 
+/// Returns every suite name that has a mapping in `grpc_method_for_suite`.
+///
+/// This is the single authoritative list of known proto suites for the
+/// integration-test harness. It must be kept in sync with the match arms
+/// in `grpc_method_for_suite` above — both live in this file so any drift
+/// is immediately visible.
+///
+/// Services that are out of scope for integration tests (PayoutService,
+/// DisputeService) are already absent from this list.
+pub fn all_known_suites() -> &'static [&'static str] {
+    &[
+        "authenticate",
+        "authorize",
+        "capture",
+        "client_authentication_token",
+        "complete_authorize",
+        "create_customer",
+        "create_order",
+        "create_sdk_session_token",
+        "create_session_token",
+        "get",
+        "incremental_authorization",
+        "payment_method_eligibility",
+        "post_authenticate",
+        "pre_authenticate",
+        "proxy_authorize",
+        "proxy_setup_recurring",
+        "recurring_charge",
+        "refund",
+        "refund_sync",
+        "reverse",
+        "revoke_mandate",
+        "server_authentication_token",
+        "server_session_authentication_token",
+        "setup_recurring",
+        "token_authorize",
+        "token_setup_recurring",
+        "tokenize_payment_method",
+        "verify_redirect_response",
+        "void",
+    ]
+}
+
 #[cfg(test)]
 #[allow(clippy::indexing_slicing)]
 mod tests {

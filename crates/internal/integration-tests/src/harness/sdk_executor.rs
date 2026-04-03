@@ -20,42 +20,6 @@ use crate::harness::{
 type RequestTransformer = fn(Vec<u8>, Vec<u8>) -> Vec<u8>;
 type ResponseTransformer = fn(Vec<u8>, Vec<u8>, Vec<u8>) -> Vec<u8>;
 
-/// Complete list of proto service suites known to the gRPC interface.
-///
-/// This mirrors the match arms in `grpc_method_for_suite` in `scenario_api.rs`.
-/// Keep in sync whenever a new suite is added to that function.
-pub const ALL_PROTO_SUITES: &[&str] = &[
-    "server_authentication_token",
-    "server_session_authentication_token",
-    "client_authentication_token",
-    "create_customer",
-    "pre_authenticate",
-    "authenticate",
-    "post_authenticate",
-    "authorize",
-    "complete_authorize",
-    "capture",
-    "refund",
-    "void",
-    "get",
-    "refund_sync",
-    "setup_recurring",
-    "recurring_charge",
-    "create_order",
-    "tokenize_payment_method",
-    "revoke_mandate",
-    "incremental_authorization",
-    "reverse",
-    "create_session_token",
-    "create_sdk_session_token",
-    "verify_redirect_response",
-    "token_authorize",
-    "token_setup_recurring",
-    "proxy_authorize",
-    "proxy_setup_recurring",
-    "payment_method_eligibility",
-];
-
 /// Returns whether a suite is currently wired for SDK/FFI execution.
 pub fn supports_sdk_suite(suite: &str) -> bool {
     matches!(
@@ -89,10 +53,13 @@ pub struct SdkCoverageReport {
 }
 
 /// Returns the SDK interface coverage report relative to the full proto suite list.
+///
+/// The suite list is derived from `scenario_api::all_known_suites()` — the single
+/// source of truth — so no hardcoded list is needed here.
 pub fn sdk_coverage_report() -> SdkCoverageReport {
     let mut supported = Vec::new();
     let mut not_supported = Vec::new();
-    for &suite in ALL_PROTO_SUITES {
+    for &suite in crate::harness::scenario_api::all_known_suites() {
         if supports_sdk_suite(suite) {
             supported.push(suite);
         } else {

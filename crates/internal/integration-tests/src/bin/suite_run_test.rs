@@ -10,12 +10,12 @@ use std::{fs, path::PathBuf};
 use integration_tests::harness::{
     report::{append_report_batch_best_effort, extract_pm_and_pmt, now_epoch_ms, ReportEntry},
     scenario_api::{
-        get_the_grpc_req_for_connector, run_all_connectors_with_options,
+        all_known_suites, get_the_grpc_req_for_connector, run_all_connectors_with_options,
         run_all_suites_with_options, run_suite_test_with_options, ExecutionBackend,
         SuiteRunOptions, SuiteRunSummary, DEFAULT_CONNECTOR, DEFAULT_ENDPOINT,
     },
     scenario_loader::load_suite_scenarios,
-    sdk_executor::{sdk_coverage_report, ALL_PROTO_SUITES},
+    sdk_executor::sdk_coverage_report,
 };
 use serde::Deserialize;
 use serde_json::Value;
@@ -464,7 +464,8 @@ fn load_defaults() -> StoredDefaults {
 /// all proto service suites, and contrasts with the SDK/FFI interface.
 fn print_grpc_interface_coverage() {
     let sdk_report = sdk_coverage_report();
-    let total = ALL_PROTO_SUITES.len();
+    let all_suites = all_known_suites();
+    let total = all_suites.len();
     let sdk_missing = sdk_report.not_supported.len();
 
     eprintln!(
@@ -472,7 +473,7 @@ fn print_grpc_interface_coverage() {
     );
     eprintln!(
         "[suite_run_test]   all proto suites: {}",
-        ALL_PROTO_SUITES.join(", ")
+        all_suites.join(", ")
     );
     eprintln!(
         "[suite_run_test]   note: SDK/FFI interface supports {sup}/{total} suites; \
