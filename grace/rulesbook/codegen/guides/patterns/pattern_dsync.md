@@ -240,7 +240,7 @@ macros::create_all_prerequisites!(
         pub fn build_headers<F, FCD, Req, Res>(
             &self,
             req: &RouterDataV2<F, FCD, Req, Res>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let mut header = vec![(
                 headers::CONTENT_TYPE.to_string(),
                 "{content_type}".to_string().into(),
@@ -279,19 +279,19 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<Dsync, DisputeFlowData, DsyncRequestData, DisputeResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
 
         fn get_url(
             &self,
             req: &RouterDataV2<Dsync, DisputeFlowData, DsyncRequestData, DisputeResponseData>,
-        ) -> CustomResult<String, ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             // Extract dispute ID from request
             let dispute_id = &req.resource_common_data.connector_dispute_id;
 
             let base_url = self.connector_base_url_disputes(req)
-                .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
+                .ok_or(errors::IntegrationError::FailedToObtainIntegrationUrl)?;
 
             // Choose appropriate URL pattern based on connector API:
             // Pattern 1: RESTful with dispute ID in path (most common)
@@ -478,7 +478,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
         >,
     > for {ConnectorName}DsyncRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: {ConnectorName}RouterData<
@@ -509,7 +509,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
         >,
     > for {ConnectorName}DsyncRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         _item: {ConnectorName}RouterData<
@@ -611,7 +611,7 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<Dsync, DisputeFlowData, DsyncRequestData, DisputeResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             // GET requests typically don't need Content-Type
             let mut header = vec![];
             let mut auth_header = self.get_auth_header(&req.connector_auth_type)?;
@@ -622,10 +622,10 @@ macros::macro_connector_implementation!(
         fn get_url(
             &self,
             req: &RouterDataV2<Dsync, DisputeFlowData, DsyncRequestData, DisputeResponseData>,
-        ) -> CustomResult<String, ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let dispute_id = &req.resource_common_data.connector_dispute_id;
             let base_url = self.connector_base_url_disputes(req)
-                .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
+                .ok_or(errors::IntegrationError::FailedToObtainIntegrationUrl)?;
 
             // Choose appropriate GET URL pattern:
             // Pattern 1: RESTful with dispute ID in path (most common)
@@ -652,7 +652,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
         >,
     > for {ConnectorName}DsyncRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         _item: {ConnectorName}RouterData<
@@ -697,7 +697,7 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<Dsync, DisputeFlowData, DsyncRequestData, DisputeResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let mut header = vec![(
                 headers::CONTENT_TYPE.to_string(),
                 "application/json".to_string().into(),
@@ -710,9 +710,9 @@ macros::macro_connector_implementation!(
         fn get_url(
             &self,
             req: &RouterDataV2<Dsync, DisputeFlowData, DsyncRequestData, DisputeResponseData>,
-        ) -> CustomResult<String, ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let base_url = self.connector_base_url_disputes(req)
-                .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
+                .ok_or(errors::IntegrationError::FailedToObtainIntegrationUrl)?;
 
             // Fixed endpoint for POST-based dispute inquiry
             Ok(format!("{}/dispute-inquiry", base_url))
@@ -726,10 +726,10 @@ macros::macro_connector_implementation!(
 ### Pattern 1: RESTful Resource Pattern (Most Common)
 
 ```rust
-fn get_url(&self, req: &RouterDataV2<Dsync, ...>) -> CustomResult<String, ConnectorError> {
+fn get_url(&self, req: &RouterDataV2<Dsync, ...>) -> CustomResult<String, IntegrationError> {
     let dispute_id = &req.resource_common_data.connector_dispute_id;
     let base_url = self.connector_base_url_disputes(req)
-        .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
+        .ok_or(errors::IntegrationError::FailedToObtainIntegrationUrl)?;
 
     Ok(format!("{}/disputes/{}", base_url, dispute_id))
 }
@@ -738,10 +738,10 @@ fn get_url(&self, req: &RouterDataV2<Dsync, ...>) -> CustomResult<String, Connec
 ### Pattern 2: Status Endpoint Pattern
 
 ```rust
-fn get_url(&self, req: &RouterDataV2<Dsync, ...>) -> CustomResult<String, ConnectorError> {
+fn get_url(&self, req: &RouterDataV2<Dsync, ...>) -> CustomResult<String, IntegrationError> {
     let dispute_id = &req.resource_common_data.connector_dispute_id;
     let base_url = self.connector_base_url_disputes(req)
-        .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
+        .ok_or(errors::IntegrationError::FailedToObtainIntegrationUrl)?;
 
     Ok(format!("{}/disputes/{}/status", base_url, dispute_id))
 }
@@ -750,10 +750,10 @@ fn get_url(&self, req: &RouterDataV2<Dsync, ...>) -> CustomResult<String, Connec
 ### Pattern 3: Query Parameter Pattern
 
 ```rust
-fn get_url(&self, req: &RouterDataV2<Dsync, ...>) -> CustomResult<String, ConnectorError> {
+fn get_url(&self, req: &RouterDataV2<Dsync, ...>) -> CustomResult<String, IntegrationError> {
     let dispute_id = &req.resource_common_data.connector_dispute_id;
     let base_url = self.connector_base_url_disputes(req)
-        .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
+        .ok_or(errors::IntegrationError::FailedToObtainIntegrationUrl)?;
 
     Ok(format!("{}/disputes?dispute_id={}", base_url, dispute_id))
 }
@@ -762,9 +762,9 @@ fn get_url(&self, req: &RouterDataV2<Dsync, ...>) -> CustomResult<String, Connec
 ### Pattern 4: Fixed Endpoint Pattern
 
 ```rust
-fn get_url(&self, req: &RouterDataV2<Dsync, ...>) -> CustomResult<String, ConnectorError> {
+fn get_url(&self, req: &RouterDataV2<Dsync, ...>) -> CustomResult<String, IntegrationError> {
     let base_url = self.connector_base_url_disputes(req)
-        .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
+        .ok_or(errors::IntegrationError::FailedToObtainIntegrationUrl)?;
 
     // Transaction ID goes in request body for POST
     Ok(format!("{}/dispute-inquiry", base_url))

@@ -127,7 +127,7 @@ Authorize a payment, then poll the connector for its current status using Get. U
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
 | [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
-| [MerchantAuthenticationService.CreateAccessToken](#merchantauthenticationservicecreateaccesstoken) | Authentication | `MerchantAuthenticationServiceCreateAccessTokenRequest` |
+| [ConnectorSessionService.CreateAccessToken](#connectorsessionservicecreateaccesstoken) | Authentication | `ConnectorSessionServiceCreateAccessTokenRequest` |
 | [PaymentService.CreateOrder](#paymentservicecreateorder) | Payments | `PaymentServiceCreateOrderRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
 | [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
@@ -170,11 +170,11 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 ```python
 "payment_method": {
     "card": {  # Generic card payment
-        "card_number": {"value": "4111111111111111"},  # Card Identification
-        "card_exp_month": {"value": "03"},
-        "card_exp_year": {"value": "2030"},
-        "card_cvc": {"value": "737"},
-        "card_holder_name": {"value": "John Doe"}  # Cardholder Information
+        "card_number": "4111111111111111",  # Card Identification
+        "card_exp_month": "03",
+        "card_exp_year": "2030",
+        "card_cvc": "737",
+        "card_holder_name": "John Doe"  # Cardholder Information
     }
 }
 ```
@@ -235,13 +235,13 @@ Initiate a refund to customer's payment method. Returns funds for returns, cance
 
 ### Authentication
 
-#### MerchantAuthenticationService.CreateAccessToken
+#### ConnectorSessionService.CreateAccessToken
 
 Generate short-lived connector authentication token. Provides secure credentials for connector API access without storing secrets client-side.
 
 | | Message |
 |---|---------|
-| **Request** | `MerchantAuthenticationServiceCreateAccessTokenRequest` |
-| **Response** | `MerchantAuthenticationServiceCreateAccessTokenResponse` |
+| **Request** | `ConnectorSessionServiceCreateAccessTokenRequest` |
+| **Response** | `ConnectorSessionServiceCreateAccessTokenResponse` |
 
 **Examples:** [Python](../../examples/trustpay/python/trustpay.py#L186) · [JavaScript](../../examples/trustpay/javascript/trustpay.js#L177) · [Kotlin](../../examples/trustpay/kotlin/trustpay.kt#L185) · [Rust](../../examples/trustpay/rust/trustpay.rs#L182)

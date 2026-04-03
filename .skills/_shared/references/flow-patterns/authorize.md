@@ -42,13 +42,13 @@ pub struct {ConnectorName}AuthType {
 }
 
 impl TryFrom<&ConnectorAuthType> for {ConnectorName}AuthType {
-    type Error = ConnectorError;
+    type Error = IntegrationError;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
             ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
                 api_key: api_key.to_owned(),
             }),
-            _ => Err(ConnectorError::FailedToObtainAuthType),
+            _ => Err(IntegrationError::FailedToObtainAuthType { context: Default::default() }),
         }
     }
 }
@@ -64,14 +64,14 @@ Ok(vec![(
 
 ```rust
 impl TryFrom<&ConnectorAuthType> for {ConnectorName}AuthType {
-    type Error = ConnectorError;
+    type Error = IntegrationError;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
             ConnectorAuthType::SignatureKey { api_key, api_secret, .. } => Ok(Self {
                 api_key: api_key.to_owned(),
                 api_secret: api_secret.to_owned(),
             }),
-            _ => Err(ConnectorError::FailedToObtainAuthType),
+            _ => Err(IntegrationError::FailedToObtainAuthType { context: Default::default() }),
         }
     }
 }
@@ -123,7 +123,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     TryFrom<{ConnectorName}RouterData<RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>, T>>
     for {ConnectorName}AuthorizeRequest<T>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(item: {ConnectorName}RouterData<...>) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let payment_method = match &router_data.request.payment_method_data {
@@ -135,8 +135,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     cvc: Some(card_data.card_cvc.clone()),
                 })
             },
-            _ => return Err(ConnectorError::NotImplemented(
-                "Payment method not supported".to_string()).into()),
+            _ => return Err(IntegrationError::NotImplemented(
+                "Payment method not supported".to_string(, Default::default())).into()),
         };
         Ok(Self {
             amount: item.amount,
@@ -223,7 +223,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     TryFrom<ResponseRouterData<{ConnectorName}AuthorizeResponse, RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
 
     fn try_from(
         item: ResponseRouterData<{ConnectorName}AuthorizeResponse, RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>>,
@@ -292,13 +292,13 @@ fn build_error_response(
     &self,
     res: Response,
     event_builder: Option<&mut ConnectorEvent>,
-) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+) -> CustomResult<ErrorResponse, errors::ConnectorResponseTransformationError> {
     let response: {ConnectorName}ErrorResponse = if res.response.is_empty() {
         {ConnectorName}ErrorResponse::default()
     } else {
         res.response
             .parse_struct("ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
+            .change_context(errors::ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })?
     };
 
     if let Some(i) = event_builder {
@@ -359,9 +359,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     fn get_auth_header(
         &self,
         auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
         let auth = transformers::{ConnectorName}AuthType::try_from(auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+            .change_context(errors::IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
             format!("Bearer {}", auth.api_key.peek()).into_masked(),
@@ -391,11 +391,11 @@ macros::macro_connector_implementation!(
     [PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize],
     other_functions: {
         fn get_headers(&self, req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>)
-            -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+            -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
         fn get_url(&self, req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>)
-            -> CustomResult<String, ConnectorError> {
+            -> CustomResult<String, IntegrationError> {
             let base_url = self.connector_base_url_payments(req);
             Ok(format!("{base_url}/v1/payments"))
         }
@@ -409,6 +409,6 @@ macros::macro_connector_implementation!(
 
 - Status must always be mapped from the connector response via `From` trait or `match` -- never hardcoded.
 - Use `Maskable` types for all sensitive data (card numbers, auth tokens). Never log PII.
-- Return `ConnectorError::NotImplemented` with a specific message for unsupported payment methods.
+- Return `IntegrationError::NotImplemented` with a specific message for unsupported payment methods.
 - Remove struct fields that are always `None` -- keep request/response types minimal.
 - Check `utility_functions_reference.md` before writing custom helpers for country codes, card formatting, phone numbers, or address parsing.

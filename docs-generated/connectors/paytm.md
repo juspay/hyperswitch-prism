@@ -97,7 +97,7 @@ let config = ConnectorConfig {
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
 | [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
-| [MerchantAuthenticationService.CreateSessionToken](#merchantauthenticationservicecreatesessiontoken) | Authentication | `MerchantAuthenticationServiceCreateSessionTokenRequest` |
+| [ConnectorSessionService.CreateSessionToken](#connectorsessionservicecreatesessiontoken) | Authentication | `ConnectorSessionServiceCreateSessionTokenRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
 
 ### Payments
@@ -138,7 +138,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 ```python
 "payment_method": {
     "upi_collect": {  # UPI Collect
-        "vpa_id": {"value": "test@upi"}  # Virtual Payment Address
+        "vpa_id": "test@upi"  # Virtual Payment Address
     }
 }
 ```
@@ -158,13 +158,13 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 
 ### Authentication
 
-#### MerchantAuthenticationService.CreateSessionToken
+#### ConnectorSessionService.CreateSessionToken
 
 Create session token for payment processing. Maintains session state across multiple payment operations for improved security and tracking.
 
 | | Message |
 |---|---------|
-| **Request** | `MerchantAuthenticationServiceCreateSessionTokenRequest` |
-| **Response** | `MerchantAuthenticationServiceCreateSessionTokenResponse` |
+| **Request** | `ConnectorSessionServiceCreateSessionTokenRequest` |
+| **Response** | `ConnectorSessionServiceCreateSessionTokenResponse` |
 
 **Examples:** [Python](../../examples/paytm/python/paytm.py) · [JavaScript](../../examples/paytm/javascript/paytm.js) · [Kotlin](../../examples/paytm/kotlin/paytm.kt#L76) · [Rust](../../examples/paytm/rust/paytm.rs#L75)

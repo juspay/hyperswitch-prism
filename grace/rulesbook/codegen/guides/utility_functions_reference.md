@@ -172,7 +172,7 @@ let formatted = format_date(now(), DateFormat::YYYYMMDDHHmmss)?;
 
 ### `missing_field_err`
 **Location:** `domain_types::utils::missing_field_err`
-**Signature:** `fn missing_field_err(message: &'static str) -> Box<dyn Fn() -> Report<ConnectorError> + 'static>`
+**Signature:** `fn missing_field_err(message: &'static str) -> Box<dyn Fn() -> Report<IntegrationError> + 'static>`
 **Description:** Creates a closure that generates a `MissingRequiredField` error for the specified field name.
 **Use Case:** Use when a required field is missing from the request or response.
 **Example:**
@@ -183,26 +183,26 @@ let return_url = data.router_return_url
 ```
 
 ### `handle_json_response_deserialization_failure`
-**Location:** `domain_types::utils::handle_json_response_deserialization_failure`
-**Signature:** `fn handle_json_response_deserialization_failure(res: Response, connector: &'static str) -> CustomResult<ErrorResponse, ConnectorError>`
+**Location:** `connector_integration::utils::handle_json_response_deserialization_failure`
+**Signature:** `fn handle_json_response_deserialization_failure(res: Response, connector: &'static str) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError>`
 **Description:** Handles cases where JSON deserialization fails by checking if response is valid JSON or HTML/text.
 **Use Case:** Use in `build_error_response` when deserialization of expected error response format fails.
 **Example:**
 ```rust
 fn build_error_response(&self, res: Response, event_builder: Option<&mut ConnectorEvent>)
-    -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    -> CustomResult<ErrorResponse, errors::ConnectorResponseTransformationError> {
     let response_data = String::from_utf8(res.response.to_vec())
-        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        .change_context(errors::ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })?;
 
     serde_json::from_str::<ErrorResponse>(&response_data)
-        .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+        .change_context(errors::ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })
         .or_else(|_| handle_json_response_deserialization_failure(res, "connector_name"))
 }
 ```
 
 ### `construct_not_supported_error_report`
 **Location:** `domain_types::utils::construct_not_supported_error_report`
-**Signature:** `fn construct_not_supported_error_report(capture_method: CaptureMethod, connector_name: &'static str) -> Report<ConnectorError>`
+**Signature:** `fn construct_not_supported_error_report(capture_method: CaptureMethod, connector_name: &'static str) -> Report<IntegrationError>`
 **Description:** Creates a standardized error report for unsupported features.
 **Use Case:** When a specific capture method or feature is not supported by the connector.
 
@@ -213,8 +213,9 @@ fn build_error_response(&self, res: Response, event_builder: Option<&mut Connect
 **Use Case:** When a payment method is not yet implemented for the connector.
 **Example:**
 ```rust
-PaymentMethodData::Wallet(_) => Err(errors::ConnectorError::NotImplemented(
-    get_unimplemented_payment_method_error_message("connector_name")
+PaymentMethodData::Wallet(_) => Err(errors::IntegrationError::NotImplemented(
+    get_unimplemented_payment_method_error_message("connector_name"),
+    Default::default(),
 ))?,
 ```
 
@@ -335,7 +336,7 @@ let state_code = convert_us_state_to_code("New York"); // Returns "NY"
 
 ### `preprocess_xml_response_bytes`
 **Location:** `connector_integration::utils::xml_utils::preprocess_xml_response_bytes`
-**Signature:** `fn preprocess_xml_response_bytes(xml_data: Bytes) -> Result<Bytes, ConnectorError>`
+**Signature:** `fn preprocess_xml_response_bytes(xml_data: Bytes) -> Result<Bytes, ConnectorResponseTransformationError>`
 **Description:** Converts XML response to properly structured JSON by parsing XML, removing declarations, flattening nested structures.
 **Use Case:** When connector returns XML and you need to deserialize it into Rust structs.
 **Example:**
@@ -344,7 +345,7 @@ use connector_integration::utils::preprocess_xml_response_bytes;
 
 let json_bytes = preprocess_xml_response_bytes(res.response)?;
 let response: ConnectorResponse = serde_json::from_slice(&json_bytes)
-    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+    .change_context(errors::ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })?;
 ```
 
 ### `serialize_to_xml_string_with_root`
@@ -364,7 +365,7 @@ let xml_body = serialize_to_xml_string_with_root("transaction", &request)?;
 
 ### `get_card_details`
 **Location:** `domain_types::utils::get_card_details`
-**Signature:** `fn get_card_details<T>(payment_method_data: PaymentMethodData<T>, connector_name: &'static str) -> Result<Card<T>, ConnectorError>`
+**Signature:** `fn get_card_details<T>(payment_method_data: PaymentMethodData<T>, connector_name: &'static str) -> Result<Card<T>, IntegrationError>`
 **Description:** Extracts card details from payment method data, returning error if not a card payment.
 **Use Case:** When you need to ensure payment method is a card and extract card data.
 **Example:**
@@ -500,7 +501,7 @@ with_response_body!(event_builder, success_response);
 
 ### `get_http_header`
 **Location:** `domain_types::utils::get_http_header`
-**Signature:** `fn get_http_header<'a>(key: &str, headers: &'a http::HeaderMap) -> CustomResult<&'a str, ConnectorError>`
+**Signature:** `fn get_http_header<'a>(key: &str, headers: &'a http::HeaderMap) -> CustomResult<&'a str, IntegrationError>`
 **Description:** Extracts header value from HTTP header map.
 **Use Case:** In webhook verification when extracting signature headers.
 **Example:**

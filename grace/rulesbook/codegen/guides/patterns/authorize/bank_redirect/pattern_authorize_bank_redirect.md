@@ -140,7 +140,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     > for BankRedirectPaymentRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: &ConnectorRouterData<
@@ -157,7 +157,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .connector
             .amount_converter
             .convert(item.router_data.request.minor_amount, item.router_data.request.currency)
-            .change_context(ConnectorError::AmountConversionFailed)?;
+            .change_context(IntegrationError::AmountConversionFailed)?;
 
         let payment_method = match &item.router_data.request.payment_method_data {
             PaymentMethodData::BankRedirect(bank_redirect) => match bank_redirect {
@@ -175,12 +175,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 BankRedirectData::Przelewy24 { bank_name, .. } => PaymentMethodDetails::Przelewy24 {
                     bank: bank_name.to_string(),
                 },
-                _ => Err(ConnectorError::NotImplemented(
-                    "Bank redirect type not supported".to_string(),
+                _ => Err(IntegrationError::NotImplemented(
+                    "Bank redirect type not supported".to_string(, Default::default()),
                 ))?,
             },
-            _ => Err(ConnectorError::NotImplemented(
-                "Payment method not supported".to_string(),
+            _ => Err(IntegrationError::NotImplemented(
+                "Payment method not supported".to_string(, Default::default()),
             ))?,
         };
 
@@ -227,7 +227,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsAuthorizeData<T>,
             PaymentsResponseData,
         >,
-    ) -> CustomResult<DynamicContentType, errors::ConnectorError> {
+    ) -> CustomResult<DynamicContentType, errors::IntegrationError> {
         match req.resource_common_data.payment_method {
             PaymentMethod::BankRedirect | PaymentMethod::BankTransfer => {
                 Ok(DynamicContentType::Json)
@@ -241,7 +241,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 pub fn build_headers_for_payments<F, Req, Res>(
     &self,
     req: &RouterDataV2<F, PaymentFlowData, Req, Res>,
-) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError>
+) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError>
 where
     Self: ConnectorIntegrationV2<F, PaymentFlowData, Req, Res>,
 {
@@ -250,9 +250,9 @@ where
             let token = req
                 .resource_common_data
                 .get_access_token()
-                .change_context(errors::ConnectorError::MissingRequiredField {
+                .change_context(errors::IntegrationError::MissingRequiredField {
                     field_name: "access_token",
-                })?;
+                , context: Default::default() })?;
             Ok(vec![
                 (
                     headers::CONTENT_TYPE.to_string(),
@@ -280,7 +280,7 @@ where
 fn get_url(
     &self,
     req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
-) -> CustomResult<String, errors::ConnectorError> {
+) -> CustomResult<String, errors::IntegrationError> {
     match req.resource_common_data.payment_method {
         PaymentMethod::BankRedirect | PaymentMethod::BankTransfer => Ok(format!(
             "{}{}",
@@ -366,7 +366,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     > for VoltPaymentsRequest
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<errors::IntegrationError>;
 
     fn try_from(
         item: VoltRouterData<
@@ -405,8 +405,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             ))
                         }
                     }
-                    _ => Err(errors::ConnectorError::NotImplemented(
-                        "Bank redirect type not supported".to_string(),
+                    _ => Err(errors::IntegrationError::NotImplemented(
+                        "Bank redirect type not supported".to_string(, Default::default()),
                     )),
                 }?;
 
@@ -455,8 +455,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     },
                 })
             }
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "Payment method not supported".to_string(),
+            _ => Err(errors::IntegrationError::NotImplemented(
+                "Payment method not supported".to_string(, Default::default()),
             )),
         }
     }
@@ -491,7 +491,7 @@ pub enum BankRedirectStatus {
 impl<F, T> TryFrom<ResponseRouterData<BankRedirectResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, T, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
 
     fn try_from(
         item: ResponseRouterData<BankRedirectResponse, Self>,
@@ -646,7 +646,7 @@ macros::macro_connector_implementation!(
                 PaymentsAuthorizeData<T>,
                 PaymentsResponseData,
             >,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, errors::IntegrationError> {
             Ok(format!(
                 "{}/payments",
                 self.base_url(&req.resource_common_data.connectors)
@@ -684,7 +684,7 @@ pub struct ConnectorAuthUpdateRequest {
 }
 
 impl TryFrom<&ConnectorAuthType> for ConnectorAuthUpdateRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<errors::IntegrationError>;
 
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         let auth = ConnectorAuthType::try_from(auth_type)?;
@@ -709,7 +709,7 @@ pub struct ConnectorAuthUpdateResponse {
 impl<F, T> TryFrom<ResponseRouterData<ConnectorAuthUpdateResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, T, AccessTokenResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<errors::ConnectorResponseTransformationError>;
 
     fn try_from(
         item: ResponseRouterData<ConnectorAuthUpdateResponse, Self>,
@@ -757,7 +757,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     > for ConnectorPaymentsRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: &ConnectorRouterData<
@@ -774,8 +774,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentMethodData::BankRedirect(bank_redirect) => {
                 Self::get_bank_redirect_request(bank_redirect, item)?
             }
-            _ => Err(ConnectorError::NotImplemented(
-                "Payment method not supported".to_string(),
+            _ => Err(IntegrationError::NotImplemented(
+                "Payment method not supported".to_string(, Default::default()),
             ))?,
         };
 
@@ -798,7 +798,7 @@ impl ConnectorPaymentsRequest {
             >,
             T,
         >,
-    ) -> Result<PaymentMethodDetails, ConnectorError> {
+    ) -> Result<PaymentMethodDetails, IntegrationError> {
         match bank_redirect {
             BankRedirectData::Ideal { bank_name, .. } => {
                 Ok(PaymentMethodDetails::Ideal {
@@ -842,13 +842,13 @@ impl ConnectorPaymentsRequest {
                     .router_data
                     .request
                     .get_optional_email()
-                    .ok_or(ConnectorError::MissingRequiredField {
+                    .ok_or(IntegrationError::MissingRequiredField {
                         field_name: "email",
-                    })?;
+                    , context: Default::default() })?;
                 Ok(PaymentMethodDetails::Interac { email })
             }
-            _ => Err(ConnectorError::NotImplemented(
-                "Bank redirect type not supported".to_string(),
+            _ => Err(IntegrationError::NotImplemented(
+                "Bank redirect type not supported".to_string(, Default::default()),
             )),
         }
     }
@@ -880,7 +880,7 @@ fn should_do_access_token(&self, payment_method: PaymentMethod) -> bool {
 fn get_dynamic_content_type(
     &self,
     req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
-) -> CustomResult<DynamicContentType, errors::ConnectorError> {
+) -> CustomResult<DynamicContentType, errors::IntegrationError> {
     match req.resource_common_data.payment_method {
         PaymentMethod::BankRedirect | PaymentMethod::BankTransfer => {
             Ok(DynamicContentType::Json)
@@ -899,7 +899,7 @@ fn get_dynamic_content_type(
 fn get_url(
     &self,
     req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
-) -> CustomResult<String, errors::ConnectorError> {
+) -> CustomResult<String, errors::IntegrationError> {
     match req.resource_common_data.payment_method {
         PaymentMethod::BankRedirect | PaymentMethod::BankTransfer => Ok(format!(
             "{}{}",

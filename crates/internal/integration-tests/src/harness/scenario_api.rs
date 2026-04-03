@@ -2143,8 +2143,8 @@ pub fn execute_tonic_request_from_payload(
             .unwrap_or(suite);
 
         match effective_suite {
-            "create_access_token" => {
-                let payload: grpc_api_types::payments::MerchantAuthenticationServiceCreateAccessTokenRequest =
+            "server_authentication_token" => {
+                let payload: grpc_api_types::payments::MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest =
                     parse_tonic_payload(suite, scenario, &connector, &grpc_req)?;
                 let mut request = tonic::Request::new(payload);
                 add_connector_metadata(
@@ -2156,7 +2156,51 @@ pub fn execute_tonic_request_from_payload(
                     &connector_request_reference_id,
                 );
                 let mut client = grpc_api_types::payments::merchant_authentication_service_client::MerchantAuthenticationServiceClient::new(channel.clone());
-                let response = client.create_access_token(request).await.map_err(|error| {
+                let response = client.create_server_authentication_token(request).await.map_err(|error| {
+                    ScenarioError::GrpcurlExecution {
+                        message: format!(
+                            "tonic execution failed for '{suite}/{scenario}': {error}"
+                        ),
+                    }
+                })?;
+                serialize_tonic_response(&response.into_inner())
+            }
+            "server_session_authentication_token" => {
+                let payload: grpc_api_types::payments::MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest =
+                    parse_tonic_payload(suite, scenario, &connector, &grpc_req)?;
+                let mut request = tonic::Request::new(payload);
+                add_connector_metadata(
+                    &mut request,
+                    &config,
+                    &merchant_id,
+                    &tenant_id,
+                    &request_id,
+                    &connector_request_reference_id,
+                );
+                let mut client = grpc_api_types::payments::merchant_authentication_service_client::MerchantAuthenticationServiceClient::new(channel.clone());
+                let response = client.create_server_session_authentication_token(request).await.map_err(|error| {
+                    ScenarioError::GrpcurlExecution {
+                        message: format!(
+                            "tonic execution failed for '{suite}/{scenario}': {error}"
+                        ),
+                    }
+                })?;
+                serialize_tonic_response(&response.into_inner())
+            }
+            "client_authentication_token" => {
+                let payload: grpc_api_types::payments::MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest =
+                    parse_tonic_payload(suite, scenario, &connector, &grpc_req)?;
+                let mut request = tonic::Request::new(payload);
+                add_connector_metadata(
+                    &mut request,
+                    &config,
+                    &merchant_id,
+                    &tenant_id,
+                    &request_id,
+                    &connector_request_reference_id,
+                );
+                let mut client = grpc_api_types::payments::merchant_authentication_service_client::MerchantAuthenticationServiceClient::new(channel.clone());
+                let response = client.create_client_authentication_token(request).await.map_err(|error| {
                     ScenarioError::GrpcurlExecution {
                         message: format!(
                             "tonic execution failed for '{suite}/{scenario}': {error}"
@@ -2496,7 +2540,7 @@ pub fn execute_tonic_request_from_payload(
                 serialize_tonic_response(&response.into_inner())
             }
             "create_session_token" => {
-                let payload: grpc_api_types::payments::MerchantAuthenticationServiceCreateSessionTokenRequest =
+                let payload: grpc_api_types::payments::MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest =
                     parse_tonic_payload(suite, scenario, &connector, &grpc_req)?;
                 let mut request = tonic::Request::new(payload);
                 add_connector_metadata(
@@ -2508,7 +2552,7 @@ pub fn execute_tonic_request_from_payload(
                     &connector_request_reference_id,
                 );
                 let mut client = grpc_api_types::payments::merchant_authentication_service_client::MerchantAuthenticationServiceClient::new(channel.clone());
-                let response = client.create_session_token(request).await.map_err(|error| {
+                let response = client.create_server_session_authentication_token(request).await.map_err(|error| {
                     ScenarioError::GrpcurlExecution {
                         message: format!(
                             "tonic execution failed for '{suite}/{scenario}': {error}"
@@ -2518,7 +2562,7 @@ pub fn execute_tonic_request_from_payload(
                 serialize_tonic_response(&response.into_inner())
             }
             "create_sdk_session_token" => {
-                let payload: grpc_api_types::payments::MerchantAuthenticationServiceCreateSdkSessionTokenRequest =
+                let payload: grpc_api_types::payments::MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest =
                     parse_tonic_payload(suite, scenario, &connector, &grpc_req)?;
                 let mut request = tonic::Request::new(payload);
                 add_connector_metadata(
@@ -2530,7 +2574,7 @@ pub fn execute_tonic_request_from_payload(
                     &connector_request_reference_id,
                 );
                 let mut client = grpc_api_types::payments::merchant_authentication_service_client::MerchantAuthenticationServiceClient::new(channel.clone());
-                let response = client.create_sdk_session_token(request).await.map_err(|error| {
+                let response = client.create_client_authentication_token(request).await.map_err(|error| {
                     ScenarioError::GrpcurlExecution {
                         message: format!(
                             "tonic execution failed for '{suite}/{scenario}': {error}"
@@ -4082,7 +4126,15 @@ fn grpc_method_for_suite(suite: &str, spec: Option<&SuiteSpec>) -> Result<String
     }
 
     let method = match suite {
-        "create_access_token" => "types.MerchantAuthenticationService/CreateAccessToken",
+        "server_authentication_token" => {
+            "types.MerchantAuthenticationService/CreateServerAuthenticationToken"
+        }
+        "server_session_authentication_token" => {
+            "types.MerchantAuthenticationService/CreateServerSessionAuthenticationToken"
+        }
+        "client_authentication_token" => {
+            "types.MerchantAuthenticationService/CreateClientAuthenticationToken"
+        }
         "create_customer" => "types.CustomerService/Create",
         "pre_authenticate" => "types.PaymentMethodAuthenticationService/PreAuthenticate",
         "authenticate" => "types.PaymentMethodAuthenticationService/Authenticate",
@@ -4101,8 +4153,12 @@ fn grpc_method_for_suite(suite: &str, spec: Option<&SuiteSpec>) -> Result<String
         "revoke_mandate" => "types.RecurringPaymentService/Revoke",
         "incremental_authorization" => "types.PaymentService/IncrementalAuthorization",
         "reverse" => "types.PaymentService/Reverse",
-        "create_session_token" => "types.MerchantAuthenticationService/CreateSessionToken",
-        "create_sdk_session_token" => "types.MerchantAuthenticationService/CreateSdkSessionToken",
+        "create_session_token" => {
+            "types.MerchantAuthenticationService/CreateServerSessionAuthenticationToken"
+        }
+        "create_sdk_session_token" => {
+            "types.MerchantAuthenticationService/CreateClientAuthenticationToken"
+        }
         "verify_redirect_response" => "types.PaymentService/VerifyRedirectResponse",
         _ => {
             return Err(ScenarioError::UnsupportedSuite {
@@ -4185,8 +4241,8 @@ mod tests {
             .unwrap_or(suite);
 
         match effective_suite {
-            "create_access_token" => validate_tonic_payload_shape::<
-                payments::MerchantAuthenticationServiceCreateAccessTokenRequest,
+            "server_authentication_token" => validate_tonic_payload_shape::<
+                payments::MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
             >(connector, suite, scenario, grpc_req),
             "create_customer" => validate_tonic_payload_shape::<
                 payments::CustomerServiceCreateRequest,
@@ -4239,10 +4295,10 @@ mod tests {
                 payments::PaymentServiceIncrementalAuthorizationRequest,
             >(connector, suite, scenario, grpc_req),
             "create_session_token" => validate_tonic_payload_shape::<
-                payments::MerchantAuthenticationServiceCreateSessionTokenRequest,
+                payments::MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest,
             >(connector, suite, scenario, grpc_req),
             "create_sdk_session_token" => validate_tonic_payload_shape::<
-                payments::MerchantAuthenticationServiceCreateSdkSessionTokenRequest,
+                payments::MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
             >(connector, suite, scenario, grpc_req),
             "create_order" => validate_tonic_payload_shape::<
                 payments::PaymentServiceCreateOrderRequest,

@@ -182,20 +182,20 @@ class GrpcMerchantAuthenticationClient internal constructor(
     private val config: GrpcConfig,
 ) {
     /**
-     * MerchantAuthenticationService.CreateAccessToken — Generate short-lived connector authentication token. Provides secure credentials for connector API access without storing secrets client-side.
+     * MerchantAuthenticationService.CreateServerAuthenticationToken — Generate short-lived connector authentication token. Provides secure credentials for connector API access without storing secrets client-side.
      */
-    suspend fun create_access_token(req: MerchantAuthenticationServiceCreateAccessTokenRequest): MerchantAuthenticationServiceCreateAccessTokenResponse =
-        callGrpc(config, "merchant_authentication/create_access_token", req, MerchantAuthenticationServiceCreateAccessTokenResponse.parser())
+    suspend fun create_server_authentication_token(req: MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest): MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse =
+        callGrpc(config, "merchant_authentication/create_server_authentication_token", req, MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse.parser())
     /**
-     * MerchantAuthenticationService.CreateSessionToken — Create session token for payment processing. Maintains session state across multiple payment operations for improved security and tracking.
+     * MerchantAuthenticationService.CreateServerSessionAuthenticationToken — Create a server-side session with the connector. Establishes session state for multi-step operations like 3DS verification or wallet authorization.
      */
-    suspend fun create_session_token(req: MerchantAuthenticationServiceCreateSessionTokenRequest): MerchantAuthenticationServiceCreateSessionTokenResponse =
-        callGrpc(config, "merchant_authentication/create_session_token", req, MerchantAuthenticationServiceCreateSessionTokenResponse.parser())
+    suspend fun create_server_session_authentication_token(req: MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest): MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse =
+        callGrpc(config, "merchant_authentication/create_server_session_authentication_token", req, MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse.parser())
     /**
-     * MerchantAuthenticationService.CreateSdkSessionToken — Initialize wallet payment sessions for Apple Pay, Google Pay, etc. Sets up secure context for tokenized wallet payments with device verification.
+     * MerchantAuthenticationService.CreateClientAuthenticationToken — Initialize client-facing SDK sessions for wallets, device fingerprinting, etc. Returns structured data the client SDK needs to render payment/verification UI.
      */
-    suspend fun create_sdk_session_token(req: MerchantAuthenticationServiceCreateSdkSessionTokenRequest): MerchantAuthenticationServiceCreateSdkSessionTokenResponse =
-        callGrpc(config, "merchant_authentication/create_sdk_session_token", req, MerchantAuthenticationServiceCreateSdkSessionTokenResponse.parser())
+    suspend fun create_client_authentication_token(req: MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest): MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse =
+        callGrpc(config, "merchant_authentication/create_client_authentication_token", req, MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse.parser())
 }
 
 /**

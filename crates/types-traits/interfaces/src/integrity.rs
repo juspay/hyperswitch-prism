@@ -4,16 +4,17 @@
 //! It ensures that request and response data remain consistent across connector interactions
 //! by comparing critical fields like amounts, currencies, and transaction identifiers.
 use common_utils::errors::IntegrityCheckError;
-use domain_types::router_request_types::SdkSessionTokenIntegrityObject;
+use domain_types::router_request_types::ClientAuthenticationTokenIntegrityObject;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 // Domain type imports
 use domain_types::connector_types::{
-    AcceptDisputeData, AccessTokenRequestData, ConnectorCustomerData, DisputeDefendData,
-    MandateRevokeRequestData, PaymentCreateOrderData, PaymentMethodTokenizationData,
-    PaymentVoidData, PaymentsAuthenticateData, PaymentsAuthorizeData,
-    PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
-    PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsSdkSessionTokenData,
-    PaymentsSyncData, RefundSyncData, RefundsData, RepeatPaymentData, SessionTokenRequestData,
+    AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
+    DisputeDefendData, MandateRevokeRequestData, PaymentCreateOrderData,
+    PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthenticateData,
+    PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
+    PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
+    PaymentsPreAuthenticateData, PaymentsSyncData, RefundSyncData, RefundsData, RepeatPaymentData,
+    ServerAuthenticationTokenRequestData, ServerSessionAuthenticationTokenRequestData,
     SetupMandateRequestData, SubmitEvidenceData,
 };
 use domain_types::payouts::payouts_types::{
@@ -171,8 +172,8 @@ impl_check_integrity!(PaymentsCaptureData);
 impl_check_integrity!(AcceptDisputeData);
 impl_check_integrity!(DisputeDefendData);
 impl_check_integrity!(RefundSyncData);
-impl_check_integrity!(SessionTokenRequestData);
-impl_check_integrity!(AccessTokenRequestData);
+impl_check_integrity!(ServerSessionAuthenticationTokenRequestData);
+impl_check_integrity!(ServerAuthenticationTokenRequestData);
 impl_check_integrity!(PaymentMethodTokenizationData<S>);
 impl_check_integrity!(SubmitEvidenceData);
 impl_check_integrity!(RepeatPaymentData<S>);
@@ -180,7 +181,7 @@ impl_check_integrity!(PaymentsAuthenticateData<S>);
 impl_check_integrity!(PaymentsPostAuthenticateData<S>);
 impl_check_integrity!(PaymentsPreAuthenticateData<S>);
 impl_check_integrity!(ConnectorCustomerData);
-impl_check_integrity!(PaymentsSdkSessionTokenData);
+impl_check_integrity!(ClientAuthenticationTokenRequestData);
 impl_check_integrity!(PaymentsIncrementalAuthorizationData);
 impl_check_integrity!(MandateRevokeRequestData);
 impl_check_integrity!(VerifyWebhookSourceRequestData);
@@ -407,7 +408,9 @@ impl GetIntegrityObject<VerifyWebhookSourceIntegrityObject> for VerifyWebhookSou
     }
 }
 
-impl GetIntegrityObject<SessionTokenIntegrityObject> for SessionTokenRequestData {
+impl GetIntegrityObject<SessionTokenIntegrityObject>
+    for ServerSessionAuthenticationTokenRequestData
+{
     fn get_response_integrity_object(&self) -> Option<SessionTokenIntegrityObject> {
         None // Session token responses don't have integrity objects
     }
@@ -420,7 +423,7 @@ impl GetIntegrityObject<SessionTokenIntegrityObject> for SessionTokenRequestData
     }
 }
 
-impl GetIntegrityObject<AccessTokenIntegrityObject> for AccessTokenRequestData {
+impl GetIntegrityObject<AccessTokenIntegrityObject> for ServerAuthenticationTokenRequestData {
     fn get_response_integrity_object(&self) -> Option<AccessTokenIntegrityObject> {
         None
     }
@@ -432,13 +435,15 @@ impl GetIntegrityObject<AccessTokenIntegrityObject> for AccessTokenRequestData {
     }
 }
 
-impl GetIntegrityObject<SdkSessionTokenIntegrityObject> for PaymentsSdkSessionTokenData {
-    fn get_response_integrity_object(&self) -> Option<SdkSessionTokenIntegrityObject> {
+impl GetIntegrityObject<ClientAuthenticationTokenIntegrityObject>
+    for ClientAuthenticationTokenRequestData
+{
+    fn get_response_integrity_object(&self) -> Option<ClientAuthenticationTokenIntegrityObject> {
         None // Sdk session token responses don't have integrity objects
     }
 
-    fn get_request_integrity_object(&self) -> SdkSessionTokenIntegrityObject {
-        SdkSessionTokenIntegrityObject {}
+    fn get_request_integrity_object(&self) -> ClientAuthenticationTokenIntegrityObject {
+        ClientAuthenticationTokenIntegrityObject {}
     }
 }
 
@@ -1000,7 +1005,7 @@ impl FlowIntegrity for SessionTokenIntegrityObject {
     }
 }
 
-impl FlowIntegrity for SdkSessionTokenIntegrityObject {
+impl FlowIntegrity for ClientAuthenticationTokenIntegrityObject {
     type IntegrityObject = Self;
 
     fn compare(

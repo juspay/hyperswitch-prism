@@ -36,13 +36,17 @@ class EventClient(_ConnectorClientBase):
 class MerchantAuthenticationClient(_ConnectorClientBase):
     """MerchantAuthenticationService flows"""
 
-    def create_access_token(self, request, options=None):
-        """MerchantAuthenticationService.CreateAccessToken — Generate short-lived connector authentication token. Provides secure credentials for connector API access without storing secrets client-side."""
-        return self._execute_flow("create_access_token", request, _pb2.MerchantAuthenticationServiceCreateAccessTokenResponse, options)
+    def create_client_authentication_token(self, request, options=None):
+        """MerchantAuthenticationService.CreateClientAuthenticationToken — Initialize client-facing SDK sessions for wallets, device fingerprinting, etc. Returns structured data the client SDK needs to render payment/verification UI."""
+        return self._execute_flow("create_client_authentication_token", request, _pb2.MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse, options)
 
-    def create_session_token(self, request, options=None):
-        """MerchantAuthenticationService.CreateSessionToken — Create session token for payment processing. Maintains session state across multiple payment operations for improved security and tracking."""
-        return self._execute_flow("create_session_token", request, _pb2.MerchantAuthenticationServiceCreateSessionTokenResponse, options)
+    def create_server_authentication_token(self, request, options=None):
+        """MerchantAuthenticationService.CreateServerAuthenticationToken — Generate short-lived connector authentication token. Provides secure credentials for connector API access without storing secrets client-side."""
+        return self._execute_flow("create_server_authentication_token", request, _pb2.MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse, options)
+
+    def create_server_session_authentication_token(self, request, options=None):
+        """MerchantAuthenticationService.CreateServerSessionAuthenticationToken — Create a server-side session with the connector. Establishes session state for multi-step operations like 3DS verification or wallet authorization."""
+        return self._execute_flow("create_server_session_authentication_token", request, _pb2.MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse, options)
 
 class PaymentMethodAuthenticationClient(_ConnectorClientBase):
     """PaymentMethodAuthenticationService flows"""

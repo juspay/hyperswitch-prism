@@ -16,7 +16,7 @@ use crate::{
     utils,
 };
 
-pub type Error = error_stack::Report<errors::ConnectorError>;
+pub type Error = error_stack::Report<errors::IntegrationError>;
 
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct BrowserInformation {
@@ -452,7 +452,7 @@ pub struct PostAuthenticateIntegrityObject {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
-pub struct SdkSessionTokenIntegrityObject {}
+pub struct ClientAuthenticationTokenIntegrityObject {}
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct IncrementalAuthorizationIntegrityObject {}

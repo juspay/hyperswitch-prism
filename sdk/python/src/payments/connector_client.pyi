@@ -15,10 +15,12 @@ from payments.generated.payment_pb2 import (
     DisputeServiceSubmitEvidenceResponse,
     EventServiceHandleRequest,
     EventServiceHandleResponse,
-    MerchantAuthenticationServiceCreateAccessTokenRequest,
-    MerchantAuthenticationServiceCreateAccessTokenResponse,
-    MerchantAuthenticationServiceCreateSessionTokenRequest,
-    MerchantAuthenticationServiceCreateSessionTokenResponse,
+    MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
+    MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse,
+    MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
+    MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
+    MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest,
+    MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse,
     PaymentMethodAuthenticationServiceAuthenticateRequest,
     PaymentMethodAuthenticationServiceAuthenticateResponse,
     PaymentMethodAuthenticationServicePostAuthenticateRequest,
@@ -97,12 +99,16 @@ class EventClient(_ConnectorClientBase):
 
 
 class MerchantAuthenticationClient(_ConnectorClientBase):
-    def create_access_token(self, request: MerchantAuthenticationServiceCreateAccessTokenRequest, options: RequestConfig | None = ...) -> MerchantAuthenticationServiceCreateAccessTokenResponse:
-        """MerchantAuthenticationService.CreateAccessToken — Generate short-lived connector authentication token. Provides secure credentials for connector API access without storing secrets client-side."""
+    def create_client_authentication_token(self, request: MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest, options: RequestConfig | None = ...) -> MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse:
+        """MerchantAuthenticationService.CreateClientAuthenticationToken — Initialize client-facing SDK sessions for wallets, device fingerprinting, etc. Returns structured data the client SDK needs to render payment/verification UI."""
         ...
 
-    def create_session_token(self, request: MerchantAuthenticationServiceCreateSessionTokenRequest, options: RequestConfig | None = ...) -> MerchantAuthenticationServiceCreateSessionTokenResponse:
-        """MerchantAuthenticationService.CreateSessionToken — Create session token for payment processing. Maintains session state across multiple payment operations for improved security and tracking."""
+    def create_server_authentication_token(self, request: MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest, options: RequestConfig | None = ...) -> MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse:
+        """MerchantAuthenticationService.CreateServerAuthenticationToken — Generate short-lived connector authentication token. Provides secure credentials for connector API access without storing secrets client-side."""
+        ...
+
+    def create_server_session_authentication_token(self, request: MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest, options: RequestConfig | None = ...) -> MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse:
+        """MerchantAuthenticationService.CreateServerSessionAuthenticationToken — Create a server-side session with the connector. Establishes session state for multi-step operations like 3DS verification or wallet authorization."""
         ...
 
 

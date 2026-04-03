@@ -67,7 +67,7 @@ macros::macro_connector_implementation!(
         fn get_url(
             &self,
             req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
-        ) -> CustomResult<String, ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let base_url = self.connector_base_url_payments(req);
             let payment_id = req.request.connector_transaction_id.clone();
             Ok(format!("{base_url}/payments/{payment_id}/voids"))
@@ -109,7 +109,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<{ConnectorName}RouterData<RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>, T>>
     for {ConnectorName}VoidRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: {ConnectorName}RouterData<RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>, T>,
@@ -154,11 +154,11 @@ pub struct {ConnectorName}VoidRequest {
 // Helper to parse session from connector_meta_data
 fn extract_session_from_metadata(
     meta_data: Option<&pii::SecretSerdeValue>,
-) -> Result<SessionData, ConnectorError> {
+) -> Result<SessionData, IntegrationError> {
     let value = meta_data
-        .ok_or_else(|| ConnectorError::MissingRequiredField {
+        .ok_or_else(|| IntegrationError::MissingRequiredField {
             field_name: "connector_meta_data for session in Void",
-        })?
+        , context: Default::default() })?
         .peek();
     // Parse JSON string -> SessionData
 }
@@ -227,7 +227,7 @@ match item.status.as_str() {
 impl<F> TryFrom<ResponseRouterData<{ConnectorName}VoidResponse, RouterDataV2<F, PaymentFlowData, PaymentVoidData, PaymentsResponseData>>>
     for RouterDataV2<F, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
 
     fn try_from(
         item: ResponseRouterData<{ConnectorName}VoidResponse, RouterDataV2<F, PaymentFlowData, PaymentVoidData, PaymentsResponseData>>,

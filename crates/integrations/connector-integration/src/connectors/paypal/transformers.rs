@@ -16,12 +16,13 @@ use domain_types::{
         Authorize, Capture, PSync, PostAuthenticate, RepeatPayment, VerifyWebhookSource,
     },
     connector_types::{
-        AccessTokenResponseData, MandateReference, PaymentFlowData, PaymentsAuthorizeData,
-        PaymentsCaptureData, PaymentsPostAuthenticateData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        ResponseId, SetupMandateRequestData, VerifyWebhookSourceFlowData,
+        MandateReference, PaymentFlowData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsPostAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
+        ServerAuthenticationTokenResponseData, SetupMandateRequestData,
+        VerifyWebhookSourceFlowData,
     },
-    errors::ConnectorError,
+    errors::{ConnectorResponseTransformationError, IntegrationError},
     payment_method_data::{
         BankDebitData, BankRedirectData, BankTransferData, CardRedirectData, GiftCardData,
         PayLaterData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, VoucherData,
@@ -33,7 +34,7 @@ use domain_types::{
     router_response_types::{RedirectForm, VerifyWebhookSourceResponseData, VerifyWebhookStatus},
     utils,
 };
-use error_stack::ResultExt;
+use error_stack::{Report, ResultExt};
 use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
@@ -109,7 +110,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for OrderRequestAmount
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<IntegrationError>;
     fn try_from(
         item: &PaypalRouterData<
             RouterDataV2<
@@ -128,19 +129,22 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 item.router_data.request.minor_amount,
                 item.router_data.request.currency,
             )
-            .change_context(ConnectorError::AmountConversionFailed)?;
-        let shipping_cost =
-            item.router_data
-                .request
-                .shipping_cost
-                .ok_or(ConnectorError::MissingRequiredField {
-                    field_name: "shipping_cost",
-                })?;
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: Default::default(),
+            })?;
+        let shipping_cost = item.router_data.request.shipping_cost.ok_or(
+            IntegrationError::MissingRequiredField {
+                field_name: "shipping_cost",
+                context: Default::default(),
+            },
+        )?;
         let shipping_value = item
             .connector
             .amount_converter
             .convert(shipping_cost, item.router_data.request.currency)
-            .change_context(ConnectorError::AmountConversionFailed)?;
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: Default::default(),
+            })?;
         Ok(Self {
             currency_code: item.router_data.request.currency,
             value: value.clone(),
@@ -173,7 +177,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for OrderRequestAmount
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<IntegrationError>;
     fn try_from(
         item: &PaypalRouterData<
             RouterDataV2<
@@ -192,7 +196,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 item.router_data.request.minor_amount,
                 item.router_data.request.currency,
             )
-            .change_context(ConnectorError::AmountConversionFailed)?;
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: Default::default(),
+            })?;
         let shipping_value = item
             .connector
             .amount_converter
@@ -203,7 +209,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .unwrap_or(common_utils::types::MinorUnit::zero()),
                 item.router_data.request.currency,
             )
-            .change_context(ConnectorError::AmountConversionFailed)?;
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: Default::default(),
+            })?;
         Ok(Self {
             currency_code: item.router_data.request.currency,
             value: value.clone(),
@@ -267,7 +275,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for ItemDetails
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<IntegrationError>;
     fn try_from(
         item: &PaypalRouterData<
             RouterDataV2<
@@ -286,7 +294,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 item.router_data.request.minor_amount,
                 item.router_data.request.currency,
             )
-            .change_context(ConnectorError::AmountConversionFailed)?;
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: Default::default(),
+            })?;
         Ok(Self {
             name: format!(
                 "Payment for invoice {}",
@@ -318,7 +328,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for ItemDetails
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<IntegrationError>;
     fn try_from(
         item: &PaypalRouterData<
             RouterDataV2<
@@ -337,7 +347,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 item.router_data.request.minor_amount,
                 item.router_data.request.currency,
             )
-            .change_context(ConnectorError::AmountConversionFailed)?;
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: Default::default(),
+            })?;
         Ok(Self {
             name: format!(
                 "Payment for invoice {}",
@@ -708,7 +720,7 @@ impl<
     > TryFrom<ResponseRouterData<PaypalAuthResponse, Self>>
     for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<ConnectorResponseTransformationError>;
     fn try_from(item: ResponseRouterData<PaypalAuthResponse, Self>) -> Result<Self, Self::Error> {
         // RepeatPayment returns PaypalOrdersResponse variant (direct capture)
         match item.response {
@@ -720,9 +732,9 @@ impl<
                 })
             }
             PaypalAuthResponse::PaypalRedirectResponse(_)
-            | PaypalAuthResponse::PaypalThreeDsResponse(_) => {
-                Err(ConnectorError::ResponseDeserializationFailed)?
-            }
+            | PaypalAuthResponse::PaypalThreeDsResponse(_) => Err(
+                crate::utils::response_handling_fail_for_connector(item.http_code, "paypal"),
+            )?,
         }
     }
 }
@@ -751,7 +763,7 @@ fn get_payment_source<
 >(
     item: RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
     bank_redirection_data: &BankRedirectData,
-) -> Result<PaymentSourceItem<T>, error_stack::Report<ConnectorError>> {
+) -> Result<PaymentSourceItem<T>, Report<IntegrationError>> {
     match bank_redirection_data {
         BankRedirectData::Eps { bank_name: _, .. } => Ok(PaymentSourceItem::Eps(RedirectRequest {
             name: item.resource_common_data.get_billing_full_name()?,
@@ -832,7 +844,7 @@ fn get_payment_source<
         })),
         BankRedirectData::BancontactCard { .. }
         | BankRedirectData::Blik { .. }
-        | BankRedirectData::Przelewy24 { .. } => Err(ConnectorError::NotImplemented(
+        | BankRedirectData::Przelewy24 { .. } => Err(IntegrationError::not_implemented(
             utils::get_unimplemented_payment_method_error_message("Paypal"),
         )
         .into()),
@@ -848,7 +860,7 @@ fn get_payment_source<
         | BankRedirectData::OnlineBankingFpx { .. }
         | BankRedirectData::OnlineBankingThailand { .. }
         | BankRedirectData::LocalBankRedirect {}
-        | BankRedirectData::OpenBanking {} => Err(ConnectorError::NotImplemented(
+        | BankRedirectData::OpenBanking {} => Err(IntegrationError::not_implemented(
             utils::get_unimplemented_payment_method_error_message("Paypal"),
         ))?,
     }
@@ -877,7 +889,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for PaypalPaymentsRequest<T>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<IntegrationError>;
     fn try_from(
         item: PaypalRouterData<
             RouterDataV2<
@@ -895,7 +907,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let amount = OrderRequestAmount::try_from(&item)?;
 
-        let intent = if item.router_data.request.is_auto_capture()? {
+        let intent = if item.router_data.request.is_auto_capture() {
             PaypalPaymentIntent::Capture
         } else {
             PaypalPaymentIntent::Authorize
@@ -1082,7 +1094,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::Paze(_)
                 | WalletData::MbWay(_)
                 | WalletData::Satispay(_)
-                | WalletData::Wero(_) => Err(ConnectorError::NotImplemented(
+                | WalletData::Wero(_) => Err(IntegrationError::not_implemented(
                     utils::get_unimplemented_payment_method_error_message("Paypal"),
                 ))?,
             },
@@ -1092,12 +1104,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     bank_redirection_data,
                 )?);
 
-                let bank_redirect_intent = if item.router_data.request.is_auto_capture()? {
+                let bank_redirect_intent = if item.router_data.request.is_auto_capture() {
                     PaypalPaymentIntent::Capture
                 } else {
-                    Err(ConnectorError::FlowNotSupported {
+                    Err(IntegrationError::FlowNotSupported {
                         flow: "Manual capture method for Bank Redirect".to_string(),
                         connector: "Paypal".to_string(),
+                        context: Default::default(),
                     })?
                 };
 
@@ -1130,7 +1143,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(ConnectorError::NotImplemented(
+                Err(IntegrationError::not_implemented(
                     utils::get_unimplemented_payment_method_error_message("Paypal"),
                 )
                 .into())
@@ -1142,13 +1155,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<&CardRedirectData> for PaypalPaymentsRequest<T>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<IntegrationError>;
     fn try_from(value: &CardRedirectData) -> Result<Self, Self::Error> {
         match value {
             CardRedirectData::Knet {}
             | CardRedirectData::Benefit {}
             | CardRedirectData::MomoAtm {}
-            | CardRedirectData::CardRedirect {} => Err(ConnectorError::NotImplemented(
+            | CardRedirectData::CardRedirect {} => Err(IntegrationError::not_implemented(
                 utils::get_unimplemented_payment_method_error_message("Paypal"),
             )
             .into()),
@@ -1159,7 +1172,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<&PayLaterData> for PaypalPaymentsRequest<T>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<IntegrationError>;
     fn try_from(value: &PayLaterData) -> Result<Self, Self::Error> {
         match value {
             PayLaterData::KlarnaRedirect { .. }
@@ -1169,7 +1182,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PayLaterData::PayBrightRedirect {}
             | PayLaterData::WalleyRedirect {}
             | PayLaterData::AlmaRedirect {}
-            | PayLaterData::AtomeRedirect {} => Err(ConnectorError::NotImplemented(
+            | PayLaterData::AtomeRedirect {} => Err(IntegrationError::not_implemented(
                 utils::get_unimplemented_payment_method_error_message("Paypal"),
             )
             .into()),
@@ -1180,14 +1193,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<&BankDebitData> for PaypalPaymentsRequest<T>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<IntegrationError>;
     fn try_from(value: &BankDebitData) -> Result<Self, Self::Error> {
         match value {
             BankDebitData::AchBankDebit { .. }
             | BankDebitData::SepaBankDebit { .. }
             | BankDebitData::SepaGuaranteedBankDebit { .. }
             | BankDebitData::BecsBankDebit { .. }
-            | BankDebitData::BacsBankDebit { .. } => Err(ConnectorError::NotImplemented(
+            | BankDebitData::BacsBankDebit { .. } => Err(IntegrationError::not_implemented(
                 utils::get_unimplemented_payment_method_error_message("Paypal"),
             )
             .into()),
@@ -1198,7 +1211,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<&BankTransferData> for PaypalPaymentsRequest<T>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<IntegrationError>;
     fn try_from(value: &BankTransferData) -> Result<Self, Self::Error> {
         match value {
             BankTransferData::AchBankTransfer { .. }
@@ -1218,7 +1231,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | BankTransferData::InstantBankTransferFinland {}
             | BankTransferData::InstantBankTransferPoland {}
             | BankTransferData::IndonesianBankTransfer { .. }
-            | BankTransferData::LocalBankTransfer { .. } => Err(ConnectorError::NotImplemented(
+            | BankTransferData::LocalBankTransfer { .. } => Err(IntegrationError::not_implemented(
                 utils::get_unimplemented_payment_method_error_message("Paypal"),
             )
             .into()),
@@ -1229,7 +1242,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<&VoucherData> for PaypalPaymentsRequest<T>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<IntegrationError>;
     fn try_from(value: &VoucherData) -> Result<Self, Self::Error> {
         match value {
             VoucherData::Boleto(_)
@@ -1245,7 +1258,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | VoucherData::MiniStop(_)
             | VoucherData::FamilyMart(_)
             | VoucherData::Seicomart(_)
-            | VoucherData::PayEasy(_) => Err(ConnectorError::NotImplemented(
+            | VoucherData::PayEasy(_) => Err(IntegrationError::not_implemented(
                 utils::get_unimplemented_payment_method_error_message("Paypal"),
             )
             .into()),
@@ -1256,11 +1269,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<&GiftCardData> for PaypalPaymentsRequest<T>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<IntegrationError>;
     fn try_from(value: &GiftCardData) -> Result<Self, Self::Error> {
         match value {
             GiftCardData::Givex(_) | GiftCardData::PaySafeCard {} => {
-                Err(ConnectorError::NotImplemented(
+                Err(IntegrationError::not_implemented(
                     utils::get_unimplemented_payment_method_error_message("Paypal"),
                 )
                 .into())
@@ -1280,23 +1293,23 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     TryFrom<
         PaypalRouterData<
             RouterDataV2<
-                domain_types::connector_flow::CreateAccessToken,
+                domain_types::connector_flow::ServerAuthenticationToken,
                 PaymentFlowData,
-                domain_types::connector_types::AccessTokenRequestData,
-                AccessTokenResponseData,
+                domain_types::connector_types::ServerAuthenticationTokenRequestData,
+                ServerAuthenticationTokenResponseData,
             >,
             T,
         >,
     > for PaypalAuthUpdateRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<IntegrationError>;
     fn try_from(
         item: PaypalRouterData<
             RouterDataV2<
-                domain_types::connector_flow::CreateAccessToken,
+                domain_types::connector_flow::ServerAuthenticationToken,
                 PaymentFlowData,
-                domain_types::connector_types::AccessTokenRequestData,
-                AccessTokenResponseData,
+                domain_types::connector_types::ServerAuthenticationTokenRequestData,
+                ServerAuthenticationTokenResponseData,
             >,
             T,
         >,
@@ -1319,14 +1332,14 @@ pub struct PaypalAuthUpdateResponse {
 }
 
 impl<F, T> TryFrom<ResponseRouterData<PaypalAuthUpdateResponse, Self>>
-    for RouterDataV2<F, PaymentFlowData, T, AccessTokenResponseData>
+    for RouterDataV2<F, PaymentFlowData, T, ServerAuthenticationTokenResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<ConnectorResponseTransformationError>;
     fn try_from(
         item: ResponseRouterData<PaypalAuthUpdateResponse, Self>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(AccessTokenResponseData {
+            response: Ok(ServerAuthenticationTokenResponseData {
                 access_token: item.response.access_token,
                 expires_in: Some(item.response.expires_in),
                 token_type: None,
@@ -1446,10 +1459,11 @@ pub struct PartnerFlowCredentials {
 }
 
 impl PaypalAuthType {
-    pub fn get_credentials(&self) -> CustomResult<&PaypalConnectorCredentials, ConnectorError> {
+    pub fn get_credentials(&self) -> CustomResult<&PaypalConnectorCredentials, IntegrationError> {
         match self {
-            Self::TemporaryAuth => Err(ConnectorError::InvalidConnectorConfig {
+            Self::TemporaryAuth => Err(IntegrationError::InvalidConnectorConfig {
                 config: "TemporaryAuth found in connector_account_details",
+                context: Default::default(),
             }
             .into()),
             Self::AuthWithDetails(credentials) => Ok(credentials),
@@ -1458,7 +1472,7 @@ impl PaypalAuthType {
 }
 
 impl TryFrom<&ConnectorSpecificConfig> for PaypalAuthType {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<IntegrationError>;
     fn try_from(auth_type: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         match auth_type {
             ConnectorSpecificConfig::Paypal {
@@ -1481,7 +1495,9 @@ impl TryFrom<&ConnectorSpecificConfig> for PaypalAuthType {
                     }),
                 )),
             },
-            _ => Err(ConnectorError::FailedToObtainAuthType)?,
+            _ => Err(IntegrationError::FailedToObtainAuthType {
+                context: Default::default(),
+            })?,
         }
     }
 }
@@ -1733,8 +1749,9 @@ pub struct PaypalMeta {
 fn get_id_based_on_intent(
     intent: &PaypalPaymentIntent,
     purchase_unit: &PurchaseUnitItem,
-) -> CustomResult<String, ConnectorError> {
-    || -> _ {
+    http_status: u16,
+) -> Result<String, Report<ConnectorResponseTransformationError>> {
+    let id = || -> Option<String> {
         match intent {
             PaypalPaymentIntent::Capture => Some(
                 purchase_unit
@@ -1756,8 +1773,15 @@ fn get_id_based_on_intent(
             ),
             PaypalPaymentIntent::Authenticate => None,
         }
-    }()
-    .ok_or_else(|| ConnectorError::MissingConnectorTransactionID.into())
+    }();
+    id.ok_or_else(|| {
+        Report::new(
+            ConnectorResponseTransformationError::response_handling_failed_with_context(
+                http_status,
+                Some("missing capture or authorization id for PayPal order intent".to_string()),
+            ),
+        )
+    })
 }
 
 fn extract_incremental_authorization_id(response: &PaypalOrdersResponse) -> Option<String> {
@@ -1776,15 +1800,18 @@ impl<F, Req> TryFrom<ResponseRouterData<PaypalOrdersResponse, Self>>
 where
     Req: GetRequestIncrementalAuthorization,
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<ConnectorResponseTransformationError>;
     fn try_from(item: ResponseRouterData<PaypalOrdersResponse, Self>) -> Result<Self, Self::Error> {
-        let purchase_units = item
-            .response
-            .purchase_units
-            .first()
-            .ok_or(ConnectorError::MissingConnectorTransactionID)?;
+        let purchase_units = item.response.purchase_units.first().ok_or_else(|| {
+            Report::new(
+                ConnectorResponseTransformationError::response_handling_failed_with_context(
+                    item.http_code,
+                    Some("missing purchase_units in PayPal order response".to_string()),
+                ),
+            )
+        })?;
 
-        let id = get_id_based_on_intent(&item.response.intent, purchase_units)?;
+        let id = get_id_based_on_intent(&item.response.intent, purchase_units, item.http_code)?;
         let (connector_meta, order_id) = match item.response.intent.clone() {
             PaypalPaymentIntent::Capture => (
                 serde_json::json!(PaypalMeta {
@@ -1793,7 +1820,7 @@ where
                     incremental_authorization_id: None,
                     psync_flow: item.response.intent.clone(),
                     next_action: None,
-                    order_id: None,
+                    order_id: None
                 }),
                 ResponseId::ConnectorTransactionId(item.response.id.clone()),
             ),
@@ -1807,21 +1834,24 @@ where
                     ),
                     psync_flow: item.response.intent.clone(),
                     next_action: None,
-                    order_id: None,
+                    order_id: None
                 }),
                 ResponseId::ConnectorTransactionId(item.response.id.clone()),
             ),
 
-            PaypalPaymentIntent::Authenticate => {
-                Err(ConnectorError::ResponseDeserializationFailed)?
-            }
+            PaypalPaymentIntent::Authenticate => Err(
+                crate::utils::response_handling_fail_for_connector(item.http_code, "paypal"),
+            )?,
         };
         //payment collection will always have only one element as we only make one transaction per order.
         let payment_collection = &item
             .response
             .purchase_units
             .first()
-            .ok_or(ConnectorError::ResponseDeserializationFailed)?
+            .ok_or(crate::utils::response_handling_fail_for_connector(
+                item.http_code,
+                "paypal",
+            ))?
             .payments;
         //payment collection item will either have "authorizations" field or "capture" field, not both at a time.
         let payment_collection_item = match (
@@ -1833,7 +1863,10 @@ where
             (Some(_), Some(captures)) => captures.first(),
             _ => None,
         }
-        .ok_or(ConnectorError::ResponseDeserializationFailed)?;
+        .ok_or(crate::utils::response_handling_fail_for_connector(
+            item.http_code,
+            "paypal",
+        ))?;
         let status = payment_collection_item.status.clone();
         let status = common_enums::AttemptStatus::from(status);
 
@@ -1913,7 +1946,9 @@ where
     }
 }
 
-fn get_redirect_url(link_vec: Vec<PaypalLinks>) -> CustomResult<Option<Url>, ConnectorError> {
+fn get_redirect_url(
+    link_vec: Vec<PaypalLinks>,
+) -> Result<Option<Url>, Report<ConnectorResponseTransformationError>> {
     let mut link: Option<Url> = None;
     for item2 in link_vec.iter() {
         if item2.rel == "payer-action" {
@@ -1926,7 +1961,7 @@ fn get_redirect_url(link_vec: Vec<PaypalLinks>) -> CustomResult<Option<Url>, Con
 impl TryFrom<ResponseRouterData<PaypalSyncResponse, Self>>
     for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<ConnectorResponseTransformationError>;
     fn try_from(item: ResponseRouterData<PaypalSyncResponse, Self>) -> Result<Self, Self::Error> {
         match item.response {
             PaypalSyncResponse::PaypalOrdersSyncResponse(response) => {
@@ -1964,7 +1999,7 @@ impl TryFrom<ResponseRouterData<PaypalSyncResponse, Self>>
 impl TryFrom<ResponseRouterData<PaypalRedirectResponse, Self>>
     for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<ConnectorResponseTransformationError>;
     fn try_from(
         item: ResponseRouterData<PaypalRedirectResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -1985,7 +2020,7 @@ impl TryFrom<ResponseRouterData<PaypalRedirectResponse, Self>>
             incremental_authorization_id: None,
             psync_flow: item.response.intent,
             next_action,
-            order_id: None,
+            order_id: None
         });
         let purchase_units = item.response.purchase_units.first();
         Ok(Self {
@@ -1996,7 +2031,10 @@ impl TryFrom<ResponseRouterData<PaypalRedirectResponse, Self>>
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: Some(Box::new(RedirectForm::from((
-                    link.ok_or(ConnectorError::ResponseDeserializationFailed)?,
+                    link.ok_or(crate::utils::response_handling_fail_for_connector(
+                        item.http_code,
+                        "paypal",
+                    ))?,
                     Method::Get,
                 )))),
                 mandate_reference: None,
@@ -2016,7 +2054,7 @@ impl TryFrom<ResponseRouterData<PaypalRedirectResponse, Self>>
 impl<F, T> TryFrom<ResponseRouterData<PaypalThreeDsSyncResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, T, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<ConnectorResponseTransformationError>;
     fn try_from(
         item: ResponseRouterData<PaypalThreeDsSyncResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -2046,7 +2084,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     TryFrom<ResponseRouterData<PaypalAuthResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<ConnectorResponseTransformationError>;
     fn try_from(item: ResponseRouterData<PaypalAuthResponse, Self>) -> Result<Self, Self::Error> {
         match item.response {
             PaypalAuthResponse::PaypalOrdersResponse(orders_response) => {
@@ -2078,7 +2116,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     TryFrom<ResponseRouterData<PaypalThreeDsResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<ConnectorResponseTransformationError>;
     fn try_from(
         item: ResponseRouterData<PaypalThreeDsResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -2088,7 +2126,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             incremental_authorization_id: None,
             psync_flow: PaypalPaymentIntent::Authenticate, // when there is no capture or auth id present
             next_action: None,
-            order_id: None,
+            order_id: None
         });
 
         let status = get_order_status(
@@ -2104,10 +2142,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             },
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id),
-                redirection_data: Some(Box::new(paypal_threeds_link((
-                    link,
-                    item.router_data.request.complete_authorize_url.clone(),
-                ))?)),
+                redirection_data: Some(Box::new(paypal_threeds_link(
+                    (
+                        link,
+                        item.router_data.request.complete_authorize_url.clone(),
+                    ),
+                    item.http_code,
+                )?)),
                 mandate_reference: None,
                 connector_metadata: Some(connector_meta),
                 network_txn_id: None,
@@ -2124,7 +2165,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     TryFrom<ResponseRouterData<PaypalRedirectResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<ConnectorResponseTransformationError>;
     fn try_from(
         item: ResponseRouterData<PaypalRedirectResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -2137,7 +2178,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             incremental_authorization_id: None,
             psync_flow: item.response.intent,
             next_action: None,
-            order_id: None,
+            order_id: None
         });
         let purchase_units = item.response.purchase_units.first();
         Ok(Self {
@@ -2164,10 +2205,23 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
 fn paypal_threeds_link(
     (redirect_url, complete_auth_url): (Option<Url>, Option<String>),
-) -> CustomResult<RedirectForm, ConnectorError> {
-    let mut redirect_url = redirect_url.ok_or(ConnectorError::ResponseDeserializationFailed)?;
-    let complete_auth_url = complete_auth_url.ok_or(ConnectorError::MissingRequiredField {
-        field_name: "complete_authorize_url",
+    http_status: u16,
+) -> Result<RedirectForm, Report<ConnectorResponseTransformationError>> {
+    let mut redirect_url = redirect_url.ok_or_else(|| {
+        Report::new(
+            ConnectorResponseTransformationError::response_handling_failed_with_context(
+                http_status,
+                Some("missing redirect URL for PayPal 3DS".to_string()),
+            ),
+        )
+    })?;
+    let complete_auth_url = complete_auth_url.ok_or_else(|| {
+        Report::new(
+            ConnectorResponseTransformationError::response_handling_failed_with_context(
+                http_status,
+                Some("complete_authorize_url missing for PayPal 3DS".to_string()),
+            ),
+        )
     })?;
     let mut form_fields = std::collections::HashMap::from_iter(
         redirect_url
@@ -2191,7 +2245,7 @@ fn paypal_threeds_link(
 impl<F, T> TryFrom<ResponseRouterData<PaypalPaymentsSyncResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, T, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<ConnectorResponseTransformationError>;
     fn try_from(
         item: ResponseRouterData<PaypalPaymentsSyncResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -2239,7 +2293,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for PaypalPaymentsCaptureRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<IntegrationError>;
     fn try_from(
         item: PaypalRouterData<
             RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
@@ -2253,7 +2307,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 item.router_data.request.minor_amount_to_capture,
                 item.router_data.request.currency,
             )
-            .change_context(ConnectorError::AmountConversionFailed)?;
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: Default::default(),
+            })?;
         let amount = OrderAmount {
             currency_code: item.router_data.request.currency,
             value,
@@ -2311,7 +2367,7 @@ impl From<PaypalPaymentStatus> for common_enums::AttemptStatus {
 impl TryFrom<ResponseRouterData<PaypalCaptureResponse, Self>>
     for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<ConnectorResponseTransformationError>;
     fn try_from(
         item: ResponseRouterData<PaypalCaptureResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -2351,13 +2407,26 @@ impl TryFrom<ResponseRouterData<PaypalCaptureResponse, Self>>
                 item.router_data.request.amount_to_capture
             }
         };
-        let connector_payment_id: PaypalMeta = to_connector_meta(
+        let connector_payment_id: PaypalMeta = match to_connector_meta(
             item.router_data
                 .request
                 .connector_feature_data
                 .clone()
                 .map(|m| m.expose()),
-        )?;
+        ) {
+            Ok(v) => v,
+            Err(_) => {
+                return Err(Report::new(
+                    ConnectorResponseTransformationError::response_handling_failed_with_context(
+                        item.http_code,
+                        Some(
+                            "invalid or missing connector_meta_data on capture response"
+                                .to_string(),
+                        ),
+                    ),
+                ));
+            }
+        };
 
         // Simplified capture_id logic to use response.id directly
         let capture_id = item.response.id.clone();
@@ -2379,7 +2448,7 @@ impl TryFrom<ResponseRouterData<PaypalCaptureResponse, Self>>
                     incremental_authorization_id: None,
                     psync_flow: PaypalPaymentIntent::Capture,
                     next_action: None,
-                    order_id: None,
+                    order_id: None
                 })),
                 network_txn_id: None,
                 connector_response_reference_id: invoice_id.or(Some(capture_id)),
@@ -2408,7 +2477,7 @@ pub struct PaypalPaymentsCancelResponse {
 impl<F, T> TryFrom<ResponseRouterData<PaypalPaymentsCancelResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, T, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<ConnectorResponseTransformationError>;
     fn try_from(
         item: ResponseRouterData<PaypalPaymentsCancelResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -2441,7 +2510,7 @@ impl<F, T> TryFrom<ResponseRouterData<PaypalPaymentsCancelResponse, Self>>
 impl<F, T> TryFrom<ResponseRouterData<PaypalSetupMandatesResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, T, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<ConnectorResponseTransformationError>;
     fn try_from(
         item: ResponseRouterData<PaypalSetupMandatesResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -2492,7 +2561,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for PaypalZeroMandateRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<IntegrationError>;
     fn try_from(
         item: PaypalRouterData<
             RouterDataV2<
@@ -2535,7 +2604,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::MobilePayment(_) => Err(ConnectorError::NotImplemented(
+            | PaymentMethodData::MobilePayment(_) => Err(IntegrationError::not_implemented(
                 utils::get_unimplemented_payment_method_error_message("Paypal"),
             ))?,
         };
@@ -2554,7 +2623,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         PaymentsResponseData,
     >
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<ConnectorResponseTransformationError>;
     fn try_from(
         item: ResponseRouterData<PaypalPostAuthenticateResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -2736,7 +2805,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for PaypalRefundRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<IntegrationError>;
     fn try_from(
         item: PaypalRouterData<
             RouterDataV2<
@@ -2755,7 +2824,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 item.router_data.request.minor_refund_amount,
                 item.router_data.request.currency,
             )
-            .change_context(ConnectorError::AmountConversionFailed)?;
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: Default::default(),
+            })?;
         Ok(Self {
             amount: OrderAmount {
                 currency_code: item.router_data.request.currency,
@@ -2780,7 +2851,7 @@ impl TryFrom<ResponseRouterData<RefundResponse, Self>>
         RefundsResponseData,
     >
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<ConnectorResponseTransformationError>;
     fn try_from(item: ResponseRouterData<RefundResponse, Self>) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(RefundsResponseData {
@@ -2807,7 +2878,7 @@ impl TryFrom<ResponseRouterData<RefundSyncResponse, Self>>
         RefundsResponseData,
     >
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<ConnectorResponseTransformationError>;
     fn try_from(item: ResponseRouterData<RefundSyncResponse, Self>) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(RefundsResponseData {
@@ -2834,7 +2905,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for PaypalPaymentsRequest<T>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<IntegrationError>;
 
     fn try_from(
         item: PaypalRouterData<
@@ -2851,21 +2922,23 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let connector_mandate_id = match &item.router_data.request.mandate_reference {
             domain_types::connector_types::MandateReferenceId::ConnectorMandateId(data) => data
                 .get_connector_mandate_id()
-                .ok_or_else(|| ConnectorError::MissingRequiredField {
+                .ok_or(IntegrationError::MissingRequiredField {
                     field_name: "connector_mandate_id",
+                    context: Default::default(),
                 })?,
             domain_types::connector_types::MandateReferenceId::NetworkMandateId(_)
             | domain_types::connector_types::MandateReferenceId::NetworkTokenWithNTI(_) => {
-                return Err(error_stack::report!(ConnectorError::NotSupported {
+                return Err(error_stack::report!(IntegrationError::NotSupported {
                     message: "Network mandate ID not supported for PayPal repeat payments"
                         .to_string(),
                     connector: "paypal",
+                    context: Default::default()
                 }));
             }
         };
 
         // Determine intent based on capture_method
-        let intent = if item.router_data.request.is_auto_capture()? {
+        let intent = if item.router_data.request.is_auto_capture() {
             PaypalPaymentIntent::Capture
         } else {
             PaypalPaymentIntent::Authorize
@@ -2894,13 +2967,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             items: item_details,
         }];
 
-        let payment_method_type =
-            item.router_data
-                .request
-                .payment_method_type
-                .ok_or_else(|| ConnectorError::MissingRequiredField {
-                    field_name: "payment_method_type",
-                })?;
+        let payment_method_type = item.router_data.request.payment_method_type.ok_or(
+            IntegrationError::MissingRequiredField {
+                field_name: "payment_method_type",
+                context: Default::default(),
+            },
+        )?;
 
         let payment_source = match payment_method_type {
             common_enums::PaymentMethodType::Card => Some(PaymentSourceItem::Card(
@@ -2914,11 +2986,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 }),
             )),
             _ => {
-                return Err(error_stack::report!(ConnectorError::NotSupported {
+                return Err(error_stack::report!(IntegrationError::NotSupported {
                     message: format!(
                         "Payment method type {payment_method_type:?} not supported for PayPal repeat payments"
                     ),
                     connector: "paypal",
+                context: Default::default()
                 }));
             }
         };
@@ -3120,12 +3193,14 @@ fn webhook_headers_lowercase(
 
 // Transformers for VerifyWebhookSource flow
 impl TryFrom<&VerifyWebhookSourceRequestData> for PaypalSourceVerificationRequest {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<IntegrationError>;
     fn try_from(req: &VerifyWebhookSourceRequestData) -> Result<Self, Self::Error> {
         // Parse the webhook body into serde_json::Value
         // With preserve_order feature enabled, this preserves field order (uses IndexMap, not BTreeMap)
         let webhook_event = serde_json::from_slice(&req.webhook_body)
-            .change_context(ConnectorError::WebhookBodyDecodingFailed)
+            .change_context(IntegrationError::not_implemented(
+                "webhook body decoding failed".to_string(),
+            ))
             .attach_printable("Webhook body is not valid JSON")?;
 
         let headers = webhook_headers_lowercase(&req.webhook_headers);
@@ -3133,36 +3208,43 @@ impl TryFrom<&VerifyWebhookSourceRequestData> for PaypalSourceVerificationReques
         Ok(Self {
             transmission_id: headers
                 .get(webhook_headers::PAYPAL_TRANSMISSION_ID)
-                .ok_or(ConnectorError::MissingRequiredField {
+                .ok_or(IntegrationError::MissingRequiredField {
                     field_name: webhook_headers::PAYPAL_TRANSMISSION_ID,
+                    context: Default::default(),
                 })?
                 .clone(),
             transmission_time: headers
                 .get(webhook_headers::PAYPAL_TRANSMISSION_TIME)
-                .ok_or(ConnectorError::MissingRequiredField {
+                .ok_or(IntegrationError::MissingRequiredField {
                     field_name: webhook_headers::PAYPAL_TRANSMISSION_TIME,
+                    context: Default::default(),
                 })?
                 .clone(),
             cert_url: headers
                 .get(webhook_headers::PAYPAL_CERT_URL)
-                .ok_or(ConnectorError::MissingRequiredField {
+                .ok_or(IntegrationError::MissingRequiredField {
                     field_name: webhook_headers::PAYPAL_CERT_URL,
+                    context: Default::default(),
                 })?
                 .clone(),
             transmission_sig: headers
                 .get(webhook_headers::PAYPAL_TRANSMISSION_SIG)
-                .ok_or(ConnectorError::MissingRequiredField {
+                .ok_or(IntegrationError::MissingRequiredField {
                     field_name: webhook_headers::PAYPAL_TRANSMISSION_SIG,
+                    context: Default::default(),
                 })?
                 .clone(),
             auth_algo: headers
                 .get(webhook_headers::PAYPAL_AUTH_ALGO)
-                .ok_or(ConnectorError::MissingRequiredField {
+                .ok_or(IntegrationError::MissingRequiredField {
                     field_name: webhook_headers::PAYPAL_AUTH_ALGO,
+                    context: Default::default(),
                 })?
                 .clone(),
             webhook_id: String::from_utf8(req.merchant_secret.secret.to_vec())
-                .change_context(ConnectorError::WebhookVerificationSecretNotFound)
+                .change_context(IntegrationError::not_implemented(
+                    "webhook verification secret not found".to_string(),
+                ))
                 .attach_printable("Could not convert secret to UTF-8")?,
             webhook_event,
         })
@@ -3186,7 +3268,7 @@ impl TryFrom<ResponseRouterData<PaypalSourceVerificationResponse, Self>>
         VerifyWebhookSourceResponseData,
     >
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<ConnectorResponseTransformationError>;
 
     fn try_from(
         item: ResponseRouterData<PaypalSourceVerificationResponse, Self>,

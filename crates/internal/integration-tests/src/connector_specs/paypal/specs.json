@@ -1,7 +1,7 @@
 {
   "connector": "paypal",
   "supported_suites": [
-    "create_access_token",
+    "server_authentication_token",
     "authorize",
     "complete_authorize",
     "capture",

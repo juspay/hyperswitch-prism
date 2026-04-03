@@ -35,10 +35,10 @@ pub struct SubmitEvidence;
 pub struct DefendDispute;
 
 #[derive(Debug, Clone)]
-pub struct CreateSessionToken;
+pub struct ServerSessionAuthenticationToken;
 
 #[derive(Debug, Clone)]
-pub struct CreateAccessToken;
+pub struct ServerAuthenticationToken;
 
 #[derive(Debug, Clone)]
 pub struct CreateConnectorCustomer;
@@ -59,7 +59,7 @@ pub struct PostAuthenticate;
 pub struct VoidPC;
 
 #[derive(Debug, Clone)]
-pub struct SdkSessionToken;
+pub struct ClientAuthenticationToken;
 
 #[derive(Debug, Clone)]
 pub struct IncrementalAuthorization;
@@ -112,14 +112,14 @@ pub enum FlowName {
     CreateOrder,
     IncomingWebhook,
     Dsync,
-    CreateSessionToken,
-    CreateAccessToken,
+    ServerSessionAuthenticationToken,
+    ServerAuthenticationToken,
     CreateConnectorCustomer,
     PaymentMethodToken,
     PreAuthenticate,
     Authenticate,
     PostAuthenticate,
-    SdkSessionToken,
+    ClientAuthenticationToken,
     IncrementalAuthorization,
     MandateRevoke,
     PayoutCreate,

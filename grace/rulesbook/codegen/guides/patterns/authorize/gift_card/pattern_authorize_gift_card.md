@@ -243,12 +243,12 @@ For connectors that do not support Gift Card payments:
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<&GiftCardData> for {ConnectorName}PaymentsRequest<T>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(value: &GiftCardData) -> Result<Self, Self::Error> {
         match value {
             GiftCardData::Givex(_) | GiftCardData::PaySafeCard {} => {
-                Err(ConnectorError::NotImplemented(
-                    get_unimplemented_payment_method_error_message("{ConnectorName}"),
+                Err(IntegrationError::NotImplemented(
+                    get_unimplemented_payment_method_error_message("{ConnectorName}", Default::default()),
                 )
                 .into())
             }
@@ -314,7 +314,7 @@ use domain_types::{
         PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData,
         PaymentsSyncData, RefundFlowData, RefundsData, RefundsResponseData,
     },
-    errors::{self, ConnectorError},
+    errors::{self, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorAuthType, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -371,7 +371,7 @@ macros::create_all_prerequisites!(
         pub fn build_headers<F, FCD, Req, Res>(
             &self,
             req: &RouterDataV2<F, FCD, Req, Res>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let mut header = vec![(
                 headers::CONTENT_TYPE.to_string(),
                 "application/json".to_string().into(),
@@ -409,9 +409,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
     fn get_auth_header(
         &self,
         auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
         let auth = {ConnectorName}AuthType::try_from(auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+            .change_context(errors::IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
 
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
@@ -423,13 +423,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
         &self,
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<ErrorResponse, errors::ConnectorResponseTransformationError> {
         let response: {ConnectorName}ErrorResponse = if res.response.is_empty() {
             {ConnectorName}ErrorResponse::default()
         } else {
             res.response
                 .parse_struct("ErrorResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
+                .change_context(errors::ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })?
         };
 
         if let Some(i) = event_builder {
@@ -467,14 +467,14 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
 
         fn get_url(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
-        ) -> CustomResult<String, ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let base_url = self.connector_base_url_payments(req);
             Ok(format!("{base_url}/v68/payments"))
         }
@@ -529,7 +529,7 @@ pub enum {ConnectorName}PaymentMethod<T> {
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<&GiftCardData> for {ConnectorName}PaymentMethod<T>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(gift_card_data: &GiftCardData) -> Result<Self, Self::Error> {
         match gift_card_data {
             GiftCardData::PaySafeCard {} => Ok(Self::PaySafeCard),
@@ -550,7 +550,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     TryFrom<{ConnectorName}RouterData<RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>, T>>
     for {ConnectorName}AuthorizeRequest<T>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: {ConnectorName}RouterData<RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>, T>,
@@ -562,8 +562,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentMethodData::GiftCard(gift_card_data) => {
                 {ConnectorName}PaymentMethod::try_from(gift_card_data.as_ref())?
             }
-            _ => return Err(ConnectorError::NotImplemented(
-                "Only Gift Card payments are supported".to_string()
+            _ => return Err(IntegrationError::NotImplemented(
+                "Only Gift Card payments are supported".to_string(, Default::default())
             ).into()),
         };
 
@@ -619,16 +619,16 @@ match gift_card_data {
 
 ```rust
 impl GiftCardDetails {
-    pub fn validate(&self) -> Result<(), ConnectorError> {
+    pub fn validate(&self) -> Result<(), IntegrationError> {
         if self.number.peek().is_empty() {
-            return Err(ConnectorError::MissingRequiredField {
+            return Err(IntegrationError::MissingRequiredField {
                 field_name: "gift_card.number",
-            });
+            , context: Default::default() });
         }
         if self.cvc.peek().is_empty() {
-            return Err(ConnectorError::MissingRequiredField {
+            return Err(IntegrationError::MissingRequiredField {
                 field_name: "gift_card.cvc",
-            });
+            , context: Default::default() });
         }
         Ok(())
     }

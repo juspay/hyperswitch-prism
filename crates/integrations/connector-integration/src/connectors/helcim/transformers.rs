@@ -6,13 +6,13 @@ use domain_types::{
         PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
         RefundSyncData, RefundsData, RefundsResponseData, ResponseId, SetupMandateRequestData,
     },
-    errors::ConnectorError,
+    errors::{ConnectorResponseTransformationError, IntegrationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
     router_request_types::SyncRequestType,
 };
-use error_stack::ResultExt;
+use error_stack::{Report, ResultExt};
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -23,14 +23,15 @@ use crate::{connectors::helcim::HelcimRouterData, types::ResponseRouterData};
 
 pub fn check_currency(
     currency: common_enums::Currency,
-) -> Result<common_enums::Currency, ConnectorError> {
+) -> Result<common_enums::Currency, IntegrationError> {
     if currency == common_enums::Currency::USD {
         Ok(currency)
     } else {
-        Err(ConnectorError::NotSupported {
+        Err(IntegrationError::NotSupported {
             message: format!("currency {currency} is not supported for this merchant account"),
             connector: "Helcim",
-        })?
+            context: Default::default(),
+        })
     }
 }
 
@@ -40,13 +41,16 @@ pub struct HelcimAuthType {
 }
 
 impl TryFrom<&ConnectorSpecificConfig> for HelcimAuthType {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<IntegrationError>;
     fn try_from(auth_type: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         match auth_type {
             ConnectorSpecificConfig::Helcim { api_key, .. } => Ok(Self {
                 api_key: api_key.to_owned(),
             }),
-            _ => Err(ConnectorError::FailedToObtainAuthType.into()),
+            _ => Err(IntegrationError::FailedToObtainAuthType {
+                context: Default::default(),
+            }
+            .into()),
         }
     }
 }
@@ -119,7 +123,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for HelcimPaymentsRequest<T>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<IntegrationError>;
     fn try_from(
         item: HelcimRouterData<
             RouterDataV2<
@@ -138,7 +142,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 card_number: card.card_number.clone(),
                 card_c_v_v: card.card_cvc.clone(),
             },
-            _ => return Err(ConnectorError::NotImplemented("payment method".into()).into()),
+            _ => return Err(IntegrationError::not_implemented("payment method").into()),
         };
 
         let req_address = item
@@ -164,7 +168,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 item.router_data.request.minor_amount,
                 item.router_data.request.currency,
             )
-            .change_context(ConnectorError::AmountConversionFailed)?;
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: Default::default(),
+            })?;
 
         let line_items = vec![HelcimLineItems {
             description: item
@@ -263,7 +269,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     TryFrom<ResponseRouterData<HelcimPaymentsResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<ConnectorResponseTransformationError>;
     fn try_from(
         item: ResponseRouterData<HelcimPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -271,7 +277,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         //Initially resource_id is stored as NoResponseID for manual capture
         //After Capture Transaction is completed it is updated to store the Capture ID
 
-        let is_auto_capture = item.router_data.request.is_auto_capture()?;
+        let is_auto_capture = item.router_data.request.is_auto_capture();
 
         let resource_id = if is_auto_capture {
             ResponseId::ConnectorTransactionId(item.response.transaction_id.to_string())
@@ -281,7 +287,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let connector_metadata = if !is_auto_capture {
             Some(serde_json::json!(HelcimMetaData {
-                preauth_transaction_id: item.response.transaction_id.to_string(),
+                preauth_transaction_id: item.response.transaction_id.to_string()
             }))
         } else {
             None
@@ -312,7 +318,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl<F> TryFrom<ResponseRouterData<HelcimPaymentsResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<ConnectorResponseTransformationError>;
     fn try_from(
         item: ResponseRouterData<HelcimPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -341,10 +347,12 @@ impl<F> TryFrom<ResponseRouterData<HelcimPaymentsResponse, Self>>
                 })
             }
             SyncRequestType::MultipleCaptureSync => {
-                Err(
-                    ConnectorError::NotImplemented("manual multiple capture sync".to_string())
-                        .into(),
-                )
+                Err(Report::new(
+                    ConnectorResponseTransformationError::unexpected_response_error_with_context(
+                        item.http_code,
+                        Some("manual multiple capture sync not supported".to_string()),
+                    ),
+                ))
                 // let capture_sync_response_list =
                 //     utils::construct_captures_response_hashmap(vec![item.response]);
                 // Ok(Self {
@@ -376,7 +384,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for HelcimCaptureRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<IntegrationError>;
     fn try_from(
         item: HelcimRouterData<
             RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
@@ -391,7 +399,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 item.router_data.request.minor_amount_to_capture,
                 item.router_data.request.currency,
             )
-            .change_context(ConnectorError::AmountConversionFailed)?;
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: Default::default(),
+            })?;
 
         Ok(Self {
             pre_auth_transaction_id: item
@@ -399,7 +409,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .request
                 .get_connector_transaction_id()?
                 .parse::<u64>()
-                .change_context(ConnectorError::RequestEncodingFailed)?,
+                .change_context(IntegrationError::RequestEncodingFailed {
+                    context: Default::default(),
+                })?,
             amount,
             ip_address,
             ecommerce: None,
@@ -410,7 +422,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl<F> TryFrom<ResponseRouterData<HelcimPaymentsResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<ConnectorResponseTransformationError>;
     fn try_from(
         item: ResponseRouterData<HelcimPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -455,7 +467,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for HelcimVoidRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<IntegrationError>;
     fn try_from(
         item: HelcimRouterData<
             RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
@@ -470,7 +482,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .request
                 .connector_transaction_id
                 .parse::<u64>()
-                .change_context(ConnectorError::RequestEncodingFailed)?,
+                .change_context(IntegrationError::RequestEncodingFailed {
+                    context: Default::default(),
+                })?,
             ip_address,
             ecommerce: None,
         })
@@ -482,7 +496,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl<F> TryFrom<ResponseRouterData<HelcimPaymentsResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<ConnectorResponseTransformationError>;
     fn try_from(
         item: ResponseRouterData<HelcimPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -540,7 +554,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for HelcimSetupMandateRequest<T>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<IntegrationError>;
     fn try_from(
         item: HelcimRouterData<
             RouterDataV2<
@@ -559,7 +573,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 card_number: card.card_number.clone(),
                 card_c_v_v: card.card_cvc.clone(),
             },
-            _ => return Err(ConnectorError::NotImplemented("payment method".into()).into()),
+            _ => return Err(IntegrationError::not_implemented("payment method").into()),
         };
 
         let req_address = item
@@ -588,7 +602,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .unwrap_or(common_utils::types::MinorUnit::new(0)),
                 item.router_data.request.currency,
             )
-            .change_context(ConnectorError::AmountConversionFailed)?;
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: Default::default(),
+            })?;
 
         let line_items = vec![HelcimLineItems {
             description: item
@@ -635,7 +651,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         PaymentsResponseData,
     >
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<ConnectorResponseTransformationError>;
     fn try_from(
         item: ResponseRouterData<HelcimPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -683,7 +699,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
     TryFrom<HelcimRouterData<RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>, T>>
     for HelcimRefundRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<IntegrationError>;
     fn try_from(
         item: HelcimRouterData<
             RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>,
@@ -695,7 +711,9 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
             .request
             .connector_transaction_id
             .parse::<u64>()
-            .change_context(ConnectorError::RequestEncodingFailed)?;
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?;
 
         let ip_address = item.router_data.request.get_ip_address()?;
         let amount = item
@@ -705,7 +723,9 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                 item.router_data.request.minor_refund_amount,
                 item.router_data.request.currency,
             )
-            .change_context(ConnectorError::AmountConversionFailed)?;
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: Default::default(),
+            })?;
 
         Ok(Self {
             amount,
@@ -747,7 +767,7 @@ impl From<RefundResponse> for common_enums::RefundStatus {
 impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
     for RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<ConnectorResponseTransformationError>;
     fn try_from(item: ResponseRouterData<RefundResponse, Self>) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(RefundsResponseData {
@@ -763,7 +783,7 @@ impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
 impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
     for RouterDataV2<F, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<ConnectorResponseTransformationError>;
     fn try_from(item: ResponseRouterData<RefundResponse, Self>) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(RefundsResponseData {

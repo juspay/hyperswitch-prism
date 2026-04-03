@@ -83,7 +83,7 @@ Analysis of connectors reveals distinct implementation patterns:
 
 ```rust
 // Uses specialized endpoint for mandate cancellation
-fn get_url(&self, req: &RouterDataV2<MandateRevoke, ...>) -> CustomResult<String, ConnectorError> {
+fn get_url(&self, req: &RouterDataV2<MandateRevoke, ...>) -> CustomResult<String, IntegrationError> {
     let mandate_id = req.request.mandate_id.clone().expose();
     Ok(format!("{}/v1/mandates/{}/cancel", self.connector_base_url(req), mandate_id))
 }
@@ -95,7 +95,7 @@ fn get_url(&self, req: &RouterDataV2<MandateRevoke, ...>) -> CustomResult<String
 
 ```rust
 // Uses same endpoint with operation flag
-fn get_url(&self, req: &RouterDataV2<MandateRevoke, ...>) -> CustomResult<String, ConnectorError> {
+fn get_url(&self, req: &RouterDataV2<MandateRevoke, ...>) -> CustomResult<String, IntegrationError> {
     Ok(format!("{}/payment/v1/order", self.connector_base_url(req)))
     // Request body contains api_operation: "CancelSubscription"
 }
@@ -153,7 +153,7 @@ use domain_types::{
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData,
         RefundsData, RefundsResponseData, ResponseId, SetupMandateRequestData,
     },
-    errors::{self, ConnectorError},
+    errors::{self, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorAuthType, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -218,7 +218,7 @@ macros::create_all_prerequisites!(
         pub fn build_headers<F, FCD, Req, Res>(
             &self,
             req: &RouterDataV2<F, FCD, Req, Res>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let mut header = vec![(
                 headers::CONTENT_TYPE.to_string(),
                 "application/json".to_string().into(),
@@ -256,9 +256,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
     fn get_auth_header(
         &self,
         auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
         let auth = transformers::{ConnectorName}AuthType::try_from(auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+            .change_context(errors::IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
 
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
@@ -270,10 +270,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
         &self,
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<ErrorResponse, errors::ConnectorResponseTransformationError> {
         let response: {ConnectorName}ErrorResponse = res.response
             .parse_struct("ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            .change_context(errors::ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })?;
 
         if let Some(i) = event_builder {
             i.set_error_response_body(&response);
@@ -310,14 +310,14 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<MandateRevoke, PaymentFlowData, MandateRevokeRequestData, MandateRevokeResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
 
         fn get_url(
             &self,
             req: &RouterDataV2<MandateRevoke, PaymentFlowData, MandateRevokeRequestData, MandateRevokeResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, errors::IntegrationError> {
             let base_url = self.connector_base_url_payments(req);
             // Choose appropriate pattern:
 
@@ -358,7 +358,7 @@ use domain_types::{
         MandateRevokeRequestData, MandateRevokeResponseData,
         PaymentFlowData,
     },
-    errors::{self, ConnectorError},
+    errors::{self, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorAuthType, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -376,14 +376,14 @@ pub struct {ConnectorName}AuthType {
 }
 
 impl TryFrom<&ConnectorAuthType> for {ConnectorName}AuthType {
-    type Error = ConnectorError;
+    type Error = IntegrationError;
 
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
             ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
                 api_key: api_key.to_owned(),
             }),
-            _ => Err(ConnectorError::FailedToObtainAuthType),
+            _ => Err(IntegrationError::FailedToObtainAuthType { context: Default::default() }),
         }
     }
 }
@@ -483,7 +483,7 @@ pub struct {ConnectorName}ErrorResponse {
 impl TryFrom<&RouterDataV2<MandateRevoke, PaymentFlowData, MandateRevokeRequestData, MandateRevokeResponseData>>
     for {ConnectorName}RevokeMandateRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         router_data: &RouterDataV2<MandateRevoke, PaymentFlowData, MandateRevokeRequestData, MandateRevokeResponseData>,
@@ -499,7 +499,7 @@ impl TryFrom<&RouterDataV2<MandateRevoke, PaymentFlowData, MandateRevokeRequestD
 impl TryFrom<&RouterDataV2<MandateRevoke, PaymentFlowData, MandateRevokeRequestData, MandateRevokeResponseData>>
     for {ConnectorName}RevokeMandateRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         router_data: &RouterDataV2<MandateRevoke, PaymentFlowData, MandateRevokeRequestData, MandateRevokeResponseData>,
@@ -521,7 +521,7 @@ impl TryFrom<&RouterDataV2<MandateRevoke, PaymentFlowData, MandateRevokeRequestD
 impl TryFrom<ResponseRouterData<{ConnectorName}RevokeMandateResponse, Self>>
     for RouterDataV2<MandateRevoke, PaymentFlowData, MandateRevokeRequestData, MandateRevokeResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
 
     fn try_from(
         item: ResponseRouterData<{ConnectorName}RevokeMandateResponse, Self>,
@@ -531,7 +531,7 @@ impl TryFrom<ResponseRouterData<{ConnectorName}RevokeMandateResponse, Self>>
                 common_enums::MandateStatus::Revoked
             }
             {ConnectorName}RevokeStatus::Failed => {
-                return Err(ConnectorError::ResponseDeserializationFailed.into())
+                return Err(ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() }.into())
             }
         };
 
@@ -549,7 +549,7 @@ impl TryFrom<ResponseRouterData<{ConnectorName}RevokeMandateResponse, Self>>
 impl TryFrom<ResponseRouterData<{ConnectorName}RevokeMandateResponse, Self>>
     for RouterDataV2<MandateRevoke, PaymentFlowData, MandateRevokeRequestData, MandateRevokeResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
 
     fn try_from(
         item: ResponseRouterData<{ConnectorName}RevokeMandateResponse, Self>,
@@ -573,7 +573,7 @@ pub struct {ConnectorName}RouterData<T, U> {
 }
 
 impl<T, U> TryFrom<(T, U)> for {ConnectorName}RouterData<T, U> {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from((router_data, connector): (T, U)) -> Result<Self, Self::Error> {
         Ok(Self {
@@ -689,7 +689,7 @@ fn map_revoke_status(status: ConnectorRevokeStatus) -> common_enums::MandateStat
 
 ```rust
 // Standard pattern: POST /v1/mandates/{id}/cancel
-fn get_url(&self, req: &RouterDataV2<MandateRevoke, ...>) -> CustomResult<String, ConnectorError> {
+fn get_url(&self, req: &RouterDataV2<MandateRevoke, ...>) -> CustomResult<String, IntegrationError> {
     let mandate_id = req.request.mandate_id.peek();
     Ok(format!("{}/v1/mandates/{}/cancel",
         self.connector_base_url(req),
@@ -702,7 +702,7 @@ fn get_url(&self, req: &RouterDataV2<MandateRevoke, ...>) -> CustomResult<String
 
 ```rust
 // DELETE /v1/mandates/{id}
-fn get_url(&self, req: &RouterDataV2<MandateRevoke, ...>) -> CustomResult<String, ConnectorError> {
+fn get_url(&self, req: &RouterDataV2<MandateRevoke, ...>) -> CustomResult<String, IntegrationError> {
     let mandate_id = req.request.mandate_id.peek();
     Ok(format!("{}/v1/mandates/{}",
         self.connector_base_url(req),
@@ -715,7 +715,7 @@ fn get_url(&self, req: &RouterDataV2<MandateRevoke, ...>) -> CustomResult<String
 
 ```rust
 // POST /payment/v1/order (with operation flag in body)
-fn get_url(&self, req: &RouterDataV2<MandateRevoke, ...>) -> CustomResult<String, ConnectorError> {
+fn get_url(&self, req: &RouterDataV2<MandateRevoke, ...>) -> CustomResult<String, IntegrationError> {
     Ok(format!("{}/payment/v1/order",
         self.connector_base_url(req)
     ))
@@ -732,10 +732,10 @@ impl ConnectorCommon for {ConnectorName} {
         &self,
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, ConnectorError> {
+    ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
         let response: {ConnectorName}ErrorResponse = res.response
             .parse_struct("ErrorResponse")
-            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+            .change_context(ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })?;
 
         if let Some(i) = event_builder {
             i.set_error_response_body(&response);
@@ -771,7 +771,7 @@ impl ConnectorCommon for {ConnectorName} {
 impl TryFrom<ResponseRouterData<{ConnectorName}RevokeMandateResponse, Self>>
     for RouterDataV2<MandateRevoke, PaymentFlowData, MandateRevokeRequestData, MandateRevokeResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
 
     fn try_from(
         item: ResponseRouterData<{ConnectorName}RevokeMandateResponse, Self>,
@@ -786,7 +786,7 @@ impl TryFrom<ResponseRouterData<{ConnectorName}RevokeMandateResponse, Self>>
             }),
             {ConnectorName}RevokeStatus::Failed => {
                 // Return error response
-                Err(ConnectorError::ResponseDeserializationFailed.into())
+                Err(ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() }.into())
             }
         }
     }

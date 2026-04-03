@@ -47,7 +47,7 @@ Full PM name → category mapping: `references/category-mapping.md`
 
 ## Critical Rules
 
-- Never use catch-all `_` to silently drop payment methods -- always return `ConnectorError::NotImplemented`
+- Never use catch-all `_` to silently drop payment methods -- always return `IntegrationError::NotImplemented`
 - Each payment method gets its own explicit match arm
 - `BankTransferData` and `GiftCardData` are Box-wrapped -- use `.deref()`
 - Wallet sub-variants (ApplePay, GooglePay, etc.) each need separate nested match arms
@@ -165,21 +165,21 @@ match payment_method_data {
             let token = google_pay.tokenization_data.token.clone();
             Ok(ConnectorPaymentsRequest { payment_type: "googlepay", token, ... })
         },
-        _ => Err(errors::ConnectorError::NotImplemented(
-            utils::get_unimplemented_payment_method_error_message("ConnectorName"),
+        _ => Err(errors::IntegrationError::NotImplemented(
+            utils::get_unimplemented_payment_method_error_message("ConnectorName", Default::default()),
         ).into()),
     },
 
     // ---- Bank Transfer (Box-wrapped, must .deref()) ----
     PaymentMethodData::BankTransfer(bt) => match bt.deref() {
         BankTransferData::SepaBankTransfer { .. } => { ... },
-        _ => Err(errors::ConnectorError::NotImplemented(...).into()),
+        _ => Err(errors::IntegrationError::NotImplemented(..., Default::default()).into()),
     },
 
     // ---- Bank Debit ----
     PaymentMethodData::BankDebit(bd) => match bd {
         BankDebitData::SepaBankDebit { iban, .. } => { ... },
-        _ => Err(errors::ConnectorError::NotImplemented(...).into()),
+        _ => Err(errors::IntegrationError::NotImplemented(..., Default::default()).into()),
     },
 
     // ---- UPI ----
@@ -188,18 +188,18 @@ match payment_method_data {
             let vpa = c.vpa_id.clone().ok_or_else(missing_field_err("vpa_id"))?;
             Ok(ConnectorPaymentsRequest { payment_type: "upi_collect", vpa, ... })
         },
-        _ => Err(errors::ConnectorError::NotImplemented(...).into()),
+        _ => Err(errors::IntegrationError::NotImplemented(..., Default::default()).into()),
     },
 
     // ---- BNPL ----
     PaymentMethodData::PayLater(pl) => match pl {
         PayLaterData::KlarnaRedirect { .. } => { ... },
-        _ => Err(errors::ConnectorError::NotImplemented(...).into()),
+        _ => Err(errors::IntegrationError::NotImplemented(..., Default::default()).into()),
     },
 
     // ---- Catch-all: explicit rejection ----
-    _ => Err(errors::ConnectorError::NotImplemented(
-        utils::get_unimplemented_payment_method_error_message("ConnectorName"),
+    _ => Err(errors::IntegrationError::NotImplemented(
+        utils::get_unimplemented_payment_method_error_message("ConnectorName", Default::default()),
     ).into()),
 }
 ```

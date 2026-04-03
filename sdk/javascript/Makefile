@@ -188,13 +188,13 @@ test-composite: build-ffi-lib generate-all build-ts pack-archive
 	@test -f $(JS_TARBALL) || (echo "Error: Tarball not found: $(JS_TARBALL)" && exit 1)
 	@cd /tmp/test-hyperswitch-js-composite && npm init -y --silent && \
 		npm install $(JS_TARBALL) typescript @types/node --silent
-	@cp $(SDK_ROOT)/smoke-test/test_composite.ts /tmp/test-hyperswitch-js-composite/
+	@cp $(SDK_ROOT)/smoke-test/test_smoke_composite.ts /tmp/test-hyperswitch-js-composite/
 	@cp $(SDK_ROOT)/smoke-test/tsconfig.json      /tmp/test-hyperswitch-js-composite/
 	@if [ -f $(REPO_ROOT)/creds.json ]; then \
 		cp $(REPO_ROOT)/creds.json /tmp/test-hyperswitch-js-composite/; \
 	fi
 	@cd /tmp/test-hyperswitch-js-composite && npx tsc && \
-		NODE_PATH=/tmp/test-hyperswitch-js-composite/node_modules node test_composite.js \
+		NODE_PATH=/tmp/test-hyperswitch-js-composite/node_modules node test_smoke_composite.js \
 		--connectors $(CONNECTORS) --examples-dir $(REPO_ROOT)/examples
 	@rm -rf /tmp/test-hyperswitch-js-composite
 

@@ -6,8 +6,9 @@ use grpc_api_types::payments::{
     DisputeServiceAcceptRequest,
     DisputeServiceDefendRequest,
     DisputeServiceSubmitEvidenceRequest,
-    MerchantAuthenticationServiceCreateAccessTokenRequest,
-    MerchantAuthenticationServiceCreateSessionTokenRequest,
+    MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
+    MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
+    MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest,
     PaymentMethodAuthenticationServiceAuthenticateRequest,
     PaymentMethodAuthenticationServicePostAuthenticateRequest,
     PaymentMethodAuthenticationServicePreAuthenticateRequest,
@@ -44,9 +45,10 @@ use crate::handlers::payments::{
     capture_req_handler, capture_res_handler,
     charge_req_handler, charge_res_handler,
     create_req_handler, create_res_handler,
-    create_access_token_req_handler, create_access_token_res_handler,
+    create_client_authentication_token_req_handler, create_client_authentication_token_res_handler,
     create_order_req_handler, create_order_res_handler,
-    create_session_token_req_handler, create_session_token_res_handler,
+    create_server_authentication_token_req_handler, create_server_authentication_token_res_handler,
+    create_server_session_authentication_token_req_handler, create_server_session_authentication_token_res_handler,
     defend_req_handler, defend_res_handler,
     get_req_handler, get_res_handler,
     payout_create_req_handler, payout_create_res_handler,
@@ -83,12 +85,14 @@ define_ffi_flow!(capture, PaymentServiceCaptureRequest, capture_req_handler, cap
 define_ffi_flow!(charge, RecurringPaymentServiceChargeRequest, charge_req_handler, charge_res_handler);
 // create: CustomerService.Create — Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information.
 define_ffi_flow!(create, CustomerServiceCreateRequest, create_req_handler, create_res_handler);
-// create_access_token: MerchantAuthenticationService.CreateAccessToken — Generate short-lived connector authentication token. Provides secure credentials for connector API access without storing secrets client-side.
-define_ffi_flow!(create_access_token, MerchantAuthenticationServiceCreateAccessTokenRequest, create_access_token_req_handler, create_access_token_res_handler);
+// create_client_authentication_token: MerchantAuthenticationService.CreateClientAuthenticationToken — Initialize client-facing SDK sessions for wallets, device fingerprinting, etc. Returns structured data the client SDK needs to render payment/verification UI.
+define_ffi_flow!(create_client_authentication_token, MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest, create_client_authentication_token_req_handler, create_client_authentication_token_res_handler);
 // create_order: PaymentService.CreateOrder — Create a payment order for later processing. Establishes a transaction context that can be authorized or captured in subsequent API calls.
 define_ffi_flow!(create_order, PaymentServiceCreateOrderRequest, create_order_req_handler, create_order_res_handler);
-// create_session_token: MerchantAuthenticationService.CreateSessionToken — Create session token for payment processing. Maintains session state across multiple payment operations for improved security and tracking.
-define_ffi_flow!(create_session_token, MerchantAuthenticationServiceCreateSessionTokenRequest, create_session_token_req_handler, create_session_token_res_handler);
+// create_server_authentication_token: MerchantAuthenticationService.CreateServerAuthenticationToken — Generate short-lived connector authentication token. Provides secure credentials for connector API access without storing secrets client-side.
+define_ffi_flow!(create_server_authentication_token, MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest, create_server_authentication_token_req_handler, create_server_authentication_token_res_handler);
+// create_server_session_authentication_token: MerchantAuthenticationService.CreateServerSessionAuthenticationToken — Create a server-side session with the connector. Establishes session state for multi-step operations like 3DS verification or wallet authorization.
+define_ffi_flow!(create_server_session_authentication_token, MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest, create_server_session_authentication_token_req_handler, create_server_session_authentication_token_res_handler);
 // defend: DisputeService.Defend — Submit defense with reason code for dispute. Presents formal argument against customer's chargeback claim with supporting documentation.
 define_ffi_flow!(defend, DisputeServiceDefendRequest, defend_req_handler, defend_res_handler);
 // get: PaymentService.Get — Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.

@@ -52,10 +52,12 @@ SERVICE_FLOWS = {
         "create": "CustomerServiceCreateResponse",
     },
     "MerchantAuthenticationClient": {
-        # create_access_token: MerchantAuthenticationService.CreateAccessToken — Generate short-lived connector authentication token. Provides secure credentials for connector API access without storing secrets client-side.
-        "create_access_token": "MerchantAuthenticationServiceCreateAccessTokenResponse",
-        # create_session_token: MerchantAuthenticationService.CreateSessionToken — Create session token for payment processing. Maintains session state across multiple payment operations for improved security and tracking.
-        "create_session_token": "MerchantAuthenticationServiceCreateSessionTokenResponse",
+        # create_client_authentication_token: MerchantAuthenticationService.CreateClientAuthenticationToken — Initialize client-facing SDK sessions for wallets, device fingerprinting, etc. Returns structured data the client SDK needs to render payment/verification UI.
+        "create_client_authentication_token": "MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse",
+        # create_server_authentication_token: MerchantAuthenticationService.CreateServerAuthenticationToken — Generate short-lived connector authentication token. Provides secure credentials for connector API access without storing secrets client-side.
+        "create_server_authentication_token": "MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse",
+        # create_server_session_authentication_token: MerchantAuthenticationService.CreateServerSessionAuthenticationToken — Create a server-side session with the connector. Establishes session state for multi-step operations like 3DS verification or wallet authorization.
+        "create_server_session_authentication_token": "MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse",
     },
     "PayoutClient": {
         # payout_create: PayoutService.Create — Creates a payout.

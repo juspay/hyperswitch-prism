@@ -43,7 +43,7 @@ PaymentMethodData::BankRedirect(ref bank_redirect_data) => {
         BankRedirectData::Przelewy24 { bank_name, .. } => { /* build p24 request */ }
         BankRedirectData::OpenBankingUk { .. } => { /* build open banking UK */ }
         BankRedirectData::OpenBanking {} => { /* build open banking EU */ }
-        _ => Err(ConnectorError::NotImplemented(...)),
+        _ => Err(IntegrationError::NotImplemented(..., Default::default())),
     }
 }
 ```
@@ -73,7 +73,7 @@ pub enum PaymentMethodDetails {
 
 Trustpay uses different content types and URLs based on payment method:
 ```rust
-fn get_dynamic_content_type(&self, req: &RouterDataV2<...>) -> CustomResult<DynamicContentType, ConnectorError> {
+fn get_dynamic_content_type(&self, req: &RouterDataV2<...>) -> CustomResult<DynamicContentType, IntegrationError> {
     match req.resource_common_data.payment_method {
         PaymentMethod::BankRedirect | PaymentMethod::BankTransfer => Ok(DynamicContentType::Json),
         _ => Ok(DynamicContentType::FormUrlEncoded),
@@ -104,7 +104,7 @@ match bank_redirect {
             (PaymentSystem::OpenBankingEu, None, Some(OpenBankingEu { .. }))
         }
     }
-    _ => Err(ConnectorError::NotImplemented(...)),
+    _ => Err(IntegrationError::NotImplemented(..., Default::default())),
 }
 ```
 

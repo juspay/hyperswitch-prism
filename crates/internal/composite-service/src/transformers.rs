@@ -3,10 +3,10 @@ use grpc_api_types::payments::{
     CompositeAuthorizeRequest, CompositeCaptureRequest, CompositeGetRequest,
     CompositeRefundGetRequest, CompositeRefundRequest, CompositeVoidRequest, ConnectorState,
     CustomerServiceCreateRequest, CustomerServiceCreateResponse,
-    MerchantAuthenticationServiceCreateAccessTokenRequest,
-    MerchantAuthenticationServiceCreateAccessTokenResponse, PaymentServiceAuthorizeRequest,
-    PaymentServiceCaptureRequest, PaymentServiceGetRequest, PaymentServiceRefundRequest,
-    PaymentServiceVoidRequest, RefundServiceGetRequest,
+    MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
+    MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
+    PaymentServiceAuthorizeRequest, PaymentServiceCaptureRequest, PaymentServiceGetRequest,
+    PaymentServiceRefundRequest, PaymentServiceVoidRequest, RefundServiceGetRequest,
 };
 
 use crate::utils::{
@@ -18,7 +18,7 @@ pub trait ForeignFrom<F>: Sized {
 }
 
 impl ForeignFrom<(&CompositeAuthorizeRequest, &ConnectorEnum)>
-    for MerchantAuthenticationServiceCreateAccessTokenRequest
+    for MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest
 {
     fn foreign_from((item, connector): (&CompositeAuthorizeRequest, &ConnectorEnum)) -> Self {
         Self {
@@ -62,14 +62,14 @@ impl ForeignFrom<&CompositeAuthorizeRequest> for CustomerServiceCreateRequest {
 impl
     ForeignFrom<(
         &CompositeAuthorizeRequest,
-        Option<&MerchantAuthenticationServiceCreateAccessTokenResponse>,
+        Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
         Option<&CustomerServiceCreateResponse>,
     )> for PaymentServiceAuthorizeRequest
 {
     fn foreign_from(
         (item, access_token_response, create_customer_response): (
             &CompositeAuthorizeRequest,
-            Option<&MerchantAuthenticationServiceCreateAccessTokenResponse>,
+            Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
             Option<&CustomerServiceCreateResponse>,
         ),
     ) -> Self {
@@ -142,7 +142,7 @@ impl
 }
 
 impl ForeignFrom<(&CompositeGetRequest, &ConnectorEnum)>
-    for MerchantAuthenticationServiceCreateAccessTokenRequest
+    for MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest
 {
     fn foreign_from((item, connector): (&CompositeGetRequest, &ConnectorEnum)) -> Self {
         Self {
@@ -158,13 +158,13 @@ impl ForeignFrom<(&CompositeGetRequest, &ConnectorEnum)>
 impl
     ForeignFrom<(
         &CompositeGetRequest,
-        Option<&MerchantAuthenticationServiceCreateAccessTokenResponse>,
+        Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
     )> for PaymentServiceGetRequest
 {
     fn foreign_from(
         (item, access_token_response): (
             &CompositeGetRequest,
-            Option<&MerchantAuthenticationServiceCreateAccessTokenResponse>,
+            Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
         ),
     ) -> Self {
         let access_token_from_req = item
@@ -204,7 +204,7 @@ impl
 }
 
 impl ForeignFrom<(&CompositeRefundRequest, &ConnectorEnum)>
-    for MerchantAuthenticationServiceCreateAccessTokenRequest
+    for MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest
 {
     fn foreign_from((item, connector): (&CompositeRefundRequest, &ConnectorEnum)) -> Self {
         Self {
@@ -220,13 +220,13 @@ impl ForeignFrom<(&CompositeRefundRequest, &ConnectorEnum)>
 impl
     ForeignFrom<(
         &CompositeRefundRequest,
-        Option<&MerchantAuthenticationServiceCreateAccessTokenResponse>,
+        Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
     )> for PaymentServiceRefundRequest
 {
     fn foreign_from(
         (item, access_token_response): (
             &CompositeRefundRequest,
-            Option<&MerchantAuthenticationServiceCreateAccessTokenResponse>,
+            Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
         ),
     ) -> Self {
         let access_token_from_req = item
@@ -268,7 +268,7 @@ impl
 }
 
 impl ForeignFrom<(&CompositeRefundGetRequest, &ConnectorEnum)>
-    for MerchantAuthenticationServiceCreateAccessTokenRequest
+    for MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest
 {
     fn foreign_from((item, connector): (&CompositeRefundGetRequest, &ConnectorEnum)) -> Self {
         Self {
@@ -284,13 +284,13 @@ impl ForeignFrom<(&CompositeRefundGetRequest, &ConnectorEnum)>
 impl
     ForeignFrom<(
         &CompositeRefundGetRequest,
-        Option<&MerchantAuthenticationServiceCreateAccessTokenResponse>,
+        Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
     )> for RefundServiceGetRequest
 {
     fn foreign_from(
         (item, access_token_response): (
             &CompositeRefundGetRequest,
-            Option<&MerchantAuthenticationServiceCreateAccessTokenResponse>,
+            Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
         ),
     ) -> Self {
         let access_token_from_req = item
@@ -326,7 +326,7 @@ impl
 }
 
 impl ForeignFrom<(&CompositeVoidRequest, &ConnectorEnum)>
-    for MerchantAuthenticationServiceCreateAccessTokenRequest
+    for MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest
 {
     fn foreign_from((item, connector): (&CompositeVoidRequest, &ConnectorEnum)) -> Self {
         Self {
@@ -342,13 +342,13 @@ impl ForeignFrom<(&CompositeVoidRequest, &ConnectorEnum)>
 impl
     ForeignFrom<(
         &CompositeVoidRequest,
-        Option<&MerchantAuthenticationServiceCreateAccessTokenResponse>,
+        Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
     )> for PaymentServiceVoidRequest
 {
     fn foreign_from(
         (item, access_token_response): (
             &CompositeVoidRequest,
-            Option<&MerchantAuthenticationServiceCreateAccessTokenResponse>,
+            Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
         ),
     ) -> Self {
         let access_token_from_req = item
@@ -385,7 +385,7 @@ impl
 }
 
 impl ForeignFrom<(&CompositeCaptureRequest, &ConnectorEnum)>
-    for MerchantAuthenticationServiceCreateAccessTokenRequest
+    for MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest
 {
     fn foreign_from((item, connector): (&CompositeCaptureRequest, &ConnectorEnum)) -> Self {
         Self {
@@ -401,13 +401,13 @@ impl ForeignFrom<(&CompositeCaptureRequest, &ConnectorEnum)>
 impl
     ForeignFrom<(
         &CompositeCaptureRequest,
-        Option<&MerchantAuthenticationServiceCreateAccessTokenResponse>,
+        Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
     )> for PaymentServiceCaptureRequest
 {
     fn foreign_from(
         (item, access_token_response): (
             &CompositeCaptureRequest,
-            Option<&MerchantAuthenticationServiceCreateAccessTokenResponse>,
+            Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
         ),
     ) -> Self {
         let access_token_from_req = item

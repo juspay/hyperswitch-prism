@@ -19,6 +19,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.04.03.0
+
+### Features
+
+- **connector:** Add config specific to Itaubank ([#864](https://github.com/juspay/connector-service/pull/864)) ([`7ccb6df`](https://github.com/juspay/connector-service/commit/7ccb6df05b27af25c200566454e55e8ea5f97f69))
+- Split connectorerror to connectorrequesterror and connectorresponseerror ([#765](https://github.com/juspay/connector-service/pull/765)) ([`d201c67`](https://github.com/juspay/connector-service/commit/d201c67049e7254d188cdc548474101fd6174543))
+
+### Refactors
+
+- **auth:** Rename authentication token abstractions + implement Stripe ClientAuthentication ([#855](https://github.com/juspay/connector-service/pull/855)) ([`c9e1025`](https://github.com/juspay/connector-service/commit/c9e1025e325e83362915cdbe2b65e6bbb5f2867d))
+
+**Full Changelog:** [`2026.04.02.0...2026.04.03.0`](https://github.com/juspay/connector-service/compare/2026.04.02.0...2026.04.03.0)
+
+- - -
+
+## 2026.04.02.0
+
+### Features
+
+- **connector:**
+  - [NMI] add 3DS support for Card payments ([#760](https://github.com/juspay/connector-service/pull/760)) ([`266d7cc`](https://github.com/juspay/connector-service/commit/266d7cc3f042ff57020ab8fe278174e37ab59ef3))
+  - Implement googlepay for finix ([#866](https://github.com/juspay/connector-service/pull/866)) ([`927623d`](https://github.com/juspay/connector-service/commit/927623d3f606a0876ea16077ed3fd5fa11fbe511))
+  - Implement GooglePay for nmi ([#876](https://github.com/juspay/connector-service/pull/876)) ([`ed8c2cd`](https://github.com/juspay/connector-service/commit/ed8c2cd96fb42f95d057cfbe295a9d006894588e))
+- **pr-reviewer:** Add scenario-aware PR review system with multi-tool skill wiring ([#792](https://github.com/juspay/connector-service/pull/792)) ([`09afd88`](https://github.com/juspay/connector-service/commit/09afd88f00611d1bbe61976c072b211dc0300b6b))
+
+### Documentation
+
+- Error-handling after proto change ([#821](https://github.com/juspay/connector-service/pull/821)) ([`d81557f`](https://github.com/juspay/connector-service/commit/d81557f6f232c257b29789d96bef921c7688cbb9))
+
+**Full Changelog:** [`2026.04.01.0...2026.04.02.0`](https://github.com/juspay/connector-service/compare/2026.04.01.0...2026.04.02.0)
+
+- - -
+
 ## 2026.04.01.0
 
 ### Features

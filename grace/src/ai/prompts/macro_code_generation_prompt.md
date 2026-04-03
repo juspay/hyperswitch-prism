@@ -111,7 +111,7 @@ macros::create_all_prerequisites!(
         pub fn build_headers<F, FCD, Req, Res>(
             &self,
             req: &RouterDataV2<F, FCD, Req, Res>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
             let mut header = vec![(
                 headers::CONTENT_TYPE.to_string(),
                 {{content_type}}.to_string().into(),
@@ -170,9 +170,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     fn get_auth_header(
         &self,
         auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
         let auth = {{connector_name_lower}}::{{ConnectorName}}AuthType::try_from(auth_type)
-            .map_err(|_| errors::ConnectorError::FailedToObtainAuthType)?;
+            .map_err(|_| errors::IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
 
         {{if auth_type == "bearer"}}
         Ok(vec![(
@@ -200,11 +200,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<ErrorResponse, errors::ConnectorResponseTransformationError> {
         let response: {{connector_name_lower}}::{{ConnectorName}}ErrorResponse = res
             .response
             .parse_struct("ErrorResponse")
-            .map_err(|_| errors::ConnectorError::ResponseDeserializationFailed)?;
+            .map_err(|_| errors::ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })?;
 
         with_error_response_body!(event_builder, response);
 
@@ -246,14 +246,14 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<{{flow.name_pascal}}, {{flow.resource_common_data}}, {{flow.request_data}}, {{flow.response_data}}>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
             self.build_headers(req)
         }
 
         fn get_url(
             &self,
             req: &RouterDataV2<{{flow.name_pascal}}, {{flow.resource_common_data}}, {{flow.request_data}}, {{flow.response_data}}>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, errors::IntegrationError> {
             {{generate_url_construction(flow)}}
         }
     }
@@ -282,7 +282,7 @@ use common_utils::{ext_traits::OptionExt, pii, request::Method, types::{MinorUni
 use domain_types::{
     connector_flow::{self, *},
     connector_types::*,
-    errors::{self, ConnectorError},
+    errors::{self, IntegrationError, ConnectorResponseTransformationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
     router_data::{ConnectorAuthType, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -314,7 +314,7 @@ impl {{ConnectorName}}AuthType {
 {{endif}}
 
 impl TryFrom<&ConnectorAuthType> for {{ConnectorName}}AuthType {
-    type Error = ConnectorError;
+    type Error = IntegrationError;
 
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
@@ -332,7 +332,7 @@ impl TryFrom<&ConnectorAuthType> for {{ConnectorName}}AuthType {
                 api_key: api_key.to_owned(),
             }),
             {{endif}}
-            _ => Err(ConnectorError::FailedToObtainAuthType),
+            _ => Err(IntegrationError::FailedToObtainAuthType { context: Default::default() }),
         }
     }
 }
@@ -398,7 +398,7 @@ impl{{if flow.needs_generic}}<T: PaymentMethodDataTypes + Debug + Sync + Send + 
     TryFrom<{{ConnectorName}}RouterData<RouterDataV2<{{FlowName}}, {{resource_common_data}}, {{request_data}}, {{response_data}}>, T>>
     for {{ConnectorName}}{{FlowName}}Request{{if flow.needs_generic}}<T>{{endif}}
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: {{ConnectorName}}RouterData<RouterDataV2<{{FlowName}}, {{resource_common_data}}, {{request_data}}, {{response_data}}>, T>,
@@ -419,7 +419,7 @@ impl{{if flow.needs_generic}}<T: PaymentMethodDataTypes + Debug + Sync + Send + 
                 cvc: Some(card.card_cvc.clone()),
                 holder_name: router_data.request.customer_name.clone().map(Secret::new),
             }),
-            _ => return Err(ConnectorError::NotImplemented("Payment method not supported".to_string()).into()),
+            _ => return Err(IntegrationError::NotImplemented("Payment method not supported".to_string(), Default::default()).into()),
         };
         {{endif}}
 
@@ -441,7 +441,7 @@ impl{{if flow.needs_generic}}<T: PaymentMethodDataTypes + Debug + Sync + Send + 
     TryFrom<ResponseRouterData<{{ConnectorName}}{{FlowName}}Response, RouterDataV2<{{FlowName}}, {{resource_common_data}}, {{request_data}}, {{response_data}}>>>
     for RouterDataV2<{{FlowName}}, {{resource_common_data}}, {{request_data}}, {{response_data}}>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
 
     fn try_from(
         item: ResponseRouterData<{{ConnectorName}}{{FlowName}}Response, RouterDataV2<{{FlowName}}, {{resource_common_data}}, {{request_data}}, {{response_data}}}>,

@@ -174,26 +174,26 @@ class GrpcMerchantAuthenticationClient:
         self._ffi    = ffi
         self._config = config
 
-    def create_access_token(self, req: payment_pb2.MerchantAuthenticationServiceCreateAccessTokenRequest) -> payment_pb2.MerchantAuthenticationServiceCreateAccessTokenResponse:
-        """MerchantAuthenticationService.CreateAccessToken — Generate short-lived connector authentication token. Provides secure credentials for connector API access without storing secrets client-side."""
+    def create_server_authentication_token(self, req: payment_pb2.MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest) -> payment_pb2.MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse:
+        """MerchantAuthenticationService.CreateServerAuthenticationToken — Generate short-lived connector authentication token. Provides secure credentials for connector API access without storing secrets client-side."""
         return _call_grpc(
             self._ffi, self._config,
-            "merchant_authentication/create_access_token",
-            req, payment_pb2.MerchantAuthenticationServiceCreateAccessTokenResponse,
+            "merchant_authentication/create_server_authentication_token",
+            req, payment_pb2.MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
         )
-    def create_session_token(self, req: payment_pb2.MerchantAuthenticationServiceCreateSessionTokenRequest) -> payment_pb2.MerchantAuthenticationServiceCreateSessionTokenResponse:
-        """MerchantAuthenticationService.CreateSessionToken — Create session token for payment processing. Maintains session state across multiple payment operations for improved security and tracking."""
+    def create_server_session_authentication_token(self, req: payment_pb2.MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest) -> payment_pb2.MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse:
+        """MerchantAuthenticationService.CreateServerSessionAuthenticationToken — Create a server-side session with the connector. Establishes session state for multi-step operations like 3DS verification or wallet authorization."""
         return _call_grpc(
             self._ffi, self._config,
-            "merchant_authentication/create_session_token",
-            req, payment_pb2.MerchantAuthenticationServiceCreateSessionTokenResponse,
+            "merchant_authentication/create_server_session_authentication_token",
+            req, payment_pb2.MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse,
         )
-    def create_sdk_session_token(self, req: payment_pb2.MerchantAuthenticationServiceCreateSdkSessionTokenRequest) -> payment_pb2.MerchantAuthenticationServiceCreateSdkSessionTokenResponse:
-        """MerchantAuthenticationService.CreateSdkSessionToken — Initialize wallet payment sessions for Apple Pay, Google Pay, etc. Sets up secure context for tokenized wallet payments with device verification."""
+    def create_client_authentication_token(self, req: payment_pb2.MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest) -> payment_pb2.MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse:
+        """MerchantAuthenticationService.CreateClientAuthenticationToken — Initialize client-facing SDK sessions for wallets, device fingerprinting, etc. Returns structured data the client SDK needs to render payment/verification UI."""
         return _call_grpc(
             self._ffi, self._config,
-            "merchant_authentication/create_sdk_session_token",
-            req, payment_pb2.MerchantAuthenticationServiceCreateSdkSessionTokenResponse,
+            "merchant_authentication/create_client_authentication_token",
+            req, payment_pb2.MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse,
         )
 
 class GrpcPaymentMethodAuthenticationClient:
@@ -473,7 +473,7 @@ class GrpcClient:
         res = client.customer.create(...)
         res = client.dispute.submit_evidence(...)
         res = client.event.handle_event(...)
-        res = client.merchant_authentication.create_access_token(...)
+        res = client.merchant_authentication.create_server_authentication_token(...)
     """
 
     customer: GrpcCustomerClient

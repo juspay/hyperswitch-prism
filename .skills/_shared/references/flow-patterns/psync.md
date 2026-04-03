@@ -40,7 +40,7 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             // GET requests typically omit Content-Type
             let mut header = vec![];
             let mut auth_header = self.get_auth_header(&req.connector_config)?;
@@ -51,9 +51,9 @@ macros::macro_connector_implementation!(
         fn get_url(
             &self,
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
-        ) -> CustomResult<String, ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let transaction_id = req.request.get_connector_transaction_id()
-                .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+                .change_context(errors::IntegrationError::MissingConnectorTransactionID)?;
             let base_url = self.connector_base_url_payments(req);
             Ok(format!("{base_url}/payments/{transaction_id}"))
         }
@@ -80,7 +80,7 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let mut header = vec![(
                 headers::CONTENT_TYPE.to_string(),
                 "application/json".to_string().into(),
@@ -93,7 +93,7 @@ macros::macro_connector_implementation!(
         fn get_url(
             &self,
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
-        ) -> CustomResult<String, ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let base_url = self.connector_base_url_payments(req);
             Ok(format!("{base_url}/v1/transaction-inquiry"))
         }
@@ -133,7 +133,7 @@ All patterns start by extracting the transaction ID:
 
 ```rust
 let transaction_id = req.request.get_connector_transaction_id()
-    .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+    .change_context(errors::IntegrationError::MissingConnectorTransactionID)?;
 let base_url = self.connector_base_url_payments(req);
 ```
 
@@ -162,7 +162,7 @@ impl TryFrom<
     >,
 > for {ConnectorName}SyncRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         _item: {ConnectorName}RouterData<
@@ -190,7 +190,7 @@ impl TryFrom<
     >,
 > for {ConnectorName}SyncRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: {ConnectorName}RouterData<
@@ -201,7 +201,7 @@ impl TryFrom<
         let transaction_id = router_data
             .request
             .get_connector_transaction_id()
-            .change_context(ConnectorError::MissingConnectorTransactionID)?;
+            .change_context(IntegrationError::MissingConnectorTransactionID)?;
 
         Ok(Self {
             transaction_id,
@@ -280,7 +280,7 @@ impl TryFrom<
     >,
 > for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: ResponseRouterData<

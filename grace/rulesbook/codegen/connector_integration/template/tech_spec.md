@@ -66,7 +66,7 @@ impl ConnectorCommon for {{connector_name}} {
         &self,
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<ErrorResponse, errors::ConnectorResponseTransformationError> {
         // UCS-specific error handling
     }
 }
@@ -81,7 +81,7 @@ impl ConnectorIntegrationV2<Flow, Request, Response> for {{connector_name}} {
         &self,
         req: &RouterDataV2<Flow, Request, Response>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
         // UCS header implementation
     }
     
@@ -89,7 +89,7 @@ impl ConnectorIntegrationV2<Flow, Request, Response> for {{connector_name}} {
         &self,
         req: &RouterDataV2<Flow, Request, Response>,
         connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
+    ) -> CustomResult<String, errors::IntegrationError> {
         // UCS URL building
     }
     
@@ -97,7 +97,7 @@ impl ConnectorIntegrationV2<Flow, Request, Response> for {{connector_name}} {
         &self,
         req: &RouterDataV2<Flow, Request, Response>,
         _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::IntegrationError> {
         // UCS request transformation
     }
     
@@ -105,7 +105,7 @@ impl ConnectorIntegrationV2<Flow, Request, Response> for {{connector_name}} {
         &self,
         req: &RouterDataV2<Flow, Request, Response>,
         connectors: &Connectors,
-    ) -> CustomResult<Option<RequestDetails>, errors::ConnectorError> {
+    ) -> CustomResult<Option<RequestDetails>, errors::IntegrationError> {
         // UCS request building
     }
     
@@ -114,7 +114,7 @@ impl ConnectorIntegrationV2<Flow, Request, Response> for {{connector_name}} {
         data: &RouterDataV2<Flow, Request, Response>,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<RouterDataV2<Flow, Request, Response>, errors::ConnectorError> {
+    ) -> CustomResult<RouterDataV2<Flow, Request, Response>, errors::ConnectorResponseTransformationError> {
         // UCS response handling
     }
     
@@ -122,7 +122,7 @@ impl ConnectorIntegrationV2<Flow, Request, Response> for {{connector_name}} {
         &self,
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<ErrorResponse, errors::ConnectorResponseTransformationError> {
         // UCS error handling
     }
 }
@@ -368,14 +368,14 @@ impl IncomingWebhook for {{connector_name}} {
     fn get_webhook_object_reference_id(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<ObjectReferenceId, errors::ConnectorError> {
+    ) -> CustomResult<ObjectReferenceId, errors::IntegrationError> {
         // Extract payment/refund ID
     }
     
     fn get_webhook_event_type(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
+    ) -> CustomResult<IncomingWebhookEvent, errors::IntegrationError> {
         // Map events to UCS types
     }
 }
@@ -390,7 +390,7 @@ impl ConnectorCommon for {{connector_name}} {
         &self,
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<ErrorResponse, errors::ConnectorResponseTransformationError> {
         // Parse connector error response
         // Map to UCS ErrorResponse
         // Include all required fields

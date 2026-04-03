@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use super::PproRouterData;
 use crate::types::ResponseRouterData;
+use domain_types::errors::{ConnectorResponseTransformationError, IntegrationError, WebhookError};
 use domain_types::{
     connector_flow::{Capture, Refund, RepeatPayment, SetupMandate, Void},
     connector_types::{
@@ -12,7 +13,6 @@ use domain_types::{
         PaymentsCaptureData, PaymentsResponseData, RefundFlowData, RefundsData,
         RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
-    errors,
     mandates::MandateDataType,
     payment_method_data::PaymentMethodDataTypes,
     router_data::ErrorResponse,
@@ -85,7 +85,7 @@ pub struct PproAuthSettingsDetails {
     // #[serde(skip_serializing_if = "Option::is_none")]
     // pub scan_by: Option<String>,
     // #[serde(skip_serializing_if = "Option::is_none")]
-    // pub mobile_intent_uri: Option<String>,
+    // pub mobile_intent_uri: Option<String>
 }
 
 #[derive(Debug, Serialize)]
@@ -115,7 +115,7 @@ impl<F, T>
 where
     T: Clone + PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(
         item: PproRouterData<
             RouterDataV2<F, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
@@ -135,15 +135,17 @@ where
             Some(common_enums::PaymentMethodType::Trustly) => "TRUSTLY".to_string(),
             Some(common_enums::PaymentMethodType::Blik) => "BLIK".to_string(),
             Some(ref pm) => {
-                return Err(errors::ConnectorError::NotSupported {
+                return Err(IntegrationError::NotSupported {
                     message: format!("payment method {pm} is not supported by PPRO"),
                     connector: "ppro",
+                    context: Default::default(),
                 }
                 .into())
             }
             None => {
-                return Err(errors::ConnectorError::MissingRequiredField {
+                return Err(IntegrationError::MissingRequiredField {
                     field_name: "payment_method_type",
+                    context: Default::default(),
                 }
                 .into())
             }
@@ -386,7 +388,7 @@ pub struct PproAuthDetailsResponse {
     // #[serde(skip_serializing_if = "Option::is_none")]
     // pub scan_by: Option<String>,
     // #[serde(skip_serializing_if = "Option::is_none")]
-    // pub mobile_intent_uri: Option<String>,
+    // pub mobile_intent_uri: Option<String>
 }
 
 #[derive(Debug, Serialize)]
@@ -405,7 +407,7 @@ impl<T>
 where
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(
         item: PproRouterData<
             RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
@@ -434,7 +436,7 @@ impl<T>
 where
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(
         item: PproRouterData<
             RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
@@ -449,8 +451,9 @@ where
                 .router_data
                 .resource_common_data
                 .minor_amount_authorized)
-            .ok_or(errors::ConnectorError::MissingRequiredField {
+            .ok_or(IntegrationError::MissingRequiredField {
                 field_name: "amount or minor_amount_authorized",
+                context: Default::default(),
             })?;
 
         Ok(Self { amount })
@@ -472,7 +475,7 @@ impl<T>
 where
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(
         item: PproRouterData<
             RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
@@ -529,7 +532,7 @@ pub enum PproWebhookType {
 }
 
 impl TryFrom<PproWebhookType> for EventType {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<WebhookError>;
 
     fn try_from(event_type: PproWebhookType) -> Result<Self, Self::Error> {
         match event_type {
@@ -554,7 +557,7 @@ impl TryFrom<PproWebhookType> for EventType {
 }
 
 impl TryFrom<PproWebhookType> for IncomingWebhookEvent {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<WebhookError>;
 
     fn try_from(event_type: PproWebhookType) -> Result<Self, Self::Error> {
         match event_type {
@@ -599,7 +602,7 @@ pub enum PproWebhookData {
 impl<F, Req> TryFrom<ResponseRouterData<PproPaymentsResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, Req, PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
     fn try_from(item: ResponseRouterData<PproPaymentsResponse, Self>) -> Result<Self, Self::Error> {
         let status = common_enums::AttemptStatus::from(item.response.status);
 
@@ -714,7 +717,7 @@ impl<F, Req> TryFrom<ResponseRouterData<PproPaymentsResponse, Self>>
 impl<F, Req, T> TryFrom<ResponseRouterData<PproRefundResponse, Self>>
     for RouterDataV2<F, Req, T, RefundsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
     fn try_from(item: ResponseRouterData<PproRefundResponse, Self>) -> Result<Self, Self::Error> {
         let refund_status = match item.response.status {
             PproRefundStatus::RefundSettled | PproRefundStatus::Refunded => {
@@ -866,7 +869,7 @@ impl<T>
 where
     T: Clone + PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(
         item: PproRouterData<
             RouterDataV2<
@@ -886,15 +889,17 @@ where
             Some(common_enums::PaymentMethodType::Blik) => "BLIK".to_string(),
             Some(common_enums::PaymentMethodType::UpiCollect) => "UPI".to_string(),
             Some(ref pm) => {
-                return Err(errors::ConnectorError::NotSupported {
+                return Err(IntegrationError::NotSupported {
                     message: format!("payment method {pm} is not supported for PPRO mandates"),
                     connector: "ppro",
+                    context: Default::default(),
                 }
                 .into())
             }
             None => {
-                return Err(errors::ConnectorError::MissingRequiredField {
+                return Err(IntegrationError::MissingRequiredField {
                     field_name: "payment_method_type",
+                    context: Default::default(),
                 }
                 .into())
             }
@@ -1107,7 +1112,7 @@ pub fn get_ppro_bank_code(bank_name: common_enums::BankNames) -> Option<String> 
 impl<F, Req> TryFrom<ResponseRouterData<PproAgreementResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, Req, PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
     fn try_from(
         item: ResponseRouterData<PproAgreementResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -1265,7 +1270,7 @@ impl<T>
 where
     T: Clone + PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(
         item: PproRouterData<
             RouterDataV2<

@@ -3,7 +3,7 @@ use super::{requests, responses, PeachpaymentsRouterData};
 use crate::types::ResponseRouterData;
 use common_enums::{AttemptStatus, RefundStatus};
 use common_utils::ext_traits::StringExt;
-use common_utils::{consts, errors::CustomResult, types::MinorUnit};
+use common_utils::{consts, errors::CustomResult, types::MinorUnit, SecretSerdeValue};
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
     connector_types::{
@@ -11,7 +11,7 @@ use domain_types::{
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
         RefundsResponseData, ResponseId,
     },
-    errors,
+    errors::{ConnectorResponseTransformationError, IntegrationError, WebhookError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -43,12 +43,12 @@ pub fn get_error_message(response_code: Option<&responses::PeachpaymentsResponse
 
 pub fn get_webhook_object_from_body(
     body: &[u8],
-) -> CustomResult<responses::PeachpaymentsIncomingWebhook, errors::ConnectorError> {
-    let body_string = String::from_utf8(body.to_vec())
-        .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+) -> CustomResult<responses::PeachpaymentsIncomingWebhook, WebhookError> {
+    let body_string =
+        String::from_utf8(body.to_vec()).change_context(WebhookError::WebhookBodyDecodingFailed)?;
     body_string
         .parse_struct("PeachpaymentsIncomingWebhook")
-        .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
+        .change_context(WebhookError::WebhookBodyDecodingFailed)
 }
 
 fn get_webhook_response(
@@ -56,11 +56,15 @@ fn get_webhook_response(
     status_code: u16,
 ) -> CustomResult<
     (AttemptStatus, Result<PaymentsResponseData, ErrorResponse>),
-    errors::ConnectorError,
+    ConnectorResponseTransformationError,
 > {
-    let transaction = response
-        .transaction
-        .ok_or(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+    let transaction =
+        response
+            .transaction
+            .ok_or(crate::utils::response_handling_fail_for_connector(
+                status_code,
+                "peachpayments",
+            ))?;
 
     let status: AttemptStatus = transaction.transaction_result.clone().into();
 
@@ -109,8 +113,53 @@ pub struct PeachpaymentsConnectorMetadataObject {
     pub merchant_payment_method_route_id: Secret<String>,
 }
 
+impl TryFrom<&Option<SecretSerdeValue>> for PeachpaymentsConnectorMetadataObject {
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(meta_data: &Option<SecretSerdeValue>) -> Result<Self, Self::Error> {
+        let metadata = meta_data
+            .as_ref()
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "connector_meta_data",
+                context: Default::default(),
+            })?;
+
+        let metadata_obj =
+            metadata
+                .peek()
+                .as_object()
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "connector_meta_data",
+                    context: Default::default(),
+                })?;
+
+        let client_merchant_reference_id = metadata_obj
+            .get("client_merchant_reference_id")
+            .and_then(|v: &serde_json::Value| v.as_str())
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "connector_meta_data.client_merchant_reference_id",
+                context: Default::default(),
+            })?;
+
+        let merchant_payment_method_route_id = metadata_obj
+            .get("merchant_payment_method_route_id")
+            .and_then(|v: &serde_json::Value| v.as_str())
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "connector_meta_data.merchant_payment_method_route_id",
+                context: Default::default(),
+            })?;
+
+        Ok(Self {
+            client_merchant_reference_id: Secret::new(client_merchant_reference_id.to_string()),
+            merchant_payment_method_route_id: Secret::new(
+                merchant_payment_method_route_id.to_string(),
+            ),
+        })
+    }
+}
+
 impl TryFrom<&ConnectorSpecificConfig> for PeachpaymentsAuthType {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(auth_type: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         match auth_type {
@@ -127,7 +176,9 @@ impl TryFrom<&ConnectorSpecificConfig> for PeachpaymentsAuthType {
                 merchant_payment_method_route_id: merchant_payment_method_route_id.clone(),
             }),
             _ => Err(error_stack::report!(
-                errors::ConnectorError::FailedToObtainAuthType
+                IntegrationError::FailedToObtainAuthType {
+                    context: Default::default()
+                }
             )),
         }
     }
@@ -146,7 +197,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     > for requests::PeachpaymentsAuthorizeRequest<T>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: PeachpaymentsRouterData<
@@ -160,9 +211,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     ) -> Result<Self, Self::Error> {
         if item.router_data.resource_common_data.is_three_ds() {
-            return Err(errors::ConnectorError::NotSupported {
+            return Err(IntegrationError::NotSupported {
                 message: "3DS payments".to_string(),
                 connector: "peachpayments",
+                context: Default::default(),
             }
             .into());
         }
@@ -170,13 +222,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let auth = PeachpaymentsAuthType::try_from(&item.router_data.connector_config)?;
         let connector_meta_data = PeachpaymentsConnectorMetadataObject {
             client_merchant_reference_id: auth.client_merchant_reference_id.ok_or(
-                errors::ConnectorError::MissingRequiredField {
+                IntegrationError::MissingRequiredField {
                     field_name: "client_merchant_reference_id",
+                    context: Default::default(),
                 },
             )?,
             merchant_payment_method_route_id: auth.merchant_payment_method_route_id.ok_or(
-                errors::ConnectorError::MissingRequiredField {
+                IntegrationError::MissingRequiredField {
                     field_name: "merchant_payment_method_route_id",
+                    context: Default::default(),
                 },
             )?,
         };
@@ -195,7 +249,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     card: requests::PeachpaymentsCardDetails {
                         pan: card_info.card_number.clone(),
                         cardholder_name: card_info.card_holder_name.clone(),
-                        expiry_year: Some(card_info.get_card_expiry_year_2_digit()?),
+                        expiry_year: Some(
+                            card_info.get_card_expiry_year_2_digit().change_context(
+                                IntegrationError::RequestEncodingFailed {
+                                    context: Default::default(),
+                                },
+                            )?,
+                        ),
                         expiry_month: Some(card_info.card_exp_month),
                         cvv: Some(card_info.card_cvc),
                         eci: None,
@@ -240,14 +300,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         },
                         network_token_data: requests::PeachpaymentsNetworkTokenDetails {
                             token: Secret::new(token_data.token_number.peek().clone()),
-                            expiry_year: token_data.get_token_expiry_year_2_digit()?,
+                            expiry_year: token_data
+                                .get_token_expiry_year_2_digit()
+                                .change_context(IntegrationError::RequestEncodingFailed {
+                                    context: Default::default(),
+                                })?,
                             expiry_month: token_data.token_exp_month,
                             cryptogram: token_data.token_cryptogram,
                             eci: token_data.eci,
                             scheme: token_data
                                 .card_network
                                 .map(requests::CardNetworkLowercase::try_from)
-                                .transpose()?,
+                                .transpose()
+                                .change_context(IntegrationError::RequestEncodingFailed {
+                                    context: Default::default(),
+                                })?,
                         },
                         amount: requests::PeachpaymentsAmount {
                             amount: item.router_data.request.minor_amount,
@@ -261,9 +328,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 )
             }
             _ => {
-                return Err(errors::ConnectorError::NotSupported {
+                return Err(IntegrationError::NotSupported {
                     message: "Payment method not supported".to_string(),
                     connector: "peachpayments",
+                    context: Default::default(),
                 }
                 .into());
             }
@@ -280,11 +348,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             pos_data: None,
             send_date_time: OffsetDateTime::now_utc()
                 .format(&Iso8601::DEFAULT)
-                .map_err(|error| {
-                    errors::ConnectorError::RequestEncodingFailedWithReason(format!(
-                        "Failed to format datetime: {}",
-                        error
-                    ))
+                .map_err(|_| IntegrationError::RequestEncodingFailed {
+                    context: Default::default(),
                 })?,
         })
     }
@@ -294,7 +359,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<ResponseRouterData<responses::PeachpaymentsPaymentsResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
 
     fn try_from(
         item: ResponseRouterData<responses::PeachpaymentsPaymentsResponse, Self>,
@@ -347,7 +412,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl TryFrom<ResponseRouterData<responses::PeachpaymentsSyncResponse, Self>>
     for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
 
     fn try_from(
         item: ResponseRouterData<responses::PeachpaymentsSyncResponse, Self>,
@@ -382,7 +447,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     > for requests::PeachpaymentsCaptureRequest
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: PeachpaymentsRouterData<
@@ -403,7 +468,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl TryFrom<ResponseRouterData<responses::PeachpaymentsCaptureResponse, Self>>
     for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
 
     fn try_from(
         item: ResponseRouterData<responses::PeachpaymentsCaptureResponse, Self>,
@@ -438,7 +503,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     > for requests::PeachpaymentsVoidRequest
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: PeachpaymentsRouterData<
@@ -446,16 +511,22 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let amount = item.router_data.request.amount.ok_or(
-            errors::ConnectorError::MissingRequiredField {
-                field_name: "amount",
-            },
-        )?;
-        let currency = item.router_data.request.currency.ok_or(
-            errors::ConnectorError::MissingRequiredField {
-                field_name: "currency",
-            },
-        )?;
+        let amount =
+            item.router_data
+                .request
+                .amount
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "amount",
+                    context: Default::default(),
+                })?;
+        let currency =
+            item.router_data
+                .request
+                .currency
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "currency",
+                    context: Default::default(),
+                })?;
 
         Ok(Self {
             amount: requests::PeachpaymentsAmount {
@@ -470,7 +541,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl TryFrom<ResponseRouterData<responses::PeachpaymentsVoidResponse, Self>>
     for RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
 
     fn try_from(
         item: ResponseRouterData<responses::PeachpaymentsVoidResponse, Self>,
@@ -505,7 +576,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     > for requests::PeachpaymentsRefundRequest
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: PeachpaymentsRouterData<
@@ -535,7 +606,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl TryFrom<ResponseRouterData<responses::PeachpaymentsRefundResponse, Self>>
     for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
 
     fn try_from(
         item: ResponseRouterData<responses::PeachpaymentsRefundResponse, Self>,
@@ -556,7 +627,7 @@ impl TryFrom<ResponseRouterData<responses::PeachpaymentsRefundResponse, Self>>
 impl TryFrom<ResponseRouterData<responses::PeachpaymentsRefundSyncResponse, Self>>
     for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
 
     fn try_from(
         item: ResponseRouterData<responses::PeachpaymentsRefundSyncResponse, Self>,
@@ -602,7 +673,7 @@ impl From<responses::PeachpaymentsRefundStatus> for RefundStatus {
 }
 
 impl TryFrom<common_enums::CardNetwork> for requests::CardNetworkLowercase {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(card_network: common_enums::CardNetwork) -> Result<Self, Self::Error> {
         match card_network {

@@ -96,7 +96,7 @@ let config = ConnectorConfig {
 
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
-| [MerchantAuthenticationService.CreateAccessToken](#merchantauthenticationservicecreateaccesstoken) | Authentication | `MerchantAuthenticationServiceCreateAccessTokenRequest` |
+| [ConnectorSessionService.CreateAccessToken](#connectorsessionservicecreateaccesstoken) | Authentication | `ConnectorSessionServiceCreateAccessTokenRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
 | [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
 
@@ -126,13 +126,13 @@ Initiate a refund to customer's payment method. Returns funds for returns, cance
 
 ### Authentication
 
-#### MerchantAuthenticationService.CreateAccessToken
+#### ConnectorSessionService.CreateAccessToken
 
 Generate short-lived connector authentication token. Provides secure credentials for connector API access without storing secrets client-side.
 
 | | Message |
 |---|---------|
-| **Request** | `MerchantAuthenticationServiceCreateAccessTokenRequest` |
-| **Response** | `MerchantAuthenticationServiceCreateAccessTokenResponse` |
+| **Request** | `ConnectorSessionServiceCreateAccessTokenRequest` |
+| **Response** | `ConnectorSessionServiceCreateAccessTokenResponse` |
 
 **Examples:** [Python](../../examples/volt/python/volt.py) · [JavaScript](../../examples/volt/javascript/volt.js) · [Kotlin](../../examples/volt/kotlin/volt.kt#L66) · [Rust](../../examples/volt/rust/volt.rs#L65)

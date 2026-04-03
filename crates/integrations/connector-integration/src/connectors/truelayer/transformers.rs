@@ -2,13 +2,15 @@ use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use common_enums::{self, AttemptStatus, CountryAlpha2, Currency};
 use common_utils::{consts, pii, request::Method, types::MinorUnit};
 use domain_types::{
-    connector_flow::{Authorize, CreateAccessToken, RSync, Refund, VerifyWebhookSource, Void},
-    connector_types::{
-        AccessTokenRequestData, AccessTokenResponseData, PaymentFlowData, PaymentVoidData,
-        PaymentsAuthorizeData, PaymentsResponseData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId, VerifyWebhookSourceFlowData,
+    connector_flow::{
+        Authorize, RSync, Refund, ServerAuthenticationToken, VerifyWebhookSource, Void,
     },
-    errors,
+    connector_types::{
+        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsResponseData,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
+        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
+        VerifyWebhookSourceFlowData,
+    },
     payment_method_data::{BankRedirectData, PaymentMethodData, PaymentMethodDataTypes},
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -31,6 +33,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::{connectors::truelayer::TruelayerRouterData, types::ResponseRouterData, utils};
+use domain_types::errors::ConnectorResponseTransformationError;
+use domain_types::errors::{IntegrationError, WebhookError};
 const GRANT_TYPE: &str = "client_credentials";
 const SCOPE: &str = "payments";
 const SIG_BYTES_EXPECTED_LENGTH: usize = 132;
@@ -47,7 +51,7 @@ pub struct TruelayerAuthType {
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
-pub struct TruelayerAccessTokenRequestData {
+pub struct TruelayerServerAuthenticationTokenRequestData {
     grant_type: String,
     client_id: Secret<String>,
     client_secret: Secret<String>,
@@ -77,7 +81,7 @@ pub struct ErrorDetails {
 }
 
 impl TryFrom<&ConnectorSpecificConfig> for TruelayerAuthType {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(auth_type: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         match auth_type {
             ConnectorSpecificConfig::Truelayer {
@@ -96,7 +100,10 @@ impl TryFrom<&ConnectorSpecificConfig> for TruelayerAuthType {
                 private_key: private_key.clone(),
                 kid: kid.clone(),
             }),
-            _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
+            _ => Err(IntegrationError::FailedToObtainAuthType {
+                context: Default::default(),
+            }
+            .into()),
         }
     }
 }
@@ -105,23 +112,23 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     TryFrom<
         TruelayerRouterData<
             RouterDataV2<
-                CreateAccessToken,
+                ServerAuthenticationToken,
                 PaymentFlowData,
-                AccessTokenRequestData,
-                AccessTokenResponseData,
+                ServerAuthenticationTokenRequestData,
+                ServerAuthenticationTokenResponseData,
             >,
             T,
         >,
-    > for TruelayerAccessTokenRequestData
+    > for TruelayerServerAuthenticationTokenRequestData
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(
         item: TruelayerRouterData<
             RouterDataV2<
-                CreateAccessToken,
+                ServerAuthenticationToken,
                 PaymentFlowData,
-                AccessTokenRequestData,
-                AccessTokenResponseData,
+                ServerAuthenticationTokenRequestData,
+                ServerAuthenticationTokenResponseData,
             >,
             T,
         >,
@@ -137,21 +144,21 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct TruelayerAccessTokenResponseData {
+pub struct TruelayerServerAuthenticationTokenResponseData {
     access_token: Secret<String>,
     expires_in: i64,
     token_type: Option<String>,
 }
 
-impl<F, T> TryFrom<ResponseRouterData<TruelayerAccessTokenResponseData, Self>>
-    for RouterDataV2<F, PaymentFlowData, T, AccessTokenResponseData>
+impl<F, T> TryFrom<ResponseRouterData<TruelayerServerAuthenticationTokenResponseData, Self>>
+    for RouterDataV2<F, PaymentFlowData, T, ServerAuthenticationTokenResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
     fn try_from(
-        item: ResponseRouterData<TruelayerAccessTokenResponseData, Self>,
+        item: ResponseRouterData<TruelayerServerAuthenticationTokenResponseData, Self>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(AccessTokenResponseData {
+            response: Ok(ServerAuthenticationTokenResponseData {
                 access_token: item.response.access_token,
                 expires_in: Some(item.response.expires_in),
                 token_type: item.response.token_type,
@@ -170,7 +177,7 @@ pub struct TruelayerMetadata {
 }
 
 impl TryFrom<&ConnectorSpecificConfig> for TruelayerMetadata {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(auth_type: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         let auth = TruelayerAuthType::try_from(auth_type)?;
         Self::try_from(&auth)
@@ -178,28 +185,34 @@ impl TryFrom<&ConnectorSpecificConfig> for TruelayerMetadata {
 }
 
 impl TryFrom<&TruelayerAuthType> for TruelayerMetadata {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(auth: &TruelayerAuthType) -> Result<Self, Self::Error> {
         Ok(Self {
             merchant_account_id: auth.merchant_account_id.clone().ok_or(
-                errors::ConnectorError::MissingRequiredField {
+                IntegrationError::MissingRequiredField {
                     field_name: "merchant_account_id",
+                    context: Default::default(),
                 },
             )?,
             account_holder_name: auth.account_holder_name.clone().ok_or(
-                errors::ConnectorError::MissingRequiredField {
+                IntegrationError::MissingRequiredField {
                     field_name: "account_holder_name",
+                    context: Default::default(),
                 },
             )?,
             private_key: auth.private_key.clone().ok_or(
-                errors::ConnectorError::MissingRequiredField {
+                IntegrationError::MissingRequiredField {
                     field_name: "private_key",
+                    context: Default::default(),
                 },
             )?,
             kid: auth
                 .kid
                 .clone()
-                .ok_or(errors::ConnectorError::MissingRequiredField { field_name: "kid" })?,
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "kid",
+                    context: Default::default(),
+                })?,
         })
     }
 }
@@ -306,7 +319,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for TruelayerPaymentsRequestData
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(
         item: TruelayerRouterData<
             RouterDataV2<
@@ -325,8 +338,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
                 let hosted_page = HostedPage {
                     return_uri: item.router_data.request.router_return_url.clone().ok_or(
-                        errors::ConnectorError::MissingRequiredField {
+                        IntegrationError::MissingRequiredField {
                             field_name: "return_url",
+                            context: Default::default(),
                         },
                     )?,
                 };
@@ -357,12 +371,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .address
                     .get_payment_billing()
                     .map(|billing| billing.get_phone_with_country_code())
-                    .transpose()?;
+                    .transpose()
+                    .change_context(IntegrationError::MissingRequiredField {
+                        field_name: "billing.phone",
+                        context: Default::default(),
+                    })?;
 
                 // Ensure at least one is present
                 if email.is_none() && phone.is_none() {
-                    return Err(errors::ConnectorError::MissingRequiredField {
+                    return Err(IntegrationError::MissingRequiredField {
                         field_name: "either billing.email/customer_email or billing.phone",
+                        context: Default::default(),
                     }
                     .into());
                 }
@@ -390,8 +409,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 .resource_common_data
                                 .get_optional_billing_full_name()
                         })
-                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                        .ok_or(IntegrationError::MissingRequiredField {
                             field_name: "billing.first_name or customer_name",
+                            context: Default::default(),
                         })?,
                     email,
                     phone,
@@ -406,7 +426,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     user,
                 })
             }
-            _ => Err(errors::ConnectorError::NotImplemented(
+            _ => Err(IntegrationError::not_implemented(
                 utils::get_unimplemented_payment_method_error_message("Truelayer"),
             )
             .into()),
@@ -417,7 +437,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl<F, T> TryFrom<ResponseRouterData<TruelayerPaymentsResponseData, Self>>
     for RouterDataV2<F, PaymentFlowData, T, PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
     fn try_from(
         item: ResponseRouterData<TruelayerPaymentsResponseData, Self>,
     ) -> Result<Self, Self::Error> {
@@ -458,9 +478,13 @@ impl<F, T> TryFrom<ResponseRouterData<TruelayerPaymentsResponseData, Self>>
                 .hosted_page
                 .as_ref()
                 .map(|hosted_page| hosted_page.uri.clone())
-                .ok_or(errors::ConnectorError::UnexpectedResponseError(
-                    bytes::Bytes::from("hosted_page.uri expected".to_string()),
-                ))?;
+                .ok_or_else(|| {
+                    error_stack::report!(
+                        utils::unexpected_response_fail(
+                            item.http_code
+                        , "truelayer: unexpected response for this operation; retry with idempotency keys and check connector status.")
+                    )
+                })?;
 
             let redirection_data = Some(RedirectForm::Form {
                 endpoint: redirection_url,
@@ -511,7 +535,7 @@ pub struct TruelayerPSyncResponse {
 impl<F, T> TryFrom<ResponseRouterData<TruelayerPSyncResponseData, Self>>
     for RouterDataV2<F, PaymentFlowData, T, PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
     fn try_from(
         item: ResponseRouterData<TruelayerPSyncResponseData, Self>,
     ) -> Result<Self, Self::Error> {
@@ -587,7 +611,10 @@ impl<F, T> TryFrom<ResponseRouterData<TruelayerPSyncResponseData, Self>>
                 }
             }
             TruelayerPSyncResponseData::WebhookResponse(response) => {
-                let status = get_truelayer_payment_webhook_status(response._type)?;
+                let status =
+                    get_truelayer_payment_webhook_status(response._type).map_err(|_| {
+                        utils::response_handling_fail_for_connector(item.http_code, "truelayer")
+                    })?;
                 if is_payment_failure(status)
                     && response.failure_reason == Some("canceled".to_string())
                 {
@@ -682,7 +709,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for TruelayerRefundRequest
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: TruelayerRouterData<
@@ -708,7 +735,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl TryFrom<ResponseRouterData<TruelayerRefundResponse, Self>>
     for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
 
     fn try_from(
         item: ResponseRouterData<TruelayerRefundResponse, Self>,
@@ -755,7 +782,7 @@ pub struct TruelayerRsyncResponseData {
 impl TryFrom<ResponseRouterData<TruelayerRsyncResponse, Self>>
     for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
     fn try_from(
         item: ResponseRouterData<TruelayerRsyncResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -795,7 +822,10 @@ impl TryFrom<ResponseRouterData<TruelayerRsyncResponse, Self>>
                 })
             }
             TruelayerRsyncResponse::WebhookResponse(webhook_response) => {
-                let status = get_truelayer_refund_webhook_status(webhook_response._type)?;
+                let status =
+                    get_truelayer_refund_webhook_status(webhook_response._type).map_err(|_| {
+                        utils::response_handling_fail_for_connector(item.http_code, "truelayer")
+                    })?;
                 let response = if utils::is_refund_failure(status) {
                     Err(ErrorResponse {
                         code: webhook_response
@@ -816,11 +846,13 @@ impl TryFrom<ResponseRouterData<TruelayerRsyncResponse, Self>>
                     })
                 } else {
                     Ok(RefundsResponseData {
-                        connector_refund_id: webhook_response.refund_id.ok_or(
-                            errors::ConnectorError::UnexpectedResponseError(bytes::Bytes::from(
-                                "refund_id expected in webhook response".to_string(),
-                            )),
-                        )?,
+                        connector_refund_id: webhook_response.refund_id.ok_or_else(|| {
+                            error_stack::report!(
+                                utils::unexpected_response_fail(
+                                    item.http_code
+                                , "truelayer: unexpected response for this operation; retry with idempotency keys and check connector status.")
+                            )
+                        })?,
                         refund_status: status,
                         status_code: item.http_code,
                     })
@@ -843,7 +875,7 @@ pub struct TruelayerVoidResponseData {
 impl TryFrom<ResponseRouterData<TruelayerVoidResponseData, Self>>
     for RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
 
     fn try_from(
         item: ResponseRouterData<TruelayerVoidResponseData, Self>,
@@ -985,7 +1017,7 @@ pub fn get_webhook_event(
 
 pub fn get_truelayer_payment_webhook_status(
     event: TruelayerWebhookEventType,
-) -> Result<AttemptStatus, errors::ConnectorError> {
+) -> Result<AttemptStatus, WebhookError> {
     match event {
         TruelayerWebhookEventType::PaymentAuthorized => Ok(AttemptStatus::Authorized),
         TruelayerWebhookEventType::PaymentCreditable
@@ -998,15 +1030,13 @@ pub fn get_truelayer_payment_webhook_status(
         TruelayerWebhookEventType::PaymentDisputed
         | TruelayerWebhookEventType::Unknown
         | TruelayerWebhookEventType::RefundExecuted
-        | TruelayerWebhookEventType::RefundFailed => {
-            Err(errors::ConnectorError::WebhookBodyDecodingFailed)?
-        }
+        | TruelayerWebhookEventType::RefundFailed => Err(WebhookError::WebhookBodyDecodingFailed),
     }
 }
 
 pub fn get_truelayer_refund_webhook_status(
     event: TruelayerWebhookEventType,
-) -> Result<common_enums::RefundStatus, errors::ConnectorError> {
+) -> Result<common_enums::RefundStatus, WebhookError> {
     match event {
         TruelayerWebhookEventType::RefundExecuted => Ok(common_enums::RefundStatus::Success),
         TruelayerWebhookEventType::RefundFailed => Ok(common_enums::RefundStatus::Failure),
@@ -1019,9 +1049,7 @@ pub fn get_truelayer_refund_webhook_status(
         | TruelayerWebhookEventType::PaymentFundsReceived
         | TruelayerWebhookEventType::PaymentReversed
         | TruelayerWebhookEventType::PaymentSettlementStalled
-        | TruelayerWebhookEventType::Unknown => {
-            Err(errors::ConnectorError::WebhookBodyDecodingFailed)?
-        }
+        | TruelayerWebhookEventType::Unknown => Err(WebhookError::WebhookBodyDecodingFailed),
     }
 }
 
@@ -1045,7 +1073,7 @@ struct Jwk {
     y: Option<String>,
 }
 
-fn pad_to(bytes: Vec<u8>, target: usize) -> Result<Vec<u8>, errors::ConnectorError> {
+fn pad_to(bytes: Vec<u8>, target: usize) -> Result<Vec<u8>, IntegrationError> {
     match bytes.len().cmp(&target) {
         std::cmp::Ordering::Equal => Ok(bytes),
         std::cmp::Ordering::Less => {
@@ -1053,7 +1081,9 @@ fn pad_to(bytes: Vec<u8>, target: usize) -> Result<Vec<u8>, errors::ConnectorErr
             padded.extend(bytes);
             Ok(padded)
         }
-        std::cmp::Ordering::Greater => Err(errors::ConnectorError::WebhookSourceVerificationFailed),
+        std::cmp::Ordering::Greater => Err(IntegrationError::not_implemented(
+            "webhook source verification failed".to_string(),
+        )),
     }
 }
 
@@ -1064,30 +1094,47 @@ pub const ALLOWED_JKUS: &[&str] = &[
 
 fn convert_p163_signature_to_der(
     signature_b64: &str,
-) -> Result<Vec<u8>, error_stack::Report<errors::ConnectorError>> {
-    let sig_bytes = URL_SAFE_NO_PAD
-        .decode(signature_b64)
-        .change_context(errors::ConnectorError::WebhookDecodingFailed)?;
+) -> Result<Vec<u8>, error_stack::Report<IntegrationError>> {
+    let sig_bytes =
+        URL_SAFE_NO_PAD
+            .decode(signature_b64)
+            .change_context(IntegrationError::not_implemented(
+                "webhook decoding failed".to_string(),
+            ))?;
     if sig_bytes.len() != SIG_BYTES_EXPECTED_LENGTH {
-        return Err(errors::ConnectorError::WebhookDecodingFailed.into());
+        return Err(
+            IntegrationError::not_implemented("webhook decoding failed".to_string()).into(),
+        );
     }
 
     let r = BigNum::from_slice(
         sig_bytes
             .get(0..66)
-            .ok_or(errors::ConnectorError::WebhookDecodingFailed)?,
+            .ok_or(IntegrationError::not_implemented(
+                "webhook decoding failed".to_string(),
+            ))?,
     )
-    .change_context(errors::ConnectorError::WebhookDecodingFailed)?;
+    .change_context(IntegrationError::not_implemented(
+        "webhook decoding failed".to_string(),
+    ))?;
     let s = BigNum::from_slice(
         sig_bytes
             .get(66..)
-            .ok_or(errors::ConnectorError::WebhookDecodingFailed)?,
+            .ok_or(IntegrationError::not_implemented(
+                "webhook decoding failed".to_string(),
+            ))?,
     )
-    .change_context(errors::ConnectorError::WebhookDecodingFailed)?;
+    .change_context(IntegrationError::not_implemented(
+        "webhook decoding failed".to_string(),
+    ))?;
     let der_sig = EcdsaSig::from_private_components(r, s)
-        .change_context(errors::ConnectorError::WebhookDecodingFailed)?
+        .change_context(IntegrationError::not_implemented(
+            "webhook decoding failed".to_string(),
+        ))?
         .to_der()
-        .change_context(errors::ConnectorError::WebhookDecodingFailed)?;
+        .change_context(IntegrationError::not_implemented(
+            "webhook decoding failed".to_string(),
+        ))?;
     Ok(der_sig)
 }
 
@@ -1095,16 +1142,21 @@ fn verify_ecdsa_signature_and_digest(
     der_sig: Vec<u8>,
     signing_input: &str,
     ec_key: EcKey<Public>,
-) -> Result<bool, error_stack::Report<errors::ConnectorError>> {
-    let digest = hash(MessageDigest::sha512(), signing_input.as_bytes())
-        .change_context(errors::ConnectorError::WebhookDecodingFailed)?;
+) -> Result<bool, error_stack::Report<IntegrationError>> {
+    let digest = hash(MessageDigest::sha512(), signing_input.as_bytes()).change_context(
+        IntegrationError::not_implemented("webhook decoding failed".to_string()),
+    )?;
 
-    let ecdsa_sig = EcdsaSig::from_der(&der_sig)
-        .change_context(errors::ConnectorError::WebhookDecodingFailed)?;
+    let ecdsa_sig = EcdsaSig::from_der(&der_sig).change_context(
+        IntegrationError::not_implemented("webhook decoding failed".to_string()),
+    )?;
 
-    let valid = ecdsa_sig
-        .verify(&digest, &ec_key)
-        .change_context(errors::ConnectorError::WebhookDecodingFailed)?;
+    let valid =
+        ecdsa_sig
+            .verify(&digest, &ec_key)
+            .change_context(IntegrationError::not_implemented(
+                "webhook decoding failed".to_string(),
+            ))?;
 
     Ok(valid)
 }
@@ -1112,22 +1164,28 @@ fn verify_ecdsa_signature_and_digest(
 fn build_uncompressed_ec1_point(
     x: Vec<u8>,
     y: Vec<u8>,
-) -> Result<EcKey<Public>, error_stack::Report<errors::ConnectorError>> {
+) -> Result<EcKey<Public>, error_stack::Report<IntegrationError>> {
     let mut sec1 = vec![0x04u8];
     sec1.extend(pad_to(x, P521_COORDINATE_BYTE_LEN)?);
     sec1.extend(pad_to(y, P521_COORDINATE_BYTE_LEN)?);
 
-    let group = EcGroup::from_curve_name(Nid::SECP521R1)
-        .change_context(errors::ConnectorError::WebhookDecodingFailed)?;
-    let mut ctx =
-        BigNumContext::new().change_context(errors::ConnectorError::WebhookDecodingFailed)?;
-    let point = EcPoint::from_bytes(&group, &sec1, &mut ctx)
-        .change_context(errors::ConnectorError::WebhookDecodingFailed)?;
-    let ec_key = EcKey::from_public_key(&group, &point)
-        .change_context(errors::ConnectorError::WebhookDecodingFailed)?;
+    let group = EcGroup::from_curve_name(Nid::SECP521R1).change_context(
+        IntegrationError::not_implemented("webhook decoding failed".to_string()),
+    )?;
+    let mut ctx = BigNumContext::new().change_context(IntegrationError::not_implemented(
+        "webhook decoding failed".to_string(),
+    ))?;
+    let point = EcPoint::from_bytes(&group, &sec1, &mut ctx).change_context(
+        IntegrationError::not_implemented("webhook decoding failed".to_string()),
+    )?;
+    let ec_key = EcKey::from_public_key(&group, &point).change_context(
+        IntegrationError::not_implemented("webhook decoding failed".to_string()),
+    )?;
     ec_key
         .check_key()
-        .change_context(errors::ConnectorError::WebhookDecodingFailed)?;
+        .change_context(IntegrationError::not_implemented(
+            "webhook decoding failed".to_string(),
+        ))?;
     Ok(ec_key)
 }
 
@@ -1139,7 +1197,7 @@ fn verify_signature(
     headers: &HashMap<String, String>,
     ec_key: EcKey<Public>,
     webhook_uri: &str,
-) -> Result<bool, error_stack::Report<errors::ConnectorError>> {
+) -> Result<bool, error_stack::Report<IntegrationError>> {
     let tl_headers_str = jws_header.tl_headers.unwrap_or_default();
     let mut payload: Vec<u8> = format!("{} {}\n", "POST".to_uppercase(), webhook_uri).into_bytes();
 
@@ -1148,9 +1206,9 @@ fn verify_signature(
             headers.iter().map(|(k, v)| (k.to_lowercase(), v)).collect();
         for header_name in tl_headers_str.split(',') {
             let name = header_name.trim();
-            let value = lower_headers
-                .get(&name.to_lowercase())
-                .ok_or(errors::ConnectorError::WebhookDecodingFailed)?;
+            let value = lower_headers.get(&name.to_lowercase()).ok_or(
+                IntegrationError::not_implemented("webhook decoding failed".to_string()),
+            )?;
             payload.extend_from_slice(format!("{}: {}\n", name, value).as_bytes());
         }
     }
@@ -1176,50 +1234,65 @@ impl TryFrom<ResponseRouterData<Jwks, Self>>
         VerifyWebhookSourceResponseData,
     >
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(item: ResponseRouterData<Jwks, Self>) -> Result<Self, Self::Error> {
         let body = item.router_data.request.webhook_body.as_ref();
         let headers = item.router_data.request.webhook_headers.clone();
 
-        let tl_signature_header = headers
-            .get("tl-signature")
-            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
+        let tl_signature_header =
+            headers
+                .get("tl-signature")
+                .ok_or(IntegrationError::not_implemented(
+                    "webhook signature not found".to_string(),
+                ))?;
         let tl_signature = tl_signature_header.as_str();
         let parts: Vec<&str> = tl_signature.splitn(3, '.').collect();
 
-        let header_b64 = parts
-            .first()
-            .ok_or(errors::ConnectorError::WebhookDecodingFailed)?;
-        let signature_b64 = parts
-            .get(2)
-            .ok_or(errors::ConnectorError::WebhookDecodingFailed)?;
+        let header_b64 = parts.first().ok_or(IntegrationError::not_implemented(
+            "webhook decoding failed".to_string(),
+        ))?;
+        let signature_b64 = parts.get(2).ok_or(IntegrationError::not_implemented(
+            "webhook decoding failed".to_string(),
+        ))?;
 
-        let header_json = URL_SAFE_NO_PAD
-            .decode(header_b64)
-            .change_context(errors::ConnectorError::WebhookDecodingFailed)?;
-        let jws_header: JwsHeaderWebhooks = serde_json::from_slice(&header_json)
-            .change_context(errors::ConnectorError::WebhookDecodingFailed)?;
+        let header_json = URL_SAFE_NO_PAD.decode(header_b64).change_context(
+            IntegrationError::not_implemented("webhook decoding failed".to_string()),
+        )?;
+        let jws_header: JwsHeaderWebhooks = serde_json::from_slice(&header_json).change_context(
+            IntegrationError::not_implemented("webhook decoding failed".to_string()),
+        )?;
 
         let jwk = item
             .response
             .keys
             .into_iter()
             .find(|k| k.kid == jws_header.kid && k.kty == "EC")
-            .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+            .ok_or(IntegrationError::not_implemented(
+                "webhook source verification failed".to_string(),
+            ))?;
 
         let x_raw = URL_SAFE_NO_PAD
-            .decode(jwk.x.ok_or(errors::ConnectorError::WebhookDecodingFailed)?)
-            .change_context(errors::ConnectorError::WebhookDecodingFailed)?;
+            .decode(jwk.x.ok_or(IntegrationError::not_implemented(
+                "webhook decoding failed".to_string(),
+            ))?)
+            .change_context(IntegrationError::not_implemented(
+                "webhook decoding failed".to_string(),
+            ))?;
         let y_raw = URL_SAFE_NO_PAD
-            .decode(jwk.y.ok_or(errors::ConnectorError::WebhookDecodingFailed)?)
-            .change_context(errors::ConnectorError::WebhookDecodingFailed)?;
+            .decode(jwk.y.ok_or(IntegrationError::not_implemented(
+                "webhook decoding failed".to_string(),
+            ))?)
+            .change_context(IntegrationError::not_implemented(
+                "webhook decoding failed".to_string(),
+            ))?;
 
         let ec_key = build_uncompressed_ec1_point(x_raw, y_raw)?;
 
         let webhook_uri = item.router_data.request.webhook_uri.clone().ok_or(
-            errors::ConnectorError::MissingRequiredField {
+            IntegrationError::MissingRequiredField {
                 field_name: "webhook_uri",
+                context: Default::default(),
             },
         )?;
 

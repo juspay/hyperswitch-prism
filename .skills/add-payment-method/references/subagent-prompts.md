@@ -89,7 +89,7 @@ Instructions:
 
 4. Handle unsupported variants:
    - Never use catch-all _ silently
-   - Return ConnectorError::NotImplemented with specific message including connector name
+   - Return IntegrationError::NotImplemented with specific message including connector name
 
 5. Validate required fields with missing_field_err.
 
@@ -172,7 +172,7 @@ Transformers: crates/integrations/connector-integration/src/connectors/{connecto
 
 Checks:
 1. Each supported payment method has its own explicit match arm
-2. Unsupported variants return ConnectorError::NotImplemented with connector name
+2. Unsupported variants return IntegrationError::NotImplemented with connector name
 3. No catch-all _ silently drops payment methods without error
 4. Required fields validated with missing_field_err or ok_or_else
 5. Box-wrapped types (BankTransferData, GiftCardData) properly dereferenced with .deref()

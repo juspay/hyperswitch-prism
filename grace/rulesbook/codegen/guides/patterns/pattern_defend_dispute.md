@@ -95,7 +95,7 @@ use domain_types::{
         RefundFlowData, RefundsData, RefundsResponseData, RefundsResponseData,
         ResponseId, SetupMandateRequestData, SubmitEvidenceData,
     },
-    errors::{self, ConnectorError},
+    errors::{self, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorAuthType, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -182,7 +182,7 @@ macros::create_all_prerequisites!(
         pub fn build_headers<F, FCD, Req, Res>(
             &self,
             req: &RouterDataV2<F, FCD, Req, Res>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let mut header = vec![(
                 headers::CONTENT_TYPE.to_string(),
                 "application/json".to_string().into(),
@@ -237,17 +237,17 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
 
         fn get_url(
             &self,
             req: &RouterDataV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>,
-        ) -> CustomResult<String, ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             // Use dispute-specific base URL
             let dispute_url = self.connector_base_url_disputes(req)
-                .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
+                .ok_or(errors::IntegrationError::FailedToObtainIntegrationUrl)?;
 
             // Extract connector dispute ID for URL construction
             let dispute_id = &req.request.connector_dispute_id;
@@ -270,7 +270,7 @@ use domain_types::{
     connector_types::{
         DisputeDefendData, DisputeFlowData, DisputeResponseData,
     },
-    errors::{self, ConnectorError},
+    errors::{self, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorAuthType, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -299,9 +299,9 @@ impl {ConnectorName}DefendDisputeRequest {
     pub fn try_from_router_data(
         router_data: &RouterDataV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>,
         auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Self, ConnectorError> {
+    ) -> CustomResult<Self, IntegrationError> {
         let auth = {ConnectorName}AuthType::try_from(auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+            .change_context(errors::IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
 
         Ok(Self {
             dispute_id: router_data.request.connector_dispute_id.clone(),
@@ -315,7 +315,7 @@ impl {ConnectorName}DefendDisputeRequest {
 impl TryFrom<&RouterDataV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>>
     for {ConnectorName}DefendDisputeRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         router_data: &RouterDataV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>,
@@ -391,7 +391,7 @@ pub struct DefendDisputeErrorResponse {
 impl TryFrom<ResponseRouterData<{ConnectorName}DefendDisputeResponse, RouterDataV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>>>
     for RouterDataV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
 
     fn try_from(
         item: ResponseRouterData<{ConnectorName}DefendDisputeResponse, RouterDataV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>>,
@@ -447,7 +447,7 @@ pub struct {ConnectorName}RouterData<T, U> {
 }
 
 impl<T, U> TryFrom<(T, U)> for {ConnectorName}RouterData<T, U> {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from((router_data, connector): (T, U)) -> Result<Self, Self::Error> {
         Ok(Self {
@@ -529,7 +529,7 @@ pub enum DisputeStatus {
 impl TryFrom<&RouterDataV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>>
     for {ConnectorName}DefendDisputeRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(router_data: &RouterDataV2<...>) -> Result<Self, Self::Error> {
         let auth = {ConnectorName}AuthType::try_from(&router_data.connector_auth_type)?;
@@ -546,7 +546,7 @@ impl TryFrom<&RouterDataV2<DefendDispute, DisputeFlowData, DisputeDefendData, Di
 impl TryFrom<{ConnectorName}RouterData<RouterDataV2<...>, T>>
     for {ConnectorName}DefendDisputeRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(item: {ConnectorName}RouterData<...>) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
@@ -568,7 +568,7 @@ impl TryFrom<{ConnectorName}RouterData<RouterDataV2<...>, T>>
 impl TryFrom<ResponseRouterData<{ConnectorName}DefendDisputeResponse, RouterDataV2<...>>>
     for RouterDataV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
 
     fn try_from(item: ResponseRouterData<...>) -> Result<Self, Self::Error> {
         let response = &item.response;
@@ -597,7 +597,7 @@ impl TryFrom<ResponseRouterData<{ConnectorName}DefendDisputeResponse, RouterData
 impl<F, Req> TryFrom<ResponseRouterData<{ConnectorName}DefendDisputeResponse, Self>>
     for RouterDataV2<F, DisputeFlowData, Req, DisputeResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
 
     fn try_from(
         value: ResponseRouterData<{ConnectorName}DefendDisputeResponse, Self>,
@@ -675,13 +675,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<ErrorResponse, errors::ConnectorResponseTransformationError> {
         let response: {ConnectorName}ErrorResponse = if res.response.is_empty() {
             {ConnectorName}ErrorResponse::default()
         } else {
             res.response
                 .parse_struct("ErrorResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
+                .change_context(errors::ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })?
         };
 
         if let Some(i) = event_builder {
@@ -802,15 +802,15 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
             self.build_headers(req)
         }
         fn get_url(
             &self,
             req: &RouterDataV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, errors::IntegrationError> {
             let dispute_url = self.connector_base_url_disputes(req)
-                .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
+                .ok_or(errors::IntegrationError::FailedToObtainIntegrationUrl)?;
             Ok(format!("{dispute_url}ca/services/DisputeService/v30/defendDispute"))
         }
     }

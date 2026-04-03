@@ -106,21 +106,21 @@ export class UniffiClient extends _UniffiClientBase {
     return this.callRes('create', responseBytes, requestBytes, optionsBytes);
   }
 
-  /** Build connector HTTP request for create_access_token flow. */
-  createAccessTokenReq(
+  /** Build connector HTTP request for create_client_authentication_token flow. */
+  createClientAuthenticationTokenReq(
     requestBytes: Buffer | Uint8Array,
     optionsBytes: Buffer | Uint8Array
   ): Buffer {
-    return this.callReq('create_access_token', requestBytes, optionsBytes);
+    return this.callReq('create_client_authentication_token', requestBytes, optionsBytes);
   }
 
-  /** Parse connector HTTP response for create_access_token flow. */
-  createAccessTokenRes(
+  /** Parse connector HTTP response for create_client_authentication_token flow. */
+  createClientAuthenticationTokenRes(
     responseBytes: Buffer | Uint8Array,
     requestBytes: Buffer | Uint8Array,
     optionsBytes: Buffer | Uint8Array
   ): Buffer {
-    return this.callRes('create_access_token', responseBytes, requestBytes, optionsBytes);
+    return this.callRes('create_client_authentication_token', responseBytes, requestBytes, optionsBytes);
   }
 
   /** Build connector HTTP request for create_order flow. */
@@ -140,21 +140,38 @@ export class UniffiClient extends _UniffiClientBase {
     return this.callRes('create_order', responseBytes, requestBytes, optionsBytes);
   }
 
-  /** Build connector HTTP request for create_session_token flow. */
-  createSessionTokenReq(
+  /** Build connector HTTP request for create_server_authentication_token flow. */
+  createServerAuthenticationTokenReq(
     requestBytes: Buffer | Uint8Array,
     optionsBytes: Buffer | Uint8Array
   ): Buffer {
-    return this.callReq('create_session_token', requestBytes, optionsBytes);
+    return this.callReq('create_server_authentication_token', requestBytes, optionsBytes);
   }
 
-  /** Parse connector HTTP response for create_session_token flow. */
-  createSessionTokenRes(
+  /** Parse connector HTTP response for create_server_authentication_token flow. */
+  createServerAuthenticationTokenRes(
     responseBytes: Buffer | Uint8Array,
     requestBytes: Buffer | Uint8Array,
     optionsBytes: Buffer | Uint8Array
   ): Buffer {
-    return this.callRes('create_session_token', responseBytes, requestBytes, optionsBytes);
+    return this.callRes('create_server_authentication_token', responseBytes, requestBytes, optionsBytes);
+  }
+
+  /** Build connector HTTP request for create_server_session_authentication_token flow. */
+  createServerSessionAuthenticationTokenReq(
+    requestBytes: Buffer | Uint8Array,
+    optionsBytes: Buffer | Uint8Array
+  ): Buffer {
+    return this.callReq('create_server_session_authentication_token', requestBytes, optionsBytes);
+  }
+
+  /** Parse connector HTTP response for create_server_session_authentication_token flow. */
+  createServerSessionAuthenticationTokenRes(
+    responseBytes: Buffer | Uint8Array,
+    requestBytes: Buffer | Uint8Array,
+    optionsBytes: Buffer | Uint8Array
+  ): Buffer {
+    return this.callRes('create_server_session_authentication_token', responseBytes, requestBytes, optionsBytes);
   }
 
   /** Build connector HTTP request for defend flow. */

@@ -1,9 +1,9 @@
 use common_utils::events::FlowName;
 use domain_types::connector_flow::{
-    Accept, Authenticate, Authorize, Capture, CreateOrder, CreateSessionToken, DefendDispute,
-    IncrementalAuthorization, MandateRevoke, PSync, PaymentMethodToken, PostAuthenticate,
-    PreAuthenticate, RSync, Refund, RepeatPayment, SdkSessionToken, SetupMandate, SubmitEvidence,
-    Void, VoidPC,
+    Accept, Authenticate, Authorize, Capture, ClientAuthenticationToken, CreateOrder,
+    DefendDispute, IncrementalAuthorization, MandateRevoke, PSync, PaymentMethodToken,
+    PostAuthenticate, PreAuthenticate, RSync, Refund, RepeatPayment,
+    ServerSessionAuthenticationToken, SetupMandate, SubmitEvidence, Void, VoidPC,
 };
 use ucs_env::configs;
 
@@ -41,8 +41,8 @@ where
         FlowName::RepeatPayment
     } else if type_id == std::any::TypeId::of::<CreateOrder>() {
         FlowName::CreateOrder
-    } else if type_id == std::any::TypeId::of::<CreateSessionToken>() {
-        FlowName::CreateSessionToken
+    } else if type_id == std::any::TypeId::of::<ServerSessionAuthenticationToken>() {
+        FlowName::ServerSessionAuthenticationToken
     } else if type_id == std::any::TypeId::of::<Accept>() {
         FlowName::AcceptDispute
     } else if type_id == std::any::TypeId::of::<DefendDispute>() {
@@ -57,8 +57,8 @@ where
         FlowName::Authenticate
     } else if type_id == std::any::TypeId::of::<PostAuthenticate>() {
         FlowName::PostAuthenticate
-    } else if type_id == std::any::TypeId::of::<SdkSessionToken>() {
-        FlowName::SdkSessionToken
+    } else if type_id == std::any::TypeId::of::<ClientAuthenticationToken>() {
+        FlowName::ClientAuthenticationToken
     } else if type_id == std::any::TypeId::of::<IncrementalAuthorization>() {
         FlowName::IncrementalAuthorization
     } else if type_id == std::any::TypeId::of::<MandateRevoke>() {

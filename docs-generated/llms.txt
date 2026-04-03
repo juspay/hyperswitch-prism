@@ -43,7 +43,7 @@ connector_id: airwallex
 doc: docs/connectors/airwallex.md
 scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment
 payment_methods: Blik, Card, Ideal
-flows: authorize, capture, create_access_token, create_order, get, refund, void
+flows: authorize, capture, server_authentication_token, create_order, get, refund, void
 examples_python: examples/airwallex/python/airwallex.py
 
 ## Authipay
@@ -243,7 +243,7 @@ connector_id: getnet
 doc: docs/connectors/getnet.md
 scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment
 payment_methods: Card
-flows: authorize, capture, create_access_token, get, refund, void
+flows: authorize, capture, server_authentication_token, get, refund, void
 examples_python: examples/getnet/python/getnet.py
 
 ## Gigadat
@@ -259,7 +259,7 @@ connector_id: globalpay
 doc: docs/connectors/globalpay.md
 scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment
 payment_methods: Card, Ideal
-flows: authorize, capture, create_access_token, get, refund, void
+flows: authorize, capture, server_authentication_token, get, refund, void
 examples_python: examples/globalpay/python/globalpay.py
 
 ## Helcim
@@ -291,7 +291,7 @@ connector_id: iatapay
 doc: docs/connectors/iatapay.md
 scenarios: none
 payment_methods: Ideal, UpiCollect
-flows: authorize, create_access_token, get, refund
+flows: authorize, server_authentication_token, get, refund
 examples_python: none
 
 ## Jpmorgan
@@ -299,7 +299,7 @@ connector_id: jpmorgan
 doc: docs/connectors/jpmorgan.md
 scenarios: checkout_card, checkout_autocapture, checkout_bank, refund, void_payment, get_payment
 payment_methods: Ach, Card
-flows: authorize, capture, create_access_token, get, refund, void
+flows: authorize, capture, server_authentication_token, get, refund, void
 examples_python: examples/jpmorgan/python/jpmorgan.py
 
 ## Loonio
@@ -379,7 +379,7 @@ connector_id: nuvei
 doc: docs/connectors/nuvei.md
 scenarios: checkout_card, checkout_autocapture, refund, void_payment, get_payment
 payment_methods: Card
-flows: authorize, capture, create_session_token, get, refund, void
+flows: authorize, capture, server_session_authentication_token, get, refund, void
 examples_python: examples/nuvei/python/nuvei.py
 
 ## Paybox
@@ -411,7 +411,7 @@ connector_id: paypal
 doc: docs/connectors/paypal.md
 scenarios: checkout_card, checkout_autocapture, refund, recurring, void_payment, get_payment
 payment_methods: Card, Ideal, PaypalRedirect
-flows: authorize, capture, create_access_token, get, recurring_charge, refund, setup_recurring, void
+flows: authorize, capture, server_authentication_token, get, recurring_charge, refund, setup_recurring, void
 examples_python: examples/paypal/python/paypal.py
 
 ## Paysafe
@@ -427,7 +427,7 @@ connector_id: paytm
 doc: docs/connectors/paytm.md
 scenarios: none
 payment_methods: UpiCollect
-flows: authorize, create_session_token, get
+flows: authorize, server_session_authentication_token, get
 examples_python: none
 
 ## PayU
@@ -547,7 +547,7 @@ connector_id: truelayer
 doc: docs/connectors/truelayer.md
 scenarios: none
 payment_methods: none
-flows: create_access_token, get
+flows: server_authentication_token, get
 examples_python: none
 
 ## TrustPay
@@ -555,7 +555,7 @@ connector_id: trustpay
 doc: docs/connectors/trustpay.md
 scenarios: checkout_autocapture, refund, get_payment
 payment_methods: Blik, Card, Ideal
-flows: authorize, create_access_token, create_order, get, refund
+flows: authorize, server_authentication_token, create_order, get, refund
 examples_python: examples/trustpay/python/trustpay.py
 
 ## Trustpayments
@@ -579,7 +579,7 @@ connector_id: volt
 doc: docs/connectors/volt.md
 scenarios: none
 payment_methods: none
-flows: create_access_token, get, refund
+flows: server_authentication_token, get, refund
 examples_python: none
 
 ## Wellsfargo

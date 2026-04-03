@@ -2,7 +2,7 @@
   "suite": "get",
   "suite_type": "dependent",
   "depends_on": [
-    "create_access_token",
+    "server_authentication_token",
     "create_customer",
     "tokenize_payment_method",
     {

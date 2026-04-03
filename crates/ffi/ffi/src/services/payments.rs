@@ -6,10 +6,12 @@ use grpc_api_types::payments::{
     DisputeServiceAcceptResponse, DisputeServiceDefendRequest, DisputeServiceDefendResponse,
     DisputeServiceSubmitEvidenceRequest, DisputeServiceSubmitEvidenceResponse,
     EventServiceHandleRequest, EventServiceHandleResponse,
-    MerchantAuthenticationServiceCreateAccessTokenRequest,
-    MerchantAuthenticationServiceCreateAccessTokenResponse,
-    MerchantAuthenticationServiceCreateSessionTokenRequest,
-    MerchantAuthenticationServiceCreateSessionTokenResponse,
+    MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
+    MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse,
+    MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
+    MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
+    MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest,
+    MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse,
     PaymentMethodAuthenticationServiceAuthenticateRequest,
     PaymentMethodAuthenticationServiceAuthenticateResponse,
     PaymentMethodAuthenticationServicePostAuthenticateRequest,
@@ -30,21 +32,22 @@ use grpc_api_types::payments::{
 
 use domain_types::{
     connector_flow::{
-        Accept, Authenticate, Authorize, Capture, CreateAccessToken, CreateConnectorCustomer,
-        CreateOrder, CreateSessionToken, DefendDispute, PSync, PaymentMethodToken,
-        PostAuthenticate, PreAuthenticate, Refund, RepeatPayment, SetupMandate, SubmitEvidence,
-        Void, VoidPC,
+        Accept, Authenticate, Authorize, Capture, ClientAuthenticationToken,
+        CreateConnectorCustomer, CreateOrder, DefendDispute, PSync, PaymentMethodToken,
+        PostAuthenticate, PreAuthenticate, Refund, RepeatPayment, ServerAuthenticationToken,
+        ServerSessionAuthenticationToken, SetupMandate, SubmitEvidence, Void, VoidPC,
     },
     connector_types::{
-        AcceptDisputeData, AccessTokenRequestData, AccessTokenResponseData, ConnectorCustomerData,
+        AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
         ConnectorCustomerResponse, ConnectorWebhookSecrets, DisputeDefendData, DisputeFlowData,
         DisputeResponseData, PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData,
         PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
         PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
         PaymentsCaptureData, PaymentsPostAuthenticateData, PaymentsPreAuthenticateData,
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundsData, RefundsResponseData,
-        RepeatPaymentData, RequestDetails, SessionTokenRequestData, SessionTokenResponseData,
-        SetupMandateRequestData, SubmitEvidenceData,
+        RepeatPaymentData, RequestDetails, ServerAuthenticationTokenRequestData,
+        ServerAuthenticationTokenResponseData, ServerSessionAuthenticationTokenRequestData,
+        ServerSessionAuthenticationTokenResponseData, SetupMandateRequestData, SubmitEvidenceData,
     },
 };
 
@@ -160,23 +163,23 @@ res_transformer!(
 
 // create access token request transformer
 req_transformer!(
-    fn_name: create_access_token_req_transformer,
-    request_type: MerchantAuthenticationServiceCreateAccessTokenRequest,
-    flow_marker: CreateAccessToken,
+    fn_name: create_server_authentication_token_req_transformer,
+    request_type: MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
+    flow_marker: ServerAuthenticationToken,
     resource_common_data_type: PaymentFlowData,
-    request_data_type: AccessTokenRequestData,
-    response_data_type: AccessTokenResponseData,
+    request_data_type: ServerAuthenticationTokenRequestData,
+    response_data_type: ServerAuthenticationTokenResponseData,
 );
 
 // create access token response transformer
 res_transformer!(
-    fn_name: create_access_token_res_transformer,
-    request_type: MerchantAuthenticationServiceCreateAccessTokenRequest,
-    response_type: MerchantAuthenticationServiceCreateAccessTokenResponse,
-    flow_marker: CreateAccessToken,
+    fn_name: create_server_authentication_token_res_transformer,
+    request_type: MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
+    response_type: MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
+    flow_marker: ServerAuthenticationToken,
     resource_common_data_type: PaymentFlowData,
-    request_data_type: AccessTokenRequestData,
-    response_data_type: AccessTokenResponseData,
+    request_data_type: ServerAuthenticationTokenRequestData,
+    response_data_type: ServerAuthenticationTokenResponseData,
     generate_response_fn: generate_access_token_response,
 );
 
@@ -270,24 +273,46 @@ res_transformer!(
 
 // create session token request transformer
 req_transformer!(
-    fn_name: create_session_token_req_transformer,
-    request_type: MerchantAuthenticationServiceCreateSessionTokenRequest,
-    flow_marker: CreateSessionToken,
+    fn_name: create_server_session_authentication_token_req_transformer,
+    request_type: MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest,
+    flow_marker: ServerSessionAuthenticationToken,
     resource_common_data_type: PaymentFlowData,
-    request_data_type: SessionTokenRequestData,
-    response_data_type: SessionTokenResponseData,
+    request_data_type: ServerSessionAuthenticationTokenRequestData,
+    response_data_type: ServerSessionAuthenticationTokenResponseData,
 );
 
 // create session token response transformer
 res_transformer!(
-    fn_name: create_session_token_res_transformer,
-    request_type: MerchantAuthenticationServiceCreateSessionTokenRequest,
-    response_type: MerchantAuthenticationServiceCreateSessionTokenResponse,
-    flow_marker: CreateSessionToken,
+    fn_name: create_server_session_authentication_token_res_transformer,
+    request_type: MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest,
+    response_type: MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse,
+    flow_marker: ServerSessionAuthenticationToken,
     resource_common_data_type: PaymentFlowData,
-    request_data_type: SessionTokenRequestData,
-    response_data_type: SessionTokenResponseData,
+    request_data_type: ServerSessionAuthenticationTokenRequestData,
+    response_data_type: ServerSessionAuthenticationTokenResponseData,
     generate_response_fn: generate_session_token_response,
+);
+
+// client authentication token request transformer
+req_transformer!(
+    fn_name: create_client_authentication_token_req_transformer,
+    request_type: MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
+    flow_marker: ClientAuthenticationToken,
+    resource_common_data_type: PaymentFlowData,
+    request_data_type: ClientAuthenticationTokenRequestData,
+    response_data_type: PaymentsResponseData,
+);
+
+// client authentication token response transformer
+res_transformer!(
+    fn_name: create_client_authentication_token_res_transformer,
+    request_type: MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
+    response_type: MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse,
+    flow_marker: ClientAuthenticationToken,
+    resource_common_data_type: PaymentFlowData,
+    request_data_type: ClientAuthenticationTokenRequestData,
+    response_data_type: PaymentsResponseData,
+    generate_response_fn: generate_payment_sdk_session_token_response,
 );
 
 // setup recurring (setup mandate) request transformer
@@ -534,12 +559,10 @@ pub fn handle_event_transformer(
         source_verified,
     )
     .map_err(
-        |e: error_stack::Report<domain_types::errors::ApplicationErrorResponse>| {
-            ConnectorResponseTransformationError {
-                error_message: format!("Error in Processing webhook events: {e}"),
-                error_code: "WEBHOOK_PROCESSING_ERROR".to_string(),
-                http_status_code: None,
-            }
+        |e: error_stack::Report<domain_types::errors::WebhookError>| {
+            let app_error: domain_types::errors::ApplicationErrorResponse =
+                common_utils::errors::ErrorSwitch::switch(e.current_context());
+            ucs_env::error::ErrorSwitch::switch(&app_error)
         },
     )
 }

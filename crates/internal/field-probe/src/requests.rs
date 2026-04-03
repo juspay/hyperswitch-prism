@@ -24,8 +24,10 @@ use grpc_api_types::payments::{
     ConnectorMandateReferenceId, CustomerAcceptance, CustomerServiceCreateRequest,
     DisputeServiceAcceptRequest, DisputeServiceDefendRequest, DisputeServiceSubmitEvidenceRequest,
     EvidenceDocument, EvidenceType, MandateReference,
-    MerchantAuthenticationServiceCreateAccessTokenRequest,
-    MerchantAuthenticationServiceCreateSessionTokenRequest, PaymentAddress, PaymentMethod,
+    MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
+    MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
+    MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest, PaymentAddress,
+    PaymentClientAuthenticationContext, PaymentMethod,
     PaymentMethodAuthenticationServiceAuthenticateRequest,
     PaymentMethodAuthenticationServicePostAuthenticateRequest,
     PaymentMethodAuthenticationServicePreAuthenticateRequest, PaymentMethodServiceTokenizeRequest,
@@ -216,17 +218,39 @@ pub(crate) fn base_tokenize_request() -> PaymentMethodServiceTokenizeRequest {
     }
 }
 
-pub(crate) fn base_create_access_token_request(
-) -> MerchantAuthenticationServiceCreateAccessTokenRequest {
-    MerchantAuthenticationServiceCreateAccessTokenRequest {
+pub(crate) fn base_create_server_authentication_token_request(
+) -> MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
+    MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
         ..Default::default()
     }
 }
 
-pub(crate) fn base_create_session_token_request(
-) -> MerchantAuthenticationServiceCreateSessionTokenRequest {
-    MerchantAuthenticationServiceCreateSessionTokenRequest {
-        amount: Some(usd_money(1000)),
+pub(crate) fn base_create_server_session_authentication_token_request(
+) -> MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest {
+    MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest {
+        domain_context: Some(
+            grpc_api_types::payments::merchant_authentication_service_create_server_session_authentication_token_request::DomainContext::Payment(
+                grpc_api_types::payments::PaymentSessionContext {
+                    amount: Some(usd_money(1000)),
+                    ..Default::default()
+                },
+            ),
+        ),
+        ..Default::default()
+    }
+}
+
+pub(crate) fn base_create_client_authentication_token_request(
+) -> MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest {
+    MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest {
+        domain_context: Some(
+            grpc_api_types::payments::merchant_authentication_service_create_client_authentication_token_request::DomainContext::Payment(
+                PaymentClientAuthenticationContext {
+                    amount: Some(usd_money(1000)),
+                    ..Default::default()
+                },
+            ),
+        ),
         ..Default::default()
     }
 }

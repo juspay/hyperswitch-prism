@@ -36,7 +36,7 @@ try:
         CaptureMethod,
         AuthenticationType,
         PaymentStatus,
-        MerchantAuthenticationServiceCreateAccessTokenRequest,
+        MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
         PaymentServiceAuthorizeRequest,
         IntegrationError,
         ConnectorResponseTransformationError,
@@ -136,14 +136,14 @@ async def test_paypal_authorize(creds_file: str) -> bool:
     expires_in_seconds = 3600
 
     try:
-        access_token_request = MerchantAuthenticationServiceCreateAccessTokenRequest()
+        access_token_request = MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest()
         access_token_request.merchant_access_token_id = (
             f"paypal_token_{int(time.time() * 1000)}"
         )
         access_token_request.connector = Connector.PAYPAL
         access_token_request.test_mode = True
 
-        access_token_response = await auth_client.create_access_token(
+        access_token_response = await auth_client.create_server_authentication_token(
             access_token_request
         )
 

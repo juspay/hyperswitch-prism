@@ -82,16 +82,16 @@ mod tests {
                     amount: None,
                     connector_response: None,
                     recurring_mandate_payment_data: None,
-                    l2_l3_data: None,
-                },
+                    l2_l3_data: None
+},
                 connector_config: ConnectorSpecificConfig::Adyen {
                     api_key: Secret::new(api_key),
                     merchant_account: Secret::new(key1),
                     review_key: None,
                     base_url: None,
                     dispute_base_url: None,
-                    endpoint_prefix: None,
-                },
+                    endpoint_prefix: None
+},
                 request: PaymentsAuthorizeData {
                     payment_channel: None,
                     authentication_data: None,
@@ -146,8 +146,8 @@ mod tests {
                             os_type: None,
                             os_version: None,
                             device_model: None,
-                            accept_language: None,
-                        },
+                            accept_language: None
+},
                     ),
                     order_category: None,
                     session_token: None,
@@ -182,10 +182,10 @@ mod tests {
                     continue_redirection_url: None,
                     redirect_response: None,
                     threeds_method_comp_ind: None,
-                    tokenization: None,
-                },
-                response: Err(ErrorResponse::default()),
-            };
+                    tokenization: None
+},
+                response: Err(ErrorResponse::default())
+};
 
             let connector: BoxedConnector<DefaultPCIHolder> = Box::new(Adyen::new());
             let connector_data = ConnectorData {
@@ -279,16 +279,16 @@ mod tests {
                     amount: None,
                     connector_response: None,
                     recurring_mandate_payment_data: None,
-                    l2_l3_data: None,
-                },
+                    l2_l3_data: None
+},
                 connector_config: ConnectorSpecificConfig::Adyen {
                     api_key: Secret::new(api_key),
                     merchant_account: Secret::new(key1),
                     review_key: None,
                     base_url: None,
                     dispute_base_url: None,
-                    endpoint_prefix: None,
-                },
+                    endpoint_prefix: None
+},
                 request: PaymentsAuthorizeData {
                     payment_channel: None,
                     authentication_data: None,
@@ -337,10 +337,10 @@ mod tests {
                     continue_redirection_url: None,
                     redirect_response: None,
                     threeds_method_comp_ind: None,
-                    tokenization: None,
-                },
-                response: Err(ErrorResponse::default()),
-            };
+                    tokenization: None
+},
+                response: Err(ErrorResponse::default())
+};
 
             let connector: BoxedConnector<DefaultPCIHolder> = Box::new(Adyen::new());
             let connector_data = ConnectorData {

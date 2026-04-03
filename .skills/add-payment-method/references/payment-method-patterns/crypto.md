@@ -73,7 +73,7 @@ impl TryFrom<CryptoRouterData<...>> for CryptoPaymentsRequest {
                     custom_id: connector_request_reference_id.clone(),
                 })
             }
-            _ => Err(ConnectorError::NotImplemented(...)),
+            _ => Err(IntegrationError::NotImplemented(..., Default::default())),
         }
     }
 }

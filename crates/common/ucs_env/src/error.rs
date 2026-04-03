@@ -1,4 +1,6 @@
-use domain_types::errors::{ApiClientError, ApiError, ApplicationErrorResponse, ConnectorError};
+use domain_types::errors::{
+    ApiClientError, ApiError, ApplicationErrorResponse, ConnectorFlowError, IntegrationError,
+};
 use grpc_api_types::payments::PaymentServiceAuthorizeResponse;
 use tonic::Status;
 
@@ -88,118 +90,17 @@ pub enum ConfigurationError {
     IoError(#[from] std::io::Error),
 }
 
-impl ErrorSwitch<ApplicationErrorResponse> for ConnectorError {
+/// Request-phase connector errors (`IntegrationError`) use the same HTTP mapping as
+/// [`common_utils::errors::ErrorSwitch`]; this crate defines a parallel [`ErrorSwitch`] for FFI/gRPC.
+impl ErrorSwitch<ApplicationErrorResponse> for IntegrationError {
     fn switch(&self) -> ApplicationErrorResponse {
-        match self {
-            Self::FailedToObtainIntegrationUrl
-            | Self::FailedToObtainPreferredConnector
-            | Self::FailedToObtainAuthType
-            | Self::FailedToObtainCertificate
-            | Self::FailedToObtainCertificateKey
-            | Self::RequestEncodingFailed
-            | Self::RequestEncodingFailedWithReason(_)
-            | Self::ParsingFailed
-            | Self::ResponseDeserializationFailed
-            | Self::ResponseHandlingFailed
-            | Self::WebhookResponseEncodingFailed
-            | Self::ProcessingStepFailed(_)
-            | Self::UnexpectedResponseError(_)
-            | Self::RoutingRulesParsingError
-            | Self::FailedAtConnector { .. }
-            | Self::AmountConversionFailed
-            | Self::GenericError { .. }
-            | Self::MandatePaymentDataMismatch { .. }
-            | Self::ConfigResolutionFailed(_) => {
-                ApplicationErrorResponse::InternalServerError(ApiError {
-                    sub_code: "INTERNAL_SERVER_ERROR".to_string(),
-                    error_identifier: 500,
-                    error_message: self.to_string(),
-                    error_object: None,
-                })
-            }
-            Self::InvalidConnectorName
-            | Self::InvalidWallet
-            | Self::MissingRequiredField { .. }
-            | Self::MissingRequiredFields { .. }
-            | Self::InvalidDateFormat
-            | Self::NotSupported { .. }
-            | Self::FlowNotSupported { .. }
-            | Self::DateFormattingFailed
-            | Self::InvalidDataFormat { .. }
-            | Self::MismatchedPaymentData
-            | Self::InvalidWalletToken { .. }
-            | Self::FileValidationFailed { .. }
-            | Self::MissingConnectorRedirectionPayload { .. }
-            | Self::MissingPaymentMethodType
-            | Self::CurrencyNotSupported { .. }
-            | Self::NoConnectorWalletDetails
-            | Self::MissingConnectorMandateMetadata
-            | Self::IntegrityCheckFailed { .. }
-            | Self::SourceVerificationFailed
-            | Self::DecodingFailed(..)
-            | Self::InvalidConnectorConfig { .. } => {
-                ApplicationErrorResponse::BadRequest(ApiError {
-                    sub_code: "BAD_REQUEST".to_string(),
-                    error_identifier: 400,
-                    error_message: self.to_string(),
-                    error_object: None,
-                })
-            }
-            Self::NoConnectorMetaData
-            | Self::MaxFieldLengthViolated { .. }
-            | Self::MissingConnectorMandateID
-            | Self::MissingConnectorTransactionID
-            | Self::MissingConnectorRefundID
-            | Self::MissingConnectorRelatedTransactionID { .. }
-            | Self::InSufficientBalanceInPaymentMethod => {
-                ApplicationErrorResponse::Unprocessable(ApiError {
-                    sub_code: "UNPROCESSABLE_ENTITY".to_string(),
-                    error_identifier: 422,
-                    error_message: self.to_string(),
-                    error_object: None,
-                })
-            }
-            Self::NotImplemented(_)
-            | Self::CaptureMethodNotSupported
-            | Self::WebhooksNotImplemented => ApplicationErrorResponse::NotImplemented(ApiError {
-                sub_code: "NOT_IMPLEMENTED".to_string(),
-                error_identifier: 501,
-                error_message: self.to_string(),
-                error_object: None,
-            }),
-            Self::MissingApplePayTokenData
-            | Self::WebhookBodyDecodingFailed
-            | Self::WebhookDecodingFailed
-            | Self::WebhookSourceVerificationFailed
-            | Self::WebhookVerificationSecretInvalid => {
-                ApplicationErrorResponse::BadRequest(ApiError {
-                    sub_code: "INVALID_WEBHOOK_DATA".to_string(),
-                    error_identifier: 400,
-                    error_message: self.to_string(),
-                    error_object: None,
-                })
-            }
-            Self::RequestTimeoutReceived => {
-                ApplicationErrorResponse::InternalServerError(ApiError {
-                    sub_code: "REQUEST_TIMEOUT".to_string(),
-                    error_identifier: 504,
-                    error_message: self.to_string(),
-                    error_object: None,
-                })
-            }
-            Self::WebhookEventTypeNotFound
-            | Self::WebhookSignatureNotFound
-            | Self::WebhookReferenceIdNotFound
-            | Self::WebhookResourceObjectNotFound
-            | Self::WebhookVerificationSecretNotFound => {
-                ApplicationErrorResponse::NotFound(ApiError {
-                    sub_code: "WEBHOOK_DETAILS_NOT_FOUND".to_string(),
-                    error_identifier: 404,
-                    error_message: self.to_string(),
-                    error_object: None,
-                })
-            }
-        }
+        common_utils::errors::ErrorSwitch::switch(self)
+    }
+}
+
+impl ErrorSwitch<ApplicationErrorResponse> for ConnectorFlowError {
+    fn switch(&self) -> ApplicationErrorResponse {
+        common_utils::errors::ErrorSwitch::switch(self)
     }
 }
 
@@ -336,7 +237,7 @@ impl From<PaymentAuthorizationError> for PaymentServiceAuthorizeResponse {
     }
 }
 
-/// Convert ApplicationErrorResponse to proto IntegrationError
+/// Convert `ApplicationErrorResponse` to payments proto `IntegrationError`.
 impl ErrorSwitch<grpc_api_types::payments::IntegrationError> for ApplicationErrorResponse {
     fn switch(&self) -> grpc_api_types::payments::IntegrationError {
         let api_error = self.get_api_error();
@@ -349,7 +250,8 @@ impl ErrorSwitch<grpc_api_types::payments::IntegrationError> for ApplicationErro
     }
 }
 
-/// Convert ApplicationErrorResponse to proto ConnectorResponseTransformationError
+/// Convert `ApplicationErrorResponse` to payments proto
+/// `ConnectorResponseTransformationError`.
 impl ErrorSwitch<grpc_api_types::payments::ConnectorResponseTransformationError>
     for ApplicationErrorResponse
 {

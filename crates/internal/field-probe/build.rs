@@ -146,8 +146,8 @@ fn parse_flow_info(transformer_fn: &str, request_type: &str) -> Option<FlowInfo>
     // Some flows don't have a connector_feature_data field in their request type
     let needs_feature_data = !matches!(
         final_key.as_str(),
-        "create_access_token"
-            | "create_session_token"
+        "server_authentication_token"
+            | "server_session_authentication_token"
             | "dispute_accept"
             | "dispute_submit_evidence"
             | "dispute_defend"

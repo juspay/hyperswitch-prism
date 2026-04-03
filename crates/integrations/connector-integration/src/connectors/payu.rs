@@ -9,25 +9,27 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Accept, Authenticate, Authorize, Capture, CreateAccessToken, CreateConnectorCustomer,
-        CreateOrder, CreateSessionToken, DefendDispute, IncrementalAuthorization, MandateRevoke,
-        PSync, PaymentMethodToken, PostAuthenticate, PreAuthenticate, RSync, Refund, RepeatPayment,
-        SdkSessionToken, SetupMandate, SubmitEvidence, Void, VoidPC,
+        Accept, Authenticate, Authorize, Capture, ClientAuthenticationToken,
+        CreateConnectorCustomer, CreateOrder, DefendDispute, IncrementalAuthorization,
+        MandateRevoke, PSync, PaymentMethodToken, PostAuthenticate, PreAuthenticate, RSync, Refund,
+        RepeatPayment, ServerAuthenticationToken, ServerSessionAuthenticationToken, SetupMandate,
+        SubmitEvidence, Void, VoidPC,
     },
     connector_types::{
-        AcceptDisputeData, AccessTokenRequestData, AccessTokenResponseData, ConnectorCustomerData,
+        AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
         ConnectorCustomerResponse, DisputeDefendData, DisputeFlowData, DisputeResponseData,
         MandateRevokeRequestData, MandateRevokeResponseData, PaymentCreateOrderData,
         PaymentCreateOrderResponse, PaymentFlowData, PaymentMethodTokenResponse,
         PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthenticateData,
         PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
-        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSdkSessionTokenData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        RepeatPaymentData, SessionTokenRequestData, SessionTokenResponseData,
+        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
+        ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
         SetupMandateRequestData, SubmitEvidenceData,
     },
-    errors::{self, ConnectorError},
+    errors::IntegrationError,
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -51,6 +53,7 @@ use transformers::{
 
 use super::macros;
 use crate::types::ResponseRouterData;
+use domain_types::errors::ConnectorResponseTransformationError;
 
 // Trait implementations with generic type parameters
 
@@ -77,11 +80,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentSessionToken for Payu<T>
+    connector_types::ServerSessionAuthentication for Payu<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentAccessToken for Payu<T>
+    connector_types::ServerAuthentication for Payu<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -179,7 +182,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::SdkSessionTokenV2 for Payu<T>
+    connector_types::ClientAuthentication for Payu<T>
 {
 }
 
@@ -230,7 +233,7 @@ macros::create_all_prerequisites!(
         pub fn build_headers<F, FCD, Req, Res>(
             &self,
             _req: &RouterDataV2<F, FCD, Req, Res>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError>
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError>
         where
             Self: ConnectorIntegrationV2<F, FCD, Req, Res>,
         {
@@ -258,7 +261,8 @@ macros::create_all_prerequisites!(
             &self,
             req: &RouterDataV2<F, FCD, PaymentsAuthorizeData<T>, Res>,
             bytes: bytes::Bytes,
-        ) -> CustomResult<bytes::Bytes, ConnectorError> {
+            _status_code: u16,
+        ) -> CustomResult<bytes::Bytes, IntegrationError> {
             if is_upi_collect_flow(&req.request) {
                 // For UPI collect flows, we need to return base64 decoded response
                 let decoded_value = BASE64_ENGINE.decode(bytes.clone());
@@ -291,7 +295,7 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             _req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             Ok(vec![
                 ("Content-Type".to_string(), "application/x-www-form-urlencoded".into()),
                 ("Accept".to_string(), "application/json".into()),
@@ -301,7 +305,7 @@ macros::macro_connector_implementation!(
         fn get_url(
             &self,
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
-        ) -> CustomResult<String, ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             // Based on Haskell implementation: uses /merchant/postservice.php?form=2 for verification
             // Test: https://test.payu.in/merchant/postservice.php?form=2
             let base_url = self.base_url(&req.resource_common_data.connectors);
@@ -316,12 +320,12 @@ macros::macro_connector_implementation!(
             &self,
             res: Response,
             _event_builder: Option<&mut events::Event>,
-        ) -> CustomResult<ErrorResponse, ConnectorError> {
+        ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
             // PayU sync may return error responses in different formats
             let response: PayuSyncResponse = res
                 .response
                 .parse_struct("PayU Sync ErrorResponse")
-                .change_context(ConnectorError::ResponseDeserializationFailed)?;
+                .change_context(crate::utils::response_handling_fail_for_connector(res.status_code, "payu"))?;
 
             // Check if PayU returned error status (0 = error)
             if response.status == Some(0) {
@@ -334,8 +338,8 @@ macros::macro_connector_implementation!(
                     connector_transaction_id: None,
                     network_error_message: None,
                     network_advice_code: None,
-                    network_decline_code: None,
-                })
+                    network_decline_code: None
+})
             } else {
                 // Generic error response
                 Ok(ErrorResponse {
@@ -347,8 +351,8 @@ macros::macro_connector_implementation!(
                     connector_transaction_id: None,
                     network_error_message: None,
                     network_advice_code: None,
-                    network_decline_code: None,
-                })
+                    network_decline_code: None
+})
             }
         }
     }
@@ -372,14 +376,14 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
 
         fn get_url(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
-        ) -> CustomResult<String, ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             // Based on Haskell Endpoints.hs: uses /_payment endpoint for UPI transactions
             // Test: https://test.payu.in/_payment
             // Prod: https://secure.payu.in/_payment
@@ -393,13 +397,13 @@ macros::macro_connector_implementation!(
             &self,
             res: Response,
             _event_builder: Option<&mut events::Event>,
-        ) -> CustomResult<ErrorResponse, ConnectorError> {
+        ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
             // PayU returns error responses in the same JSON format as success responses
             // We need to parse the response and check for error fields
             let response: PayuPaymentResponse = res
                 .response
                 .parse_struct("PayU ErrorResponse")
-                        .change_context(ConnectorError::ResponseDeserializationFailed)?;
+                        .change_context(crate::utils::response_handling_fail_for_connector(res.status_code, "payu"))?;
 
             // Check if this is an error response
             if response.error.is_some() {
@@ -412,8 +416,8 @@ macros::macro_connector_implementation!(
                     connector_transaction_id: response.reference_id,
                     network_error_message: None,
                     network_advice_code: None,
-                    network_decline_code: None,
-                })
+                    network_decline_code: None
+})
             } else {
                 // This shouldn't happen as successful responses go through normal flow
                 // But fallback to generic error
@@ -426,8 +430,8 @@ macros::macro_connector_implementation!(
                     connector_transaction_id: None,
                     network_error_message: None,
                     network_advice_code: None,
-                    network_decline_code: None,
-                })
+                    network_decline_code: None
+})
             }
         }
     }
@@ -452,7 +456,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     fn get_auth_header(
         &self,
         auth_type: &ConnectorSpecificConfig,
-    ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
         let _auth = PayuAuthType::try_from(auth_type)?;
         // Payu uses form-based authentication, not headers
         Ok(vec![])
@@ -530,24 +534,24 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-// Add stub implementation for CreateSessionToken
+// Add stub implementation for ServerSessionAuthenticationToken
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize + Serialize>
     ConnectorIntegrationV2<
-        CreateSessionToken,
+        ServerSessionAuthenticationToken,
         PaymentFlowData,
-        SessionTokenRequestData,
-        SessionTokenResponseData,
+        ServerSessionAuthenticationTokenRequestData,
+        ServerSessionAuthenticationTokenResponseData,
     > for Payu<T>
 {
 }
 
-// Add stub implementation for CreateAccessToken
+// Add stub implementation for ServerAuthenticationToken
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize + Serialize>
     ConnectorIntegrationV2<
-        CreateAccessToken,
+        ServerAuthenticationToken,
         PaymentFlowData,
-        AccessTokenRequestData,
-        AccessTokenResponseData,
+        ServerAuthenticationTokenRequestData,
+        ServerAuthenticationTokenResponseData,
     > for Payu<T>
 {
 }
@@ -596,9 +600,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
-        SdkSessionToken,
+        ClientAuthenticationToken,
         PaymentFlowData,
-        PaymentsSdkSessionTokenData,
+        ClientAuthenticationTokenRequestData,
         PaymentsResponseData,
     > for Payu<T>
 {

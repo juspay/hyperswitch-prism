@@ -37,8 +37,8 @@ match &router_data.request.payment_method_data {
         };
         // ... build request using card_details
     }
-    _ => Err(ConnectorError::NotImplemented(
-        get_unimplemented_payment_method_error_message("connector_name")
+    _ => Err(IntegrationError::NotImplemented(
+        get_unimplemented_payment_method_error_message("connector_name", Default::default())
     ).into()),
 }
 ```
@@ -133,7 +133,7 @@ impl<T: PaymentMethodDataTypes>
     TryFrom<ConnectorRouterData<Authorize, PaymentsAuthorizeData<T>>>
     for ConnectorPaymentRequest<T>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(item: ConnectorRouterData<Authorize, PaymentsAuthorizeData<T>>) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
@@ -148,8 +148,8 @@ impl<T: PaymentMethodDataTypes>
                 },
                 amount: Amount { value: item.amount, currency: router_data.request.currency },
             }),
-            _ => Err(ConnectorError::NotImplemented(
-                get_unimplemented_payment_method_error_message("connector_name")
+            _ => Err(IntegrationError::NotImplemented(
+                get_unimplemented_payment_method_error_message("connector_name", Default::default())
             ).into()),
         }
     }
@@ -175,7 +175,7 @@ pub struct FormEncodedCardRequest {
 
 // Stripe-style: TryFrom on the Card directly
 impl<T: PaymentMethodDataTypes> TryFrom<&Card<T>> for StripeCardData {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(card: &Card<T>) -> Result<Self, Self::Error> {
         Ok(Self {
             number: card.card_number.clone(),

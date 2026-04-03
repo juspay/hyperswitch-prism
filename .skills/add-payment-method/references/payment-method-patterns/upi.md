@@ -56,7 +56,7 @@ PaymentMethodData::Upi(ref upi_data) => {
     match upi_data {
         UpiData::UpiCollect(collect_data) => {
             let vpa = collect_data.vpa_id.as_ref()
-                .ok_or(ConnectorError::MissingRequiredField { field_name: "vpa_id" })?
+                .ok_or(IntegrationError::MissingRequiredField { field_name: "vpa_id" , context: Default::default() })?
                 .peek().to_string();
             (UpiFlowType::Collect, Some(vpa))
         }
@@ -93,13 +93,13 @@ impl TryFrom<ConnectorRouterData<&RouterDataV2<...>, &Connector<T>>> for Connect
             PaymentMethodData::Upi(upi_data) => match upi_data {
                 UpiData::UpiCollect(collect_data) => {
                     let vpa_string = collect_data.vpa_id.as_ref()
-                        .ok_or(ConnectorError::MissingRequiredField { field_name: "vpa_id" })?
+                        .ok_or(IntegrationError::MissingRequiredField { field_name: "vpa_id" , context: Default::default() })?
                         .peek().to_string();
                     (UpiFlowType::Collect, Some(vpa_string))
                 }
                 UpiData::UpiIntent(_) | UpiData::UpiQr(_) => (UpiFlowType::Intent, None),
             },
-            _ => return Err(ConnectorError::NotSupported { ... }),
+            _ => return Err(IntegrationError::NotSupported { ... , context: Default::default() }),
         };
 
         Ok(Self {

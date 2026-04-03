@@ -96,7 +96,7 @@ let config = ConnectorConfig {
 
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
-| [MerchantAuthenticationService.CreateAccessToken](#merchantauthenticationservicecreateaccesstoken) | Authentication | `MerchantAuthenticationServiceCreateAccessTokenRequest` |
+| [ConnectorSessionService.CreateAccessToken](#connectorsessionservicecreateaccesstoken) | Authentication | `ConnectorSessionServiceCreateAccessTokenRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
 
 ### Payments
@@ -114,13 +114,13 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 
 ### Authentication
 
-#### MerchantAuthenticationService.CreateAccessToken
+#### ConnectorSessionService.CreateAccessToken
 
 Generate short-lived connector authentication token. Provides secure credentials for connector API access without storing secrets client-side.
 
 | | Message |
 |---|---------|
-| **Request** | `MerchantAuthenticationServiceCreateAccessTokenRequest` |
-| **Response** | `MerchantAuthenticationServiceCreateAccessTokenResponse` |
+| **Request** | `ConnectorSessionServiceCreateAccessTokenRequest` |
+| **Response** | `ConnectorSessionServiceCreateAccessTokenResponse` |
 
 **Examples:** [Python](../../examples/truelayer/python/truelayer.py) · [JavaScript](../../examples/truelayer/javascript/truelayer.js) · [Kotlin](../../examples/truelayer/kotlin/truelayer.kt#L45) · [Rust](../../examples/truelayer/rust/truelayer.rs#L45)

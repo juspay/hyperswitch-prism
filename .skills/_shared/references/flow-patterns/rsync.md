@@ -42,7 +42,7 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             // GET requests typically omit Content-Type
             let mut header = vec![];
             let mut auth_header = self.get_auth_header(&req.connector_config)?;
@@ -53,7 +53,7 @@ macros::macro_connector_implementation!(
         fn get_url(
             &self,
             req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
-        ) -> CustomResult<String, ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let refund_id = req.request.connector_refund_id.clone();
             let base_url = self.connector_base_url_refunds(req);
             Ok(format!("{base_url}/refunds/{refund_id}"))
@@ -117,7 +117,7 @@ For hierarchical URLs that require metadata (e.g., order_id):
 ```rust
 let order_id = req.connector_meta_data
     .get_required_value("order_id")
-    .change_context(errors::ConnectorError::MissingConnectorMetaData)?;
+    .change_context(errors::IntegrationError::MissingConnectorMetaData)?;
 Ok(format!("{base_url}/orders/{order_id}/transactions/{refund_id}"))
 ```
 
@@ -137,7 +137,7 @@ impl TryFrom<
     >,
 > for {ConnectorName}RefundSyncRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         _item: {ConnectorName}RouterData<
@@ -220,7 +220,7 @@ impl TryFrom<
     >,
 > for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: ResponseRouterData<

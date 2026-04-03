@@ -75,7 +75,7 @@ async function testPaypalAuthorize(credsFile: string): Promise<boolean> {
   let expiresInSeconds: number = 3600;
 
   try {
-    const accessTokenResponse = await authClient.createAccessToken({
+    const accessTokenResponse = await authClient.createServerAuthenticationToken({
       merchantAccessTokenId: "paypal_token_" + Date.now(),
       connector: Connector.PAYPAL,
       testMode: true,

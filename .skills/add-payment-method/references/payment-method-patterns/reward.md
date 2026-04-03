@@ -35,7 +35,7 @@ match item.router_data.resource_common_data.payment_method {
         // Get sub-type-specific merchant credentials
         // Build redirect-based request
     }
-    _ => Err(ConnectorError::NotImplemented(...)),
+    _ => Err(IntegrationError::NotImplemented(..., Default::default())),
 }
 ```
 
@@ -62,7 +62,7 @@ let auth_header = match payment_method_type {
         auth_type.username_classic, auth_type.password_classic),
     Some(PaymentMethodType::Evoucher) => construct_basic_auth(
         auth_type.username_evoucher, auth_type.password_evoucher),
-    _ => return Err(ConnectorError::MissingPaymentMethodType)?,
+    _ => return Err(IntegrationError::MissingPaymentMethodType)?,
 };
 
 // Sub-type specific merchant ID
@@ -70,7 +70,7 @@ fn get_mid(connector_config, payment_method_type, currency) -> Result<Secret<Str
     match payment_method_type {
         Some(PaymentMethodType::ClassicReward) => Ok(auth.merchant_id_classic...),
         Some(PaymentMethodType::Evoucher) => Ok(auth.merchant_id_evoucher...),
-        _ => Err(ConnectorError::FailedToObtainAuthType),
+        _ => Err(IntegrationError::FailedToObtainAuthType { context: Default::default() }),
     }
 }
 ```
@@ -132,7 +132,7 @@ fn get_redirect_form_data(payment_method_type, response_data) -> Result<Redirect
             response_data.pay_url,
             Method::Get,  // Query params as form fields
         ))),
-        _ => Err(ConnectorError::NotImplemented(...)),
+        _ => Err(IntegrationError::NotImplemented(..., Default::default())),
     }
 }
 ```

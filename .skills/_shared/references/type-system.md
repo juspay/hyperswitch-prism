@@ -12,7 +12,7 @@ use domain_types::{
         PaymentFlowData, RefundFlowData, DisputeFlowData,
         ResponseId, RequestDetails,
     },
-    errors::{self, ConnectorError},
+    errors::{self, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -108,13 +108,13 @@ pub struct {Connector}AuthType {
 }
 
 impl TryFrom<&ConnectorSpecificConfig> for {Connector}AuthType {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<errors::IntegrationError>;
     fn try_from(config: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         match config {
             ConnectorSpecificConfig::{Connector} { api_key, .. } => Ok(Self {
                 api_key: api_key.clone(),
             }),
-            _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
+            _ => Err(errors::IntegrationError::FailedToObtainAuthType { context: Default::default() }.into()),
         }
     }
 }
@@ -152,17 +152,17 @@ Common variants used in connector mappings:
 
 ## Error Types
 
-### ConnectorError (for connector logic errors)
+### IntegrationError (for connector logic errors)
 ```rust
-use domain_types::errors::ConnectorError;
+use domain_types::errors::IntegrationError;
 // Common variants:
-ConnectorError::FailedToObtainIntegrationUrl
-ConnectorError::RequestEncodingFailed
-ConnectorError::ResponseDeserializationFailed
-ConnectorError::ResponseHandlingFailed
-ConnectorError::FailedToObtainAuthType
-ConnectorError::MissingRequiredField { field_name: &'static str }
-ConnectorError::NotImplemented("description".to_string())
+IntegrationError::FailedToObtainIntegrationUrl
+IntegrationError::RequestEncodingFailed
+ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() }
+ConnectorResponseTransformationError::ResponseHandlingFailed
+IntegrationError::FailedToObtainAuthType { context: Default::default() }
+IntegrationError::MissingRequiredField { field_name: &'static str , context: Default::default() }
+IntegrationError::NotImplemented("description".to_string(, Default::default()))
 ```
 
 ### ErrorResponse (for connector API error responses)

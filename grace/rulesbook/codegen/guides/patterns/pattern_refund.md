@@ -86,7 +86,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
     TryFrom<{ConnectorName}RouterData<RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>, T>>
     for {ConnectorName}RefundRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     
     fn try_from(
         _item: {ConnectorName}RouterData<RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>, T>,
@@ -120,7 +120,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
     TryFrom<{ConnectorName}RouterData<RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>, T>>
     for {ConnectorName}RefundRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     
     fn try_from(
         item: {ConnectorName}RouterData<RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>, T>,
@@ -167,7 +167,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
     TryFrom<{ConnectorName}RouterData<RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>, T>>
     for {ConnectorName}RefundRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     
     fn try_from(
         item: {ConnectorName}RouterData<RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>, T>,
@@ -292,13 +292,13 @@ pub struct {ConnectorName}AuthType {
 }
 
 impl TryFrom<&ConnectorAuthType> for {ConnectorName}AuthType {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
             ConnectorAuthType::BodyKey { api_key, .. } => Ok(Self {
                 api_secret: api_key.to_owned(),
             }),
-            _ => Err(ConnectorError::FailedToObtainAuthType.into()),
+            _ => Err(IntegrationError::FailedToObtainAuthType { context: Default::default() }.into()),
         }
     }
 }
@@ -307,7 +307,7 @@ impl TryFrom<&ConnectorAuthType> for {ConnectorName}AuthType {
 fn get_auth_header(
     &self,
     auth_type: &ConnectorAuthType,
-) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
     let auth = {ConnectorName}AuthType::try_from(auth_type)?;
     Ok(vec![(
         "Authorization".to_string(),
@@ -325,14 +325,14 @@ pub struct {ConnectorName}AuthType {
 }
 
 impl TryFrom<&ConnectorAuthType> for {ConnectorName}AuthType {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
             ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 api_key: api_key.to_owned(),
                 merchant_account: key1.to_owned(),
             }),
-            _ => Err(ConnectorError::FailedToObtainAuthType.into()),
+            _ => Err(IntegrationError::FailedToObtainAuthType { context: Default::default() }.into()),
         }
     }
 }
@@ -341,7 +341,7 @@ impl TryFrom<&ConnectorAuthType> for {ConnectorName}AuthType {
 fn get_auth_header(
     &self,
     auth_type: &ConnectorAuthType,
-) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
     let auth = {ConnectorName}AuthType::try_from(auth_type)?;
     Ok(vec![(
         "X-Api-Key".to_string(),
@@ -358,7 +358,7 @@ pub struct {ConnectorName}AuthType {
 }
 
 impl TryFrom<&ConnectorAuthType> for {ConnectorName}AuthType {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
             ConnectorAuthType::BodyKey { api_key, key1 } => {
@@ -368,7 +368,7 @@ impl TryFrom<&ConnectorAuthType> for {ConnectorName}AuthType {
                     basic_auth: Secret::new(format!("Basic {}", encoded)),
                 })
             }
-            _ => Err(ConnectorError::FailedToObtainAuthType.into()),
+            _ => Err(IntegrationError::FailedToObtainAuthType { context: Default::default() }.into()),
         }
     }
 }
@@ -377,7 +377,7 @@ impl TryFrom<&ConnectorAuthType> for {ConnectorName}AuthType {
 fn get_auth_header(
     &self,
     auth_type: &ConnectorAuthType,
-) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
     let auth = {ConnectorName}AuthType::try_from(auth_type)?;
     Ok(vec![(
         "Authorization".to_string(),
@@ -393,7 +393,7 @@ fn get_auth_header(
 fn get_url(
     &self,
     req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
-) -> CustomResult<String, ConnectorError> {
+) -> CustomResult<String, IntegrationError> {
     let base_url = &req.resource_common_data.connectors.{connector_name}.base_url;
     let payment_id = req.request.connector_transaction_id.clone();
     Ok(format!("{base_url}/payments/{payment_id}/refunds"))
@@ -407,7 +407,7 @@ const API_VERSION: &str = "v68";
 fn get_url(
     &self,
     req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
-) -> CustomResult<String, ConnectorError> {
+) -> CustomResult<String, IntegrationError> {
     let base_url = &req.resource_common_data.connectors.{connector_name}.base_url;
     let payment_id = req.request.connector_transaction_id.clone();
     Ok(format!("{base_url}{API_VERSION}/payments/{payment_id}/refunds"))
@@ -419,7 +419,7 @@ fn get_url(
 fn get_url(
     &self,
     req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
-) -> CustomResult<String, ConnectorError> {
+) -> CustomResult<String, IntegrationError> {
     let base_url = &req.resource_common_data.connectors.{connector_name}.base_url;
     Ok(format!("{base_url}/refunds"))
     // Payment ID goes in request body instead
@@ -431,7 +431,7 @@ fn get_url(
 fn get_url(
     &self,
     req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
-) -> CustomResult<String, ConnectorError> {
+) -> CustomResult<String, IntegrationError> {
     let base_url = &req.resource_common_data.connectors.{connector_name}.base_url;
     let transaction_id = req.request.connector_transaction_id.clone();
     Ok(format!("{base_url}/transactions/{transaction_id}/refund"))
@@ -445,7 +445,7 @@ fn get_url(
 fn get_url(
     &self,
     req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
-) -> CustomResult<String, ConnectorError> {
+) -> CustomResult<String, IntegrationError> {
     let base_url = &req.resource_common_data.connectors.{connector_name}.base_url;
     let refund_id = req.request.connector_refund_id.clone();
     Ok(format!("{base_url}/refunds/{refund_id}"))
@@ -457,7 +457,7 @@ fn get_url(
 fn get_url(
     &self,
     req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
-) -> CustomResult<String, ConnectorError> {
+) -> CustomResult<String, IntegrationError> {
     let base_url = &req.resource_common_data.connectors.{connector_name}.base_url;
     let payment_id = req.request.connector_transaction_id.clone();
     Ok(format!("{base_url}/payments/{payment_id}/actions"))
@@ -470,7 +470,7 @@ fn get_url(
 fn get_url(
     &self,
     req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
-) -> CustomResult<String, ConnectorError> {
+) -> CustomResult<String, IntegrationError> {
     let base_url = &req.resource_common_data.connectors.{connector_name}.base_url;
     let payment_id = req.request.connector_transaction_id.clone();
     let refund_id = req.request.connector_refund_id.clone();
@@ -690,7 +690,7 @@ fn map_adyen_refund_status(status: &str) -> RefundStatus {
 impl TryFrom<ResponseRouterData<{ConnectorName}RefundResponse, RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>>>
     for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
 
     fn try_from(
         item: ResponseRouterData<{ConnectorName}RefundResponse, RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>>,
@@ -748,14 +748,14 @@ fn handle_refund_errors(error_code: &str) -> Option<RefundStatus> {
 fn validate_refund_amount(
     refund_amount: MinorUnit,
     original_amount: MinorUnit,
-) -> Result<(), ConnectorError> {
+) -> Result<(), IntegrationError> {
     if refund_amount > original_amount {
-        return Err(ConnectorError::InvalidRequestData {
+        return Err(IntegrationError::InvalidRequestData {
             message: "Refund amount cannot exceed original payment amount".to_string(),
         });
     }
     if refund_amount <= MinorUnit::zero() {
-        return Err(ConnectorError::InvalidRequestData {
+        return Err(IntegrationError::InvalidRequestData {
             message: "Refund amount must be greater than zero".to_string(),
         });
     }
@@ -778,9 +778,9 @@ fn try_from(
 
     // Check if this is a partial refund
     if is_partial_refund(&router_data.request) {
-        return Err(ConnectorError::NotSupported {
+        return Err(IntegrationError::NotSupported {
             message: "Partial refunds are not supported by this connector".to_string(),
-            connector: "{ConnectorName}".to_string(),
+            connector: "{ConnectorName, context: Default::default() }".to_string(),
         }
         .into());
     }
@@ -804,9 +804,9 @@ fn try_from(
 
     // Check if refund reason is provided but not supported
     if router_data.request.reason.is_some() {
-        return Err(ConnectorError::NotSupported {
+        return Err(IntegrationError::NotSupported {
             message: "Refund reasons are not supported by this connector".to_string(),
-            connector: "{ConnectorName}".to_string(),
+            connector: "{ConnectorName, context: Default::default() }".to_string(),
         }
         .into());
     }
@@ -827,16 +827,16 @@ fn try_from(
     // Check if payment method supports refunds
     match &router_data.request.payment_method {
         PaymentMethod::Wallet(WalletData::ApplePay) => {
-            return Err(ConnectorError::NotSupported {
+            return Err(IntegrationError::NotSupported {
                 message: "Refunds for Apple Pay are not supported by this connector".to_string(),
-                connector: "{ConnectorName}".to_string(),
+                connector: "{ConnectorName, context: Default::default() }".to_string(),
             }
             .into());
         }
         PaymentMethod::BankTransfer(_) => {
-            return Err(ConnectorError::NotSupported {
+            return Err(IntegrationError::NotSupported {
                 message: "Refunds for bank transfers are not supported by this connector".to_string(),
-                connector: "{ConnectorName}".to_string(),
+                connector: "{ConnectorName, context: Default::default() }".to_string(),
             }
             .into());
         }
@@ -863,9 +863,9 @@ fn try_from(
         let days_since_payment = calculate_days_since(payment_date);
 
         if days_since_payment > 180 {
-            return Err(ConnectorError::NotSupported {
+            return Err(IntegrationError::NotSupported {
                 message: format!(
-                    "Refunds are not supported for payments older than 180 days (payment is {} days old)",
+                    "Refunds are not supported for payments older than 180 days (payment is {, context: Default::default() } days old)",
                     days_since_payment
                 ),
                 connector: "{ConnectorName}".to_string(),
@@ -891,9 +891,9 @@ fn try_from(
     const UNSUPPORTED_CURRENCIES: &[&str] = &["BTC", "ETH", "USDT"];
 
     if UNSUPPORTED_CURRENCIES.contains(&router_data.request.currency.to_string().as_str()) {
-        return Err(ConnectorError::NotSupported {
+        return Err(IntegrationError::NotSupported {
             message: format!(
-                "Refunds for {} currency are not supported by this connector",
+                "Refunds for {, context: Default::default() } currency are not supported by this connector",
                 router_data.request.currency
             ),
             connector: "{ConnectorName}".to_string(),
@@ -927,9 +927,9 @@ fn try_from(
 
 3. **Provide Context**: Include relevant details in error message
    ```rust
-   ConnectorError::NotSupported {
+   IntegrationError::NotSupported {
        message: format!(
-           "Refund amount ${} exceeds maximum refundable amount ${} for this connector",
+           "Refund amount ${, context: Default::default() } exceeds maximum refundable amount ${} for this connector",
            refund_amount, max_amount
        ),
        connector: "{ConnectorName}".to_string(),
@@ -940,7 +940,7 @@ fn try_from(
    ```rust
    // {ConnectorName} only supports full refunds within 90 days of payment
    if is_partial_refund(request) || is_payment_too_old(request) {
-       return Err(ConnectorError::NotSupported { ... });
+       return Err(IntegrationError::NotSupported { ... , context: Default::default() });
    }
    ```
 
@@ -1126,7 +1126,7 @@ macros::macro_connector_implementation!(
         fn get_url(
             &self,
             req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
-        ) -> CustomResult<String, ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let base_url = self.connector_base_url_refunds(req);
             let payment_id = req.request.connector_transaction_id.clone();
             Ok(format!("{base_url}/payments/{payment_id}/refunds"))
@@ -1151,7 +1151,7 @@ macros::macro_connector_implementation!(
         fn get_url(
             &self,
             req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
-        ) -> CustomResult<String, ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let base_url = self.connector_base_url_refunds(req);
             let refund_id = req.request.connector_refund_id.clone();
             Ok(format!("{base_url}/refunds/{refund_id}"))

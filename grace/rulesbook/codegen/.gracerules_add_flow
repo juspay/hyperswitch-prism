@@ -518,14 +518,14 @@ pub struct {ConnectorName}{FlowName}Response {
 impl<T: PaymentMethodDataTypes + ...> TryFrom<{ConnectorName}RouterData<RouterDataV2<{FlowName}, ...>, T>>
     for {ConnectorName}{FlowName}Request<T>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(item: {ConnectorName}RouterData<...>) -> Result<Self, Self::Error> {
         let router_data = item.router_data;
         // Extract and transform data
         // CRITICAL: Use specific NotSupported errors with exact feature names
-        // WRONG: Err(ConnectorError::NotSupported { message: "Not supported" })
-        // CORRECT: Err(ConnectorError::NotSupported { message: "Apple Pay is not supported" })
+        // WRONG: Err(IntegrationError::NotSupported { message: "Not supported", ... })
+        // CORRECT: Err(IntegrationError::NotSupported { message: "Apple Pay is not supported", ... })
         Ok(Self {
             // Only populate fields that exist in the struct
             // DO NOT set any field to None - remove the field instead
@@ -538,7 +538,7 @@ impl<T: PaymentMethodDataTypes + ...> TryFrom<{ConnectorName}RouterData<RouterDa
 impl<T: PaymentMethodDataTypes + ...> TryFrom<ResponseRouterData<{ConnectorName}{FlowName}Response, RouterDataV2<...>>>
     for RouterDataV2<{FlowName}, ...>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
 
     fn try_from(item: ResponseRouterData<...>) -> Result<Self, Self::Error> {
         // Map response to RouterDataV2

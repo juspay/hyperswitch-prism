@@ -72,7 +72,7 @@ impl TryFrom<(&RouterDataV2<...>, &PayLaterData)> for AdyenPaymentMethod<T> {
                 router_data.resource_common_data.get_billing_address()?;
                 Ok(Self::Atome)
             }
-            _ => Err(ConnectorError::NotImplemented(...)),
+            _ => Err(IntegrationError::NotImplemented(..., Default::default())),
         }
     }
 }
@@ -99,7 +99,7 @@ impl TryFrom<&PayLaterData> for StripePaymentMethodType {
             PayLaterData::KlarnaRedirect { .. } => Ok(Self::Klarna),
             PayLaterData::AffirmRedirect {} => Ok(Self::Affirm),
             PayLaterData::AfterpayClearpayRedirect { .. } => Ok(Self::AfterpayClearpay),
-            _ => Err(ConnectorError::NotImplemented(...)),
+            _ => Err(IntegrationError::NotImplemented(..., Default::default())),
         }
     }
 }

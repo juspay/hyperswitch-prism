@@ -88,7 +88,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     fn get_auth_header(
         &self,
         _auth_type: &ConnectorSpecificConfig,
-    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
         Ok(vec![])
     }
 
@@ -96,7 +96,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<ErrorResponse, errors::ConnectorResponseTransformationError> {
         let response: Result<ItaubankErrorResponse, _> =
             res.response.parse_struct("ItaubankErrorResponse");
 
@@ -154,16 +154,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 // ===== ACCESS TOKEN FLOW =====
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentAccessToken for Itaubank<T>
+    connector_types::ServerAuthentication for Itaubank<T>
 {
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
-        CreateAccessToken,
+        ServerAuthenticationToken,
         PaymentFlowData,
-        AccessTokenRequestData,
-        AccessTokenResponseData,
+        ServerAuthenticationTokenRequestData,
+        ServerAuthenticationTokenResponseData,
     > for Itaubank<T>
 {
     fn get_http_method(&self) -> common_utils::request::Method {
@@ -177,12 +177,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn get_url(
         &self,
         req: &RouterDataV2<
-            CreateAccessToken,
+            ServerAuthenticationToken,
             PaymentFlowData,
-            AccessTokenRequestData,
-            AccessTokenResponseData,
+            ServerAuthenticationTokenRequestData,
+            ServerAuthenticationTokenResponseData,
         >,
-    ) -> CustomResult<String, errors::ConnectorError> {
+    ) -> CustomResult<String, errors::IntegrationError> {
         let base_url = self.base_url(&req.resource_common_data.connectors);
         Ok(format!("{base_url}/api/oauth/jwt"))
     }
@@ -190,12 +190,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn get_headers(
         &self,
         _req: &RouterDataV2<
-            CreateAccessToken,
+            ServerAuthenticationToken,
             PaymentFlowData,
-            AccessTokenRequestData,
-            AccessTokenResponseData,
+            ServerAuthenticationTokenRequestData,
+            ServerAuthenticationTokenResponseData,
         >,
-    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
         Ok(vec![
             (
                 headers::CONTENT_TYPE.to_string(),
@@ -212,12 +212,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn get_request_body(
         &self,
         req: &RouterDataV2<
-            CreateAccessToken,
+            ServerAuthenticationToken,
             PaymentFlowData,
-            AccessTokenRequestData,
-            AccessTokenResponseData,
+            ServerAuthenticationTokenRequestData,
+            ServerAuthenticationTokenResponseData,
         >,
-    ) -> CustomResult<Option<RequestContent>, errors::ConnectorError> {
+    ) -> CustomResult<Option<RequestContent>, errors::IntegrationError> {
         let connector_req = ItaubankAccessTokenRequest::try_from(req)?;
         Ok(Some(RequestContent::FormUrlEncoded(Box::new(
             connector_req,
@@ -227,21 +227,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn handle_response_v2(
         &self,
         data: &RouterDataV2<
-            CreateAccessToken,
+            ServerAuthenticationToken,
             PaymentFlowData,
-            AccessTokenRequestData,
-            AccessTokenResponseData,
+            ServerAuthenticationTokenRequestData,
+            ServerAuthenticationTokenResponseData,
         >,
         event_builder: Option<&mut events::Event>,
         res: Response,
     ) -> CustomResult<
         RouterDataV2<
-            CreateAccessToken,
+            ServerAuthenticationToken,
             PaymentFlowData,
-            AccessTokenRequestData,
-            AccessTokenResponseData,
+            ServerAuthenticationTokenRequestData,
+            ServerAuthenticationTokenResponseData,
         >,
-        errors::ConnectorError,
+        errors::ConnectorResponseTransformationError,
     > {
         let response: Result<ItaubankAccessTokenResponse, _> =
             res.response.parse_struct("ItaubankAccessTokenResponse");
@@ -249,7 +249,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         match response {
             Ok(token_res) => {
                 event_builder.map(|i| i.set_connector_response(&token_res));
-                let access_token_data = AccessTokenResponseData {
+                let access_token_data = ServerAuthenticationTokenResponseData {
                     access_token: token_res.access_token.into(),
                     token_type: token_res.token_type,
                     expires_in: token_res.expires_in,
@@ -266,7 +266,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     res.status_code,
                     res.response
                 );
-                Err(errors::ConnectorError::ResponseDeserializationFailed.into())
+                Err(
+                    errors::ConnectorResponseTransformationError::ResponseDeserializationFailed {
+                        context: Default::default(),
+                    }
+                    .into(),
+                )
             }
         }
     }
@@ -275,7 +280,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<ErrorResponse, errors::ConnectorResponseTransformationError> {
         self.build_error_response(res, event_builder)
     }
 }
@@ -310,7 +315,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PayoutTransferRequest,
             PayoutTransferResponse,
         >,
-    ) -> CustomResult<String, errors::ConnectorError> {
+    ) -> CustomResult<String, errors::IntegrationError> {
         let base_url = build_env_specific_endpoint(
             self.base_url(&req.resource_common_data.connectors),
             req.resource_common_data.test_mode,
@@ -326,11 +331,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PayoutTransferRequest,
             PayoutTransferResponse,
         >,
-    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
-        let access_token = req
-            .resource_common_data
-            .get_access_token()
-            .map_err(|_| errors::ConnectorError::FailedToObtainAuthType)?;
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
+        let access_token = req.resource_common_data.get_access_token().map_err(|_| {
+            errors::IntegrationError::FailedToObtainAuthType {
+                context: Default::default(),
+            }
+        })?;
 
         Ok(vec![
             (
@@ -357,7 +363,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PayoutTransferRequest,
             PayoutTransferResponse,
         >,
-    ) -> CustomResult<Option<RequestContent>, errors::ConnectorError> {
+    ) -> CustomResult<Option<RequestContent>, errors::IntegrationError> {
         let connector_req = ItaubankTransferRequest::try_from(req)?;
         Ok(Some(RequestContent::Json(Box::new(connector_req))))
     }
@@ -374,7 +380,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         res: Response,
     ) -> CustomResult<
         RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>,
-        errors::ConnectorError,
+        errors::ConnectorResponseTransformationError,
     > {
         let response: Result<ItaubankTransferResponse, _> =
             res.response.parse_struct("ItaubankTransferResponse");
@@ -398,7 +404,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     res.status_code,
                     res.response
                 );
-                Err(errors::ConnectorError::ResponseDeserializationFailed.into())
+                Err(
+                    errors::ConnectorResponseTransformationError::ResponseDeserializationFailed {
+                        context: Default::default(),
+                    }
+                    .into(),
+                )
             }
         }
     }
@@ -407,7 +418,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<ErrorResponse, errors::ConnectorResponseTransformationError> {
         self.build_error_response(res, event_builder)
     }
 }
@@ -537,15 +548,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::SdkSessionTokenV2 for Itaubank<T>
+    connector_types::ClientAuthentication for Itaubank<T>
 {
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
-        SdkSessionToken,
+        ClientAuthenticationToken,
         PaymentFlowData,
-        PaymentsSdkSessionTokenData,
+        ClientAuthenticationTokenRequestData,
         PaymentsResponseData,
     > for Itaubank<T>
 {
@@ -582,16 +593,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentSessionToken for Itaubank<T>
+    connector_types::ServerSessionAuthentication for Itaubank<T>
 {
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
-        CreateSessionToken,
+        ServerSessionAuthenticationToken,
         PaymentFlowData,
-        SessionTokenRequestData,
-        SessionTokenResponseData,
+        ServerSessionAuthenticationTokenRequestData,
+        ServerSessionAuthenticationTokenResponseData,
     > for Itaubank<T>
 {
 }

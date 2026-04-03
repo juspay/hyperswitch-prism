@@ -167,7 +167,7 @@ macros::create_all_prerequisites!(
         pub fn build_headers<F, FCD, Req, Res>(
             &self,
             req: &RouterDataV2<F, FCD, Req, Res>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let mut header = vec![(
                 headers::CONTENT_TYPE.to_string(),
                 "{content_type}".to_string().into(),
@@ -206,17 +206,17 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
         
         fn get_url(
             &self,
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
-        ) -> CustomResult<String, ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             // Extract transaction ID from request
             let transaction_id = req.request.get_connector_transaction_id()
-                .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+                .change_context(errors::IntegrationError::MissingConnectorTransactionID)?;
             
             let base_url = self.connector_base_url_payments(req);
             
@@ -449,7 +449,7 @@ impl From<{ConnectorName}PaymentStatus> for common_enums::AttemptStatus {
 impl TryFrom<{ConnectorName}RouterData<RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>>>
     for {ConnectorName}SyncRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: {ConnectorName}RouterData<RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>>,
@@ -460,7 +460,7 @@ impl TryFrom<{ConnectorName}RouterData<RouterDataV2<PSync, PaymentFlowData, Paym
         let transaction_id = router_data
             .request
             .get_connector_transaction_id()
-            .change_context(ConnectorError::MissingConnectorTransactionID)?;
+            .change_context(IntegrationError::MissingConnectorTransactionID)?;
 
         Ok(Self {
             transaction_id: Some(transaction_id),
@@ -479,7 +479,7 @@ impl TryFrom<{ConnectorName}RouterData<RouterDataV2<PSync, PaymentFlowData, Paym
 impl TryFrom<{ConnectorName}RouterData<RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>>>
     for {ConnectorName}SyncRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         _item: {ConnectorName}RouterData<RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>>,
@@ -493,7 +493,7 @@ impl TryFrom<{ConnectorName}RouterData<RouterDataV2<PSync, PaymentFlowData, Paym
 impl TryFrom<ResponseRouterData<{ConnectorName}SyncResponse, RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>>>
     for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: ResponseRouterData<{ConnectorName}SyncResponse, RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>>,
@@ -558,7 +558,7 @@ pub struct {ConnectorName}RouterData<T> {
 }
 
 impl<T> TryFrom<({AmountType}, T)> for {ConnectorName}RouterData<T> {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     
     fn try_from((amount, router_data): ({AmountType}, T)) -> Result<Self, Self::Error> {
         Ok(Self {
@@ -599,7 +599,7 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             // GET requests typically don't need Content-Type
             let mut header = vec![];
             let mut auth_header = self.get_auth_header(&req.connector_auth_type)?;
@@ -610,9 +610,9 @@ macros::macro_connector_implementation!(
         fn get_url(
             &self,
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
-        ) -> CustomResult<String, ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let transaction_id = req.request.get_connector_transaction_id()
-                .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+                .change_context(errors::IntegrationError::MissingConnectorTransactionID)?;
             
             let base_url = self.connector_base_url_payments(req);
             
@@ -645,7 +645,7 @@ macros::macro_connector_implementation!(
 pub struct {ConnectorName}SyncRequest;
 
 impl TryFrom<{ConnectorName}RouterData<RouterDataV2<PSync, ...>>> for {ConnectorName}SyncRequest {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         _item: {ConnectorName}RouterData<RouterDataV2<PSync, ...>>,
@@ -660,7 +660,7 @@ impl TryFrom<{ConnectorName}RouterData<RouterDataV2<PSync, ...>>> for {Connector
 
 **Simple RESTful Pattern (Checkout-style):**
 ```rust
-fn get_url(&self, req: &RouterDataV2<PSync, ...>) -> CustomResult<String, ConnectorError> {
+fn get_url(&self, req: &RouterDataV2<PSync, ...>) -> CustomResult<String, IntegrationError> {
     let transaction_id = req.request.get_connector_transaction_id()?;
     Ok(format!("{}/payments/{}", self.connector_base_url_payments(req), transaction_id))
 }
@@ -668,7 +668,7 @@ fn get_url(&self, req: &RouterDataV2<PSync, ...>) -> CustomResult<String, Connec
 
 **Status Endpoint Pattern (Bluecode-style):**
 ```rust
-fn get_url(&self, req: &RouterDataV2<PSync, ...>) -> CustomResult<String, ConnectorError> {
+fn get_url(&self, req: &RouterDataV2<PSync, ...>) -> CustomResult<String, IntegrationError> {
     let transaction_id = req.request.get_connector_transaction_id()?;
     Ok(format!("{}/api/v1/order/{}/status", self.connector_base_url_payments(req), transaction_id))
 }
@@ -676,7 +676,7 @@ fn get_url(&self, req: &RouterDataV2<PSync, ...>) -> CustomResult<String, Connec
 
 **Complex Path Pattern (Nexinets-style):**
 ```rust
-fn get_url(&self, req: &RouterDataV2<PSync, ...>) -> CustomResult<String, ConnectorError> {
+fn get_url(&self, req: &RouterDataV2<PSync, ...>) -> CustomResult<String, IntegrationError> {
     let transaction_id = req.request.get_connector_transaction_id()?;
     let order_id = req.request.connector_request_reference_id.clone();
     Ok(format!("{}/orders/{}/transactions/{}", 
@@ -715,7 +715,7 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let mut header = vec![(
                 headers::CONTENT_TYPE.to_string(),
                 "application/json".to_string().into(),
@@ -728,7 +728,7 @@ macros::macro_connector_implementation!(
         fn get_url(
             &self,
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
-        ) -> CustomResult<String, ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let base_url = self.connector_base_url_payments(req);
             
             // Choose appropriate POST URL pattern:
@@ -766,7 +766,7 @@ pub struct {ConnectorName}SyncRequest {
 }
 
 impl TryFrom<{ConnectorName}RouterData<RouterDataV2<PSync, ...>>> for {ConnectorName}SyncRequest {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: {ConnectorName}RouterData<RouterDataV2<PSync, ...>>,
@@ -774,7 +774,7 @@ impl TryFrom<{ConnectorName}RouterData<RouterDataV2<PSync, ...>>> for {Connector
         let router_data = &item.router_data;
         
         let transaction_id = router_data.request.get_connector_transaction_id()
-            .change_context(ConnectorError::MissingConnectorTransactionID)?;
+            .change_context(IntegrationError::MissingConnectorTransactionID)?;
 
         let auth = {ConnectorName}AuthType::try_from(&router_data.connector_auth_type)?;
 
@@ -798,7 +798,7 @@ pub struct FiservSyncRequest {
     pub reference_transaction_details: ReferenceTransactionDetails,
 }
 
-fn get_url(&self, req: &RouterDataV2<PSync, ...>) -> CustomResult<String, ConnectorError> {
+fn get_url(&self, req: &RouterDataV2<PSync, ...>) -> CustomResult<String, IntegrationError> {
     Ok(format!("{}/ch/payments/v1/transaction-inquiry", 
         self.connector_base_url_payments(req)))
 }
@@ -811,7 +811,7 @@ pub struct AuthorizedotnetSyncRequest {
     pub get_transaction_details_request: TransactionDetails,
 }
 
-fn get_url(&self, req: &RouterDataV2<PSync, ...>) -> CustomResult<String, ConnectorError> {
+fn get_url(&self, req: &RouterDataV2<PSync, ...>) -> CustomResult<String, IntegrationError> {
     // Same endpoint as authorization
     Ok(self.connector_base_url_payments(req).to_string())
 }
@@ -827,7 +827,7 @@ pub struct PSyncInput {
     pub variables: TransactionSearchInput,
 }
 
-fn get_url(&self, req: &RouterDataV2<PSync, ...>) -> CustomResult<String, ConnectorError> {
+fn get_url(&self, req: &RouterDataV2<PSync, ...>) -> CustomResult<String, IntegrationError> {
     // GraphQL endpoint
     Ok(self.connector_base_url_payments(req).to_string())
 }
@@ -840,7 +840,7 @@ fn get_url(&self, req: &RouterDataV2<PSync, ...>) -> CustomResult<String, Connec
 Used by connectors that follow REST principles with transaction IDs as path parameters.
 
 ```rust
-fn get_url(&self, req: &RouterDataV2<PSync, ...>) -> CustomResult<String, ConnectorError> {
+fn get_url(&self, req: &RouterDataV2<PSync, ...>) -> CustomResult<String, IntegrationError> {
     let transaction_id = req.request.get_connector_transaction_id()?;
     let base_url = self.connector_base_url_payments(req);
     
@@ -858,7 +858,7 @@ fn get_url(&self, req: &RouterDataV2<PSync, ...>) -> CustomResult<String, Connec
 Used by connectors with dedicated status checking endpoints.
 
 ```rust
-fn get_url(&self, req: &RouterDataV2<PSync, ...>) -> CustomResult<String, ConnectorError> {
+fn get_url(&self, req: &RouterDataV2<PSync, ...>) -> CustomResult<String, IntegrationError> {
     let transaction_id = req.request.get_connector_transaction_id()?;
     let base_url = self.connector_base_url_payments(req);
     
@@ -875,7 +875,7 @@ fn get_url(&self, req: &RouterDataV2<PSync, ...>) -> CustomResult<String, Connec
 Used by connectors with hierarchical resource structures.
 
 ```rust
-fn get_url(&self, req: &RouterDataV2<PSync, ...>) -> CustomResult<String, ConnectorError> {
+fn get_url(&self, req: &RouterDataV2<PSync, ...>) -> CustomResult<String, IntegrationError> {
     let transaction_id = req.request.get_connector_transaction_id()?;
     let order_id = extract_order_id(&req.request)?;
     let base_url = self.connector_base_url_payments(req);
@@ -887,10 +887,10 @@ fn get_url(&self, req: &RouterDataV2<PSync, ...>) -> CustomResult<String, Connec
     Ok(format!("{}/orders/{}/transactions/{}", base_url, order_id, transaction_id))
 }
 
-fn extract_order_id(request: &PaymentsSyncData) -> Result<String, ConnectorError> {
+fn extract_order_id(request: &PaymentsSyncData) -> Result<String, IntegrationError> {
     // Extract order ID from connector metadata or request reference
     request.connector_request_reference_id.clone()
-        .ok_or(ConnectorError::MissingRequiredField { field_name: "order_id" })
+        .ok_or(IntegrationError::MissingRequiredField { field_name: "order_id" , context: Default::default() })
 }
 ```
 
@@ -899,7 +899,7 @@ fn extract_order_id(request: &PaymentsSyncData) -> Result<String, ConnectorError
 Used by connectors that prefer query parameters over path parameters.
 
 ```rust
-fn get_url(&self, req: &RouterDataV2<PSync, ...>) -> CustomResult<String, ConnectorError> {
+fn get_url(&self, req: &RouterDataV2<PSync, ...>) -> CustomResult<String, IntegrationError> {
     let transaction_id = req.request.get_connector_transaction_id()?;
     let base_url = self.connector_base_url_payments(req);
     
@@ -916,7 +916,7 @@ fn get_url(&self, req: &RouterDataV2<PSync, ...>) -> CustomResult<String, Connec
 Used by connectors requiring multiple identifiers in the URL.
 
 ```rust
-fn get_url(&self, req: &RouterDataV2<PSync, ...>) -> CustomResult<String, ConnectorError> {
+fn get_url(&self, req: &RouterDataV2<PSync, ...>) -> CustomResult<String, IntegrationError> {
     let transaction_id = req.request.get_connector_transaction_id()?;
     let merchant_id = extract_merchant_id(&req.connector_auth_type)?;
     let payment_id = extract_payment_id(&req.request)?;
@@ -936,7 +936,7 @@ fn get_url(&self, req: &RouterDataV2<PSync, ...>) -> CustomResult<String, Connec
 Used by connectors with single endpoints that handle multiple operations.
 
 ```rust
-fn get_url(&self, req: &RouterDataV2<PSync, ...>) -> CustomResult<String, ConnectorError> {
+fn get_url(&self, req: &RouterDataV2<PSync, ...>) -> CustomResult<String, IntegrationError> {
     let base_url = self.connector_base_url_payments(req);
     
     // Examples:
@@ -956,7 +956,7 @@ pub fn build_psync_url(
     base_url: &str,
     pattern: PsyncUrlPattern,
     identifiers: &PsyncIdentifiers,
-) -> Result<String, ConnectorError> {
+) -> Result<String, IntegrationError> {
     match pattern {
         PsyncUrlPattern::RestfulResource => {
             Ok(format!("{}/payments/{}", base_url, identifiers.transaction_id))
@@ -966,7 +966,7 @@ pub fn build_psync_url(
         },
         PsyncUrlPattern::Hierarchical => {
             let order_id = identifiers.order_id.as_ref()
-                .ok_or(ConnectorError::MissingRequiredField { field_name: "order_id" })?;
+                .ok_or(IntegrationError::MissingRequiredField { field_name: "order_id" , context: Default::default() })?;
             Ok(format!("{}/orders/{}/transactions/{}", 
                 base_url, order_id, identifiers.transaction_id))
         },
@@ -997,9 +997,9 @@ pub struct PsyncIdentifiers {
 }
 
 impl PsyncIdentifiers {
-    pub fn from_request(request: &PaymentsSyncData) -> Result<Self, ConnectorError> {
+    pub fn from_request(request: &PaymentsSyncData) -> Result<Self, IntegrationError> {
         let transaction_id = request.get_connector_transaction_id()
-            .change_context(ConnectorError::MissingConnectorTransactionID)?;
+            .change_context(IntegrationError::MissingConnectorTransactionID)?;
         
         Ok(Self {
             transaction_id,
@@ -1019,20 +1019,20 @@ Used by 6 connectors including Razorpay, Braintree, and Nexinets.
 
 ```rust
 impl TryFrom<&ConnectorAuthType> for {ConnectorName}AuthType {
-    type Error = ConnectorError;
+    type Error = IntegrationError;
     
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
             ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
                 api_key: api_key.to_owned(),
             }),
-            _ => Err(ConnectorError::FailedToObtainAuthType),
+            _ => Err(IntegrationError::FailedToObtainAuthType { context: Default::default() }),
         }
     }
 }
 
 // In get_auth_header:
-fn get_auth_header(&self, auth_type: &ConnectorAuthType) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+fn get_auth_header(&self, auth_type: &ConnectorAuthType) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
     let auth = {ConnectorName}AuthType::try_from(auth_type)?;
     
     Ok(vec![(
@@ -1051,7 +1051,7 @@ fn get_auth_header(&self, auth_type: &ConnectorAuthType) -> CustomResult<Vec<(St
 Used by connectors like Checkout and Volt.
 
 ```rust
-fn get_auth_header(&self, auth_type: &ConnectorAuthType) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+fn get_auth_header(&self, auth_type: &ConnectorAuthType) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
     let auth = {ConnectorName}AuthType::try_from(auth_type)?;
     
     Ok(vec![(
@@ -1066,7 +1066,7 @@ fn get_auth_header(&self, auth_type: &ConnectorAuthType) -> CustomResult<Vec<(St
 Used by connectors like Adyen, Mifinity, and PhonePe.
 
 ```rust
-fn get_auth_header(&self, auth_type: &ConnectorAuthType) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+fn get_auth_header(&self, auth_type: &ConnectorAuthType) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
     let auth = {ConnectorName}AuthType::try_from(auth_type)?;
     
     Ok(vec![
@@ -1082,7 +1082,7 @@ Used by enterprise connectors like Fiserv, Paytm, and PayU.
 
 ```rust
 // HMAC Signature (Fiserv-style)
-fn get_auth_header(&self, auth_type: &ConnectorAuthType) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+fn get_auth_header(&self, auth_type: &ConnectorAuthType) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
     let auth = {ConnectorName}AuthType::try_from(auth_type)?;
     let timestamp = chrono::Utc::now().timestamp().to_string();
     let payload = ""; // Request body for signature
@@ -1096,10 +1096,10 @@ fn get_auth_header(&self, auth_type: &ConnectorAuthType) -> CustomResult<Vec<(St
     ])
 }
 
-fn generate_hmac_signature(secret: &str, timestamp: &str, payload: &str) -> Result<String, ConnectorError> {
+fn generate_hmac_signature(secret: &str, timestamp: &str, payload: &str) -> Result<String, IntegrationError> {
     let message = format!("{}{}{}", auth.api_key, timestamp, payload);
     let mut mac = hmac::Hmac::<sha2::Sha256>::new_from_slice(secret.as_bytes())
-        .map_err(|_| ConnectorError::RequestEncodingFailed)?;
+        .map_err(|_| IntegrationError::RequestEncodingFailed)?;
     mac.update(message.as_bytes());
     let result = mac.finalize();
     Ok(base64::Engine::encode(&base64::engine::general_purpose::STANDARD, result.into_bytes()))
@@ -1111,7 +1111,7 @@ fn generate_hmac_signature(secret: &str, timestamp: &str, payload: &str) -> Resu
 Used by simple connectors like Elavon and Fiuu.
 
 ```rust
-fn get_auth_header(&self, _auth_type: &ConnectorAuthType) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+fn get_auth_header(&self, _auth_type: &ConnectorAuthType) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
     // No authentication headers needed
     Ok(vec![])
 }
@@ -1135,7 +1135,7 @@ pub struct MerchantAuthentication {
 }
 
 impl TryFrom<&ConnectorAuthType> for MerchantAuthentication {
-    type Error = ConnectorError;
+    type Error = IntegrationError;
     
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
@@ -1143,13 +1143,13 @@ impl TryFrom<&ConnectorAuthType> for MerchantAuthentication {
                 name: api_key.peek().to_string(),
                 transaction_key: api_secret.to_owned(),
             }),
-            _ => Err(ConnectorError::FailedToObtainAuthType),
+            _ => Err(IntegrationError::FailedToObtainAuthType { context: Default::default() }),
         }
     }
 }
 
 // No special auth headers needed
-fn get_auth_header(&self, _auth_type: &ConnectorAuthType) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+fn get_auth_header(&self, _auth_type: &ConnectorAuthType) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
     Ok(vec![])
 }
 ```
@@ -1460,13 +1460,13 @@ fn build_error_response(
     &self,
     res: Response,
     event_builder: Option<&mut ConnectorEvent>,
-) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+) -> CustomResult<ErrorResponse, errors::ConnectorResponseTransformationError> {
     let response: {ConnectorName}ErrorResponse = if res.response.is_empty() {
         {ConnectorName}ErrorResponse::default()
     } else {
         res.response
             .parse_struct("ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
+            .change_context(errors::ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })?
     };
 
     if let Some(i) = event_builder {
@@ -1545,13 +1545,13 @@ fn build_error_response(
     &self,
     res: Response,
     event_builder: Option<&mut ConnectorEvent>,
-) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+) -> CustomResult<ErrorResponse, errors::ConnectorResponseTransformationError> {
     let response: {ConnectorName}ErrorResponse = if res.response.is_empty() {
         {ConnectorName}ErrorResponse::default()
     } else {
         res.response
             .parse_struct("ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
+            .change_context(errors::ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })?
     };
 
     if let Some(i) = event_builder {
@@ -1640,7 +1640,7 @@ Used for handling network-related issues in sync operations.
 fn handle_network_errors(
     res: Response,
     event_builder: Option<&mut ConnectorEvent>,
-) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+) -> CustomResult<ErrorResponse, errors::IntegrationError> {
     let error_response = if res.response.is_empty() {
         {ConnectorName}ErrorResponse::default()
     } else {
@@ -1757,7 +1757,7 @@ pub fn build_standard_error_response(
     res: Response,
     default_error_code: &str,
     default_error_message: &str,
-) -> CustomResult<ErrorResponse, ConnectorError> {
+) -> CustomResult<ErrorResponse, IntegrationError> {
     let parsed_error = parse_error_response(&res.response)
         .unwrap_or_else(|| create_default_error(default_error_code, default_error_message));
 

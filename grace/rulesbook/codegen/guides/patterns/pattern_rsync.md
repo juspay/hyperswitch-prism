@@ -124,14 +124,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn get_url(
         &self,
         req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
-    ) -> CustomResult<String, ConnectorError> {
+    ) -> CustomResult<String, IntegrationError> {
         let refund_id = req.request.connector_refund_id.clone();
         
         // Validate refund ID
         if refund_id.is_empty() {
-            return Err(errors::ConnectorError::MissingRequiredField {
+            return Err(errors::IntegrationError::MissingRequiredField {
                 field_name: "connector_refund_id",
-            });
+            , context: Default::default() });
         }
 
         Ok(format!("{}/refunds/{}", self.connector_base_url_refunds(req), refund_id))
@@ -142,7 +142,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
         _connectors: &crate::Connectors,
-    ) -> CustomResult<RequestContent, ConnectorError> {
+    ) -> CustomResult<RequestContent, IntegrationError> {
         // For GET requests
         Ok(RequestContent::Json(Box::new(serde_json::Value::Null)))
         
@@ -157,11 +157,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         data: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
         event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
-    ) -> CustomResult<RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>, ConnectorError> {
+    ) -> CustomResult<RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>, ConnectorResponseTransformationError> {
         let response: transformers::{ConnectorName}RefundSyncResponse = res
             .response
             .parse_struct("{ConnectorName} RSync Response")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            .change_context(errors::ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })?;
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -171,7 +171,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        .change_context(errors::ConnectorResponseTransformationError::ResponseHandlingFailed)
     }
 
     // Error response handling
@@ -179,7 +179,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, ConnectorError> {
+    ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
         self.build_error_response(res, event_builder)
     }
 }
@@ -210,7 +210,7 @@ macro_connector_implementation!(
     get_error_response,
     get_5xx_error_response,
     text_to_json_deserialize_if_required,
-    ConnectorError
+    IntegrationError
 );
 ```
 
@@ -258,7 +258,7 @@ pub enum {ConnectorName}RefundStatus {
 impl TryFrom<&RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>>
     for {ConnectorName}RefundSyncRequest
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<errors::IntegrationError>;
 
     fn try_from(
         item: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
@@ -284,7 +284,7 @@ impl From<{ConnectorName}RefundStatus> for common_enums::RefundStatus {
 impl TryFrom<ResponseRouterData<RSync, {ConnectorName}RefundSyncResponse, RefundSyncData, RefundsResponseData>>
     for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<errors::IntegrationError>;
 
     fn try_from(
         item: ResponseRouterData<RSync, {ConnectorName}RefundSyncResponse, RefundSyncData, RefundsResponseData>,
@@ -309,7 +309,7 @@ impl TryFrom<ResponseRouterData<RSync, {ConnectorName}RefundSyncResponse, Refund
 ```rust
 // GET /refunds/{refund_id}
 fn get_http_method(&self) -> Method { Method::Get }
-fn get_url(&self, req) -> CustomResult<String, ConnectorError> {
+fn get_url(&self, req) -> CustomResult<String, IntegrationError> {
     Ok(format!("{}/refunds/{}", base_url, req.request.connector_refund_id))
 }
 ```
@@ -321,7 +321,7 @@ fn get_url(&self, req) -> CustomResult<String, ConnectorError> {
 **Use for**: Processors using GraphQL (e.g., Braintree)
 
 ```rust
-fn get_request_body(&self, req) -> CustomResult<RequestContent, ConnectorError> {
+fn get_request_body(&self, req) -> CustomResult<RequestContent, IntegrationError> {
     let request = BraintreeRSyncRequest {
         query: constants::REFUND_QUERY.to_string(),
         variables: RSyncInput {
@@ -341,7 +341,7 @@ fn get_request_body(&self, req) -> CustomResult<RequestContent, ConnectorError> 
 **Use for**: Legacy processors requiring XML
 
 ```rust
-fn get_request_body(&self, req) -> CustomResult<RequestContent, ConnectorError> {
+fn get_request_body(&self, req) -> CustomResult<RequestContent, IntegrationError> {
     let request = XMLRSyncRequest {
         get_transaction_details_request: TransactionDetails {
             merchant_authentication: auth,
@@ -359,7 +359,7 @@ fn get_request_body(&self, req) -> CustomResult<RequestContent, ConnectorError> 
 **Use for**: Payment processors that expose transaction history
 
 ```rust
-fn get_url(&self, req) -> CustomResult<String, ConnectorError> {
+fn get_url(&self, req) -> CustomResult<String, IntegrationError> {
     Ok(format!("{}/payments/{}/actions", base_url, payment_id))
 }
 ```
@@ -536,11 +536,11 @@ impl {ConnectorName}<T> {
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, ConnectorError> {
+    ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
         let response: {ConnectorName}ErrorResponse = res
             .response
             .parse_struct("{ConnectorName} Error Response")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            .change_context(errors::ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })?;
 
         event_builder.map(|i| i.set_error_response_body(&response));
 
@@ -572,7 +572,7 @@ pub struct {ConnectorName}ErrorDetail {
 }
 
 impl {ConnectorName}<T> {
-    fn build_error_response(&self, res: types::Response) -> CustomResult<ErrorResponse, ConnectorError> {
+    fn build_error_response(&self, res: types::Response) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
         let response: {ConnectorName}ErrorResponse = res.response.parse_struct("Error Response")?;
         
         let error_message = if let Some(errors) = response.errors {
@@ -836,17 +836,17 @@ URL Pattern: {base_url}/graphql
 
 ```rust
 // Before (incorrect)
-fn get_url(&self, req) -> CustomResult<String, ConnectorError> {
+fn get_url(&self, req) -> CustomResult<String, IntegrationError> {
     Ok(format!("{}/refunds/{}", base_url, req.request.connector_refund_id))
 }
 
 // After (correct)
-fn get_url(&self, req) -> CustomResult<String, ConnectorError> {
+fn get_url(&self, req) -> CustomResult<String, IntegrationError> {
     let refund_id = req.request.connector_refund_id.clone();
     if refund_id.is_empty() {
-        return Err(errors::ConnectorError::MissingRequiredField {
+        return Err(errors::IntegrationError::MissingRequiredField {
             field_name: "connector_refund_id",
-        });
+        , context: Default::default() });
     }
     Ok(format!("{}/refunds/{}", base_url, refund_id))
 }
@@ -918,13 +918,13 @@ pub struct {ConnectorName}RefundSyncResponse {
 
 ```rust
 // Before (incorrect - generic auth)
-fn build_request(&self, req) -> CustomResult<RequestBuilder, ConnectorError> {
+fn build_request(&self, req) -> CustomResult<RequestBuilder, IntegrationError> {
     Ok(RequestBuilder::new()
         .header("Authorization", "Bearer token"))
 }
 
 // After (correct - connector-specific auth)
-fn build_request(&self, req) -> CustomResult<RequestBuilder, ConnectorError> {
+fn build_request(&self, req) -> CustomResult<RequestBuilder, IntegrationError> {
     let auth = {ConnectorName}AuthType::try_from(&req.connector_auth_type)?;
     let auth_header = match auth.auth_type {
         AuthType::Basic => format!("Basic {}", base64::encode(format!("{}:{}", auth.key, auth.secret))),
@@ -944,18 +944,18 @@ fn build_request(&self, req) -> CustomResult<RequestBuilder, ConnectorError> {
 
 ```rust
 // Before (incorrect - assumes refund_id is sufficient)
-fn get_url(&self, req) -> CustomResult<String, ConnectorError> {
+fn get_url(&self, req) -> CustomResult<String, IntegrationError> {
     Ok(format!("{}/refunds/{}", base_url, req.request.connector_refund_id))
 }
 
 // After (correct - handles metadata dependencies)
-fn get_url(&self, req) -> CustomResult<String, ConnectorError> {
+fn get_url(&self, req) -> CustomResult<String, IntegrationError> {
     let refund_id = req.request.connector_refund_id.clone();
     
     // Extract order_id from connector metadata if required
     let order_id = req.connector_meta_data
         .get_required_value("order_id")
-        .change_context(errors::ConnectorError::MissingConnectorMetaData)?;
+        .change_context(errors::IntegrationError::MissingConnectorMetaData)?;
     
     Ok(format!("{}/orders/{}/transactions/{}", base_url, order_id, refund_id))
 }

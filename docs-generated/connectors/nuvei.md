@@ -148,7 +148,7 @@ Authorize a payment, then poll the connector for its current status using Get. U
 |--------------------|----------|----------------------|
 | [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
 | [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
-| [MerchantAuthenticationService.CreateSessionToken](#merchantauthenticationservicecreatesessiontoken) | Authentication | `MerchantAuthenticationServiceCreateSessionTokenRequest` |
+| [ConnectorSessionService.CreateSessionToken](#connectorsessionservicecreatesessiontoken) | Authentication | `ConnectorSessionServiceCreateSessionTokenRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
 | [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
 | [PaymentService.Void](#paymentservicevoid) | Payments | `PaymentServiceVoidRequest` |
@@ -191,11 +191,11 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 ```python
 "payment_method": {
     "card": {  # Generic card payment
-        "card_number": {"value": "4111111111111111"},  # Card Identification
-        "card_exp_month": {"value": "03"},
-        "card_exp_year": {"value": "2030"},
-        "card_cvc": {"value": "737"},
-        "card_holder_name": {"value": "John Doe"}  # Cardholder Information
+        "card_number": "4111111111111111",  # Card Identification
+        "card_exp_month": "03",
+        "card_exp_year": "2030",
+        "card_cvc": "737",
+        "card_holder_name": "John Doe"  # Cardholder Information
     }
 }
 ```
@@ -248,13 +248,13 @@ Cancel an authorized payment before capture. Releases held funds back to custome
 
 ### Authentication
 
-#### MerchantAuthenticationService.CreateSessionToken
+#### ConnectorSessionService.CreateSessionToken
 
 Create session token for payment processing. Maintains session state across multiple payment operations for improved security and tracking.
 
 | | Message |
 |---|---------|
-| **Request** | `MerchantAuthenticationServiceCreateSessionTokenRequest` |
-| **Response** | `MerchantAuthenticationServiceCreateSessionTokenResponse` |
+| **Request** | `ConnectorSessionServiceCreateSessionTokenRequest` |
+| **Response** | `ConnectorSessionServiceCreateSessionTokenResponse` |
 
 **Examples:** [Python](../../examples/nuvei/python/nuvei.py#L252) · [JavaScript](../../examples/nuvei/javascript/nuvei.js#L240) · [Kotlin](../../examples/nuvei/kotlin/nuvei.kt#L243) · [Rust](../../examples/nuvei/rust/nuvei.rs#L237)

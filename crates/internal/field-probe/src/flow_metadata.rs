@@ -103,16 +103,25 @@ fn get_flow_key_mapping() -> HashMap<(&'static str, &'static str), &'static str>
         (("PaymentMethodService", "Tokenize"), "tokenize"),
         // MerchantAuthenticationService
         (
-            ("MerchantAuthenticationService", "CreateAccessToken"),
-            "create_access_token",
+            (
+                "MerchantAuthenticationService",
+                "CreateServerAuthenticationToken",
+            ),
+            "server_authentication_token",
         ),
         (
-            ("MerchantAuthenticationService", "CreateSessionToken"),
-            "create_session_token",
+            (
+                "MerchantAuthenticationService",
+                "CreateServerSessionAuthenticationToken",
+            ),
+            "server_session_authentication_token",
         ),
         (
-            ("MerchantAuthenticationService", "CreateSdkSessionToken"),
-            "sdk_session_token",
+            (
+                "MerchantAuthenticationService",
+                "CreateClientAuthenticationToken",
+            ),
+            "client_authentication_token",
         ),
         // PaymentMethodAuthenticationService
         (
@@ -180,8 +189,9 @@ fn parse_proto_content(content: &str) -> Vec<FlowMetadata> {
     let mut pending_comment: String = String::new();
 
     let flow_key_mapping = get_flow_key_mapping();
+    let mut lines = content.lines().peekable();
 
-    for line in content.lines() {
+    while let Some(line) = lines.next() {
         let trimmed = line.trim();
 
         // Track service declarations
@@ -223,12 +233,21 @@ fn parse_proto_content(content: &str) -> Vec<FlowMetadata> {
         // Parse RPC definitions
         if let Some(ref service_name) = current_service {
             if trimmed.starts_with("rpc ") {
+                let mut rpc_definition = trimmed.to_string();
+                while !rpc_definition.contains(';') {
+                    let Some(next_line) = lines.next() else {
+                        break;
+                    };
+                    rpc_definition.push(' ');
+                    rpc_definition.push_str(next_line.trim());
+                }
+
                 // Extract RPC name
-                let rpc_part = trimmed.strip_prefix("rpc ").unwrap_or("").trim();
+                let rpc_part = rpc_definition.strip_prefix("rpc ").unwrap_or("").trim();
                 let rpc_name = rpc_part.split('(').next().unwrap_or("").trim().to_string();
 
                 // Extract request and response message names
-                let (grpc_request, grpc_response) = extract_message_names(trimmed);
+                let (grpc_request, grpc_response) = extract_message_names(&rpc_definition);
 
                 // Look up flow key using (service, rpc) tuple
                 if let Some(&flow_key) =
@@ -590,6 +609,25 @@ mod tests {
     }
 
     #[test]
+    fn test_extract_message_names_from_wrapped_rpc() {
+        let rpc_line = concat!(
+            "rpc CreateClientAuthenticationToken( ",
+            "MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest) ",
+            "returns ( ",
+            "MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse);"
+        );
+        let (req, resp) = extract_message_names(rpc_line);
+        assert_eq!(
+            req,
+            "MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest"
+        );
+        assert_eq!(
+            resp,
+            "MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse"
+        );
+    }
+
+    #[test]
     fn test_clean_description() {
         assert_eq!(clean_description("Test description"), "Test description.");
         assert_eq!(clean_description("Test description."), "Test description.");
@@ -614,5 +652,71 @@ mod tests {
         assert!(mapping.contains_key(&("PaymentService", "Capture")));
         assert!(mapping.contains_key(&("PaymentService", "Get")));
         assert!(mapping.contains_key(&("RefundService", "Get")));
+    }
+
+    #[test]
+    fn test_parse_proto_content_parses_wrapped_merchant_auth_rpcs() {
+        let proto = r#"
+service MerchantAuthenticationService {
+  // Generate short-lived connector authentication token.
+  rpc CreateServerAuthenticationToken(
+      MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest)
+      returns (
+          MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse);
+
+  // Create a server-side session with the connector.
+  rpc CreateServerSessionAuthenticationToken(
+      MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest)
+      returns (
+          MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse);
+
+  // Initialize client-facing SDK sessions.
+  rpc CreateClientAuthenticationToken(
+      MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest)
+      returns (
+          MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse);
+}
+"#;
+
+        let metadata = parse_proto_content(proto);
+
+        let server_auth = metadata
+            .iter()
+            .find(|m| m.flow_key == "server_authentication_token")
+            .expect("server_authentication_token metadata");
+        assert_eq!(
+            server_auth.grpc_request,
+            "MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest"
+        );
+        assert_eq!(
+            server_auth.grpc_response,
+            "MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse"
+        );
+
+        let server_session_auth = metadata
+            .iter()
+            .find(|m| m.flow_key == "server_session_authentication_token")
+            .expect("server_session_authentication_token metadata");
+        assert_eq!(
+            server_session_auth.grpc_request,
+            "MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest"
+        );
+        assert_eq!(
+            server_session_auth.grpc_response,
+            "MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse"
+        );
+
+        let client_auth = metadata
+            .iter()
+            .find(|m| m.flow_key == "client_authentication_token")
+            .expect("client_authentication_token metadata");
+        assert_eq!(
+            client_auth.grpc_request,
+            "MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest"
+        );
+        assert_eq!(
+            client_auth.grpc_response,
+            "MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse"
+        );
     }
 }

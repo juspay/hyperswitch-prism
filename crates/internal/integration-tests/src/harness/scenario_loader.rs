@@ -635,7 +635,7 @@ mod tests {
         let paypal =
             load_supported_suites_for_connector("paypal").expect("paypal suites should load");
         assert!(
-            paypal.contains(&"create_access_token".to_string())
+            paypal.contains(&"server_authentication_token".to_string())
                 && paypal.contains(&"setup_recurring".to_string())
                 && paypal.contains(&"recurring_charge".to_string()),
             "paypal should include token + recurring suites"

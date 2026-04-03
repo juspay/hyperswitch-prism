@@ -1,9 +1,12 @@
 #![allow(unused_variables, unused_assignments)]
 
+use common_enums;
 use common_utils::errors::ErrorSwitch;
-// use api_models::errors::types::{ Extra};
+use error_stack::Report;
 use strum::Display;
-#[derive(Debug, thiserror::Error, PartialEq, Clone)]
+// use api_models::errors::types::{ Extra};
+#[derive(Debug, thiserror::Error, PartialEq, Clone, strum::AsRefStr)]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 pub enum ApiClientError {
     #[error("Header map construction failed")]
     HeaderMapConstructionFailed,
@@ -25,13 +28,10 @@ pub enum ApiClientError {
     RequestNotSent(String),
     #[error("Failed to decode response")]
     ResponseDecodingFailed,
-
     #[error("Server responded with Request Timeout")]
     RequestTimeoutReceived,
-
     #[error("connection closed before a message could complete")]
     ConnectionClosedIncompleteMessage,
-
     #[error("Server responded with Internal Server Error")]
     InternalServerErrorReceived,
     #[error("Server responded with Bad Gateway")]
@@ -104,6 +104,696 @@ pub struct ApiError {
     pub error_identifier: u16,
     pub error_message: String,
     pub error_object: Option<serde_json::Value>,
+}
+
+impl ApiError {
+    pub fn missing_amount(message: impl Into<String>) -> Self {
+        Self {
+            sub_code: "MISSING_AMOUNT".to_owned(),
+            error_identifier: 400,
+            error_message: message.into(),
+            error_object: None,
+        }
+    }
+}
+
+/// Fields used when mapping request-phase connector errors to gRPC `IntegrationError`.
+/// Does not depend on generated proto types.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct IntegrationErrorContext {
+    /// Human-readable remediation (maps to `IntegrationError.suggested_action`).
+    pub suggested_action: Option<String>,
+    /// Optional documentation URL (maps to `IntegrationError.doc_url`).
+    pub doc_url: Option<String>,
+    /// Connector- or flow-specific detail; **appended** to the base error message when building
+    /// `IntegrationError.error_message` — see [`combine_error_message_with_context`].
+    pub additional_context: Option<String>,
+}
+
+/// Fields used when mapping response-phase connector errors to
+/// `ConnectorResponseTransformationError`.
+///
+/// For rare cases (e.g. HTTP status unknown **and** [`Self::additional_context`] set), build
+/// [`ConnectorResponseTransformationError`] with a struct literal instead of adding more constructor helpers.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ResponseTransformationErrorContext {
+    /// HTTP status from the connector response when known.
+    pub http_status_code: Option<u16>,
+    /// Connector-specific detail; **appended** to the base error message for
+    /// `ConnectorResponseTransformationError.error_message` — see [`combine_error_message_with_context`].
+    pub additional_context: Option<String>,
+}
+
+/// Combines the base error string with optional extra context for gRPC `error_message`.
+///
+/// **Rule:** If `additional_context` is `Some` and non-empty after trim, returns
+/// `"{trimmed_base}. {trimmed_context}"`. Otherwise returns `trimmed_base` only.
+pub fn combine_error_message_with_context(
+    base_message: impl AsRef<str>,
+    additional_context: Option<&str>,
+) -> String {
+    let base = base_message.as_ref().trim_end();
+    match additional_context.map(str::trim).filter(|s| !s.is_empty()) {
+        None => base.to_string(),
+        Some(ctx) => format!("{base}. {ctx}"),
+    }
+}
+
+/// Errors that occur on the request transformationside:
+/// - proto → domain (`ForeignTryFrom`)
+/// - domain → connector bytes (`build_request_v2`)
+/// - request building variants from `ApiClientError` (`HeaderMapConstruction`, etc.)
+#[derive(Debug, thiserror::Error, PartialEq, Clone, strum::AsRefStr)]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
+pub enum IntegrationError {
+    #[error("Error while obtaining URL for the integration")]
+    FailedToObtainIntegrationUrl { context: IntegrationErrorContext },
+    #[error("Failed to encode connector request")]
+    RequestEncodingFailed { context: IntegrationErrorContext },
+    #[error("Header map construction failed")]
+    HeaderMapConstructionFailed { context: IntegrationErrorContext },
+    #[error("Request body serialization failed")]
+    BodySerializationFailed { context: IntegrationErrorContext },
+    #[error("Url parsing failed")]
+    UrlParsingFailed { context: IntegrationErrorContext },
+    #[error("URL encoding of request payload failed")]
+    UrlEncodingFailed { context: IntegrationErrorContext },
+    #[error("Missing required field: {field_name}")]
+    MissingRequiredField {
+        field_name: &'static str,
+        context: IntegrationErrorContext,
+    },
+    #[error("Missing required fields: {field_names:?}")]
+    MissingRequiredFields {
+        field_names: Vec<&'static str>,
+        context: IntegrationErrorContext,
+    },
+    #[error("Failed to obtain authentication type")]
+    FailedToObtainAuthType { context: IntegrationErrorContext },
+    #[error("Invalid connector configuration: {config}")]
+    InvalidConnectorConfig {
+        config: &'static str,
+        context: IntegrationErrorContext,
+    },
+    #[error("Connector metadata not found")]
+    NoConnectorMetaData { context: IntegrationErrorContext },
+    #[error("Invalid data format: {field_name}")]
+    InvalidDataFormat {
+        field_name: &'static str,
+        context: IntegrationErrorContext,
+    },
+    #[error("An invalid wallet was used")]
+    InvalidWallet { context: IntegrationErrorContext },
+    #[error("Failed to parse {wallet_name} wallet token")]
+    InvalidWalletToken {
+        wallet_name: String,
+        context: IntegrationErrorContext,
+    },
+    #[error("Payment Method Type not found")]
+    MissingPaymentMethodType { context: IntegrationErrorContext },
+    #[error("Payment method data / type / experience mismatch")]
+    MismatchedPaymentData { context: IntegrationErrorContext },
+    #[error("Field {fields} doesn't match with the ones used during mandate creation")]
+    MandatePaymentDataMismatch {
+        fields: String,
+        context: IntegrationErrorContext,
+    },
+    #[error("Missing apple pay tokenization data")]
+    MissingApplePayTokenData { context: IntegrationErrorContext },
+    #[error("This feature is not implemented: {0}")]
+    NotImplemented(String, IntegrationErrorContext),
+    #[error("{message} is not supported by {connector}")]
+    NotSupported {
+        message: String,
+        connector: &'static str,
+        context: IntegrationErrorContext,
+    },
+    #[error("{flow} flow not supported by {connector} connector")]
+    FlowNotSupported {
+        flow: String,
+        connector: String,
+        context: IntegrationErrorContext,
+    },
+    #[error("Capture method not supported")]
+    CaptureMethodNotSupported { context: IntegrationErrorContext },
+    #[error("The given currency is not configured with the given connector")]
+    CurrencyNotSupported {
+        message: String,
+        connector: &'static str,
+        context: IntegrationErrorContext,
+    },
+    #[error("Failed to convert amount to required type")]
+    AmountConversionFailed { context: IntegrationErrorContext },
+    #[error("Missing connector transaction ID")]
+    MissingConnectorTransactionID { context: IntegrationErrorContext },
+    #[error("Missing connector refund ID")]
+    MissingConnectorRefundID { context: IntegrationErrorContext },
+    #[error("Missing connector mandate ID")]
+    MissingConnectorMandateID { context: IntegrationErrorContext },
+    #[error("Missing connector mandate metadata")]
+    MissingConnectorMandateMetadata { context: IntegrationErrorContext },
+    #[error("Missing connector related transaction ID: {id}")]
+    MissingConnectorRelatedTransactionID {
+        id: String,
+        context: IntegrationErrorContext,
+    },
+    #[error("Field '{field_name}' is too long for connector '{connector}'")]
+    MaxFieldLengthViolated {
+        connector: String,
+        field_name: String,
+        max_length: usize,
+        received_length: usize,
+        context: IntegrationErrorContext,
+    },
+    #[error("Failed to verify request source (signature, webhook, etc.)")]
+    SourceVerificationFailed { context: IntegrationErrorContext },
+    /// Config/auth/metadata validation failures (e.g. invalid config override, missing header).
+    #[error("{message}")]
+    ConfigurationError {
+        code: String,
+        message: String,
+        context: IntegrationErrorContext,
+    },
+}
+
+impl IntegrationError {
+    /// Create a configuration/auth/metadata error with a standardized code.
+    pub fn config_error(code: impl Into<String>, message: impl Into<String>) -> Self {
+        Self::config_error_with_context(code, message, IntegrationErrorContext::default())
+    }
+
+    /// Like [`Self::config_error`], but allows connector-specific [`IntegrationErrorContext`]
+    /// (merged with central defaults in `ucs_env`).
+    pub fn config_error_with_context(
+        code: impl Into<String>,
+        message: impl Into<String>,
+        context: IntegrationErrorContext,
+    ) -> Self {
+        Self::ConfigurationError {
+            code: code.into(),
+            message: message.into(),
+            context,
+        }
+    }
+
+    /// Connector feature not implemented; uses default empty [`IntegrationErrorContext`].
+    pub fn not_implemented(message: impl Into<String>) -> Self {
+        Self::not_implemented_with_context(message, IntegrationErrorContext::default())
+    }
+
+    /// Like [`Self::not_implemented`], but allows connector-specific [`IntegrationErrorContext`]
+    /// (merged with central defaults in `ucs_env`).
+    pub fn not_implemented_with_context(
+        message: impl Into<String>,
+        context: IntegrationErrorContext,
+    ) -> Self {
+        Self::NotImplemented(message.into(), context)
+    }
+
+    /// Optional connector-specific guidance for gRPC [`IntegrationError`] (overrides merged in `ucs_env`).
+    pub fn integration_context(&self) -> &IntegrationErrorContext {
+        match self {
+            Self::FailedToObtainIntegrationUrl { context }
+            | Self::RequestEncodingFailed { context }
+            | Self::HeaderMapConstructionFailed { context }
+            | Self::BodySerializationFailed { context }
+            | Self::UrlParsingFailed { context }
+            | Self::UrlEncodingFailed { context }
+            | Self::MissingRequiredField { context, .. }
+            | Self::MissingRequiredFields { context, .. }
+            | Self::FailedToObtainAuthType { context }
+            | Self::InvalidConnectorConfig { context, .. }
+            | Self::NoConnectorMetaData { context }
+            | Self::InvalidDataFormat { context, .. }
+            | Self::InvalidWallet { context }
+            | Self::InvalidWalletToken { context, .. }
+            | Self::MissingPaymentMethodType { context }
+            | Self::MismatchedPaymentData { context }
+            | Self::MandatePaymentDataMismatch { context, .. }
+            | Self::MissingApplePayTokenData { context }
+            | Self::NotImplemented(_, context)
+            | Self::NotSupported { context, .. }
+            | Self::FlowNotSupported { context, .. }
+            | Self::CaptureMethodNotSupported { context }
+            | Self::CurrencyNotSupported { context, .. }
+            | Self::AmountConversionFailed { context }
+            | Self::MissingConnectorTransactionID { context }
+            | Self::MissingConnectorRefundID { context }
+            | Self::MissingConnectorMandateID { context }
+            | Self::MissingConnectorMandateMetadata { context }
+            | Self::MissingConnectorRelatedTransactionID { context, .. }
+            | Self::MaxFieldLengthViolated { context, .. }
+            | Self::SourceVerificationFailed { context }
+            | Self::ConfigurationError { context, .. } => context,
+        }
+    }
+
+    /// Machine-readable error code (SCREAMING_SNAKE_CASE from variant name, or explicit `code` for ConfigurationError).
+    pub fn error_code(&self) -> &str {
+        match self {
+            Self::ConfigurationError { code, .. } => code,
+            _ => self.as_ref(),
+        }
+    }
+}
+
+/// Direct conversion from domain IntegrationError to proto IntegrationError (lossless).
+impl ErrorSwitch<grpc_api_types::payments::IntegrationError> for IntegrationError {
+    fn switch(&self) -> grpc_api_types::payments::IntegrationError {
+        let context = self.integration_context();
+        let base_message = self.to_string();
+        let error_message = combine_error_message_with_context(
+            &base_message,
+            context.additional_context.as_deref(),
+        );
+
+        grpc_api_types::payments::IntegrationError {
+            error_message,
+            error_code: self.error_code().to_string(),
+            suggested_action: context.suggested_action.clone(),
+            doc_url: doc_url_for_error_code(self.error_code()),
+        }
+    }
+}
+
+/// **LEGACY:** Lossy conversion to ApplicationErrorResponse to grpc successResponse with error field for gRPC server (payments.rs:820-860).
+/// **TODO:** Refactor gRPC server to use `ConnectorFlowError → tonic::Status` directly.
+/// **FFI:** Already uses lossless `IntegrationError → grpc_api_types::payments::IntegrationError`.
+impl ErrorSwitch<ApplicationErrorResponse> for IntegrationError {
+    fn switch(&self) -> ApplicationErrorResponse {
+        let api_err = |sub_code: &str, id: u16| ApiError {
+            sub_code: sub_code.to_string(),
+            error_identifier: id,
+            error_message: self.to_string(),
+            error_object: None,
+        };
+        match self {
+            Self::FailedToObtainIntegrationUrl { .. }
+            | Self::FailedToObtainAuthType { .. }
+            | Self::RequestEncodingFailed { .. }
+            | Self::HeaderMapConstructionFailed { .. }
+            | Self::BodySerializationFailed { .. }
+            | Self::UrlParsingFailed { .. }
+            | Self::UrlEncodingFailed { .. }
+            | Self::AmountConversionFailed { .. }
+            | Self::NoConnectorMetaData { .. } => {
+                ApplicationErrorResponse::InternalServerError(api_err("INTERNAL_SERVER_ERROR", 500))
+            }
+            Self::SourceVerificationFailed { .. } => {
+                ApplicationErrorResponse::Unauthorized(api_err("UNAUTHORIZED", 401))
+            }
+            Self::InvalidWallet { .. }
+            | Self::MissingRequiredField { .. }
+            | Self::MissingRequiredFields { .. }
+            | Self::InvalidDataFormat { .. }
+            | Self::MismatchedPaymentData { .. }
+            | Self::InvalidWalletToken { .. }
+            | Self::MissingPaymentMethodType { .. }
+            | Self::CurrencyNotSupported { .. }
+            | Self::InvalidConnectorConfig { .. }
+            | Self::NotSupported { .. }
+            | Self::FlowNotSupported { .. }
+            | Self::MissingApplePayTokenData { .. }
+            | Self::MandatePaymentDataMismatch { .. }
+            | Self::ConfigurationError { .. } => {
+                ApplicationErrorResponse::BadRequest(api_err("BAD_REQUEST", 400))
+            }
+            Self::MaxFieldLengthViolated { .. }
+            | Self::MissingConnectorMandateID { .. }
+            | Self::MissingConnectorMandateMetadata { .. }
+            | Self::MissingConnectorTransactionID { .. }
+            | Self::MissingConnectorRefundID { .. }
+            | Self::MissingConnectorRelatedTransactionID { .. } => {
+                ApplicationErrorResponse::Unprocessable(api_err("UNPROCESSABLE_ENTITY", 422))
+            }
+            Self::NotImplemented(..) | Self::CaptureMethodNotSupported { .. } => {
+                ApplicationErrorResponse::NotImplemented(api_err("NOT_IMPLEMENTED", 501))
+            }
+        }
+    }
+}
+
+impl common_utils::errors::ErrorSwitchFrom<ApplicationErrorResponse> for ApplicationErrorResponse {
+    fn switch_from(error: &ApplicationErrorResponse) -> Self {
+        error.clone()
+    }
+}
+
+/// Errors that occur on the response transformation side:
+/// - connector bytes → domain (`handle_response_v2`)
+/// - domain → proto (`generate_payment_*_response`)
+/// - connector infra HTTP error responses (5xx, unexpected status)
+#[derive(Debug, thiserror::Error, PartialEq, Clone, strum::AsRefStr)]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
+pub enum ConnectorResponseTransformationError {
+    #[error("Failed to deserialize connector response")]
+    ResponseDeserializationFailed {
+        /// Always present: set `http_status_code` to `Some` when the connector HTTP response is known.
+        context: ResponseTransformationErrorContext,
+    },
+    #[error("Failed to handle connector response")]
+    ResponseHandlingFailed {
+        context: ResponseTransformationErrorContext,
+    },
+    #[error("The connector returned an unexpected response")]
+    UnexpectedResponseError {
+        context: ResponseTransformationErrorContext,
+    },
+    #[error("Integrity check failed for fields: {field_names}")]
+    IntegrityCheckFailed {
+        context: ResponseTransformationErrorContext,
+        field_names: String,
+        connector_transaction_id: Option<String>,
+    },
+}
+
+/// Returns documentation URL for error codes.
+/// Points to the comprehensive error code reference page.
+pub fn doc_url_for_error_code(_error_code: &str) -> Option<String> {
+    Some("https://docs.hyperswitch.io/prism/architecture/concepts/error-codes".to_string())
+}
+
+impl ConnectorResponseTransformationError {
+    /// HTTP status code from the connector response (`None` when not applicable).
+    pub fn http_status_code(&self) -> Option<u16> {
+        match self {
+            Self::ResponseDeserializationFailed { context }
+            | Self::ResponseHandlingFailed { context }
+            | Self::UnexpectedResponseError { context }
+            | Self::IntegrityCheckFailed { context, .. } => context.http_status_code,
+        }
+    }
+
+    /// Optional connector-specific detail (appended to proto `error_message`).
+    pub fn additional_context(&self) -> Option<&str> {
+        match self {
+            Self::ResponseDeserializationFailed { context }
+            | Self::ResponseHandlingFailed { context }
+            | Self::UnexpectedResponseError { context }
+            | Self::IntegrityCheckFailed { context, .. } => context.additional_context.as_deref(),
+        }
+    }
+
+    /// Build a [`ResponseTransformationErrorContext`] for gRPC mapping.
+    pub fn response_transformation_context(&self) -> ResponseTransformationErrorContext {
+        match self {
+            Self::ResponseDeserializationFailed { context }
+            | Self::ResponseHandlingFailed { context }
+            | Self::UnexpectedResponseError { context }
+            | Self::IntegrityCheckFailed { context, .. } => context.clone(),
+        }
+    }
+
+    /// Create ResponseHandlingFailed with the connector HTTP status from [`Response::status_code`].
+    pub fn response_handling_failed(http_status: u16) -> Self {
+        Self::ResponseHandlingFailed {
+            context: ResponseTransformationErrorContext {
+                http_status_code: Some(http_status),
+                additional_context: None,
+            },
+        }
+    }
+
+    /// Use only when there is **no** HTTP response (e.g. base64 decode); prefer
+    /// [`Self::response_handling_failed`] with a real status from [`router_response_types::Response`].
+    pub fn response_handling_failed_http_status_unknown() -> Self {
+        Self::ResponseHandlingFailed {
+            context: ResponseTransformationErrorContext {
+                http_status_code: None,
+                additional_context: None,
+            },
+        }
+    }
+
+    /// [`Self::response_handling_failed`] plus optional appended context for proto.
+    pub fn response_handling_failed_with_context(
+        http_status: u16,
+        additional_context: Option<String>,
+    ) -> Self {
+        Self::ResponseHandlingFailed {
+            context: ResponseTransformationErrorContext {
+                http_status_code: Some(http_status),
+                additional_context,
+            },
+        }
+    }
+
+    pub fn response_deserialization_failed(http_status: u16) -> Self {
+        Self::ResponseDeserializationFailed {
+            context: ResponseTransformationErrorContext {
+                http_status_code: Some(http_status),
+                additional_context: None,
+            },
+        }
+    }
+
+    pub fn response_deserialization_failed_http_status_unknown() -> Self {
+        Self::ResponseDeserializationFailed {
+            context: ResponseTransformationErrorContext {
+                http_status_code: None,
+                additional_context: None,
+            },
+        }
+    }
+
+    pub fn response_deserialization_failed_with_context(
+        http_status: u16,
+        additional_context: Option<String>,
+    ) -> Self {
+        Self::ResponseDeserializationFailed {
+            context: ResponseTransformationErrorContext {
+                http_status_code: Some(http_status),
+                additional_context,
+            },
+        }
+    }
+
+    pub fn unexpected_response_error(http_status: u16) -> Self {
+        Self::UnexpectedResponseError {
+            context: ResponseTransformationErrorContext {
+                http_status_code: Some(http_status),
+                additional_context: None,
+            },
+        }
+    }
+
+    pub fn unexpected_response_error_http_status_unknown() -> Self {
+        Self::UnexpectedResponseError {
+            context: ResponseTransformationErrorContext {
+                http_status_code: None,
+                additional_context: None,
+            },
+        }
+    }
+
+    pub fn unexpected_response_error_with_context(
+        http_status: u16,
+        additional_context: Option<String>,
+    ) -> Self {
+        Self::UnexpectedResponseError {
+            context: ResponseTransformationErrorContext {
+                http_status_code: Some(http_status),
+                additional_context,
+            },
+        }
+    }
+}
+
+/// Direct conversion from domain ConnectorResponseTransformationError to proto (lossless).
+impl ErrorSwitch<grpc_api_types::payments::ConnectorResponseTransformationError>
+    for ConnectorResponseTransformationError
+{
+    fn switch(&self) -> grpc_api_types::payments::ConnectorResponseTransformationError {
+        let context = self.response_transformation_context();
+        let base_message = self.to_string();
+        let error_message = combine_error_message_with_context(
+            &base_message,
+            context.additional_context.as_deref(),
+        );
+
+        grpc_api_types::payments::ConnectorResponseTransformationError {
+            error_message,
+            error_code: self.as_ref().to_string(),
+            http_status_code: context.http_status_code.map(|code| code as u32),
+        }
+    }
+}
+
+/// **LEGACY:** Lossy conversion to ApplicationErrorResponse to grpc successResponse with error field for gRPC server.
+/// **TODO:** Refactor gRPC server to use `ConnectorFlowError → tonic::Status` directly.
+/// **FFI:** Already uses lossless `ConnectorResponseTransformationError → grpc_api_types::payments::ConnectorResponseTransformationError`.
+impl ErrorSwitch<ApplicationErrorResponse> for ConnectorResponseTransformationError {
+    fn switch(&self) -> ApplicationErrorResponse {
+        ApplicationErrorResponse::InternalServerError(ApiError {
+            sub_code: "INTERNAL_SERVER_ERROR".to_string(),
+            error_identifier: 500,
+            error_message: self.to_string(),
+            error_object: None,
+        })
+    }
+}
+
+/// Errors that occur during webhook processing
+#[derive(Debug, thiserror::Error, PartialEq, Clone, strum::AsRefStr)]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
+pub enum WebhookError {
+    #[error("Webhooks not implemented for this connector ({operation})")]
+    WebhooksNotImplemented { operation: &'static str },
+    #[error("Failed to decode webhook event body")]
+    WebhookBodyDecodingFailed,
+    #[error("Signature not found for incoming webhook")]
+    WebhookSignatureNotFound,
+    #[error("Failed to verify webhook source")]
+    WebhookSourceVerificationFailed,
+    #[error("Merchant secret for webhook verification not found")]
+    WebhookVerificationSecretNotFound,
+    #[error("Failed while processing webhook")]
+    WebhookProcessingFailed,
+    #[error("Failed to convert amount for webhook: {reason}")]
+    WebhookAmountConversionFailed { reason: String },
+    #[error("Merchant secret for webhook verification is invalid")]
+    WebhookVerificationSecretInvalid,
+    #[error("Incoming webhook object reference ID not found")]
+    WebhookReferenceIdNotFound,
+    #[error("Incoming webhook event type not found")]
+    WebhookEventTypeNotFound,
+    #[error("Incoming webhook event resource object not found")]
+    WebhookResourceObjectNotFound,
+    #[error("Failed to encode webhook response")]
+    WebhookResponseEncodingFailed,
+}
+
+/// Wrapper enum used by `execute_connector_processing_step` (gRPC unified path)
+/// which performs all three phases in one call.
+/// SDK uses `IntegrationError` / `ConnectorResponseTransformationError` directly.
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum ConnectorFlowError {
+    #[error("Connector Request Transformation error: {0}")]
+    Request(#[from] IntegrationError),
+    #[error("Client error: {0}")]
+    Client(#[from] ApiClientError),
+    #[error("Connector Response Transformation error: {0}")]
+    Response(#[from] ConnectorResponseTransformationError),
+}
+
+impl ErrorSwitch<ApplicationErrorResponse> for ApiClientError {
+    fn switch(&self) -> ApplicationErrorResponse {
+        let (sub_code, error_identifier) = match self {
+            Self::RequestTimeoutReceived | Self::GatewayTimeoutReceived => ("REQUEST_TIMEOUT", 504),
+            _ => ("INTERNAL_SERVER_ERROR", 500),
+        };
+        ApplicationErrorResponse::InternalServerError(ApiError {
+            sub_code: sub_code.to_string(),
+            error_identifier,
+            error_message: self.to_string(),
+            error_object: None,
+        })
+    }
+}
+
+impl ErrorSwitch<ApplicationErrorResponse> for ConnectorFlowError {
+    fn switch(&self) -> ApplicationErrorResponse {
+        match self {
+            Self::Request(e) => e.switch(),
+            Self::Client(e) => e.switch(),
+            Self::Response(e) => e.switch(),
+        }
+    }
+}
+
+impl ErrorSwitch<ApplicationErrorResponse> for WebhookError {
+    fn switch(&self) -> ApplicationErrorResponse {
+        let api_err = |sub_code: &str, id: u16| ApiError {
+            sub_code: sub_code.to_string(),
+            error_identifier: id,
+            error_message: self.to_string(),
+            error_object: None,
+        };
+        match self {
+            Self::WebhookEventTypeNotFound
+            | Self::WebhookSignatureNotFound
+            | Self::WebhookReferenceIdNotFound
+            | Self::WebhookResourceObjectNotFound
+            | Self::WebhookVerificationSecretNotFound => {
+                ApplicationErrorResponse::NotFound(api_err("WEBHOOK_DETAILS_NOT_FOUND", 404))
+            }
+            Self::WebhookBodyDecodingFailed
+            | Self::WebhookSourceVerificationFailed
+            | Self::WebhookVerificationSecretInvalid => {
+                ApplicationErrorResponse::BadRequest(api_err("INVALID_WEBHOOK_DATA", 400))
+            }
+            Self::WebhooksNotImplemented { .. } => {
+                ApplicationErrorResponse::NotImplemented(api_err("NOT_IMPLEMENTED", 501))
+            }
+            Self::WebhookProcessingFailed
+            | Self::WebhookAmountConversionFailed { .. }
+            | Self::WebhookResponseEncodingFailed => {
+                ApplicationErrorResponse::InternalServerError(api_err("INTERNAL_SERVER_ERROR", 500))
+            }
+        }
+    }
+}
+
+impl From<common_enums::ApiClientError> for ApiClientError {
+    fn from(value: common_enums::ApiClientError) -> Self {
+        match value {
+            common_enums::ApiClientError::HeaderMapConstructionFailed => {
+                Self::HeaderMapConstructionFailed
+            }
+            common_enums::ApiClientError::InvalidProxyConfiguration => {
+                Self::InvalidProxyConfiguration
+            }
+            common_enums::ApiClientError::ClientConstructionFailed => {
+                Self::ClientConstructionFailed
+            }
+            common_enums::ApiClientError::CertificateDecodeFailed => Self::CertificateDecodeFailed,
+            common_enums::ApiClientError::BodySerializationFailed => Self::BodySerializationFailed,
+            common_enums::ApiClientError::UnexpectedState => Self::UnexpectedState,
+            common_enums::ApiClientError::UrlParsingFailed => Self::UrlParsingFailed,
+            common_enums::ApiClientError::UrlEncodingFailed => Self::UrlEncodingFailed,
+            common_enums::ApiClientError::RequestNotSent(s) => Self::RequestNotSent(s),
+            common_enums::ApiClientError::ResponseDecodingFailed => Self::ResponseDecodingFailed,
+            common_enums::ApiClientError::RequestTimeoutReceived => Self::RequestTimeoutReceived,
+            common_enums::ApiClientError::ConnectionClosedIncompleteMessage => {
+                Self::ConnectionClosedIncompleteMessage
+            }
+            common_enums::ApiClientError::InternalServerErrorReceived => {
+                Self::InternalServerErrorReceived
+            }
+            common_enums::ApiClientError::BadGatewayReceived => Self::BadGatewayReceived,
+            common_enums::ApiClientError::ServiceUnavailableReceived => {
+                Self::ServiceUnavailableReceived
+            }
+            common_enums::ApiClientError::GatewayTimeoutReceived => Self::GatewayTimeoutReceived,
+            common_enums::ApiClientError::UnexpectedServerResponse => {
+                Self::UnexpectedServerResponse
+            }
+        }
+    }
+}
+
+/// Map a request-phase error report into `ConnectorFlowError::Request`.
+pub fn report_connector_request_to_flow(
+    report: Report<IntegrationError>,
+) -> Report<ConnectorFlowError> {
+    let ctx = report.current_context().clone();
+    report.change_context(ConnectorFlowError::Request(ctx))
+}
+
+/// Map a response-phase error report into `ConnectorFlowError::Response`.
+pub fn report_connector_response_to_flow(
+    report: Report<ConnectorResponseTransformationError>,
+) -> Report<ConnectorFlowError> {
+    let ctx = report.current_context().clone();
+    report.change_context(ConnectorFlowError::Response(ctx))
+}
+
+/// Map transport-layer `common_enums::ApiClientError` reports into `ConnectorFlowError::Client`.
+pub fn report_common_api_client_to_flow(
+    report: Report<common_enums::ApiClientError>,
+) -> Report<ConnectorFlowError> {
+    let ctx: ApiClientError = report.current_context().clone().into();
+    report.change_context(ConnectorFlowError::Client(ctx))
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -833,178 +1523,27 @@ impl From<ApiErrorResponse> for crate::router_data::ErrorResponse {
     }
 }
 
-/// Connector Errors
-#[allow(missing_docs, missing_debug_implementations)]
-#[derive(Debug, thiserror::Error, PartialEq)]
-pub enum ConnectorError {
-    #[error("Error while obtaining URL for the integration")]
-    FailedToObtainIntegrationUrl,
-    #[error("Failed to encode connector request")]
-    RequestEncodingFailed,
-    #[error("Request encoding failed : {0}")]
-    RequestEncodingFailedWithReason(String),
-    #[error("Parsing failed")]
-    ParsingFailed,
-    #[error("Integrity check failed: {field_names}")]
-    IntegrityCheckFailed {
-        field_names: String,
-        connector_transaction_id: Option<String>,
-    },
-    #[error("Failed to deserialize connector response")]
-    ResponseDeserializationFailed,
-    #[error("Failed to execute a processing step: {0:?}")]
-    ProcessingStepFailed(Option<bytes::Bytes>),
-    #[error("The connector returned an unexpected response: {0:?}")]
-    UnexpectedResponseError(bytes::Bytes),
-    #[error("Failed to parse custom routing rules from merchant account")]
-    RoutingRulesParsingError,
-    #[error("Failed to obtain preferred connector from merchant account")]
-    FailedToObtainPreferredConnector,
-    #[error("An invalid connector name was provided")]
-    InvalidConnectorName,
-    #[error("An invalid Wallet was used")]
-    InvalidWallet,
-    #[error("Failed to handle connector response")]
-    ResponseHandlingFailed,
-    #[error("Missing required field: {field_name}")]
-    MissingRequiredField { field_name: &'static str },
-    #[error("Missing required fields: {field_names:?}")]
-    MissingRequiredFields { field_names: Vec<&'static str> },
-    #[error("Failed to obtain authentication type")]
-    FailedToObtainAuthType,
-    #[error("Failed to obtain certificate")]
-    FailedToObtainCertificate,
-    #[error("Connector meta data not found")]
-    NoConnectorMetaData,
-    #[error("Connector wallet details not found")]
-    NoConnectorWalletDetails,
-    #[error("Failed to obtain certificate key")]
-    FailedToObtainCertificateKey,
-    #[error("Failed to verify source of the response")]
-    SourceVerificationFailed,
-    #[error("Failed to decode message: {0:?}")]
-    DecodingFailed(Option<String>),
-    #[error("This step has not been implemented for: {0}")]
-    NotImplemented(String),
-    #[error("{message} is not supported by {connector}")]
-    NotSupported {
-        message: String,
-        connector: &'static str,
-    },
-    #[error("{flow} flow not supported by {connector} connector")]
-    FlowNotSupported { flow: String, connector: String },
-    #[error("Capture method not supported")]
-    CaptureMethodNotSupported,
-    #[error("Missing connector mandate ID")]
-    MissingConnectorMandateID,
-    #[error("Missing connector mandate metadata")]
-    MissingConnectorMandateMetadata,
-    #[error("Missing connector transaction ID")]
-    MissingConnectorTransactionID,
-    #[error("Missing connector refund ID")]
-    MissingConnectorRefundID,
-    #[error("Missing apple pay tokenization data")]
-    MissingApplePayTokenData,
-    #[error("Webhooks not implemented for this connector")]
-    WebhooksNotImplemented,
-    #[error("Failed to decode webhook event body")]
-    WebhookBodyDecodingFailed,
-    #[error("Failed to decode webhook")]
-    WebhookDecodingFailed,
-    #[error("Signature not found for incoming webhook")]
-    WebhookSignatureNotFound,
-    #[error("Failed to verify webhook source")]
-    WebhookSourceVerificationFailed,
-    #[error("Could not find merchant secret in DB for incoming webhook source verification")]
-    WebhookVerificationSecretNotFound,
-    #[error("Merchant secret found for incoming webhook source verification is invalid")]
-    WebhookVerificationSecretInvalid,
-    #[error("Incoming webhook object reference ID not found")]
-    WebhookReferenceIdNotFound,
-    #[error("Incoming webhook event type not found")]
-    WebhookEventTypeNotFound,
-    #[error("Incoming webhook event resource object not found")]
-    WebhookResourceObjectNotFound,
-    #[error("Could not respond to the incoming webhook event")]
-    WebhookResponseEncodingFailed,
-    #[error("Invalid Date/time format")]
-    InvalidDateFormat,
-    #[error("Date Formatting Failed")]
-    DateFormattingFailed,
-    #[error("Invalid Data format: {field_name}")]
-    InvalidDataFormat { field_name: &'static str },
-    #[error("Payment Method data / Payment Method Type / Payment Experience Mismatch ")]
-    MismatchedPaymentData,
-    #[error("Failed to parse {wallet_name} wallet token")]
-    InvalidWalletToken { wallet_name: String },
-    #[error("Missing Connector Related Transaction ID")]
-    MissingConnectorRelatedTransactionID { id: String },
-    #[error("File Validation failed")]
-    FileValidationFailed { reason: String },
-    #[error("Missing 3DS redirection payload: {field_name}")]
-    MissingConnectorRedirectionPayload { field_name: &'static str },
-    #[error("Failed at connector's end with code '{code}'")]
-    FailedAtConnector { message: String, code: String },
-    #[error("Payment Method Type not found")]
-    MissingPaymentMethodType,
-    #[error("Balance in the payment method is low")]
-    InSufficientBalanceInPaymentMethod,
-    #[error("Server responded with Request Timeout")]
-    RequestTimeoutReceived,
-    #[error("The given currency method is not configured with the given connector")]
-    CurrencyNotSupported {
-        message: String,
-        connector: &'static str,
-    },
-    #[error("Invalid Configuration: {config}")]
-    InvalidConnectorConfig { config: &'static str },
-    #[error("Failed to convert amount to required type")]
-    AmountConversionFailed,
-    #[error("Generic Error")]
-    GenericError {
-        error_message: String,
-        error_object: serde_json::Value,
-    },
-    #[error("Field {fields} doesn't match with the ones used during mandate creation")]
-    MandatePaymentDataMismatch { fields: String },
-    #[error("Field '{field_name}' is too long for connector '{connector}'")]
-    MaxFieldLengthViolated {
-        connector: String,
-        field_name: String,
-        max_length: usize,
-        received_length: usize,
-    },
-    #[error("Failed to resolve configuration: {0}")]
-    ConfigResolutionFailed(String),
-}
-
-impl ConnectorError {
-    /// fn is_connector_timeout
-    pub fn is_connector_timeout(&self) -> bool {
-        self == &Self::RequestTimeoutReceived
-    }
-}
-
-impl ErrorSwitch<ConnectorError> for common_utils::errors::ParsingError {
-    fn switch(&self) -> ConnectorError {
-        ConnectorError::ParsingFailed
-    }
-}
-
-impl ErrorSwitch<ApiErrorResponse> for ConnectorError {
-    fn switch(&self) -> ApiErrorResponse {
-        match self {
-            Self::WebhookSourceVerificationFailed => ApiErrorResponse::WebhookAuthenticationFailed,
-            Self::WebhookSignatureNotFound
-            | Self::WebhookReferenceIdNotFound
-            | Self::WebhookResourceObjectNotFound
-            | Self::WebhookBodyDecodingFailed
-            | Self::WebhooksNotImplemented => ApiErrorResponse::WebhookBadRequest,
-            Self::WebhookEventTypeNotFound => ApiErrorResponse::WebhookUnprocessableEntity,
-            Self::WebhookVerificationSecretInvalid => {
-                ApiErrorResponse::WebhookInvalidMerchantSecret
+impl ErrorSwitch<IntegrationError> for common_utils::errors::ParsingError {
+    fn switch(&self) -> IntegrationError {
+        use common_utils::errors::ParsingError as Pe;
+        let field_name = match self {
+            Pe::EnumParseFailure(name) | Pe::StructParseFailure(name) | Pe::EncodeError(name) => {
+                *name
             }
-            _ => ApiErrorResponse::InternalServerError,
+            Pe::UnknownError => "unknown",
+            Pe::DateTimeParsingError => "datetime",
+            Pe::EmailParsingError => "email",
+            Pe::PhoneNumberParsingError => "phone_number",
+            Pe::FloatToDecimalConversionFailure => "amount",
+            Pe::DecimalToI64ConversionFailure => "integer",
+            Pe::StringToFloatConversionFailure => "float",
+            Pe::I64ToDecimalConversionFailure => "amount",
+            Pe::StringToDecimalConversionFailure { .. } => "decimal",
+            Pe::IntegerOverflow => "integer",
+        };
+        IntegrationError::InvalidDataFormat {
+            field_name,
+            context: IntegrationErrorContext::default(),
         }
     }
 }

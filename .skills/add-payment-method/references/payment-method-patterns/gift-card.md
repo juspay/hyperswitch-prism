@@ -93,7 +93,7 @@ let payment_method = match &router_data.request.payment_method_data {
     PaymentMethodData::GiftCard(gift_card_data) => {
         ConnectorPaymentMethod::try_from(gift_card_data.as_ref())?
     }
-    _ => return Err(ConnectorError::NotImplemented(...)),
+    _ => return Err(IntegrationError::NotImplemented(..., Default::default())),
 };
 
 // Build request with standard fields
@@ -116,8 +116,8 @@ impl TryFrom<&GiftCardData> for OtherConnectorRequest<T> {
     fn try_from(value: &GiftCardData) -> Result<Self, Self::Error> {
         match value {
             GiftCardData::Givex(_) | GiftCardData::PaySafeCard {} => {
-                Err(ConnectorError::NotImplemented(
-                    get_unimplemented_payment_method_error_message("ConnectorName"),
+                Err(IntegrationError::NotImplemented(
+                    get_unimplemented_payment_method_error_message("ConnectorName", Default::default()),
                 ).into())
             }
         }

@@ -11,11 +11,12 @@ use domain_types::{
         PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
-    errors,
+    errors::{ConnectorResponseTransformationError, IntegrationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
     router_data::{self, ConnectorAuthType, ConnectorSpecificConfig},
     router_data_v2::RouterDataV2,
 };
+use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -29,7 +30,7 @@ pub struct FinixAuthType {
 }
 
 impl TryFrom<&ConnectorAuthType> for FinixAuthType {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
@@ -41,18 +42,20 @@ impl TryFrom<&ConnectorAuthType> for FinixAuthType {
             } => Ok(Self {
                 finix_user_name: api_key.to_owned(),
                 finix_password: api_secret.to_owned(),
-                merchant_id: key2.to_owned(),
-                merchant_identity_id: key1.to_owned(),
+                merchant_id: key1.to_owned(),
+                merchant_identity_id: key2.to_owned(),
             }),
             _ => Err(error_stack::report!(
-                errors::ConnectorError::FailedToObtainAuthType
+                IntegrationError::FailedToObtainAuthType {
+                    context: Default::default()
+                }
             )),
         }
     }
 }
 
 impl TryFrom<&ConnectorSpecificConfig> for FinixAuthType {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(auth_type: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         match auth_type {
@@ -69,7 +72,9 @@ impl TryFrom<&ConnectorSpecificConfig> for FinixAuthType {
                 merchant_identity_id: merchant_identity_id.clone(),
             }),
             _ => Err(error_stack::report!(
-                errors::ConnectorError::FailedToObtainAuthType
+                IntegrationError::FailedToObtainAuthType {
+                    context: Default::default()
+                }
             )),
         }
     }
@@ -339,7 +344,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for FinixAuthorizeRequest
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: super::FinixRouterData<
@@ -371,8 +376,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             None => {
                 // No token available - need to create payment instrument inline
                 // This requires connector_customer_id to be present
-                return Err(errors::ConnectorError::MissingRequiredField {
+                return Err(IntegrationError::MissingRequiredField {
                     field_name: "payment_method_token (source) - Call CreateConnectorCustomer and PaymentMethodToken first, or ensure connector_customer_id is set",
+                    context: Default::default(),
                 }.into());
             }
         };
@@ -397,7 +403,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     TryFrom<ResponseRouterData<FinixAuthorizeResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
 
     fn try_from(
         item: ResponseRouterData<FinixAuthorizeResponse, Self>,
@@ -494,7 +500,7 @@ pub type FinixPSyncResponse = FinixPaymentsResponse;
 impl TryFrom<ResponseRouterData<FinixPSyncResponse, Self>>
     for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
 
     fn try_from(item: ResponseRouterData<FinixPSyncResponse, Self>) -> Result<Self, Self::Error> {
         let response = &item.response;
@@ -561,7 +567,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for FinixCaptureRequest
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: super::FinixRouterData<
@@ -581,7 +587,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl TryFrom<ResponseRouterData<FinixCaptureResponse, Self>>
     for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
 
     fn try_from(item: ResponseRouterData<FinixCaptureResponse, Self>) -> Result<Self, Self::Error> {
         let response = item.response;
@@ -639,7 +645,7 @@ pub type FinixRSyncResponse = FinixPaymentsResponse;
 impl TryFrom<ResponseRouterData<FinixRSyncResponse, Self>>
     for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
 
     fn try_from(item: ResponseRouterData<FinixRSyncResponse, Self>) -> Result<Self, Self::Error> {
         let response = item.response;
@@ -671,7 +677,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for FinixVoidRequest
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         _item: super::FinixRouterData<
@@ -688,7 +694,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl TryFrom<ResponseRouterData<FinixVoidResponse, Self>>
     for RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
 
     fn try_from(item: ResponseRouterData<FinixVoidResponse, Self>) -> Result<Self, Self::Error> {
         let response = item.response;
@@ -731,7 +737,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for FinixRefundRequest
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: super::FinixRouterData<
@@ -751,7 +757,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl TryFrom<ResponseRouterData<FinixRefundResponse, Self>>
     for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
 
     fn try_from(item: ResponseRouterData<FinixRefundResponse, Self>) -> Result<Self, Self::Error> {
         let response = item.response;
@@ -789,7 +795,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for FinixCreateIdentityRequest
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: super::FinixRouterData<
@@ -844,7 +850,7 @@ impl TryFrom<ResponseRouterData<FinixIdentityResponse, Self>>
         ConnectorCustomerResponse,
     >
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
 
     fn try_from(
         item: ResponseRouterData<FinixIdentityResponse, Self>,
@@ -874,7 +880,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for FinixCreatePaymentInstrumentRequest
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: super::FinixRouterData<
@@ -895,8 +901,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .resource_common_data
             .connector_customer
             .clone()
-            .ok_or(errors::ConnectorError::MissingRequiredField {
+            .ok_or(IntegrationError::MissingRequiredField {
                 field_name: "connector_customer_id",
+                context: Default::default(),
             })?;
 
         match &token_data.payment_method_data {
@@ -907,15 +914,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 security_code: Some(card.card_cvc.clone()),
                 expiration_month: Some(Secret::new(
                     card.card_exp_month.peek().parse::<i8>().map_err(|_| {
-                        errors::ConnectorError::InvalidDataFormat {
+                        IntegrationError::InvalidDataFormat {
                             field_name: "card_exp_month",
+                            context: Default::default(),
                         }
                     })?,
                 )),
                 expiration_year: Some(Secret::new(
                     card.card_exp_year.peek().parse::<i32>().map_err(|_| {
-                        errors::ConnectorError::InvalidDataFormat {
+                        IntegrationError::InvalidDataFormat {
                             field_name: "card_exp_year",
+                            context: Default::default(),
                         }
                     })?,
                 )),
@@ -970,14 +979,56 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             account_type,
                         })
                     }
-                    _ => Err(errors::ConnectorError::NotImplemented(
+                    _ => Err(IntegrationError::NotImplemented(
                         "Only ACH Bank Debit is supported".to_string(),
+                        Default::default(),
                     )
                     .into()),
                 }
             }
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "Only card and bank debit tokenization are supported".into(),
+            PaymentMethodData::Wallet(wallet_data) => {
+                match wallet_data {
+                    domain_types::payment_method_data::WalletData::GooglePay(google_pay_data) => {
+                        // Get merchant_identity_id from auth
+                        let auth = FinixAuthType::try_from(&item.router_data.connector_config)?;
+                        let merchant_identity = auth.merchant_identity_id.peek().to_string();
+
+                        // Extract the encrypted token from Google Pay
+                        let third_party_token = google_pay_data
+                            .tokenization_data
+                            .get_encrypted_google_pay_payment_data_mandatory()
+                            .change_context(IntegrationError::InvalidWalletToken {
+                                wallet_name: "Google Pay".to_string(),
+                                context: Default::default(),
+                            })?;
+
+                        Ok(Self {
+                            instrument_type: FinixPaymentInstrumentType::GooglePay,
+                            name: None, // Name is optional for Google Pay tokenization
+                            number: None,
+                            security_code: None,
+                            expiration_month: None,
+                            expiration_year: None,
+                            identity: customer_id,
+                            tags: None,
+                            address: None,
+                            merchant_identity: Some(Secret::new(merchant_identity)),
+                            third_party_token: Some(Secret::new(third_party_token.token.clone())),
+                            account_number: None,
+                            bank_code: None,
+                            account_type: None,
+                        })
+                    }
+                    _ => Err(IntegrationError::NotImplemented(
+                        "Only Google Pay wallet tokenization is supported".into(),
+                        Default::default(),
+                    )
+                    .into()),
+                }
+            }
+            _ => Err(IntegrationError::NotImplemented(
+                "Only card, bank debit, and Google Pay tokenization are supported".into(),
+                Default::default(),
             )
             .into()),
         }
@@ -995,7 +1046,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         PaymentMethodTokenResponse,
     >
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
 
     fn try_from(
         item: ResponseRouterData<FinixInstrumentResponse, Self>,

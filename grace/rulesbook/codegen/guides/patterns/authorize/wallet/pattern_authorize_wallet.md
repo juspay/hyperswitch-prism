@@ -122,7 +122,7 @@ Complete list of `WalletData` variants from `payment_method_data.rs`:
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<...> for ConnectorPaymentsRequest<T>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(item: ...) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data {
@@ -177,18 +177,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             // Use decrypted Paze data
                             Ok(Self { /* ... */ })
                         }
-                        _ => Err(ConnectorError::MissingRequiredField {
+                        _ => Err(IntegrationError::MissingRequiredField {
                             field_name: "paze_decrypted_data",
-                        })?
+                        , context: Default::default() })?
                     }
                 }
 
-                _ => Err(ConnectorError::NotImplemented(
-                    "Wallet not supported".to_string()
+                _ => Err(IntegrationError::NotImplemented(
+                    "Wallet not supported".to_string(, Default::default())
                 ))
             },
-            _ => Err(ConnectorError::NotImplemented(
-                "Payment method not supported".to_string()
+            _ => Err(IntegrationError::NotImplemented(
+                "Payment method not supported".to_string(, Default::default())
             ))
         }
     }
@@ -252,7 +252,7 @@ WalletData::SamsungPay(samsung_pay_data) => {
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<...> for ConnectorPaymentsRequest<T>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(item: ...) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data {
@@ -286,12 +286,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     Ok(Self { /* ... */ })
                 }
 
-                _ => Err(ConnectorError::NotImplemented(
-                    "Wallet not supported".to_string()
+                _ => Err(IntegrationError::NotImplemented(
+                    "Wallet not supported".to_string(, Default::default())
                 ))
             },
-            _ => Err(ConnectorError::NotImplemented(
-                "Payment method not supported".to_string()
+            _ => Err(IntegrationError::NotImplemented(
+                "Payment method not supported".to_string(, Default::default())
             ))
         }
     }
@@ -302,7 +302,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl<T> TryFrom<ResponseRouterData<ConnectorAuthResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
 
     fn try_from(item: ResponseRouterData<...>) -> Result<Self, Self::Error> {
         let status = get_order_status(item.response.status, item.response.intent);
@@ -316,7 +316,7 @@ impl<T> TryFrom<ResponseRouterData<ConnectorAuthResponse, Self>>
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data: Some(Box::new(RedirectForm::from((
-                    link.ok_or(ConnectorError::ResponseDeserializationFailed)?,
+                    link.ok_or(ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })?,
                     Method::Get,
                 )))),
                 mandate_reference: None,
@@ -387,7 +387,7 @@ WalletData::PaypalSdk(_) => {
 impl<F, T> TryFrom<ResponseRouterData<WalletPaymentsResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
 
     fn try_from(item: ResponseRouterData<...>) -> Result<Self, Self::Error> {
         let payload = item.response.payload.first();
@@ -464,7 +464,7 @@ pub struct MifinityClient {
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<...> for MifinityPaymentsRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(item: ...) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data {
@@ -481,12 +481,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     };
                     // ...
                 }
-                _ => Err(ConnectorError::NotImplemented(
-                    "Wallet not supported".to_string()
+                _ => Err(IntegrationError::NotImplemented(
+                    "Wallet not supported".to_string(, Default::default())
                 ))
             },
-            _ => Err(ConnectorError::NotImplemented(
-                "Payment method not supported".to_string()
+            _ => Err(IntegrationError::NotImplemented(
+                "Payment method not supported".to_string(, Default::default())
             ))
         }
     }
@@ -639,7 +639,7 @@ pub enum WalletRequestData {
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<...> for ConnectorWalletRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(item: ...) -> Result<Self, Self::Error> {
         let amount = item.amount;
@@ -658,12 +658,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     );
                     WalletRequestData::GooglePay { token }
                 }
-                _ => Err(ConnectorError::NotImplemented(
-                    "Wallet not supported".to_string()
+                _ => Err(IntegrationError::NotImplemented(
+                    "Wallet not supported".to_string(, Default::default())
                 ))?
             },
-            _ => Err(ConnectorError::NotImplemented(
-                "Payment method not supported".to_string()
+            _ => Err(IntegrationError::NotImplemented(
+                "Payment method not supported".to_string(, Default::default())
             ))?
         };
 
@@ -685,7 +685,7 @@ pub struct ConnectorWalletResponse {
 impl<T> TryFrom<ResponseRouterData<ConnectorWalletResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
 
     fn try_from(item: ResponseRouterData<...>) -> Result<Self, Self::Error> {
         let status = map_wallet_status(&item.response.status)?;
@@ -712,12 +712,12 @@ impl<T> TryFrom<ResponseRouterData<ConnectorWalletResponse, Self>>
     }
 }
 
-fn map_wallet_status(status: &str) -> Result<AttemptStatus, ConnectorError> {
+fn map_wallet_status(status: &str) -> Result<AttemptStatus, IntegrationError> {
     match status {
         "succeeded" | "completed" => Ok(AttemptStatus::Charged),
         "pending" => Ok(AttemptStatus::Pending),
         "failed" => Ok(AttemptStatus::Failure),
-        _ => Err(ConnectorError::ResponseDeserializationFailed)
+        _ => Err(ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })
     }
 }
 ```

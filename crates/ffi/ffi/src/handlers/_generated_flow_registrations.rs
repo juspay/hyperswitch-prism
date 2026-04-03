@@ -10,10 +10,12 @@ use grpc_api_types::payments::{
     DisputeServiceDefendResponse,
     DisputeServiceSubmitEvidenceRequest,
     DisputeServiceSubmitEvidenceResponse,
-    MerchantAuthenticationServiceCreateAccessTokenRequest,
-    MerchantAuthenticationServiceCreateAccessTokenResponse,
-    MerchantAuthenticationServiceCreateSessionTokenRequest,
-    MerchantAuthenticationServiceCreateSessionTokenResponse,
+    MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
+    MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse,
+    MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
+    MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
+    MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest,
+    MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse,
     PaymentMethodAuthenticationServiceAuthenticateRequest,
     PaymentMethodAuthenticationServiceAuthenticateResponse,
     PaymentMethodAuthenticationServicePostAuthenticateRequest,
@@ -71,9 +73,10 @@ use crate::services::payments::{
     capture_req_transformer, capture_res_transformer,
     charge_req_transformer, charge_res_transformer,
     create_req_transformer, create_res_transformer,
-    create_access_token_req_transformer, create_access_token_res_transformer,
+    create_client_authentication_token_req_transformer, create_client_authentication_token_res_transformer,
     create_order_req_transformer, create_order_res_transformer,
-    create_session_token_req_transformer, create_session_token_res_transformer,
+    create_server_authentication_token_req_transformer, create_server_authentication_token_res_transformer,
+    create_server_session_authentication_token_req_transformer, create_server_session_authentication_token_res_transformer,
     defend_req_transformer, defend_res_transformer,
     get_req_transformer, get_res_transformer,
     post_authenticate_req_transformer, post_authenticate_res_transformer,
@@ -112,12 +115,14 @@ impl_flow_handlers!(capture, PaymentServiceCaptureRequest, PaymentServiceCapture
 impl_flow_handlers!(charge, RecurringPaymentServiceChargeRequest, RecurringPaymentServiceChargeResponse, charge_req_transformer, charge_res_transformer);
 // create: CustomerService.Create — Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information.
 impl_flow_handlers!(create, CustomerServiceCreateRequest, CustomerServiceCreateResponse, create_req_transformer, create_res_transformer);
-// create_access_token: MerchantAuthenticationService.CreateAccessToken — Generate short-lived connector authentication token. Provides secure credentials for connector API access without storing secrets client-side.
-impl_flow_handlers!(create_access_token, MerchantAuthenticationServiceCreateAccessTokenRequest, MerchantAuthenticationServiceCreateAccessTokenResponse, create_access_token_req_transformer, create_access_token_res_transformer);
+// create_client_authentication_token: MerchantAuthenticationService.CreateClientAuthenticationToken — Initialize client-facing SDK sessions for wallets, device fingerprinting, etc. Returns structured data the client SDK needs to render payment/verification UI.
+impl_flow_handlers!(create_client_authentication_token, MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest, MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse, create_client_authentication_token_req_transformer, create_client_authentication_token_res_transformer);
 // create_order: PaymentService.CreateOrder — Create a payment order for later processing. Establishes a transaction context that can be authorized or captured in subsequent API calls.
 impl_flow_handlers!(create_order, PaymentServiceCreateOrderRequest, PaymentServiceCreateOrderResponse, create_order_req_transformer, create_order_res_transformer);
-// create_session_token: MerchantAuthenticationService.CreateSessionToken — Create session token for payment processing. Maintains session state across multiple payment operations for improved security and tracking.
-impl_flow_handlers!(create_session_token, MerchantAuthenticationServiceCreateSessionTokenRequest, MerchantAuthenticationServiceCreateSessionTokenResponse, create_session_token_req_transformer, create_session_token_res_transformer);
+// create_server_authentication_token: MerchantAuthenticationService.CreateServerAuthenticationToken — Generate short-lived connector authentication token. Provides secure credentials for connector API access without storing secrets client-side.
+impl_flow_handlers!(create_server_authentication_token, MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest, MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse, create_server_authentication_token_req_transformer, create_server_authentication_token_res_transformer);
+// create_server_session_authentication_token: MerchantAuthenticationService.CreateServerSessionAuthenticationToken — Create a server-side session with the connector. Establishes session state for multi-step operations like 3DS verification or wallet authorization.
+impl_flow_handlers!(create_server_session_authentication_token, MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest, MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse, create_server_session_authentication_token_req_transformer, create_server_session_authentication_token_res_transformer);
 // defend: DisputeService.Defend — Submit defense with reason code for dispute. Presents formal argument against customer's chargeback claim with supporting documentation.
 impl_flow_handlers!(defend, DisputeServiceDefendRequest, DisputeServiceDefendResponse, defend_req_transformer, defend_res_transformer);
 // get: PaymentService.Get — Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.

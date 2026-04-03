@@ -19,12 +19,14 @@ import uniffi.connector_service_ffi.chargeReqTransformer
 import uniffi.connector_service_ffi.chargeResTransformer
 import uniffi.connector_service_ffi.createReqTransformer
 import uniffi.connector_service_ffi.createResTransformer
-import uniffi.connector_service_ffi.createAccessTokenReqTransformer
-import uniffi.connector_service_ffi.createAccessTokenResTransformer
+import uniffi.connector_service_ffi.createClientAuthenticationTokenReqTransformer
+import uniffi.connector_service_ffi.createClientAuthenticationTokenResTransformer
 import uniffi.connector_service_ffi.createOrderReqTransformer
 import uniffi.connector_service_ffi.createOrderResTransformer
-import uniffi.connector_service_ffi.createSessionTokenReqTransformer
-import uniffi.connector_service_ffi.createSessionTokenResTransformer
+import uniffi.connector_service_ffi.createServerAuthenticationTokenReqTransformer
+import uniffi.connector_service_ffi.createServerAuthenticationTokenResTransformer
+import uniffi.connector_service_ffi.createServerSessionAuthenticationTokenReqTransformer
+import uniffi.connector_service_ffi.createServerSessionAuthenticationTokenResTransformer
 import uniffi.connector_service_ffi.defendReqTransformer
 import uniffi.connector_service_ffi.defendResTransformer
 import uniffi.connector_service_ffi.getReqTransformer
@@ -79,9 +81,10 @@ object FlowRegistry {
         "capture" to ::captureReqTransformer,
         "charge" to ::chargeReqTransformer,
         "create" to ::createReqTransformer,
-        "create_access_token" to ::createAccessTokenReqTransformer,
+        "create_client_authentication_token" to ::createClientAuthenticationTokenReqTransformer,
         "create_order" to ::createOrderReqTransformer,
-        "create_session_token" to ::createSessionTokenReqTransformer,
+        "create_server_authentication_token" to ::createServerAuthenticationTokenReqTransformer,
+        "create_server_session_authentication_token" to ::createServerSessionAuthenticationTokenReqTransformer,
         "defend" to ::defendReqTransformer,
         "get" to ::getReqTransformer,
         "payout_create" to ::payoutCreateReqTransformer,
@@ -113,9 +116,10 @@ object FlowRegistry {
         "capture" to ::captureResTransformer,
         "charge" to ::chargeResTransformer,
         "create" to ::createResTransformer,
-        "create_access_token" to ::createAccessTokenResTransformer,
+        "create_client_authentication_token" to ::createClientAuthenticationTokenResTransformer,
         "create_order" to ::createOrderResTransformer,
-        "create_session_token" to ::createSessionTokenResTransformer,
+        "create_server_authentication_token" to ::createServerAuthenticationTokenResTransformer,
+        "create_server_session_authentication_token" to ::createServerSessionAuthenticationTokenResTransformer,
         "defend" to ::defendResTransformer,
         "get" to ::getResTransformer,
         "payout_create" to ::payoutCreateResTransformer,
@@ -193,13 +197,17 @@ class MerchantAuthenticationClient(
     defaults: RequestConfig = RequestConfig.getDefaultInstance(),
     libPath: String? = null
 ) : ConnectorClient(config, defaults, libPath) {
-    // create_access_token: MerchantAuthenticationService.CreateAccessToken — Generate short-lived connector authentication token. Provides secure credentials for connector API access without storing secrets client-side.
-    fun create_access_token(request: MerchantAuthenticationServiceCreateAccessTokenRequest, options: RequestConfig? = null): MerchantAuthenticationServiceCreateAccessTokenResponse =
-        executeFlow("create_access_token", request.toByteArray(), MerchantAuthenticationServiceCreateAccessTokenResponse.parser(), options)
+    // create_client_authentication_token: MerchantAuthenticationService.CreateClientAuthenticationToken — Initialize client-facing SDK sessions for wallets, device fingerprinting, etc. Returns structured data the client SDK needs to render payment/verification UI.
+    fun create_client_authentication_token(request: MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest, options: RequestConfig? = null): MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse =
+        executeFlow("create_client_authentication_token", request.toByteArray(), MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse.parser(), options)
 
-    // create_session_token: MerchantAuthenticationService.CreateSessionToken — Create session token for payment processing. Maintains session state across multiple payment operations for improved security and tracking.
-    fun create_session_token(request: MerchantAuthenticationServiceCreateSessionTokenRequest, options: RequestConfig? = null): MerchantAuthenticationServiceCreateSessionTokenResponse =
-        executeFlow("create_session_token", request.toByteArray(), MerchantAuthenticationServiceCreateSessionTokenResponse.parser(), options)
+    // create_server_authentication_token: MerchantAuthenticationService.CreateServerAuthenticationToken — Generate short-lived connector authentication token. Provides secure credentials for connector API access without storing secrets client-side.
+    fun create_server_authentication_token(request: MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest, options: RequestConfig? = null): MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse =
+        executeFlow("create_server_authentication_token", request.toByteArray(), MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse.parser(), options)
+
+    // create_server_session_authentication_token: MerchantAuthenticationService.CreateServerSessionAuthenticationToken — Create a server-side session with the connector. Establishes session state for multi-step operations like 3DS verification or wallet authorization.
+    fun create_server_session_authentication_token(request: MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest, options: RequestConfig? = null): MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse =
+        executeFlow("create_server_session_authentication_token", request.toByteArray(), MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse.parser(), options)
 
 }
 

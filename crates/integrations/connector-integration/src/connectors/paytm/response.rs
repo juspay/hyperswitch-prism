@@ -5,7 +5,7 @@ use common_utils::types::StringMajorUnit;
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
-// Response structures for CreateSessionToken flow
+// Response structures for ServerSessionAuthenticationToken flow
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PaytmInitiateTxnResponse {

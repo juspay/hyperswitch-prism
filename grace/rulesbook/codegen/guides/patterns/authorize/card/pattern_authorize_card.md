@@ -152,7 +152,7 @@ pub struct CardDetails<T: PaymentMethodDataTypes> {
 impl<T: PaymentMethodDataTypes> TryFrom<ConnectorRouterData<Authorize, PaymentsAuthorizeData<T>>>
     for CardPaymentRequest<T>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(item: ConnectorRouterData<Authorize, PaymentsAuthorizeData<T>>) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
@@ -175,8 +175,8 @@ impl<T: PaymentMethodDataTypes> TryFrom<ConnectorRouterData<Authorize, PaymentsA
                     },
                 })
             }
-            _ => Err(ConnectorError::NotImplemented(
-                get_unimplemented_payment_method_error_message("connector_name")
+            _ => Err(IntegrationError::NotImplemented(
+                get_unimplemented_payment_method_error_message("connector_name", Default::default())
             ).into()),
         }
     }
@@ -202,7 +202,7 @@ pub struct NuveiCard<T: PaymentMethodDataTypes> {
 impl<T: PaymentMethodDataTypes> TryFrom<NuveiRouterData<RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>, T>>
     for NuveiPaymentRequest<T>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<errors::IntegrationError>;
 
     fn try_from(item: NuveiRouterData<RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>, T>) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
@@ -226,8 +226,8 @@ impl<T: PaymentMethodDataTypes> TryFrom<NuveiRouterData<RouterDataV2<Authorize, 
 
                 // ... build rest of request
             }
-            _ => Err(errors::ConnectorError::NotImplemented(
-                domain_types::utils::get_unimplemented_payment_method_error_message("Nuvei")
+            _ => Err(errors::IntegrationError::NotImplemented(
+                domain_types::utils::get_unimplemented_payment_method_error_message("Nuvei", Default::default())
             ).into()),
         }
     }
@@ -272,7 +272,7 @@ pub struct FormEncodedCardRequest {
 // From crates/integrations/connector-integration/src/connectors/stripe/transformers.rs
 
 impl<T: PaymentMethodDataTypes> TryFrom<&Card<T>> for StripeCardData {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(card: &Card<T>) -> Result<Self, Self::Error> {
         Ok(Self {
@@ -363,8 +363,8 @@ where T: PaymentMethodDataTypes,
                     expiry_date,
                 })
             }
-            _ => Err(errors::ConnectorError::NotImplemented(
-                domain_types::utils::get_unimplemented_payment_method_error_message("redsys"),
+            _ => Err(errors::IntegrationError::NotImplemented(
+                domain_types::utils::get_unimplemented_payment_method_error_message("redsys", Default::default()),
             ).into()),
         }
     }
@@ -422,12 +422,12 @@ fn build_threeds_form(
     let creq = ds_emv3ds
         .creq
         .clone()
-        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
+        .ok_or(errors::ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })?;
 
     let endpoint = ds_emv3ds
         .acs_u_r_l
         .clone()
-        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
+        .ok_or(errors::ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })?;
 
     let mut form_fields = std::collections::HashMap::new();
     form_fields.insert("creq".to_string(), creq);
@@ -599,19 +599,19 @@ let expiry = format!("{exp_month}/{}", &exp_year[exp_year.len()-2..]);
 fn map_connector_status(
     connector_status: &str,
     capture_method: Option<CaptureMethod>,
-) -> Result<AttemptStatus, ConnectorError> {
+) -> Result<AttemptStatus, IntegrationError> {
     match connector_status {
         "approved" | "success" | "AUTHORIZED" => {
             match capture_method {
                 Some(CaptureMethod::Automatic) | None => Ok(AttemptStatus::Charged),
                 Some(CaptureMethod::Manual) => Ok(AttemptStatus::Authorized),
-                _ => Err(ConnectorError::CaptureMethodNotSupported),
+                _ => Err(IntegrationError::CaptureMethodNotSupported),
             }
         }
         "pending" | "PENDING" => Ok(AttemptStatus::Pending),
         "declined" | "failure" => Ok(AttemptStatus::Failure),
         "requires_action" => Ok(AttemptStatus::AuthenticationPending),
-        _ => Err(ConnectorError::ResponseHandlingFailed),
+        _ => Err(ConnectorResponseTransformationError::ResponseHandlingFailed),
     }
 }
 ```
@@ -623,7 +623,7 @@ fn map_connector_status(
 impl TryFrom<ResponseRouterData<ConnectorAuthorizeResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
 
     fn try_from(item: ResponseRouterData<ConnectorAuthorizeResponse, Self>) -> Result<Self, Self::Error> {
         let response = item.response;
@@ -729,7 +729,7 @@ macros::create_all_prerequisites!(
         pub fn build_headers<F, FCD, Req, Res>(
             &self,
             req: &RouterDataV2<F, FCD, Req, Res>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             Ok(vec![
                 ("Content-Type".to_string(), "application/json".to_string().into()),
                 ("Authorization".to_string(), self.get_auth_header(&req.connector_auth_type)?),
@@ -761,7 +761,7 @@ impl<T: PaymentMethodDataTypes> ConnectorCommon for MyConnector<T> {
     fn get_auth_header(
         &self,
         auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
         // Implement authentication header logic
         todo!()
     }
@@ -782,21 +782,21 @@ impl<T: PaymentMethodDataTypes> ConnectorIntegrationV2<
     fn get_headers(
         &self,
         req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
-    ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
         // Custom header logic
     }
 
     fn get_url(
         &self,
         req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
-    ) -> CustomResult<String, ConnectorError> {
+    ) -> CustomResult<String, IntegrationError> {
         // Custom URL logic
     }
 
     fn get_request_body(
         &self,
         req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
-    ) -> CustomResult<RequestContent, ConnectorError> {
+    ) -> CustomResult<RequestContent, IntegrationError> {
         // Custom request body construction
     }
 
@@ -805,7 +805,7 @@ impl<T: PaymentMethodDataTypes> ConnectorIntegrationV2<
         data: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         event_builder: Option<&mut events::Event>,
         res: Response,
-    ) -> CustomResult<RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>, ConnectorError> {
+    ) -> CustomResult<RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>, ConnectorResponseTransformationError> {
         // Custom response handling
     }
 }

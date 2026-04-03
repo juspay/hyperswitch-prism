@@ -55,20 +55,28 @@ export class EventClient extends _ConnectorClientBase {
 }
 
 export class MerchantAuthenticationClient extends _ConnectorClientBase {
-  /** MerchantAuthenticationService.CreateAccessToken — Generate short-lived connector authentication token. Provides secure credentials for connector API access without storing secrets client-side. */
-  async createAccessToken(
-    requestMsg: types.IMerchantAuthenticationServiceCreateAccessTokenRequest,
+  /** MerchantAuthenticationService.CreateClientAuthenticationToken — Initialize client-facing SDK sessions for wallets, device fingerprinting, etc. Returns structured data the client SDK needs to render payment/verification UI. */
+  async createClientAuthenticationToken(
+    requestMsg: types.IMerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
     options?: types.IRequestConfig | null
-  ): Promise<types.MerchantAuthenticationServiceCreateAccessTokenResponse> {
-    return this._executeFlow('create_access_token', requestMsg, options, 'MerchantAuthenticationServiceCreateAccessTokenRequest', 'MerchantAuthenticationServiceCreateAccessTokenResponse') as Promise<types.MerchantAuthenticationServiceCreateAccessTokenResponse>;
+  ): Promise<types.MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse> {
+    return this._executeFlow('create_client_authentication_token', requestMsg, options, 'MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest', 'MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse') as Promise<types.MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse>;
   }
 
-  /** MerchantAuthenticationService.CreateSessionToken — Create session token for payment processing. Maintains session state across multiple payment operations for improved security and tracking. */
-  async createSessionToken(
-    requestMsg: types.IMerchantAuthenticationServiceCreateSessionTokenRequest,
+  /** MerchantAuthenticationService.CreateServerAuthenticationToken — Generate short-lived connector authentication token. Provides secure credentials for connector API access without storing secrets client-side. */
+  async createServerAuthenticationToken(
+    requestMsg: types.IMerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
     options?: types.IRequestConfig | null
-  ): Promise<types.MerchantAuthenticationServiceCreateSessionTokenResponse> {
-    return this._executeFlow('create_session_token', requestMsg, options, 'MerchantAuthenticationServiceCreateSessionTokenRequest', 'MerchantAuthenticationServiceCreateSessionTokenResponse') as Promise<types.MerchantAuthenticationServiceCreateSessionTokenResponse>;
+  ): Promise<types.MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse> {
+    return this._executeFlow('create_server_authentication_token', requestMsg, options, 'MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest', 'MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse') as Promise<types.MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>;
+  }
+
+  /** MerchantAuthenticationService.CreateServerSessionAuthenticationToken — Create a server-side session with the connector. Establishes session state for multi-step operations like 3DS verification or wallet authorization. */
+  async createServerSessionAuthenticationToken(
+    requestMsg: types.IMerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse> {
+    return this._executeFlow('create_server_session_authentication_token', requestMsg, options, 'MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest', 'MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse') as Promise<types.MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse>;
   }
 
 }

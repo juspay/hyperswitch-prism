@@ -100,11 +100,11 @@ use domain_types::payment_method_data::{BankDebitData, PaymentMethodData};
 
 pub fn extract_bank_debit_data<T: PaymentMethodDataTypes>(
     payment_method_data: &PaymentMethodData<T>,
-) -> Result<&BankDebitData, ConnectorError> {
+) -> Result<&BankDebitData, IntegrationError> {
     match payment_method_data {
         PaymentMethodData::BankDebit(bank_debit_data) => Ok(bank_debit_data),
-        _ => Err(ConnectorError::NotImplemented(
-            "Only Bank Debit payments are supported".to_string()
+        _ => Err(IntegrationError::NotImplemented(
+            "Only Bank Debit payments are supported".to_string(, Default::default())
         )),
     }
 }
@@ -116,7 +116,7 @@ pub fn extract_bank_debit_data<T: PaymentMethodDataTypes>(
 pub fn get_account_holder_name(
     bank_debit_data: &BankDebitData,
     router_data: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
-) -> Result<Secret<String>, ConnectorError> {
+) -> Result<Secret<String>, IntegrationError> {
     match bank_debit_data {
         BankDebitData::AchBankDebit { bank_account_holder_name, .. }
         | BankDebitData::SepaBankDebit { bank_account_holder_name, .. }
@@ -125,9 +125,9 @@ pub fn get_account_holder_name(
             bank_account_holder_name
                 .clone()
                 .or_else(|| router_data.resource_common_data.get_billing_full_name().ok())
-                .ok_or_else(|| ConnectorError::MissingRequiredField {
+                .ok_or_else(|| IntegrationError::MissingRequiredField {
                     field_name: "bank_account_holder_name",
-                }.into())
+                , context: Default::default() }.into())
         }
     }
 }
@@ -200,8 +200,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .unwrap_or(item.resource_common_data.get_billing_full_name()?),
                 })))
             }
-            BankDebitData::BecsBankDebit { .. } => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Adyen"),
+            BankDebitData::BecsBankDebit { .. } => Err(errors::IntegrationError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Adyen", Default::default()),
             )
             .into()),
         }
@@ -321,7 +321,7 @@ PaymentMethodData::BankDebit(ref bank_debit_data) => {
             .router_data
             .request
             .payment_method_type
-            .ok_or(ConnectorError::MissingPaymentMethodType)?,
+            .ok_or(IntegrationError::MissingPaymentMethodType)?,
     )?;
 
     let (iban, account_holder) = match bank_debit_data {
@@ -341,8 +341,8 @@ PaymentMethodData::BankDebit(ref bank_debit_data) => {
         BankDebitData::AchBankDebit { .. }
         | BankDebitData::BecsBankDebit { .. }
         | BankDebitData::BacsBankDebit { .. } => {
-            return Err(ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("novalnet"),
+            return Err(IntegrationError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("novalnet", Default::default()),
             )
             .into());
         }
@@ -402,7 +402,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     TryFrom<ResponseRouterData<BankDebitAuthorizeResponse, RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
 
     fn try_from(
         item: ResponseRouterData<BankDebitAuthorizeResponse, RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>>,
@@ -455,7 +455,7 @@ use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt};
 use domain_types::{
     connector_flow::{Accept, Authorize, Capture, CreateOrder, CreateSessionToken, DefendDispute, PSync, RSync, Refund, RepeatPayment, SetupMandate, SubmitEvidence, Void},
     connector_types::{AcceptDisputeData, DisputeDefendData, DisputeFlowData, DisputeResponseData, PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId, SessionTokenRequestData, SessionTokenResponseData, SetupMandateRequestData, SubmitEvidenceData},
-    errors::{self, ConnectorError},
+    errors::{self, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorAuthType, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -515,7 +515,7 @@ macros::create_all_prerequisites!(
         pub fn build_headers<F, FCD, Req, Res>(
             &self,
             req: &RouterDataV2<F, FCD, Req, Res>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let mut header = vec![(
                 headers::CONTENT_TYPE.to_string(),
                 "application/json".to_string().into(),
@@ -559,9 +559,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
     fn get_auth_header(
         &self,
         auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
         let auth = transformers::ConnectorNameAuthType::try_from(auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+            .change_context(errors::IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
 
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
@@ -573,13 +573,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
         &self,
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<ErrorResponse, errors::ConnectorResponseTransformationError> {
         let response: ConnectorNameErrorResponse = if res.response.is_empty() {
             ConnectorNameErrorResponse::default()
         } else {
             res.response
                 .parse_struct("ErrorResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
+                .change_context(errors::ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })?
         };
 
         if let Some(i) = event_builder {
@@ -616,14 +616,14 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
 
         fn get_url(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
-        ) -> CustomResult<String, ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let base_url = self.connector_base_url_payments(req);
             Ok(format!("{base_url}/v1/payments"))
         }
@@ -654,7 +654,7 @@ use common_utils::{ext_traits::OptionExt, pii, request::Method, types::MinorUnit
 use domain_types::{
     connector_flow::{self, Authorize, PSync},
     connector_types::{PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData, ResponseId},
-    errors::{self, ConnectorError},
+    errors::{self, IntegrationError},
     payment_method_data::{BankDebitData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
     router_data::{ConnectorAuthType, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -673,14 +673,14 @@ pub struct ConnectorNameAuthType {
 }
 
 impl TryFrom<&ConnectorAuthType> for ConnectorNameAuthType {
-    type Error = ConnectorError;
+    type Error = IntegrationError;
 
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
             ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
                 api_key: api_key.to_owned(),
             }),
-            _ => Err(ConnectorError::FailedToObtainAuthType),
+            _ => Err(IntegrationError::FailedToObtainAuthType { context: Default::default() }),
         }
     }
 }
@@ -785,7 +785,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
     TryFrom<ConnectorNameRouterData<RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>, T>>
     for ConnectorNameAuthorizeRequest<T>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: ConnectorNameRouterData<RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>, T>,
@@ -800,8 +800,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
                 )?;
                 ConnectorNamePaymentMethod::BankDebit(bank_debit_request)
             }
-            _ => return Err(ConnectorError::NotImplemented(
-                "Only Bank Debit payments are supported".to_string()
+            _ => return Err(IntegrationError::NotImplemented(
+                "Only Bank Debit payments are supported".to_string(, Default::default())
             ).into()),
         };
 
@@ -818,7 +818,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
 fn create_bank_debit_request<T: PaymentMethodDataTypes>(
     bank_debit_data: &BankDebitData,
     router_data: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
-) -> Result<ConnectorNameBankDebitRequest, ConnectorError> {
+) -> Result<ConnectorNameBankDebitRequest, IntegrationError> {
     let account_holder_name = get_account_holder_name(bank_debit_data, router_data)?;
     let bank_debit_type = BankDebitType::from(bank_debit_data);
 
@@ -877,7 +877,7 @@ fn create_bank_debit_request<T: PaymentMethodDataTypes>(
 fn get_account_holder_name<T: PaymentMethodDataTypes>(
     bank_debit_data: &BankDebitData,
     router_data: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
-) -> Result<Secret<String>, ConnectorError> {
+) -> Result<Secret<String>, IntegrationError> {
     match bank_debit_data {
         BankDebitData::AchBankDebit { bank_account_holder_name, .. }
         | BankDebitData::SepaBankDebit { bank_account_holder_name, .. }
@@ -886,9 +886,9 @@ fn get_account_holder_name<T: PaymentMethodDataTypes>(
             bank_account_holder_name
                 .clone()
                 .or_else(|| router_data.resource_common_data.get_billing_full_name().ok())
-                .ok_or_else(|| ConnectorError::MissingRequiredField {
+                .ok_or_else(|| IntegrationError::MissingRequiredField {
                     field_name: "bank_account_holder_name",
-                })
+                , context: Default::default() })
         }
     }
 }
@@ -898,7 +898,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
     TryFrom<ResponseRouterData<ConnectorNameAuthorizeResponse, RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
 
     fn try_from(
         item: ResponseRouterData<ConnectorNameAuthorizeResponse, RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>>,
@@ -945,7 +945,7 @@ pub struct ConnectorNameRouterData<T, U> {
 }
 
 impl<T, U> TryFrom<(MinorUnit, T, U)> for ConnectorNameRouterData<T, U> {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from((amount, router_data, connector): (MinorUnit, T, U)) -> Result<Self, Self::Error> {
         Ok(Self {
@@ -1086,8 +1086,8 @@ let account_holder = match bank_account_holder_name {
 
 ```rust
 BankDebitData::BecsBankDebit { .. } => {
-    Err(ConnectorError::NotImplemented(
-        utils::get_unimplemented_payment_method_error_message("ConnectorName"),
+    Err(IntegrationError::NotImplemented(
+        utils::get_unimplemented_payment_method_error_message("ConnectorName", Default::default()),
     )
     .into())
 }

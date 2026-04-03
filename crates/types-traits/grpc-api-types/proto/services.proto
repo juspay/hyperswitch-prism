@@ -259,15 +259,16 @@ service CustomerService {
 service MerchantAuthenticationService {
   // Generate short-lived connector authentication token. Provides secure
   // credentials for connector API access without storing secrets client-side.
-  rpc CreateAccessToken(MerchantAuthenticationServiceCreateAccessTokenRequest) returns (MerchantAuthenticationServiceCreateAccessTokenResponse);
+  rpc CreateServerAuthenticationToken(MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest) returns (MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse);
 
-  // Create session token for payment processing. Maintains session state
-  // across multiple payment operations for improved security and tracking.
-  rpc CreateSessionToken(MerchantAuthenticationServiceCreateSessionTokenRequest) returns (MerchantAuthenticationServiceCreateSessionTokenResponse);
+  // Create a server-side session with the connector. Establishes session state
+  // for multi-step operations like 3DS verification or wallet authorization.
+  rpc CreateServerSessionAuthenticationToken(MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest) returns (MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse);
 
-  // Initialize wallet payment sessions for Apple Pay, Google Pay, etc.
-  // Sets up secure context for tokenized wallet payments with device verification.
-  rpc CreateSdkSessionToken(MerchantAuthenticationServiceCreateSdkSessionTokenRequest) returns (MerchantAuthenticationServiceCreateSdkSessionTokenResponse);
+  // Initialize client-facing SDK sessions for wallets, device fingerprinting,
+  // etc. Returns structured data the client SDK needs to render
+  // payment/verification UI.
+  rpc CreateClientAuthenticationToken(MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest) returns (MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse);
 }
 
 // ============================================================================

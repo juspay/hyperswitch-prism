@@ -85,7 +85,7 @@ impl TryFrom<(&BankDebitData, &RouterDataV2<...>)> for AdyenPaymentMethod<T> {
                     holder_name: item.resource_common_data.get_billing_full_name()?,
                 })))
             }
-            BankDebitData::BecsBankDebit { .. } => Err(ConnectorError::NotImplemented(...)),
+            BankDebitData::BecsBankDebit { .. } => Err(IntegrationError::NotImplemented(..., Default::default())),
         }
     }
 }
@@ -132,7 +132,7 @@ PaymentMethodData::BankDebit(ref bank_debit_data) => {
                 .unwrap_or(router_data.resource_common_data.get_billing_full_name()?);
             (iban.clone(), holder)
         }
-        _ => return Err(ConnectorError::NotImplemented(...)),
+        _ => return Err(IntegrationError::NotImplemented(..., Default::default())),
     };
     // Build NovalnetSepaDebit { account_holder, iban }
 }
@@ -166,9 +166,9 @@ fn get_account_holder_name(bank_debit_data: &BankDebitData, router_data: &...) -
         | BankDebitData::BacsBankDebit { bank_account_holder_name, .. } => {
             bank_account_holder_name.clone()
                 .or_else(|| router_data.resource_common_data.get_billing_full_name().ok())
-                .ok_or_else(|| ConnectorError::MissingRequiredField {
+                .ok_or_else(|| IntegrationError::MissingRequiredField {
                     field_name: "bank_account_holder_name",
-                })
+                , context: Default::default() })
         }
     }
 }

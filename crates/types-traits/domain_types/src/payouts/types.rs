@@ -35,7 +35,7 @@ impl
             connector_response_headers: None,
             raw_connector_request: None,
             access_token: value.access_token.map(|token| {
-                crate::connector_types::AccessTokenResponseData {
+                crate::connector_types::ServerAuthenticationTokenResponseData {
                     access_token: token,
                     token_type: None,
                     expires_in: None,
@@ -1388,7 +1388,7 @@ impl
             connector_response_headers: None,
             raw_connector_request: None,
             access_token: value.access_token.map(|token| {
-                crate::connector_types::AccessTokenResponseData {
+                crate::connector_types::ServerAuthenticationTokenResponseData {
                     access_token: token,
                     token_type: None,
                     expires_in: None,
@@ -1428,7 +1428,7 @@ impl
             connector_response_headers: None,
             raw_connector_request: None,
             access_token: value.access_token.map(|token| {
-                crate::connector_types::AccessTokenResponseData {
+                crate::connector_types::ServerAuthenticationTokenResponseData {
                     access_token: token,
                     token_type: None,
                     expires_in: None,
@@ -1468,7 +1468,7 @@ impl
             connector_response_headers: None,
             raw_connector_request: None,
             access_token: value.access_token.map(|token| {
-                crate::connector_types::AccessTokenResponseData {
+                crate::connector_types::ServerAuthenticationTokenResponseData {
                     access_token: token,
                     token_type: None,
                     expires_in: None,
@@ -1508,7 +1508,7 @@ impl
             connector_response_headers: None,
             raw_connector_request: None,
             access_token: value.access_token.map(|token| {
-                crate::connector_types::AccessTokenResponseData {
+                crate::connector_types::ServerAuthenticationTokenResponseData {
                     access_token: token,
                     token_type: None,
                     expires_in: None,
@@ -1548,7 +1548,7 @@ impl
             connector_response_headers: None,
             raw_connector_request: None,
             access_token: value.access_token.map(|token| {
-                crate::connector_types::AccessTokenResponseData {
+                crate::connector_types::ServerAuthenticationTokenResponseData {
                     access_token: token,
                     token_type: None,
                     expires_in: None,
@@ -1588,7 +1588,7 @@ impl
             connector_response_headers: None,
             raw_connector_request: None,
             access_token: value.access_token.map(|token| {
-                crate::connector_types::AccessTokenResponseData {
+                crate::connector_types::ServerAuthenticationTokenResponseData {
                     access_token: token,
                     token_type: None,
                     expires_in: None,
@@ -1628,7 +1628,7 @@ impl
             connector_response_headers: None,
             raw_connector_request: None,
             access_token: value.access_token.map(|token| {
-                crate::connector_types::AccessTokenResponseData {
+                crate::connector_types::ServerAuthenticationTokenResponseData {
                     access_token: token,
                     token_type: None,
                     expires_in: None,

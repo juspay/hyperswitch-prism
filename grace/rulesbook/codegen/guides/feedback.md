@@ -1380,8 +1380,9 @@ impl TryFrom<&RouterDataV2<...>> for {{ConnectorName}}Request {
             reference_id: router_data.connector_request_reference_id.clone(),
             transaction_id: router_data.request.connector_transaction_id
                 .clone()
-                .ok_or(errors::ConnectorError::MissingRequiredField {
+                .ok_or(errors::IntegrationError::MissingRequiredField {
                     field_name: "connector_transaction_id",
+                    context: Default::default(),
                 })?,
         })
     }
@@ -1420,8 +1421,9 @@ Hardcoding or generating reference IDs causes:
 3. Remove any hardcoded values or UUID generation
 4. For required fields, use `ok_or()` to return proper errors if missing:
    ```rust
-   .ok_or(errors::ConnectorError::MissingRequiredField {
-       field_name: "connector_transaction_id"
+   .ok_or(errors::IntegrationError::MissingRequiredField {
+       field_name: "connector_transaction_id",
+       context: Default::default(),
    })?
    ```
 5. Never apply transformations to IDs (see ANTI-003)
@@ -1969,7 +1971,7 @@ impl {{ConnectorName}} {
 ```rust
 // Extract auth from auth_type
 let auth = {{ConnectorName}}AuthType::try_from(auth_type)
-    .change_context(errors::ConnectorError::InvalidAuthType)?;
+    .change_context(errors::IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
 
 // Use only required fields based on connector requirements
 let auth_header = match auth {
@@ -2443,14 +2445,16 @@ This applies to all error propagation in connector code:
 // Explicit return - less idiomatic, worse stack traces
 fn validate_request(data: &RouterDataV2<...>) -> Result<()> {
     if some_condition {
-        return Err(errors::ConnectorError::InvalidDataFormat {
+        return Err(errors::IntegrationError::InvalidDataFormat {
             field_name: "collection_reference not allowed",
+            context: Default::default(),
         }.into());
     }
 
     if other_condition {
-        return Err(errors::ConnectorError::MissingRequiredField {
+        return Err(errors::IntegrationError::MissingRequiredField {
             field_name: "transaction_id",
+            context: Default::default(),
         }.into());
     }
 
@@ -2463,16 +2467,18 @@ fn validate_request(data: &RouterDataV2<...>) -> Result<()> {
 // Using ? operator - idiomatic, better error context
 fn validate_request(data: &RouterDataV2<...>) -> Result<()> {
     if some_condition {
-        Err(errors::ConnectorError::InvalidDataFormat {
+        Err(errors::IntegrationError::InvalidDataFormat {
             field_name: "collection_reference not allowed",
+            context: Default::default(),
         })?;
     }
 
     // Or even better with early return style
     (!other_condition)
         .then_some(())
-        .ok_or(errors::ConnectorError::MissingRequiredField {
+        .ok_or(errors::IntegrationError::MissingRequiredField {
             field_name: "transaction_id",
+            context: Default::default(),
         })?;
 
     Ok(())
@@ -2481,8 +2487,9 @@ fn validate_request(data: &RouterDataV2<...>) -> Result<()> {
 // Best pattern for Result chaining
 fn convert_amount(amount: i64) -> Result<MinorUnit> {
     MinorUnit::try_from(amount)
-        .change_context(errors::ConnectorError::InvalidDataFormat {
+        .change_context(errors::IntegrationError::InvalidDataFormat {
             field_name: "amount",
+            context: Default::default(),
         })
 }
 ```

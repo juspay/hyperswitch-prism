@@ -15,10 +15,12 @@ use grpc_api_types::payments::{
     DisputeServiceAcceptRequest, DisputeServiceAcceptResponse, DisputeServiceDefendRequest,
     DisputeServiceDefendResponse, DisputeServiceSubmitEvidenceRequest,
     DisputeServiceSubmitEvidenceResponse, FfiOptions,
-    MerchantAuthenticationServiceCreateAccessTokenRequest,
-    MerchantAuthenticationServiceCreateAccessTokenResponse,
-    MerchantAuthenticationServiceCreateSessionTokenRequest,
-    MerchantAuthenticationServiceCreateSessionTokenResponse,
+    MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
+    MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse,
+    MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
+    MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
+    MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest,
+    MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse,
     PaymentMethodAuthenticationServiceAuthenticateRequest,
     PaymentMethodAuthenticationServiceAuthenticateResponse,
     PaymentMethodAuthenticationServicePostAuthenticateRequest,
@@ -378,18 +380,25 @@ impl ConnectorClient {
 
     // ── Authentication flows ──────────────────────────────────────────────────
     impl_flow_method!(
-        create_access_token,
-        MerchantAuthenticationServiceCreateAccessTokenRequest,
-        MerchantAuthenticationServiceCreateAccessTokenResponse,
-        create_access_token_req_handler,
-        create_access_token_res_handler
+        create_server_authentication_token,
+        MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
+        MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
+        create_server_authentication_token_req_handler,
+        create_server_authentication_token_res_handler
     );
     impl_flow_method!(
-        create_session_token,
-        MerchantAuthenticationServiceCreateSessionTokenRequest,
-        MerchantAuthenticationServiceCreateSessionTokenResponse,
-        create_session_token_req_handler,
-        create_session_token_res_handler
+        create_server_session_authentication_token,
+        MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest,
+        MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse,
+        create_server_session_authentication_token_req_handler,
+        create_server_session_authentication_token_res_handler
+    );
+    impl_flow_method!(
+        create_client_authentication_token,
+        MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
+        MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse,
+        create_client_authentication_token_req_handler,
+        create_client_authentication_token_res_handler
     );
     impl_flow_method!(
         pre_authenticate,

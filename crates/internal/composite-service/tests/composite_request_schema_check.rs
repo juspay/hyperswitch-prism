@@ -29,7 +29,7 @@ const COMPOSITE_FLOW_SPECS: &[CompositeFlowSpec] = &[
         name: "authorize",
         composite_request_message: "CompositeAuthorizeRequest",
         granular_request_messages: &[
-            "MerchantAuthenticationServiceCreateAccessTokenRequest",
+            "MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest",
             "CustomerServiceCreateRequest",
             "PaymentServiceAuthorizeRequest",
         ],
@@ -40,7 +40,7 @@ const COMPOSITE_FLOW_SPECS: &[CompositeFlowSpec] = &[
         name: "get",
         composite_request_message: "CompositeGetRequest",
         granular_request_messages: &[
-            "MerchantAuthenticationServiceCreateAccessTokenRequest",
+            "MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest",
             "PaymentServiceGetRequest",
         ],
         ignore_granular_only_fields: DEFAULT_IGNORE_GRANULAR_ONLY_FIELDS,
@@ -50,7 +50,7 @@ const COMPOSITE_FLOW_SPECS: &[CompositeFlowSpec] = &[
         name: "refund",
         composite_request_message: "CompositeRefundRequest",
         granular_request_messages: &[
-            "MerchantAuthenticationServiceCreateAccessTokenRequest",
+            "MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest",
             "PaymentServiceRefundRequest",
         ],
         ignore_granular_only_fields: DEFAULT_IGNORE_GRANULAR_ONLY_FIELDS,
@@ -60,7 +60,7 @@ const COMPOSITE_FLOW_SPECS: &[CompositeFlowSpec] = &[
         name: "refund_get",
         composite_request_message: "CompositeRefundGetRequest",
         granular_request_messages: &[
-            "MerchantAuthenticationServiceCreateAccessTokenRequest",
+            "MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest",
             "RefundServiceGetRequest",
         ],
         ignore_granular_only_fields: DEFAULT_IGNORE_GRANULAR_ONLY_FIELDS,

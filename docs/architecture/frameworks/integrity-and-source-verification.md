@@ -120,7 +120,7 @@ fn verify_webhook_source(
     &self,
     request: RequestDetails,
     connector_webhook_secret: Option<ConnectorWebhookSecrets>,
-) -> Result<bool, error_stack::Report<ConnectorError>> {
+) -> Result<bool, error_stack::Report<WebhookError>> {
     let webhook_secret = match connector_webhook_secret {
         Some(secrets) => secrets.secret,
         None => return Ok(false),

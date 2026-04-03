@@ -3,7 +3,6 @@ pub const EMBEDDED_DEVELOPMENT_CONFIG: &str =
 pub const EMBEDDED_PROD_CONFIG: &str = include_str!("../../../../../config/production.toml");
 
 use crate::types::FfiRequestData;
-use domain_types::errors::{ApplicationErrorResponse, ConnectorError};
 use domain_types::payment_method_data::DefaultPCIHolder;
 use ucs_env::error::ErrorSwitch;
 
@@ -18,10 +17,7 @@ fn get_config_for_req(
     } else {
         EMBEDDED_DEVELOPMENT_CONFIG
     };
-    crate::utils::load_config(config_str).map_err(|e: ConnectorError| {
-        let app_error: ApplicationErrorResponse = e.switch();
-        app_error.switch()
-    })
+    crate::utils::load_config(config_str).map_err(|e| ErrorSwitch::switch(&e))
 }
 
 fn get_config_for_res(
@@ -32,10 +28,7 @@ fn get_config_for_res(
     } else {
         EMBEDDED_DEVELOPMENT_CONFIG
     };
-    crate::utils::load_config(config_str).map_err(|e: ConnectorError| {
-        let app_error: ApplicationErrorResponse = e.switch();
-        app_error.switch()
-    })
+    crate::utils::load_config(config_str).map_err(|e| ErrorSwitch::switch(&e))
 }
 
 /// Generates a `{flow}_req_handler` and `{flow}_res_handler` function pair.

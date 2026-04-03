@@ -112,7 +112,7 @@ The SDK provides specialized clients for different service domains:
 | `PaymentClient` | Core payment operations | `authorize()`, `capture()`, `refund()`, `void()` |
 | `CustomerClient` | Customer management | `create()` |
 | `PaymentMethodClient` | Secure tokenization | `tokenize()` |
-| `MerchantAuthenticationClient` | Auth token management | `createAccessToken()`, `createSessionToken()` |
+| `MerchantAuthenticationClient` | Auth token management | `createServerAuthenticationToken()`, `createServerSessionAuthenticationToken()`, `createClientAuthenticationToken()` |
 | `EventClient` | Webhook processing | `handleEvent()` |
 | `RecurringPaymentClient` | Subscription billing | `charge()` |
 | `PaymentMethodAuthenticationClient` | 3DS authentication | `preAuthenticate()`, `authenticate()`, `postAuthenticate()` |
@@ -195,12 +195,18 @@ for (const payment of payments) {
 ## Error Handling
 
 ```typescript
-import { ConnectorError } from 'hyperswitch-prism';
+import { IntegrationError, ConnectorResponseTransformationError } from 'hyperswitch-prism';
 
 try {
   const response = await client.authorize(request);
 } catch (error) {
-  if (error instanceof ConnectorError) {
+  if (error instanceof IntegrationError) {
+    // Request-phase error (auth, URL construction, serialization, etc.)
+    console.error('Code:', error.errorCode);
+    console.error('Status:', error.statusCode);
+    console.error('Message:', error.message);
+  } else if (error instanceof ConnectorResponseTransformationError) {
+    // Response-phase error (deserialization, transformation, etc.)
     console.error('Code:', error.errorCode);
     console.error('Status:', error.statusCode);
     console.error('Message:', error.message);
@@ -246,7 +252,7 @@ const config = ConnectorConfig.create({
 
 // Step 1: Get access token
 const authClient = new MerchantAuthenticationClient(config);
-const tokenResponse = await authClient.createAccessToken({
+const tokenResponse = await authClient.createServerAuthenticationToken({
   merchantAccessTokenId: 'token_001',
   connector: Connector.PAYPAL,
   testMode: true,

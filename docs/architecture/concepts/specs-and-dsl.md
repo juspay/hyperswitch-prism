@@ -28,7 +28,7 @@ impl ConnectorIntegration<Authorize, AuthorizeRequest, AuthorizeResponse> for St
         &self,
         req: &AuthorizeRequest,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, SecretString)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, SecretString)>, errors::IntegrationError> {
         // Build authentication headers
         vec![
             ("Authorization".to_string(), format!("Bearer {}", self.api_key).into()),
@@ -40,14 +40,14 @@ impl ConnectorIntegration<Authorize, AuthorizeRequest, AuthorizeResponse> for St
         &self,
         _req: &AuthorizeRequest,
         connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
+    ) -> CustomResult<String, errors::IntegrationError> {
         Ok(format!("{}/v1/payment_intents", self.base_url))
     }
 
     fn get_request_body(
         &self,
         req: &AuthorizeRequest,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::IntegrationError> {
         // Transform unified request to Stripe-specific payload
         let stripe_payload = StripeAuthorizeRequest::try_from(req)?;
         Ok(RequestContent::Json(Box::new(stripe_payload)))
@@ -58,7 +58,7 @@ impl ConnectorIntegration<Authorize, AuthorizeRequest, AuthorizeResponse> for St
         data: &AuthorizeRequest,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<PaymentsResponseData, errors::ConnectorError> {
+    ) -> CustomResult<PaymentsResponseData, errors::ConnectorResponseTransformationError> {
         // Parse Stripe response into unified format
         let response: StripeAuthorizeResponse = res.response?.parse_struct("StripeAuthorizeResponse")?;
         Ok(PaymentsResponseData {
@@ -71,7 +71,7 @@ impl ConnectorIntegration<Authorize, AuthorizeRequest, AuthorizeResponse> for St
     fn build_error_response(
         &self,
         res: Response,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<ErrorResponse, errors::ConnectorResponseTransformationError> {
         // Transform Stripe error into unified error format
         let error: StripeErrorResponse = res.response?.parse_struct("StripeErrorResponse")?;
         Ok(ErrorResponse {

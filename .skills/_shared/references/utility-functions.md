@@ -9,7 +9,7 @@
 
 ### `missing_field_err`
 - **Location:** `domain_types::utils::missing_field_err`
-- **Signature:** `fn missing_field_err(message: &'static str) -> Box<dyn Fn() -> Report<ConnectorError> + 'static>`
+- **Signature:** `fn missing_field_err(message: &'static str) -> Box<dyn Fn() -> Report<IntegrationError> + 'static>`
 - **Description:** Creates a closure that generates a `MissingRequiredField` error.
 - **Example:**
 ```rust
@@ -20,18 +20,18 @@ let return_url = data.router_return_url
 
 ### `handle_json_response_deserialization_failure`
 - **Location:** `domain_types::utils::handle_json_response_deserialization_failure`
-- **Signature:** `fn handle_json_response_deserialization_failure(res: Response, connector: &'static str) -> CustomResult<ErrorResponse, ConnectorError>`
+- **Signature:** `fn handle_json_response_deserialization_failure(res: Response, connector: &'static str) -> CustomResult<ErrorResponse, IntegrationError>`
 - **Description:** Fallback handler when JSON deserialization fails; checks if response is HTML/text.
 - **Example:**
 ```rust
 serde_json::from_str::<ErrorResponse>(&response_data)
-    .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+    .change_context(errors::ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })
     .or_else(|_| handle_json_response_deserialization_failure(res, "connector_name"))
 ```
 
 ### `construct_not_supported_error_report`
 - **Location:** `domain_types::utils`
-- **Signature:** `fn construct_not_supported_error_report(capture_method: CaptureMethod, connector_name: &'static str) -> Report<ConnectorError>`
+- **Signature:** `fn construct_not_supported_error_report(capture_method: CaptureMethod, connector_name: &'static str) -> Report<IntegrationError>`
 - **Description:** Standardized error for unsupported capture methods/features.
 
 ### `get_unimplemented_payment_method_error_message`
@@ -39,8 +39,8 @@ serde_json::from_str::<ErrorResponse>(&response_data)
 - **Signature:** `fn get_unimplemented_payment_method_error_message(connector: &str) -> String`
 - **Example:**
 ```rust
-PaymentMethodData::Wallet(_) => Err(errors::ConnectorError::NotImplemented(
-    get_unimplemented_payment_method_error_message("connector_name")
+PaymentMethodData::Wallet(_) => Err(errors::IntegrationError::NotImplemented(
+    get_unimplemented_payment_method_error_message("connector_name", Default::default())
 ))?,
 ```
 
@@ -134,7 +134,7 @@ refunded_amount: Option<MinorUnit>,
 
 ### `get_card_details`
 - **Location:** `domain_types::utils::get_card_details`
-- **Signature:** `fn get_card_details<T>(payment_method_data: PaymentMethodData<T>, connector_name: &'static str) -> Result<Card<T>, ConnectorError>`
+- **Signature:** `fn get_card_details<T>(payment_method_data: PaymentMethodData<T>, connector_name: &'static str) -> Result<Card<T>, IntegrationError>`
 - **Description:** Extracts card details from payment method data; errors if not a card payment.
 - **Example:**
 ```rust
@@ -200,13 +200,13 @@ let formatted = format_date(now(), DateFormat::YYYYMMDDHHmmss)?; // "20250117153
 
 ### `preprocess_xml_response_bytes`
 - **Location:** `connector_integration::utils::xml_utils::preprocess_xml_response_bytes`
-- **Signature:** `fn preprocess_xml_response_bytes(xml_data: Bytes) -> Result<Bytes, ConnectorError>`
+- **Signature:** `fn preprocess_xml_response_bytes(xml_data: Bytes) -> Result<Bytes, IntegrationError>`
 - **Description:** Converts XML response to JSON bytes for deserialization into Rust structs.
 - **Example:**
 ```rust
 let json_bytes = preprocess_xml_response_bytes(res.response)?;
 let response: ConnectorResponse = serde_json::from_slice(&json_bytes)
-    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+    .change_context(errors::ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })?;
 ```
 
 ### `serialize_to_xml_string_with_root`

@@ -187,8 +187,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | BankTransferData::InstantBankTransfer {}
             | BankTransferData::InstantBankTransferFinland {}
             | BankTransferData::InstantBankTransferPoland {} => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Adyen"),
+                Err(errors::IntegrationError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Adyen", Default::default()),
                 )
                 .into())
             }
@@ -258,9 +258,9 @@ PaymentMethodData::BankTransfer(bank_transfer_data) => match bank_transfer_data.
                     payment_method_data_type: StripeCreditTransferTypes::Multibanco,
                     payment_method_type: StripeCreditTransferTypes::Multibanco,
                     email: payment_request_details.billing_address.email.ok_or(
-                        ConnectorError::MissingRequiredField {
+                        IntegrationError::MissingRequiredField {
                             field_name: "billing_address.email",
-                        },
+                        , context: Default::default() },
                     )?,
                 },
             )),
@@ -276,9 +276,9 @@ PaymentMethodData::BankTransfer(bank_transfer_data) => match bank_transfer_data.
                 balance_funding_type: BankTransferType::BankTransfers,
                 payment_method_type: StripePaymentMethodType::CustomerBalance,
                 country: payment_request_details.billing_address.country.ok_or(
-                    ConnectorError::MissingRequiredField {
+                    IntegrationError::MissingRequiredField {
                         field_name: "billing_address.country",
-                    },
+                    , context: Default::default() },
                 )?,
             }),
         )),
@@ -533,7 +533,7 @@ impl ConnectorIntegration<Authorize, PaymentFlowData, PaymentsAuthorizeData, Pay
         &self,
         _req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData>,
         _connectors: &Connectors,
-    ) -> CustomResult<String, ConnectorError> {
+    ) -> CustomResult<String, IntegrationError> {
         Ok(format!("{}/v1/payments", self.base_url()))
     }
 
@@ -541,7 +541,7 @@ impl ConnectorIntegration<Authorize, PaymentFlowData, PaymentsAuthorizeData, Pay
         &self,
         req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData>,
         _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, ConnectorError> {
+    ) -> CustomResult<RequestContent, IntegrationError> {
         let amount = convert_amount(
             self.amount_converter,
             req.request.minor_amount,
@@ -558,11 +558,11 @@ impl ConnectorIntegration<Authorize, PaymentFlowData, PaymentsAuthorizeData, Pay
         data: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData>,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData>, ConnectorError> {
+    ) -> CustomResult<RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData>, ConnectorResponseTransformationError> {
         let response: MyConnectorPaymentsResponse = res
             .response
             .parse_struct("MyConnectorPaymentsResponse")
-            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+            .change_context(ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })?;
 
         event_builder.map(|i| i.set_response_body(&response));
         RouterDataV2::try_from(ResponseRouterData {
@@ -586,7 +586,7 @@ impl ConnectorIntegration<Authorize, PaymentFlowData, PaymentsAuthorizeData, Pay
         &self,
         req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData>,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, ConnectorError> {
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, IntegrationError> {
         let mut headers = vec![
             (CONTENT_TYPE.to_string(), "application/json".to_string().into()),
         ];
@@ -605,7 +605,7 @@ impl ConnectorIntegration<Authorize, PaymentFlowData, PaymentsAuthorizeData, Pay
         &self,
         req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData>,
         _connectors: &Connectors,
-    ) -> CustomResult<String, ConnectorError> {
+    ) -> CustomResult<String, IntegrationError> {
         // Dynamic URL based on payment method sub-type
         let base = self.base_url();
         match req.request.payment_method_data {
@@ -626,11 +626,11 @@ impl ConnectorIntegration<Authorize, PaymentFlowData, PaymentsAuthorizeData, Pay
         &self,
         req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData>,
         _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, ConnectorError> {
+    ) -> CustomResult<RequestContent, IntegrationError> {
         let amount = self
             .amount_converter
             .convert(req.request.minor_amount, req.request.currency)
-            .change_context(ConnectorError::AmountConversionFailed)?;
+            .change_context(IntegrationError::AmountConversionFailed)?;
 
         let connector_router_data = MyConnectorRouterData::from((amount, req));
 
@@ -649,7 +649,7 @@ impl ConnectorIntegration<Authorize, PaymentFlowData, PaymentsAuthorizeData, Pay
         &self,
         req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData>,
         connectors: &Connectors,
-    ) -> CustomResult<Option<Request>, ConnectorError> {
+    ) -> CustomResult<Option<Request>, IntegrationError> {
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Post)
@@ -666,11 +666,11 @@ impl ConnectorIntegration<Authorize, PaymentFlowData, PaymentsAuthorizeData, Pay
         data: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData>,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData>, ConnectorError> {
+    ) -> CustomResult<RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData>, ConnectorResponseTransformationError> {
         let response: MyConnectorPaymentsResponse = res
             .response
             .parse_struct("MyConnectorPaymentsResponse")
-            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+            .change_context(ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })?;
 
         event_builder.map(|i| i.set_response_body(&response));
 
@@ -685,11 +685,11 @@ impl ConnectorIntegration<Authorize, PaymentFlowData, PaymentsAuthorizeData, Pay
         &self,
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, ConnectorError> {
+    ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
         let response: MyConnectorErrorResponse = res
             .response
             .parse_struct("MyConnectorErrorResponse")
-            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+            .change_context(ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })?;
 
         event_builder.map(|i| i.set_error_response_body(&response));
 
@@ -853,12 +853,12 @@ impl ConnectorIntegration<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResp
         &self,
         req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         _connectors: &Connectors,
-    ) -> CustomResult<String, ConnectorError> {
+    ) -> CustomResult<String, IntegrationError> {
         let connector_payment_id = req
             .request
             .connector_transaction_id
             .get_connector_transaction_id()
-            .change_context(ConnectorError::MissingConnectorTransactionID)?;
+            .change_context(IntegrationError::MissingConnectorTransactionID)?;
 
         Ok(format!("{}/v1/payments/{}", self.base_url(), connector_payment_id))
     }
@@ -867,7 +867,7 @@ impl ConnectorIntegration<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResp
         &self,
         req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         connectors: &Connectors,
-    ) -> CustomResult<Option<Request>, ConnectorError> {
+    ) -> CustomResult<Option<Request>, IntegrationError> {
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Get)
@@ -883,11 +883,11 @@ impl ConnectorIntegration<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResp
         data: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>, ConnectorError> {
+    ) -> CustomResult<RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>, ConnectorResponseTransformationError> {
         let response: MyConnectorSyncResponse = res
             .response
             .parse_struct("MyConnectorSyncResponse")
-            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+            .change_context(ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })?;
 
         event_builder.map(|i| i.set_response_body(&response));
 
@@ -929,16 +929,16 @@ impl From<MyConnectorPaymentStatus> for enums::AttemptStatus {
 ```rust
 // Stripe requires email for Multibanco
 let email = payment_request_details.billing_address.email.ok_or(
-    ConnectorError::MissingRequiredField {
+    IntegrationError::MissingRequiredField {
         field_name: "billing_address.email",
-    },
+    , context: Default::default() },
 )?;
 
 // Stripe requires country for SEPA
 let country = payment_request_details.billing_address.country.ok_or(
-    ConnectorError::MissingRequiredField {
+    IntegrationError::MissingRequiredField {
         field_name: "billing_address.country",
-    },
+    , context: Default::default() },
 )?;
 ```
 

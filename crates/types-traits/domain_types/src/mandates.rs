@@ -67,8 +67,17 @@ impl MandateAmountData {
         let date = self.end_date.ok_or_else(missing_field_err(
             "mandate_data.mandate_type.{multi_use|single_use}.end_date",
         ))?;
-        date_time::format_date(date, format)
-            .change_context(crate::errors::ConnectorError::DateFormattingFailed)
+        date_time::format_date(date, format).change_context(
+            crate::errors::IntegrationError::InvalidDataFormat {
+                field_name: "mandate_amount_data.end_date",
+                context: crate::errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to format end date with specified format".to_owned(),
+                    ),
+                    ..Default::default()
+                },
+            },
+        )
     }
     pub fn get_metadata(&self) -> Result<SecretSerdeValue, Error> {
         self.metadata.clone().ok_or_else(missing_field_err(

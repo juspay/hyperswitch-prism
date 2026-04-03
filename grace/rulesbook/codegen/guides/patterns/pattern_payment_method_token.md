@@ -91,7 +91,7 @@ Analysis of 8+ connectors reveals distinct implementation patterns:
 
 ```rust
 // Uses specialized endpoint for tokenization
-fn get_url(&self, req: &RouterDataV2<PaymentMethodToken, ...>) -> CustomResult<String, ConnectorError> {
+fn get_url(&self, req: &RouterDataV2<PaymentMethodToken, ...>) -> CustomResult<String, IntegrationError> {
     Ok(format!("{}/v1/tokens", self.connector_base_url(req)))
 }
 ```
@@ -102,7 +102,7 @@ fn get_url(&self, req: &RouterDataV2<PaymentMethodToken, ...>) -> CustomResult<S
 
 ```rust
 // Uses payment handle for tokenization (no-3DS flow)
-fn get_url(&self, req: &RouterDataV2<PaymentMethodToken, ...>) -> CustomResult<String, ConnectorError> {
+fn get_url(&self, req: &RouterDataV2<PaymentMethodToken, ...>) -> CustomResult<String, IntegrationError> {
     Ok(format!("{}/v1/paymenthandles", self.connector_base_url(req)))
 }
 ```
@@ -113,9 +113,9 @@ fn get_url(&self, req: &RouterDataV2<PaymentMethodToken, ...>) -> CustomResult<S
 
 ```rust
 // Creates token bound to customer
-fn get_url(&self, req: &RouterDataV2<PaymentMethodToken, ...>) -> CustomResult<String, ConnectorError> {
+fn get_url(&self, req: &RouterDataV2<PaymentMethodToken, ...>) -> CustomResult<String, IntegrationError> {
     let customer_id = req.request.customer_id.clone()
-        .ok_or(ConnectorError::MissingRequiredField { field_name: "customer_id" })?;
+        .ok_or(IntegrationError::MissingRequiredField { field_name: "customer_id" , context: Default::default() })?;
     Ok(format!("{}/v1/customers/{}/payment_methods", self.connector_base_url(req), customer_id))
 }
 ```
@@ -161,7 +161,7 @@ use domain_types::{
         PaymentsResponseData, PaymentsSyncData, PaymentMethodTokenizationData, PaymentMethodTokenResponse,
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
-    errors::{self, ConnectorError},
+    errors::{self, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorAuthType, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -254,7 +254,7 @@ macros::create_all_prerequisites!(
         pub fn build_headers<F, FCD, Req, Res>(
             &self,
             req: &RouterDataV2<F, FCD, Req, Res>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let mut header = vec![(
                 headers::CONTENT_TYPE.to_string(),
                 "{content_type}".to_string().into(), // "application/json", "application/x-www-form-urlencoded"
@@ -292,9 +292,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
     fn get_auth_header(
         &self,
         auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
         let auth = transformers::{ConnectorName}AuthType::try_from(auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+            .change_context(errors::IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
 
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
@@ -306,10 +306,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
         &self,
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<ErrorResponse, errors::ConnectorResponseTransformationError> {
         let response: {ConnectorName}ErrorResponse = res.response
             .parse_struct("ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            .change_context(errors::ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })?;
 
         if let Some(i) = event_builder {
             i.set_error_response_body(&response);
@@ -346,14 +346,14 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
 
         fn get_url(
             &self,
             req: &RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, errors::IntegrationError> {
             let base_url = self.connector_base_url_payments(req);
             // Choose appropriate pattern:
 
@@ -365,7 +365,7 @@ macros::macro_connector_implementation!(
 
             // OR Pattern 3: Customer-bound endpoint (like Mollie, Billwerk)
             // let customer_id = req.request.customer_id.clone()
-            //     .ok_or(ConnectorError::MissingRequiredField { field_name: "customer_id" })?;
+            //     .ok_or(IntegrationError::MissingRequiredField { field_name: "customer_id" , context: Default::default() })?;
             // Ok(format!("{base_url}/v1/customers/{customer_id}/payment_methods"))
         }
     }
@@ -398,7 +398,7 @@ use domain_types::{
         PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
         PaymentsResponseData, ResponseId,
     },
-    errors::{self, ConnectorError},
+    errors::{self, IntegrationError},
     payment_method_data::{
         PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, Card,
     },
@@ -418,14 +418,14 @@ pub struct {ConnectorName}AuthType {
 }
 
 impl TryFrom<&ConnectorAuthType> for {ConnectorName}AuthType {
-    type Error = ConnectorError;
+    type Error = IntegrationError;
 
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
             ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
                 api_key: api_key.to_owned(),
             }),
-            _ => Err(ConnectorError::FailedToObtainAuthType),
+            _ => Err(IntegrationError::FailedToObtainAuthType { context: Default::default() }),
         }
     }
 }
@@ -554,7 +554,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
     TryFrom<{ConnectorName}RouterData<RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>, T>>
     for {ConnectorName}CardTokenRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: {ConnectorName}RouterData<RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>, T>,
@@ -571,7 +571,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
                     card_holder_name: router_data.request.customer_name.clone().map(Secret::new),
                 })
             },
-            _ => Err(ConnectorError::NotImplemented("Payment method not supported for tokenization".to_string()).into()),
+            _ => Err(IntegrationError::NotImplemented("Payment method not supported for tokenization".to_string(, Default::default())).into()),
         }
     }
 }
@@ -581,7 +581,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
     TryFrom<{ConnectorName}RouterData<RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>, T>>
     for {ConnectorName}TokenRequest<T>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: {ConnectorName}RouterData<RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>, T>,
@@ -598,7 +598,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
                     holder_name: router_data.request.customer_name.clone().map(Secret::new),
                 })
             },
-            _ => return Err(ConnectorError::NotImplemented("Payment method not supported for tokenization".to_string()).into()),
+            _ => return Err(IntegrationError::NotImplemented("Payment method not supported for tokenization".to_string(, Default::default())).into()),
         };
 
         Ok(Self {
@@ -616,7 +616,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
     TryFrom<ResponseRouterData<{ConnectorName}TokenResponse, RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>>>
     for RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
 
     fn try_from(
         item: ResponseRouterData<{ConnectorName}TokenResponse, RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>>,
@@ -644,7 +644,7 @@ pub struct {ConnectorName}RouterData<T, U> {
 }
 
 impl<T, U> TryFrom<({AmountType}, T, U)> for {ConnectorName}RouterData<T, U> {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from((amount, router_data, connector): ({AmountType}, T, U)) -> Result<Self, Self::Error> {
         Ok(Self {
@@ -764,7 +764,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<TokenResponse, Self>>
 
 ```rust
 // Stripe, Stax, Cybersource
-fn get_url(&self, req: &RouterDataV2<PaymentMethodToken, ...>) -> CustomResult<String, ConnectorError> {
+fn get_url(&self, req: &RouterDataV2<PaymentMethodToken, ...>) -> CustomResult<String, IntegrationError> {
     Ok(format!("{}/v1/tokens", self.connector_base_url(req)))
 }
 ```
@@ -773,7 +773,7 @@ fn get_url(&self, req: &RouterDataV2<PaymentMethodToken, ...>) -> CustomResult<S
 
 ```rust
 // Paysafe
-fn get_url(&self, req: &RouterDataV2<PaymentMethodToken, ...>) -> CustomResult<String, ConnectorError> {
+fn get_url(&self, req: &RouterDataV2<PaymentMethodToken, ...>) -> CustomResult<String, IntegrationError> {
     Ok(format!("{}/v1/paymenthandles", self.connector_base_url(req)))
 }
 ```
@@ -782,9 +782,9 @@ fn get_url(&self, req: &RouterDataV2<PaymentMethodToken, ...>) -> CustomResult<S
 
 ```rust
 // Mollie, Billwerk
-fn get_url(&self, req: &RouterDataV2<PaymentMethodToken, ...>) -> CustomResult<String, ConnectorError> {
+fn get_url(&self, req: &RouterDataV2<PaymentMethodToken, ...>) -> CustomResult<String, IntegrationError> {
     let customer_id = req.request.customer_id.clone()
-        .ok_or(ConnectorError::MissingRequiredField { field_name: "customer_id" })?;
+        .ok_or(IntegrationError::MissingRequiredField { field_name: "customer_id" , context: Default::default() })?;
     Ok(format!("{}/v1/customers/{}/payment_methods",
         self.connector_base_url(req),
         customer_id
@@ -796,10 +796,10 @@ fn get_url(&self, req: &RouterDataV2<PaymentMethodToken, ...>) -> CustomResult<S
 
 ```rust
 // Hipay
-fn get_url(&self, req: &RouterDataV2<PaymentMethodToken, ...>) -> CustomResult<String, ConnectorError> {
+fn get_url(&self, req: &RouterDataV2<PaymentMethodToken, ...>) -> CustomResult<String, IntegrationError> {
     let base_url = &req.resource_common_data.connectors.{connector_name}.secondary_base_url
         .as_ref()
-        .ok_or(ConnectorError::InvalidConnectorConfig { config: "secondary_base_url" })?;
+        .ok_or(IntegrationError::InvalidConnectorConfig { config: "secondary_base_url" })?;
     Ok(format!("{}/v1/token", base_url))
 }
 ```
@@ -867,10 +867,10 @@ impl ConnectorCommon for {ConnectorName} {
         &self,
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, ConnectorError> {
+    ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
         let response: {ConnectorName}ErrorResponse = res.response
             .parse_struct("ErrorResponse")
-            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+            .change_context(ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })?;
 
         if let Some(i) = event_builder {
             i.set_error_response_body(&response);
@@ -1180,7 +1180,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<...> for AuthorizeRequest {
                 PaymentMethodToken::Token(token) => Some(token.clone()),
                 _ => None,
             })
-            .ok_or(ConnectorError::MissingRequiredField { field_name: "payment_method_token" })?;
+            .ok_or(IntegrationError::MissingRequiredField { field_name: "payment_method_token" , context: Default::default() })?;
 
         Ok(Self {
             payment_method_token: token,

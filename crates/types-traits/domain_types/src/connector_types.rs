@@ -18,7 +18,7 @@ use strum::{Display, EnumIter, EnumString};
 use time::PrimitiveDateTime;
 
 use crate::{
-    errors::{ApiError, ApplicationErrorResponse, ConnectorError},
+    errors::{ApiError, ApplicationErrorResponse, IntegrationError},
     mandates::{CustomerAcceptance, MandateData},
     payment_address::{self, Address, AddressDetails, PhoneDetails},
     payment_method_data::{self, Card, PaymentMethodData, PaymentMethodDataTypes},
@@ -382,23 +382,32 @@ pub struct PaymentsSyncData {
 }
 
 impl PaymentsSyncData {
-    pub fn is_auto_capture(&self) -> Result<bool, Error> {
-        match self.capture_method {
-            Some(common_enums::CaptureMethod::Automatic)
-            | None
-            | Some(common_enums::CaptureMethod::SequentialAutomatic) => Ok(true),
-            Some(common_enums::CaptureMethod::Manual) => Ok(false),
-            Some(_) => Err(ConnectorError::CaptureMethodNotSupported.into()),
-        }
+    /// Returns true if payment should be automatically captured, false for manual capture.
+    ///
+    /// Maps capture methods to boolean intent:
+    /// - Automatic/SequentialAutomatic/None → true (auto capture)
+    /// - Manual/ManualMultiple/Scheduled → false (manual capture)
+    ///
+    /// Note: This is a pure getter, not a validation. Connectors that don't support
+    /// specific capture methods should validate explicitly during request building.
+    pub fn is_auto_capture(&self) -> bool {
+        !matches!(
+            self.capture_method,
+            Some(common_enums::CaptureMethod::Manual)
+                | Some(common_enums::CaptureMethod::ManualMultiple)
+                | Some(common_enums::CaptureMethod::Scheduled)
+        )
     }
-    pub fn get_connector_transaction_id(&self) -> CustomResult<String, ConnectorError> {
+    pub fn get_connector_transaction_id(&self) -> CustomResult<String, IntegrationError> {
         match self.connector_transaction_id.clone() {
             ResponseId::ConnectorTransactionId(txn_id) => Ok(txn_id),
             _ => Err(errors::ValidationError::IncorrectValueProvided {
                 field_name: "connector_transaction_id",
             })
             .attach_printable("Expected connector transaction ID not found")
-            .change_context(ConnectorError::MissingConnectorTransactionID)?,
+            .change_context(IntegrationError::MissingConnectorTransactionID {
+                context: Default::default(),
+            })?,
         }
     }
     pub fn is_mandate_payment(&self) -> bool {
@@ -428,7 +437,7 @@ pub struct PaymentFlowData {
     pub minor_amount_captured: Option<MinorUnit>,
     pub minor_amount_capturable: Option<MinorUnit>,
     pub amount: Option<Money>,
-    pub access_token: Option<AccessTokenResponseData>,
+    pub access_token: Option<ServerAuthenticationTokenResponseData>,
     pub session_token: Option<String>,
     pub reference_id: Option<String>,
     pub payment_method_token: Option<PaymentMethodToken>,
@@ -638,13 +647,16 @@ impl PaymentFlowData {
             .ok_or_else(missing_field_err("access_token"))
     }
 
-    pub fn get_access_token_data(&self) -> Result<AccessTokenResponseData, Error> {
+    pub fn get_access_token_data(&self) -> Result<ServerAuthenticationTokenResponseData, Error> {
         self.access_token
             .clone()
             .ok_or_else(missing_field_err("access_token"))
     }
 
-    pub fn set_access_token(mut self, access_token: Option<AccessTokenResponseData>) -> Self {
+    pub fn set_access_token(
+        mut self,
+        access_token: Option<ServerAuthenticationTokenResponseData>,
+    ) -> Self {
         self.access_token = access_token;
         self
     }
@@ -850,7 +862,9 @@ impl PaymentFlowData {
     {
         self.get_connector_meta()?
             .parse_value(std::any::type_name::<T>())
-            .change_context(ConnectorError::NoConnectorMetaData)
+            .change_context(IntegrationError::NoConnectorMetaData {
+                context: Default::default(),
+            })
     }
 
     pub fn is_three_ds(&self) -> bool {
@@ -931,7 +945,7 @@ impl PaymentFlowData {
 
     pub fn set_access_token_id(mut self, access_token_id: Option<String>) -> Self {
         if let (Some(token_id), None) = (access_token_id, &self.access_token) {
-            self.access_token = Some(AccessTokenResponseData {
+            self.access_token = Some(ServerAuthenticationTokenResponseData {
                 access_token: token_id.into(),
                 token_type: None,
                 expires_in: None,
@@ -1099,7 +1113,7 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub browser_info: Option<BrowserInformation>,
     pub order_category: Option<String>,
     pub session_token: Option<String>,
-    pub access_token: Option<AccessTokenResponseData>,
+    pub access_token: Option<ServerAuthenticationTokenResponseData>,
     pub customer_acceptance: Option<CustomerAcceptance>,
     pub enrolled_for_3ds: Option<bool>,
     pub related_transaction_id: Option<String>,
@@ -1136,14 +1150,21 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
 }
 
 impl<T: PaymentMethodDataTypes> PaymentsAuthorizeData<T> {
-    pub fn is_auto_capture(&self) -> Result<bool, Error> {
-        match self.capture_method {
-            Some(common_enums::CaptureMethod::Automatic)
-            | None
-            | Some(common_enums::CaptureMethod::SequentialAutomatic) => Ok(true),
-            Some(common_enums::CaptureMethod::Manual) => Ok(false),
-            Some(_) => Err(ConnectorError::CaptureMethodNotSupported.into()),
-        }
+    /// Returns true if payment should be automatically captured, false for manual capture.
+    ///
+    /// Maps capture methods to boolean intent:
+    /// - Automatic/SequentialAutomatic/None → true (auto capture)
+    /// - Manual/ManualMultiple/Scheduled → false (manual capture)
+    ///
+    /// Note: This is a pure getter, not a validation. Connectors that don't support
+    /// specific capture methods should validate explicitly during request building.
+    pub fn is_auto_capture(&self) -> bool {
+        !matches!(
+            self.capture_method,
+            Some(common_enums::CaptureMethod::Manual)
+                | Some(common_enums::CaptureMethod::ManualMultiple)
+                | Some(common_enums::CaptureMethod::Scheduled)
+        )
     }
     pub fn get_email(&self) -> Result<Email, Error> {
         self.email.clone().ok_or_else(missing_field_err("email"))
@@ -1330,7 +1351,7 @@ impl<T: PaymentMethodDataTypes> PaymentsAuthorizeData<T> {
     }
 
     pub fn set_access_token(mut self, access_token: Option<String>) -> Self {
-        self.access_token = access_token.map(|token| AccessTokenResponseData {
+        self.access_token = access_token.map(|token| ServerAuthenticationTokenResponseData {
             access_token: token.into(),
             token_type: None,
             expires_in: None,
@@ -1380,8 +1401,8 @@ pub enum PaymentsResponseData {
         incremental_authorization_allowed: Option<bool>,
         status_code: u16,
     },
-    SdkSessionTokenResponse {
-        session_token: SessionToken,
+    ClientAuthenticationTokenResponse {
+        session_data: ClientAuthenticationTokenData,
         status_code: u16,
     },
     PreAuthenticateResponse {
@@ -1468,8 +1489,8 @@ pub struct PaymentCreateOrderData {
 #[derive(Debug, Clone)]
 pub struct PaymentCreateOrderResponse {
     pub order_id: String,
-    /// Optional session token for wallet flows (Apple Pay, Google Pay)
-    pub session_token: Option<SessionToken>,
+    /// Optional SDK session data for wallet flows (Apple Pay, Google Pay) and other SDK types
+    pub session_data: Option<ClientAuthenticationTokenData>,
 }
 
 #[derive(Debug, Clone)]
@@ -1518,7 +1539,10 @@ impl<T: PaymentMethodDataTypes> PaymentsPreAuthenticateData<T> {
             Some(common_enums::CaptureMethod::Manual) => Ok(false),
             Some(common_enums::CaptureMethod::ManualMultiple)
             | Some(common_enums::CaptureMethod::Scheduled) => {
-                Err(ConnectorError::CaptureMethodNotSupported.into())
+                Err(IntegrationError::CaptureMethodNotSupported {
+                    context: Default::default(),
+                }
+                .into())
             }
         }
     }
@@ -1549,7 +1573,10 @@ impl<T: PaymentMethodDataTypes> PaymentsAuthenticateData<T> {
             Some(common_enums::CaptureMethod::Manual) => Ok(false),
             Some(common_enums::CaptureMethod::ManualMultiple)
             | Some(common_enums::CaptureMethod::Scheduled) => {
-                Err(ConnectorError::CaptureMethodNotSupported.into())
+                Err(IntegrationError::CaptureMethodNotSupported {
+                    context: Default::default(),
+                }
+                .into())
             }
         }
     }
@@ -1577,7 +1604,7 @@ pub struct PaymentsIncrementalAuthorizationData {
 }
 
 #[derive(Debug, Clone)]
-pub struct PaymentsSdkSessionTokenData {
+pub struct ClientAuthenticationTokenRequestData {
     pub amount: MinorUnit,
     pub currency: Currency,
     pub country: Option<common_enums::CountryAlpha2>,
@@ -1628,7 +1655,10 @@ impl<T: PaymentMethodDataTypes> PaymentsPostAuthenticateData<T> {
             Some(common_enums::CaptureMethod::Manual) => Ok(false),
             Some(common_enums::CaptureMethod::ManualMultiple)
             | Some(common_enums::CaptureMethod::Scheduled) => {
-                Err(ConnectorError::CaptureMethodNotSupported.into())
+                Err(IntegrationError::CaptureMethodNotSupported {
+                    context: Default::default(),
+                }
+                .into())
             }
         }
     }
@@ -1639,8 +1669,9 @@ impl<T: PaymentMethodDataTypes> PaymentsPostAuthenticateData<T> {
             .as_ref()
             .and_then(|res| res.payload.to_owned())
             .ok_or(
-                ConnectorError::MissingConnectorRedirectionPayload {
+                IntegrationError::MissingRequiredField {
                     field_name: "request.redirect_response.payload",
+                    context: Default::default(),
                 }
                 .into(),
             )
@@ -1654,13 +1685,13 @@ pub struct ContinueRedirectionResponse {
 }
 
 #[derive(Debug, Clone)]
-pub struct SessionTokenRequestData {
+pub struct ServerSessionAuthenticationTokenRequestData {
     pub amount: MinorUnit,
     pub currency: Currency,
     pub browser_info: Option<BrowserInformation>,
 }
 
-impl SessionTokenRequestData {
+impl ServerSessionAuthenticationTokenRequestData {
     pub fn get_browser_info(&self) -> Result<BrowserInformation, Error> {
         self.browser_info
             .clone()
@@ -1669,17 +1700,17 @@ impl SessionTokenRequestData {
 }
 
 #[derive(Debug, Clone)]
-pub struct SessionTokenResponseData {
+pub struct ServerSessionAuthenticationTokenResponseData {
     pub session_token: String,
 }
 
 #[derive(Debug, Clone)]
-pub struct AccessTokenRequestData {
+pub struct ServerAuthenticationTokenRequestData {
     pub grant_type: String,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct AccessTokenResponseData {
+pub struct ServerAuthenticationTokenResponseData {
     pub access_token: Secret<String>,
     pub token_type: Option<String>,
     pub expires_in: Option<i64>,
@@ -1754,7 +1785,7 @@ pub struct RefundFlowData {
     pub raw_connector_response: Option<Secret<String>>,
     pub connector_response_headers: Option<http::HeaderMap>,
     pub raw_connector_request: Option<Secret<String>>,
-    pub access_token: Option<AccessTokenResponseData>,
+    pub access_token: Option<ServerAuthenticationTokenResponseData>,
     pub connector_feature_data: Option<SecretSerdeValue>,
     pub test_mode: Option<bool>,
     pub payment_method: Option<PaymentMethod>,
@@ -1796,13 +1827,16 @@ impl RefundFlowData {
             .ok_or_else(missing_field_err("access_token"))
     }
 
-    pub fn get_access_token_data(&self) -> Result<AccessTokenResponseData, Error> {
+    pub fn get_access_token_data(&self) -> Result<ServerAuthenticationTokenResponseData, Error> {
         self.access_token
             .clone()
             .ok_or_else(missing_field_err("access_token"))
     }
 
-    pub fn set_access_token(mut self, access_token: Option<AccessTokenResponseData>) -> Self {
+    pub fn set_access_token(
+        mut self,
+        access_token: Option<ServerAuthenticationTokenResponseData>,
+    ) -> Self {
         self.access_token = access_token;
         self
     }
@@ -2325,7 +2359,9 @@ impl RefundsData {
         self.connector_refund_id
             .clone()
             .get_required_value("connector_refund_id")
-            .change_context(ConnectorError::MissingConnectorTransactionID)
+            .change_context(IntegrationError::MissingConnectorTransactionID {
+                context: Default::default(),
+            })
     }
     pub fn get_webhook_url(&self) -> Result<String, Error> {
         self.webhook_url
@@ -2381,14 +2417,16 @@ impl PaymentsCaptureData {
     pub fn is_multiple_capture(&self) -> bool {
         self.multiple_capture_data.is_some()
     }
-    pub fn get_connector_transaction_id(&self) -> CustomResult<String, ConnectorError> {
+    pub fn get_connector_transaction_id(&self) -> CustomResult<String, IntegrationError> {
         match self.connector_transaction_id.clone() {
             ResponseId::ConnectorTransactionId(txn_id) => Ok(txn_id),
             _ => Err(errors::ValidationError::IncorrectValueProvided {
                 field_name: "connector_transaction_id",
             })
             .attach_printable("Expected connector transaction ID not found")
-            .change_context(ConnectorError::MissingConnectorTransactionID)?,
+            .change_context(IntegrationError::MissingConnectorTransactionID {
+                context: Default::default(),
+            })?,
         }
     }
     pub fn get_optional_language_from_browser_info(&self) -> Option<String> {
@@ -2528,14 +2566,21 @@ impl<T: PaymentMethodDataTypes> RepeatPaymentData<T> {
     pub fn get_mandate_reference(&self) -> &MandateReferenceId {
         &self.mandate_reference
     }
-    pub fn is_auto_capture(&self) -> Result<bool, Error> {
-        match self.capture_method {
-            Some(common_enums::CaptureMethod::Automatic)
-            | None
-            | Some(common_enums::CaptureMethod::SequentialAutomatic) => Ok(true),
-            Some(common_enums::CaptureMethod::Manual) => Ok(false),
-            Some(_) => Err(ConnectorError::CaptureMethodNotSupported.into()),
-        }
+    /// Returns true if payment should be automatically captured, false for manual capture.
+    ///
+    /// Maps capture methods to boolean intent:
+    /// - Automatic/SequentialAutomatic/None → true (auto capture)
+    /// - Manual/ManualMultiple/Scheduled → false (manual capture)
+    ///
+    /// Note: This is a pure getter, not a validation. Connectors that don't support
+    /// specific capture methods should validate explicitly during request building.
+    pub fn is_auto_capture(&self) -> bool {
+        !matches!(
+            self.capture_method,
+            Some(common_enums::CaptureMethod::Manual)
+                | Some(common_enums::CaptureMethod::ManualMultiple)
+                | Some(common_enums::CaptureMethod::Scheduled)
+        )
     }
     pub fn get_optional_language_from_browser_info(&self) -> Option<String> {
         self.browser_info
@@ -2769,16 +2814,18 @@ pub trait ConnectorSpecifications {
 #[macro_export]
 macro_rules! capture_method_not_supported {
     ($connector:expr, $capture_method:expr) => {
-        Err(errors::ConnectorError::NotSupported {
+        Err(errors::IntegrationError::NotSupported {
             message: format!("{} for selected payment method", $capture_method),
             connector: $connector,
+            context: Default::default(),
         }
         .into())
     };
     ($connector:expr, $capture_method:expr, $payment_method_type:expr) => {
-        Err(errors::ConnectorError::NotSupported {
+        Err(errors::IntegrationError::NotSupported {
             message: format!("{} for {}", $capture_method, $payment_method_type),
             connector: $connector,
+            context: Default::default(),
         }
         .into())
     };
@@ -2787,12 +2834,13 @@ macro_rules! capture_method_not_supported {
 #[macro_export]
 macro_rules! payment_method_not_supported {
     ($connector:expr, $payment_method:expr, $payment_method_type:expr) => {
-        Err(errors::ConnectorError::NotSupported {
+        Err(errors::IntegrationError::NotSupported {
             message: format!(
                 "Payment method {} with type {} is not supported",
                 $payment_method, $payment_method_type
             ),
             connector: $connector,
+            context: Default::default(),
         }
         .into())
     };
@@ -3364,20 +3412,37 @@ pub struct SecretInfoToInitiateSdk {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "wallet_name")]
+#[serde(tag = "sdk_type")]
 #[serde(rename_all = "snake_case")]
-pub enum SessionToken {
+pub enum ClientAuthenticationTokenData {
     /// The session response structure for Google Pay
-    GooglePay(Box<GpaySessionTokenResponse>),
+    GooglePay(Box<GpayClientAuthenticationResponse>),
     /// The session response structure for PayPal
-    Paypal(Box<PaypalSessionTokenResponse>),
+    Paypal(Box<PaypalClientAuthenticationResponse>),
     /// The session response structure for Apple Pay
-    ApplePay(Box<ApplepaySessionTokenResponse>),
+    ApplePay(Box<ApplepayClientAuthenticationResponse>),
+    /// Generic connector-specific SDK initialization data
+    ConnectorSpecific(Box<ConnectorSpecificClientAuthenticationResponse>),
+}
+
+/// Per-connector SDK initialization data — discriminated by connector
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "connector")]
+#[serde(rename_all = "snake_case")]
+pub enum ConnectorSpecificClientAuthenticationResponse {
+    /// Stripe SDK initialization data
+    Stripe(StripeClientAuthenticationResponse),
+}
+
+/// Stripe's client_secret for browser-side stripe.confirmPayment()
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StripeClientAuthenticationResponse {
+    pub client_secret: Secret<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum GpaySessionTokenResponse {
+pub enum GpayClientAuthenticationResponse {
     /// Google pay session response for non third party sdk
     GooglePaySession(GooglePaySessionResponse),
 }
@@ -3516,11 +3581,11 @@ pub struct GpaySessionTokenData {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
-pub struct ApplepaySessionTokenResponse {
+pub struct ApplepayClientAuthenticationResponse {
     /// Session object for Apple Pay
-    /// The session_token_data will be null for iOS devices because the Apple Pay session call is skipped, as there is no web domain involved
+    /// The session_response will be null for iOS devices because the Apple Pay session call is skipped, as there is no web domain involved
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub session_token_data: Option<ApplePaySessionResponse>,
+    pub session_response: Option<ApplePaySessionResponse>,
     /// Payment request object for Apple Pay
     pub payment_request_data: Option<ApplePayPaymentRequest>,
     /// The session token is w.r.t this connector
@@ -3644,7 +3709,7 @@ pub struct AmountInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
-pub struct PaypalSessionTokenResponse {
+pub struct PaypalClientAuthenticationResponse {
     /// Name of the connector
     pub connector: String,
     /// The session token for PayPal
@@ -3679,7 +3744,7 @@ pub struct PaypalSdkMetaData {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PaypalSdkSessionTokenData {
+pub struct PaypalClientAuthenticationTokenData {
     #[serde(rename = "paypal_sdk")]
     pub data: PaypalSdkMetaData,
 }
@@ -3774,6 +3839,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Zift(_) => Ok(Self::Zift),
             AuthType::Truelayer(_) => Ok(Self::Truelayer),
             AuthType::Fiservcommercehub(_) => Ok(Self::Fiservcommercehub),
+            AuthType::Itaubank(_) => Ok(Self::Itaubank),
             AuthType::Screenstream(_) => Err(error_stack::Report::new(
                 ApplicationErrorResponse::BadRequest(ApiError {
                     sub_code: "UNSUPPORTED_CONNECTOR".to_string(),

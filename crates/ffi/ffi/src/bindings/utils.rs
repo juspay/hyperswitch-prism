@@ -5,7 +5,7 @@
 
 use bytes::Bytes;
 use domain_types::connector_types::ConnectorEnum;
-use domain_types::errors::{ApplicationErrorResponse, ConnectorError};
+use domain_types::errors::ApplicationErrorResponse;
 use domain_types::router_data::ConnectorSpecificConfig;
 use domain_types::router_response_types::Response;
 use domain_types::utils::ForeignTryFrom;
@@ -165,9 +165,9 @@ pub fn parse_metadata_for_req(
 
     // 3. Convert proto config to domain ConnectorSpecificConfig
     let connector_config = ConnectorSpecificConfig::foreign_try_from(proto_config.clone())
-        .map_err(|e: Report<ConnectorError>| {
-            let app_error: ApplicationErrorResponse = e.current_context().switch();
-            app_error.switch()
+        .map_err(|e: Report<domain_types::errors::IntegrationError>| {
+            let app: ApplicationErrorResponse = ErrorSwitch::switch(e.current_context());
+            ErrorSwitch::switch(&app)
         })?;
 
     Ok(crate::types::FfiMetadataPayload {
@@ -208,9 +208,9 @@ pub fn parse_metadata_for_res(
 
     // 3. Convert proto config to domain ConnectorSpecificConfig
     let connector_config = ConnectorSpecificConfig::foreign_try_from(proto_config.clone())
-        .map_err(|e: Report<ConnectorError>| {
-            let app_error: ApplicationErrorResponse = e.current_context().switch();
-            app_error.switch()
+        .map_err(|e: Report<domain_types::errors::IntegrationError>| {
+            let app: ApplicationErrorResponse = ErrorSwitch::switch(e.current_context());
+            ErrorSwitch::switch(&app)
         })?;
 
     Ok(crate::types::FfiMetadataPayload {
