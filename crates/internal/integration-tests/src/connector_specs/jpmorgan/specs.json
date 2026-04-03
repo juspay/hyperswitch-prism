@@ -3,11 +3,9 @@
   "supported_suites": [
     "authorize",
     "capture",
-    "refund",
     "get",
-    "refund_sync"
-  ],
-  "unsupported_suites": [
+    "refund",
+    "refund_sync",
     "void"
   ]
 }

@@ -1,14 +1,13 @@
 {
   "connector": "revolv3",
-  "supported_suites": [],
-  "unsupported_suites": [
+  "supported_suites": [
     "authorize",
-    "get",
     "capture",
-    "void",
+    "get",
+    "recurring_charge",
     "refund",
     "refund_sync",
     "setup_recurring",
-    "recurring_charge"
+    "void"
   ]
 }

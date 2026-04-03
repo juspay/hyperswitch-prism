@@ -1,18 +1,16 @@
 {
   "connector": "cybersource",
   "supported_suites": [
-    "pre_authenticate",
     "authenticate",
-    "post_authenticate",
     "authorize",
-    "refund"
-  ],
-  "unsupported_suites": [
-    "get",
     "capture",
-    "void",
+    "get",
+    "post_authenticate",
+    "pre_authenticate",
+    "recurring_charge",
+    "refund",
     "refund_sync",
     "setup_recurring",
-    "recurring_charge"
+    "void"
   ]
 }

@@ -1,9 +1,8 @@
 {
   "connector": "paytm",
-  "supported_suites": [],
-  "unsupported_suites": [
+  "supported_suites": [
     "authorize",
-    "get",
-    "create_session_token"
+    "create_session_token",
+    "get"
   ]
 }

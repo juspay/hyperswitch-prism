@@ -5,6 +5,7 @@
     "authorize",
     "capture",
     "create_customer",
+    "create_session_token",
     "get",
     "post_authenticate",
     "pre_authenticate",
@@ -13,8 +14,5 @@
     "revoke_mandate",
     "setup_recurring",
     "void"
-  ],
-  "unsupported_suites": [
-    "create_session_token"
   ]
 }

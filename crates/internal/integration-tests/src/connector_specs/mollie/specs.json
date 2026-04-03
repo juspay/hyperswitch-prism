@@ -12,9 +12,7 @@
     "refund_sync",
     "revoke_mandate",
     "setup_recurring",
+    "tokenize_payment_method",
     "void"
-  ],
-  "unsupported_suites": [
-    "tokenize_payment_method"
   ]
 }

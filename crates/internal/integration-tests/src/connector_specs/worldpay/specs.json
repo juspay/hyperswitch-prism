@@ -8,13 +8,11 @@
     "get",
     "post_authenticate",
     "pre_authenticate",
+    "recurring_charge",
     "refund",
     "refund_sync",
     "revoke_mandate",
     "setup_recurring",
     "void"
-  ],
-  "unsupported_suites": [
-    "recurring_charge"
   ]
 }

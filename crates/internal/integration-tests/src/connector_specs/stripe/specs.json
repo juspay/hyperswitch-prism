@@ -1,27 +1,23 @@
 {
   "connector": "stripe",
   "supported_suites": [
-    "create_customer",
     "authorize",
-    "complete_authorize",
     "capture",
-    "void",
-    "refund",
+    "complete_authorize",
+    "create_customer",
+    "create_sdk_session_token",
     "get",
-    "refund_sync",
-    "setup_recurring",
-    "recurring_charge",
-    "tokenize_payment_method",
-    "revoke_mandate",
     "incremental_authorization",
+    "proxy_authorize",
+    "proxy_setup_recurring",
+    "recurring_charge",
+    "refund",
+    "refund_sync",
+    "revoke_mandate",
+    "setup_recurring",
     "token_authorize",
     "token_setup_recurring",
-    "proxy_authorize",
-    "proxy_setup_recurring"
-  ],
-  "unsupported_suites": [
-    "payment_method_eligibility",
-    "create_session_token",
-    "create_sdk_session_token"
+    "tokenize_payment_method",
+    "void"
   ]
 }

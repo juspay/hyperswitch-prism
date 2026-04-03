@@ -1,5 +1,4 @@
 {
   "connector": "itaubank",
-  "supported_suites": [],
-  "unsupported_suites": []
+  "supported_suites": []
 }

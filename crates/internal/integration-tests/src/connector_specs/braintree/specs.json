@@ -1,16 +1,14 @@
 {
   "connector": "braintree",
   "supported_suites": [
-    "tokenize_payment_method",
     "authorize",
     "capture",
-    "void",
+    "create_sdk_session_token",
+    "get",
+    "recurring_charge",
     "refund",
     "refund_sync",
-    "get"
-  ],
-  "unsupported_suites": [
-    "create_sdk_session_token",
-    "recurring_charge"
+    "tokenize_payment_method",
+    "void"
   ]
 }

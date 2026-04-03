@@ -1,4 +1,4 @@
-//! Two-phase check for connector integration-test coverage.
+//! Three-phase check for connector integration-test coverage.
 //!
 //! **Phase 1 — connector list parity**
 //! Verifies that every `.rs` file in `crates/integrations/connector-integration/src/connectors/`
@@ -8,9 +8,16 @@
 //!
 //! **Phase 2 — flow → suite coverage**
 //! For every connector that has a `create_all_prerequisites!` macro, verifies
-//! that every flow listed there is accounted for in that connector's
-//! `connector_specs/<name>/specs.json` (either in `supported_suites` or
-//! `unsupported_suites`).  Exits non-zero if any suite is missing.
+//! that every flow listed there appears in that connector's
+//! `connector_specs/<name>/specs.json` `supported_suites` list.
+//! Exits non-zero if any suite is missing — there is no escape hatch.
+//! When a connector does not yet support a flow's suite, do not add it to
+//! the flow-to-suite mapping in `flow_to_suites` (map it to `None` instead).
+//!
+//! **Phase 3 — testable suite report**
+//! For every known proto suite, reports whether it has a `scenario.json` and
+//! at least one connector declaring support. Suites missing either are printed
+//! as informational gaps (does not cause a non-zero exit).
 //!
 //! Run with:
 //!   cargo run --bin check_connector_specs
@@ -81,8 +88,6 @@ fn flow_to_suites(flow: &str) -> Option<&'static [&'static str]> {
 struct ConnectorSpecs {
     #[serde(default)]
     supported_suites: Vec<String>,
-    #[serde(default)]
-    unsupported_suites: Vec<String>,
 }
 
 // ---------------------------------------------------------------------------
@@ -146,6 +151,44 @@ fn extract_balanced_parens(src: &str, start: usize) -> &str {
 }
 
 // ---------------------------------------------------------------------------
+// Known proto suites (mirrors ALL_PROTO_SUITES in sdk_executor.rs)
+// ---------------------------------------------------------------------------
+
+/// Complete list of proto service suites known to the gRPC interface.
+/// Keep in sync with `grpc_method_for_suite` in `scenario_api.rs`.
+const ALL_PROTO_SUITES: &[&str] = &[
+    "server_authentication_token",
+    "server_session_authentication_token",
+    "client_authentication_token",
+    "create_customer",
+    "pre_authenticate",
+    "authenticate",
+    "post_authenticate",
+    "authorize",
+    "complete_authorize",
+    "capture",
+    "refund",
+    "void",
+    "get",
+    "refund_sync",
+    "setup_recurring",
+    "recurring_charge",
+    "create_order",
+    "tokenize_payment_method",
+    "revoke_mandate",
+    "incremental_authorization",
+    "reverse",
+    "create_session_token",
+    "create_sdk_session_token",
+    "verify_redirect_response",
+    "token_authorize",
+    "token_setup_recurring",
+    "proxy_authorize",
+    "proxy_setup_recurring",
+    "payment_method_eligibility",
+];
+
+// ---------------------------------------------------------------------------
 // main
 // ---------------------------------------------------------------------------
 
@@ -164,6 +207,7 @@ fn main() {
 
     let connectors_src = root.join("crates/integrations/connector-integration/src/connectors");
     let specs_root = root.join("crates/internal/integration-tests/src/connector_specs");
+    let suites_root = root.join("crates/internal/integration-tests/src/global_suites");
 
     // -----------------------------------------------------------------------
     // Phase 1: connector list parity
@@ -284,11 +328,6 @@ fn main() {
         };
 
         let supported: BTreeSet<&str> = specs.supported_suites.iter().map(String::as_str).collect();
-        let unsupported: BTreeSet<&str> = specs
-            .unsupported_suites
-            .iter()
-            .map(String::as_str)
-            .collect();
 
         for flow in &flows {
             let Some(suites) = flow_to_suites(flow) else {
@@ -296,7 +335,7 @@ fn main() {
             };
 
             for &suite in suites {
-                if supported.contains(suite) || unsupported.contains(suite) {
+                if supported.contains(suite) {
                     covered_summary
                         .entry(connector.clone())
                         .or_default()
@@ -332,7 +371,7 @@ fn main() {
                 }
             }
             for (flow, suite) in missing.unwrap() {
-                println!("       MISSING flow={flow:<35} suite={suite}  (not in supported_suites or unsupported_suites)");
+                println!("       MISSING flow={flow:<35} suite={suite}  (not in supported_suites)");
             }
         } else {
             let n = covered.map(|v| v.len()).unwrap_or(0);
@@ -362,6 +401,98 @@ fn main() {
         );
     }
 
+    // -----------------------------------------------------------------------
+    // Phase 3: testable suite report
+    // -----------------------------------------------------------------------
+    println!();
+    println!("{}", "=".repeat(80));
+    println!("PHASE 3 — TESTABLE SUITE REPORT");
+    println!("{}", "=".repeat(80));
+    println!();
+    println!(
+        "{:<35} {:<12} {:<12} {}",
+        "Suite", "Scenarios", "Connectors", "Status"
+    );
+    println!("{}", "-".repeat(80));
+
+    // Build suite → connector list from all specs.json files.
+    let mut suite_connectors: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    for connector in &spec_connectors {
+        let path = specs_root.join(connector).join("specs.json");
+        let Ok(content) = fs::read_to_string(&path) else {
+            continue;
+        };
+        let Ok(specs) = serde_json::from_str::<ConnectorSpecs>(&content) else {
+            continue;
+        };
+        for suite in specs.supported_suites {
+            suite_connectors
+                .entry(suite)
+                .or_default()
+                .push(connector.clone());
+        }
+    }
+
+    let mut testable_count = 0usize;
+    let mut not_testable: Vec<(&str, &str)> = Vec::new(); // (suite, reason)
+
+    for &suite in ALL_PROTO_SUITES {
+        let suite_dir = suites_root.join(format!("{suite}_suite"));
+        let has_scenario = suite_dir.join("scenario.json").exists();
+        let connector_list = suite_connectors.get(suite).cloned().unwrap_or_default();
+        let connector_count = connector_list.len();
+
+        let status = match (has_scenario, connector_count > 0) {
+            (true, true) => {
+                testable_count += 1;
+                let examples = connector_list
+                    .iter()
+                    .take(3)
+                    .cloned()
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                let suffix = if connector_count > 3 {
+                    format!(", +{}", connector_count - 3)
+                } else {
+                    String::new()
+                };
+                format!("TESTABLE   ({connector_count} connectors: {examples}{suffix})")
+            }
+            (true, false) => {
+                not_testable.push((suite, "no connector declares support"));
+                "NOT READY  (no connector support)".to_string()
+            }
+            (false, true) => {
+                not_testable.push((suite, "missing scenario.json"));
+                "NOT READY  (no scenario.json)".to_string()
+            }
+            (false, false) => {
+                not_testable.push((suite, "no scenario.json and no connector support"));
+                "NOT READY  (no scenarios, no connectors)".to_string()
+            }
+        };
+
+        println!(
+            "{:<35} {:<12} {:<12} {}",
+            suite,
+            if has_scenario { "yes" } else { "MISSING" },
+            connector_count,
+            status
+        );
+    }
+
+    println!();
+    println!(
+        "Testable suites:   {testable_count} / {}",
+        ALL_PROTO_SUITES.len()
+    );
+    if !not_testable.is_empty() {
+        println!("Not yet testable:");
+        for (suite, reason) in &not_testable {
+            println!("  {suite:<35} ({reason})");
+        }
+    }
+
     println!();
     println!("--- Phase 2: Flow coverage ---");
     let total = connectors.len() - no_macro.len();
@@ -376,6 +507,14 @@ fn main() {
         println!();
         println!("Skipped connectors: {}", no_macro.join(", "));
     }
+
+    println!();
+    println!("--- Phase 3: Testable suites ---");
+    println!(
+        "Testable:                 {testable_count} / {}",
+        ALL_PROTO_SUITES.len()
+    );
+    println!("Not yet testable:         {}", not_testable.len());
 
     // -----------------------------------------------------------------------
     // Final verdict

@@ -5,9 +5,7 @@
     "capture",
     "get",
     "refund",
+    "refund_sync",
     "void"
-  ],
-  "unsupported_suites": [
-    "refund_sync"
   ]
 }

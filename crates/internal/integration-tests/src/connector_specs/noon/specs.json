@@ -2,15 +2,13 @@
   "connector": "noon",
   "supported_suites": [
     "authorize",
-    "void",
+    "capture",
+    "get",
+    "recurring_charge",
     "refund",
     "refund_sync",
-    "get"
-  ],
-  "unsupported_suites": [
-    "capture",
+    "revoke_mandate",
     "setup_recurring",
-    "recurring_charge",
-    "revoke_mandate"
+    "void"
   ]
 }

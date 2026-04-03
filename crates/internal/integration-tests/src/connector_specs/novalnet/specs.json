@@ -2,14 +2,12 @@
   "connector": "novalnet",
   "supported_suites": [
     "authorize",
-    "refund"
-  ],
-  "unsupported_suites": [
-    "get",
     "capture",
-    "void",
+    "get",
+    "recurring_charge",
+    "refund",
     "refund_sync",
     "setup_recurring",
-    "recurring_charge"
+    "void"
   ]
 }

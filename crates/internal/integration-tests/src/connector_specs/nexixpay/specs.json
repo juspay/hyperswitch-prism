@@ -2,16 +2,14 @@
   "connector": "nexixpay",
   "supported_suites": [
     "authorize",
-    "pre_authenticate",
-    "post_authenticate",
-    "complete_authorize",
-    "refund"
-  ],
-  "unsupported_suites": [
-    "get",
     "capture",
-    "void",
-    "refund_sync"
+    "complete_authorize",
+    "get",
+    "post_authenticate",
+    "pre_authenticate",
+    "refund",
+    "refund_sync",
+    "void"
   ],
   "request_id_source_field": "merchant_order_id",
   "request_id_prefix": "pay_",
