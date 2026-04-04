@@ -3,9 +3,9 @@
 # This Makefile should be run from the repository root
 
 .PHONY: help build build-all build-macos build-linux clean check-cargo generate install-deps \
-        generate-descriptor generate-rust generate-flows-python generate-flows-javascript generate-flows-java \
-        test test-rust test-grpc test-python test-javascript test-java \
-        dist dist-python dist-javascript dist-java
+        generate-descriptor generate-rust generate-flows-python generate-flows-javascript generate-flows-java generate-php \
+        test test-rust test-grpc test-python test-javascript test-java test-php \
+        dist dist-python dist-javascript dist-java dist-php
 
 # Default target
 .DEFAULT_GOAL := help
@@ -131,6 +131,9 @@ generate-javascript: ## Regenerate JavaScript/TypeScript SDK client (flows)
 generate-kotlin: ## Regenerate Kotlin SDK client (flows + bindings)
 	@$(MAKE) -C $(MAKEFILE_DIR)java generate-bindings generate-flows
 
+generate-php: ## Regenerate PHP SDK client (flows)
+	@$(MAKE) -C $(MAKEFILE_DIR)php generate-flows
+
 # ---------------------------------------------------------------------------
 # generate-descriptor
 # Generates the proto descriptor file used by all SDK codegen scripts.
@@ -176,7 +179,7 @@ generate-client-java: generate-descriptor
 # Main entry point for regenerating all SDK clients.
 # Generates the descriptor, then delegates to each SDK's generate-client target.
 # ---------------------------------------------------------------------------
-generate: install-deps generate-descriptor generate-rust generate-grpc-client generate-python generate-javascript generate-kotlin ## Auto-discover flows and regenerate all SDK clients
+generate: install-deps generate-descriptor generate-rust generate-grpc-client generate-python generate-javascript generate-kotlin generate-php ## Auto-discover flows and regenerate all SDK clients
 	@echo
 	@echo "Generating Python protobuf stubs (_pb2.pyi)..."
 	@mkdir -p $(REPO_ROOT)/sdk/python/src/payments/generated
@@ -194,7 +197,7 @@ generate: install-deps generate-descriptor generate-rust generate-grpc-client ge
 # ---------------------------------------------------------------------------
 # Test targets - delegate to SDK-specific test-package
 # ---------------------------------------------------------------------------
-test: test-rust test-python test-javascript test-java ## Run all SDK smoke tests
+test: test-rust test-python test-javascript test-java test-php ## Run all SDK smoke tests
 
 test-rust: ## Run Rust FFI smoke test
 	@$(MAKE) -C $(REPO_ROOT)/sdk/rust test-package CONNECTORS=$(CONNECTORS)
@@ -288,6 +291,10 @@ test-grpc: ## Run gRPC smoke tests for all SDKs (Rust + JS + Python + Kotlin) wi
 		exit $$TOTAL; \
 	}
 
+test-php: build-ffi-lib ## Build FFI → Run PHP smoke test
+	@$(MAKE) -C $(REPO_ROOT)/sdk/php test-package CONNECTORS=$(CONNECTORS)
+
+
 test-python: build-ffi-lib ## Build FFI → Run Python smoke test
 	@$(MAKE) -C $(REPO_ROOT)/sdk/python test-package CONNECTORS=$(CONNECTORS)
 
@@ -297,10 +304,11 @@ test-javascript: build-ffi-lib ## Build FFI → Run JavaScript smoke test
 test-java: build-ffi-lib ## Build FFI → Run Java smoke test
 	@$(MAKE) -C $(REPO_ROOT)/sdk/java test-package CONNECTORS=$(CONNECTORS)
 
+
 # ---------------------------------------------------------------------------
 # Distribution targets - delegate to SDK-specific dist
 # ---------------------------------------------------------------------------
-dist: dist-python dist-javascript dist-java ## Build all SDK distribution packages
+dist: dist-python dist-javascript dist-java dist-php ## Build all SDK distribution packages
 
 dist-python: build-ffi-lib ## Build FFI → Build Python wheel
 	@$(MAKE) -C $(REPO_ROOT)/sdk/python dist
@@ -310,6 +318,9 @@ dist-javascript: build-ffi-lib ## Build FFI → Build JS npm package
 
 dist-java: build-ffi-lib ## Build FFI → Build Java JAR
 	@$(MAKE) -C $(REPO_ROOT)/sdk/java dist
+
+dist-php: build-ffi-lib ## Build FFI → Build PHP Composer archive
+	@$(MAKE) -C $(REPO_ROOT)/sdk/php dist
 
 # ---------------------------------------------------------------------------
 # Clean - comprehensive cleanup across all SDKs
@@ -323,4 +334,5 @@ clean: ## Clean all build artifacts
 	@$(MAKE) -C $(REPO_ROOT)/sdk/python clean
 	@$(MAKE) -C $(REPO_ROOT)/sdk/javascript clean
 	@$(MAKE) -C $(REPO_ROOT)/sdk/java clean
+	@$(MAKE) -C $(REPO_ROOT)/sdk/php clean
 	@echo "Clean complete."

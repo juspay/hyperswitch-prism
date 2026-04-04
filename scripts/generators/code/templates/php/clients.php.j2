@@ -1,0 +1,33 @@
+<?php
+
+// AUTO-GENERATED — do not edit by hand.
+// Source: services.proto ∩ bindings/uniffi.rs  |  Regenerate: make generate
+
+declare(strict_types=1);
+
+namespace Payments;
+
+use Types\RequestConfig;
+
+{% for service in all_services %}
+class {{ service_to_client_name(service) }} extends ConnectorClientBase
+{
+{% for f in groups.get(service, []) %}
+    /** {{ f.service }}.{{ f.rpc }} — {{ f.description }} */
+    public function {{ to_camel(f.name) }}($request, ?RequestConfig $options = null): \Types\{{ f.response }}
+    {
+        return $this->executeFlow('{{ f.name }}', $request, \Types\{{ f.response }}::class, $options);
+    }
+
+{% endfor %}
+{% for f in single_groups.get(service, []) %}
+    /** {{ f.service }}.{{ f.rpc }} — {{ f.description }} */
+    public function {{ to_camel(f.name) }}($request, ?RequestConfig $options = null): \Types\{{ f.response }}
+    {
+        return $this->executeDirect('{{ f.name }}', $request, \Types\{{ f.response }}::class, $options);
+    }
+
+{% endfor %}
+}
+
+{% endfor %}

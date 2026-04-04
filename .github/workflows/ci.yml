@@ -198,6 +198,13 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: ffi
+          ini-values: ffi.enable=1
+
       - uses: Swatinem/rust-cache@v2.7.8
         with:
           cache-on-failure: true
