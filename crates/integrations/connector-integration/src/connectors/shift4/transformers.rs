@@ -12,7 +12,7 @@ use domain_types::{
         ResponseId,
     },
     payment_method_data::{
-        BankRedirectData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
+        BankRedirectData, PayLaterData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
     },
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
@@ -147,6 +147,23 @@ pub struct Shift4PaymentsRequest<T: PaymentMethodDataTypes> {
 pub enum Shift4PaymentMethod<T: PaymentMethodDataTypes> {
     Card(Shift4CardPayment<T>),
     BankRedirect(Shift4BankRedirectPayment),
+    PayLater(Shift4PayLaterPayment),
+}
+
+// PayLater (Klarna) Payment Structures
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Shift4PayLaterPayment {
+    pub payment_method: Shift4KlarnaPaymentMethod,
+    pub flow: Shift4FlowRequest,
+}
+
+#[derive(Debug, Serialize)]
+pub struct Shift4KlarnaPaymentMethod {
+    #[serde(rename = "type")]
+    pub payment_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub billing: Option<Shift4Billing>,
 }
 
 #[derive(Debug, Serialize)]
@@ -343,6 +360,75 @@ impl<T: PaymentMethodDataTypes>
                     payment_method: bank_redirect_method,
                     flow: Some(Shift4FlowRequest { return_url }),
                 })
+            }
+            PaymentMethodData::PayLater(pay_later_data) => {
+                match pay_later_data {
+                    PayLaterData::KlarnaRedirect { .. } => {
+                        let return_url = item.request.get_router_return_url().change_context(
+                            IntegrationError::MissingRequiredField {
+                                field_name: "return_url",
+                                context: Default::default(),
+                            },
+                        )?;
+
+                        // Extract billing information
+                        let billing = item
+                            .resource_common_data
+                            .address
+                            .get_payment_method_billing();
+                        let name = billing.as_ref().and_then(|b| b.get_optional_full_name());
+                        let email = item
+                            .request
+                            .email
+                            .as_ref()
+                            .cloned()
+                            .or_else(|| {
+                                billing.as_ref().and_then(|b| b.email.as_ref()).cloned()
+                            });
+                        let address = billing
+                            .as_ref()
+                            .and_then(|b| b.address.as_ref())
+                            .map(|addr| Shift4Address {
+                                line1: addr.line1.clone(),
+                                line2: addr.line2.clone(),
+                                city: addr.city.clone(),
+                                state: addr.state.clone(),
+                                zip: addr.zip.clone(),
+                                country: addr.country.as_ref().map(|c| c.to_string()),
+                            });
+
+                        let billing_info = if name.is_some()
+                            || email.is_some()
+                            || address.is_some()
+                        {
+                            Some(Shift4Billing {
+                                name,
+                                email,
+                                address,
+                            })
+                        } else {
+                            None
+                        };
+
+                        Shift4PaymentMethod::PayLater(Shift4PayLaterPayment {
+                            payment_method: Shift4KlarnaPaymentMethod {
+                                payment_type: "klarna_debit_risk".to_string(),
+                                billing: billing_info,
+                            },
+                            flow: Shift4FlowRequest { return_url },
+                        })
+                    }
+                    _ => {
+                        return Err(error_stack::report!(IntegrationError::NotSupported {
+                            message: format!(
+                                "PayLater type {:?} is not supported by Shift4",
+                                pay_later_data
+                            ),
+                            connector: "Shift4",
+                            context: Default::default()
+                        }))
+                    }
+                }
             }
             _ => {
                 return Err(error_stack::report!(IntegrationError::NotSupported {
