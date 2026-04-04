@@ -47,8 +47,7 @@ def _build_authorize_request(capture_method: str):
                 }
             },
             "auth_type": "NO_THREE_DS",  # Authentication Details
-            "return_url": "https://example.com/return",  # URLs for Redirection and Webhooks
-            "payment_method_token": {"value": "probe_pm_token"}  # Payment Method Token
+            "return_url": "https://example.com/return"  # URLs for Redirection and Webhooks
         },
         payment_pb2.PaymentServiceAuthorizeRequest(),
     )
@@ -168,8 +167,7 @@ async def process_checkout_wallet(merchant_transaction_id: str, config: sdk_conf
                 }
             },
             "auth_type": "NO_THREE_DS",  # Authentication Details
-            "return_url": "https://example.com/return",  # URLs for Redirection and Webhooks
-            "payment_method_token": {"value": "probe_pm_token"}  # Payment Method Token
+            "return_url": "https://example.com/return"  # URLs for Redirection and Webhooks
         },
         payment_pb2.PaymentServiceAuthorizeRequest(),
     ))
@@ -210,8 +208,7 @@ async def process_checkout_bank(merchant_transaction_id: str, config: sdk_config
                 }
             },
             "auth_type": "NO_THREE_DS",  # Authentication Details
-            "return_url": "https://example.com/return",  # URLs for Redirection and Webhooks
-            "payment_method_token": {"value": "probe_pm_token"}  # Payment Method Token
+            "return_url": "https://example.com/return"  # URLs for Redirection and Webhooks
         },
         payment_pb2.PaymentServiceAuthorizeRequest(),
     ))

@@ -41,7 +41,7 @@
       },
       "Card": {
         "status": "error",
-        "error": "Stuck on field: billing.address.zip — Missing required field: billing.address.zip"
+        "error": "Stuck on field: billing.address.zip \u2014 Missing required field: billing.address.zip"
       },
       "GooglePay": {
         "status": "not_implemented",
@@ -260,7 +260,7 @@
     "setup_recurring": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: billing.address.zip — Missing required field: billing.address.zip"
+        "error": "Stuck on field: billing.address.zip \u2014 Missing required field: billing.address.zip"
       }
     },
     "tokenize": {

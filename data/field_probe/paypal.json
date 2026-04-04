@@ -307,7 +307,7 @@
     "post_authenticate": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: reference_id — Missing required field: reference_id (order_id)"
+        "error": "Stuck on field: reference_id \u2014 Missing required field: reference_id (order_id)"
       }
     },
     "pre_authenticate": {

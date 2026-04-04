@@ -4,7 +4,7 @@
     "authenticate": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: redirect_response — Missing required field: redirect_response"
+        "error": "Stuck on field: redirect_response \u2014 Missing required field: redirect_response"
       }
     },
     "authorize": {
@@ -398,7 +398,7 @@
     "post_authenticate": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: redirect_response — Missing required field: redirect_response"
+        "error": "Stuck on field: redirect_response \u2014 Missing required field: redirect_response"
       }
     },
     "pre_authenticate": {

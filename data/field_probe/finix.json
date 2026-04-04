@@ -27,8 +27,7 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
+          "return_url": "https://example.com/return"
         },
         "sample": {
           "url": "https://finix.sandbox-payments-api.com/transfers",
@@ -57,8 +56,7 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
+          "return_url": "https://example.com/return"
         },
         "sample": {
           "url": "https://finix.sandbox-payments-api.com/transfers",
@@ -87,8 +85,7 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
+          "return_url": "https://example.com/return"
         },
         "sample": {
           "url": "https://finix.sandbox-payments-api.com/transfers",
@@ -127,8 +124,7 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
+          "return_url": "https://example.com/return"
         },
         "sample": {
           "url": "https://finix.sandbox-payments-api.com/transfers",
@@ -175,8 +171,7 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
+          "return_url": "https://example.com/return"
         },
         "sample": {
           "url": "https://finix.sandbox-payments-api.com/transfers",
@@ -209,8 +204,7 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
+          "return_url": "https://example.com/return"
         },
         "sample": {
           "url": "https://finix.sandbox-payments-api.com/transfers",
@@ -243,8 +237,7 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
+          "return_url": "https://example.com/return"
         },
         "sample": {
           "url": "https://finix.sandbox-payments-api.com/transfers",
@@ -275,8 +268,7 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
+          "return_url": "https://example.com/return"
         },
         "sample": {
           "url": "https://finix.sandbox-payments-api.com/transfers",
@@ -311,8 +303,7 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
+          "return_url": "https://example.com/return"
         },
         "sample": {
           "url": "https://finix.sandbox-payments-api.com/transfers",
@@ -354,8 +345,7 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
+          "return_url": "https://example.com/return"
         },
         "sample": {
           "url": "https://finix.sandbox-payments-api.com/transfers",
@@ -400,8 +390,7 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
+          "return_url": "https://example.com/return"
         },
         "sample": {
           "url": "https://finix.sandbox-payments-api.com/transfers",
@@ -430,8 +419,7 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
+          "return_url": "https://example.com/return"
         },
         "sample": {
           "url": "https://finix.sandbox-payments-api.com/transfers",
@@ -460,8 +448,7 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
+          "return_url": "https://example.com/return"
         },
         "sample": {
           "url": "https://finix.sandbox-payments-api.com/transfers",
@@ -492,8 +479,7 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
+          "return_url": "https://example.com/return"
         },
         "sample": {
           "url": "https://finix.sandbox-payments-api.com/transfers",
@@ -534,8 +520,7 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
+          "return_url": "https://example.com/return"
         },
         "sample": {
           "url": "https://finix.sandbox-payments-api.com/transfers",
@@ -567,8 +552,7 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
+          "return_url": "https://example.com/return"
         },
         "sample": {
           "url": "https://finix.sandbox-payments-api.com/transfers",
@@ -599,8 +583,7 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
+          "return_url": "https://example.com/return"
         },
         "sample": {
           "url": "https://finix.sandbox-payments-api.com/transfers",

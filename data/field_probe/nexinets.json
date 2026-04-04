@@ -60,7 +60,7 @@
       },
       "ApplePayDecrypted": {
         "status": "error",
-        "error": "Stuck on field: Apple pay encrypted data — Missing required field: Apple pay encrypted data"
+        "error": "Stuck on field: Apple pay encrypted data \u2014 Missing required field: Apple pay encrypted data"
       },
       "Bacs": {
         "status": "not_implemented",

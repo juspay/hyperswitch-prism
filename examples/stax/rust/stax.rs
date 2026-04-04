@@ -46,7 +46,6 @@ fn build_authorize_request(capture_method: &str) -> PaymentServiceAuthorizeReque
     },
     "auth_type": "NO_THREE_DS",  // Authentication Details
     "return_url": "https://example.com/return",  // URLs for Redirection and Webhooks
-    "payment_method_token": "probe_pm_token",  // Payment Method Token
     })).unwrap_or_default()
 }
 
@@ -158,7 +157,6 @@ pub async fn process_checkout_bank(client: &ConnectorClient, _merchant_transacti
         },
         "auth_type": "NO_THREE_DS",  // Authentication Details
         "return_url": "https://example.com/return",  // URLs for Redirection and Webhooks
-        "payment_method_token": "probe_pm_token",  // Payment Method Token
     })).unwrap_or_default(), &HashMap::new(), None).await?;
 
     match authorize_response.status() {

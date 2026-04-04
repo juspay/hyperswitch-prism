@@ -108,7 +108,7 @@ Reserve funds with Authorize, then settle with a separate Capture call. Use for 
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/paysafe/python/paysafe.py#L93) · [JavaScript](../../examples/paysafe/javascript/paysafe.js#L83) · [Kotlin](../../examples/paysafe/kotlin/paysafe.kt#L107) · [Rust](../../examples/paysafe/rust/paysafe.rs#L103)
+**Examples:** [Python](../../examples/paysafe/python/paysafe.py#L92) · [JavaScript](../../examples/paysafe/javascript/paysafe.js#L82) · [Kotlin](../../examples/paysafe/kotlin/paysafe.kt#L106) · [Rust](../../examples/paysafe/rust/paysafe.rs#L102)
 
 ### Card Payment (Automatic Capture)
 
@@ -122,7 +122,7 @@ Authorize and capture in one call using `capture_method=AUTOMATIC`. Use for digi
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/paysafe/python/paysafe.py#L118) · [JavaScript](../../examples/paysafe/javascript/paysafe.js#L109) · [Kotlin](../../examples/paysafe/kotlin/paysafe.kt#L129) · [Rust](../../examples/paysafe/rust/paysafe.rs#L126)
+**Examples:** [Python](../../examples/paysafe/python/paysafe.py#L117) · [JavaScript](../../examples/paysafe/javascript/paysafe.js#L108) · [Kotlin](../../examples/paysafe/kotlin/paysafe.kt#L128) · [Rust](../../examples/paysafe/rust/paysafe.rs#L125)
 
 ### Wallet Payment (Google Pay / Apple Pay)
 
@@ -136,7 +136,7 @@ Wallet payments pass an encrypted token from the browser/device SDK. Pass the to
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/paysafe/python/paysafe.py#L137) · [JavaScript](../../examples/paysafe/javascript/paysafe.js#L128) · [Kotlin](../../examples/paysafe/kotlin/paysafe.kt#L145) · [Rust](../../examples/paysafe/rust/paysafe.rs#L142)
+**Examples:** [Python](../../examples/paysafe/python/paysafe.py#L136) · [JavaScript](../../examples/paysafe/javascript/paysafe.js#L127) · [Kotlin](../../examples/paysafe/kotlin/paysafe.kt#L144) · [Rust](../../examples/paysafe/rust/paysafe.rs#L141)
 
 ### Bank Transfer (SEPA / ACH / BACS)
 
@@ -150,31 +150,31 @@ Direct bank debit (Sepa). Bank transfers typically use `capture_method=AUTOMATIC
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/paysafe/python/paysafe.py#L189) · [JavaScript](../../examples/paysafe/javascript/paysafe.js#L177) · [Kotlin](../../examples/paysafe/kotlin/paysafe.kt#L191) · [Rust](../../examples/paysafe/rust/paysafe.rs#L190)
+**Examples:** [Python](../../examples/paysafe/python/paysafe.py#L187) · [JavaScript](../../examples/paysafe/javascript/paysafe.js#L175) · [Kotlin](../../examples/paysafe/kotlin/paysafe.kt#L189) · [Rust](../../examples/paysafe/rust/paysafe.rs#L188)
 
 ### Refund a Payment
 
 Authorize with automatic capture, then refund the captured amount. `connector_transaction_id` from the Authorize response is reused for the Refund call.
 
-**Examples:** [Python](../../examples/paysafe/python/paysafe.py#L231) · [JavaScript](../../examples/paysafe/javascript/paysafe.js#L216) · [Kotlin](../../examples/paysafe/kotlin/paysafe.kt#L227) · [Rust](../../examples/paysafe/rust/paysafe.rs#L228)
+**Examples:** [Python](../../examples/paysafe/python/paysafe.py#L228) · [JavaScript](../../examples/paysafe/javascript/paysafe.js#L213) · [Kotlin](../../examples/paysafe/kotlin/paysafe.kt#L224) · [Rust](../../examples/paysafe/rust/paysafe.rs#L225)
 
 ### Void a Payment
 
 Authorize funds with a manual capture flag, then cancel the authorization with Void before any capture occurs. Releases the hold on the customer's funds.
 
-**Examples:** [Python](../../examples/paysafe/python/paysafe.py#L268) · [JavaScript](../../examples/paysafe/javascript/paysafe.js#L251) · [Kotlin](../../examples/paysafe/kotlin/paysafe.kt#L249) · [Rust](../../examples/paysafe/rust/paysafe.rs#L251)
+**Examples:** [Python](../../examples/paysafe/python/paysafe.py#L265) · [JavaScript](../../examples/paysafe/javascript/paysafe.js#L248) · [Kotlin](../../examples/paysafe/kotlin/paysafe.kt#L246) · [Rust](../../examples/paysafe/rust/paysafe.rs#L248)
 
 ### Get Payment Status
 
 Authorize a payment, then poll the connector for its current status using Get. Use this to sync payment state when webhooks are unavailable or delayed.
 
-**Examples:** [Python](../../examples/paysafe/python/paysafe.py#L290) · [JavaScript](../../examples/paysafe/javascript/paysafe.js#L273) · [Kotlin](../../examples/paysafe/kotlin/paysafe.kt#L268) · [Rust](../../examples/paysafe/rust/paysafe.rs#L270)
+**Examples:** [Python](../../examples/paysafe/python/paysafe.py#L287) · [JavaScript](../../examples/paysafe/javascript/paysafe.js#L270) · [Kotlin](../../examples/paysafe/kotlin/paysafe.kt#L265) · [Rust](../../examples/paysafe/rust/paysafe.rs#L267)
 
 ### Tokenize Payment Method
 
 Store card details in the connector's vault and receive a reusable payment token. Use the returned token for one-click payments and recurring billing without re-collecting card data.
 
-**Examples:** [Python](../../examples/paysafe/python/paysafe.py#L312) · [JavaScript](../../examples/paysafe/javascript/paysafe.js#L295) · [Kotlin](../../examples/paysafe/kotlin/paysafe.kt#L287) · [Rust](../../examples/paysafe/rust/paysafe.rs#L289)
+**Examples:** [Python](../../examples/paysafe/python/paysafe.py#L309) · [JavaScript](../../examples/paysafe/javascript/paysafe.js#L292) · [Kotlin](../../examples/paysafe/kotlin/paysafe.kt#L284) · [Rust](../../examples/paysafe/rust/paysafe.rs#L286)
 
 ## API Reference
 
@@ -406,7 +406,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/paysafe/python/paysafe.py#L347) · [JavaScript](../../examples/paysafe/javascript/paysafe.js#L324) · [Kotlin](../../examples/paysafe/kotlin/paysafe.kt#L316) · [Rust](../../examples/paysafe/rust/paysafe.rs#L319)
+**Examples:** [Python](../../examples/paysafe/python/paysafe.py#L344) · [JavaScript](../../examples/paysafe/javascript/paysafe.js#L321) · [Kotlin](../../examples/paysafe/kotlin/paysafe.kt#L313) · [Rust](../../examples/paysafe/rust/paysafe.rs#L316)
 
 #### PaymentService.Capture
 
@@ -417,7 +417,7 @@ Finalize an authorized payment transaction. Transfers reserved funds from custom
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/paysafe/python/paysafe.py#L356) · [JavaScript](../../examples/paysafe/javascript/paysafe.js#L333) · [Kotlin](../../examples/paysafe/kotlin/paysafe.kt#L328) · [Rust](../../examples/paysafe/rust/paysafe.rs#L331)
+**Examples:** [Python](../../examples/paysafe/python/paysafe.py#L353) · [JavaScript](../../examples/paysafe/javascript/paysafe.js#L330) · [Kotlin](../../examples/paysafe/kotlin/paysafe.kt#L325) · [Rust](../../examples/paysafe/rust/paysafe.rs#L328)
 
 #### PaymentService.Get
 
@@ -428,7 +428,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/paysafe/python/paysafe.py#L365) · [JavaScript](../../examples/paysafe/javascript/paysafe.js#L342) · [Kotlin](../../examples/paysafe/kotlin/paysafe.kt#L338) · [Rust](../../examples/paysafe/rust/paysafe.rs#L338)
+**Examples:** [Python](../../examples/paysafe/python/paysafe.py#L362) · [JavaScript](../../examples/paysafe/javascript/paysafe.js#L339) · [Kotlin](../../examples/paysafe/kotlin/paysafe.kt#L335) · [Rust](../../examples/paysafe/rust/paysafe.rs#L335)
 
 #### PaymentService.Refund
 
@@ -439,7 +439,7 @@ Initiate a refund to customer's payment method. Returns funds for returns, cance
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/paysafe/python/paysafe.py#L231) · [JavaScript](../../examples/paysafe/javascript/paysafe.js#L216) · [Kotlin](../../examples/paysafe/kotlin/paysafe.kt#L346) · [Rust](../../examples/paysafe/rust/paysafe.rs#L345)
+**Examples:** [Python](../../examples/paysafe/python/paysafe.py#L228) · [JavaScript](../../examples/paysafe/javascript/paysafe.js#L213) · [Kotlin](../../examples/paysafe/kotlin/paysafe.kt#L343) · [Rust](../../examples/paysafe/rust/paysafe.rs#L342)
 
 #### PaymentMethodService.Tokenize
 
@@ -450,7 +450,7 @@ Tokenize payment method for secure storage. Replaces raw card details with secur
 | **Request** | `PaymentMethodServiceTokenizeRequest` |
 | **Response** | `PaymentMethodServiceTokenizeResponse` |
 
-**Examples:** [Python](../../examples/paysafe/python/paysafe.py#L312) · [JavaScript](../../examples/paysafe/javascript/paysafe.js#L295) · [Kotlin](../../examples/paysafe/kotlin/paysafe.kt#L356) · [Rust](../../examples/paysafe/rust/paysafe.rs#L352)
+**Examples:** [Python](../../examples/paysafe/python/paysafe.py#L309) · [JavaScript](../../examples/paysafe/javascript/paysafe.js#L292) · [Kotlin](../../examples/paysafe/kotlin/paysafe.kt#L353) · [Rust](../../examples/paysafe/rust/paysafe.rs#L349)
 
 #### PaymentService.Void
 
@@ -461,4 +461,4 @@ Cancel an authorized payment before capture. Releases held funds back to custome
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/paysafe/python/paysafe.py#L374) · [JavaScript](../../examples/paysafe/javascript/paysafe.js#L351) · [Kotlin](../../examples/paysafe/kotlin/paysafe.kt#L383) · [Rust](../../examples/paysafe/rust/paysafe.rs#L380)
+**Examples:** [Python](../../examples/paysafe/python/paysafe.py#L371) · [JavaScript](../../examples/paysafe/javascript/paysafe.js#L348) · [Kotlin](../../examples/paysafe/kotlin/paysafe.kt#L380) · [Rust](../../examples/paysafe/rust/paysafe.rs#L377)

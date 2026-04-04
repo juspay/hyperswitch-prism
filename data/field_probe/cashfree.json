@@ -124,7 +124,7 @@
     "create_order": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: billing_address — Missing required field: billing_address"
+        "error": "Stuck on field: billing_address \u2014 Missing required field: billing_address"
       }
     },
     "create_session_token": {

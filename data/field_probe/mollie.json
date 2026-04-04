@@ -111,7 +111,7 @@
     "capture": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: description — Missing required field: description"
+        "error": "Stuck on field: description \u2014 Missing required field: description"
       }
     },
     "create_access_token": {
