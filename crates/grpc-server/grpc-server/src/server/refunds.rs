@@ -10,7 +10,7 @@ use grpc_api_types::payments::{
     refund_service_server::RefundService, RefundResponse, RefundServiceGetRequest,
 };
 
-use ucs_env::error::{ReportSwitchExt, ResultExtGrpc};
+use ucs_env::error::ResultExtGrpc;
 
 use crate::{implement_connector_operation, request::RequestData, utils};
 // Helper trait for refund operations

@@ -1,7 +1,7 @@
 use domain_types::errors::{
-    ApiClientError, ApiError, ApplicationErrorResponse, ConnectorFlowError, IntegrationError,
+    ApiClientError, ConnectorFlowError, ConnectorResponseTransformationError, IntegrationError,
+    WebhookError,
 };
-use grpc_api_types::payments::PaymentServiceAuthorizeResponse;
 use tonic::Status;
 
 use crate::logger;
@@ -55,6 +55,7 @@ where
         T::switch_from(self)
     }
 }
+
 pub trait IntoGrpcStatus {
     fn into_grpc_status(self) -> Status;
 }
@@ -90,177 +91,111 @@ pub enum ConfigurationError {
     IoError(#[from] std::io::Error),
 }
 
-/// Request-phase connector errors (`IntegrationError`) use the same HTTP mapping as
-/// [`common_utils::errors::ErrorSwitch`]; this crate defines a parallel [`ErrorSwitch`] for FFI/gRPC.
-impl ErrorSwitch<ApplicationErrorResponse> for IntegrationError {
-    fn switch(&self) -> ApplicationErrorResponse {
-        common_utils::errors::ErrorSwitch::switch(self)
-    }
-}
-
-impl ErrorSwitch<ApplicationErrorResponse> for ConnectorFlowError {
-    fn switch(&self) -> ApplicationErrorResponse {
-        common_utils::errors::ErrorSwitch::switch(self)
-    }
-}
-
-impl ErrorSwitch<ApplicationErrorResponse> for ApiClientError {
-    fn switch(&self) -> ApplicationErrorResponse {
-        match self {
-            Self::HeaderMapConstructionFailed
-            | Self::InvalidProxyConfiguration
-            | Self::ClientConstructionFailed
-            | Self::CertificateDecodeFailed
-            | Self::BodySerializationFailed
-            | Self::UnexpectedState
-            | Self::UrlEncodingFailed
-            | Self::RequestNotSent(_)
-            | Self::ResponseDecodingFailed
-            | Self::InternalServerErrorReceived
-            | Self::BadGatewayReceived
-            | Self::ServiceUnavailableReceived
-            | Self::UrlParsingFailed
-            | Self::UnexpectedServerResponse => {
-                ApplicationErrorResponse::InternalServerError(ApiError {
-                    sub_code: "INTERNAL_SERVER_ERROR".to_string(),
-                    error_identifier: 500,
-                    error_message: self.to_string(),
-                    error_object: None,
-                })
-            }
-            Self::RequestTimeoutReceived | Self::GatewayTimeoutReceived => {
-                ApplicationErrorResponse::InternalServerError(ApiError {
-                    sub_code: "REQUEST_TIMEOUT".to_string(),
-                    error_identifier: 504,
-                    error_message: self.to_string(),
-                    error_object: None,
-                })
-            }
-            Self::ConnectionClosedIncompleteMessage => {
-                ApplicationErrorResponse::InternalServerError(ApiError {
-                    sub_code: "INTERNAL_SERVER_ERROR".to_string(),
-                    error_identifier: 500,
-                    error_message: self.to_string(),
-                    error_object: None,
-                })
-            }
+/// Direct gRPC status mapping for `IntegrationError` (request phase).
+/// Missing/invalid input → invalid_argument (400)
+/// Flow/feature unsupported → failed_precondition (400)
+/// Auth/config failures → unauthenticated or internal (401/500)
+/// Internal build/encode failures → internal (500)
+impl IntoGrpcStatus for error_stack::Report<IntegrationError> {
+    fn into_grpc_status(self) -> Status {
+        logger::error!(error=?self);
+        let msg = self.current_context().to_string();
+        match self.current_context() {
+            IntegrationError::MissingRequiredField { .. }
+            | IntegrationError::MissingRequiredFields { .. }
+            | IntegrationError::InvalidDataFormat { .. }
+            | IntegrationError::MismatchedPaymentData { .. }
+            | IntegrationError::InvalidWallet { .. }
+            | IntegrationError::InvalidWalletToken { .. }
+            | IntegrationError::MissingPaymentMethodType { .. }
+            | IntegrationError::CurrencyNotSupported { .. }
+            | IntegrationError::AmountConversionFailed { .. }
+            | IntegrationError::MandatePaymentDataMismatch { .. }
+            | IntegrationError::MissingApplePayTokenData { .. } => Status::invalid_argument(msg),
+            IntegrationError::FlowNotSupported { .. }
+            | IntegrationError::NotSupported { .. }
+            | IntegrationError::CaptureMethodNotSupported { .. }
+            | IntegrationError::NotImplemented(..) => Status::failed_precondition(msg),
+            IntegrationError::FailedToObtainAuthType { .. }
+            | IntegrationError::InvalidConnectorConfig { .. }
+            | IntegrationError::ConfigurationError { .. }
+            | IntegrationError::NoConnectorMetaData { .. } => Status::unauthenticated(msg),
+            IntegrationError::SourceVerificationFailed { .. } => Status::unauthenticated(msg),
+            IntegrationError::MissingConnectorTransactionID { .. }
+            | IntegrationError::MissingConnectorRefundID { .. }
+            | IntegrationError::MissingConnectorMandateID { .. }
+            | IntegrationError::MissingConnectorMandateMetadata { .. }
+            | IntegrationError::MissingConnectorRelatedTransactionID { .. }
+            | IntegrationError::MaxFieldLengthViolated { .. }
+            | IntegrationError::FailedToObtainIntegrationUrl { .. }
+            | IntegrationError::RequestEncodingFailed { .. }
+            | IntegrationError::HeaderMapConstructionFailed { .. }
+            | IntegrationError::BodySerializationFailed { .. }
+            | IntegrationError::UrlParsingFailed { .. }
+            | IntegrationError::UrlEncodingFailed { .. } => Status::internal(msg),
         }
     }
 }
 
-impl IntoGrpcStatus for error_stack::Report<ApplicationErrorResponse> {
+/// Direct gRPC status mapping for `ConnectorResponseTransformationError` (response phase).
+/// All response-phase failures are internal errors — the request reached the connector
+/// but we failed to process its response.
+impl IntoGrpcStatus for error_stack::Report<ConnectorResponseTransformationError> {
+    fn into_grpc_status(self) -> Status {
+        logger::error!(error=?self);
+        Status::internal(self.current_context().to_string())
+    }
+}
+
+/// Direct gRPC status mapping for `ApiClientError` (network/transport phase).
+impl IntoGrpcStatus for error_stack::Report<ApiClientError> {
+    fn into_grpc_status(self) -> Status {
+        logger::error!(error=?self);
+        let msg = self.current_context().to_string();
+        match self.current_context() {
+            ApiClientError::RequestTimeoutReceived | ApiClientError::GatewayTimeoutReceived => {
+                Status::deadline_exceeded(msg)
+            }
+            ApiClientError::ServiceUnavailableReceived => Status::unavailable(msg),
+            _ => Status::internal(msg),
+        }
+    }
+}
+
+/// Direct gRPC status mapping for `ConnectorFlowError` (unified gRPC path wrapper).
+impl IntoGrpcStatus for error_stack::Report<ConnectorFlowError> {
     fn into_grpc_status(self) -> Status {
         logger::error!(error=?self);
         match self.current_context() {
-            ApplicationErrorResponse::Unauthorized(api_error) => {
-                Status::unauthenticated(&api_error.error_message)
+            ConnectorFlowError::Request(e) => {
+                error_stack::Report::new(e.clone()).into_grpc_status()
             }
-            ApplicationErrorResponse::ForbiddenCommonResource(api_error)
-            | ApplicationErrorResponse::ForbiddenPrivateResource(api_error) => {
-                Status::permission_denied(&api_error.error_message)
-            }
-            ApplicationErrorResponse::Conflict(api_error)
-            | ApplicationErrorResponse::Gone(api_error)
-            | ApplicationErrorResponse::Unprocessable(api_error)
-            | ApplicationErrorResponse::InternalServerError(api_error)
-            | ApplicationErrorResponse::MethodNotAllowed(api_error)
-            | ApplicationErrorResponse::DomainError(api_error) => {
-                Status::internal(&api_error.error_message)
-            }
-            ApplicationErrorResponse::NotImplemented(api_error) => {
-                Status::unimplemented(&api_error.error_message)
-            }
-            ApplicationErrorResponse::NotFound(api_error) => {
-                Status::not_found(&api_error.error_message)
-            }
-            ApplicationErrorResponse::BadRequest(api_error) => {
-                Status::invalid_argument(&api_error.error_message)
+            ConnectorFlowError::Client(e) => error_stack::Report::new(e.clone()).into_grpc_status(),
+            ConnectorFlowError::Response(e) => {
+                error_stack::Report::new(e.clone()).into_grpc_status()
             }
         }
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct PaymentAuthorizationError {
-    pub status: grpc_api_types::payments::PaymentStatus,
-    pub error_message: Option<String>,
-    pub error_code: Option<String>,
-    pub status_code: Option<u32>,
-}
-
-impl PaymentAuthorizationError {
-    pub fn new(
-        status: grpc_api_types::payments::PaymentStatus,
-        error_message: Option<String>,
-        error_code: Option<String>,
-        status_code: Option<u32>,
-    ) -> Self {
-        Self {
-            status,
-            error_message,
-            error_code,
-            status_code,
-        }
-    }
-}
-
-impl From<PaymentAuthorizationError> for PaymentServiceAuthorizeResponse {
-    fn from(error: PaymentAuthorizationError) -> Self {
-        Self {
-            merchant_transaction_id: None,
-            connector_transaction_id: None,
-            redirection_data: None,
-            network_transaction_id: None,
-            incremental_authorization_allowed: None,
-            status: error.status.into(),
-            error: Some(grpc_api_types::payments::ErrorInfo {
-                unified_details: None,
-                connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
-                    code: error.error_code.clone(),
-                    message: error.error_message.clone(),
-                    reason: None,
-                }),
-                issuer_details: None,
-            }),
-            status_code: error.status_code.unwrap_or(500),
-            response_headers: std::collections::HashMap::new(),
-            connector_feature_data: None,
-            raw_connector_response: None,
-            raw_connector_request: None,
-            state: None,
-            mandate_reference: None,
-            capturable_amount: None,
-            captured_amount: None,
-            authorized_amount: None,
-            connector_response: None,
-        }
-    }
-}
-
-/// Convert `ApplicationErrorResponse` to payments proto `IntegrationError`.
-impl ErrorSwitch<grpc_api_types::payments::IntegrationError> for ApplicationErrorResponse {
-    fn switch(&self) -> grpc_api_types::payments::IntegrationError {
-        let api_error = self.get_api_error();
-        grpc_api_types::payments::IntegrationError {
-            error_message: api_error.error_message.clone(),
-            error_code: api_error.sub_code.clone(),
-            suggested_action: None,
-            doc_url: None,
-        }
-    }
-}
-
-/// Convert `ApplicationErrorResponse` to payments proto
-/// `ConnectorResponseTransformationError`.
-impl ErrorSwitch<grpc_api_types::payments::ConnectorResponseTransformationError>
-    for ApplicationErrorResponse
-{
-    fn switch(&self) -> grpc_api_types::payments::ConnectorResponseTransformationError {
-        let api_error = self.get_api_error();
-        grpc_api_types::payments::ConnectorResponseTransformationError {
-            error_message: api_error.error_message.clone(),
-            error_code: api_error.sub_code.clone(),
-            http_status_code: Some(api_error.error_identifier.into()),
+/// Direct gRPC status mapping for `WebhookError`.
+impl IntoGrpcStatus for error_stack::Report<WebhookError> {
+    fn into_grpc_status(self) -> Status {
+        logger::error!(error=?self);
+        let msg = self.current_context().to_string();
+        match self.current_context() {
+            WebhookError::WebhooksNotImplemented { .. } => Status::unimplemented(msg),
+            WebhookError::WebhookEventTypeNotFound
+            | WebhookError::WebhookSignatureNotFound
+            | WebhookError::WebhookReferenceIdNotFound
+            | WebhookError::WebhookResourceObjectNotFound
+            | WebhookError::WebhookVerificationSecretNotFound => Status::not_found(msg),
+            WebhookError::WebhookBodyDecodingFailed
+            | WebhookError::WebhookSourceVerificationFailed
+            | WebhookError::WebhookVerificationSecretInvalid => Status::invalid_argument(msg),
+            WebhookError::WebhookProcessingFailed
+            | WebhookError::WebhookAmountConversionFailed { .. }
+            | WebhookError::WebhookResponseEncodingFailed => Status::internal(msg),
         }
     }
 }

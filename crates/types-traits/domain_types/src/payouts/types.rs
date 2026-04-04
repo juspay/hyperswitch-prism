@@ -1,4 +1,4 @@
-use crate::errors::ApplicationErrorResponse;
+use crate::errors::{IntegrationError, IntegrationErrorContext};
 use crate::payouts;
 use crate::types::Connectors;
 use crate::utils::{extract_merchant_id_from_metadata, ForeignFrom, ForeignTryFrom};
@@ -13,7 +13,7 @@ impl
         &MaskedMetadata,
     )> for PayoutFlowData
 {
-    type Error = ApplicationErrorResponse;
+    type Error = IntegrationError;
 
     fn foreign_try_from(
         (value, connectors, metadata): (
@@ -49,7 +49,7 @@ impl
 impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceCreateRequest>
     for payouts::payouts_types::PayoutCreateRequest
 {
-    type Error = ApplicationErrorResponse;
+    type Error = IntegrationError;
 
     fn foreign_try_from(
         value: grpc_api_types::payouts::PayoutServiceCreateRequest,
@@ -57,28 +57,28 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceCreateRequest>
         let amount = match value.amount {
             Some(amount) => amount,
             None => {
-                return Err(error_stack::report!(ApplicationErrorResponse::BadRequest(
-                    crate::errors::ApiError {
-                        sub_code: "MISSING_AMOUNT".to_owned(),
-                        error_identifier: 400,
-                        error_message: "Amount is required".to_owned(),
-                        error_object: None,
+                return Err(error_stack::report!(
+                    IntegrationError::MissingRequiredField {
+                        field_name: "amount",
+                        context: IntegrationErrorContext {
+                            additional_context: Some("Amount is required".to_owned()),
+                            ..Default::default()
+                        },
                     }
-                )));
+                ));
             }
         };
 
         let source_currency = {
             let curr =
                 grpc_api_types::payments::Currency::try_from(amount.currency).map_err(|_| {
-                    error_stack::report!(ApplicationErrorResponse::BadRequest(
-                        crate::errors::ApiError {
-                            sub_code: "INVALID_CURRENCY".to_owned(),
-                            error_identifier: 400,
-                            error_message: "Invalid currency".to_owned(),
-                            error_object: None,
-                        }
-                    ))
+                    error_stack::report!(IntegrationError::InvalidDataFormat {
+                        field_name: "currency",
+                        context: IntegrationErrorContext {
+                            additional_context: Some("Invalid currency".to_owned()),
+                            ..Default::default()
+                        },
+                    })
                 })?;
             common_enums::Currency::foreign_try_from(curr)?
         };
@@ -86,14 +86,13 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceCreateRequest>
         let destination_currency = {
             let curr = grpc_api_types::payments::Currency::try_from(value.destination_currency)
                 .map_err(|_| {
-                    error_stack::report!(ApplicationErrorResponse::BadRequest(
-                        crate::errors::ApiError {
-                            sub_code: "INVALID_DESTINATION_CURRENCY".to_owned(),
-                            error_identifier: 400,
-                            error_message: "Invalid destination currency".to_owned(),
-                            error_object: None,
-                        }
-                    ))
+                    error_stack::report!(IntegrationError::InvalidDataFormat {
+                        field_name: "destination_currency",
+                        context: IntegrationErrorContext {
+                            additional_context: Some("Invalid destination currency".to_owned()),
+                            ..Default::default()
+                        },
+                    })
                 })?;
             common_enums::Currency::foreign_try_from(curr)?
         };
@@ -115,14 +114,13 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceCreateRequest>
                 .map(|p| {
                     let pp = grpc_api_types::payouts::payout_enums::PayoutPriority::try_from(p)
                         .map_err(|_| {
-                            error_stack::report!(ApplicationErrorResponse::BadRequest(
-                                crate::errors::ApiError {
-                                    sub_code: "INVALID_PRIORITY".to_owned(),
-                                    error_identifier: 400,
-                                    error_message: "Invalid payout priority".to_owned(),
-                                    error_object: None,
-                                }
-                            ))
+                            error_stack::report!(IntegrationError::InvalidDataFormat {
+                                field_name: "priority",
+                                context: IntegrationErrorContext {
+                                    additional_context: Some("Invalid payout priority".to_owned()),
+                                    ..Default::default()
+                                },
+                            })
                         })?;
                     common_enums::PayoutPriority::foreign_try_from(pp)
                 })
@@ -179,7 +177,7 @@ impl From<payouts::payouts_types::PayoutCreateResponse>
 impl ForeignTryFrom<grpc_api_types::payouts::payout_enums::PayoutPriority>
     for common_enums::PayoutPriority
 {
-    type Error = ApplicationErrorResponse;
+    type Error = IntegrationError;
 
     fn foreign_try_from(
         value: grpc_api_types::payouts::payout_enums::PayoutPriority,
@@ -194,14 +192,15 @@ impl ForeignTryFrom<grpc_api_types::payouts::payout_enums::PayoutPriority>
             }
             grpc_api_types::payouts::payout_enums::PayoutPriority::Internal => Ok(Self::Internal),
             grpc_api_types::payouts::payout_enums::PayoutPriority::Unspecified => {
-                Err(error_stack::report!(ApplicationErrorResponse::BadRequest(
-                    crate::errors::ApiError {
-                        sub_code: "INVALID_PRIORITY".to_owned(),
-                        error_identifier: 400,
-                        error_message: "Payout priority unspecified is not allowed".to_owned(),
-                        error_object: None,
-                    }
-                )))
+                Err(error_stack::report!(IntegrationError::InvalidDataFormat {
+                    field_name: "priority",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Payout priority unspecified is not allowed".to_owned()
+                        ),
+                        ..Default::default()
+                    },
+                }))
             }
         }
     }
@@ -210,7 +209,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::payout_enums::PayoutPriority>
 impl ForeignTryFrom<grpc_api_types::payouts::payout_enums::PayoutRecipientType>
     for common_enums::PayoutRecipientType
 {
-    type Error = ApplicationErrorResponse;
+    type Error = IntegrationError;
 
     fn foreign_try_from(
         value: grpc_api_types::payouts::payout_enums::PayoutRecipientType,
@@ -238,15 +237,15 @@ impl ForeignTryFrom<grpc_api_types::payouts::payout_enums::PayoutRecipientType>
                 Ok(Self::Personal)
             }
             grpc_api_types::payouts::payout_enums::PayoutRecipientType::Unspecified => {
-                Err(error_stack::report!(ApplicationErrorResponse::BadRequest(
-                    crate::errors::ApiError {
-                        sub_code: "INVALID_RECIPIENT_TYPE".to_owned(),
-                        error_identifier: 400,
-                        error_message: "Payout recipient type unspecified is not allowed"
-                            .to_owned(),
-                        error_object: None,
-                    }
-                )))
+                Err(error_stack::report!(IntegrationError::InvalidDataFormat {
+                    field_name: "recipient_type",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Payout recipient type unspecified is not allowed".to_owned()
+                        ),
+                        ..Default::default()
+                    },
+                }))
             }
         }
     }
@@ -255,7 +254,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::payout_enums::PayoutRecipientType>
 impl ForeignTryFrom<grpc_api_types::payouts::CardPayout>
     for payouts::payout_method_data::CardPayout
 {
-    type Error = ApplicationErrorResponse;
+    type Error = IntegrationError;
     fn foreign_try_from(
         card: grpc_api_types::payouts::CardPayout,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
@@ -263,14 +262,13 @@ impl ForeignTryFrom<grpc_api_types::payouts::CardPayout>
             .card_network
             .map(|n| {
                 let network = grpc_api_types::payments::CardNetwork::try_from(n).map_err(|_| {
-                    error_stack::report!(ApplicationErrorResponse::BadRequest(
-                        crate::errors::ApiError {
-                            sub_code: "INVALID_CARD_NETWORK".to_owned(),
-                            error_identifier: 400,
-                            error_message: "Invalid card network".to_owned(),
-                            error_object: None,
-                        }
-                    ))
+                    error_stack::report!(IntegrationError::InvalidDataFormat {
+                        field_name: "card_network",
+                        context: IntegrationErrorContext {
+                            additional_context: Some("Invalid card network".to_owned()),
+                            ..Default::default()
+                        },
+                    })
                 })?;
                 common_enums::CardNetwork::foreign_try_from(network)
             })
@@ -280,39 +278,40 @@ impl ForeignTryFrom<grpc_api_types::payouts::CardPayout>
                 &card
                     .card_number
                     .ok_or_else(|| {
-                        error_stack::report!(ApplicationErrorResponse::BadRequest(
-                            crate::errors::ApiError {
-                                sub_code: "MISSING_CARD_NUMBER".to_owned(),
-                                error_identifier: 400,
-                                error_message: "Card number is required for card payout".to_owned(),
-                                error_object: None,
-                            }
-                        ))
+                        error_stack::report!(IntegrationError::MissingRequiredField {
+                            field_name: "card_number",
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "Card number is required for card payout".to_owned()
+                                ),
+                                ..Default::default()
+                            },
+                        })
                     })?
                     .peek()
                     .clone(),
             )
             .map_err(|_| {
-                error_stack::report!(ApplicationErrorResponse::BadRequest(
-                    crate::errors::ApiError {
-                        sub_code: "INVALID_CARD_NUMBER".to_owned(),
-                        error_identifier: 400,
-                        error_message: "Invalid card number".to_owned(),
-                        error_object: None,
-                    }
-                ))
+                error_stack::report!(IntegrationError::InvalidDataFormat {
+                    field_name: "card_number",
+                    context: IntegrationErrorContext {
+                        additional_context: Some("Invalid card number".to_owned()),
+                        ..Default::default()
+                    },
+                })
             })?,
             expiry_month: ::hyperswitch_masking::Secret::new(
                 card.card_exp_month
                     .ok_or_else(|| {
-                        error_stack::report!(ApplicationErrorResponse::BadRequest(
-                            crate::errors::ApiError {
-                                sub_code: "MISSING_CARD_EXPIRY_MONTH".to_owned(),
-                                error_identifier: 400,
-                                error_message: "Card expiry month is required".to_owned(),
-                                error_object: None,
-                            }
-                        ))
+                        error_stack::report!(IntegrationError::MissingRequiredField {
+                            field_name: "card_exp_month",
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "Card expiry month is required".to_owned()
+                                ),
+                                ..Default::default()
+                            },
+                        })
                     })?
                     .peek()
                     .to_string(),
@@ -320,14 +319,13 @@ impl ForeignTryFrom<grpc_api_types::payouts::CardPayout>
             expiry_year: ::hyperswitch_masking::Secret::new(
                 card.card_exp_year
                     .ok_or_else(|| {
-                        error_stack::report!(ApplicationErrorResponse::BadRequest(
-                            crate::errors::ApiError {
-                                sub_code: "MISSING_CARD_EXPIRY_YEAR".to_owned(),
-                                error_identifier: 400,
-                                error_message: "Card expiry year is required".to_owned(),
-                                error_object: None,
-                            }
-                        ))
+                        error_stack::report!(IntegrationError::MissingRequiredField {
+                            field_name: "card_exp_year",
+                            context: IntegrationErrorContext {
+                                additional_context: Some("Card expiry year is required".to_owned()),
+                                ..Default::default()
+                            },
+                        })
                     })?
                     .peek()
                     .to_string(),
@@ -343,7 +341,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::CardPayout>
 impl ForeignTryFrom<grpc_api_types::payouts::AchBankTransferPayout>
     for payouts::payout_method_data::AchBankTransfer
 {
-    type Error = ApplicationErrorResponse;
+    type Error = IntegrationError;
     fn foreign_try_from(
         ach: grpc_api_types::payouts::AchBankTransferPayout,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
@@ -356,14 +354,13 @@ impl ForeignTryFrom<grpc_api_types::payouts::AchBankTransferPayout>
                         .unwrap_or_default(),
                 )
                 .map_err(|_| {
-                    error_stack::report!(ApplicationErrorResponse::BadRequest(
-                        crate::errors::ApiError {
-                            sub_code: "INVALID_BANK_NAME".to_owned(),
-                            error_identifier: 400,
-                            error_message: "Invalid bank name".to_owned(),
-                            error_object: None,
-                        }
-                    ))
+                    error_stack::report!(IntegrationError::InvalidDataFormat {
+                        field_name: "bank_name",
+                        context: IntegrationErrorContext {
+                            additional_context: Some("Invalid bank name".to_owned()),
+                            ..Default::default()
+                        },
+                    })
                 })
             })
             .transpose()?;
@@ -371,14 +368,13 @@ impl ForeignTryFrom<grpc_api_types::payouts::AchBankTransferPayout>
             .bank_country_code
             .map(|bcc| {
                 let cc = grpc_api_types::payments::CountryAlpha2::try_from(bcc).map_err(|_| {
-                    error_stack::report!(ApplicationErrorResponse::BadRequest(
-                        crate::errors::ApiError {
-                            sub_code: "INVALID_COUNTRY_CODE".to_owned(),
-                            error_identifier: 400,
-                            error_message: "Invalid bank country code".to_owned(),
-                            error_object: None,
-                        }
-                    ))
+                    error_stack::report!(IntegrationError::InvalidDataFormat {
+                        field_name: "country_code",
+                        context: IntegrationErrorContext {
+                            additional_context: Some("Invalid bank country code".to_owned()),
+                            ..Default::default()
+                        },
+                    })
                 })?;
                 common_enums::CountryAlpha2::foreign_try_from(cc)
             })
@@ -392,27 +388,29 @@ impl ForeignTryFrom<grpc_api_types::payouts::AchBankTransferPayout>
                 .bank_account_number
                 .map(|acc| ::hyperswitch_masking::Secret::new(acc.peek().to_string()))
                 .ok_or_else(|| {
-                    error_stack::report!(ApplicationErrorResponse::BadRequest(
-                        crate::errors::ApiError {
-                            sub_code: "MISSING_BANK_ACCOUNT_NUMBER".to_owned(),
-                            error_identifier: 400,
-                            error_message: "Bank account number is required for ACH".to_owned(),
-                            error_object: None,
-                        }
-                    ))
+                    error_stack::report!(IntegrationError::MissingRequiredField {
+                        field_name: "bank_account_number",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "Bank account number is required for ACH".to_owned()
+                            ),
+                            ..Default::default()
+                        },
+                    })
                 })?,
             bank_routing_number: ach
                 .bank_routing_number
                 .map(|r| ::hyperswitch_masking::Secret::new(r.peek().to_string()))
                 .ok_or_else(|| {
-                    error_stack::report!(ApplicationErrorResponse::BadRequest(
-                        crate::errors::ApiError {
-                            sub_code: "MISSING_BANK_ROUTING_NUMBER".to_owned(),
-                            error_identifier: 400,
-                            error_message: "Bank routing number is required for ACH".to_owned(),
-                            error_object: None,
-                        }
-                    ))
+                    error_stack::report!(IntegrationError::MissingRequiredField {
+                        field_name: "bank_routing_number",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "Bank routing number is required for ACH".to_owned()
+                            ),
+                            ..Default::default()
+                        },
+                    })
                 })?,
         })
     }
@@ -421,7 +419,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::AchBankTransferPayout>
 impl ForeignTryFrom<grpc_api_types::payouts::BacsBankTransferPayout>
     for payouts::payout_method_data::BacsBankTransfer
 {
-    type Error = ApplicationErrorResponse;
+    type Error = IntegrationError;
     fn foreign_try_from(
         bacs: grpc_api_types::payouts::BacsBankTransferPayout,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
@@ -434,14 +432,13 @@ impl ForeignTryFrom<grpc_api_types::payouts::BacsBankTransferPayout>
                         .unwrap_or_default(),
                 )
                 .map_err(|_| {
-                    error_stack::report!(ApplicationErrorResponse::BadRequest(
-                        crate::errors::ApiError {
-                            sub_code: "INVALID_BANK_NAME".to_owned(),
-                            error_identifier: 400,
-                            error_message: "Invalid bank name".to_owned(),
-                            error_object: None,
-                        }
-                    ))
+                    error_stack::report!(IntegrationError::InvalidDataFormat {
+                        field_name: "bank_name",
+                        context: IntegrationErrorContext {
+                            additional_context: Some("Invalid bank name".to_owned()),
+                            ..Default::default()
+                        },
+                    })
                 })
             })
             .transpose()?;
@@ -449,14 +446,13 @@ impl ForeignTryFrom<grpc_api_types::payouts::BacsBankTransferPayout>
             .bank_country_code
             .map(|bcc| {
                 let cc = grpc_api_types::payments::CountryAlpha2::try_from(bcc).map_err(|_| {
-                    error_stack::report!(ApplicationErrorResponse::BadRequest(
-                        crate::errors::ApiError {
-                            sub_code: "INVALID_COUNTRY_CODE".to_owned(),
-                            error_identifier: 400,
-                            error_message: "Invalid bank country code".to_owned(),
-                            error_object: None,
-                        }
-                    ))
+                    error_stack::report!(IntegrationError::InvalidDataFormat {
+                        field_name: "country_code",
+                        context: IntegrationErrorContext {
+                            additional_context: Some("Invalid bank country code".to_owned()),
+                            ..Default::default()
+                        },
+                    })
                 })?;
                 common_enums::CountryAlpha2::foreign_try_from(cc)
             })
@@ -469,27 +465,29 @@ impl ForeignTryFrom<grpc_api_types::payouts::BacsBankTransferPayout>
                 .bank_account_number
                 .map(|acc| ::hyperswitch_masking::Secret::new(acc.peek().to_string()))
                 .ok_or_else(|| {
-                    error_stack::report!(ApplicationErrorResponse::BadRequest(
-                        crate::errors::ApiError {
-                            sub_code: "MISSING_BANK_ACCOUNT_NUMBER".to_owned(),
-                            error_identifier: 400,
-                            error_message: "Bank account number is required for Bacs".to_owned(),
-                            error_object: None,
-                        }
-                    ))
+                    error_stack::report!(IntegrationError::MissingRequiredField {
+                        field_name: "bank_account_number",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "Bank account number is required for Bacs".to_owned()
+                            ),
+                            ..Default::default()
+                        },
+                    })
                 })?,
             bank_sort_code: bacs
                 .bank_sort_code
                 .map(|sc| ::hyperswitch_masking::Secret::new(sc.peek().to_string()))
                 .ok_or_else(|| {
-                    error_stack::report!(ApplicationErrorResponse::BadRequest(
-                        crate::errors::ApiError {
-                            sub_code: "MISSING_BANK_SORT_CODE".to_owned(),
-                            error_identifier: 400,
-                            error_message: "Bank sort code is required for Bacs".to_owned(),
-                            error_object: None,
-                        }
-                    ))
+                    error_stack::report!(IntegrationError::MissingRequiredField {
+                        field_name: "bank_sort_code",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "Bank sort code is required for Bacs".to_owned()
+                            ),
+                            ..Default::default()
+                        },
+                    })
                 })?,
         })
     }
@@ -498,7 +496,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::BacsBankTransferPayout>
 impl ForeignTryFrom<grpc_api_types::payouts::SepaBankTransferPayout>
     for payouts::payout_method_data::SepaBankTransfer
 {
-    type Error = ApplicationErrorResponse;
+    type Error = IntegrationError;
     fn foreign_try_from(
         sepa: grpc_api_types::payouts::SepaBankTransferPayout,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
@@ -511,14 +509,13 @@ impl ForeignTryFrom<grpc_api_types::payouts::SepaBankTransferPayout>
                         .unwrap_or_default(),
                 )
                 .map_err(|_| {
-                    error_stack::report!(ApplicationErrorResponse::BadRequest(
-                        crate::errors::ApiError {
-                            sub_code: "INVALID_BANK_NAME".to_owned(),
-                            error_identifier: 400,
-                            error_message: "Invalid bank name".to_owned(),
-                            error_object: None,
-                        }
-                    ))
+                    error_stack::report!(IntegrationError::InvalidDataFormat {
+                        field_name: "bank_name",
+                        context: IntegrationErrorContext {
+                            additional_context: Some("Invalid bank name".to_owned()),
+                            ..Default::default()
+                        },
+                    })
                 })
             })
             .transpose()?;
@@ -526,14 +523,13 @@ impl ForeignTryFrom<grpc_api_types::payouts::SepaBankTransferPayout>
             .bank_country_code
             .map(|bcc| {
                 let cc = grpc_api_types::payments::CountryAlpha2::try_from(bcc).map_err(|_| {
-                    error_stack::report!(ApplicationErrorResponse::BadRequest(
-                        crate::errors::ApiError {
-                            sub_code: "INVALID_COUNTRY_CODE".to_owned(),
-                            error_identifier: 400,
-                            error_message: "Invalid bank country code".to_owned(),
-                            error_object: None,
-                        }
-                    ))
+                    error_stack::report!(IntegrationError::InvalidDataFormat {
+                        field_name: "country_code",
+                        context: IntegrationErrorContext {
+                            additional_context: Some("Invalid bank country code".to_owned()),
+                            ..Default::default()
+                        },
+                    })
                 })?;
                 common_enums::CountryAlpha2::foreign_try_from(cc)
             })
@@ -545,14 +541,13 @@ impl ForeignTryFrom<grpc_api_types::payouts::SepaBankTransferPayout>
             iban: ::hyperswitch_masking::Secret::new(
                 sepa.iban
                     .ok_or_else(|| {
-                        error_stack::report!(ApplicationErrorResponse::BadRequest(
-                            crate::errors::ApiError {
-                                sub_code: "MISSING_IBAN".to_owned(),
-                                error_identifier: 400,
-                                error_message: "IBAN is required for SEPA".to_owned(),
-                                error_object: None,
-                            }
-                        ))
+                        error_stack::report!(IntegrationError::MissingRequiredField {
+                            field_name: "amount",
+                            context: IntegrationErrorContext {
+                                additional_context: Some("Amount is required".to_owned()),
+                                ..Default::default()
+                            },
+                        })
                     })?
                     .peek()
                     .to_string(),
@@ -567,7 +562,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::SepaBankTransferPayout>
 impl ForeignTryFrom<grpc_api_types::payouts::PixBankTransferPayout>
     for payouts::payout_method_data::PixBankTransfer
 {
-    type Error = ApplicationErrorResponse;
+    type Error = IntegrationError;
     fn foreign_try_from(
         pix: grpc_api_types::payouts::PixBankTransferPayout,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
@@ -580,14 +575,13 @@ impl ForeignTryFrom<grpc_api_types::payouts::PixBankTransferPayout>
                         .unwrap_or_default(),
                 )
                 .map_err(|_| {
-                    error_stack::report!(ApplicationErrorResponse::BadRequest(
-                        crate::errors::ApiError {
-                            sub_code: "INVALID_BANK_NAME".to_owned(),
-                            error_identifier: 400,
-                            error_message: "Invalid bank name".to_owned(),
-                            error_object: None,
-                        }
-                    ))
+                    error_stack::report!(IntegrationError::InvalidDataFormat {
+                        field_name: "bank_name",
+                        context: IntegrationErrorContext {
+                            additional_context: Some("Invalid bank name".to_owned()),
+                            ..Default::default()
+                        },
+                    })
                 })
             })
             .transpose()?;
@@ -597,14 +591,15 @@ impl ForeignTryFrom<grpc_api_types::payouts::PixBankTransferPayout>
             bank_account_number: ::hyperswitch_masking::Secret::new(
                 pix.bank_account_number
                     .ok_or_else(|| {
-                        error_stack::report!(ApplicationErrorResponse::BadRequest(
-                            crate::errors::ApiError {
-                                sub_code: "MISSING_BANK_ACCOUNT_NUMBER".to_owned(),
-                                error_identifier: 400,
-                                error_message: "Bank account number is required for Pix".to_owned(),
-                                error_object: None,
-                            }
-                        ))
+                        error_stack::report!(IntegrationError::MissingRequiredField {
+                            field_name: "account_holder_name",
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "Account holder name is required for OpenBankingUK".to_owned()
+                                ),
+                                ..Default::default()
+                            },
+                        })
                     })?
                     .peek()
                     .to_string(),
@@ -612,14 +607,15 @@ impl ForeignTryFrom<grpc_api_types::payouts::PixBankTransferPayout>
             pix_key: ::hyperswitch_masking::Secret::new(
                 pix.pix_key
                     .ok_or_else(|| {
-                        error_stack::report!(ApplicationErrorResponse::BadRequest(
-                            crate::errors::ApiError {
-                                sub_code: "MISSING_PIX_KEY".to_owned(),
-                                error_identifier: 400,
-                                error_message: "Pix key is required for Pix".to_owned(),
-                                error_object: None,
-                            }
-                        ))
+                        error_stack::report!(IntegrationError::MissingRequiredField {
+                            field_name: "bank_account_number",
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "Bank account number is required for Pix".to_owned()
+                                ),
+                                ..Default::default()
+                            },
+                        })
                     })?
                     .peek()
                     .to_string(),
@@ -634,7 +630,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::PixBankTransferPayout>
 impl ForeignTryFrom<grpc_api_types::payouts::ApplePayDecrypt>
     for payouts::payout_method_data::ApplePayDecrypt
 {
-    type Error = ApplicationErrorResponse;
+    type Error = IntegrationError;
     fn foreign_try_from(
         apple: grpc_api_types::payouts::ApplePayDecrypt,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
@@ -642,14 +638,13 @@ impl ForeignTryFrom<grpc_api_types::payouts::ApplePayDecrypt>
             .card_network
             .map(|n| {
                 let network = grpc_api_types::payments::CardNetwork::try_from(n).map_err(|_| {
-                    error_stack::report!(ApplicationErrorResponse::BadRequest(
-                        crate::errors::ApiError {
-                            sub_code: "INVALID_CARD_NETWORK".to_owned(),
-                            error_identifier: 400,
-                            error_message: "Invalid card network".to_owned(),
-                            error_object: None,
-                        }
-                    ))
+                    error_stack::report!(IntegrationError::InvalidDataFormat {
+                        field_name: "card_network",
+                        context: IntegrationErrorContext {
+                            additional_context: Some("Invalid card network".to_owned()),
+                            ..Default::default()
+                        },
+                    })
                 })?;
                 common_enums::CardNetwork::foreign_try_from(network)
             })
@@ -659,40 +654,41 @@ impl ForeignTryFrom<grpc_api_types::payouts::ApplePayDecrypt>
                 &apple
                     .dpan
                     .ok_or_else(|| {
-                        error_stack::report!(ApplicationErrorResponse::BadRequest(
-                            crate::errors::ApiError {
-                                sub_code: "MISSING_DPAN".to_owned(),
-                                error_identifier: 400,
-                                error_message: "DPAN is required for ApplePayDecrypt".to_owned(),
-                                error_object: None,
-                            }
-                        ))
+                        error_stack::report!(IntegrationError::MissingRequiredField {
+                            field_name: "iban",
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "IBAN is required for OpenBankingUK".to_owned()
+                                ),
+                                ..Default::default()
+                            },
+                        })
                     })?
                     .peek()
                     .clone(),
             )
             .map_err(|_| {
-                error_stack::report!(ApplicationErrorResponse::BadRequest(
-                    crate::errors::ApiError {
-                        sub_code: "INVALID_DPAN".to_owned(),
-                        error_identifier: 400,
-                        error_message: "Invalid dpan".to_owned(),
-                        error_object: None,
-                    }
-                ))
+                error_stack::report!(IntegrationError::InvalidDataFormat {
+                    field_name: "dpan",
+                    context: IntegrationErrorContext {
+                        additional_context: Some("Invalid dpan".to_owned()),
+                        ..Default::default()
+                    },
+                })
             })?,
             expiry_month: ::hyperswitch_masking::Secret::new(
                 apple
                     .expiry_month
                     .ok_or_else(|| {
-                        error_stack::report!(ApplicationErrorResponse::BadRequest(
-                            crate::errors::ApiError {
-                                sub_code: "MISSING_CARD_EXPIRY_MONTH".to_owned(),
-                                error_identifier: 400,
-                                error_message: "Card expiry month is required".to_owned(),
-                                error_object: None,
-                            }
-                        ))
+                        error_stack::report!(IntegrationError::MissingRequiredField {
+                            field_name: "card_exp_month",
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "Card expiry month is required".to_owned()
+                                ),
+                                ..Default::default()
+                            },
+                        })
                     })?
                     .peek()
                     .to_string(),
@@ -701,14 +697,13 @@ impl ForeignTryFrom<grpc_api_types::payouts::ApplePayDecrypt>
                 apple
                     .expiry_year
                     .ok_or_else(|| {
-                        error_stack::report!(ApplicationErrorResponse::BadRequest(
-                            crate::errors::ApiError {
-                                sub_code: "MISSING_CARD_EXPIRY_YEAR".to_owned(),
-                                error_identifier: 400,
-                                error_message: "Card expiry year is required".to_owned(),
-                                error_object: None,
-                            }
-                        ))
+                        error_stack::report!(IntegrationError::MissingRequiredField {
+                            field_name: "card_exp_year",
+                            context: IntegrationErrorContext {
+                                additional_context: Some("Card expiry year is required".to_owned()),
+                                ..Default::default()
+                            },
+                        })
                     })?
                     .peek()
                     .to_string(),
@@ -722,7 +717,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::ApplePayDecrypt>
 }
 
 impl ForeignTryFrom<grpc_api_types::payouts::Paypal> for payouts::payout_method_data::Paypal {
-    type Error = ApplicationErrorResponse;
+    type Error = IntegrationError;
     fn foreign_try_from(
         paypal: grpc_api_types::payouts::Paypal,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
@@ -731,14 +726,13 @@ impl ForeignTryFrom<grpc_api_types::payouts::Paypal> for payouts::payout_method_
                 .email
                 .map(|e| {
                     e.peek().to_string().parse().map_err(|_| {
-                        error_stack::report!(ApplicationErrorResponse::BadRequest(
-                            crate::errors::ApiError {
-                                sub_code: "INVALID_EMAIL".to_owned(),
-                                error_identifier: 400,
-                                error_message: "Invalid email".to_owned(),
-                                error_object: None,
-                            }
-                        ))
+                        error_stack::report!(IntegrationError::InvalidDataFormat {
+                            field_name: "email",
+                            context: IntegrationErrorContext {
+                                additional_context: Some("Invalid email".to_owned()),
+                                ..Default::default()
+                            },
+                        })
                     })
                 })
                 .transpose()?,
@@ -753,7 +747,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::Paypal> for payouts::payout_method_
 }
 
 impl ForeignTryFrom<grpc_api_types::payouts::Venmo> for payouts::payout_method_data::Venmo {
-    type Error = ApplicationErrorResponse;
+    type Error = IntegrationError;
     fn foreign_try_from(
         venmo: grpc_api_types::payouts::Venmo,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
@@ -768,7 +762,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::Venmo> for payouts::payout_method_d
 impl ForeignTryFrom<grpc_api_types::payouts::InteracPayout>
     for payouts::payout_method_data::Interac
 {
-    type Error = ApplicationErrorResponse;
+    type Error = IntegrationError;
     fn foreign_try_from(
         interac: grpc_api_types::payouts::InteracPayout,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
@@ -776,27 +770,25 @@ impl ForeignTryFrom<grpc_api_types::payouts::InteracPayout>
             email: interac
                 .email
                 .ok_or_else(|| {
-                    error_stack::report!(ApplicationErrorResponse::BadRequest(
-                        crate::errors::ApiError {
-                            sub_code: "MISSING_EMAIL".to_owned(),
-                            error_identifier: 400,
-                            error_message: "Email is required for Interac".to_owned(),
-                            error_object: None,
-                        }
-                    ))
+                    error_stack::report!(IntegrationError::MissingRequiredField {
+                        field_name: "email",
+                        context: IntegrationErrorContext {
+                            additional_context: Some("Email is required for Interac".to_owned()),
+                            ..Default::default()
+                        },
+                    })
                 })?
                 .peek()
                 .to_string()
                 .parse()
                 .map_err(|_| {
-                    error_stack::report!(ApplicationErrorResponse::BadRequest(
-                        crate::errors::ApiError {
-                            sub_code: "INVALID_EMAIL".to_owned(),
-                            error_identifier: 400,
-                            error_message: "Invalid email".to_owned(),
-                            error_object: None,
-                        }
-                    ))
+                    error_stack::report!(IntegrationError::InvalidDataFormat {
+                        field_name: "email",
+                        context: IntegrationErrorContext {
+                            additional_context: Some("Invalid email".to_owned()),
+                            ..Default::default()
+                        },
+                    })
                 })?,
         })
     }
@@ -805,7 +797,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::InteracPayout>
 impl ForeignTryFrom<grpc_api_types::payouts::OpenBankingUkPayout>
     for payouts::payout_method_data::OpenBankingUk
 {
-    type Error = ApplicationErrorResponse;
+    type Error = IntegrationError;
     fn foreign_try_from(
         obuk: grpc_api_types::payouts::OpenBankingUkPayout,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
@@ -813,15 +805,15 @@ impl ForeignTryFrom<grpc_api_types::payouts::OpenBankingUkPayout>
             account_holder_name: ::hyperswitch_masking::Secret::new(
                 obuk.account_holder_name
                     .ok_or_else(|| {
-                        error_stack::report!(ApplicationErrorResponse::BadRequest(
-                            crate::errors::ApiError {
-                                sub_code: "MISSING_ACCOUNT_HOLDER_NAME".to_owned(),
-                                error_identifier: 400,
-                                error_message: "Account holder name is required for OpenBankingUK"
-                                    .to_owned(),
-                                error_object: None,
-                            }
-                        ))
+                        error_stack::report!(IntegrationError::MissingRequiredField {
+                            field_name: "account_holder_name",
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "Account holder name is required for OpenBankingUK".to_owned()
+                                ),
+                                ..Default::default()
+                            },
+                        })
                     })?
                     .peek()
                     .to_string(),
@@ -829,14 +821,13 @@ impl ForeignTryFrom<grpc_api_types::payouts::OpenBankingUkPayout>
             iban: ::hyperswitch_masking::Secret::new(
                 obuk.iban
                     .ok_or_else(|| {
-                        error_stack::report!(ApplicationErrorResponse::BadRequest(
-                            crate::errors::ApiError {
-                                sub_code: "MISSING_IBAN".to_owned(),
-                                error_identifier: 400,
-                                error_message: "IBAN is required for OpenBankingUK".to_owned(),
-                                error_object: None,
-                            }
-                        ))
+                        error_stack::report!(IntegrationError::MissingRequiredField {
+                            field_name: "iban",
+                            context: IntegrationErrorContext {
+                                additional_context: Some("IBAN is required for SEPA".to_owned()),
+                                ..Default::default()
+                            },
+                        })
                     })?
                     .peek()
                     .to_string(),
@@ -848,32 +839,30 @@ impl ForeignTryFrom<grpc_api_types::payouts::OpenBankingUkPayout>
 impl ForeignTryFrom<grpc_api_types::payouts::Passthrough>
     for payouts::payout_method_data::Passthrough
 {
-    type Error = ApplicationErrorResponse;
+    type Error = IntegrationError;
     fn foreign_try_from(
         pt: grpc_api_types::payouts::Passthrough,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let token_type = grpc_api_types::payments::PaymentMethodType::try_from(pt.token_type)
             .map_err(|_| {
-                error_stack::report!(ApplicationErrorResponse::BadRequest(
-                    crate::errors::ApiError {
-                        sub_code: "INVALID_TOKEN_TYPE".to_owned(),
-                        error_identifier: 400,
-                        error_message: "Invalid pass through token type".to_owned(),
-                        error_object: None,
-                    }
-                ))
+                error_stack::report!(IntegrationError::InvalidDataFormat {
+                    field_name: "recipient_type",
+                    context: IntegrationErrorContext {
+                        additional_context: Some("Invalid payout recipient type".to_owned()),
+                        ..Default::default()
+                    },
+                })
             })?;
         let token_type_opt =
             Option::<common_enums::PaymentMethodType>::foreign_try_from(token_type)?;
         let token_type = token_type_opt.ok_or_else(|| {
-            error_stack::report!(ApplicationErrorResponse::BadRequest(
-                crate::errors::ApiError {
-                    sub_code: "INVALID_TOKEN_TYPE".to_owned(),
-                    error_identifier: 400,
-                    error_message: "Invalid pass through token type".to_owned(),
-                    error_object: None,
-                }
-            ))
+            error_stack::report!(IntegrationError::InvalidDataFormat {
+                field_name: "token_type",
+                context: IntegrationErrorContext {
+                    additional_context: Some("Invalid pass through token type".to_owned()),
+                    ..Default::default()
+                },
+            })
         })?;
         Ok(payouts::payout_method_data::Passthrough {
             psp_token: ::hyperswitch_masking::Secret::new(pt.psp_token),
@@ -885,19 +874,18 @@ impl ForeignTryFrom<grpc_api_types::payouts::Passthrough>
 impl ForeignTryFrom<grpc_api_types::payouts::PayoutMethod>
     for payouts::payout_method_data::PayoutMethodData
 {
-    type Error = ApplicationErrorResponse;
+    type Error = IntegrationError;
     fn foreign_try_from(
         value: grpc_api_types::payouts::PayoutMethod,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let data = value.payout_method_data.ok_or_else(|| {
-            error_stack::report!(ApplicationErrorResponse::BadRequest(
-                crate::errors::ApiError {
-                    sub_code: "MISSING_PAYOUT_METHOD_DATA".to_owned(),
-                    error_identifier: 400,
-                    error_message: "Payout method data is required".to_owned(),
-                    error_object: None,
-                }
-            ))
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "pix_key",
+                context: IntegrationErrorContext {
+                    additional_context: Some("Pix key is required for Pix".to_owned()),
+                    ..Default::default()
+                },
+            })
         })?;
 
         match data {
@@ -967,7 +955,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutMethod>
 impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceTransferRequest>
     for payouts::payouts_types::PayoutTransferRequest
 {
-    type Error = ApplicationErrorResponse;
+    type Error = IntegrationError;
 
     fn foreign_try_from(
         value: grpc_api_types::payouts::PayoutServiceTransferRequest,
@@ -975,28 +963,28 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceTransferRequest>
         let amount = match value.amount {
             Some(amount) => amount,
             None => {
-                return Err(error_stack::report!(ApplicationErrorResponse::BadRequest(
-                    crate::errors::ApiError {
-                        sub_code: "MISSING_AMOUNT".to_owned(),
-                        error_identifier: 400,
-                        error_message: "Amount is required".to_owned(),
-                        error_object: None,
+                return Err(error_stack::report!(
+                    IntegrationError::MissingRequiredField {
+                        field_name: "amount",
+                        context: IntegrationErrorContext {
+                            additional_context: Some("Amount is required".to_owned()),
+                            ..Default::default()
+                        },
                     }
-                )));
+                ));
             }
         };
 
         let source_currency = {
             let curr =
                 grpc_api_types::payments::Currency::try_from(amount.currency).map_err(|_| {
-                    error_stack::report!(ApplicationErrorResponse::BadRequest(
-                        crate::errors::ApiError {
-                            sub_code: "INVALID_CURRENCY".to_owned(),
-                            error_identifier: 400,
-                            error_message: "Invalid currency".to_owned(),
-                            error_object: None,
-                        }
-                    ))
+                    error_stack::report!(IntegrationError::InvalidDataFormat {
+                        field_name: "currency",
+                        context: IntegrationErrorContext {
+                            additional_context: Some("Invalid currency".to_owned()),
+                            ..Default::default()
+                        },
+                    })
                 })?;
             common_enums::Currency::foreign_try_from(curr)?
         };
@@ -1004,14 +992,13 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceTransferRequest>
         let destination_currency = {
             let curr = grpc_api_types::payments::Currency::try_from(value.destination_currency)
                 .map_err(|_| {
-                    error_stack::report!(ApplicationErrorResponse::BadRequest(
-                        crate::errors::ApiError {
-                            sub_code: "INVALID_DESTINATION_CURRENCY".to_owned(),
-                            error_identifier: 400,
-                            error_message: "Invalid destination currency".to_owned(),
-                            error_object: None,
-                        }
-                    ))
+                    error_stack::report!(IntegrationError::InvalidDataFormat {
+                        field_name: "destination_currency",
+                        context: IntegrationErrorContext {
+                            additional_context: Some("Invalid destination currency".to_owned()),
+                            ..Default::default()
+                        },
+                    })
                 })?;
             common_enums::Currency::foreign_try_from(curr)?
         };
@@ -1026,14 +1013,13 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceTransferRequest>
             .map(|priority| {
                 grpc_api_types::payouts::payout_enums::PayoutPriority::try_from(priority).map_err(
                     |_| {
-                        error_stack::report!(ApplicationErrorResponse::BadRequest(
-                            crate::errors::ApiError {
-                                sub_code: "INVALID_PRIORITY".to_owned(),
-                                error_identifier: 400,
-                                error_message: "Invalid payout priority".to_owned(),
-                                error_object: None,
-                            }
-                        ))
+                        error_stack::report!(IntegrationError::InvalidDataFormat {
+                            field_name: "priority",
+                            context: IntegrationErrorContext {
+                                additional_context: Some("Invalid payout priority".to_owned()),
+                                ..Default::default()
+                            },
+                        })
                     },
                 )
             })
@@ -1059,7 +1045,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceTransferRequest>
 impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceGetRequest>
     for payouts::payouts_types::PayoutGetRequest
 {
-    type Error = ApplicationErrorResponse;
+    type Error = IntegrationError;
 
     fn foreign_try_from(
         value: grpc_api_types::payouts::PayoutServiceGetRequest,
@@ -1074,7 +1060,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceGetRequest>
 impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceVoidRequest>
     for payouts::payouts_types::PayoutVoidRequest
 {
-    type Error = ApplicationErrorResponse;
+    type Error = IntegrationError;
 
     fn foreign_try_from(
         value: grpc_api_types::payouts::PayoutServiceVoidRequest,
@@ -1089,7 +1075,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceVoidRequest>
 impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceStageRequest>
     for payouts::payouts_types::PayoutStageRequest
 {
-    type Error = ApplicationErrorResponse;
+    type Error = IntegrationError;
 
     fn foreign_try_from(
         value: grpc_api_types::payouts::PayoutServiceStageRequest,
@@ -1097,28 +1083,28 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceStageRequest>
         let amount = match value.amount {
             Some(amount) => amount,
             None => {
-                return Err(error_stack::report!(ApplicationErrorResponse::BadRequest(
-                    crate::errors::ApiError {
-                        sub_code: "MISSING_AMOUNT".to_owned(),
-                        error_identifier: 400,
-                        error_message: "Amount is required".to_owned(),
-                        error_object: None,
+                return Err(error_stack::report!(
+                    IntegrationError::MissingRequiredField {
+                        field_name: "amount",
+                        context: IntegrationErrorContext {
+                            additional_context: Some("Amount is required".to_owned()),
+                            ..Default::default()
+                        },
                     }
-                )));
+                ));
             }
         };
 
         let source_currency = {
             let curr =
                 grpc_api_types::payments::Currency::try_from(amount.currency).map_err(|_| {
-                    error_stack::report!(ApplicationErrorResponse::BadRequest(
-                        crate::errors::ApiError {
-                            sub_code: "INVALID_CURRENCY".to_owned(),
-                            error_identifier: 400,
-                            error_message: "Invalid currency".to_owned(),
-                            error_object: None,
-                        }
-                    ))
+                    error_stack::report!(IntegrationError::InvalidDataFormat {
+                        field_name: "currency",
+                        context: IntegrationErrorContext {
+                            additional_context: Some("Invalid currency".to_owned()),
+                            ..Default::default()
+                        },
+                    })
                 })?;
             common_enums::Currency::foreign_try_from(curr)?
         };
@@ -1126,14 +1112,13 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceStageRequest>
         let destination_currency = {
             let curr = grpc_api_types::payments::Currency::try_from(value.destination_currency)
                 .map_err(|_| {
-                    error_stack::report!(ApplicationErrorResponse::BadRequest(
-                        crate::errors::ApiError {
-                            sub_code: "INVALID_DESTINATION_CURRENCY".to_owned(),
-                            error_identifier: 400,
-                            error_message: "Invalid destination currency".to_owned(),
-                            error_object: None,
-                        }
-                    ))
+                    error_stack::report!(IntegrationError::InvalidDataFormat {
+                        field_name: "destination_currency",
+                        context: IntegrationErrorContext {
+                            additional_context: Some("Invalid destination currency".to_owned()),
+                            ..Default::default()
+                        },
+                    })
                 })?;
             common_enums::Currency::foreign_try_from(curr)?
         };
@@ -1150,7 +1135,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceStageRequest>
 impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceCreateLinkRequest>
     for payouts::payouts_types::PayoutCreateLinkRequest
 {
-    type Error = ApplicationErrorResponse;
+    type Error = IntegrationError;
 
     fn foreign_try_from(
         value: grpc_api_types::payouts::PayoutServiceCreateLinkRequest,
@@ -1158,28 +1143,28 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceCreateLinkRequest>
         let amount = match value.amount {
             Some(amount) => amount,
             None => {
-                return Err(error_stack::report!(ApplicationErrorResponse::BadRequest(
-                    crate::errors::ApiError {
-                        sub_code: "MISSING_AMOUNT".to_owned(),
-                        error_identifier: 400,
-                        error_message: "Amount is required".to_owned(),
-                        error_object: None,
+                return Err(error_stack::report!(
+                    IntegrationError::MissingRequiredField {
+                        field_name: "amount",
+                        context: IntegrationErrorContext {
+                            additional_context: Some("Amount is required".to_owned()),
+                            ..Default::default()
+                        },
                     }
-                )));
+                ));
             }
         };
 
         let source_currency = {
             let curr =
                 grpc_api_types::payments::Currency::try_from(amount.currency).map_err(|_| {
-                    error_stack::report!(ApplicationErrorResponse::BadRequest(
-                        crate::errors::ApiError {
-                            sub_code: "INVALID_CURRENCY".to_owned(),
-                            error_identifier: 400,
-                            error_message: "Invalid currency".to_owned(),
-                            error_object: None,
-                        }
-                    ))
+                    error_stack::report!(IntegrationError::InvalidDataFormat {
+                        field_name: "currency",
+                        context: IntegrationErrorContext {
+                            additional_context: Some("Invalid currency".to_owned()),
+                            ..Default::default()
+                        },
+                    })
                 })?;
             common_enums::Currency::foreign_try_from(curr)?
         };
@@ -1187,14 +1172,13 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceCreateLinkRequest>
         let destination_currency = {
             let curr = grpc_api_types::payments::Currency::try_from(value.destination_currency)
                 .map_err(|_| {
-                    error_stack::report!(ApplicationErrorResponse::BadRequest(
-                        crate::errors::ApiError {
-                            sub_code: "INVALID_DESTINATION_CURRENCY".to_owned(),
-                            error_identifier: 400,
-                            error_message: "Invalid destination currency".to_owned(),
-                            error_object: None,
-                        }
-                    ))
+                    error_stack::report!(IntegrationError::InvalidDataFormat {
+                        field_name: "destination_currency",
+                        context: IntegrationErrorContext {
+                            additional_context: Some("Invalid destination currency".to_owned()),
+                            ..Default::default()
+                        },
+                    })
                 })?;
             common_enums::Currency::foreign_try_from(curr)?
         };
@@ -1209,14 +1193,13 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceCreateLinkRequest>
             .map(|priority| {
                 grpc_api_types::payouts::payout_enums::PayoutPriority::try_from(priority).map_err(
                     |_| {
-                        error_stack::report!(ApplicationErrorResponse::BadRequest(
-                            crate::errors::ApiError {
-                                sub_code: "INVALID_PRIORITY".to_owned(),
-                                error_identifier: 400,
-                                error_message: "Invalid payout priority".to_owned(),
-                                error_object: None,
-                            }
-                        ))
+                        error_stack::report!(IntegrationError::InvalidDataFormat {
+                            field_name: "priority",
+                            context: IntegrationErrorContext {
+                                additional_context: Some("Invalid payout priority".to_owned()),
+                                ..Default::default()
+                            },
+                        })
                     },
                 )
             })
@@ -1242,7 +1225,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceCreateLinkRequest>
 impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceCreateRecipientRequest>
     for payouts::payouts_types::PayoutCreateRecipientRequest
 {
-    type Error = ApplicationErrorResponse;
+    type Error = IntegrationError;
 
     fn foreign_try_from(
         value: grpc_api_types::payouts::PayoutServiceCreateRecipientRequest,
@@ -1250,28 +1233,28 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceCreateRecipientRequest
         let amount = match value.amount {
             Some(amount) => amount,
             None => {
-                return Err(error_stack::report!(ApplicationErrorResponse::BadRequest(
-                    crate::errors::ApiError {
-                        sub_code: "MISSING_AMOUNT".to_owned(),
-                        error_identifier: 400,
-                        error_message: "Amount is required".to_owned(),
-                        error_object: None,
+                return Err(error_stack::report!(
+                    IntegrationError::MissingRequiredField {
+                        field_name: "amount",
+                        context: IntegrationErrorContext {
+                            additional_context: Some("Amount is required".to_owned()),
+                            ..Default::default()
+                        },
                     }
-                )));
+                ));
             }
         };
 
         let source_currency = {
             let curr =
                 grpc_api_types::payments::Currency::try_from(amount.currency).map_err(|_| {
-                    error_stack::report!(ApplicationErrorResponse::BadRequest(
-                        crate::errors::ApiError {
-                            sub_code: "INVALID_CURRENCY".to_owned(),
-                            error_identifier: 400,
-                            error_message: "Invalid currency".to_owned(),
-                            error_object: None,
-                        }
-                    ))
+                    error_stack::report!(IntegrationError::InvalidDataFormat {
+                        field_name: "currency",
+                        context: IntegrationErrorContext {
+                            additional_context: Some("Invalid currency".to_owned()),
+                            ..Default::default()
+                        },
+                    })
                 })?;
             common_enums::Currency::foreign_try_from(curr)?
         };
@@ -1286,14 +1269,13 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceCreateRecipientRequest
                 value.recipient_type,
             )
             .map_err(|_| {
-                error_stack::report!(ApplicationErrorResponse::BadRequest(
-                    crate::errors::ApiError {
-                        sub_code: "INVALID_PAYOUT_RECIPIENT_TYPE".to_owned(),
-                        error_identifier: 400,
-                        error_message: "Invalid payout recipient type".to_owned(),
-                        error_object: None,
-                    }
-                ))
+                error_stack::report!(IntegrationError::MissingRequiredField {
+                    field_name: "payout_method_data",
+                    context: IntegrationErrorContext {
+                        additional_context: Some("Payout method data is required".to_owned()),
+                        ..Default::default()
+                    },
+                })
             })?;
 
         Ok(Self {
@@ -1311,7 +1293,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceCreateRecipientRequest
 impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceEnrollDisburseAccountRequest>
     for payouts::payouts_types::PayoutEnrollDisburseAccountRequest
 {
-    type Error = ApplicationErrorResponse;
+    type Error = IntegrationError;
 
     fn foreign_try_from(
         value: grpc_api_types::payouts::PayoutServiceEnrollDisburseAccountRequest,
@@ -1319,28 +1301,28 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceEnrollDisburseAccountR
         let amount = match value.amount {
             Some(amount) => amount,
             None => {
-                return Err(error_stack::report!(ApplicationErrorResponse::BadRequest(
-                    crate::errors::ApiError {
-                        sub_code: "MISSING_AMOUNT".to_owned(),
-                        error_identifier: 400,
-                        error_message: "Amount is required".to_owned(),
-                        error_object: None,
+                return Err(error_stack::report!(
+                    IntegrationError::MissingRequiredField {
+                        field_name: "amount",
+                        context: IntegrationErrorContext {
+                            additional_context: Some("Amount is required".to_owned()),
+                            ..Default::default()
+                        },
                     }
-                )));
+                ));
             }
         };
 
         let source_currency = {
             let curr =
                 grpc_api_types::payments::Currency::try_from(amount.currency).map_err(|_| {
-                    error_stack::report!(ApplicationErrorResponse::BadRequest(
-                        crate::errors::ApiError {
-                            sub_code: "INVALID_CURRENCY".to_owned(),
-                            error_identifier: 400,
-                            error_message: "Invalid currency".to_owned(),
-                            error_object: None,
-                        }
-                    ))
+                    error_stack::report!(IntegrationError::InvalidDataFormat {
+                        field_name: "currency",
+                        context: IntegrationErrorContext {
+                            additional_context: Some("Invalid currency".to_owned()),
+                            ..Default::default()
+                        },
+                    })
                 })?;
             common_enums::Currency::foreign_try_from(curr)?
         };
@@ -1366,7 +1348,7 @@ impl
         &MaskedMetadata,
     )> for payouts::payouts_types::PayoutFlowData
 {
-    type Error = ApplicationErrorResponse;
+    type Error = IntegrationError;
 
     fn foreign_try_from(
         (value, connectors, metadata): (
@@ -1406,7 +1388,7 @@ impl
         &MaskedMetadata,
     )> for payouts::payouts_types::PayoutFlowData
 {
-    type Error = ApplicationErrorResponse;
+    type Error = IntegrationError;
 
     fn foreign_try_from(
         (value, connectors, metadata): (
@@ -1446,7 +1428,7 @@ impl
         &MaskedMetadata,
     )> for payouts::payouts_types::PayoutFlowData
 {
-    type Error = ApplicationErrorResponse;
+    type Error = IntegrationError;
 
     fn foreign_try_from(
         (value, connectors, metadata): (
@@ -1486,7 +1468,7 @@ impl
         &MaskedMetadata,
     )> for payouts::payouts_types::PayoutFlowData
 {
-    type Error = ApplicationErrorResponse;
+    type Error = IntegrationError;
 
     fn foreign_try_from(
         (value, connectors, metadata): (
@@ -1526,7 +1508,7 @@ impl
         &MaskedMetadata,
     )> for payouts::payouts_types::PayoutFlowData
 {
-    type Error = ApplicationErrorResponse;
+    type Error = IntegrationError;
 
     fn foreign_try_from(
         (value, connectors, metadata): (
@@ -1566,7 +1548,7 @@ impl
         &MaskedMetadata,
     )> for payouts::payouts_types::PayoutFlowData
 {
-    type Error = ApplicationErrorResponse;
+    type Error = IntegrationError;
 
     fn foreign_try_from(
         (value, connectors, metadata): (
@@ -1606,7 +1588,7 @@ impl
         &MaskedMetadata,
     )> for payouts::payouts_types::PayoutFlowData
 {
-    type Error = ApplicationErrorResponse;
+    type Error = IntegrationError;
 
     fn foreign_try_from(
         (value, connectors, metadata): (
@@ -1648,7 +1630,7 @@ pub fn generate_payout_create_response(
     >,
 ) -> Result<
     grpc_api_types::payouts::PayoutServiceCreateResponse,
-    error_stack::Report<ApplicationErrorResponse>,
+    error_stack::Report<crate::errors::ConnectorResponseTransformationError>,
 > {
     match router_data_v2.response {
         Ok(response) => Ok(grpc_api_types::payouts::PayoutServiceCreateResponse::from(
@@ -1683,7 +1665,7 @@ pub fn generate_payout_transfer_response(
     >,
 ) -> Result<
     grpc_api_types::payouts::PayoutServiceTransferResponse,
-    error_stack::Report<ApplicationErrorResponse>,
+    error_stack::Report<crate::errors::ConnectorResponseTransformationError>,
 > {
     match router_data_v2.response {
         Ok(response) => {
@@ -1727,7 +1709,7 @@ pub fn generate_payout_get_response(
     >,
 ) -> Result<
     grpc_api_types::payouts::PayoutServiceGetResponse,
-    error_stack::Report<ApplicationErrorResponse>,
+    error_stack::Report<crate::errors::ConnectorResponseTransformationError>,
 > {
     match router_data_v2.response {
         Ok(response) => {
@@ -1771,7 +1753,7 @@ pub fn generate_payout_void_response(
     >,
 ) -> Result<
     grpc_api_types::payouts::PayoutServiceVoidResponse,
-    error_stack::Report<ApplicationErrorResponse>,
+    error_stack::Report<crate::errors::ConnectorResponseTransformationError>,
 > {
     match router_data_v2.response {
         Ok(response) => {
@@ -1815,7 +1797,7 @@ pub fn generate_payout_stage_response(
     >,
 ) -> Result<
     grpc_api_types::payouts::PayoutServiceStageResponse,
-    error_stack::Report<ApplicationErrorResponse>,
+    error_stack::Report<crate::errors::ConnectorResponseTransformationError>,
 > {
     match router_data_v2.response {
         Ok(response) => {
@@ -1859,7 +1841,7 @@ pub fn generate_payout_create_link_response(
     >,
 ) -> Result<
     grpc_api_types::payouts::PayoutServiceCreateLinkResponse,
-    error_stack::Report<ApplicationErrorResponse>,
+    error_stack::Report<crate::errors::ConnectorResponseTransformationError>,
 > {
     match router_data_v2.response {
         Ok(response) => {
@@ -1903,7 +1885,7 @@ pub fn generate_payout_create_recipient_response(
     >,
 ) -> Result<
     grpc_api_types::payouts::PayoutServiceCreateRecipientResponse,
-    error_stack::Report<ApplicationErrorResponse>,
+    error_stack::Report<crate::errors::ConnectorResponseTransformationError>,
 > {
     match router_data_v2.response {
         Ok(response) => {
@@ -1951,7 +1933,7 @@ pub fn generate_payout_enroll_disburse_account_response(
     >,
 ) -> Result<
     grpc_api_types::payouts::PayoutServiceEnrollDisburseAccountResponse,
-    error_stack::Report<ApplicationErrorResponse>,
+    error_stack::Report<crate::errors::ConnectorResponseTransformationError>,
 > {
     match router_data_v2.response {
         Ok(response) => {

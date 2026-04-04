@@ -20,7 +20,7 @@ mod uniffi_bindings_inner {
 
     use crate::bindings::utils::{
         build_domain_response, build_ffi_request_bytes, parse_ffi_options_for_req,
-        parse_ffi_options_for_res, parse_metadata_for_req, parse_metadata_for_res,
+        parse_ffi_options_for_res, parse_metadata,
     };
     use crate::define_ffi_flow;
 
@@ -67,7 +67,7 @@ mod uniffi_bindings_inner {
             }
         };
 
-        let ffi_metadata = match parse_metadata_for_req(&ffi_options) {
+        let ffi_metadata = match parse_metadata(&ffi_options) {
             Ok(m) => m,
             Err(e) => {
                 return FfiResult {
@@ -195,12 +195,18 @@ mod uniffi_bindings_inner {
             }
         };
 
-        let ffi_metadata = match parse_metadata_for_res(&ffi_options) {
+        let ffi_metadata = match parse_metadata(&ffi_options) {
             Ok(m) => m,
             Err(e) => {
                 return FfiResult {
                     r#type: ffi_result::Type::ConnectorResponseTransformationError.into(),
-                    payload: Some(ffi_result::Payload::ConnectorResponseTransformationError(e)),
+                    payload: Some(ffi_result::Payload::ConnectorResponseTransformationError(
+                        ConnectorResponseTransformationError {
+                            error_message: e.error_message,
+                            error_code: e.error_code,
+                            http_status_code: None,
+                        },
+                    )),
                 }
                 .encode_to_vec()
             }
@@ -300,12 +306,18 @@ mod uniffi_bindings_inner {
             }
         };
 
-        let ffi_metadata = match parse_metadata_for_res(&ffi_options) {
+        let ffi_metadata = match parse_metadata(&ffi_options) {
             Ok(m) => m,
             Err(e) => {
                 return FfiResult {
                     r#type: ffi_result::Type::ConnectorResponseTransformationError.into(),
-                    payload: Some(ffi_result::Payload::ConnectorResponseTransformationError(e)),
+                    payload: Some(ffi_result::Payload::ConnectorResponseTransformationError(
+                        ConnectorResponseTransformationError {
+                            error_message: e.error_message,
+                            error_code: e.error_code,
+                            http_status_code: None,
+                        },
+                    )),
                 }
                 .encode_to_vec()
             }

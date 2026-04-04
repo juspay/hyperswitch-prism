@@ -29,7 +29,7 @@ use grpc_api_types::payouts::{
     PayoutServiceStageResponse, PayoutServiceTransferRequest, PayoutServiceTransferResponse,
     PayoutServiceVoidRequest, PayoutServiceVoidResponse,
 };
-use ucs_env::error::{ReportSwitchExt, ResultExtGrpc};
+use ucs_env::error::ResultExtGrpc;
 
 use crate::{
     implement_connector_operation,

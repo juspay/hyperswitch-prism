@@ -560,9 +560,12 @@ pub fn handle_event_transformer(
     )
     .map_err(
         |e: error_stack::Report<domain_types::errors::WebhookError>| {
-            let app_error: domain_types::errors::ApplicationErrorResponse =
-                common_utils::errors::ErrorSwitch::switch(e.current_context());
-            ucs_env::error::ErrorSwitch::switch(&app_error)
+            let ctx = e.current_context();
+            ConnectorResponseTransformationError {
+                error_message: ctx.to_string(),
+                error_code: ctx.as_ref().to_string(),
+                http_status_code: None,
+            }
         },
     )
 }

@@ -5,7 +5,6 @@
 
 use bytes::Bytes;
 use domain_types::connector_types::ConnectorEnum;
-use domain_types::errors::ApplicationErrorResponse;
 use domain_types::router_data::ConnectorSpecificConfig;
 use domain_types::router_response_types::Response;
 use domain_types::utils::ForeignTryFrom;
@@ -16,7 +15,6 @@ use grpc_api_types::payments::{
 };
 use http::header::{HeaderMap, HeaderName, HeaderValue};
 use prost::Message;
-use ucs_env::error::ErrorSwitch;
 
 /// Helper to convert internal Request to Protobuf FfiConnectorHttpRequest bytes.
 pub fn build_ffi_request_bytes(
@@ -135,7 +133,7 @@ pub fn parse_ffi_options_for_res(
 /// refactor later
 /// Build FfiMetadataPayload from FfiOptions.
 /// The connector identity is inferred from which ConnectorSpecificConfig variant is set.
-pub fn parse_metadata_for_req(
+pub fn parse_metadata(
     options: &FfiOptions,
 ) -> Result<crate::types::FfiMetadataPayload, IntegrationError> {
     // 1. Resolve ConnectorSpecificConfig from FfiOptions
@@ -160,57 +158,16 @@ pub fn parse_metadata_for_req(
             doc_url: None,
         })?;
 
-    let connector = ConnectorEnum::foreign_try_from(config_variant.clone())
-        .map_err(|e: Report<ApplicationErrorResponse>| e.current_context().switch())?;
+    let connector = ConnectorEnum::foreign_try_from(config_variant.clone()).map_err(
+        |e: Report<domain_types::errors::IntegrationError>| {
+            common_utils::errors::ErrorSwitch::switch(e.current_context())
+        },
+    )?;
 
     // 3. Convert proto config to domain ConnectorSpecificConfig
     let connector_config = ConnectorSpecificConfig::foreign_try_from(proto_config.clone())
         .map_err(|e: Report<domain_types::errors::IntegrationError>| {
-            let app: ApplicationErrorResponse = ErrorSwitch::switch(e.current_context());
-            ErrorSwitch::switch(&app)
-        })?;
-
-    Ok(crate::types::FfiMetadataPayload {
-        connector,
-        connector_config,
-    })
-}
-
-/// refactor later
-/// Build FfiMetadataPayload from FfiOptions (for response path).
-pub fn parse_metadata_for_res(
-    options: &FfiOptions,
-) -> Result<crate::types::FfiMetadataPayload, ConnectorResponseTransformationError> {
-    // 1. Resolve ConnectorSpecificConfig from FfiOptions
-    let proto_config =
-        options
-            .connector_config
-            .as_ref()
-            .ok_or_else(|| ConnectorResponseTransformationError {
-                error_message: "Missing connector_config".to_string(),
-                error_code: "MISSING_CONNECTOR_CONFIG".to_string(),
-                http_status_code: None,
-            })?;
-
-    // 2. Infer connector from which oneof variant is set
-    let config_variant =
-        proto_config
-            .config
-            .as_ref()
-            .ok_or_else(|| ConnectorResponseTransformationError {
-                error_message: "Missing connector_config.config".to_string(),
-                error_code: "MISSING_CONNECTOR_CONFIG_VARIANT".to_string(),
-                http_status_code: None,
-            })?;
-
-    let connector = ConnectorEnum::foreign_try_from(config_variant.clone())
-        .map_err(|e: Report<ApplicationErrorResponse>| e.current_context().switch())?;
-
-    // 3. Convert proto config to domain ConnectorSpecificConfig
-    let connector_config = ConnectorSpecificConfig::foreign_try_from(proto_config.clone())
-        .map_err(|e: Report<domain_types::errors::IntegrationError>| {
-            let app: ApplicationErrorResponse = ErrorSwitch::switch(e.current_context());
-            ErrorSwitch::switch(&app)
+            common_utils::errors::ErrorSwitch::switch(e.current_context())
         })?;
 
     Ok(crate::types::FfiMetadataPayload {

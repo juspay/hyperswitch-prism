@@ -14,8 +14,8 @@ use time::PrimitiveDateTime;
 
 use crate::{
     errors::{
-        self, ApiError, ApplicationErrorResponse, ConnectorResponseTransformationError,
-        IntegrationError, ParsingError,
+        self, ConnectorResponseTransformationError, IntegrationError, IntegrationErrorContext,
+        ParsingError,
     },
     payment_method_data::{Card, PaymentMethodData, PaymentMethodDataTypes},
     router_data::ErrorResponse,
@@ -433,19 +433,18 @@ static CARD_REGEX: LazyLock<HashMap<CardIssuer, core::result::Result<Regex, rege
 /// header is missing, a default ID is auto-generated.
 pub fn extract_merchant_id_from_metadata(
     metadata: &MaskedMetadata,
-) -> Result<common_utils::id_type::MerchantId, ApplicationErrorResponse> {
+) -> Result<common_utils::id_type::MerchantId, IntegrationError> {
     let merchant_id_str = common_utils::metadata::merchant_id_or_default(
         metadata.get_raw(consts::X_MERCHANT_ID).as_deref(),
     );
     Ok(merchant_id_str
         .parse::<common_utils::id_type::MerchantId>()
-        .map_err(|e| {
-            ApplicationErrorResponse::BadRequest(ApiError {
-                sub_code: "INVALID_MERCHANT_ID".to_owned(),
-                error_identifier: 400,
-                error_message: format!("Failed to parse merchant ID from header: {e}"),
-                error_object: None,
-            })
+        .map_err(|e| IntegrationError::InvalidDataFormat {
+            field_name: "merchant_id",
+            context: IntegrationErrorContext {
+                additional_context: Some(format!("Failed to parse merchant ID from header: {e}")),
+                ..Default::default()
+            },
         })?)
 }
 

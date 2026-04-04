@@ -517,9 +517,9 @@ let signature = get_http_header("X-Signature", headers)?;
 
 ### `extract_merchant_id_from_metadata`
 **Location:** `domain_types::utils::extract_merchant_id_from_metadata`
-**Signature:** `fn extract_merchant_id_from_metadata(metadata: &MaskedMetadata) -> Result<MerchantId, ApplicationErrorResponse>`
-**Description:** Extracts merchant ID from request metadata.
-**Use Case:** In webhook handlers to identify merchant from metadata.
+**Signature:** `fn extract_merchant_id_from_metadata(metadata: &MaskedMetadata) -> Result<MerchantId, IntegrationError>`
+**Description:** Extracts merchant ID from request metadata. If the `x-merchant-id` header is missing, a default ID is auto-generated.
+**Use Case:** In webhook handlers and transformers to identify merchant from metadata.
 
 ### `generate_id_with_default_len`
 **Location:** `common_utils::fp_utils::generate_id_with_default_len`

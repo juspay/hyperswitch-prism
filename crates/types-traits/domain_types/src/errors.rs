@@ -3,7 +3,6 @@
 use common_enums;
 use common_utils::errors::ErrorSwitch;
 use error_stack::Report;
-use strum::Display;
 // use api_models::errors::types::{ Extra};
 #[derive(Debug, thiserror::Error, PartialEq, Clone, strum::AsRefStr)]
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
@@ -42,60 +41,6 @@ pub enum ApiClientError {
     GatewayTimeoutReceived,
     #[error("Server responded with unexpected response")]
     UnexpectedServerResponse,
-}
-
-#[derive(Debug, Clone, thiserror::Error, Display)]
-pub enum ApplicationErrorResponse {
-    Unauthorized(ApiError),
-    ForbiddenCommonResource(ApiError),
-    ForbiddenPrivateResource(ApiError),
-    Conflict(ApiError),
-    Gone(ApiError),
-    Unprocessable(ApiError),
-    InternalServerError(ApiError),
-    NotImplemented(ApiError),
-    NotFound(ApiError),
-    MethodNotAllowed(ApiError),
-    BadRequest(ApiError),
-    DomainError(ApiError),
-}
-
-impl ApplicationErrorResponse {
-    /// Returns a reference to the inner ApiError
-    pub fn get_api_error(&self) -> &ApiError {
-        match self {
-            Self::Unauthorized(err) => err,
-            Self::ForbiddenCommonResource(err) => err,
-            Self::ForbiddenPrivateResource(err) => err,
-            Self::Conflict(err) => err,
-            Self::Gone(err) => err,
-            Self::Unprocessable(err) => err,
-            Self::InternalServerError(err) => err,
-            Self::NotImplemented(err) => err,
-            Self::NotFound(err) => err,
-            Self::MethodNotAllowed(err) => err,
-            Self::BadRequest(err) => err,
-            Self::DomainError(err) => err,
-        }
-    }
-
-    pub fn missing_required_field(field_name: &'static str) -> Self {
-        Self::BadRequest(ApiError {
-            sub_code: "MISSING_REQUIRED_FIELD".to_owned(),
-            error_identifier: 400,
-            error_message: format!("Missing required param: {field_name}"),
-            error_object: None,
-        })
-    }
-
-    pub fn empty_field_error(field_name: &str) -> Self {
-        Self::BadRequest(ApiError {
-            sub_code: format!("INVALID_{}", field_name.to_uppercase()),
-            error_identifier: 400,
-            error_message: format!("{} cannot be empty", field_name),
-            error_object: None,
-        })
-    }
 }
 
 #[derive(Debug, serde::Serialize, Clone)]
@@ -376,69 +321,6 @@ impl ErrorSwitch<grpc_api_types::payments::IntegrationError> for IntegrationErro
     }
 }
 
-/// **LEGACY:** Lossy conversion to ApplicationErrorResponse to grpc successResponse with error field for gRPC server (payments.rs:820-860).
-/// **TODO:** Refactor gRPC server to use `ConnectorFlowError → tonic::Status` directly.
-/// **FFI:** Already uses lossless `IntegrationError → grpc_api_types::payments::IntegrationError`.
-impl ErrorSwitch<ApplicationErrorResponse> for IntegrationError {
-    fn switch(&self) -> ApplicationErrorResponse {
-        let api_err = |sub_code: &str, id: u16| ApiError {
-            sub_code: sub_code.to_string(),
-            error_identifier: id,
-            error_message: self.to_string(),
-            error_object: None,
-        };
-        match self {
-            Self::FailedToObtainIntegrationUrl { .. }
-            | Self::FailedToObtainAuthType { .. }
-            | Self::RequestEncodingFailed { .. }
-            | Self::HeaderMapConstructionFailed { .. }
-            | Self::BodySerializationFailed { .. }
-            | Self::UrlParsingFailed { .. }
-            | Self::UrlEncodingFailed { .. }
-            | Self::AmountConversionFailed { .. }
-            | Self::NoConnectorMetaData { .. } => {
-                ApplicationErrorResponse::InternalServerError(api_err("INTERNAL_SERVER_ERROR", 500))
-            }
-            Self::SourceVerificationFailed { .. } => {
-                ApplicationErrorResponse::Unauthorized(api_err("UNAUTHORIZED", 401))
-            }
-            Self::InvalidWallet { .. }
-            | Self::MissingRequiredField { .. }
-            | Self::MissingRequiredFields { .. }
-            | Self::InvalidDataFormat { .. }
-            | Self::MismatchedPaymentData { .. }
-            | Self::InvalidWalletToken { .. }
-            | Self::MissingPaymentMethodType { .. }
-            | Self::CurrencyNotSupported { .. }
-            | Self::InvalidConnectorConfig { .. }
-            | Self::NotSupported { .. }
-            | Self::FlowNotSupported { .. }
-            | Self::MissingApplePayTokenData { .. }
-            | Self::MandatePaymentDataMismatch { .. }
-            | Self::ConfigurationError { .. } => {
-                ApplicationErrorResponse::BadRequest(api_err("BAD_REQUEST", 400))
-            }
-            Self::MaxFieldLengthViolated { .. }
-            | Self::MissingConnectorMandateID { .. }
-            | Self::MissingConnectorMandateMetadata { .. }
-            | Self::MissingConnectorTransactionID { .. }
-            | Self::MissingConnectorRefundID { .. }
-            | Self::MissingConnectorRelatedTransactionID { .. } => {
-                ApplicationErrorResponse::Unprocessable(api_err("UNPROCESSABLE_ENTITY", 422))
-            }
-            Self::NotImplemented(..) | Self::CaptureMethodNotSupported { .. } => {
-                ApplicationErrorResponse::NotImplemented(api_err("NOT_IMPLEMENTED", 501))
-            }
-        }
-    }
-}
-
-impl common_utils::errors::ErrorSwitchFrom<ApplicationErrorResponse> for ApplicationErrorResponse {
-    fn switch_from(error: &ApplicationErrorResponse) -> Self {
-        error.clone()
-    }
-}
-
 /// Errors that occur on the response transformation side:
 /// - connector bytes → domain (`handle_response_v2`)
 /// - domain → proto (`generate_payment_*_response`)
@@ -474,6 +356,11 @@ pub fn doc_url_for_error_code(_error_code: &str) -> Option<String> {
 }
 
 impl ConnectorResponseTransformationError {
+    /// Machine-readable error code (SCREAMING_SNAKE_CASE from variant name).
+    pub fn error_code(&self) -> &str {
+        self.as_ref()
+    }
+
     /// HTTP status code from the connector response (`None` when not applicable).
     pub fn http_status_code(&self) -> Option<u16> {
         match self {
@@ -619,20 +506,6 @@ impl ErrorSwitch<grpc_api_types::payments::ConnectorResponseTransformationError>
     }
 }
 
-/// **LEGACY:** Lossy conversion to ApplicationErrorResponse to grpc successResponse with error field for gRPC server.
-/// **TODO:** Refactor gRPC server to use `ConnectorFlowError → tonic::Status` directly.
-/// **FFI:** Already uses lossless `ConnectorResponseTransformationError → grpc_api_types::payments::ConnectorResponseTransformationError`.
-impl ErrorSwitch<ApplicationErrorResponse> for ConnectorResponseTransformationError {
-    fn switch(&self) -> ApplicationErrorResponse {
-        ApplicationErrorResponse::InternalServerError(ApiError {
-            sub_code: "INTERNAL_SERVER_ERROR".to_string(),
-            error_identifier: 500,
-            error_message: self.to_string(),
-            error_object: None,
-        })
-    }
-}
-
 /// Errors that occur during webhook processing
 #[derive(Debug, thiserror::Error, PartialEq, Clone, strum::AsRefStr)]
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
@@ -674,64 +547,6 @@ pub enum ConnectorFlowError {
     Client(#[from] ApiClientError),
     #[error("Connector Response Transformation error: {0}")]
     Response(#[from] ConnectorResponseTransformationError),
-}
-
-impl ErrorSwitch<ApplicationErrorResponse> for ApiClientError {
-    fn switch(&self) -> ApplicationErrorResponse {
-        let (sub_code, error_identifier) = match self {
-            Self::RequestTimeoutReceived | Self::GatewayTimeoutReceived => ("REQUEST_TIMEOUT", 504),
-            _ => ("INTERNAL_SERVER_ERROR", 500),
-        };
-        ApplicationErrorResponse::InternalServerError(ApiError {
-            sub_code: sub_code.to_string(),
-            error_identifier,
-            error_message: self.to_string(),
-            error_object: None,
-        })
-    }
-}
-
-impl ErrorSwitch<ApplicationErrorResponse> for ConnectorFlowError {
-    fn switch(&self) -> ApplicationErrorResponse {
-        match self {
-            Self::Request(e) => e.switch(),
-            Self::Client(e) => e.switch(),
-            Self::Response(e) => e.switch(),
-        }
-    }
-}
-
-impl ErrorSwitch<ApplicationErrorResponse> for WebhookError {
-    fn switch(&self) -> ApplicationErrorResponse {
-        let api_err = |sub_code: &str, id: u16| ApiError {
-            sub_code: sub_code.to_string(),
-            error_identifier: id,
-            error_message: self.to_string(),
-            error_object: None,
-        };
-        match self {
-            Self::WebhookEventTypeNotFound
-            | Self::WebhookSignatureNotFound
-            | Self::WebhookReferenceIdNotFound
-            | Self::WebhookResourceObjectNotFound
-            | Self::WebhookVerificationSecretNotFound => {
-                ApplicationErrorResponse::NotFound(api_err("WEBHOOK_DETAILS_NOT_FOUND", 404))
-            }
-            Self::WebhookBodyDecodingFailed
-            | Self::WebhookSourceVerificationFailed
-            | Self::WebhookVerificationSecretInvalid => {
-                ApplicationErrorResponse::BadRequest(api_err("INVALID_WEBHOOK_DATA", 400))
-            }
-            Self::WebhooksNotImplemented { .. } => {
-                ApplicationErrorResponse::NotImplemented(api_err("NOT_IMPLEMENTED", 501))
-            }
-            Self::WebhookProcessingFailed
-            | Self::WebhookAmountConversionFailed { .. }
-            | Self::WebhookResponseEncodingFailed => {
-                ApplicationErrorResponse::InternalServerError(api_err("INTERNAL_SERVER_ERROR", 500))
-            }
-        }
-    }
 }
 
 impl From<common_enums::ApiClientError> for ApiClientError {

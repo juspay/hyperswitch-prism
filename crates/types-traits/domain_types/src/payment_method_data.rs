@@ -14,7 +14,7 @@ use utoipa::ToSchema;
 
 pub use crate::router_data::PazeDecryptedData;
 use crate::{
-    errors::{ApiError, ApplicationErrorResponse, IntegrationError, IntegrationErrorContext},
+    errors::{IntegrationError, IntegrationErrorContext},
     utils::{get_card_issuer, missing_field_err, CardIssuer, Error},
 };
 
@@ -881,42 +881,49 @@ impl GooglePayWalletData {
 
     pub fn validate_decrypted_card_exp_month(
         value: Option<Secret<String>>,
-    ) -> Result<Secret<String>, error_stack::Report<ApplicationErrorResponse>> {
+    ) -> Result<Secret<String>, error_stack::Report<IntegrationError>> {
         value.ok_or_else(|| {
-            error_stack::report!(ApplicationErrorResponse::BadRequest(ApiError {
-                sub_code: "MISSING_CARD_EXP_MONTH".to_owned(),
-                error_identifier: 400,
-                error_message: "Google Pay tokenization data card exp month is required".to_owned(),
-                error_object: None,
-            }))
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "card_exp_month",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Google Pay tokenization data card exp month is required".to_owned()
+                    ),
+                    ..Default::default()
+                },
+            })
         })
     }
 
     pub fn validate_decrypted_card_exp_year(
         value: Option<Secret<String>>,
-    ) -> Result<Secret<String>, error_stack::Report<ApplicationErrorResponse>> {
+    ) -> Result<Secret<String>, error_stack::Report<IntegrationError>> {
         value.ok_or_else(|| {
-            error_stack::report!(ApplicationErrorResponse::BadRequest(ApiError {
-                sub_code: "MISSING_CARD_EXP_YEAR".to_owned(),
-                error_identifier: 400,
-                error_message: "Google Pay tokenization data card exp year is required".to_owned(),
-                error_object: None,
-            }))
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "card_exp_year",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Google Pay tokenization data card exp year is required".to_owned()
+                    ),
+                    ..Default::default()
+                },
+            })
         })
     }
 
     pub fn validate_decrypted_primary_account_number(
         value: Option<cards::CardNumber>,
-    ) -> Result<cards::CardNumber, error_stack::Report<ApplicationErrorResponse>> {
+    ) -> Result<cards::CardNumber, error_stack::Report<IntegrationError>> {
         value.ok_or_else(|| {
-            error_stack::report!(ApplicationErrorResponse::BadRequest(ApiError {
-                sub_code: "MISSING_APPLICATION_PRIMARY_ACCOUNT_NUMBER".to_owned(),
-                error_identifier: 400,
-                error_message:
-                    "Google Pay tokenization data application primary account number is required"
-                        .to_owned(),
-                error_object: None,
-            }))
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "primary_account_number",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Google Pay tokenization data card number is required".to_owned()
+                    ),
+                    ..Default::default()
+                },
+            })
         })
     }
 }
@@ -1206,71 +1213,83 @@ pub struct ApplePayWalletData {
 impl ApplePayWalletData {
     pub fn validate_decrypted_primary_account_number(
         value: Option<cards::CardNumber>,
-    ) -> Result<cards::CardNumber, error_stack::Report<ApplicationErrorResponse>> {
+    ) -> Result<cards::CardNumber, error_stack::Report<IntegrationError>> {
         value.ok_or_else(|| {
-            error_stack::report!(ApplicationErrorResponse::BadRequest(ApiError {
-                sub_code: "MISSING_APPLICATION_PRIMARY_ACCOUNT_NUMBER".to_owned(),
-                error_identifier: 400,
-                error_message:
-                    "Apple Pay payment data application primary account number is required"
-                        .to_owned(),
-                error_object: None,
-            }))
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "application_primary_account_number",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Apple Pay payment data application primary account number is required"
+                            .to_owned()
+                    ),
+                    ..Default::default()
+                },
+            })
         })
     }
 
     pub fn validate_decrypted_expiration_month(
         value: Option<Secret<String>>,
-    ) -> Result<Secret<String>, error_stack::Report<ApplicationErrorResponse>> {
+    ) -> Result<Secret<String>, error_stack::Report<IntegrationError>> {
         value.ok_or_else(|| {
-            error_stack::report!(ApplicationErrorResponse::BadRequest(ApiError {
-                sub_code: "MISSING_APPLICATION_EXPIRATION_MONTH".to_owned(),
-                error_identifier: 400,
-                error_message: "Apple Pay payment data application expiration month is required"
-                    .to_owned(),
-                error_object: None,
-            }))
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "application_expiration_month",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Apple Pay payment data application expiration month is required"
+                            .to_owned()
+                    ),
+                    ..Default::default()
+                },
+            })
         })
     }
 
     pub fn validate_decrypted_expiration_year(
         value: Option<Secret<String>>,
-    ) -> Result<Secret<String>, error_stack::Report<ApplicationErrorResponse>> {
+    ) -> Result<Secret<String>, error_stack::Report<IntegrationError>> {
         value.ok_or_else(|| {
-            error_stack::report!(ApplicationErrorResponse::BadRequest(ApiError {
-                sub_code: "MISSING_APPLICATION_EXPIRATION_YEAR".to_owned(),
-                error_identifier: 400,
-                error_message: "Apple Pay payment data application expiration year is required"
-                    .to_owned(),
-                error_object: None,
-            }))
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "application_expiration_year",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Apple Pay payment data application expiration year is required".to_owned()
+                    ),
+                    ..Default::default()
+                },
+            })
         })
     }
 
     pub fn validate_decrypted_payment_data(
         value: Option<grpc_api_types::payments::ApplePayCryptogramData>,
-    ) -> Result<ApplePayCryptogramData, error_stack::Report<ApplicationErrorResponse>> {
+    ) -> Result<ApplePayCryptogramData, error_stack::Report<IntegrationError>> {
         let decrypted_payment_data = value.ok_or_else(|| {
-            error_stack::report!(ApplicationErrorResponse::BadRequest(ApiError {
-                sub_code: "MISSING_DECRYPTED_PAYMENT_DATA".to_owned(),
-                error_identifier: 400,
-                error_message: "Apple Pay decrypted payment data is required".to_owned(),
-                error_object: None,
-            }))
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "decrypted_payment_data",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Apple Pay decrypted payment data is required".to_owned()
+                    ),
+                    ..Default::default()
+                },
+            })
         })?;
 
         Ok(ApplePayCryptogramData {
             online_payment_cryptogram: decrypted_payment_data
                 .online_payment_cryptogram
                 .ok_or_else(|| {
-                    error_stack::report!(ApplicationErrorResponse::BadRequest(ApiError {
-                        sub_code: "MISSING_ONLINE_PAYMENT_CRYPTOGRAM".to_owned(),
-                        error_identifier: 400,
-                        error_message:
-                            "Apple Pay payment data online payment cryptogram is required"
-                                .to_owned(),
-                        error_object: None,
-                    }))
+                    error_stack::report!(IntegrationError::MissingRequiredField {
+                        field_name: "online_payment_cryptogram",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "Apple Pay payment data online payment cryptogram is required"
+                                    .to_owned()
+                            ),
+                            ..Default::default()
+                        },
+                    })
                 })?,
             eci_indicator: decrypted_payment_data.eci_indicator,
         })

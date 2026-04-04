@@ -1,7 +1,7 @@
 use base64::{engine::general_purpose, Engine as _};
 use common_utils::errors::CustomResult;
 use domain_types::{
-    errors::{ApiError, ApplicationErrorResponse},
+    errors::{IntegrationError, IntegrationErrorContext},
     router_data::ConnectorSpecificConfig,
     types::Connectors,
 };
@@ -15,18 +15,21 @@ use common_utils::config_patch::Patch;
 pub fn merge_config_with_override(
     config_override: String,
     config: configs::Config,
-) -> CustomResult<Arc<configs::Config>, ApplicationErrorResponse> {
+) -> CustomResult<Arc<configs::Config>, IntegrationError> {
     match config_override.trim().is_empty() {
         true => Ok(Arc::new(config)),
         false => {
             let mut override_patch: ConfigPatch = serde_json::from_str(config_override.trim())
                 .map_err(|e| {
-                    Report::new(ApplicationErrorResponse::BadRequest(ApiError {
-                        sub_code: "CANNOT_CONVERT_TO_JSON".into(),
-                        error_identifier: 400,
-                        error_message: format!("Cannot convert override config to JSON: {e}"),
-                        error_object: None,
-                    }))
+                    Report::new(IntegrationError::InvalidDataFormat {
+                        field_name: "config_override",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(format!(
+                                "Cannot convert override config to JSON: {e}"
+                            )),
+                            ..Default::default()
+                        },
+                    })
                 })?;
 
             if let Some(proxy_patch) = override_patch.proxy.as_mut() {
@@ -38,39 +41,41 @@ pub fn merge_config_with_override(
                     let cert_trimmed = cert_input.trim();
 
                     let cert = if cert_trimmed.is_empty() {
-                        Err(Report::new(ApplicationErrorResponse::BadRequest(
-                            ApiError {
-                                sub_code: "INVALID_MITM_CA_CERT_BASE64".into(),
-                                error_identifier: 400,
-                                error_message: "proxy.mitm_ca_cert must be base64-encoded"
-                                    .to_string(),
-                                error_object: None,
+                        Err(Report::new(IntegrationError::InvalidDataFormat {
+                            field_name: "proxy.mitm_ca_cert",
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "proxy.mitm_ca_cert must be base64-encoded".to_string(),
+                                ),
+                                ..Default::default()
                             },
-                        )))
+                        }))
                     } else {
                         let sanitized: String = cert_trimmed.split_whitespace().collect();
                         let decoded = general_purpose::STANDARD
                             .decode(sanitized.as_bytes())
                             .map_err(|e| {
-                                Report::new(ApplicationErrorResponse::BadRequest(ApiError {
-                                    sub_code: "INVALID_MITM_CA_CERT_BASE64".into(),
-                                    error_identifier: 400,
-                                    error_message: format!(
-                                        "Invalid base64 for proxy.mitm_ca_cert: {e}"
-                                    ),
-                                    error_object: None,
-                                }))
+                                Report::new(IntegrationError::InvalidDataFormat {
+                                    field_name: "proxy.mitm_ca_cert",
+                                    context: IntegrationErrorContext {
+                                        additional_context: Some(format!(
+                                            "Invalid base64 for proxy.mitm_ca_cert: {e}"
+                                        )),
+                                        ..Default::default()
+                                    },
+                                })
                             })?;
 
                         String::from_utf8(decoded).map_err(|e| {
-                            Report::new(ApplicationErrorResponse::BadRequest(ApiError {
-                                sub_code: "INVALID_MITM_CA_CERT_UTF8".into(),
-                                error_identifier: 400,
-                                error_message: format!(
-                                    "Decoded proxy.mitm_ca_cert is not valid UTF-8: {e}"
-                                ),
-                                error_object: None,
-                            }))
+                            Report::new(IntegrationError::InvalidDataFormat {
+                                field_name: "proxy.mitm_ca_cert",
+                                context: IntegrationErrorContext {
+                                    additional_context: Some(format!(
+                                        "Decoded proxy.mitm_ca_cert is not valid UTF-8: {e}"
+                                    )),
+                                    ..Default::default()
+                                },
+                            })
                         })
                     }?;
 
@@ -91,7 +96,7 @@ pub fn merge_config_with_override(
 pub fn connectors_with_connector_config_overrides(
     connector_config: &ConnectorSpecificConfig,
     base_config: &configs::Config,
-) -> CustomResult<Connectors, ApplicationErrorResponse> {
+) -> CustomResult<Connectors, IntegrationError> {
     match connector_config.connector_config_override_patch() {
         Some(config_override) => {
             merge_config_with_override(config_override.to_string(), base_config.clone())
@@ -107,18 +112,21 @@ pub fn connectors_with_connector_config_overrides(
 pub fn connectors_with_connector_config_overrides_on_connectors(
     connector_config: &ConnectorSpecificConfig,
     base_connectors: Connectors,
-) -> CustomResult<Connectors, ApplicationErrorResponse> {
+) -> CustomResult<Connectors, IntegrationError> {
     match connector_config.connector_config_override_patch() {
         Some(config_override) => {
             // Parse the override patch from JSON Value
             let override_patch: ConfigPatch = serde_json::from_value(config_override.clone())
                 .map_err(|e| {
-                    Report::new(ApplicationErrorResponse::BadRequest(ApiError {
-                        sub_code: "CANNOT_CONVERT_TO_JSON".into(),
-                        error_identifier: 400,
-                        error_message: format!("Cannot convert override config to JSON: {e}"),
-                        error_object: None,
-                    }))
+                    Report::new(IntegrationError::InvalidDataFormat {
+                        field_name: "config_override",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(format!(
+                                "Cannot convert override config to JSON: {e}"
+                            )),
+                            ..Default::default()
+                        },
+                    })
                 })?;
 
             // If there's a connectors patch, apply it
