@@ -12,7 +12,7 @@ use domain_types::{
         ResponseId,
     },
     payment_method_data::{
-        BankRedirectData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
+        BankRedirectData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, VoucherData,
     },
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
@@ -147,6 +147,7 @@ pub struct Shift4PaymentsRequest<T: PaymentMethodDataTypes> {
 pub enum Shift4PaymentMethod<T: PaymentMethodDataTypes> {
     Card(Shift4CardPayment<T>),
     BankRedirect(Shift4BankRedirectPayment),
+    Voucher(Shift4VoucherPayment),
 }
 
 #[derive(Debug, Serialize)]
@@ -191,6 +192,8 @@ pub struct Shift4Billing {
     pub name: Option<Secret<String>>,
     pub email: Option<pii::Email>,
     pub address: Option<Shift4Address>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub vat: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -201,6 +204,21 @@ pub struct Shift4Address {
     pub state: Option<Secret<String>>,
     pub zip: Option<Secret<String>>,
     pub country: Option<String>,
+}
+
+// Voucher Payment Structures (for Boleto and similar)
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Shift4VoucherPayment {
+    pub payment_method: Shift4VoucherMethod,
+    pub flow: Shift4FlowRequest,
+}
+
+#[derive(Debug, Serialize)]
+pub struct Shift4VoucherMethod {
+    #[serde(rename = "type")]
+    pub payment_type: String,
+    pub billing: Shift4Billing,
 }
 
 // BankRedirect Data Transformation
@@ -274,6 +292,7 @@ impl<T: PaymentMethodDataTypes>
             name,
             email,
             address,
+            vat: None,
         };
 
         Ok(Self {
@@ -344,6 +363,54 @@ impl<T: PaymentMethodDataTypes>
                     flow: Some(Shift4FlowRequest { return_url }),
                 })
             }
+            PaymentMethodData::Voucher(VoucherData::Boleto(boleto_data)) => {
+                let billing = item
+                    .resource_common_data
+                    .address
+                    .get_payment_method_billing();
+                let name = billing.as_ref().and_then(|b| b.get_optional_full_name());
+                let email = item
+                    .request
+                    .email
+                    .as_ref()
+                    .cloned()
+                    .or_else(|| billing.as_ref().and_then(|b| b.email.as_ref()).cloned());
+                let address = billing
+                    .as_ref()
+                    .and_then(|b| b.address.as_ref())
+                    .map(|addr| Shift4Address {
+                        line1: addr.line1.clone(),
+                        line2: addr.line2.clone(),
+                        city: addr.city.clone(),
+                        state: addr.state.clone(),
+                        zip: addr.zip.clone(),
+                        country: addr.country.as_ref().map(|c| c.to_string()),
+                    });
+
+                let vat = boleto_data.social_security_number.clone();
+
+                let billing_info = Shift4Billing {
+                    name,
+                    email,
+                    address,
+                    vat,
+                };
+
+                let return_url = item.request.get_router_return_url().change_context(
+                    IntegrationError::MissingRequiredField {
+                        field_name: "return_url",
+                        context: Default::default(),
+                    },
+                )?;
+
+                Shift4PaymentMethod::Voucher(Shift4VoucherPayment {
+                    payment_method: Shift4VoucherMethod {
+                        payment_type: "boleto".to_string(),
+                        billing: billing_info,
+                    },
+                    flow: Shift4FlowRequest { return_url },
+                })
+            }
             _ => {
                 return Err(error_stack::report!(IntegrationError::NotSupported {
                     message: "Payment method".to_string(),
@@ -373,6 +440,15 @@ pub struct Shift4PaymentsResponse {
     pub captured: bool,
     pub refunded: bool,
     pub flow: Option<FlowResponse>,
+    #[serde(default)]
+    pub actions: Vec<Shift4Action>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct Shift4Action {
+    #[serde(rename = "type")]
+    pub action_type: String,
+    pub url: String,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -437,7 +513,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4PaymentsRespons
             }
         };
 
-        // Extract redirect URL from flow if present
+        // Extract redirect URL from flow if present, or from actions (for Boleto voucher)
         let redirection_data = item
             .response
             .flow
@@ -446,6 +522,14 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4PaymentsRespons
             .and_then(|redirect| {
                 Url::parse(&redirect.redirect_url)
                     .ok()
+                    .map(|url| Box::new(RedirectForm::from((url, Method::Get))))
+            })
+            .or_else(|| {
+                item.response
+                    .actions
+                    .iter()
+                    .find(|a| a.action_type == "redirect")
+                    .and_then(|a| Url::parse(&a.url).ok())
                     .map(|url| Box::new(RedirectForm::from((url, Method::Get))))
             });
 
