@@ -23,7 +23,7 @@ GRPC_HOST  ?= 0.0.0.0
 # PID file used to track the background server process
 GRPC_PID_FILE := .grpc-server.pid
 
-.PHONY: all fmt check clippy test nextest ci help \
+.PHONY: all fmt check clippy test nextest ci check-specs help \
         proto-format proto-generate proto-build proto-lint proto-clean \
         generate certify-client-sanity field-probe docs docs-check all-connectors-doc \
         setup-connector-tests \
@@ -67,6 +67,11 @@ test:
 nextest:
 	@echo "▶ cargo nextest…"
 	cargo nextest run --config-file .nextest.toml
+
+## Check connector specs coverage (flow→suite parity + testable suite report)
+check-specs:
+	@echo "▶ check_connector_specs…"
+	cargo run --bin check_connector_specs
 
 ## CI-friendly invocation:
 ##    make ci
@@ -391,7 +396,8 @@ help:
 	@echo "  check    Run cargo-hack check (no dev-deps)"
 	@echo "  clippy   Run cargo-hack clippy (no dev-deps)"
 	@echo "  test     Run cargo-hack test"
-	@echo "  nextest  Run tests with nextest (faster test runner)"
+	@echo "  nextest      Run tests with nextest (faster test runner)"
+	@echo "  check-specs  Check connector specs coverage (flow→suite parity)"
 	@echo "  ci       Same as 'all' but with CI=true (treat warnings as errors)"
 	@echo
 	@echo "Connector Integration Test Targets:"

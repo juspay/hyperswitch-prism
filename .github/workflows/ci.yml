@@ -63,6 +63,9 @@ jobs:
       - name: Run UCS Connector Schema Compatibility Check
         run: cargo test -p integration-tests --lib harness::scenario_api::tests::all_supported_scenarios_match_proto_schema_for_all_connectors -- --exact
 
+      - name: Run Connector Specs Coverage Check
+        run: cargo run --bin check_connector_specs
+
   test:
     name: Run Tests
     runs-on: ubuntu-latest
@@ -157,32 +160,6 @@ jobs:
       - name: Check formatting
         shell: bash
         run: cargo +nightly fmt --all --check
-
-  connector-specs:
-    name: Connector Specs Coverage Check
-    runs-on: ubuntu-latest
-
-    env:
-      RUSTFLAGS: "-D warnings"
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: stable
-
-      - name: Install Protoc
-        uses: arduino/setup-protoc@v3
-        with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - uses: Swatinem/rust-cache@v2.7.8
-
-      - name: Run connector specs check
-        run: cargo run --bin check_connector_specs
 
   sdk-test:
     name: SDK Tests
