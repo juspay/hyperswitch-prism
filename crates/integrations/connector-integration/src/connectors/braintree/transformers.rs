@@ -19,10 +19,10 @@ use domain_types::{
         GpayTokenizationSpecification, GpayTransactionInfo, MandateReference, NextActionCall,
         PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
         PaymentRequestMetadata, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, PaypalClientAuthenticationResponse, SetupMandateRequestData,
+        PaymentsResponseData, PaymentsSyncData, PaypalClientAuthenticationResponse,
         PaypalTransactionInfo, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
         RepeatPaymentData, ResponseId, SdkNextAction, SecretInfoToInitiateSdk,
-        ThirdPartySdkSessionResponse,
+        SetupMandateRequestData, ThirdPartySdkSessionResponse,
     },
     errors::{ConnectorResponseTransformationError, IntegrationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData},
@@ -3015,9 +3015,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 context: Default::default(),
             })?;
 
-        let payment_method_id = match payment_method_token {
-            PaymentMethodTokenFlow::Token(token) => token,
-        };
+        let PaymentMethodTokenFlow::Token(payment_method_id) = payment_method_token;
 
         Ok(Self {
             query: constants::VAULT_CREDIT_CARD_MUTATION.to_string(),
@@ -3152,21 +3150,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         item.http_code,
                     ))
                 } else {
-                    let mandate_reference =
-                        vault_data.payment_method.as_ref().map(|pm| {
-                            Box::new(MandateReference {
-                                connector_mandate_id: Some(pm.id.clone().expose()),
-                                payment_method_id: None,
-                                connector_mandate_request_reference_id: None,
-                            })
-                        });
+                    let mandate_reference = vault_data.payment_method.as_ref().map(|pm| {
+                        Box::new(MandateReference {
+                            connector_mandate_id: Some(pm.id.clone().expose()),
+                            payment_method_id: None,
+                            connector_mandate_request_reference_id: None,
+                        })
+                    });
 
                     let resource_id = vault_data
                         .payment_method
                         .as_ref()
-                        .map(|pm| {
-                            ResponseId::ConnectorTransactionId(pm.id.clone().expose())
-                        })
+                        .map(|pm| ResponseId::ConnectorTransactionId(pm.id.clone().expose()))
                         .unwrap_or(ResponseId::NoResponseId);
 
                     Ok(PaymentsResponseData::TransactionResponse {
