@@ -8,6 +8,7 @@
     "get",
     "post_authenticate",
     "pre_authenticate",
+    "recurring_charge",
     "refund",
     "refund_sync",
     "revoke_mandate",

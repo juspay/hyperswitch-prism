@@ -465,6 +465,7 @@ fn environment_discriminant(environment: Environment) -> i32 {
 /// ```
 /// The `{"value":"..."}` wrappers are already unwrapped by
 /// `credentials::load_connector_config`, so we must NOT try to read `.value`.
+#[allow(clippy::indexing_slicing)] // serde_json::Value indexing returns Null, never panics
 fn build_proto_connector_config(
     connector: &str,
     connector_config: &ConnectorConfig,

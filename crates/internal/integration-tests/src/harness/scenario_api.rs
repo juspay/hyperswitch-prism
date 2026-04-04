@@ -1435,10 +1435,9 @@ fn source_path_candidates(path: &str) -> Vec<String> {
     }
 
     if path == "connector_mandate_id" {
-        candidates.push(
-            "mandate_reference.connector_mandate_id.connector_mandate_id".to_string(),
-        );
-        candidates.push("mandate_reference_id.connector_mandate_id.connector_mandate_id".to_string());
+        candidates.push("mandate_reference.connector_mandate_id.connector_mandate_id".to_string());
+        candidates
+            .push("mandate_reference_id.connector_mandate_id.connector_mandate_id".to_string());
     }
 
     if let Some(rest) = path.strip_prefix("mandate_reference_id.") {
@@ -2816,7 +2815,11 @@ fn normalize_tonic_request_json(
 
         if matches!(
             effective_suite,
-            "authorize" | "complete_authorize" | "setup_recurring"
+            "authorize"
+                | "complete_authorize"
+                | "setup_recurring"
+                | "proxy_setup_recurring"
+                | "token_setup_recurring"
         ) {
             if let Some(Value::Object(customer_acceptance)) = map.get_mut("customer_acceptance") {
                 if !customer_acceptance.contains_key("accepted_at") {
@@ -2839,6 +2842,67 @@ fn normalize_tonic_request_json(
                 if handle_response.is_boolean() {
                     map.remove("handle_response");
                 }
+            }
+        }
+
+        // create_sdk_session_token: flat scenario fields → nested proto shape.
+        // Proto: merchant_client_session_id (string),
+        //        domain_context.Payment { amount, order_tax_amount,
+        //        shipping_cost, payment_method_type, country_alpha2_code, customer, metadata }
+        if effective_suite == "create_sdk_session_token" {
+            // Rename legacy field name → proto field name
+            if let Some(val) = map.remove("merchant_sdk_session_id") {
+                map.entry("merchant_client_session_id".to_string())
+                    .or_insert(val);
+            }
+
+            // Hoist payment-domain fields into `domain_context: { "Payment": { ... } }`
+            let payment_keys = [
+                "amount",
+                "order_tax_amount",
+                "shipping_cost",
+                "payment_method_type",
+                "country_alpha2_code",
+                "customer",
+                "metadata",
+            ];
+            let mut payment_ctx = serde_json::Map::new();
+            for key in &payment_keys {
+                if let Some(val) = map.remove(*key) {
+                    payment_ctx.insert((*key).to_string(), val);
+                }
+            }
+            if !payment_ctx.is_empty() {
+                let mut domain_ctx = serde_json::Map::new();
+                domain_ctx.insert("Payment".to_string(), Value::Object(payment_ctx));
+                map.entry("domain_context".to_string())
+                    .or_insert(Value::Object(domain_ctx));
+            }
+        }
+
+        // create_session_token: flat scenario fields → nested proto shape.
+        // Proto: merchant_server_session_id (optional string), connector_feature_data,
+        //        state, test_mode, domain_context.Payment { amount, metadata, browser_info }
+        if effective_suite == "create_session_token" {
+            // Rename legacy field name → proto field name
+            if let Some(val) = map.remove("merchant_session_id") {
+                map.entry("merchant_server_session_id".to_string())
+                    .or_insert(val);
+            }
+
+            // Hoist payment-domain fields into `domain_context: { "Payment": { ... } }`
+            let payment_keys = ["amount", "metadata", "browser_info"];
+            let mut payment_ctx = serde_json::Map::new();
+            for key in &payment_keys {
+                if let Some(val) = map.remove(*key) {
+                    payment_ctx.insert((*key).to_string(), val);
+                }
+            }
+            if !payment_ctx.is_empty() {
+                let mut domain_ctx = serde_json::Map::new();
+                domain_ctx.insert("Payment".to_string(), Value::Object(payment_ctx));
+                map.entry("domain_context".to_string())
+                    .or_insert(Value::Object(domain_ctx));
             }
         }
     }
