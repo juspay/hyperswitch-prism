@@ -1,0 +1,8 @@
+{
+  "suite": "incremental_authorization",
+  "suite_type": "dependent",
+  "depends_on": [
+    "authorize"
+  ],
+  "strict_dependencies": true
+}

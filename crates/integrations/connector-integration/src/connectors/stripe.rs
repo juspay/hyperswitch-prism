@@ -55,8 +55,8 @@ use transformers::{
     PaymentsAuthorizeResponse, PaymentsAuthorizeResponse as RepeatPaymentResponse,
     PaymentsCaptureResponse, PaymentsVoidResponse, RefundResponse,
     RefundResponse as RefundSyncResponse, SetupMandateRequest, SetupMandateResponse,
-    StripeClientAuthRequest, StripeClientAuthResponse, StripeRefundRequest, StripeTokenResponse,
-    TokenRequest,
+    StripeClientAuthRequest, StripeClientAuthResponse, StripeMandateRevokeResponse,
+    StripeRefundRequest, StripeTokenResponse, TokenRequest,
 };
 
 use super::macros;
@@ -302,6 +302,11 @@ macros::create_all_prerequisites!(
             request_body: StripeClientAuthRequest,
             response_body: StripeClientAuthResponse,
             router_data: RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ),
+        (
+            flow: MandateRevoke,
+            response_body: StripeMandateRevokeResponse,
+            router_data: RouterDataV2<MandateRevoke, PaymentFlowData, MandateRevokeRequestData, MandateRevokeResponseData>,
         )
     ],
     amount_converters: [],
@@ -1096,13 +1101,46 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        MandateRevoke,
-        PaymentFlowData,
-        MandateRevokeRequestData,
-        MandateRevokeResponseData,
-    > for Stripe<T>
-{
-}
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Stripe,
+    curl_response: StripeMandateRevokeResponse,
+    flow_name: MandateRevoke,
+    resource_common_data: PaymentFlowData,
+    flow_request: MandateRevokeRequestData,
+    flow_response: MandateRevokeResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + std::marker::Sync + std::marker::Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<MandateRevoke, PaymentFlowData, MandateRevokeRequestData, MandateRevokeResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<MandateRevoke, PaymentFlowData, MandateRevokeRequestData, MandateRevokeResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            let pm_id = req
+                .request
+                .connector_mandate_id
+                .as_ref()
+                .ok_or_else(|| {
+                    error_stack::report!(IntegrationError::MissingRequiredField {
+                        field_name: "connector_mandate_id",
+                        context: Default::default(),
+                    })
+                })?
+                .peek()
+                .to_string();
+            Ok(format!(
+                "{}v1/payment_methods/{}/detach",
+                self.connector_base_url_payments(req),
+                pm_id
+            ))
+        }
+    }
+);
 // SourceVerification implementations for all flows

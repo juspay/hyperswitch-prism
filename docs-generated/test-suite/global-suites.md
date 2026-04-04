@@ -3,7 +3,7 @@
 title: Global Test Suites
 description: Reusable test scenarios and dependency management
 last_updated: 2026-03-12
-generated_from: backend/ucs-connector-tests/src/global_suites/
+generated_from: backend/integration-tests/src/global_suites/
 auto_generated: false
 reviewed_by: engineering
 reviewed_at: 2026-03-12
@@ -22,7 +22,7 @@ approved: true
 ## Directory Structure
 
 ```
-backend/ucs-connector-tests/src/global_suites/
+backend/integration-tests/src/global_suites/
 ├── authorize_suite/
 │   ├── scenario.json          # Test cases for authorization
 │   └── suite_spec.json        # Suite metadata and dependencies

@@ -1,0 +1,10 @@
+{
+  "connector": "truelayer",
+  "supported_suites": [
+    "authorize",
+    "get",
+    "refund",
+    "refund_sync",
+    "void"
+  ]
+}

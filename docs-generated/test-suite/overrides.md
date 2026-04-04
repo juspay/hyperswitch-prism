@@ -3,7 +3,7 @@
 title: Test Overrides
 description: Customizing test scenarios per connector
 last_updated: 2026-03-12
-generated_from: backend/ucs-connector-tests/docs/scenario-json-core-readme.md
+generated_from: backend/integration-tests/docs/scenario-json-core-readme.md
 auto_generated: false
 reviewed_by: engineering
 reviewed_at: 2026-03-12

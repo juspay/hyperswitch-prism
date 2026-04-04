@@ -3,7 +3,7 @@
 title: Test Structure
 description: Scenarios, suites, assertions, and test data format
 last_updated: 2026-03-12
-generated_from: backend/ucs-connector-tests/src/global_suites/
+generated_from: backend/integration-tests/src/global_suites/
 auto_generated: false
 reviewed_by: engineering
 reviewed_at: 2026-03-12

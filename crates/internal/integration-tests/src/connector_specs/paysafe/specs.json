@@ -1,0 +1,13 @@
+{
+  "connector": "paysafe",
+  "supported_suites": [
+    "authorize",
+    "capture",
+    "get",
+    "recurring_charge",
+    "refund",
+    "refund_sync",
+    "tokenize_payment_method",
+    "void"
+  ]
+}

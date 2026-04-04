@@ -1,0 +1,10 @@
+{
+  "gateway": "checkoutltd",
+  "gatewayMerchantId": "YOUR_CHECKOUT_PUBLIC_KEY",
+  "merchantName": "Test Merchant",
+  "amount": "10.00",
+  "currency": "USD",
+  "countryCode": "US",
+  "cardNetworks": ["VISA", "MASTERCARD", "AMEX", "DISCOVER"],
+  "authMethods": ["PAN_ONLY", "CRYPTOGRAM_3DS"]
+}

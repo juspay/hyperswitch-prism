@@ -1,0 +1,10 @@
+{
+  "suite": "proxy_setup_recurring",
+  "suite_type": "dependent",
+  "depends_on": [
+    "server_authentication_token",
+    "create_customer"
+  ],
+  "dependency_scope": "scenario",
+  "strict_dependencies": false
+}

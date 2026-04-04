@@ -1,0 +1,234 @@
+{
+  "authorize": {
+    "no3ds_auto_capture_credit_card": {
+      "assert": {
+        "status": {
+          "one_of": ["CHARGED", "AUTHORIZED", "PENDING"]
+        }
+      }
+    },
+    "no3ds_auto_capture_debit_card": {
+      "assert": {
+        "status": {
+          "one_of": ["CHARGED", "AUTHORIZED", "PENDING"]
+        }
+      }
+    },
+    "no3ds_manual_capture_credit_card": {
+      "assert": {
+        "status": {
+          "one_of": ["AUTHORIZED", "AUTHORIZING"]
+        }
+      }
+    },
+    "no3ds_manual_capture_debit_card": {
+      "assert": {
+        "status": {
+          "one_of": ["AUTHORIZED", "AUTHORIZING"]
+        }
+      }
+    },
+    "threeds_manual_capture_credit_card": {
+      "assert": {
+        "status": {
+          "one_of": ["AUTHENTICATION_PENDING", "PENDING", "AUTHORIZED", "AUTHORIZING"]
+        }
+      }
+    },
+    "no3ds_fail_payment": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 120,
+          "currency": "USD"
+        }
+      },
+      "assert": {
+        "status": {
+          "one_of": ["FAILURE", "AUTHORIZATION_FAILED", "ROUTER_DECLINED", "UNRESOLVED", "PENDING"]
+        },
+        "error": null,
+        "error.connector_details.message": null
+      }
+    },
+    "no3ds_auto_capture_ideal": {
+      "assert": {
+        "status": {
+          "one_of": ["FAILURE"]
+        },
+        "connector_transaction_id": null,
+        "error": {
+          "must_exist": true
+        },
+        "error.connector_details.message": {
+          "contains": "not supported"
+        }
+      }
+    },
+    "no3ds_auto_capture_giropay": {
+      "assert": {
+        "status": {
+          "one_of": ["FAILURE"]
+        },
+        "connector_transaction_id": null,
+        "error": {
+          "must_exist": true
+        },
+        "error.connector_details.message": {
+          "contains": "not supported"
+        }
+      }
+    },
+    "no3ds_auto_capture_bancontact": {
+      "assert": {
+        "status": {
+          "one_of": ["FAILURE"]
+        },
+        "connector_transaction_id": null,
+        "error": {
+          "must_exist": true
+        },
+        "error.connector_details.message": {
+          "contains": "not supported"
+        }
+      }
+    },
+    "no3ds_auto_capture_klarna": {
+      "assert": {
+        "status": {
+          "one_of": ["FAILURE"]
+        },
+        "connector_transaction_id": null,
+        "error": {
+          "must_exist": true
+        },
+        "error.connector_details.message": {
+          "contains": "not supported"
+        }
+      }
+    },
+    "no3ds_auto_capture_affirm": {
+      "assert": {
+        "status": {
+          "one_of": ["FAILURE"]
+        },
+        "connector_transaction_id": null,
+        "error": {
+          "must_exist": true
+        },
+        "error.connector_details.message": {
+          "contains": "not supported"
+        }
+      }
+    },
+    "no3ds_auto_capture_afterpay_clearpay": {
+      "assert": {
+        "status": {
+          "one_of": ["FAILURE"]
+        },
+        "connector_transaction_id": null,
+        "error": {
+          "must_exist": true
+        },
+        "error.connector_details.message": {
+          "contains": "not supported"
+        }
+      }
+    },
+    "no3ds_auto_capture_przelewy24": {
+      "assert": {
+        "status": {
+          "one_of": ["FAILURE"]
+        },
+        "connector_transaction_id": null,
+        "error": {
+          "must_exist": true
+        },
+        "error.connector_details.message": {
+          "contains": "not supported"
+        }
+      }
+    },
+    "no3ds_auto_capture_eps": {
+      "assert": {
+        "status": {
+          "one_of": ["FAILURE"]
+        },
+        "connector_transaction_id": null,
+        "error": {
+          "must_exist": true
+        },
+        "error.connector_details.message": {
+          "contains": "not supported"
+        }
+      }
+    },
+    "no3ds_auto_capture_sepa_bank_transfer": {
+      "assert": {
+        "status": {
+          "one_of": ["FAILURE"]
+        },
+        "connector_transaction_id": null,
+        "error": {
+          "must_exist": true
+        },
+        "error.connector_details.message": {
+          "contains": "not supported"
+        }
+      }
+    },
+    "no3ds_auto_capture_ach_bank_transfer": {
+      "assert": {
+        "status": {
+          "one_of": ["FAILURE"]
+        },
+        "connector_transaction_id": null,
+        "error": {
+          "must_exist": true
+        },
+        "error.connector_details.message": {
+          "contains": "not supported"
+        }
+      }
+    },
+    "no3ds_auto_capture_bacs_bank_transfer": {
+      "assert": {
+        "status": {
+          "one_of": ["FAILURE"]
+        },
+        "connector_transaction_id": null,
+        "error": {
+          "must_exist": true
+        },
+        "error.connector_details.message": {
+          "contains": "not supported"
+        }
+      }
+    },
+    "no3ds_auto_capture_alipay": {
+      "assert": {
+        "status": {
+          "one_of": ["FAILURE"]
+        },
+        "connector_transaction_id": null,
+        "error": {
+          "must_exist": true
+        },
+        "error.connector_details.message": {
+          "contains": "not supported"
+        }
+      }
+    },
+    "no3ds_auto_capture_google_pay_encrypted": {
+      "assert": {
+        "status": {
+          "one_of": ["FAILURE"]
+        },
+        "connector_transaction_id": null,
+        "error": {
+          "must_exist": true
+        },
+        "error.connector_details.message": null
+      }
+    }
+  }
+}

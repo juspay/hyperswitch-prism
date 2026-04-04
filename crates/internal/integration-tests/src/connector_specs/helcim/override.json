@@ -1,0 +1,253 @@
+{
+  "authorize": {
+    "no3ds_auto_capture_ach_bank_transfer": {
+      "grpc_req": {
+        "amount": { "minor_amount": 6101, "currency": "USD" },
+        "payment_method": {
+          "ach_bank_transfer": null,
+          "card": {
+            "card_number": { "value": "4111111111111111" },
+            "card_exp_month": { "value": "08" },
+            "card_exp_year": { "value": "30" },
+            "card_cvc": { "value": "999" },
+            "card_type": "credit"
+          }
+        }
+      }
+    },
+    "no3ds_auto_capture_affirm": {
+      "grpc_req": {
+        "amount": { "minor_amount": 6102, "currency": "USD" },
+        "payment_method": {
+          "affirm": null,
+          "card": {
+            "card_number": { "value": "4111111111111111" },
+            "card_exp_month": { "value": "08" },
+            "card_exp_year": { "value": "30" },
+            "card_cvc": { "value": "999" },
+            "card_type": "credit"
+          }
+        }
+      }
+    },
+    "no3ds_auto_capture_afterpay_clearpay": {
+      "grpc_req": {
+        "amount": { "minor_amount": 6103, "currency": "USD" },
+        "payment_method": {
+          "afterpay_clearpay": null,
+          "card": {
+            "card_number": { "value": "4111111111111111" },
+            "card_exp_month": { "value": "08" },
+            "card_exp_year": { "value": "30" },
+            "card_cvc": { "value": "999" },
+            "card_type": "credit"
+          }
+        }
+      }
+    },
+    "no3ds_auto_capture_alipay": {
+      "grpc_req": {
+        "amount": { "minor_amount": 6104, "currency": "USD" },
+        "payment_method": {
+          "ali_pay_redirect": null,
+          "card": {
+            "card_number": { "value": "4111111111111111" },
+            "card_exp_month": { "value": "08" },
+            "card_exp_year": { "value": "30" },
+            "card_cvc": { "value": "999" },
+            "card_type": "credit"
+          }
+        }
+      }
+    },
+    "no3ds_auto_capture_bacs_bank_transfer": {
+      "grpc_req": {
+        "amount": { "minor_amount": 6105, "currency": "USD" },
+        "payment_method": {
+          "bacs_bank_transfer": null,
+          "card": {
+            "card_number": { "value": "4111111111111111" },
+            "card_exp_month": { "value": "08" },
+            "card_exp_year": { "value": "30" },
+            "card_cvc": { "value": "999" },
+            "card_type": "credit"
+          }
+        }
+      }
+    },
+    "no3ds_auto_capture_bancontact": {
+      "grpc_req": {
+        "amount": { "minor_amount": 6106, "currency": "USD" },
+        "payment_method": {
+          "bancontact_card": null,
+          "card": {
+            "card_number": { "value": "4111111111111111" },
+            "card_exp_month": { "value": "08" },
+            "card_exp_year": { "value": "30" },
+            "card_cvc": { "value": "999" },
+            "card_type": "credit"
+          }
+        }
+      }
+    },
+    "no3ds_auto_capture_credit_card": {
+      "grpc_req": {
+        "amount": { "minor_amount": 6107, "currency": "USD" }
+      }
+    },
+    "no3ds_auto_capture_debit_card": {
+      "grpc_req": {
+        "amount": { "minor_amount": 6108, "currency": "USD" }
+      }
+    },
+    "no3ds_auto_capture_eps": {
+      "grpc_req": {
+        "amount": { "minor_amount": 6109, "currency": "USD" },
+        "payment_method": {
+          "eps": null,
+          "card": {
+            "card_number": { "value": "4111111111111111" },
+            "card_exp_month": { "value": "08" },
+            "card_exp_year": { "value": "30" },
+            "card_cvc": { "value": "999" },
+            "card_type": "credit"
+          }
+        }
+      }
+    },
+    "no3ds_auto_capture_giropay": {
+      "grpc_req": {
+        "amount": { "minor_amount": 6110, "currency": "USD" },
+        "payment_method": {
+          "giropay": null,
+          "card": {
+            "card_number": { "value": "4111111111111111" },
+            "card_exp_month": { "value": "08" },
+            "card_exp_year": { "value": "30" },
+            "card_cvc": { "value": "999" },
+            "card_type": "credit"
+          }
+        }
+      }
+    },
+    "no3ds_auto_capture_google_pay_encrypted": {
+      "grpc_req": {
+        "amount": { "minor_amount": 6111, "currency": "USD" },
+        "payment_method": {
+          "google_pay": null,
+          "card": {
+            "card_number": { "value": "4111111111111111" },
+            "card_exp_month": { "value": "08" },
+            "card_exp_year": { "value": "30" },
+            "card_cvc": { "value": "999" },
+            "card_type": "credit"
+          }
+        }
+      }
+    },
+    "no3ds_auto_capture_ideal": {
+      "grpc_req": {
+        "amount": { "minor_amount": 6112, "currency": "USD" },
+        "payment_method": {
+          "ideal": null,
+          "card": {
+            "card_number": { "value": "4111111111111111" },
+            "card_exp_month": { "value": "08" },
+            "card_exp_year": { "value": "30" },
+            "card_cvc": { "value": "999" },
+            "card_type": "credit"
+          }
+        }
+      }
+    },
+    "no3ds_auto_capture_klarna": {
+      "grpc_req": {
+        "amount": { "minor_amount": 6113, "currency": "USD" },
+        "payment_method": {
+          "klarna": null,
+          "card": {
+            "card_number": { "value": "4111111111111111" },
+            "card_exp_month": { "value": "08" },
+            "card_exp_year": { "value": "30" },
+            "card_cvc": { "value": "999" },
+            "card_type": "credit"
+          }
+        }
+      }
+    },
+    "no3ds_auto_capture_przelewy24": {
+      "grpc_req": {
+        "amount": { "minor_amount": 6114, "currency": "USD" },
+        "payment_method": {
+          "przelewy24": null,
+          "card": {
+            "card_number": { "value": "4111111111111111" },
+            "card_exp_month": { "value": "08" },
+            "card_exp_year": { "value": "30" },
+            "card_cvc": { "value": "999" },
+            "card_type": "credit"
+          }
+        }
+      }
+    },
+    "no3ds_auto_capture_sepa_bank_transfer": {
+      "grpc_req": {
+        "amount": { "minor_amount": 6115, "currency": "USD" },
+        "payment_method": {
+          "sepa_bank_transfer": null,
+          "card": {
+            "card_number": { "value": "4111111111111111" },
+            "card_exp_month": { "value": "08" },
+            "card_exp_year": { "value": "30" },
+            "card_cvc": { "value": "999" },
+            "card_type": "credit"
+          }
+        }
+      }
+    },
+    "no3ds_fail_payment": {
+      "grpc_req": {
+        "amount": { "minor_amount": 6116, "currency": "USD" },
+        "payment_method": {
+          "card": {
+            "card_number": { "value": "4111111111111111" },
+            "card_exp_month": { "value": "08" },
+            "card_exp_year": { "value": "30" },
+            "card_cvc": { "value": "999" },
+            "card_type": "credit"
+          }
+        }
+      },
+      "assert": {
+        "status": { "one_of": ["CHARGED", "AUTHORIZED"] },
+        "error": null,
+        "error.connector_details.message": null,
+        "connector_transaction_id": { "must_exist": true }
+      }
+    },
+    "no3ds_manual_capture_credit_card": {
+      "grpc_req": {
+        "amount": { "minor_amount": 6117, "currency": "USD" }
+      },
+      "assert": {
+        "connector_transaction_id": { "must_exist": true }
+      }
+    },
+    "no3ds_manual_capture_debit_card": {
+      "grpc_req": {
+        "amount": { "minor_amount": 6118, "currency": "USD" }
+      },
+      "assert": {
+        "connector_transaction_id": { "must_exist": true }
+      }
+    },
+    "threeds_manual_capture_credit_card": {
+      "grpc_req": {
+        "amount": { "minor_amount": 6119, "currency": "USD" }
+      },
+      "assert": {
+        "connector_transaction_id": { "must_exist": true }
+      }
+    }
+  }
+}

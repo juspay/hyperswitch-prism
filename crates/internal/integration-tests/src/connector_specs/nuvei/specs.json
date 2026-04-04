@@ -1,0 +1,18 @@
+{
+  "connector": "nuvei",
+  "supported_suites": [
+    "authenticate",
+    "authorize",
+    "capture",
+    "create_customer",
+    "create_session_token",
+    "get",
+    "post_authenticate",
+    "pre_authenticate",
+    "refund",
+    "refund_sync",
+    "revoke_mandate",
+    "setup_recurring",
+    "void"
+  ]
+}

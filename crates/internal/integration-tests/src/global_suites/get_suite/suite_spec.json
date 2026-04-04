@@ -1,0 +1,15 @@
+{
+  "suite": "get",
+  "suite_type": "dependent",
+  "depends_on": [
+    "server_authentication_token",
+    "create_customer",
+    "tokenize_payment_method",
+    {
+      "suite": "authorize",
+      "scenario": "no3ds_auto_capture_credit_card"
+    }
+  ],
+  "dependency_scope": "scenario",
+  "strict_dependencies": false
+}

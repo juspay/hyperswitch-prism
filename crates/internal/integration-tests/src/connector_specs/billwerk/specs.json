@@ -1,0 +1,14 @@
+{
+  "connector": "billwerk",
+  "supported_suites": [
+    "authorize",
+    "capture",
+    "get",
+    "recurring_charge",
+    "refund",
+    "refund_sync",
+    "setup_recurring",
+    "tokenize_payment_method",
+    "void"
+  ]
+}

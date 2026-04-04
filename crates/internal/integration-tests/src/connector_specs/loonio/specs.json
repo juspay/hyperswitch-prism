@@ -1,0 +1,7 @@
+{
+  "connector": "loonio",
+  "supported_suites": [
+    "authorize",
+    "get"
+  ]
+}

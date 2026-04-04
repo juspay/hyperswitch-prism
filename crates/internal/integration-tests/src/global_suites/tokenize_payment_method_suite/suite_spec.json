@@ -1,0 +1,9 @@
+{
+  "suite": "tokenize_payment_method",
+  "suite_type": "dependent",
+  "depends_on": [
+    "server_authentication_token",
+    "create_customer"
+  ],
+  "strict_dependencies": false
+}
