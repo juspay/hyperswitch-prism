@@ -24,6 +24,15 @@
 //! Run with:
 //!   cargo run --bin check_connector_specs
 
+#![allow(
+    clippy::print_stdout,
+    clippy::print_stderr,
+    clippy::print_literal,
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::indexing_slicing
+)]
+
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs,

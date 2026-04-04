@@ -2,6 +2,15 @@
 //!
 //! Run with: cargo run --bin check_coverage
 
+#![allow(
+    clippy::print_stdout,
+    clippy::print_stderr,
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::as_conversions
+)]
+
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::PathBuf;
