@@ -7,7 +7,8 @@ use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt};
 use domain_types::{
     connector_flow::{
         Authorize, Capture, ClientAuthenticationToken, CreateConnectorCustomer,
-        IncrementalAuthorization, MandateRevoke, PSync, PaymentMethodToken, RSync, Refund, Void,
+        IncrementalAuthorization, MandateRevoke, PSync, PaymentMethodToken, RSync, Refund,
+        RepeatPayment, Void,
     },
     connector_types::{
         ClientAuthenticationTokenRequestData, ConnectorCustomerData, ConnectorCustomerResponse,
@@ -15,7 +16,7 @@ use domain_types::{
         PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
         PaymentsAuthorizeData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData,
+        RefundsResponseData, RepeatPaymentData,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
@@ -38,7 +39,8 @@ use self::transformers::{
     StaxAuthType, StaxAuthorizeRequest, StaxAuthorizeResponse, StaxCaptureRequest,
     StaxCaptureResponse, StaxCustomerRequest, StaxCustomerResponse, StaxErrorResponse,
     StaxPSyncRequest, StaxPSyncResponse, StaxRSyncRequest, StaxRSyncResponse, StaxRefundRequest,
-    StaxRefundResponse, StaxTokenRequest, StaxTokenResponse, StaxVoidRequest, StaxVoidResponse,
+    StaxRefundResponse, StaxRepeatPaymentRequest, StaxRepeatPaymentResponse, StaxTokenRequest,
+    StaxTokenResponse, StaxVoidRequest, StaxVoidResponse,
 };
 use crate::{connectors::macros, types::ResponseRouterData, with_error_response_body};
 
@@ -289,6 +291,12 @@ macros::create_all_prerequisites!(
             request_body: StaxCustomerRequest,
             response_body: StaxCustomerResponse,
             router_data: RouterDataV2<CreateConnectorCustomer, PaymentFlowData, ConnectorCustomerData, ConnectorCustomerResponse>,
+        ),
+        (
+            flow: RepeatPayment,
+            request_body: StaxRepeatPaymentRequest,
+            response_body: StaxRepeatPaymentResponse,
+            router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [],  // Stax uses MinorUnit (default)
@@ -545,6 +553,30 @@ macros::macro_connector_implementation!(
     }
 );
 
+// RepeatPayment Flow (MIT - Merchant Initiated Transaction)
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_headers, get_content_type, get_error_response_v2],
+    connector: Stax,
+    curl_request: Json(StaxRepeatPaymentRequest),
+    curl_response: StaxRepeatPaymentResponse,
+    flow_name: RepeatPayment,
+    resource_common_data: PaymentFlowData,
+    flow_request: RepeatPaymentData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_url(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            let base_url = self.connector_base_url_payments(req);
+            Ok(format!("{base_url}/charge"))
+        }
+    }
+);
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentIncrementalAuthorization for Stax<T>
 {
@@ -592,17 +624,22 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::RepeatPaymentV2<T> for Stax<T>
+{
+}
+
 // ===== EMPTY IMPLEMENTATIONS FOR UNSUPPORTED FLOWS =====
 // These are required by ConnectorServiceTrait but not supported by Stax
 
 use domain_types::connector_flow::{
-    Accept, CreateOrder, DefendDispute, RepeatPayment, ServerAuthenticationToken,
+    Accept, CreateOrder, DefendDispute, ServerAuthenticationToken,
     ServerSessionAuthenticationToken, SetupMandate, SubmitEvidence, VoidPC,
 };
 use domain_types::connector_types::{
     AcceptDisputeData, DisputeDefendData, DisputeFlowData, DisputeResponseData,
     PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentsCancelPostCaptureData,
-    RepeatPaymentData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
+    ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
     ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
     SetupMandateRequestData, SubmitEvidenceData,
 };
@@ -705,22 +742,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::SetupMandateV2<T> for Stax<T>
-{
-}
-
-// Repeat Payment
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        RepeatPayment,
-        PaymentFlowData,
-        RepeatPaymentData<T>,
-        PaymentsResponseData,
-    > for Stax<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::RepeatPaymentV2<T> for Stax<T>
 {
 }
 
