@@ -27,6 +27,61 @@ pub struct ProcessingInformation {
     pub payment_solution: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cavv_algorithm: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub action_list: Option<Vec<BarclaycardActionsList>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub action_token_types: Option<Vec<BarclaycardActionsTokenType>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub authorization_options: Option<BarclaycardAuthorizationOptions>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum BarclaycardActionsList {
+    #[serde(rename = "TOKEN_CREATE")]
+    TokenCreate,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum BarclaycardActionsTokenType {
+    PaymentInstrument,
+    Customer,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BarclaycardAuthorizationOptions {
+    pub initiator: Option<BarclaycardPaymentInitiator>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub merchant_initiated_transaction: Option<BarclaycardMerchantInitiatedTransaction>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BarclaycardPaymentInitiator {
+    #[serde(rename = "type")]
+    pub initiator_type: Option<BarclaycardPaymentInitiatorTypes>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub credential_stored_on_file: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stored_credential_used: Option<bool>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum BarclaycardPaymentInitiatorTypes {
+    Customer,
+    Merchant,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BarclaycardMerchantInitiatedTransaction {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub previous_transaction_id: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -122,4 +177,55 @@ pub struct ReversalInformation {
 pub struct BarclaycardRefundRequest {
     pub order_information: OrderInformation,
     pub client_reference_information: ClientReferenceInformation,
+}
+
+// --- SetupMandate (Zero-dollar auth to store credentials) ---
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BarclaycardSetupMandateRequest<T: PaymentMethodDataTypes + Sync + Send + 'static + Serialize> {
+    pub processing_information: ProcessingInformation,
+    pub payment_information: PaymentInformation<T>,
+    pub order_information: OrderInformationWithBill,
+    pub client_reference_information: ClientReferenceInformation,
+}
+
+// --- RepeatPayment (Merchant-Initiated Transaction using stored credentials) ---
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BarclaycardRepeatPaymentRequest {
+    pub processing_information: ProcessingInformation,
+    pub payment_information: RepeatPaymentInformation,
+    pub order_information: OrderInformationWithBill,
+    pub client_reference_information: ClientReferenceInformation,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub merchant_defined_information: Option<Vec<MerchantDefinedInformation>>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum RepeatPaymentInformation {
+    MandatePayment(Box<MandatePaymentInformation>),
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MandatePaymentInformation {
+    pub payment_instrument: BarclaycardPaymentInstrument,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card: Option<MandateCard>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BarclaycardPaymentInstrument {
+    pub id: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MandateCard {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub type_selection_indicator: Option<String>,
 }
