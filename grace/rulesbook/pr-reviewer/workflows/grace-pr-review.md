@@ -1,6 +1,6 @@
 # GRACE PR Review Workflow
 
-Use this workflow for PRs raised by `10xGRACE`.
+Use this workflow for PRs raised by `GRACE`.
 
 ## Goal
 
@@ -23,14 +23,14 @@ Read these first:
 
 Resolve the PR and collect:
 
-- PR author/login or head repository owner/name to detect `10xGRACE`
+- PR author/login or head repository owner/name to detect `GRACE`
 - changed file list with status
 - full unified diff
 - code files and required companion files
 
 ## Step 2: Confirm this is a GRACE-raised PR
 
-Treat it as GRACE-raised if the PR author or head repo owner is `10xGRACE`.
+Treat it as GRACE-raised if the PR author is `10xGRACE` or the branch matches `feat/grace-*`.
 
 If not, fall back to `grace/rulesbook/pr-reviewer/workflows/full-pr-review.md`.
 
@@ -63,8 +63,8 @@ Run `grace/rulesbook/pr-reviewer/prompts/aggregator.md` and keep the final repor
 ## Portable Invocation Prompt
 
 ```text
-Review PR <PR-REFERENCE> in connector-service.
-This PR was raised by 10xGRACE.
+Review PR <PR-REFERENCE> in hyperswitch-prism.
+This PR was raised by GRACE.
 Read grace/rulesbook/pr-reviewer/workflows/grace-pr-review.md and follow it exactly.
 Use nested subagents if the tool supports them; otherwise emulate the same phases serially.
 ```

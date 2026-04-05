@@ -1,6 +1,6 @@
 # Full PR Review Workflow
 
-This is the default workflow for reviewing any PR in `connector-service`.
+This is the default workflow for reviewing any PR in `hyperswitch-prism`.
 
 ## Goal
 
@@ -92,7 +92,7 @@ The final answer must include:
 Use this in Claude, OpenCode, Cursor, Codex, or any similar tool:
 
 ```text
-Review PR <PR-REFERENCE> in connector-service.
+Review PR <PR-REFERENCE> in hyperswitch-prism.
 Read grace/rulesbook/pr-reviewer/workflows/full-pr-review.md and follow it exactly.
 Use nested subagents if the tool supports them; otherwise emulate the same phases serially.
 ```

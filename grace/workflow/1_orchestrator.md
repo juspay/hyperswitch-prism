@@ -26,7 +26,7 @@ No URLs, no integration details — just names. The **Links Agent** (`2.1_links.
 
 ## RULES (read once, apply everywhere)
 
-1. **Working directory**: ALL commands (build, git, grpcurl, etc.) use the `connector-service` repo root. Never `cd`. The **only exception** is `grace` CLI commands — those MUST run from the `grace/` subdirectory with the virtualenv activated (`source .venv/bin/activate`).
+1. **Working directory**: ALL commands (build, git, grpcurl, etc.) use the `hyperswitch-prism` repo root. Never `cd`. The **only exception** is `grace` CLI commands — those MUST run from the `grace/` subdirectory with the virtualenv activated (`source .venv/bin/activate`).
 2. **HARD GUARDRAIL — STRICTLY SEQUENTIAL, NEVER PARALLEL**: You MUST process ONE connector at a time. Spawn ONE Task tool call per message. Wait for it to return. ONLY THEN spawn the next. NEVER send a single message with multiple Task tool calls for different connectors. NEVER say "let me process several in parallel to speed up." Parallel execution will corrupt the shared git branch — multiple agents committing, cherry-picking, and switching branches on `{BRANCH}` simultaneously causes merge conflicts, lost commits, and broken state. There is NO safe way to parallelize this. Sequential is not a suggestion — it is a hard architectural constraint.
 3. **No cargo test**: Testing is done exclusively via `grpcurl`. Never run `cargo test`. Never edit or create test files.
 4. **Build -> gRPC Test -> Validate -> Commit**: Never commit code that hasn't passed both `cargo build` AND `grpcurl` tests. This is a hard gate.
@@ -52,7 +52,7 @@ No URLs, no integration details — just names. The **Links Agent** (`2.1_links.
 Extract the connector names from the JSON array:
 
 ```bash
-# From connector-service root:
+# From hyperswitch-prism root:
 cat {CONNECTORS_FILE} | jq '.[]' -r
 ```
 
@@ -63,7 +63,7 @@ Store the returned list as `CONNECTOR_LIST`. This is the authoritative list of c
 ## STEP 1: PRE-FLIGHT (once, before any connector work)
 
 ```bash
-# From connector-service root:
+# From hyperswitch-prism root:
 # Verify directory
 pwd && ls Cargo.toml crates/ Makefile
 # Sync to latest main
