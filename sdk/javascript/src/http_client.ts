@@ -63,6 +63,22 @@ export function resolveProxyUrl(url: string, proxy?: types.IProxyOptions | null)
 }
 
 /**
+ * Generate a cache key from proxy configuration for HTTP client caching.
+ * Returns empty string when no proxy is configured.
+ */
+export function generateProxyCacheKey(proxy?: types.IProxyOptions | null): string {
+  if (!proxy) return "";
+
+  const httpUrl = proxy.httpUrl || "";
+  const httpsUrl = proxy.httpsUrl || "";
+  const bypassUrls = Array.isArray(proxy.bypassUrls)
+    ? [...proxy.bypassUrls].sort().join(",")
+    : "";
+
+  return `${httpUrl}|${httpsUrl}|${bypassUrls}`;
+}
+
+/**
  * Creates a high-performance dispatcher with specialized fintech timeouts.
  * (The instance-level connection pool)
  */

@@ -112,6 +112,7 @@ impl NetworkError {
     }
 }
 
+#[derive(Clone)]
 pub struct HttpClient {
     client: reqwest::Client,
     options: HttpOptions,
@@ -303,4 +304,19 @@ impl HttpClient {
 pub fn resolve_proxy_url(_url: &str, proxy: &Option<ProxyConfig>) -> Option<String> {
     let proxy = proxy.as_ref()?;
     proxy.https_url.clone().or_else(|| proxy.http_url.clone())
+}
+
+/// Generate a cache key from proxy configuration for HTTP client caching.
+/// Returns empty string when no proxy is configured.
+pub fn generate_proxy_cache_key(proxy: &Option<ProxyConfig>) -> String {
+    match proxy {
+        None => String::new(),
+        Some(p) => {
+            let http = p.http_url.as_deref().unwrap_or("");
+            let https = p.https_url.as_deref().unwrap_or("");
+            let mut bypass = p.bypass_urls.clone();
+            bypass.sort();
+            format!("{}|{}|{}", http, https, bypass.join(","))
+        }
+    }
 }

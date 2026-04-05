@@ -80,11 +80,11 @@ object HttpClient {
 
         val url = proxyUrl.toHttpUrlOrNull()
             ?: throw NetworkError("Unsupported or malformed proxy URL: $proxyUrl", NetworkErrorCode.INVALID_PROXY_CONFIGURATION)
-        
+
         // Standard Java Proxy
         val proxy = java.net.Proxy(java.net.Proxy.Type.HTTP, java.net.InetSocketAddress(url.host, url.port))
         builder.proxy(proxy)
-        
+
         // Bypass logic (Selector)
         if (p.bypassUrlsCount > 0) {
             val bypassList = p.bypassUrlsList
@@ -99,6 +99,20 @@ object HttpClient {
                 override fun connectFailed(uri: java.net.URI, sa: java.net.SocketAddress, ioe: IOException) {}
             })
         }
+    }
+
+    /**
+     * Generate a cache key from proxy configuration for HTTP client caching.
+     * Returns empty string when no proxy is configured.
+     */
+    fun generateProxyCacheKey(proxy: ProxyOptions?): String {
+        if (proxy == null) return ""
+
+        val httpUrl = proxy.httpUrl ?: ""
+        val httpsUrl = proxy.httpsUrl ?: ""
+        val bypassUrls = proxy.bypassUrlsList.sorted().joinToString(",")
+
+        return "$httpUrl|$httpsUrl|$bypassUrls"
     }
 
     /**

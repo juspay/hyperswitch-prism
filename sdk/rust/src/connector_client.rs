@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 use std::error::Error;
+use std::sync::{Arc, RwLock};
 
 use crate::http_client::{
-    merge_http_options, HttpClient, HttpOptions as NativeHttpOptions,
+    generate_proxy_cache_key, merge_http_options, HttpClient, HttpOptions as NativeHttpOptions,
     HttpRequest as ClientHttpRequest, NetworkError,
 };
 use connector_service_ffi::types::{FfiMetadataPayload, FfiRequestData};
@@ -46,11 +47,11 @@ use grpc_api_types::payments::{
 ///   2. Execute the HTTP request via our standardized HttpClient (reqwest)
 ///   3. Parse the connector response via Rust core handlers
 ///
-/// This client owns its primary connection pool (http_client).
+/// This client maintains a cache of HTTP clients keyed by proxy configuration.
 pub struct ConnectorClient {
-    http_client: HttpClient,
+    base_http_config: NativeHttpOptions,
+    client_cache: Arc<RwLock<HashMap<String, HttpClient>>>,
     config: ConnectorConfig,
-    defaults: RequestConfig,
 }
 
 // ── Internal macro: generate a ConnectorClient method for a payment flow ──────
@@ -73,10 +74,7 @@ macro_rules! impl_flow_method {
             use connector_service_ffi::handlers::payments::{$req_handler, $res_handler};
 
             let ffi_options = self.resolve_ffi_options(&options);
-            let override_opts = options
-                .as_ref()
-                .and_then(|o| o.http.as_ref())
-                .map(NativeHttpOptions::from);
+            let effective_http_config = self.resolve_http_options(options.as_ref());
 
             let ffi_request = build_ffi_request(request.clone(), metadata, &ffi_options)?;
             let environment = Some(grpc_api_types::payments::Environment::try_from(
@@ -86,6 +84,8 @@ macro_rules! impl_flow_method {
             let connector_request = $req_handler(ffi_request, environment)
                 .map_err(|e| format!("{} req_handler failed: {:?}", stringify!($method), e))?
                 .ok_or("No connector request generated")?;
+
+            let http_client = self.get_or_create_client(&effective_http_config)?;
 
             let (body, boundary) = connector_request
                 .body
@@ -107,7 +107,19 @@ macro_rules! impl_flow_method {
                 headers,
                 body,
             };
-            let http_response = self.http_client.execute(http_req, override_opts).await?;
+
+            let timeout_overrides = NativeHttpOptions {
+                total_timeout_ms: effective_http_config.total_timeout_ms,
+                connect_timeout_ms: effective_http_config.connect_timeout_ms,
+                response_timeout_ms: effective_http_config.response_timeout_ms,
+                keep_alive_timeout_ms: effective_http_config.keep_alive_timeout_ms,
+                proxy: None,
+                ca_cert: None,
+            };
+
+            let http_response = http_client
+                .execute(http_req, Some(timeout_overrides))
+                .await?;
 
             let mut header_map = http::HeaderMap::new();
             for (key, value) in &http_response.headers {
@@ -144,18 +156,16 @@ impl ConnectorClient {
     ) -> Result<Self, NetworkError> {
         let defaults = options.unwrap_or_default();
 
-        // Map the Protobuf options to native transport options
-        let native_opts = match defaults.http.as_ref() {
+        // Map the Protobuf options to native transport options and store as base config
+        let base_http_config = match defaults.http.as_ref() {
             Some(http_proto) => NativeHttpOptions::from(http_proto),
             None => NativeHttpOptions::default(),
         };
 
-        let http_client = HttpClient::new(native_opts)?;
-
         Ok(Self {
-            http_client,
+            base_http_config,
+            client_cache: Arc::new(RwLock::new(HashMap::new())),
             config,
-            defaults,
         })
     }
 
@@ -175,17 +185,39 @@ impl ConnectorClient {
 
     /// Merges client defaults with per-request HTTP overrides. Per-request wins per field.
     fn resolve_http_options(&self, options: Option<&RequestConfig>) -> NativeHttpOptions {
-        let base = self
-            .defaults
-            .http
-            .as_ref()
-            .map(NativeHttpOptions::from)
-            .unwrap_or_default();
         let override_opts = options
             .and_then(|o| o.http.as_ref())
             .map(NativeHttpOptions::from)
             .unwrap_or_default();
-        merge_http_options(&base, &override_opts)
+        merge_http_options(&self.base_http_config, &override_opts)
+    }
+
+    /// Get or create a cached HTTP client based on the effective proxy configuration.
+    fn get_or_create_client(
+        &self,
+        effective_config: &NativeHttpOptions,
+    ) -> Result<HttpClient, NetworkError> {
+        let cache_key = generate_proxy_cache_key(&effective_config.proxy);
+
+        // Fast read path - check if client exists
+        {
+            let cache = self.client_cache.read().unwrap();
+            if let Some(client) = cache.get(&cache_key) {
+                return Ok(client.clone());
+            }
+        }
+
+        // Slow write path - create new client
+        let mut cache = self.client_cache.write().unwrap();
+
+        // Double-check in case another thread created it
+        if let Some(client) = cache.get(&cache_key) {
+            return Ok(client.clone());
+        }
+
+        let new_client = HttpClient::new(effective_config.clone())?;
+        cache.insert(cache_key, new_client.clone());
+        Ok(new_client)
     }
 
     /// Authorize a payment flow.
@@ -206,7 +238,7 @@ impl ConnectorClient {
 
         // 1. Resolve final configuration
         let ffi_options = self.resolve_ffi_options(&options);
-        let merged_http = self.resolve_http_options(options.as_ref());
+        let effective_http_config = self.resolve_http_options(options.as_ref());
 
         let ffi_request = build_ffi_request(request.clone(), metadata, &ffi_options)?;
         let environment = Some(grpc_api_types::payments::Environment::try_from(
@@ -218,7 +250,10 @@ impl ConnectorClient {
             .map_err(|e| format!("authorize_req_handler failed: {:?}", e))?
             .ok_or("No connector request generated")?;
 
-        // 3. Execute HTTP using the instance-owned client and potential overrides
+        // 3. Get or create cached HTTP client based on effective proxy config
+        let http_client = self.get_or_create_client(&effective_http_config)?;
+
+        // 4. Execute HTTP using the cached client with timeout overrides
         let (body, boundary) = connector_request
             .body
             .as_ref()
@@ -242,9 +277,18 @@ impl ConnectorClient {
             body,
         };
 
-        let http_response = self
-            .http_client
-            .execute(http_req, Some(merged_http))
+        // Extract timeout-only overrides (proxy already in cached client)
+        let timeout_overrides = NativeHttpOptions {
+            total_timeout_ms: effective_http_config.total_timeout_ms,
+            connect_timeout_ms: effective_http_config.connect_timeout_ms,
+            response_timeout_ms: effective_http_config.response_timeout_ms,
+            keep_alive_timeout_ms: effective_http_config.keep_alive_timeout_ms,
+            proxy: None,
+            ca_cert: None,
+        };
+
+        let http_response = http_client
+            .execute(http_req, Some(timeout_overrides))
             .await?;
 
         // 4. Convert HTTP response to domain Response type

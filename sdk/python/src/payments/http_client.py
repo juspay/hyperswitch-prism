@@ -81,7 +81,7 @@ def resolve_proxies(proxy_options: Optional[ProxyOptions]) -> Optional[Dict[str,
     """
     if not proxy_options:
         return None
-        
+
     proxy_url = proxy_options.https_url or proxy_options.http_url
     if not proxy_url:
         return None
@@ -91,8 +91,22 @@ def resolve_proxies(proxy_options: Optional[ProxyOptions]) -> Optional[Dict[str,
         clean_domain = bypass.replace("http://", "").replace("https://", "").split("/")[0]
         if clean_domain:
             proxies[f"all://{clean_domain}"] = None
-        
+
     return proxies
+
+def generate_proxy_cache_key(proxy_options: Optional[ProxyOptions]) -> str:
+    """
+    Generate a cache key from proxy configuration for HTTP client caching.
+    Returns empty string when no proxy is configured.
+    """
+    if not proxy_options:
+        return ""
+
+    http_url = proxy_options.http_url or ""
+    https_url = proxy_options.https_url or ""
+    bypass_urls = sorted(proxy_options.bypass_urls) if proxy_options.bypass_urls else []
+
+    return f"{http_url}|{https_url}|{','.join(bypass_urls)}"
 
 def create_client(http_config: Optional[HttpConfig] = None) -> httpx.AsyncClient:
     """
