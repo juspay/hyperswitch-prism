@@ -44,8 +44,14 @@ use serde::Serialize;
 use transformers as paytm;
 
 use self::{
-    request::{PaytmAuthorizeRequest, PaytmInitiateTxnRequest, PaytmTransactionStatusRequest},
-    response::{PaytmInitiateTxnResponse, PaytmProcessTxnResponse, PaytmTransactionStatusResponse},
+    request::{
+        PaytmAuthorizeRequest, PaytmInitiateTxnRequest, PaytmRepeatPaymentRequest,
+        PaytmTransactionStatusRequest,
+    },
+    response::{
+        PaytmInitiateTxnResponse, PaytmProcessTxnResponse, PaytmRepeatPaymentResponse,
+        PaytmTransactionStatusResponse,
+    },
 };
 use crate::{connectors::macros, types::ResponseRouterData};
 use domain_types::errors::ConnectorResponseTransformationError;
@@ -73,6 +79,12 @@ macros::create_all_prerequisites!(
             request_body: PaytmTransactionStatusRequest,
             response_body: PaytmTransactionStatusResponse,
             router_data: RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
+        ),
+        (
+            flow: RepeatPayment,
+            request_body: PaytmRepeatPaymentRequest,
+            response_body: PaytmRepeatPaymentResponse,
+            router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [amount_converter: StringMajorUnit],
@@ -554,6 +566,46 @@ macros::macro_connector_implementation!(
     }
 );
 
+// RepeatPayment (MIT) flow implementation using macros
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Paytm,
+    curl_request: Json(PaytmRepeatPaymentRequest),
+    curl_response: PaytmRepeatPaymentResponse,
+    flow_name: RepeatPayment,
+    resource_common_data: PaymentFlowData,
+    flow_request: RepeatPaymentData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            let headers = self.get_auth_header(&req.connector_config)?;
+            Ok(headers)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            let base_url = self.connector_base_url(req);
+            Ok(format!("{base_url}subscription/renew"))
+        }
+
+        fn get_5xx_error_response(
+            &self,
+            res: Response,
+            event_builder: Option<&mut events::Event>,
+        ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+            self.build_custom_error_response(res, event_builder)
+        }
+    }
+);
+
 // Empty implementations for flows not yet implemented
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
@@ -604,15 +656,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentFlowData,
         PaymentCreateOrderData,
         PaymentCreateOrderResponse,
-    > for Paytm<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        RepeatPayment,
-        PaymentFlowData,
-        RepeatPaymentData<T>,
-        PaymentsResponseData,
     > for Paytm<T>
 {
 }

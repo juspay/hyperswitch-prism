@@ -12,13 +12,14 @@ use cbc::{
 use common_enums::AttemptStatus;
 use common_utils::{errors::CustomResult, request::Method};
 use domain_types::{
-    connector_flow::{Authorize, PSync, ServerSessionAuthenticationToken},
+    connector_flow::{Authorize, PSync, RepeatPayment, ServerSessionAuthenticationToken},
     connector_types::{
-        PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData, ResponseId,
+        MandateReferenceId, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData,
+        PaymentsSyncData, RepeatPaymentData, ResponseId,
         ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
     },
     errors::{ConnectorResponseTransformationError, IntegrationError},
-    payment_method_data::{PaymentMethodData, UpiData},
+    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, UpiData},
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
     router_request_types::BrowserInformation,
@@ -42,7 +43,8 @@ pub use super::request::{
     PaytmAmount, PaytmAuthorizeRequest, PaytmEnableMethod, PaytmExtendInfo, PaytmGoodsInfo,
     PaytmInitiateReqBody, PaytmInitiateTxnRequest, PaytmNativeProcessRequestBody,
     PaytmNativeProcessTxnRequest, PaytmProcessBodyTypes, PaytmProcessHeadTypes,
-    PaytmProcessTxnRequest, PaytmRequestHeader, PaytmShippingInfo, PaytmTransactionStatusReqBody,
+    PaytmProcessTxnRequest, PaytmRepeatPaymentReqBody, PaytmRepeatPaymentRequest,
+    PaytmRequestHeader, PaytmShippingInfo, PaytmTransactionStatusReqBody,
     PaytmTransactionStatusRequest, PaytmTxnTokenType, PaytmUserInfo,
 };
 pub use super::response::{
@@ -51,6 +53,7 @@ pub use super::response::{
     PaytmInitiateTxnResponse, PaytmNativeProcessFailureResp, PaytmNativeProcessRespBodyTypes,
     PaytmNativeProcessSuccessResp, PaytmNativeProcessTxnResponse, PaytmProcessFailureResp,
     PaytmProcessHead, PaytmProcessRespBodyTypes, PaytmProcessSuccessResp, PaytmProcessTxnResponse,
+    PaytmRepeatPaymentRespBodyTypes, PaytmRepeatPaymentResponse, PaytmRepeatPaymentSuccessResp,
     PaytmResBodyTypes, PaytmRespBody, PaytmRespHead, PaytmResultInfo, PaytmSessionTokenErrorBody,
     PaytmSessionTokenErrorResponse, PaytmSuccessTransactionBody, PaytmSuccessTransactionResponse,
     PaytmTransactionStatusRespBody, PaytmTransactionStatusRespBodyTypes,
@@ -1119,4 +1122,206 @@ pub fn get_wait_screen_metadata() -> Option<serde_json::Value> {
         e
     })
     .ok()
+}
+
+// ================================
+// RepeatPayment (MIT) Flow
+// ================================
+
+/// Extract mandate ID (subscription ID) from RepeatPaymentData mandate reference.
+/// Paytm uses the connector_mandate_id as the subscriptionId for renewal.
+fn extract_paytm_mandate_id(
+    mandate_reference: &MandateReferenceId,
+) -> Result<String, error_stack::Report<IntegrationError>> {
+    match mandate_reference {
+        MandateReferenceId::ConnectorMandateId(connector_mandate_ref) => connector_mandate_ref
+            .get_connector_mandate_id()
+            .ok_or_else(|| {
+                error_stack::report!(IntegrationError::MissingRequiredField {
+                    field_name: "connector_mandate_id",
+                    context: Default::default(),
+                })
+            }),
+        MandateReferenceId::NetworkMandateId(_) => {
+            Err(error_stack::report!(
+                IntegrationError::NotImplemented(
+                    "Network mandate ID not supported for repeat payments in paytm".to_string(),
+                    Default::default(),
+                )
+            ))
+        }
+        MandateReferenceId::NetworkTokenWithNTI(_) => {
+            Err(error_stack::report!(
+                IntegrationError::NotImplemented(
+                    "Network token with NTI not supported for repeat payments in paytm".to_string(),
+                    Default::default(),
+                )
+            ))
+        }
+    }
+}
+
+// PaytmRepeatPaymentRequest TryFrom RepeatPayment RouterData
+impl<
+        T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+    >
+    TryFrom<
+        MacroPaytmRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for PaytmRepeatPaymentRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: MacroPaytmRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let auth = PaytmAuthType::try_from(&item.router_data.connector_config)?;
+
+        let amount = item
+            .connector
+            .amount_converter
+            .convert(
+                item.router_data.request.minor_amount,
+                item.router_data.request.currency,
+            )
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: Default::default(),
+            })?;
+
+        let subscription_id =
+            extract_paytm_mandate_id(&item.router_data.request.mandate_reference)?;
+
+        let body = PaytmRepeatPaymentReqBody {
+            mid: auth.merchant_id.clone(),
+            order_id: item
+                .router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
+            txn_amount: PaytmAmount {
+                value: amount,
+                currency: item.router_data.request.currency,
+            },
+            subscription_id,
+            extend_info: None,
+        };
+
+        let head = create_paytm_header(&body, &auth, None)?;
+
+        Ok(Self { head, body })
+    }
+}
+
+// RepeatPayment response transformation
+impl<
+        T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+    > TryFrom<ResponseRouterData<PaytmRepeatPaymentResponse, Self>>
+    for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+
+    fn try_from(
+        item: ResponseRouterData<PaytmRepeatPaymentResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = &item.response;
+        let mut router_data = item.router_data;
+
+        let (result_code, result_msg) = match &response.body {
+            PaytmRepeatPaymentRespBodyTypes::SuccessBody(body) => {
+                (&body.result_info.result_code, &body.result_info.result_msg)
+            }
+            PaytmRepeatPaymentRespBodyTypes::FailureBody(body) => {
+                (&body.result_info.result_code, &body.result_info.result_msg)
+            }
+        };
+
+        // Map the Paytm renew subscription result code to attempt status
+        let attempt_status = map_paytm_repeat_payment_status(result_code);
+        router_data.resource_common_data.set_status(attempt_status);
+
+        let (connector_txn_id, connector_ref_id) = match &response.body {
+            PaytmRepeatPaymentRespBodyTypes::SuccessBody(body) => {
+                let txn_id = body
+                    .txn_id
+                    .as_ref()
+                    .map(|id| ResponseId::ConnectorTransactionId(id.clone()))
+                    .unwrap_or(ResponseId::NoResponseId);
+                let ref_id = Some(
+                    router_data
+                        .resource_common_data
+                        .connector_request_reference_id
+                        .clone(),
+                );
+                (txn_id, ref_id)
+            }
+            PaytmRepeatPaymentRespBodyTypes::FailureBody(_) => {
+                let ref_id = Some(
+                    router_data
+                        .resource_common_data
+                        .connector_request_reference_id
+                        .clone(),
+                );
+                (ResponseId::NoResponseId, ref_id)
+            }
+        };
+
+        router_data.response = if is_failure_status(attempt_status) {
+            Err(domain_types::router_data::ErrorResponse {
+                code: result_code.clone(),
+                message: result_msg.clone(),
+                reason: Some(result_msg.clone()),
+                status_code: item.http_code,
+                attempt_status: Some(attempt_status),
+                connector_transaction_id: connector_ref_id.clone(),
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+            })
+        } else {
+            Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: connector_txn_id,
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: connector_ref_id,
+                incremental_authorization_allowed: None,
+                status_code: item.http_code,
+            })
+        };
+
+        Ok(router_data)
+    }
+}
+
+/// Map Paytm Renew Subscription result codes to AttemptStatus.
+/// Result code 900 means "Subscription Txn accepted" (pending actual deduction).
+fn map_paytm_repeat_payment_status(result_code: &str) -> AttemptStatus {
+    match result_code {
+        // 900: Subscription Txn accepted (async deduction)
+        "900" => AttemptStatus::Pending,
+
+        // Failure codes from Renew Subscription API
+        "156" | "158" | "165" | "196" => AttemptStatus::AuthorizationFailed,
+        "202" => AttemptStatus::Failure,
+        "227" => AttemptStatus::Failure,
+
+        // Default to Pending for unknown codes
+        _ => AttemptStatus::Pending,
+    }
 }

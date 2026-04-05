@@ -294,3 +294,26 @@ pub struct PaytmRedirectForm {
     pub method: String,
     pub content: HashMap<String, String>,
 }
+
+// RepeatPayment (MIT / Subscription Renew) flow response structures
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PaytmRepeatPaymentResponse {
+    pub head: PaytmRespHead,
+    pub body: PaytmRepeatPaymentRespBodyTypes,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum PaytmRepeatPaymentRespBodyTypes {
+    SuccessBody(PaytmRepeatPaymentSuccessResp),
+    FailureBody(PaytmErrorBody),
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PaytmRepeatPaymentSuccessResp {
+    #[serde(rename = "resultInfo")]
+    pub result_info: PaytmResultInfo,
+    #[serde(rename = "txnId")]
+    pub txn_id: Option<String>,
+}
