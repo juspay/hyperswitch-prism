@@ -13,14 +13,15 @@ use crate::{
 
 const PARTITION_KEY_METADATA: &str = "partitionKey";
 
-/// Global static EventPublisher instance
-static EVENT_PUBLISHER: OnceCell<EventPublisher> = OnceCell::new();
+/// Global static EventPublisher instance.
+/// `None` means initialization was attempted but failed (Kafka unavailable).
+/// `Some(p)` means the publisher is healthy and ready.
+static EVENT_PUBLISHER: OnceCell<Option<EventPublisher>> = OnceCell::new();
 
 /// An event publisher that sends events directly to Kafka.
 #[derive(Clone)]
 pub struct EventPublisher {
     writer: Arc<KafkaWriter>,
-    config: EventConfig,
 }
 
 impl EventPublisher {
@@ -66,7 +67,6 @@ impl EventPublisher {
 
         Ok(Self {
             writer: Arc::new(writer),
-            config: config.clone(),
         })
     }
 
@@ -294,37 +294,39 @@ fn set_nested_value(
     result.map(|_| ())
 }
 
-/// Initialize the global EventPublisher with the given configuration
-pub fn init_event_publisher(config: &EventConfig) -> CustomResult<(), EventPublisherError> {
+/// Initialize the global EventPublisher with the given configuration.
+/// If Kafka is unreachable, stores `None` and logs a warning instead of failing.
+/// Subsequent emits will be silently dropped until the process is restarted with Kafka available.
+pub fn init_event_publisher(config: &EventConfig) {
     tracing::info!(
         enabled = config.enabled,
         "Initializing global EventPublisher"
     );
 
-    let publisher = EventPublisher::new(config)?;
+    let value = match EventPublisher::new(config) {
+        Ok(publisher) => {
+            tracing::info!("Global EventPublisher initialized successfully");
+            Some(publisher)
+        }
+        Err(e) => {
+            tracing::warn!(
+                error = ?e,
+                brokers = ?config.brokers,
+                topic = %config.topic,
+                "Failed to initialize EventPublisher (Kafka may be unavailable); \
+                 events will be dropped until the service is restarted with Kafka reachable"
+            );
+            None
+        }
+    };
 
-    EVENT_PUBLISHER.set(publisher).map_err(|failed_publisher| {
-        error_stack::Report::new(EventPublisherError::AlreadyInitialized)
-            .attach_printable("EventPublisher was already initialized")
-            .attach_printable(format!(
-                "Existing config: brokers={:?}, topic={}",
-                failed_publisher.config.brokers, failed_publisher.config.topic
-            ))
-            .attach_printable(format!(
-                "New config: brokers={:?}, topic={}",
-                config.brokers, config.topic
-            ))
-    })?;
-
-    tracing::info!("Global EventPublisher initialized successfully");
-    Ok(())
+    // Ignore AlreadyInitialized — can happen in tests; first writer wins.
+    let _ = EVENT_PUBLISHER.set(value);
 }
 
-/// Get or initialize the global EventPublisher
-fn get_event_publisher(
-    config: &EventConfig,
-) -> CustomResult<&'static EventPublisher, EventPublisherError> {
-    EVENT_PUBLISHER.get_or_try_init(|| EventPublisher::new(config))
+/// Returns the global EventPublisher if it was successfully initialized, otherwise `None`.
+fn get_event_publisher() -> Option<&'static EventPublisher> {
+    EVENT_PUBLISHER.get().and_then(|opt| opt.as_ref())
 }
 
 /// Standalone function to emit events using the global EventPublisher.
@@ -358,18 +360,20 @@ pub fn emit_event_with_config(event: Event, config: &EventConfig) {
 
     // Only publish to Kafka if enabled
     if config.enabled {
-        let _ = get_event_publisher(config)
-            .and_then(|publisher| {
-                let metadata = publisher.build_kafka_metadata(&event);
-                publisher.publish_event_with_metadata(
+        if let Some(publisher) = get_event_publisher() {
+            let metadata = publisher.build_kafka_metadata(&event);
+            let _ = publisher
+                .publish_event_with_metadata(
                     processed_event,
                     &config.topic,
                     &config.partition_key_field,
                     metadata,
                 )
-            })
-            .inspect_err(|e| {
-                tracing::error!(error = ?e, "Failed to publish event to Kafka");
-            });
+                .inspect_err(|e| {
+                    tracing::error!(error = ?e, "Failed to publish event to Kafka");
+                });
+        } else {
+            tracing::warn!("EventPublisher not available; audit event dropped");
+        }
     }
 }
