@@ -1844,15 +1844,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let (transfer_account_id, charge_type, application_fees) = (None, None, None);
 
-        let payment_method_token = match &item.request.split_payments {
-            Some(domain_types::connector_types::SplitPaymentsRequest::StripeSplitPayment(_)) => {
-                match item.resource_common_data.payment_method_token.clone() {
-                    Some(domain_types::router_data::PaymentMethodToken::Token(secret)) => {
-                        Some(secret)
-                    }
-                    _ => None,
-                }
-            }
+        let payment_method_token = match (
+            &item.request.split_payments,
+            &item.request.payment_method_data,
+        ) {
+            (
+                Some(domain_types::connector_types::SplitPaymentsRequest::StripeSplitPayment(_)),
+                _,
+            )
+            | (_, PaymentMethodData::CardToken(_)) => item
+                .resource_common_data
+                .payment_method_token
+                .clone()
+                .map(|t| match t {
+                    domain_types::router_data::PaymentMethodToken::Token(secret) => secret,
+                }),
             _ => None,
         };
 
@@ -4913,15 +4919,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 None => (None, None, None),
             };
 
-        let payment_method_token = match &item.request.split_payments {
-            Some(domain_types::connector_types::SplitPaymentsRequest::StripeSplitPayment(_)) => {
-                match item.resource_common_data.payment_method_token.clone() {
-                    Some(domain_types::router_data::PaymentMethodToken::Token(secret)) => {
-                        Some(secret)
-                    }
-                    _ => None,
-                }
-            }
+        let payment_method_token = match (
+            &item.request.split_payments,
+            &item.request.payment_method_data,
+        ) {
+            (
+                Some(domain_types::connector_types::SplitPaymentsRequest::StripeSplitPayment(_)),
+                _,
+            )
+            | (_, PaymentMethodData::CardToken(_)) => item
+                .resource_common_data
+                .payment_method_token
+                .clone()
+                .map(|t| match t {
+                    domain_types::router_data::PaymentMethodToken::Token(secret) => secret,
+                }),
             _ => None,
         };
 
