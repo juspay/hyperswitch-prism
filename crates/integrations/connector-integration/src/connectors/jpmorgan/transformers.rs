@@ -434,11 +434,19 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 ),
                             };
 
+                            // Serialize the CardNumber and deserialize into T::Inner to handle
+                            // the generic type constraint (works for both DefaultPCIHolder and VaultTokenHolder)
+                            let card_number_value = serde_json::to_value(
+                                &google_pay_decrypted_data.application_primary_account_number,
+                            )
+                            .map_err(|_| errors::ConnectorError::RequestEncodingFailed)?;
+                            let card_number_inner: <T as PaymentMethodDataTypes>::Inner =
+                                serde_json::from_value(card_number_value)
+                                    .map_err(|_| errors::ConnectorError::RequestEncodingFailed)?;
+
                             let card = requests::JpmorganCard {
                                 account_number: domain_types::payment_method_data::RawCardNumber(
-                                    google_pay_decrypted_data
-                                        .application_primary_account_number
-                                        .clone(),
+                                    card_number_inner,
                                 ),
                                 expiry,
                             };

@@ -1,4 +1,3 @@
-use cards::CardNumber;
 use common_utils::types::MinorUnit;
 use domain_types::payment_method_data::{PaymentMethodDataTypes, RawCardNumber};
 use hyperswitch_masking::Secret;
