@@ -370,9 +370,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> CustomResult<String, IntegrationError> {
         let base_url = &req.resource_common_data.connectors.razorpayv2.base_url;
 
-        // For UPI payments, use the specific UPI endpoint
         match &req.request.payment_method_data {
             PaymentMethodData::Upi(_) => Ok(format!("{base_url}v1/payments/create/upi")),
+            PaymentMethodData::Card(_) => Ok(format!("{base_url}v1/payments/create/json")),
             _ => Ok(format!("{base_url}v1/payments")),
         }
     }
@@ -410,10 +410,19 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .get_payment_method_billing()
                 .cloned(),
         ))?;
-        // Always use v2 request format
-        let connector_req =
-            razorpayv2::RazorpayV2PaymentsRequest::try_from(&connector_router_data)?;
-        Ok(Some(RequestContent::Json(Box::new(connector_req))))
+
+        match &req.request.payment_method_data {
+            PaymentMethodData::Card(_) => {
+                let connector_req =
+                    razorpayv2::RazorpayV2CardPaymentsRequest::try_from(&connector_router_data)?;
+                Ok(Some(RequestContent::Json(Box::new(connector_req))))
+            }
+            _ => {
+                let connector_req =
+                    razorpayv2::RazorpayV2PaymentsRequest::try_from(&connector_router_data)?;
+                Ok(Some(RequestContent::Json(Box::new(connector_req))))
+            }
+        }
     }
 
     fn handle_response_v2(
@@ -430,38 +439,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ConnectorResponseTransformationError,
     > {
-        // Try to parse as UPI response first
-        let upi_response_result = res
-            .response
-            .parse_struct::<razorpayv2::RazorpayV2UpiPaymentsResponse>(
-                "RazorpayV2UpiPaymentsResponse",
-            );
-
-        match upi_response_result {
-            Ok(upi_response) => {
-                if let Some(i) = event_builder {
-                    i.set_connector_response(&upi_response)
-                }
-
-                // Use the transformer for UPI response handling
-                RouterDataV2::foreign_try_from((
-                    upi_response,
-                    data.clone(),
-                    res.status_code,
-                    res.response.to_vec(),
-                ))
-                .change_context(
-                    crate::utils::response_handling_fail_for_connector(
-                        res.status_code,
-                        "razorpayv2",
-                    ),
-                )
-            }
-            Err(_) => {
-                // Fall back to regular payment response
-                let response: razorpayv2::RazorpayV2PaymentsResponse = res
+        // Determine response type based on payment method
+        match &data.request.payment_method_data {
+            PaymentMethodData::Card(_) => {
+                // Card payments via /payments/create/json return razorpay_payment_id + next actions
+                let response: razorpayv2::RazorpayV2CardPaymentsResponse = res
                     .response
-                    .parse_struct("RazorpayV2PaymentsResponse")
+                    .parse_struct("RazorpayV2CardPaymentsResponse")
                     .change_context(
                         crate::utils::response_deserialization_fail(
                             res.status_code,
@@ -472,7 +456,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     i.set_connector_response(&response)
                 }
 
-                // Use the transformer for regular response handling
                 RouterDataV2::foreign_try_from((
                     response,
                     data.clone(),
@@ -485,6 +468,62 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         "razorpayv2",
                     ),
                 )
+            }
+            _ => {
+                // Try to parse as UPI response first
+                let upi_response_result = res
+                    .response
+                    .parse_struct::<razorpayv2::RazorpayV2UpiPaymentsResponse>(
+                        "RazorpayV2UpiPaymentsResponse",
+                    );
+
+                match upi_response_result {
+                    Ok(upi_response) => {
+                        if let Some(i) = event_builder {
+                            i.set_connector_response(&upi_response)
+                        }
+
+                        RouterDataV2::foreign_try_from((
+                            upi_response,
+                            data.clone(),
+                            res.status_code,
+                            res.response.to_vec(),
+                        ))
+                        .change_context(
+                            crate::utils::response_handling_fail_for_connector(
+                                res.status_code,
+                                "razorpayv2",
+                            ),
+                        )
+                    }
+                    Err(_) => {
+                        let response: razorpayv2::RazorpayV2PaymentsResponse = res
+                            .response
+                            .parse_struct("RazorpayV2PaymentsResponse")
+                            .change_context(
+                                crate::utils::response_deserialization_fail(
+                                    res.status_code,
+                                "razorpayv2: response body did not match the expected format; confirm API version and connector documentation."),
+                            )?;
+
+                        if let Some(i) = event_builder {
+                            i.set_connector_response(&response)
+                        }
+
+                        RouterDataV2::foreign_try_from((
+                            response,
+                            data.clone(),
+                            res.status_code,
+                            res.response.to_vec(),
+                        ))
+                        .change_context(
+                            crate::utils::response_handling_fail_for_connector(
+                                res.status_code,
+                                "razorpayv2",
+                            ),
+                        )
+                    }
+                }
             }
         }
     }
