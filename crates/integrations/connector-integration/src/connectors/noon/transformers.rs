@@ -2,13 +2,14 @@ use common_enums::enums::{self, AttemptStatus, CountryAlpha2};
 use common_utils::{ext_traits::Encode, pii, request::Method, types::StringMajorUnit};
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, MandateRevoke, Refund, RepeatPayment, SetupMandate, Void,
+        Authorize, Capture, CreateOrder, MandateRevoke, Refund, RepeatPayment, SetupMandate, Void,
     },
     connector_types::{
         MandateReference, MandateReferenceId, MandateRevokeRequestData, MandateRevokeResponseData,
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        RepeatPaymentData, ResponseId, SetupMandateRequestData,
+        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
+        SetupMandateRequestData,
     },
     errors::{ConnectorResponseTransformationError, IntegrationError},
     mandates::MandateDataType,
@@ -74,13 +75,17 @@ pub struct NoonBilling {
 #[serde(rename_all = "camelCase")]
 pub struct NoonOrder {
     amount: StringMajorUnit,
+    #[serde(skip_serializing_if = "Option::is_none")]
     currency: Option<enums::Currency>,
     channel: NoonChannels,
+    #[serde(skip_serializing_if = "Option::is_none")]
     category: Option<String>,
     reference: String,
     //Short description of the order.
     name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     nvp: Option<NoonOrderNvp>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     ip_address: Option<Secret<String, pii::IpAddress>>,
 }
 
@@ -1673,6 +1678,160 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 }
             },
             ..router_data
+        })
+    }
+}
+
+// CreateOrder types and implementations
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NoonCreateOrderRequest {
+    api_operation: NoonApiOperations,
+    order: NoonOrder,
+    configuration: NoonConfiguration,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct NoonCreateOrderResponse {
+    result: NoonCreateOrderResponseResult,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NoonCreateOrderResponseResult {
+    order: NoonCreateOrderOrderResponse,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NoonCreateOrderOrderResponse {
+    id: u64,
+    status: NoonPaymentStatus,
+    reference: Option<String>,
+}
+
+// TryFrom for CreateOrder Request
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        NoonRouterData<
+            RouterDataV2<
+                CreateOrder,
+                PaymentFlowData,
+                PaymentCreateOrderData,
+                PaymentCreateOrderResponse,
+            >,
+            T,
+        >,
+    > for NoonCreateOrderRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        data: NoonRouterData<
+            RouterDataV2<
+                CreateOrder,
+                PaymentFlowData,
+                PaymentCreateOrderData,
+                PaymentCreateOrderResponse,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let item = &data.router_data;
+
+        let amount = data
+            .connector
+            .amount_converter
+            .convert(item.request.amount, item.request.currency)
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?;
+
+        let currency = Some(item.request.currency);
+
+        let channel = NoonChannels::Web;
+
+        let category = item
+            .request
+            .metadata
+            .as_ref()
+            .and_then(|metadata| metadata.peek().get("order_category"))
+            .and_then(|value| value.as_str())
+            .map(|s| s.to_string());
+
+        // The description should not have leading or trailing whitespaces, also it should not have double whitespaces and a max 50 chars according to Noon's Docs
+        // For CreateOrder, use a default description if not provided
+        let name: String = item
+            .resource_common_data
+            .description
+            .clone()
+            .unwrap_or_else(|| "Order payment".to_string())
+            .trim()
+            .replace("  ", " ")
+            .chars()
+            .take(50)
+            .collect();
+
+        let order = NoonOrder {
+            amount,
+            currency,
+            channel,
+            category,
+            reference: item
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
+            name: name.clone(),
+            nvp: item
+                .request
+                .metadata
+                .as_ref()
+                .map(|m| NoonOrderNvp::new(m.peek())),
+            ip_address: None,
+        };
+
+        // For orderCreate, use Authorize as the payment action (payment will be completed later)
+        let payment_action = NoonPaymentActions::Authorize;
+
+        Ok(Self {
+            api_operation: NoonApiOperations::Initiate,
+            order,
+            configuration: NoonConfiguration {
+                payment_action,
+                return_url: None,
+                tokenize_c_c: None,
+            },
+        })
+    }
+}
+
+// TryFrom for CreateOrder Response
+impl TryFrom<ResponseRouterData<NoonCreateOrderResponse, Self>>
+    for RouterDataV2<
+        CreateOrder,
+        PaymentFlowData,
+        PaymentCreateOrderData,
+        PaymentCreateOrderResponse,
+    >
+{
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+
+    fn try_from(
+        item: ResponseRouterData<NoonCreateOrderResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let order = item.response.result.order;
+        let status = get_payment_status(order.status);
+
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
+            response: Ok(PaymentCreateOrderResponse {
+                order_id: order.id.to_string(),
+                session_data: None,
+            }),
+            ..item.router_data
         })
     }
 }
