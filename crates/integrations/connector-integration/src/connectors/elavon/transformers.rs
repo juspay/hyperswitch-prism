@@ -9,11 +9,11 @@ use common_utils::{
     types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund},
+    connector_flow::{Authorize, Capture, PSync, RSync, Refund, RepeatPayment},
     connector_types::{
-        PaymentFlowData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        ResponseId as DomainResponseId,
+        MandateReferenceId, PaymentFlowData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, RepeatPaymentData, ResponseId as DomainResponseId,
     },
     payment_address::PaymentAddress,
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
@@ -1460,6 +1460,351 @@ impl<F> TryFrom<ResponseRouterData<ElavonPSyncResponse, Self>>
             response: Ok(payments_response_data),
             resource_common_data: PaymentFlowData {
                 status: final_status,
+                ..router_data.resource_common_data
+            },
+            ..router_data
+        })
+    }
+}
+
+// ==================== RepeatPayment (MIT) flow ====================
+
+/// Request for RepeatPayment (Merchant Initiated Transaction) using stored credentials.
+/// Elavon MIT uses ccsale with the stored token and network transaction IDs
+/// (ssl_oar_data / ssl_ps2000_data) from the initial CIT authorization.
+#[skip_serializing_none]
+#[derive(Debug, Serialize)]
+pub struct ElavonRepeatPaymentRequest {
+    pub ssl_transaction_type: TransactionType,
+    pub ssl_account_id: Secret<String>,
+    pub ssl_user_id: Secret<String>,
+    pub ssl_pin: Secret<String>,
+    pub ssl_amount: StringMajorUnit,
+    pub ssl_token: Secret<String>,
+    pub ssl_exp_date: Option<Secret<String>>,
+    pub ssl_transaction_currency: Currency,
+    /// Network transaction ID for stored credential chaining (for IDs > 22 chars)
+    pub ssl_oar_data: Option<String>,
+    /// Network transaction ID for stored credential chaining (PS2000 format, <= 22 chars)
+    pub ssl_ps2000_data: Option<String>,
+    /// Set to "Y" for merchant-initiated unscheduled transactions
+    pub ssl_merchant_initiated_unscheduled: Option<String>,
+    /// Set to "1" for recurring, "2" for installment
+    pub ssl_recurring_flag: Option<String>,
+    /// Set to "12" for stored credential entry mode
+    pub ssl_entry_mode: Option<String>,
+    pub ssl_invoice_number: Option<String>,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        ElavonRouterData<
+            RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+            T,
+        >,
+    > for ElavonRepeatPaymentRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: ElavonRouterData<
+            RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let request_data = &router_data.request;
+        let auth_type = ElavonAuthType::try_from(&router_data.connector_config)?;
+
+        // Extract the network transaction ID and ssl_token from the mandate reference.
+        // For Elavon:
+        // - ConnectorMandateId: the connector_mandate_id IS the ssl_token
+        // - NetworkMandateId: the string is the network_transaction_id (ssl_oar_data/ssl_ps2000_data),
+        //   and the ssl_token comes from PaymentFlowData.payment_method_token
+        // - NetworkTokenWithNTI: the network_transaction_id is in the ref,
+        //   and the ssl_token comes from PaymentFlowData.payment_method_token
+        let (ssl_token, network_txn_id) = match &request_data.mandate_reference {
+            MandateReferenceId::ConnectorMandateId(connector_mandate_ref) => {
+                let token = connector_mandate_ref.get_connector_mandate_id().ok_or_else(|| {
+                    report!(IntegrationError::MissingRequiredField {
+                        field_name: "connector_mandate_id",
+                        context: Default::default()
+                    })
+                })?;
+                // For ConnectorMandateId, there's no separate network txn id
+                (Secret::new(token), None)
+            }
+            MandateReferenceId::NetworkMandateId(network_txn_id) => {
+                // Get the ssl_token from payment_method_token on the resource_common_data
+                let pmt = router_data.resource_common_data.payment_method_token.clone()
+                    .ok_or_else(|| {
+                        report!(IntegrationError::MissingRequiredField {
+                            field_name: "payment_method_token",
+                            context: Default::default()
+                        })
+                    })?;
+                let token = match pmt {
+                    PaymentMethodToken::Token(t) => t,
+                };
+                (token, Some(network_txn_id.clone()))
+            }
+            MandateReferenceId::NetworkTokenWithNTI(nti_ref) => {
+                let pmt = router_data.resource_common_data.payment_method_token.clone()
+                    .ok_or_else(|| {
+                        report!(IntegrationError::MissingRequiredField {
+                            field_name: "payment_method_token",
+                            context: Default::default()
+                        })
+                    })?;
+                let token = match pmt {
+                    PaymentMethodToken::Token(t) => t,
+                };
+                (token, Some(nti_ref.network_transaction_id.clone()))
+            }
+        };
+
+        // Convert amount to major unit
+        let amount_converter = StringMajorUnitForConnector;
+        let amount = amount_converter
+            .convert(request_data.minor_amount, request_data.currency)
+            .map_err(|e| {
+                report!(IntegrationError::AmountConversionFailed {
+                    context: Default::default()
+                })
+                .attach_printable(format!("Failed to convert amount: {e}"))
+            })?;
+
+        // Determine stored credential flags based on MIT category
+        let (ssl_recurring_flag, ssl_merchant_initiated_unscheduled) =
+            match request_data.mit_category {
+                Some(common_enums::MitCategory::Recurring) => (Some("1".to_string()), None),
+                Some(common_enums::MitCategory::Installment) => (Some("2".to_string()), None),
+                Some(common_enums::MitCategory::Unscheduled)
+                | Some(common_enums::MitCategory::Resubmission)
+                | None => (None, Some("Y".to_string())), // Default: unscheduled MIT
+            };
+
+        // For network transaction IDs, determine which field to use based on length
+        let (ssl_oar_data, ssl_ps2000_data) = match &network_txn_id {
+            Some(id) if id.len() > 22 => (Some(id.clone()), None),
+            Some(id) => (None, Some(id.clone())),
+            None => (None, None),
+        };
+
+        Ok(Self {
+            ssl_transaction_type: TransactionType::CcSale,
+            ssl_account_id: auth_type.ssl_merchant_id,
+            ssl_user_id: auth_type.ssl_user_id,
+            ssl_pin: auth_type.ssl_pin,
+            ssl_amount: amount,
+            ssl_token,
+            ssl_exp_date: None,
+            ssl_transaction_currency: request_data.currency,
+            ssl_oar_data,
+            ssl_ps2000_data,
+            ssl_merchant_initiated_unscheduled,
+            ssl_recurring_flag,
+            ssl_entry_mode: Some("12".to_string()),
+            ssl_invoice_number: Some(router_data.resource_common_data.payment_id.clone()),
+        })
+    }
+}
+
+// XML wrapper for RepeatPayment request
+#[derive(Debug, Serialize)]
+pub struct XMLRepeatPaymentRequest(pub HashMap<String, Secret<String, WithoutType>>);
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        ElavonRouterData<
+            RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+            T,
+        >,
+    > for XMLRepeatPaymentRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        data: ElavonRouterData<
+            RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let request = ElavonRepeatPaymentRequest::try_from(data)
+            .attach_printable("Failed to create ElavonRepeatPaymentRequest")?;
+
+        tracing::info!("Creating XML for Elavon RepeatPayment (MIT) request");
+
+        let xml_content = quick_xml::se::to_string_with_root("txn", &request).map_err(|err| {
+            tracing::info!(error=?err, "XML serialization error for RepeatPayment");
+            error_stack::report!(IntegrationError::RequestEncodingFailed {
+                context: Default::default()
+            })
+        })?;
+
+        tracing::info!(xml=?xml_content, "Generated RepeatPayment XML");
+
+        let mut result = HashMap::new();
+        result.insert(
+            "xmldata".to_string(),
+            Secret::<_, WithoutType>::new(xml_content),
+        );
+
+        Ok(Self(result))
+    }
+}
+
+// RepeatPayment response type - reuses the same XML parsing as ElavonPaymentsResponse
+#[derive(Debug, Clone, Serialize)]
+pub struct ElavonRepeatPaymentResponse {
+    pub result: ElavonResult,
+}
+
+impl<'de> Deserialize<'de> for ElavonRepeatPaymentResponse {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Deserialize, Debug)]
+        #[serde(rename = "txn")]
+        struct XmlIshResponse {
+            #[serde(default)]
+            error_code: Option<String>,
+            #[serde(default)]
+            error_message: Option<String>,
+            #[serde(default)]
+            error_name: Option<String>,
+            #[serde(default)]
+            ssl_result: Option<String>,
+            #[serde(default)]
+            ssl_txn_id: Option<String>,
+            #[serde(default)]
+            ssl_result_message: Option<String>,
+            #[serde(default)]
+            ssl_token: Option<Secret<String>>,
+            #[serde(default)]
+            ssl_token_response: Option<Secret<String>>,
+            #[serde(default)]
+            ssl_approval_code: Option<String>,
+            #[serde(default)]
+            ssl_transaction_type: Option<String>,
+            #[serde(default)]
+            ssl_cvv2_response: Option<Secret<String>>,
+            #[serde(default)]
+            ssl_avs_response: Option<String>,
+        }
+
+        let flat_res = XmlIshResponse::deserialize(deserializer)?;
+
+        let result = {
+            if flat_res.ssl_result.as_deref() == Some("0") {
+                ElavonResult::Success(PaymentResponse {
+                    ssl_result: SslResult::try_from(
+                        flat_res
+                            .ssl_result
+                            .ok_or_else(|| de::Error::missing_field("ssl_result"))?,
+                    )
+                    .map_err(de::Error::custom)?,
+                    ssl_txn_id: flat_res
+                        .ssl_txn_id
+                        .ok_or_else(|| de::Error::missing_field("ssl_txn_id"))?,
+                    ssl_result_message: flat_res
+                        .ssl_result_message
+                        .ok_or_else(|| de::Error::missing_field("ssl_result_message"))?,
+                    ssl_token: flat_res.ssl_token,
+                    ssl_approval_code: flat_res.ssl_approval_code,
+                    ssl_transaction_type: flat_res.ssl_transaction_type.clone(),
+                    ssl_cvv2_response: flat_res.ssl_cvv2_response,
+                    ssl_avs_response: flat_res.ssl_avs_response,
+                    ssl_token_response: flat_res.ssl_token_response.map(|s| s.expose()),
+                })
+            } else if flat_res.error_message.is_some() {
+                ElavonResult::Error(ElavonErrorResponse {
+                    error_code: flat_res.error_code.or(flat_res.ssl_result.clone()),
+                    error_message: flat_res
+                        .error_message
+                        .ok_or_else(|| de::Error::missing_field("error_message"))?,
+                    error_name: flat_res.error_name,
+                    ssl_txn_id: flat_res.ssl_txn_id,
+                })
+            } else if flat_res.ssl_result.is_some() {
+                ElavonResult::Error(ElavonErrorResponse {
+                    error_code: flat_res.ssl_result.clone(),
+                    error_message: flat_res
+                        .ssl_result_message
+                        .unwrap_or_else(|| "Transaction resulted in an error".to_string()),
+                    error_name: None,
+                    ssl_txn_id: flat_res.ssl_txn_id,
+                })
+            } else {
+                return Err(de::Error::custom(
+                    "Invalid Response from Elavon - cannot determine success or error state, missing critical fields.",
+                ));
+            }
+        };
+        Ok(Self { result })
+    }
+}
+
+// Response transformation for RepeatPayment flow
+impl<
+        F,
+        T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+    > TryFrom<ResponseRouterData<ElavonRepeatPaymentResponse, Self>>
+    for RouterDataV2<F, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+
+    fn try_from(
+        value: ResponseRouterData<ElavonRepeatPaymentResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let ResponseRouterData {
+            response,
+            router_data,
+            http_code,
+        } = value;
+
+        tracing::info!(response=?response, "Processing Elavon RepeatPayment response");
+
+        let (attempt_status, error_response) =
+            get_elavon_attempt_status(&response.result, http_code);
+
+        let payments_response_data = match (&response.result, error_response) {
+            (ElavonResult::Success(payment_resp_struct), None) => {
+                Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: DomainResponseId::ConnectorTransactionId(
+                        payment_resp_struct.ssl_txn_id.clone(),
+                    ),
+                    redirection_data: None,
+                    connector_metadata: None,
+                    network_txn_id: payment_resp_struct.ssl_approval_code.clone(),
+                    connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
+                    mandate_reference: None,
+                    status_code: http_code,
+                })
+            }
+            (_, Some(err_resp)) => Err(err_resp),
+            (ElavonResult::Error(error_payload), None) => Err(ErrorResponse {
+                status_code: http_code,
+                code: error_payload
+                    .error_code
+                    .clone()
+                    .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+                message: error_payload.error_message.clone(),
+                reason: error_payload.error_name.clone(),
+                attempt_status: Some(HyperswitchAttemptStatus::Failure),
+                connector_transaction_id: error_payload.ssl_txn_id.clone(),
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+            }),
+        };
+
+        Ok(Self {
+            response: payments_response_data,
+            resource_common_data: PaymentFlowData {
+                status: attempt_status,
                 ..router_data.resource_common_data
             },
             ..router_data
