@@ -55,12 +55,18 @@ use grpc_api_types::payments::{
     PaymentServiceProxyAuthorizeRequest,
     PaymentServiceProxySetupRecurringRequest,
     PaymentServiceRefundRequest,
+    PaymentServiceResendOtpForWalletRequest,
+    PaymentServiceResendOtpForWalletResponse,
     PaymentServiceReverseRequest,
     PaymentServiceReverseResponse,
     PaymentServiceSetupRecurringRequest,
     PaymentServiceSetupRecurringResponse,
     PaymentServiceTokenAuthorizeRequest,
     PaymentServiceTokenSetupRecurringRequest,
+    PaymentServiceTriggerOtpForWalletRequest,
+    PaymentServiceTriggerOtpForWalletResponse,
+    PaymentServiceVerifyOtpForWalletRequest,
+    PaymentServiceVerifyOtpForWalletResponse,
     PaymentServiceVerifyRedirectResponseRequest,
     PaymentServiceVerifyRedirectResponseResponse,
     PaymentServiceVoidRequest,
@@ -311,6 +317,24 @@ impl_grpc_client!(
         verify_redirect_response,
         PaymentServiceVerifyRedirectResponseRequest,
         PaymentServiceVerifyRedirectResponseResponse
+    ),
+    (
+        trigger_otp_for_wallet,
+        trigger_otp_for_wallet,
+        PaymentServiceTriggerOtpForWalletRequest,
+        PaymentServiceTriggerOtpForWalletResponse
+    ),
+    (
+        resend_otp_for_wallet,
+        resend_otp_for_wallet,
+        PaymentServiceResendOtpForWalletRequest,
+        PaymentServiceResendOtpForWalletResponse
+    ),
+    (
+        verify_otp_for_wallet,
+        verify_otp_for_wallet,
+        PaymentServiceVerifyOtpForWalletRequest,
+        PaymentServiceVerifyOtpForWalletResponse
     ),
     (
         setup_recurring,

@@ -291,6 +291,21 @@ class GrpcPaymentClient internal constructor(
     suspend fun verify_redirect_response(req: PaymentServiceVerifyRedirectResponseRequest): PaymentServiceVerifyRedirectResponseResponse =
         callGrpc(config, "payment/verify_redirect_response", req, PaymentServiceVerifyRedirectResponseResponse.parser())
     /**
+     * PaymentService.TriggerOtpForWallet — Trigger OTP for wallet-based payment flows. Initiates the OTP send to the customer's phone number for wallet linking/payment.
+     */
+    suspend fun trigger_otp_for_wallet(req: PaymentServiceTriggerOtpForWalletRequest): PaymentServiceTriggerOtpForWalletResponse =
+        callGrpc(config, "payment/trigger_otp_for_wallet", req, PaymentServiceTriggerOtpForWalletResponse.parser())
+    /**
+     * PaymentService.ResendOtpForWallet — Resend OTP for wallet-based payment flows. Triggers a new OTP delivery when the original OTP expires or the customer requests a resend.
+     */
+    suspend fun resend_otp_for_wallet(req: PaymentServiceResendOtpForWalletRequest): PaymentServiceResendOtpForWalletResponse =
+        callGrpc(config, "payment/resend_otp_for_wallet", req, PaymentServiceResendOtpForWalletResponse.parser())
+    /**
+     * PaymentService.VerifyOtpForWallet — Verify OTP for wallet-based payment flows. Validates the customer-entered OTP to complete wallet payment authentication.
+     */
+    suspend fun verify_otp_for_wallet(req: PaymentServiceVerifyOtpForWalletRequest): PaymentServiceVerifyOtpForWalletResponse =
+        callGrpc(config, "payment/verify_otp_for_wallet", req, PaymentServiceVerifyOtpForWalletResponse.parser())
+    /**
      * PaymentService.SetupRecurring — Configure a payment method for recurring billing. Sets up the mandate and payment details needed for future automated charges.
      */
     suspend fun setup_recurring(req: PaymentServiceSetupRecurringRequest): PaymentServiceSetupRecurringResponse =

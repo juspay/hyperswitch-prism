@@ -126,6 +126,18 @@ service PaymentService {
   // Validates authentication results and updates payment state accordingly.
   rpc VerifyRedirectResponse(PaymentServiceVerifyRedirectResponseRequest) returns (PaymentServiceVerifyRedirectResponseResponse);
 
+  // Trigger OTP for wallet-based payment flows. Initiates the OTP send
+  // to the customer's phone number for wallet linking/payment.
+  rpc TriggerOtpForWallet(PaymentServiceTriggerOtpForWalletRequest) returns (PaymentServiceTriggerOtpForWalletResponse);
+
+  // Resend OTP for wallet-based payment flows. Triggers a new OTP delivery
+  // when the original OTP expires or the customer requests a resend.
+  rpc ResendOtpForWallet(PaymentServiceResendOtpForWalletRequest) returns (PaymentServiceResendOtpForWalletResponse);
+
+  // Verify OTP for wallet-based payment flows. Validates the customer-entered
+  // OTP to complete wallet payment authentication.
+  rpc VerifyOtpForWallet(PaymentServiceVerifyOtpForWalletRequest) returns (PaymentServiceVerifyOtpForWalletResponse);
+
   // Configure a payment method for recurring billing. Sets up the mandate and
   // payment details needed for future automated charges.
   rpc SetupRecurring(PaymentServiceSetupRecurringRequest) returns (PaymentServiceSetupRecurringResponse);

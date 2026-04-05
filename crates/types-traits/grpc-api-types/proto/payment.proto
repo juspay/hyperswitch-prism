@@ -2927,6 +2927,144 @@ message PaymentServiceIncrementalAuthorizationResponse {
   optional ConnectorState state = 6;
 }
 
+// ============================================================================
+// TRIGGER OTP FOR WALLET FLOW MESSAGES
+// ============================================================================
+
+// Request message for triggering OTP in wallet payment flows
+message PaymentServiceTriggerOtpForWalletRequest {
+  // Phone number of the customer
+  optional string phone_number = 1;
+
+  // Payment identification
+  optional string payment_id = 2;
+
+  // Connector transaction reference
+  optional string connector_transaction_id = 3;
+}
+
+// Response message for triggering OTP in wallet payment flows
+message PaymentServiceTriggerOtpForWalletResponse {
+  // Whether the OTP trigger was successful
+  bool is_successful = 1;
+
+  // OTP token returned by the connector for subsequent verify call
+  optional string otp_token = 2;
+
+  // Connector transaction reference
+  optional string connector_transaction_id = 3;
+
+  // Next actions available after OTP trigger
+  repeated string next_action = 4;
+
+  // Error information if the operation failed
+  optional ErrorInfo error = 5;
+
+  // HTTP status code from the connector
+  uint32 status_code = 6;
+
+  // Response headers from the connector
+  map<string, string> response_headers = 7;
+
+  // Raw response/request for debugging
+  optional SecretString raw_connector_response = 8;
+  optional SecretString raw_connector_request = 9;
+}
+
+// ============================================================================
+// RESEND OTP FOR WALLET FLOW MESSAGES
+// ============================================================================
+
+// Request message for resending OTP in wallet payment flows
+message PaymentServiceResendOtpForWalletRequest {
+  // OTP token from the previous OTP trigger
+  optional string otp_token = 1;
+
+  // Payment identification
+  optional string payment_id = 2;
+
+  // Connector transaction reference
+  optional string connector_transaction_id = 3;
+}
+
+// Response message for resending OTP in wallet payment flows
+message PaymentServiceResendOtpForWalletResponse {
+  // Whether the OTP resend was successful
+  bool is_successful = 1;
+
+  // Whether resend is still enabled for further attempts
+  optional bool is_resend_enabled = 2;
+
+  // Whether the submit action is enabled
+  optional bool is_submit_enabled = 3;
+
+  // Next actions available after OTP resend
+  repeated string next_action = 4;
+
+  // Connector transaction reference
+  optional string connector_transaction_id = 5;
+
+  // Error information if the operation failed
+  optional ErrorInfo error = 6;
+
+  // HTTP status code from the connector
+  uint32 status_code = 7;
+
+  // Response headers from the connector
+  map<string, string> response_headers = 8;
+
+  // Raw response/request for debugging
+  optional SecretString raw_connector_response = 9;
+  optional SecretString raw_connector_request = 10;
+}
+
+// ============================================================================
+// VERIFY OTP FOR WALLET FLOW MESSAGES
+// ============================================================================
+
+// Request message for verifying OTP in wallet payment flows
+message PaymentServiceVerifyOtpForWalletRequest {
+  // The OTP entered by the customer
+  optional string otp = 1;
+
+  // OTP token from the previous OTP trigger
+  optional string otp_token = 2;
+
+  // Payment identification
+  optional string payment_id = 3;
+
+  // Connector transaction reference
+  optional string connector_transaction_id = 4;
+}
+
+// Response message for verifying OTP in wallet payment flows
+message PaymentServiceVerifyOtpForWalletResponse {
+  // Whether the OTP verification was successful
+  bool is_successful = 1;
+
+  // Connector transaction reference
+  optional string connector_transaction_id = 2;
+
+  // Redirect URL after successful verification
+  optional string redirect_url = 3;
+
+  // Next actions available after OTP verification
+  repeated string next_action = 4;
+
+  // Error information if the operation failed
+  optional ErrorInfo error = 5;
+
+  // HTTP status code from the connector
+  uint32 status_code = 6;
+
+  // Response headers from the connector
+  map<string, string> response_headers = 7;
+
+  // Raw response/request for debugging
+  optional SecretString raw_connector_response = 8;
+  optional SecretString raw_connector_request = 9;
+}
+
 // Request message for EventService.HandleEvent RPC
 message EventServiceHandleRequest {
   // Identification
