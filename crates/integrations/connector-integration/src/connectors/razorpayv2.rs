@@ -821,6 +821,140 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         PaymentsResponseData,
     > for RazorpayV2<T>
 {
+    fn get_headers(
+        &self,
+        req: &RouterDataV2<
+            SetupMandate,
+            PaymentFlowData,
+            SetupMandateRequestData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+        let mut headers = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            "application/json".to_string().into(),
+        )];
+        let mut auth_headers = self.get_auth_header(&req.connector_config).change_context(
+            IntegrationError::FailedToObtainAuthType {
+                context: Default::default(),
+            },
+        )?;
+        headers.append(&mut auth_headers);
+        Ok(headers)
+    }
+
+    fn get_url(
+        &self,
+        req: &RouterDataV2<
+            SetupMandate,
+            PaymentFlowData,
+            SetupMandateRequestData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        let base_url = &req.resource_common_data.connectors.razorpayv2.base_url;
+        Ok(format!("{base_url}v1/payments"))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &RouterDataV2<
+            SetupMandate,
+            PaymentFlowData,
+            SetupMandateRequestData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<Option<RequestContent>, IntegrationError> {
+        let order_id = req
+            .resource_common_data
+            .reference_id
+            .as_ref()
+            .or(req.request.merchant_order_id.as_ref())
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "merchant_order_id",
+                context: Default::default(),
+            })?
+            .clone();
+        let amount = req
+            .request
+            .minor_amount
+            .unwrap_or(MinorUnit::new(0));
+        let converted_amount = self
+            .amount_converter
+            .convert(amount, req.request.currency)
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?;
+        let connector_router_data = razorpayv2::RazorpayV2RouterData::try_from((
+            converted_amount,
+            req,
+            Some(order_id),
+            req.resource_common_data
+                .address
+                .get_payment_method_billing()
+                .cloned(),
+        ))?;
+        let connector_req =
+            razorpayv2::RazorpayV2SetupMandateRequest::try_from(&connector_router_data)?;
+        Ok(Some(RequestContent::Json(Box::new(connector_req))))
+    }
+
+    fn handle_response_v2(
+        &self,
+        data: &RouterDataV2<
+            SetupMandate,
+            PaymentFlowData,
+            SetupMandateRequestData<T>,
+            PaymentsResponseData,
+        >,
+        event_builder: Option<&mut events::Event>,
+        res: Response,
+    ) -> CustomResult<
+        RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ConnectorResponseTransformationError,
+    > {
+        let response: razorpayv2::RazorpayV2SetupMandateResponse = res
+            .response
+            .parse_struct("RazorpayV2SetupMandateResponse")
+            .change_context(
+                crate::utils::response_deserialization_fail(
+                    res.status_code,
+                "razorpayv2: response body did not match the expected format; confirm API version and connector documentation."),
+            )?;
+
+        if let Some(i) = event_builder {
+            i.set_connector_response(&response)
+        }
+
+        RouterDataV2::foreign_try_from((
+            response,
+            data.clone(),
+            res.status_code,
+            res.response.to_vec(),
+        ))
+        .change_context(crate::utils::response_handling_fail_for_connector(
+            res.status_code,
+            "razorpayv2",
+        ))
+    }
+
+    fn get_error_response_v2(
+        &self,
+        res: Response,
+        event_builder: Option<&mut events::Event>,
+    ) -> CustomResult<domain_types::router_data::ErrorResponse, ConnectorResponseTransformationError>
+    {
+        self.build_error_response(res, event_builder)
+    }
+
+    fn get_5xx_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut events::Event>,
+    ) -> CustomResult<domain_types::router_data::ErrorResponse, ConnectorResponseTransformationError>
+    {
+        self.build_error_response(res, event_builder)
+    }
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -1066,6 +1200,136 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         PaymentsResponseData,
     > for RazorpayV2<T>
 {
+    fn get_headers(
+        &self,
+        req: &RouterDataV2<
+            RepeatPayment,
+            PaymentFlowData,
+            RepeatPaymentData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+        let mut headers = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            "application/json".to_string().into(),
+        )];
+        let mut auth_headers = self.get_auth_header(&req.connector_config).change_context(
+            IntegrationError::FailedToObtainAuthType {
+                context: Default::default(),
+            },
+        )?;
+        headers.append(&mut auth_headers);
+        Ok(headers)
+    }
+
+    fn get_url(
+        &self,
+        req: &RouterDataV2<
+            RepeatPayment,
+            PaymentFlowData,
+            RepeatPaymentData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        let base_url = &req.resource_common_data.connectors.razorpayv2.base_url;
+        Ok(format!("{base_url}v1/payments/create/recurring"))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &RouterDataV2<
+            RepeatPayment,
+            PaymentFlowData,
+            RepeatPaymentData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<Option<RequestContent>, IntegrationError> {
+        let order_id = req
+            .resource_common_data
+            .reference_id
+            .as_ref()
+            .or(req.request.merchant_order_id.as_ref())
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "merchant_order_id",
+                context: Default::default(),
+            })?
+            .clone();
+        let converted_amount = self
+            .amount_converter
+            .convert(req.request.minor_amount, req.request.currency)
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?;
+        let connector_router_data = razorpayv2::RazorpayV2RouterData::try_from((
+            converted_amount,
+            req,
+            Some(order_id),
+            req.resource_common_data
+                .address
+                .get_payment_method_billing()
+                .cloned(),
+        ))?;
+        let connector_req =
+            razorpayv2::RazorpayV2RepeatPaymentRequest::try_from(&connector_router_data)?;
+        Ok(Some(RequestContent::Json(Box::new(connector_req))))
+    }
+
+    fn handle_response_v2(
+        &self,
+        data: &RouterDataV2<
+            RepeatPayment,
+            PaymentFlowData,
+            RepeatPaymentData<T>,
+            PaymentsResponseData,
+        >,
+        event_builder: Option<&mut events::Event>,
+        res: Response,
+    ) -> CustomResult<
+        RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ConnectorResponseTransformationError,
+    > {
+        let response: razorpayv2::RazorpayV2RepeatPaymentResponse = res
+            .response
+            .parse_struct("RazorpayV2RepeatPaymentResponse")
+            .change_context(
+                crate::utils::response_deserialization_fail(
+                    res.status_code,
+                "razorpayv2: response body did not match the expected format; confirm API version and connector documentation."),
+            )?;
+
+        if let Some(i) = event_builder {
+            i.set_connector_response(&response)
+        }
+
+        RouterDataV2::foreign_try_from((
+            response,
+            data.clone(),
+            res.status_code,
+            res.response.to_vec(),
+        ))
+        .change_context(crate::utils::response_handling_fail_for_connector(
+            res.status_code,
+            "razorpayv2",
+        ))
+    }
+
+    fn get_error_response_v2(
+        &self,
+        res: Response,
+        event_builder: Option<&mut events::Event>,
+    ) -> CustomResult<domain_types::router_data::ErrorResponse, ConnectorResponseTransformationError>
+    {
+        self.build_error_response(res, event_builder)
+    }
+
+    fn get_5xx_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut events::Event>,
+    ) -> CustomResult<domain_types::router_data::ErrorResponse, ConnectorResponseTransformationError>
+    {
+        self.build_error_response(res, event_builder)
+    }
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
