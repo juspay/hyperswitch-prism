@@ -1745,6 +1745,21 @@ pub struct MandateRevokeResponseData {
     pub status_code: u16,
 }
 
+#[derive(Debug, Clone)]
+pub struct CancelRecurringData {
+    pub subscription_id: String,
+    pub payment_id: String,
+    pub action: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct CancelRecurringResponseData {
+    pub payment_status: String,
+    pub subscription_id: String,
+    pub payment_id: String,
+    pub status_code: u16,
+}
+
 #[derive(Debug, Default, Clone)]
 pub struct RefundSyncData {
     pub connector_transaction_id: String,

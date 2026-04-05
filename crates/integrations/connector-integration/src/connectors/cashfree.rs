@@ -4,32 +4,32 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use cashfree::{
-    CashfreeOrderCreateRequest, CashfreeOrderCreateResponse, CashfreePaymentRequest,
-    CashfreePaymentResponse,
+    CashfreeCancelRecurringRequest, CashfreeCancelRecurringResponse, CashfreeOrderCreateRequest,
+    CashfreeOrderCreateResponse, CashfreePaymentRequest, CashfreePaymentResponse,
 };
 use common_enums::AttemptStatus;
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt};
 use domain_types::{
     connector_flow::{
-        Accept, Authenticate, Authorize, Capture, ClientAuthenticationToken,
+        Accept, Authenticate, Authorize, CancelRecurring, Capture, ClientAuthenticationToken,
         CreateConnectorCustomer, CreateOrder, DefendDispute, IncrementalAuthorization,
         MandateRevoke, PSync, PaymentMethodToken, PostAuthenticate, PreAuthenticate, RSync, Refund,
         RepeatPayment, ServerAuthenticationToken, ServerSessionAuthenticationToken, SetupMandate,
         SubmitEvidence, Void, VoidPC,
     },
     connector_types::{
-        AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
-        ConnectorCustomerResponse, DisputeDefendData, DisputeFlowData, DisputeResponseData,
-        MandateRevokeRequestData, MandateRevokeResponseData, PaymentCreateOrderData,
-        PaymentCreateOrderResponse, PaymentFlowData, PaymentMethodTokenResponse,
-        PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthenticateData,
-        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
-        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
-        ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
-        SetupMandateRequestData, SubmitEvidenceData,
+        AcceptDisputeData, CancelRecurringData, CancelRecurringResponseData,
+        ClientAuthenticationTokenRequestData, ConnectorCustomerData, ConnectorCustomerResponse,
+        DisputeDefendData, DisputeFlowData, DisputeResponseData, MandateRevokeRequestData,
+        MandateRevokeResponseData, PaymentCreateOrderData, PaymentCreateOrderResponse,
+        PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
+        PaymentVoidData, PaymentsAuthenticateData, PaymentsAuthorizeData,
+        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
+        PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsResponseData,
+        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
+        RepeatPaymentData, ServerAuthenticationTokenRequestData,
+        ServerAuthenticationTokenResponseData, ServerSessionAuthenticationTokenRequestData,
+        ServerSessionAuthenticationTokenResponseData, SetupMandateRequestData, SubmitEvidenceData,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
@@ -195,6 +195,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::MandateRevokeV2 for Cashfree<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::CancelRecurringV2 for Cashfree<T>
 {
 }
 
@@ -554,4 +559,107 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         MandateRevokeResponseData,
     > for Cashfree<T>
 {
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    ConnectorIntegrationV2<
+        CancelRecurring,
+        PaymentFlowData,
+        CancelRecurringData,
+        CancelRecurringResponseData,
+    > for Cashfree<T>
+{
+    fn get_headers(
+        &self,
+        req: &RouterDataV2<
+            CancelRecurring,
+            PaymentFlowData,
+            CancelRecurringData,
+            CancelRecurringResponseData,
+        >,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+        self.build_headers(req)
+    }
+
+    fn get_url(
+        &self,
+        req: &RouterDataV2<
+            CancelRecurring,
+            PaymentFlowData,
+            CancelRecurringData,
+            CancelRecurringResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        let base_url = self.connector_base_url(req);
+        let subscription_id = &req.request.subscription_id;
+        Ok(format!(
+            "{base_url}pg/subscriptions/{subscription_id}/manage"
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &RouterDataV2<
+            CancelRecurring,
+            PaymentFlowData,
+            CancelRecurringData,
+            CancelRecurringResponseData,
+        >,
+    ) -> CustomResult<Option<common_utils::request::RequestContent>, IntegrationError> {
+        let connector_req = CashfreeCancelRecurringRequest::try_from(&req.request)?;
+        Ok(Some(common_utils::request::RequestContent::Json(Box::new(
+            connector_req,
+        ))))
+    }
+
+    fn handle_response_v2(
+        &self,
+        data: &RouterDataV2<
+            CancelRecurring,
+            PaymentFlowData,
+            CancelRecurringData,
+            CancelRecurringResponseData,
+        >,
+        event_builder: Option<&mut events::Event>,
+        res: Response,
+    ) -> CustomResult<
+        RouterDataV2<
+            CancelRecurring,
+            PaymentFlowData,
+            CancelRecurringData,
+            CancelRecurringResponseData,
+        >,
+        ConnectorResponseTransformationError,
+    > {
+        let response: CashfreeCancelRecurringResponse = res
+            .response
+            .parse_struct("CashfreeCancelRecurringResponse")
+            .change_context(
+                ConnectorResponseTransformationError::ResponseDeserializationFailed {
+                    context: Default::default(),
+                },
+            )?;
+
+        with_response_body!(event_builder, response);
+
+        let cancel_response = CancelRecurringResponseData {
+            payment_status: response.subscription_status.clone().unwrap_or_default(),
+            subscription_id: response.subscription_id.clone().unwrap_or_default(),
+            payment_id: response.cf_subscription_id.clone().unwrap_or_default(),
+            status_code: res.status_code,
+        };
+
+        Ok(RouterDataV2 {
+            response: Ok(cancel_response),
+            ..data.clone()
+        })
+    }
+
+    fn get_error_response_v2(
+        &self,
+        res: Response,
+        event_builder: Option<&mut events::Event>,
+    ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+        self.build_error_response(res, event_builder)
+    }
 }

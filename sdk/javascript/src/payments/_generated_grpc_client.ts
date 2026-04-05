@@ -144,6 +144,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   RecurringPaymentServiceChargeRequest: ["metadata", "connectorFeatureData", "email", "merchantAccountId", "connectorTestingData"],
   RecurringPaymentServiceChargeResponse: ["connectorFeatureData", "rawConnectorResponse", "rawConnectorRequest"],
   RecurringPaymentServiceRevokeResponse: ["rawConnectorResponse", "rawConnectorRequest"],
+  RecurringPaymentServiceCancelRecurringResponse: ["rawConnectorResponse", "rawConnectorRequest"],
   PaymentMethodAuthenticationServicePreAuthenticateRequest: ["metadata", "connectorFeatureData"],
   PaymentMethodAuthenticationServicePreAuthenticateResponse: ["connectorFeatureData", "rawConnectorResponse"],
   PaymentMethodAuthenticationServiceAuthenticateRequest: ["metadata", "connectorFeatureData"],
@@ -344,6 +345,7 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   RecurringPaymentServiceChargeRequest: { "connectorRecurringPaymentId": "MandateReference", "amount": "Money", "paymentMethod": "PaymentMethod", "address": "PaymentAddress", "browserInfo": "BrowserInformation", "state": "ConnectorState", "originalPaymentAuthorizedAmount": "Money", "billingDescriptor": "BillingDescriptor", "authenticationData": "AuthenticationData", "customer": "Customer", "l2L3Data": "L2L3Data" },
   RecurringPaymentServiceChargeResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry", "mandateReference": "MandateReference", "state": "ConnectorState", "connectorResponse": "ConnectorResponseData" },
   RecurringPaymentServiceRevokeResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
+  RecurringPaymentServiceCancelRecurringResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
   PaymentMethodAuthenticationServicePreAuthenticateRequest: { "amount": "Money", "paymentMethod": "PaymentMethod", "customer": "Customer", "address": "PaymentAddress", "browserInfo": "BrowserInformation", "state": "ConnectorState" },
   PaymentMethodAuthenticationServicePreAuthenticateResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry", "redirectionData": "RedirectForm", "state": "ConnectorState", "authenticationData": "AuthenticationData" },
   PaymentMethodAuthenticationServiceAuthenticateRequest: { "amount": "Money", "paymentMethod": "PaymentMethod", "customer": "Customer", "address": "PaymentAddress", "authenticationData": "AuthenticationData", "browserInfo": "BrowserInformation", "state": "ConnectorState", "redirectionResponse": "RedirectionResponse" },
@@ -706,6 +708,11 @@ export class GrpcRecurringPaymentClient {
   async revoke(req: unknown): Promise<unknown> {
     return callGrpc(this.ffi, this.config, "recurring_payment/revoke",
       req, types.RecurringPaymentServiceRevokeRequest, types.RecurringPaymentServiceRevokeResponse);
+  }
+  /** RecurringPaymentService.CancelRecurring — Cancel a specific recurring payment under a subscription. Stops a pending or scheduled payment without revoking the entire mandate/subscription. */
+  async cancelRecurring(req: unknown): Promise<unknown> {
+    return callGrpc(this.ffi, this.config, "recurring_payment/cancel_recurring",
+      req, types.RecurringPaymentServiceCancelRecurringRequest, types.RecurringPaymentServiceCancelRecurringResponse);
   }
 }
 

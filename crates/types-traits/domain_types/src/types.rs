@@ -35,7 +35,8 @@ use grpc_api_types::payments::{
     PaymentServiceIncrementalAuthorizationRequest, PaymentServiceIncrementalAuthorizationResponse,
     PaymentServiceReverseResponse, PaymentServiceSetupRecurringRequest,
     PaymentServiceSetupRecurringResponse, PaymentServiceVoidRequest, PaymentServiceVoidResponse,
-    RecurringPaymentServiceRevokeRequest, RefundResponse,
+    RecurringPaymentServiceCancelRecurringRequest, RecurringPaymentServiceRevokeRequest,
+    RefundResponse,
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -242,8 +243,8 @@ use crate::{
     },
     connector_types::{
         AcceptDisputeData, ApplePayPaymentRequest, ApplePaySessionResponse, BillingDescriptor,
-        ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
-        ConnectorMandateReferenceId, ConnectorResponseHeaders,
+        CancelRecurringData, ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
+        ConnectorCustomerData, ConnectorMandateReferenceId, ConnectorResponseHeaders,
         ConnectorSpecificClientAuthenticationResponse, ContinueRedirectionResponse, CustomerInfo,
         DisputeDefendData, DisputeFlowData, DisputeResponseData, DisputeWebhookDetailsResponse,
         GpayAllowedPaymentMethods, GpayBillingAddressFormat, GpayClientAuthenticationResponse,
@@ -11064,6 +11065,82 @@ impl
             customer_id: None,
             connector_customer: None,
             description: Some("Mandate revoke operation".to_string()),
+            return_url: None,
+            connector_feature_data: None,
+            amount_captured: None,
+            minor_amount_captured: None,
+            access_token: None,
+            session_token: None,
+            reference_id: None,
+            payment_method_token: None,
+            preprocessing_id: None,
+            connector_api_version: None,
+            test_mode: None,
+            connector_http_status_code: None,
+            external_latency: None,
+            connectors,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            connector_response_headers: None,
+            vault_headers: None,
+            minor_amount_capturable: None,
+            amount: None,
+            connector_response: None,
+            recurring_mandate_payment_data: None,
+            order_details: None,
+            minor_amount_authorized: None,
+            l2_l3_data: None,
+        })
+    }
+}
+
+// Conversion implementations for CancelRecurring flow
+impl ForeignTryFrom<RecurringPaymentServiceCancelRecurringRequest> for CancelRecurringData {
+    type Error = ApplicationErrorResponse;
+
+    fn foreign_try_from(
+        value: RecurringPaymentServiceCancelRecurringRequest,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        Ok(Self {
+            subscription_id: value.subscription_id,
+            payment_id: value.payment_id,
+            action: "CANCEL".to_string(),
+        })
+    }
+}
+
+impl
+    ForeignTryFrom<(
+        RecurringPaymentServiceCancelRecurringRequest,
+        Connectors,
+        &MaskedMetadata,
+    )> for PaymentFlowData
+{
+    type Error = ApplicationErrorResponse;
+
+    fn foreign_try_from(
+        (value, connectors, metadata): (
+            RecurringPaymentServiceCancelRecurringRequest,
+            Connectors,
+            &MaskedMetadata,
+        ),
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let merchant_id_from_header = extract_merchant_id_from_metadata(metadata)?;
+
+        Ok(Self {
+            merchant_id: merchant_id_from_header,
+            payment_id: "CANCEL_RECURRING_ID".to_string(),
+            attempt_id: "CANCEL_RECURRING_ATTEMPT_ID".to_string(),
+            status: common_enums::AttemptStatus::Pending,
+            payment_method: common_enums::PaymentMethod::Card,
+            address: PaymentAddress::default(),
+            auth_type: common_enums::AuthenticationType::default(),
+            connector_request_reference_id: extract_connector_request_reference_id(&Some(
+                value.payment_id.clone(),
+            )),
+            customer_id: None,
+            connector_customer: None,
+            description: Some("Cancel recurring payment operation".to_string()),
             return_url: None,
             connector_feature_data: None,
             amount_captured: None,

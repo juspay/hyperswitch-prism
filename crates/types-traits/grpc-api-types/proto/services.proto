@@ -179,6 +179,10 @@ service RecurringPaymentService {
   // Cancel an existing recurring payment mandate. Stops future automatic
   // charges on customer's stored consent for subscription cancellations.
   rpc Revoke(RecurringPaymentServiceRevokeRequest) returns (RecurringPaymentServiceRevokeResponse);
+
+  // Cancel a specific recurring payment under a subscription. Stops a pending
+  // or scheduled payment without revoking the entire mandate/subscription.
+  rpc CancelRecurring(RecurringPaymentServiceCancelRecurringRequest) returns (RecurringPaymentServiceCancelRecurringResponse);
 }
 
 // ============================================================================

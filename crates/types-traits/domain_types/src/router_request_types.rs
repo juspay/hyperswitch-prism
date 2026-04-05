@@ -462,6 +462,12 @@ pub struct MandateRevokeIntegrityObject {
     pub mandate_id: Secret<String>,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct CancelRecurringIntegrityObject {
+    pub subscription_id: String,
+    pub payment_id: String,
+}
+
 #[derive(Debug, Clone)]
 pub struct VerifyWebhookSourceRequestData {
     pub webhook_headers: std::collections::HashMap<String, String>,

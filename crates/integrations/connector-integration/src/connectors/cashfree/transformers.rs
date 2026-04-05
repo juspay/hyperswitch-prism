@@ -2,8 +2,8 @@ use common_enums;
 use domain_types::{
     connector_flow::{Authorize, CreateOrder},
     connector_types::{
-        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentsAuthorizeData,
-        PaymentsResponseData, ResponseId,
+        CancelRecurringData, PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData,
+        PaymentsAuthorizeData, PaymentsResponseData, ResponseId,
     },
     errors::{ConnectorResponseTransformationError, IntegrationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
@@ -634,4 +634,32 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             ..item.router_data
         })
     }
+}
+
+// ============================================================================
+// CancelRecurring Flow
+// ============================================================================
+
+#[derive(Debug, Serialize)]
+pub struct CashfreeCancelRecurringRequest {
+    pub subscription_id: String,
+    pub action: String,
+}
+
+impl TryFrom<&CancelRecurringData> for CashfreeCancelRecurringRequest {
+    type Error = Report<IntegrationError>;
+
+    fn try_from(data: &CancelRecurringData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            subscription_id: data.subscription_id.clone(),
+            action: "CANCEL".to_string(),
+        })
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CashfreeCancelRecurringResponse {
+    pub subscription_status: Option<String>,
+    pub subscription_id: Option<String>,
+    pub cf_subscription_id: Option<String>,
 }

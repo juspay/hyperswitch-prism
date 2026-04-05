@@ -2685,6 +2685,40 @@ message RecurringPaymentServiceRevokeResponse {
   optional SecretString raw_connector_request = 8;
 }
 
+// Request message for cancelling a recurring payment
+message RecurringPaymentServiceCancelRecurringRequest {
+  // Subscription identifier
+  string subscription_id = 1;
+
+  // Payment identifier within the subscription
+  string payment_id = 2;
+}
+
+// Response message for cancelling a recurring payment
+message RecurringPaymentServiceCancelRecurringResponse {
+  // Payment status after cancellation
+  string payment_status = 1;
+
+  // Error information if cancellation failed
+  optional ErrorInfo error = 2;
+
+  // HTTP status code from connector
+  uint32 status_code = 3;
+
+  // Response headers from connector
+  map<string, string> response_headers = 4;
+
+  // Subscription ID returned by connector
+  optional string subscription_id = 5;
+
+  // Payment ID returned by connector
+  optional string payment_id = 6;
+
+  // Raw Response/Request for debugging
+  optional SecretString raw_connector_response = 7;
+  optional SecretString raw_connector_request = 8;
+}
+
 // ============================================================================
 // 3DS AUTHENTICATION FLOW MESSAGES
 // ============================================================================

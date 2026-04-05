@@ -83,6 +83,8 @@ use grpc_api_types::payments::{
     PayoutServiceTransferResponse,
     PayoutServiceVoidRequest,
     PayoutServiceVoidResponse,
+    RecurringPaymentServiceCancelRecurringRequest,
+    RecurringPaymentServiceCancelRecurringResponse,
     RecurringPaymentServiceChargeRequest,
     RecurringPaymentServiceChargeResponse,
     RecurringPaymentServiceRevokeRequest,
@@ -413,6 +415,12 @@ impl_grpc_client!(
         revoke,
         RecurringPaymentServiceRevokeRequest,
         RecurringPaymentServiceRevokeResponse
+    ),
+    (
+        cancel_recurring,
+        cancel_recurring,
+        RecurringPaymentServiceCancelRecurringRequest,
+        RecurringPaymentServiceCancelRecurringResponse
     ),
 );
 

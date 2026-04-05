@@ -381,6 +381,11 @@ class GrpcRecurringPaymentClient internal constructor(
      */
     suspend fun revoke(req: RecurringPaymentServiceRevokeRequest): RecurringPaymentServiceRevokeResponse =
         callGrpc(config, "recurring_payment/revoke", req, RecurringPaymentServiceRevokeResponse.parser())
+    /**
+     * RecurringPaymentService.CancelRecurring — Cancel a specific recurring payment under a subscription. Stops a pending or scheduled payment without revoking the entire mandate/subscription.
+     */
+    suspend fun cancel_recurring(req: RecurringPaymentServiceCancelRecurringRequest): RecurringPaymentServiceCancelRecurringResponse =
+        callGrpc(config, "recurring_payment/cancel_recurring", req, RecurringPaymentServiceCancelRecurringResponse.parser())
 }
 
 /**

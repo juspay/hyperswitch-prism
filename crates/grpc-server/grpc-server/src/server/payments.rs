@@ -11,18 +11,19 @@ use connector_integration::types::ConnectorData;
 use domain_types::connector_types::ConnectorEnum;
 use domain_types::{
     connector_flow::{
-        Authenticate, Authorize, Capture, ClientAuthenticationToken, CreateConnectorCustomer,
-        CreateOrder, IncrementalAuthorization, MandateRevoke, PSync, PaymentMethodToken,
-        PostAuthenticate, PreAuthenticate, Refund, RepeatPayment, ServerAuthenticationToken,
-        ServerSessionAuthenticationToken, SetupMandate, Void, VoidPC,
+        Authenticate, Authorize, CancelRecurring, Capture, ClientAuthenticationToken,
+        CreateConnectorCustomer, CreateOrder, IncrementalAuthorization, MandateRevoke, PSync,
+        PaymentMethodToken, PostAuthenticate, PreAuthenticate, Refund, RepeatPayment,
+        ServerAuthenticationToken, ServerSessionAuthenticationToken, SetupMandate, Void, VoidPC,
     },
     connector_types::{
-        ClientAuthenticationTokenRequestData, ConnectorCustomerData, ConnectorCustomerResponse,
-        ConnectorResponseHeaders, MandateRevokeRequestData, MandateRevokeResponseData,
-        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData,
-        PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
-        PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
-        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
+        CancelRecurringData, CancelRecurringResponseData, ClientAuthenticationTokenRequestData,
+        ConnectorCustomerData, ConnectorCustomerResponse, ConnectorResponseHeaders,
+        MandateRevokeRequestData, MandateRevokeResponseData, PaymentCreateOrderData,
+        PaymentCreateOrderResponse, PaymentFlowData, PaymentMethodTokenResponse,
+        PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthenticateData,
+        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
+        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
         PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData,
         RawConnectorRequestResponse, RefundFlowData, RefundsData, RefundsResponseData,
         RepeatPaymentData, ServerAuthenticationTokenRequestData,
@@ -77,7 +78,8 @@ use grpc_api_types::payments::{
     PaymentServiceTokenAuthorizeRequest, PaymentServiceTokenSetupRecurringRequest,
     PaymentServiceVerifyRedirectResponseRequest, PaymentServiceVerifyRedirectResponseResponse,
     PaymentServiceVoidRequest, PaymentServiceVoidResponse, PayoutMethodEligibilityRequest,
-    PayoutMethodEligibilityResponse, RecurringPaymentServiceChargeRequest,
+    PayoutMethodEligibilityResponse, RecurringPaymentServiceCancelRecurringRequest,
+    RecurringPaymentServiceCancelRecurringResponse, RecurringPaymentServiceChargeRequest,
     RecurringPaymentServiceChargeResponse, RecurringPaymentServiceRevokeRequest,
     RecurringPaymentServiceRevokeResponse, RefundResponse,
 };
@@ -223,6 +225,11 @@ trait RecurringPaymentOperational {
         &self,
         request: RequestData<RecurringPaymentServiceRevokeRequest>,
     ) -> Result<tonic::Response<RecurringPaymentServiceRevokeResponse>, tonic::Status>;
+
+    async fn internal_cancel_recurring(
+        &self,
+        request: RequestData<RecurringPaymentServiceCancelRecurringRequest>,
+    ) -> Result<tonic::Response<RecurringPaymentServiceCancelRecurringResponse>, tonic::Status>;
 }
 
 trait MerchantAuthenticationOperational {
@@ -3479,6 +3486,21 @@ impl RecurringPaymentOperational for RecurringPayments {
         generate_response_fn: generate_mandate_revoke_response,
         all_keys_required: None
     );
+
+    implement_connector_operation!(
+        fn_name: internal_cancel_recurring,
+        log_prefix: "CANCEL_RECURRING",
+        request_type: RecurringPaymentServiceCancelRecurringRequest,
+        response_type: RecurringPaymentServiceCancelRecurringResponse,
+        flow_marker: CancelRecurring,
+        resource_common_data_type: PaymentFlowData,
+        request_data_type: CancelRecurringData,
+        response_data_type: CancelRecurringResponseData,
+        request_data_constructor: CancelRecurringData::foreign_try_from,
+        common_flow_data_constructor: PaymentFlowData::foreign_try_from,
+        generate_response_fn: generate_cancel_recurring_response,
+        all_keys_required: None
+    );
 }
 
 #[tonic::async_trait]
@@ -3664,6 +3686,48 @@ impl RecurringPaymentService for RecurringPayments {
             config.clone(),
             FlowName::Authenticate,
             |request_data| async move { self.internal_mandate_revoke(request_data).await },
+        )
+        .await
+    }
+
+    #[tracing::instrument(
+        name = "cancel_recurring",
+        fields(
+            name = common_utils::consts::NAME,
+            service_name = common_utils::consts::PAYMENT_SERVICE_NAME,
+            service_method = FlowName::CancelRecurring.as_str(),
+            request_body = tracing::field::Empty,
+            response_body = tracing::field::Empty,
+            error_message = tracing::field::Empty,
+            merchant_id = tracing::field::Empty,
+            gateway = tracing::field::Empty,
+            request_id = tracing::field::Empty,
+            status_code = tracing::field::Empty,
+            message_ = "Golden Log Line (incoming)",
+            response_time = tracing::field::Empty,
+            tenant_id = tracing::field::Empty,
+            flow = FlowName::CancelRecurring.as_str(),
+            flow_specific_fields.status = tracing::field::Empty,
+        )
+        skip(self, request)
+    )]
+    async fn cancel_recurring(
+        &self,
+        request: tonic::Request<RecurringPaymentServiceCancelRecurringRequest>,
+    ) -> Result<tonic::Response<RecurringPaymentServiceCancelRecurringResponse>, tonic::Status>
+    {
+        let service_name = request
+            .extensions()
+            .get::<String>()
+            .cloned()
+            .unwrap_or_else(|| "PaymentService".to_string());
+        let config = get_config_from_request(&request)?;
+        grpc_logging_wrapper(
+            request,
+            &service_name,
+            config.clone(),
+            FlowName::CancelRecurring,
+            |request_data| async move { self.internal_cancel_recurring(request_data).await },
         )
         .await
     }
@@ -3909,6 +3973,59 @@ pub fn generate_mandate_revoke_response(
             response_headers,
             network_transaction_id: None,
             merchant_revoke_id: e.connector_transaction_id,
+            raw_connector_response,
+            raw_connector_request,
+        }),
+    }
+}
+
+pub fn generate_cancel_recurring_response(
+    router_data_v2: RouterDataV2<
+        CancelRecurring,
+        PaymentFlowData,
+        CancelRecurringData,
+        CancelRecurringResponseData,
+    >,
+) -> Result<
+    RecurringPaymentServiceCancelRecurringResponse,
+    error_stack::Report<ApplicationErrorResponse>,
+> {
+    let cancel_recurring_response = router_data_v2.response;
+    let raw_connector_response = router_data_v2
+        .resource_common_data
+        .get_raw_connector_response();
+    let raw_connector_request = router_data_v2
+        .resource_common_data
+        .get_raw_connector_request();
+    let response_headers = router_data_v2
+        .resource_common_data
+        .get_connector_response_headers_as_map();
+    match cancel_recurring_response {
+        Ok(response) => Ok(RecurringPaymentServiceCancelRecurringResponse {
+            payment_status: response.payment_status,
+            error: None,
+            status_code: response.status_code.into(),
+            response_headers,
+            subscription_id: Some(response.subscription_id),
+            payment_id: Some(response.payment_id),
+            raw_connector_response,
+            raw_connector_request,
+        }),
+        Err(e) => Ok(RecurringPaymentServiceCancelRecurringResponse {
+            payment_status: "FAILED".to_string(),
+            error: Some(grpc_api_types::payments::ErrorInfo {
+                unified_details: None,
+                connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
+                    code: Some(e.code),
+                    message: Some(e.message.clone()),
+                    reason: e.reason.clone(),
+                }),
+                issuer_details: None,
+            }),
+            status_code: e.status_code.into(),
+            response_headers,
+            subscription_id: None,
+            payment_id: e.connector_transaction_id,
             raw_connector_response,
             raw_connector_request,
         }),

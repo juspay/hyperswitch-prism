@@ -438,6 +438,13 @@ class GrpcRecurringPaymentClient:
             "recurring_payment/revoke",
             req, payment_pb2.RecurringPaymentServiceRevokeResponse,
         )
+    def cancel_recurring(self, req: payment_pb2.RecurringPaymentServiceCancelRecurringRequest) -> payment_pb2.RecurringPaymentServiceCancelRecurringResponse:
+        """RecurringPaymentService.CancelRecurring — Cancel a specific recurring payment under a subscription. Stops a pending or scheduled payment without revoking the entire mandate/subscription."""
+        return _call_grpc(
+            self._ffi, self._config,
+            "recurring_payment/cancel_recurring",
+            req, payment_pb2.RecurringPaymentServiceCancelRecurringResponse,
+        )
 
 class GrpcRefundClient:
     """RefundService — gRPC sub-client."""
