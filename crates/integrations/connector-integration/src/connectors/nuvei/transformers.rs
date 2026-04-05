@@ -1,4 +1,4 @@
-use common_utils::{pii, types::StringMajorUnit};
+use common_utils::{pii, request::Method, types::StringMajorUnit};
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
     connector_types::{
@@ -7,10 +7,12 @@ use domain_types::{
         RefundsResponseData, ResponseId,
     },
     payment_method_data::{
-        BankTransferData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
+        BankRedirectData, BankTransferData, PaymentMethodData, PaymentMethodDataTypes,
+        RawCardNumber,
     },
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
+    router_response_types::RedirectForm,
 };
 use error_stack::{Report, ResultExt};
 use hyperswitch_masking::{PeekInterface, Secret};
@@ -155,17 +157,19 @@ pub struct NuveiCard<
     pub cvv: Secret<String>,
 }
 
-// ACH Bank Transfer specific structures
+// Alternative Payment Method (APM) structures for ACH and EPS
 #[derive(Debug, Serialize)]
 pub struct NuveiAlternativePaymentMethod {
     #[serde(rename = "paymentMethod")]
     pub payment_method: String,
-    #[serde(rename = "AccountNumber")]
-    pub account_number: Secret<String>,
-    #[serde(rename = "RoutingNumber")]
-    pub routing_number: Secret<String>,
+    #[serde(rename = "AccountNumber", skip_serializing_if = "Option::is_none")]
+    pub account_number: Option<Secret<String>>,
+    #[serde(rename = "RoutingNumber", skip_serializing_if = "Option::is_none")]
+    pub routing_number: Option<Secret<String>>,
     #[serde(rename = "SECCode", skip_serializing_if = "Option::is_none")]
     pub sec_code: Option<String>,
+    #[serde(rename = "bank_id", skip_serializing_if = "Option::is_none")]
+    pub bank_id: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -220,6 +224,8 @@ pub struct NuveiPaymentResponse {
     pub client_unique_id: Option<String>,
     pub client_request_id: Option<String>,
     pub internal_request_id: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub redirect_url: Option<url::Url>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
@@ -712,9 +718,36 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             card: None,
                             alternative_payment_method: Some(NuveiAlternativePaymentMethod {
                                 payment_method: "apmgw_ACH".to_string(),
-                                account_number: Secret::new(account_number.to_string()),
-                                routing_number: Secret::new(routing_number.to_string()),
+                                account_number: Some(Secret::new(account_number.to_string())),
+                                routing_number: Some(Secret::new(routing_number.to_string())),
                                 sec_code,
+                                bank_id: None,
+                            }),
+                        }
+                    }
+                    other => {
+                        return Err(IntegrationError::NotSupported {
+                            message: format!("{:?} is not supported for Nuvei", other),
+                            connector: "nuvei",
+                            context: Default::default(),
+                        }
+                        .into())
+                    }
+                }
+            }
+            PaymentMethodData::BankRedirect(bank_redirect_data) => {
+                match bank_redirect_data {
+                    BankRedirectData::Eps { bank_name, .. } => {
+                        // For EPS, Nuvei uses the APM method "apmgw_EPS"
+                        // bank_name is optional and contains the BIC code
+                        NuveiPaymentOption {
+                            card: None,
+                            alternative_payment_method: Some(NuveiAlternativePaymentMethod {
+                                payment_method: "apmgw_EPS".to_string(),
+                                account_number: None,
+                                routing_number: None,
+                                sec_code: None,
+                                bank_id: bank_name.as_ref().map(|bn| bn.to_string()),
                             }),
                         }
                     }
@@ -980,9 +1013,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 )
             })?;
 
+        // Handle redirect URL for redirect-based payment methods like EPS
+        let redirection_data = response
+            .redirect_url
+            .clone()
+            .map(|url| Box::new(RedirectForm::from((url, Method::Get))));
+
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(connector_transaction_id),
-            redirection_data: None,
+            redirection_data,
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
