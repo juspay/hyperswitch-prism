@@ -12,7 +12,7 @@ use domain_types::{
         ResponseId,
     },
     payment_method_data::{
-        BankRedirectData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
+        BankRedirectData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData,
     },
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
@@ -147,6 +147,34 @@ pub struct Shift4PaymentsRequest<T: PaymentMethodDataTypes> {
 pub enum Shift4PaymentMethod<T: PaymentMethodDataTypes> {
     Card(Shift4CardPayment<T>),
     BankRedirect(Shift4BankRedirectPayment),
+    Wallet(Shift4WalletPayment),
+}
+
+// Wallet Payment Structures
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Shift4WalletPayment {
+    pub payment_method: Shift4WalletMethod,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub flow: Option<Shift4FlowRequest>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct Shift4WalletMethod {
+    #[serde(rename = "type")]
+    pub payment_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub billing: Option<Shift4WalletBilling>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct Shift4WalletBilling {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email: Option<pii::Email>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub address: Option<Shift4Address>,
 }
 
 #[derive(Debug, Serialize)]
@@ -344,6 +372,66 @@ impl<T: PaymentMethodDataTypes>
                     flow: Some(Shift4FlowRequest { return_url }),
                 })
             }
+            PaymentMethodData::Wallet(wallet_data) => {
+                match wallet_data {
+                    WalletData::AliPayRedirect(_) => {
+                        let return_url = item.request.get_router_return_url().change_context(
+                            IntegrationError::MissingRequiredField {
+                                field_name: "return_url",
+                                context: Default::default(),
+                            },
+                        )?;
+
+                        // Extract billing info for optional name/email/address
+                        let billing = item
+                            .resource_common_data
+                            .address
+                            .get_payment_method_billing();
+                        let name = billing.as_ref().and_then(|b| b.get_optional_full_name());
+                        let email = item
+                            .request
+                            .email
+                            .as_ref()
+                            .cloned()
+                            .or_else(|| billing.as_ref().and_then(|b| b.email.as_ref()).cloned());
+                        let address = billing
+                            .as_ref()
+                            .and_then(|b| b.address.as_ref())
+                            .map(|addr| Shift4Address {
+                                line1: addr.line1.clone(),
+                                line2: addr.line2.clone(),
+                                city: addr.city.clone(),
+                                state: addr.state.clone(),
+                                zip: addr.zip.clone(),
+                                country: addr.country.as_ref().map(|c| c.to_string()),
+                            });
+
+                        let billing_info = if name.is_some() || email.is_some() || address.is_some() {
+                            Some(Shift4WalletBilling { name, email, address })
+                        } else {
+                            None
+                        };
+
+                        Shift4PaymentMethod::Wallet(Shift4WalletPayment {
+                            payment_method: Shift4WalletMethod {
+                                payment_type: "alipay".to_string(),
+                                billing: billing_info,
+                            },
+                            flow: Some(Shift4FlowRequest { return_url }),
+                        })
+                    }
+                    _ => {
+                        return Err(error_stack::report!(IntegrationError::NotSupported {
+                            message: format!(
+                                "Wallet type {:?} is not supported by Shift4",
+                                wallet_data
+                            ),
+                            connector: "Shift4",
+                            context: Default::default()
+                        }))
+                    }
+                }
+            }
             _ => {
                 return Err(error_stack::report!(IntegrationError::NotSupported {
                     message: "Payment method".to_string(),
@@ -373,6 +461,8 @@ pub struct Shift4PaymentsResponse {
     pub captured: bool,
     pub refunded: bool,
     pub flow: Option<FlowResponse>,
+    #[serde(default)]
+    pub actions: Vec<Shift4Action>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -397,6 +487,13 @@ pub enum NextAction {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+pub struct Shift4Action {
+    #[serde(rename = "type")]
+    pub action_type: String,
+    pub url: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Shift4PaymentStatus {
     Successful,
@@ -412,6 +509,21 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4PaymentsRespons
     fn try_from(
         item: ResponseRouterData<Shift4PaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
+        // Extract redirect URL from flow.redirect or from actions array (for wallet payments)
+        let redirect_url_str = item
+            .response
+            .flow
+            .as_ref()
+            .and_then(|flow| flow.redirect.as_ref())
+            .map(|redirect| redirect.redirect_url.clone())
+            .or_else(|| {
+                item.response
+                    .actions
+                    .iter()
+                    .find(|a| a.action_type == "redirect")
+                    .and_then(|a| a.url.clone())
+            });
+
         // Match Hyperswitch status mapping logic exactly
         let status = match item.response.status {
             Shift4PaymentStatus::Successful => {
@@ -423,31 +535,31 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4PaymentsRespons
             }
             Shift4PaymentStatus::Failed => AttemptStatus::Failure,
             Shift4PaymentStatus::Pending => {
-                match item
-                    .response
-                    .flow
-                    .as_ref()
-                    .and_then(|flow| flow.next_action.as_ref())
-                {
-                    Some(NextAction::Redirect) => AttemptStatus::AuthenticationPending,
-                    Some(NextAction::Wait) | Some(NextAction::None) | None => {
-                        AttemptStatus::Pending
+                // If there's a redirect URL (from flow or actions), it's pending customer action
+                if redirect_url_str.is_some() {
+                    AttemptStatus::AuthenticationPending
+                } else {
+                    match item
+                        .response
+                        .flow
+                        .as_ref()
+                        .and_then(|flow| flow.next_action.as_ref())
+                    {
+                        Some(NextAction::Redirect) => AttemptStatus::AuthenticationPending,
+                        Some(NextAction::Wait) | Some(NextAction::None) | None => {
+                            AttemptStatus::Pending
+                        }
                     }
                 }
             }
         };
 
-        // Extract redirect URL from flow if present
-        let redirection_data = item
-            .response
-            .flow
-            .as_ref()
-            .and_then(|flow| flow.redirect.as_ref())
-            .and_then(|redirect| {
-                Url::parse(&redirect.redirect_url)
-                    .ok()
-                    .map(|url| Box::new(RedirectForm::from((url, Method::Get))))
-            });
+        // Build redirection_data from the redirect URL
+        let redirection_data = redirect_url_str.and_then(|url_str| {
+            Url::parse(&url_str)
+                .ok()
+                .map(|url| Box::new(RedirectForm::from((url, Method::Get))))
+        });
 
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
