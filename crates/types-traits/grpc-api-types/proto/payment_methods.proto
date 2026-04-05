@@ -161,6 +161,9 @@ message PaymentMethod {
     FamilyMart family_mart = 151;                             // FamilyMart - Japanese convenience store payment
     Seicomart seicomart = 152;                                // Seicomart - Japanese convenience store payment
     PayEasy pay_easy = 153;                                    // Pay-easy - Japanese bill payment service
+
+    // NETBANKING (160-169) - Indian net banking
+    NetbankingPayment netbanking = 160;                          // Netbanking - Indian online banking
   }
 }
 
@@ -581,6 +584,14 @@ message UpiQr {
 
 message UpiConnectorResponse {
   optional UpiSource upi_mode = 1; // Final UPI source detected from connector response
+}
+
+// Netbanking - Indian online banking payment method
+message NetbankingPayment {
+  // Bank code identifying the customer's bank (e.g. "HDFC", "ICIC", "SBIN")
+  string bank_code = 1;
+  // Optional display name for the bank
+  optional string bank_name = 2;
 }
 
 // PIX - Brazilian instant payment ecosystem

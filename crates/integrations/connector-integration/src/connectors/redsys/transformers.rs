@@ -250,6 +250,7 @@ where
             | Some(PaymentMethodData::NetworkToken(..))
             | Some(PaymentMethodData::CardDetailsForNetworkTransactionId(_))
             | Some(PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_))
+            | Some(PaymentMethodData::Netbanking(..))
             | None => Err(IntegrationError::not_implemented(
                 domain_types::utils::get_unimplemented_payment_method_error_message("redsys"),
             )

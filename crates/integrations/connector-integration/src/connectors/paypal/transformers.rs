@@ -1136,6 +1136,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
             | PaymentMethodData::MobilePayment(_)
+            | PaymentMethodData::Netbanking(_)
             | PaymentMethodData::Crypto(_)
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::OpenBanking(_)
@@ -2604,7 +2605,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::MobilePayment(_) => Err(IntegrationError::not_implemented(
+            | PaymentMethodData::MobilePayment(_)
+            | PaymentMethodData::Netbanking(_) => Err(IntegrationError::not_implemented(
                 utils::get_unimplemented_payment_method_error_message("Paypal"),
             ))?,
         };

@@ -342,10 +342,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentsResponseData,
         >,
     {
+        // Netbanking and Card use JSON; UPI uses form-urlencoded
+        let content_type = match &req.request.payment_method_data {
+            PaymentMethodData::Netbanking(_) => "application/json",
+            _ => "application/x-www-form-urlencoded",
+        };
         let mut header = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
-                "application/x-www-form-urlencoded".to_string().into(),
+                content_type.to_string().into(),
             ),
             (
                 headers::ACCEPT.to_string(),
@@ -404,6 +409,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 Ok(Some(RequestContent::FormUrlEncoded(Box::new(
                     connector_req,
                 ))))
+            }
+            PaymentMethodData::Netbanking(_) => {
+                let connector_req =
+                    razorpay::RazorpayNetbankingRequest::try_from(&connector_router_data)?;
+                Ok(Some(RequestContent::Json(Box::new(connector_req))))
             }
             _ => {
                 let connector_req =
@@ -1284,6 +1294,17 @@ static RAZORPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                         supported_card_networks: razorpay_supported_card_network.clone(),
                     },
                 )),
+            },
+        );
+
+        razorpay_supported_payment_methods.add(
+            PaymentMethod::Netbanking,
+            PaymentMethodType::Netbanking,
+            PaymentMethodDetails {
+                mandates: FeatureStatus::NotSupported,
+                refunds: FeatureStatus::Supported,
+                supported_capture_methods: vec![CaptureMethod::Automatic],
+                specific_features: None,
             },
         );
 
