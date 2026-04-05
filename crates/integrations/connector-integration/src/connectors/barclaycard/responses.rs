@@ -38,6 +38,18 @@ pub struct BarclaycardClientReferenceResponse {
     pub processor_information: Option<ClientProcessorInformation>,
     pub risk_information: Option<ClientRiskInformation>,
     pub error_information: Option<BarclaycardErrorInformation>,
+    pub token_information: Option<BarclaycardTokenInformation>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BarclaycardTokenInformation {
+    pub payment_instrument: Option<BarclaycardPaymentInstrument>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct BarclaycardPaymentInstrument {
+    pub id: Secret<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -113,6 +125,10 @@ pub struct ClientRiskInformationRules {
 pub type BarclaycardAuthorizeResponse = BarclaycardPaymentsResponse;
 pub type BarclaycardCaptureResponse = BarclaycardPaymentsResponse;
 pub type BarclaycardVoidResponse = BarclaycardPaymentsResponse;
+pub type BarclaycardRepeatPaymentResponse = BarclaycardPaymentsResponse;
+
+// SetupMandate response - same as payments response but includes tokenInformation
+pub type BarclaycardSetupMandateResponse = BarclaycardPaymentsResponse;
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
