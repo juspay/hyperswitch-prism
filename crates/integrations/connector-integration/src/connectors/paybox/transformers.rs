@@ -84,6 +84,10 @@ const REFUND_REQUEST: &str = "00014";
 const SYNC_REQUEST: &str = "00017";
 const SUCCESS_CODE: &str = "00000";
 const PAY_ORIGIN_INTERNET: &str = "024";
+const PAY_ORIGIN_RECURRING: &str = "027";
+const SUBSCRIBER_AUTH_REQUEST: &str = "00051";
+const SUBSCRIBER_AUTH_AND_CAPTURE_REQUEST: &str = "00053";
+const REGISTER_SUBSCRIBER_REQUEST: &str = "00056";
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PayboxMeta {
@@ -1083,6 +1087,400 @@ impl TryFrom<ResponseRouterData<PayboxRSyncResponse, Self>>
             },
             ..item.router_data
         })
+    }
+}
+
+// ============================================================================
+// SETUP MANDATE FLOW (Subscriber Registration - TYPE 00056)
+// ============================================================================
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub struct PayboxSetupMandateRequest<T: PaymentMethodDataTypes> {
+    pub version: String,
+    #[serde(rename = "TYPE")]
+    pub transaction_type: String,
+    pub site: Secret<String>,
+    #[serde(rename = "RANG")]
+    pub rank: Secret<String>,
+    #[serde(rename = "CLE")]
+    pub key: Secret<String>,
+    #[serde(rename = "NUMQUESTION")]
+    pub paybox_request_number: String,
+    #[serde(rename = "MONTANT")]
+    pub amount: MinorUnit,
+    #[serde(rename = "DEVISE")]
+    pub currency: common_enums::Currency,
+    pub reference: String,
+    #[serde(rename = "DATEQ")]
+    pub date: String,
+    #[serde(rename = "PORTEUR")]
+    pub card_number: RawCardNumber<T>,
+    #[serde(rename = "DATEVAL")]
+    pub expiration_date: Secret<String>,
+    pub cvv: Secret<String>,
+    #[serde(rename = "REFABONNE")]
+    pub subscriber_ref: String,
+    #[serde(rename = "ACTIVITE")]
+    pub activity: String,
+}
+
+pub type PayboxSetupMandateResponse = PayboxPaymentResponse;
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        PayboxRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for PayboxSetupMandateRequest<T>
+{
+    type Error = Report<IntegrationError>;
+
+    fn try_from(
+        item: PayboxRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = item.router_data;
+        let connector = item.connector;
+
+        let auth = PayboxAuthType::try_from(&router_data.connector_config).change_context(
+            IntegrationError::FailedToObtainAuthType {
+                context: Default::default(),
+            },
+        )?;
+
+        let card_data = match &router_data.request.payment_method_data {
+            PaymentMethodData::Card(req_card) => req_card,
+            _ => {
+                return Err(IntegrationError::NotSupported {
+                    message: "Only card payments are supported for SetupMandate".to_string(),
+                    connector: "Paybox",
+                    context: Default::default(),
+                }
+                .into())
+            }
+        };
+
+        let expiration_date = Secret::new(
+            card_data
+                .get_card_expiry_month_year_2_digit_with_delimiter("".to_owned())?
+                .peek()
+                .to_string(),
+        );
+
+        // Use minor_amount if available, otherwise default to zero for zero-dollar auth
+        let amount = match router_data.request.minor_amount {
+            Some(minor_amount) => connector
+                .amount_converter
+                .convert(minor_amount, router_data.request.currency)
+                .change_context(IntegrationError::AmountConversionFailed {
+                    context: Default::default(),
+                })?,
+            None => connector
+                .amount_converter
+                .convert(MinorUnit::zero(), router_data.request.currency)
+                .change_context(IntegrationError::AmountConversionFailed {
+                    context: Default::default(),
+                })?,
+        };
+
+        // Generate a unique subscriber reference from the connector_request_reference_id
+        let subscriber_ref = router_data
+            .resource_common_data
+            .connector_request_reference_id
+            .clone();
+
+        Ok(Self {
+            version: VERSION_PAYBOX.to_string(),
+            transaction_type: REGISTER_SUBSCRIBER_REQUEST.to_string(),
+            site: auth.site,
+            rank: auth.rank,
+            key: auth.key,
+            paybox_request_number: generate_request_id()?,
+            amount,
+            currency: router_data.request.currency,
+            reference: subscriber_ref.clone(),
+            date: generate_date_time()?,
+            card_number: card_data.card_number.clone(),
+            expiration_date,
+            cvv: card_data.card_cvc.clone(),
+            subscriber_ref,
+            activity: PAY_ORIGIN_INTERNET.to_string(),
+        })
+    }
+}
+
+impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PayboxSetupMandateResponse, Self>>
+    for RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>
+{
+    type Error = Report<ConnectorResponseTransformationError>;
+
+    fn try_from(
+        item: ResponseRouterData<PayboxSetupMandateResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        if item.response.response_code == SUCCESS_CODE {
+            // Build connector metadata with NUMTRANS for future operations
+            let connector_metadata = serde_json::json!(PayboxMeta {
+                connector_request_id: item.response.transaction_number.clone()
+            });
+
+            // The REFABONNE in response is the subscriber ID used for future MIT payments
+            // Use NUMAPPEL as the connector_mandate_id (the Paybox subscriber reference)
+            let mandate_reference = item.response.customer_id.as_ref().map(|subscriber_id| {
+                Box::new(MandateReference {
+                    connector_mandate_id: Some(subscriber_id.peek().to_string()),
+                    payment_method_id: None,
+                    connector_mandate_request_reference_id: None,
+                })
+            });
+
+            Ok(Self {
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(
+                        item.response.paybox_order_id.clone(),
+                    ),
+                    redirection_data: None,
+                    mandate_reference,
+                    connector_metadata: Some(connector_metadata),
+                    network_txn_id: None,
+                    connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
+                    status_code: item.http_code,
+                }),
+                resource_common_data: PaymentFlowData {
+                    status: AttemptStatus::Charged,
+                    reference_id: Some(item.response.transaction_number.clone()),
+                    ..item.router_data.resource_common_data
+                },
+                ..item.router_data
+            })
+        } else {
+            Ok(Self {
+                response: Err(ErrorResponse {
+                    code: item.response.response_code.clone(),
+                    message: item.response.response_message.clone(),
+                    reason: Some(item.response.response_message.clone()),
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: Some(item.response.transaction_number.clone()),
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                }),
+                ..item.router_data
+            })
+        }
+    }
+}
+
+// ============================================================================
+// REPEAT PAYMENT FLOW (Subscriber Authorization - TYPE 00051/00053)
+// ============================================================================
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub struct PayboxRepeatPaymentRequest {
+    pub version: String,
+    #[serde(rename = "TYPE")]
+    pub transaction_type: String,
+    pub site: Secret<String>,
+    #[serde(rename = "RANG")]
+    pub rank: Secret<String>,
+    #[serde(rename = "CLE")]
+    pub key: Secret<String>,
+    #[serde(rename = "NUMQUESTION")]
+    pub paybox_request_number: String,
+    #[serde(rename = "MONTANT")]
+    pub amount: MinorUnit,
+    #[serde(rename = "DEVISE")]
+    pub currency: common_enums::Currency,
+    pub reference: String,
+    #[serde(rename = "DATEQ")]
+    pub date: String,
+    #[serde(rename = "PORTEUR")]
+    pub subscriber_number: String,
+    #[serde(rename = "DATEVAL")]
+    pub expiration_date: Secret<String>,
+    #[serde(rename = "REFABONNE")]
+    pub subscriber_ref: String,
+    #[serde(rename = "ACTIVITE")]
+    pub activity: String,
+}
+
+pub type PayboxRepeatPaymentResponse = PayboxPaymentResponse;
+
+/// Get the transaction type for repeat/recurring subscriber payments
+fn get_subscriber_transaction_type(
+    capture_method: Option<common_enums::CaptureMethod>,
+) -> &'static str {
+    match capture_method {
+        Some(common_enums::CaptureMethod::Automatic) => SUBSCRIBER_AUTH_AND_CAPTURE_REQUEST,
+        _ => SUBSCRIBER_AUTH_REQUEST,
+    }
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        PayboxRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for PayboxRepeatPaymentRequest
+{
+    type Error = Report<IntegrationError>;
+
+    fn try_from(
+        item: PayboxRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = item.router_data;
+        let connector = item.connector;
+
+        let auth = PayboxAuthType::try_from(&router_data.connector_config).change_context(
+            IntegrationError::FailedToObtainAuthType {
+                context: Default::default(),
+            },
+        )?;
+
+        let amount = connector
+            .amount_converter
+            .convert(
+                router_data.request.minor_amount,
+                router_data.request.currency,
+            )
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: Default::default(),
+            })?;
+
+        // Get the connector_mandate_id which is the REFABONNE (subscriber reference)
+        let connector_mandate_id = router_data.request.connector_mandate_id().ok_or(
+            IntegrationError::MissingRequiredField {
+                field_name: "connector_mandate_id",
+                context: Default::default(),
+            },
+        )?;
+
+        // For subscriber operations (TYPE 00051/00053), PORTEUR is empty
+        // and DATEVAL is not required (Paybox has it stored from registration)
+        // Use a placeholder expiration date
+        let expiration_date = Secret::new("0000".to_string());
+
+        let transaction_type =
+            get_subscriber_transaction_type(router_data.request.capture_method);
+
+        Ok(Self {
+            version: VERSION_PAYBOX.to_string(),
+            transaction_type: transaction_type.to_string(),
+            site: auth.site,
+            rank: auth.rank,
+            key: auth.key,
+            paybox_request_number: generate_request_id()?,
+            amount,
+            currency: router_data.request.currency,
+            reference: router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
+            date: generate_date_time()?,
+            subscriber_number: String::new(),
+            expiration_date,
+            subscriber_ref: connector_mandate_id,
+            activity: PAY_ORIGIN_RECURRING.to_string(),
+        })
+    }
+}
+
+impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PayboxRepeatPaymentResponse, Self>>
+    for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
+{
+    type Error = Report<ConnectorResponseTransformationError>;
+
+    fn try_from(
+        item: ResponseRouterData<PayboxRepeatPaymentResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        if item.response.response_code == SUCCESS_CODE {
+            let is_auto_capture = item.router_data.request.is_auto_capture();
+
+            let status = if is_auto_capture {
+                AttemptStatus::Charged
+            } else {
+                AttemptStatus::Authorized
+            };
+
+            let connector_metadata = serde_json::json!(PayboxMeta {
+                connector_request_id: item.response.transaction_number.clone()
+            });
+
+            // Preserve the mandate reference from the subscriber
+            let mandate_reference = item.response.customer_id.as_ref().map(|subscriber_id| {
+                Box::new(MandateReference {
+                    connector_mandate_id: Some(subscriber_id.peek().to_string()),
+                    payment_method_id: None,
+                    connector_mandate_request_reference_id: None,
+                })
+            });
+
+            Ok(Self {
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(
+                        item.response.paybox_order_id.clone(),
+                    ),
+                    redirection_data: None,
+                    mandate_reference,
+                    connector_metadata: Some(connector_metadata),
+                    network_txn_id: None,
+                    connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
+                    status_code: item.http_code,
+                }),
+                resource_common_data: PaymentFlowData {
+                    status,
+                    reference_id: Some(item.response.transaction_number.clone()),
+                    ..item.router_data.resource_common_data
+                },
+                ..item.router_data
+            })
+        } else {
+            Ok(Self {
+                response: Err(ErrorResponse {
+                    code: item.response.response_code.clone(),
+                    message: item.response.response_message.clone(),
+                    reason: Some(item.response.response_message.clone()),
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: Some(item.response.transaction_number.clone()),
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                }),
+                ..item.router_data
+            })
+        }
     }
 }
 
