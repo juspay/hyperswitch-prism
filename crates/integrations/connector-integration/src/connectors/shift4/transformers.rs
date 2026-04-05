@@ -12,7 +12,7 @@ use domain_types::{
         ResponseId,
     },
     payment_method_data::{
-        BankRedirectData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
+        BankRedirectData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData,
     },
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
@@ -147,6 +147,7 @@ pub struct Shift4PaymentsRequest<T: PaymentMethodDataTypes> {
 pub enum Shift4PaymentMethod<T: PaymentMethodDataTypes> {
     Card(Shift4CardPayment<T>),
     BankRedirect(Shift4BankRedirectPayment),
+    GooglePay(Shift4GooglePayPayment),
 }
 
 #[derive(Debug, Serialize)]
@@ -162,6 +163,26 @@ pub struct Shift4CardData<T: PaymentMethodDataTypes> {
     pub exp_month: Secret<String>,
     pub exp_year: Secret<String>,
     pub cardholder_name: Secret<String>,
+}
+
+// GooglePay Payment Structures
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Shift4GooglePayPayment {
+    pub payment_method: Shift4GooglePayMethod,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Shift4GooglePayMethod {
+    #[serde(rename = "type")]
+    pub payment_type: String,
+    pub google_pay: Shift4GooglePayToken,
+}
+
+#[derive(Debug, Serialize)]
+pub struct Shift4GooglePayToken {
+    pub token: Secret<String>,
 }
 
 // BankRedirect Payment Structures
@@ -344,6 +365,33 @@ impl<T: PaymentMethodDataTypes>
                     flow: Some(Shift4FlowRequest { return_url }),
                 })
             }
+            PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                WalletData::GooglePay(google_pay_data) => {
+                    let token = google_pay_data
+                        .tokenization_data
+                        .get_encrypted_google_pay_token()
+                        .change_context(IntegrationError::MissingRequiredField {
+                            field_name: "google_pay.tokenization_data.token",
+                            context: Default::default(),
+                        })?;
+
+                    Shift4PaymentMethod::GooglePay(Shift4GooglePayPayment {
+                        payment_method: Shift4GooglePayMethod {
+                            payment_type: "google_pay".to_string(),
+                            google_pay: Shift4GooglePayToken {
+                                token: Secret::new(token),
+                            },
+                        },
+                    })
+                }
+                _ => {
+                    return Err(error_stack::report!(IntegrationError::NotSupported {
+                        message: "Wallet payment method".to_string(),
+                        connector: "Shift4",
+                        context: Default::default()
+                    }))
+                }
+            },
             _ => {
                 return Err(error_stack::report!(IntegrationError::NotSupported {
                     message: "Payment method".to_string(),
