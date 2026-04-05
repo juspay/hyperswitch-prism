@@ -244,3 +244,11 @@ pub struct PeachpaymentsCofData {
 pub struct PeachpaymentsMerchantInformation {
     pub client_merchant_reference_id: Secret<String>,
 }
+
+// SetupMandate request reuses the same structure as Authorize
+// but with cof_data set to initial CIT
+pub type PeachpaymentsSetupMandateRequest<T> = PeachpaymentsAuthorizeRequest<T>;
+
+// RepeatPayment request reuses the same structure as Authorize
+// but with cof_data set to subsequent MIT
+pub type PeachpaymentsRepeatPaymentRequest<T> = PeachpaymentsAuthorizeRequest<T>;
