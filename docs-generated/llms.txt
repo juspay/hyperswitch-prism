@@ -435,7 +435,7 @@ connector_id: paysafe
 doc: docs/connectors/paysafe.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Ach, AchBankTransfer, Affirm, Afterpay, Alfamart, AliPayRedirect, AmazonPayRedirect, ApplePay, ApplePayDecrypted, ApplePayThirdPartySdk, Bacs, BacsBankTransfer, BancontactCard, BcaBankTransfer, Becs, Bizum, Blik, Bluecode, BniVaBankTransfer, Boleto, BriVaBankTransfer, Card, CashappQr, CimbVaBankTransfer, ClassicReward, DanamonVaBankTransfer, EVoucher, Efecty, Eft, Eps, FamilyMart, Giropay, GooglePay, GooglePayDecrypted, GooglePayThirdPartySdk, Ideal, Indomaret, IndonesianBankTransfer, InstantBankTransfer, InstantBankTransferFinland, InstantBankTransferPoland, Interac, Klarna, Lawson, LocalBankRedirect, LocalBankTransfer, MandiriVaBankTransfer, MbWay, Mifinity, MiniStop, MultibancoBankTransfer, OnlineBankingCzechRepublic, OnlineBankingFinland, OnlineBankingFpx, OnlineBankingPoland, OnlineBankingSlovakia, OnlineBankingThailand, OpenBanking, OpenBankingUk, Oxxo, PagoEfectivo, PayEasy, PaypalRedirect, PaypalSdk, PermataBankTransfer, Pix, Przelewy24, Pse, RedCompra, RedPagos, RevolutPay, SamsungPay, Satispay, Seicomart, Sepa, SepaBankTransfer, SepaGuaranteedDebit, SevenEleven, Sofort, Trustly, UpiCollect, UpiIntent, UpiQr, WeChatPayQr, Wero
-flows: authorize, capture, get, refund, refund_get, tokenize, void
+flows: authorize, capture, create_order, get, refund, refund_get, tokenize, void
 examples_python: examples/paysafe/paysafe.py
 
 ## Paytm

@@ -219,6 +219,22 @@ pub struct PaysafeBillingDetails {
     pub country: common_enums::CountryAlpha2,
 }
 
+/// CreateOrder request — creates a payment handle with basic amount/currency info.
+/// Card details are not included at this stage; they are provided in the PaymentMethodToken step.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeCreateOrderRequest {
+    pub merchant_ref_num: String,
+    pub transaction_type: TransactionType,
+    pub payment_type: PaysafePaymentType,
+    pub amount: MinorUnit,
+    pub currency_code: common_enums::Currency,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub account_id: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub return_links: Option<Vec<ReturnLink>>,
+}
+
 // Type aliases for flows
 pub type PaysafePaymentMethodTokenRequest<T> = PaysafeSetupMandateRequest<T>;
 pub type PaysafeRepeatPaymentRequest = PaysafePaymentsRequest;
