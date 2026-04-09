@@ -18,7 +18,7 @@ use domain_types::{
         PaymentsResponseData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
         ResponseId, SetupMandateRequestData,
     },
-    errors::{ConnectorError, IntegrationError},
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{BankDebitData, CardToken, PaymentMethodData, PaymentMethodDataTypes},
     router_data::{
         AdditionalPaymentMethodConnectorResponse, ConnectorResponseData, ConnectorSpecificConfig,
@@ -400,7 +400,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .ok_or_else(|| {
                         error_stack::report!(IntegrationError::MissingRequiredField {
                             field_name: "payment_method_token",
-                            context: Default::default(),
+                            context: IntegrationErrorContext {
+                                suggested_action: Some("Ensure the client-side SDK tokenization completed before submitting the payment.".to_owned()),
+                                doc_url: None,
+                                additional_context: Some("Payload CardToken payments require a payment_method_token obtained from the ClientAuthenticationToken step.".to_owned()),
+                            },
                         })
                     })?;
 
