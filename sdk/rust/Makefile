@@ -33,6 +33,8 @@ dist: package ## Build distribution package (alias for package)
 test-package: build-ffi-lib ## Build FFI → Run Rust smoke test
 	@echo "Running Rust smoke test..."
 	@cd $(REPO_ROOT) && HARNESS_DIR=$(SDK_ROOT)/smoke-test/generated CONNECTORS=$(CONNECTORS) cargo run --profile $(PROFILE) -p hyperswitch-smoke-test -- --connectors $(CONNECTORS) 2>&1
+	@echo "Running webhook smoke test..."
+	@cd $(REPO_ROOT) && cargo run --profile $(PROFILE) -p hyperswitch-smoke-test --bin smoke-test-webhook 2>&1
 
 test-package-mock: build-ffi-lib ## Build FFI → Run Rust smoke test in MOCK mode (uses generated harnesses)
 	@echo "Running Rust smoke test in MOCK mode..."

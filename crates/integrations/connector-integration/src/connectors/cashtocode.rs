@@ -16,7 +16,7 @@ use domain_types::{
     connector_types::{
         AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
         ConnectorCustomerResponse, ConnectorWebhookSecrets, DisputeDefendData, DisputeFlowData,
-        DisputeResponseData, MandateRevokeRequestData, MandateRevokeResponseData,
+        DisputeResponseData, EventContext, MandateRevokeRequestData, MandateRevokeResponseData,
         PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData,
         PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
         PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
@@ -177,8 +177,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn get_event_type(
         &self,
         _request: RequestDetails,
-        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
-        _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<domain_types::connector_types::EventType, error_stack::Report<WebhookError>> {
         Ok(domain_types::connector_types::EventType::PaymentIntentSuccess)
     }
@@ -188,6 +186,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         request: RequestDetails,
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
+        _event_context: Option<EventContext>,
     ) -> Result<
         domain_types::connector_types::WebhookDetailsResponse,
         error_stack::Report<WebhookError>,
@@ -216,7 +215,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             error_reason: None,
             network_txn_id: None,
             payment_method_update: None,
-            transformation_status: common_enums::WebhookTransformationStatus::Complete,
         })
     }
 }

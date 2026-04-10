@@ -2486,8 +2486,6 @@ impl TryFrom<NovalnetWebhookNotificationResponse> for WebhookDetailsResponse {
                                 }
                             }),
                             payment_method_update: None,
-                            transformation_status:
-                                common_enums::WebhookTransformationStatus::Complete,
                         })
                     }
                     NovalnetAPIStatus::Failure => Ok(Self {
@@ -2510,7 +2508,6 @@ impl TryFrom<NovalnetWebhookNotificationResponse> for WebhookDetailsResponse {
                         error_reason: None,
                         network_txn_id: None,
                         payment_method_update: None,
-                        transformation_status: common_enums::WebhookTransformationStatus::Complete,
                     }),
                 }
             }

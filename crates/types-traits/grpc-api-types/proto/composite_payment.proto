@@ -333,3 +333,26 @@ message CompositeCaptureResponse {
   optional MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse access_token_response = 1;
   optional PaymentServiceCaptureResponse capture_response = 2;
 }
+
+// Request for CompositeEventService.HandleEvent.
+// Use when webhook secrets are already resolved (e.g. merchant identity in webhook URL).
+// Supply event_context for connectors that require it (see connector integration guide).
+message CompositeEventHandleRequest {
+  RequestDetails          request_details   = 1;
+  optional WebhookSecrets webhook_secrets   = 2;
+  // Caller-supplied correlation key, echoed in the response. Not used by UCS for processing.
+  optional string         merchant_event_id = 3;
+  optional AccessToken    access_token      = 4;
+  optional EventContext   event_context     = 5;
+}
+
+// Response for CompositeEventService.HandleEvent.
+// Returns INVALID_ARGUMENT if required EventContext fields are absent for this connector.
+message CompositeEventHandleResponse {
+  optional EventReference   reference          = 1;
+  WebhookEventType          event_type         = 2;
+  EventContent              event_content      = 3;
+  bool                      source_verified    = 4;
+  optional string           merchant_event_id  = 5;  // Echoed from request.
+  optional EventAckResponse event_ack_response = 6;
+}

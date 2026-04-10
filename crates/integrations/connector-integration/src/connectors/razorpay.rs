@@ -27,7 +27,7 @@ use domain_types::{
     connector_types::{
         AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
         ConnectorCustomerResponse, ConnectorSpecifications, ConnectorWebhookSecrets,
-        DisputeDefendData, DisputeFlowData, DisputeResponseData, EventType,
+        DisputeDefendData, DisputeFlowData, DisputeResponseData, EventContext, EventType,
         MandateRevokeRequestData, MandateRevokeResponseData, PaymentCreateOrderData,
         PaymentCreateOrderResponse, PaymentFlowData, PaymentMethodTokenResponse,
         PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthenticateData,
@@ -868,8 +868,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     fn get_event_type(
         &self,
         request: RequestDetails,
-        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
-        _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
         let payload = transformers::get_webhook_object_from_body(request.body)?;
 
@@ -885,6 +883,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         request: RequestDetails,
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
+        _event_context: Option<EventContext>,
     ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
         let request_body_copy = request.body.clone();
         let payload = transformers::get_webhook_object_from_body(request.body)?;
@@ -906,7 +905,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             raw_connector_response: Some(String::from_utf8_lossy(&request_body_copy).to_string()),
             status_code: 200,
             response_headers: None,
-            transformation_status: common_enums::WebhookTransformationStatus::Complete,
             minor_amount_captured: None,
             amount_captured: None,
             error_reason: None,

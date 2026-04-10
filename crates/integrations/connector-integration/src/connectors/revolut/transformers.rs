@@ -26,6 +26,7 @@ use time::PrimitiveDateTime;
 
 pub struct RevolutAuthType {
     pub secret_api_key: Secret<String>,
+    #[allow(dead_code)]
     pub signing_secret: Option<Secret<String>>,
 }
 
@@ -1021,7 +1022,6 @@ impl TryFrom<RevolutWebhookBody> for WebhookDetailsResponse {
             mandate_reference: None,
             raw_connector_response: None,
             response_headers: None,
-            transformation_status: common_enums::WebhookTransformationStatus::Complete,
             minor_amount_captured: None,
             amount_captured: None,
             network_txn_id: None,

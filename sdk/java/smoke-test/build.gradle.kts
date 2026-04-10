@@ -80,3 +80,16 @@ tasks.register<JavaExec>("runComposite") {
 
     args = project.properties["args"]?.toString()?.split(" ") ?: emptyList()
 }
+
+// Task to run the webhook smoke test (connector identity only — no API creds, no secret)
+tasks.register<JavaExec>("runWebhookSmokeTest") {
+    group = "application"
+    description = "Run webhook smoke test — Adyen AUTHORISATION, zero external dependencies"
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("SmokeTestWebhookKt")
+
+    environment("FORCE_COLOR", "1")
+    jvmArgs("--enable-native-access=ALL-UNNAMED")
+    systemProperty("jna.library.path",
+        file("../src/main/resources/native").absolutePath)
+}

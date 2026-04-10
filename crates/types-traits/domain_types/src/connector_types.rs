@@ -1852,12 +1852,68 @@ pub struct WebhookDetailsResponse {
     pub raw_connector_response: Option<String>,
     pub status_code: u16,
     pub response_headers: Option<http::HeaderMap>,
-    pub transformation_status: common_enums::WebhookTransformationStatus,
     pub amount_captured: Option<i64>,
     // minor amount for amount framework
     pub minor_amount_captured: Option<MinorUnit>,
     pub network_txn_id: Option<String>,
     pub payment_method_update: Option<PaymentMethodUpdate>,
+}
+
+/// Typed reference extracted from a webhook payload during the stateless ParseEvent phase.
+///
+/// Mirrors the proto `EventReference` oneof. Each variant carries only the IDs that are
+/// meaningful for that resource type — no status, no credentials, no context.
+///
+/// `connector_*_id` — the PSP-assigned identifier (always present when applicable).
+/// `merchant_*_id` — the caller-assigned identifier (order ID, invoice ID, etc.) when
+///                   the connector echoes it back in the webhook payload.
+#[derive(Debug, Clone)]
+pub enum WebhookResourceReference {
+    Payment(PaymentWebhookReference),
+    Refund(RefundWebhookReference),
+    Dispute(DisputeWebhookReference),
+    Mandate(MandateWebhookReference),
+    Payout(PayoutWebhookReference),
+}
+
+#[derive(Debug, Clone)]
+pub struct PaymentWebhookReference {
+    /// PSP-assigned transaction ID.
+    pub connector_transaction_id: Option<String>,
+    /// Caller-assigned order / invoice ID echoed back by the connector.
+    pub merchant_transaction_id: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct RefundWebhookReference {
+    /// PSP-assigned refund ID.
+    pub connector_refund_id: Option<String>,
+    /// Caller-assigned refund reference echoed back by the connector.
+    pub merchant_refund_id: Option<String>,
+    /// PSP-assigned ID of the original payment this refund belongs to.
+    pub connector_transaction_id: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct DisputeWebhookReference {
+    /// PSP-assigned dispute / chargeback ID.
+    pub connector_dispute_id: Option<String>,
+    /// PSP-assigned ID of the original payment this dispute belongs to.
+    pub connector_transaction_id: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct MandateWebhookReference {
+    /// PSP-assigned mandate ID.
+    pub connector_mandate_id: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PayoutWebhookReference {
+    /// PSP-assigned payout ID.
+    pub connector_payout_id: Option<String>,
+    /// Caller-assigned payout reference echoed back by the connector.
+    pub merchant_payout_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -1914,6 +1970,11 @@ pub struct RequestDetails {
 pub struct ConnectorWebhookSecrets {
     pub secret: Vec<u8>,
     pub additional_secret: Option<Secret<String>>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct EventContext {
+    pub capture_method: Option<common_enums::CaptureMethod>,
 }
 
 #[derive(Debug, Clone)]
@@ -2254,7 +2315,7 @@ impl ForeignTryFrom<EventType> for grpc_api_types::payments::WebhookEventType {
 }
 
 impl ForeignTryFrom<grpc_api_types::payments::HttpMethod> for HttpMethod {
-    type Error = IntegrationError;
+    type Error = WebhookError;
 
     fn foreign_try_from(
         value: grpc_api_types::payments::HttpMethod,
@@ -2270,7 +2331,7 @@ impl ForeignTryFrom<grpc_api_types::payments::HttpMethod> for HttpMethod {
 }
 
 impl ForeignTryFrom<grpc_api_types::payments::RequestDetails> for RequestDetails {
-    type Error = IntegrationError;
+    type Error = WebhookError;
 
     fn foreign_try_from(
         value: grpc_api_types::payments::RequestDetails,
@@ -2288,7 +2349,7 @@ impl ForeignTryFrom<grpc_api_types::payments::RequestDetails> for RequestDetails
 }
 
 impl ForeignTryFrom<grpc_api_types::payments::WebhookSecrets> for ConnectorWebhookSecrets {
-    type Error = IntegrationError;
+    type Error = WebhookError;
 
     fn foreign_try_from(
         value: grpc_api_types::payments::WebhookSecrets,
@@ -2297,6 +2358,29 @@ impl ForeignTryFrom<grpc_api_types::payments::WebhookSecrets> for ConnectorWebho
             secret: value.secret.into(),
             additional_secret: value.additional_secret.map(Secret::new),
         })
+    }
+}
+
+impl ForeignTryFrom<grpc_api_types::payments::EventContext> for EventContext {
+    type Error = WebhookError;
+
+    fn foreign_try_from(
+        value: grpc_api_types::payments::EventContext,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let capture_method = value
+            .capture_method
+            .map(|capture_method| {
+                grpc_api_types::payments::CaptureMethod::try_from(capture_method)
+                    .change_context(WebhookError::WebhookBodyDecodingFailed)
+                    .and_then(|cm| {
+                        common_enums::CaptureMethod::foreign_try_from(cm)
+                            .change_context(WebhookError::WebhookBodyDecodingFailed)
+                    })
+            })
+            .transpose()
+            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+
+        Ok(Self { capture_method })
     }
 }
 

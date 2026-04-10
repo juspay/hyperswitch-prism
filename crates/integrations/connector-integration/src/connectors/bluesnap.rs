@@ -16,7 +16,7 @@ use domain_types::{
     connector_types::{
         AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
         ConnectorCustomerResponse, DisputeDefendData, DisputeFlowData, DisputeResponseData,
-        MandateRevokeRequestData, MandateRevokeResponseData, PaymentCreateOrderData,
+        EventContext, MandateRevokeRequestData, MandateRevokeResponseData, PaymentCreateOrderData,
         PaymentCreateOrderResponse, PaymentFlowData, PaymentMethodTokenResponse,
         PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthenticateData,
         PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
@@ -270,8 +270,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn get_event_type(
         &self,
         request: domain_types::connector_types::RequestDetails,
-        _connector_webhook_secret: Option<domain_types::connector_types::ConnectorWebhookSecrets>,
-        _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> CustomResult<domain_types::connector_types::EventType, WebhookError> {
         match serde_urlencoded::from_bytes::<transformers::BluesnapWebhookBody>(&request.body) {
             Ok(webhook_body) => match webhook_body.transaction_type {
@@ -302,6 +300,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         request: domain_types::connector_types::RequestDetails,
         _connector_webhook_secret: Option<domain_types::connector_types::ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
+        _event_context: Option<EventContext>,
     ) -> CustomResult<domain_types::connector_types::WebhookDetailsResponse, WebhookError> {
         let webhook_body: transformers::BluesnapWebhookBody =
             serde_urlencoded::from_bytes(&request.body)
@@ -341,7 +340,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             raw_connector_response: None,
             status_code: 200,
             response_headers: None,
-            transformation_status: common_enums::WebhookTransformationStatus::Complete,
             amount_captured: None,
             minor_amount_captured: None,
             network_txn_id: None,

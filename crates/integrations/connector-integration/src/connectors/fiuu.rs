@@ -22,18 +22,19 @@ use domain_types::{
     connector_types::{
         AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
         ConnectorCustomerResponse, ConnectorSpecifications, ConnectorWebhookSecrets,
-        DisputeDefendData, DisputeFlowData, DisputeResponseData, EventType, MandateReferenceId,
-        MandateRevokeRequestData, MandateRevokeResponseData, PaymentCreateOrderData,
-        PaymentCreateOrderResponse, PaymentFlowData, PaymentMethodTokenResponse,
-        PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthenticateData,
-        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
-        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundWebhookDetailsResponse, RefundsData, RefundsResponseData,
-        RepeatPaymentData, RequestDetails, ServerAuthenticationTokenRequestData,
+        DisputeDefendData, DisputeFlowData, DisputeResponseData, EventContext, EventType,
+        MandateReferenceId, MandateRevokeRequestData, MandateRevokeResponseData,
+        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData,
+        PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
+        PaymentWebhookReference, PaymentsAuthenticateData, PaymentsAuthorizeData,
+        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
+        PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsResponseData,
+        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse,
+        RefundWebhookReference, RefundsData, RefundsResponseData, RepeatPaymentData,
+        RequestDetails, ServerAuthenticationTokenRequestData,
         ServerAuthenticationTokenResponseData, ServerSessionAuthenticationTokenRequestData,
         ServerSessionAuthenticationTokenResponseData, SetupMandateRequestData, SubmitEvidenceData,
-        WebhookDetailsResponse,
+        WebhookDetailsResponse, WebhookResourceReference,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
@@ -863,8 +864,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn get_event_type(
         &self,
         request: RequestDetails,
-        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
-        _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
         let header = request
             .headers
@@ -928,28 +927,122 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         }
     }
 
+    fn get_webhook_event_reference(
+        &self,
+        request: RequestDetails,
+    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
+        let header = request
+            .headers
+            .get("content-type")
+            .ok_or_else(|| report!(WebhookError::WebhookBodyDecodingFailed))?;
+
+        let payload: FiuuWebhooksResponse = if header == "application/x-www-form-urlencoded" {
+            parse_and_log_keys_in_url_encoded_response::<FiuuWebhooksResponse>(&request.body);
+            serde_urlencoded::from_bytes::<FiuuWebhooksResponse>(&request.body)
+                .change_context(WebhookError::WebhookResourceObjectNotFound)?
+        } else {
+            request
+                .body
+                .parse_struct("fiuu::FiuuWebhooksResponse")
+                .change_context(WebhookError::WebhookResourceObjectNotFound)?
+        };
+
+        let reference = match payload {
+            FiuuWebhooksResponse::FiuuWebhookPaymentResponse(p) => {
+                WebhookResourceReference::Payment(PaymentWebhookReference {
+                    connector_transaction_id: Some(p.tran_id),
+                    // order_id is the merchant-assigned order reference echoed back by Fiuu.
+                    merchant_transaction_id: Some(p.order_id),
+                })
+            }
+            FiuuWebhooksResponse::FiuuWebhookRefundResponse(r) => {
+                WebhookResourceReference::Refund(RefundWebhookReference {
+                    connector_refund_id: Some(r.refund_id),
+                    merchant_refund_id: None,
+                    // txn_id is the connector ID of the original payment.
+                    connector_transaction_id: Some(r.txn_id),
+                })
+            }
+        };
+
+        Ok(Some(reference))
+    }
+
     fn process_payment_webhook(
         &self,
-        _request: RequestDetails,
+        request: RequestDetails,
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
+        event_context: Option<EventContext>,
     ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
+        let header = request
+            .headers
+            .get("content-type")
+            .ok_or_else(|| report!(WebhookError::WebhookBodyDecodingFailed))?;
+
+        let payload: FiuuWebhooksResponse = if header == "application/x-www-form-urlencoded" {
+            parse_and_log_keys_in_url_encoded_response::<FiuuWebhooksResponse>(&request.body);
+            serde_urlencoded::from_bytes::<FiuuWebhooksResponse>(&request.body)
+                .change_context(WebhookError::WebhookResourceObjectNotFound)?
+        } else {
+            request
+                .body
+                .parse_struct("fiuu::FiuuWebhooksResponse")
+                .change_context(WebhookError::WebhookResourceObjectNotFound)?
+        };
+
+        let webhook_payment = match payload {
+            FiuuWebhooksResponse::FiuuWebhookPaymentResponse(payment_response) => payment_response,
+            FiuuWebhooksResponse::FiuuWebhookRefundResponse(_) => {
+                return Err(
+                    report!(WebhookError::WebhookResourceObjectNotFound).attach_printable(
+                        "Received refund payload in process_payment_webhook for Fiuu",
+                    ),
+                );
+            }
+        };
+
+        let status = common_enums::AttemptStatus::try_from(fiuu::FiuuWebhookStatus {
+            capture_method: event_context.and_then(|ctx| ctx.capture_method),
+            status: webhook_payment.status.clone(),
+        })
+        .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+
+        let error_code = webhook_payment.error_code.clone();
+        let error_message = webhook_payment.error_desc.clone();
         Ok(WebhookDetailsResponse {
-            resource_id: None,
-            status: common_enums::AttemptStatus::Unknown,
-            connector_response_reference_id: None,
-            error_code: None,
-            error_message: None,
-            raw_connector_response: None,
+            resource_id: Some(
+                domain_types::connector_types::ResponseId::ConnectorTransactionId(
+                    webhook_payment.tran_id.clone(),
+                ),
+            ),
+            status,
+            connector_response_reference_id: Some(webhook_payment.order_id),
+            error_code: error_code.clone(),
+            error_message: error_message.clone(),
+            raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
             status_code: 200,
             response_headers: None,
-            mandate_reference: None,
+            mandate_reference: webhook_payment
+                .extra_parameters
+                .as_ref()
+                .and_then(|extra_params| {
+                    serde_json::from_str::<fiuu::ExtraParameters>(&extra_params.clone().expose())
+                        .ok()
+                        .and_then(|extra| extra.token)
+                        .map(|token| {
+                            Box::new(domain_types::connector_types::MandateReference {
+                                connector_mandate_id: Some(token.expose()),
+                                payment_method_id: None,
+                                connector_mandate_request_reference_id: None,
+                            })
+                        })
+                }),
             minor_amount_captured: None,
             amount_captured: None,
-            error_reason: None,
+            error_reason: error_message,
             network_txn_id: None,
             payment_method_update: None,
-            transformation_status: common_enums::WebhookTransformationStatus::Incomplete,
         })
     }
 

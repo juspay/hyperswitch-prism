@@ -18,7 +18,7 @@ use domain_types::{
     connector_types::{
         AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
         ConnectorCustomerResponse, ConnectorSpecifications, ConnectorWebhookSecrets,
-        DisputeDefendData, DisputeFlowData, DisputeResponseData, EventType,
+        DisputeDefendData, DisputeFlowData, DisputeResponseData, EventContext, EventType,
         MandateRevokeRequestData, MandateRevokeResponseData, PaymentCreateOrderData,
         PaymentCreateOrderResponse, PaymentFlowData, PaymentMethodTokenResponse,
         PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthenticateData,
@@ -219,12 +219,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .change_context(WebhookError::WebhookSourceVerificationFailed)
     }
 
-    fn get_event_type(
-        &self,
-        request: RequestDetails,
-        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
-        _connector_account_details: Option<ConnectorSpecificConfig>,
-    ) -> Result<EventType, Report<WebhookError>> {
+    fn get_event_type(&self, request: RequestDetails) -> Result<EventType, Report<WebhookError>> {
         let webhook_response: trustpay::TrustpayWebhookResponse = request
             .body
             .parse_struct("TrustpayWebhookResponse")
@@ -241,6 +236,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         request: RequestDetails,
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
+        _event_context: Option<EventContext>,
     ) -> Result<WebhookDetailsResponse, Report<WebhookError>> {
         let webhook_response: trustpay::TrustpayWebhookResponse = request
             .body
@@ -285,7 +281,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
             status_code: 200,
             response_headers: None,
-            transformation_status: common_enums::WebhookTransformationStatus::Complete,
             amount_captured: None,
             minor_amount_captured: None,
             network_txn_id: None,

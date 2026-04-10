@@ -668,8 +668,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn get_event_type(
         &self,
         request: RequestDetails,
-        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
-        _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
         let body = String::from_utf8(request.body.clone())
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
@@ -733,6 +731,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         request: RequestDetails,
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
+        _event_context: Option<EventContext>,
     ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
         let body = String::from_utf8(request.body.clone())
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
@@ -775,7 +774,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             raw_connector_response: None,
             status_code: 200,
             response_headers: None,
-            transformation_status: common_enums::WebhookTransformationStatus::Complete,
             amount_captured: None,
             minor_amount_captured: None,
             network_txn_id: None,

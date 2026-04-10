@@ -150,6 +150,8 @@ test-package: generate-all install
 	@cd $(SDK_ROOT)/smoke-test && $(SDK_ROOT)/gradlew run --args="--connectors $(CONNECTORS)"
 	@echo "Running composite smoke test..."
 	@cd $(SDK_ROOT)/smoke-test && $(SDK_ROOT)/gradlew runComposite
+	@echo "Running webhook smoke test..."
+	@cd $(SDK_ROOT)/smoke-test && $(SDK_ROOT)/gradlew runWebhookSmokeTest
 	@echo "Package test passed."
 
 # ---------------------------------------------------------------------------

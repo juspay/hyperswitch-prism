@@ -20,13 +20,13 @@ use domain_types::{
     connector_types::{
         AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
         ConnectorCustomerResponse, DisputeDefendData, DisputeFlowData, DisputeResponseData,
-        MandateRevokeRequestData, MandateRevokeResponseData, PaymentCreateOrderData,
+        EventContext, MandateRevokeRequestData, MandateRevokeResponseData, PaymentCreateOrderData,
         PaymentCreateOrderResponse, PaymentFlowData, PaymentMethodTokenResponse,
         PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthenticateData,
         PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
         PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData, RequestDetails,
         ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
         ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
         SetupMandateRequestData, SubmitEvidenceData, VerifyWebhookSourceFlowData,
@@ -174,7 +174,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
     fn verify_webhook_source(
         &self,
-        _request: domain_types::connector_types::RequestDetails,
+        _request: RequestDetails,
         _connector_webhook_secret: Option<domain_types::connector_types::ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<bool, error_stack::Report<WebhookError>> {
@@ -190,9 +190,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
     fn get_event_type(
         &self,
-        request: domain_types::connector_types::RequestDetails,
-        _connector_webhook_secret: Option<domain_types::connector_types::ConnectorWebhookSecrets>,
-        _connector_account_details: Option<ConnectorSpecificConfig>,
+        request: RequestDetails,
     ) -> Result<domain_types::connector_types::EventType, error_stack::Report<WebhookError>> {
         let payload: paypal::PaypalWebooksEventType = request
             .body
@@ -215,9 +213,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
     fn process_payment_webhook(
         &self,
-        request: domain_types::connector_types::RequestDetails,
+        request: RequestDetails,
         _connector_webhook_secret: Option<domain_types::connector_types::ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
+        _event_context: Option<EventContext>,
     ) -> Result<
         domain_types::connector_types::WebhookDetailsResponse,
         error_stack::Report<WebhookError>,
@@ -254,7 +253,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             raw_connector_response: Some(String::from_utf8_lossy(&request_body_copy).to_string()),
             status_code: 200,
             response_headers: None,
-            transformation_status: common_enums::WebhookTransformationStatus::Complete,
             amount_captured: None,
             minor_amount_captured: None,
             network_txn_id: None,
@@ -264,7 +262,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
     fn process_refund_webhook(
         &self,
-        request: domain_types::connector_types::RequestDetails,
+        request: RequestDetails,
         _connector_webhook_secret: Option<domain_types::connector_types::ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<
@@ -307,7 +305,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
     fn process_dispute_webhook(
         &self,
-        request: domain_types::connector_types::RequestDetails,
+        request: RequestDetails,
         _connector_webhook_secret: Option<domain_types::connector_types::ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<
@@ -385,7 +383,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
     fn get_webhook_resource_object(
         &self,
-        request: domain_types::connector_types::RequestDetails,
+        request: RequestDetails,
     ) -> Result<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, error_stack::Report<WebhookError>>
     {
         let details: paypal::PaypalWebhooksBody =

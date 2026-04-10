@@ -12362,3 +12362,64 @@ pub fn generate_mandate_revoke_response(
         }),
     }
 }
+
+impl From<connector_types::WebhookResourceReference> for grpc_api_types::payments::EventReference {
+    fn from(r: connector_types::WebhookResourceReference) -> Self {
+        use connector_types::{
+            DisputeWebhookReference, MandateWebhookReference, PaymentWebhookReference,
+            PayoutWebhookReference, RefundWebhookReference, WebhookResourceReference,
+        };
+        use grpc_api_types::payments::{
+            event_reference, DisputeEventReference, EventReference, MandateEventReference,
+            PaymentEventReference, PayoutEventReference, RefundEventReference,
+        };
+
+        match r {
+            WebhookResourceReference::Payment(PaymentWebhookReference {
+                connector_transaction_id,
+                merchant_transaction_id,
+            }) => EventReference {
+                resource: Some(event_reference::Resource::Payment(PaymentEventReference {
+                    connector_transaction_id,
+                    merchant_transaction_id,
+                })),
+            },
+            WebhookResourceReference::Refund(RefundWebhookReference {
+                connector_refund_id,
+                merchant_refund_id,
+                connector_transaction_id,
+            }) => EventReference {
+                resource: Some(event_reference::Resource::Refund(RefundEventReference {
+                    connector_refund_id,
+                    merchant_refund_id,
+                    connector_transaction_id,
+                })),
+            },
+            WebhookResourceReference::Dispute(DisputeWebhookReference {
+                connector_dispute_id,
+                connector_transaction_id,
+            }) => EventReference {
+                resource: Some(event_reference::Resource::Dispute(DisputeEventReference {
+                    connector_dispute_id,
+                    connector_transaction_id,
+                })),
+            },
+            WebhookResourceReference::Mandate(MandateWebhookReference {
+                connector_mandate_id,
+            }) => EventReference {
+                resource: Some(event_reference::Resource::Mandate(MandateEventReference {
+                    connector_mandate_id,
+                })),
+            },
+            WebhookResourceReference::Payout(PayoutWebhookReference {
+                connector_payout_id,
+                merchant_payout_id,
+            }) => EventReference {
+                resource: Some(event_reference::Resource::Payout(PayoutEventReference {
+                    connector_payout_id,
+                    merchant_payout_id,
+                })),
+            },
+        }
+    }
+}

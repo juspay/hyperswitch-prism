@@ -20,17 +20,17 @@ use domain_types::{
     connector_types::{
         AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
         ConnectorCustomerResponse, ConnectorSpecifications, ConnectorWebhookSecrets,
-        DisputeDefendData, DisputeFlowData, DisputeResponseData, EventType,
+        DisputeDefendData, DisputeFlowData, DisputeResponseData, EventContext, EventType,
         MandateRevokeRequestData, MandateRevokeResponseData, PaymentCreateOrderData,
         PaymentCreateOrderResponse, PaymentFlowData, PaymentMethodTokenResponse,
-        PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthenticateData,
-        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
+        PaymentMethodTokenizationData, PaymentVoidData, PaymentWebhookReference,
+        PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
+        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
         PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
         RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData, RequestDetails,
         ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
         ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
-        SetupMandateRequestData, SubmitEvidenceData,
+        SetupMandateRequestData, SubmitEvidenceData, WebhookResourceReference,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
@@ -209,8 +209,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn get_event_type(
         &self,
         request: RequestDetails,
-        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
-        _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
         let details: noon::NoonWebhookEvent = request
             .body
@@ -263,22 +261,83 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .attach_printable("Noon webhook signature verification failed")
     }
 
+    fn get_webhook_event_reference(
+        &self,
+        request: RequestDetails,
+    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
+        let webhook_object: noon::NoonWebhookObject = request
+            .body
+            .parse_struct("NoonWebhookObject")
+            .change_context(WebhookError::WebhookBodyDecodingFailed)
+            .attach_printable("Failed to parse NoonWebhookObject for reference extraction")?;
+
+        // Noon's order_id serves as the connector transaction ID.
+        // There is no separate merchant-assigned ID visible in the webhook payload.
+        Ok(Some(WebhookResourceReference::Payment(
+            PaymentWebhookReference {
+                connector_transaction_id: Some(webhook_object.order_id.to_string()),
+                merchant_transaction_id: None,
+            },
+        )))
+    }
+
     fn process_payment_webhook(
         &self,
-        _request: RequestDetails,
+        request: RequestDetails,
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
+        _event_context: Option<EventContext>,
     ) -> Result<
         domain_types::connector_types::WebhookDetailsResponse,
         error_stack::Report<WebhookError>,
     > {
+        let webhook_object: noon::NoonWebhookObject = request
+            .body
+            .parse_struct("NoonWebhookObject")
+            .change_context(WebhookError::WebhookBodyDecodingFailed)
+            .attach_printable("Failed to parse payment webhook details from Noon webhook body")?;
+
+        let status = match webhook_object.order_status {
+            noon::NoonPaymentStatus::Authorized => AttemptStatus::Authorized,
+            noon::NoonPaymentStatus::Captured
+            | noon::NoonPaymentStatus::PartiallyCaptured
+            | noon::NoonPaymentStatus::PartiallyRefunded
+            | noon::NoonPaymentStatus::Refunded => AttemptStatus::Charged,
+            noon::NoonPaymentStatus::Reversed | noon::NoonPaymentStatus::PartiallyReversed => {
+                AttemptStatus::Voided
+            }
+            noon::NoonPaymentStatus::Cancelled | noon::NoonPaymentStatus::Expired => {
+                AttemptStatus::AuthenticationFailed
+            }
+            noon::NoonPaymentStatus::ThreeDsEnrollInitiated
+            | noon::NoonPaymentStatus::ThreeDsEnrollChecked => AttemptStatus::AuthenticationPending,
+            noon::NoonPaymentStatus::ThreeDsResultVerified => {
+                AttemptStatus::AuthenticationSuccessful
+            }
+            noon::NoonPaymentStatus::Failed | noon::NoonPaymentStatus::Rejected => {
+                AttemptStatus::Failure
+            }
+            noon::NoonPaymentStatus::Pending | noon::NoonPaymentStatus::MarkedForReview => {
+                AttemptStatus::Pending
+            }
+            noon::NoonPaymentStatus::Initiated
+            | noon::NoonPaymentStatus::PaymentInfoAdded
+            | noon::NoonPaymentStatus::Authenticated => AttemptStatus::Started,
+            noon::NoonPaymentStatus::Locked => AttemptStatus::Unspecified,
+        };
+
+        let connector_order_id = webhook_object.order_id.to_string();
         Ok(domain_types::connector_types::WebhookDetailsResponse {
-            resource_id: None,
-            status: AttemptStatus::Unknown,
-            connector_response_reference_id: None,
+            resource_id: Some(
+                domain_types::connector_types::ResponseId::ConnectorTransactionId(
+                    connector_order_id.clone(),
+                ),
+            ),
+            status,
+            connector_response_reference_id: Some(connector_order_id),
             error_code: None,
             error_message: None,
-            raw_connector_response: None,
+            raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
             status_code: 200,
             response_headers: None,
             mandate_reference: None,
@@ -287,7 +346,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             error_reason: None,
             network_txn_id: None,
             payment_method_update: None,
-            transformation_status: common_enums::WebhookTransformationStatus::Incomplete,
         })
     }
 

@@ -291,7 +291,7 @@ class _ConnectorClientBase:
         Execute a single-step flow: FFI transformer called directly, no HTTP round-trip.
 
         Used for inbound flows like webhook processing where the connector sends
-        data to us. Errors are raised as ConnectorError directly.
+        data to us. Errors are raised as ConnectorError or IntegrationError directly.
 
         Args:
             flow: Flow name matching the FFI transformer (e.g. "handle_event").
@@ -304,6 +304,7 @@ class _ConnectorClientBase:
 
         Raises:
             ConnectorError: On FFI transformer failures.
+            IntegrationError: On FFI transformer integration failures.
         """
         transformer = getattr(_ffi, f"{flow}_transformer")
 
@@ -315,13 +316,21 @@ class _ConnectorClientBase:
 
         result_bytes = transformer(request_bytes, options_bytes)
 
-        # Parse result bytes - check_res returns FfiConnectorHttpResponse, extract body
-        http_response = check_res(result_bytes)
-        
-        # Deserialize the domain response from the body
-        domain_response = response_cls()
-        domain_response.ParseFromString(http_response.body)
-        return domain_response
+        # Parse FfiResult — direct flows return PROTO_RESPONSE (raw proto bytes),
+        # not an HTTP envelope. Errors come back as CONNECTOR_ERROR / INTEGRATION_ERROR.
+        result = FfiResult()
+        result.ParseFromString(result_bytes)
+
+        if result.type == FfiResult.PROTO_RESPONSE:
+            domain_response = response_cls()
+            domain_response.ParseFromString(result.proto_response)
+            return domain_response
+        elif result.type == FfiResult.CONNECTOR_ERROR:
+            raise ConnectorError(result.connector_error)
+        elif result.type == FfiResult.INTEGRATION_ERROR:
+            raise IntegrationError(result.integration_error)
+        else:
+            raise ValueError(f"Unexpected FfiResult type for direct flow '{flow}': {result.type}")
 
     async def close(self):
         """Close all underlying asynchronous connection pools."""

@@ -418,7 +418,7 @@ fn generate_handle_event_probe(f: &mut fs::File) {
     writeln!(f, "        let req = base_handle_event_request();").unwrap();
     writeln!(
         f,
-        "        match ffi::services::payments::handle_event_transformer(req, config, connector.clone(), auth, metadata) {{"
+        "        match ffi::services::payments::handle_event_transformer(req, config, connector.clone(), Some(auth), metadata) {{"
     )
     .unwrap();
     writeln!(

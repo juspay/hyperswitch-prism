@@ -584,6 +584,17 @@ pub enum WebhookError {
     WebhookResponseEncodingFailed,
 }
 
+impl ErrorSwitch<grpc_api_types::payments::IntegrationError> for WebhookError {
+    fn switch(&self) -> grpc_api_types::payments::IntegrationError {
+        grpc_api_types::payments::IntegrationError {
+            error_message: self.to_string(),
+            error_code: self.as_ref().to_string(),
+            suggested_action: None,
+            doc_url: None,
+        }
+    }
+}
+
 /// Wrapper enum used by `execute_connector_processing_step` (gRPC unified path)
 /// which performs all three phases in one call.
 /// SDK uses `IntegrationError` / `ConnectorError` directly.

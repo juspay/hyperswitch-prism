@@ -30,18 +30,19 @@ use domain_types::{
     connector_types::{
         AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
         ConnectorCustomerResponse, ConnectorSpecifications, ConnectorWebhookSecrets,
-        DisputeDefendData, DisputeFlowData, DisputeResponseData, MandateRevokeRequestData,
-        MandateRevokeResponseData, PaymentCreateOrderData, PaymentCreateOrderResponse,
-        PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
-        PaymentVoidData, PaymentsAuthenticateData, PaymentsAuthorizeData,
-        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
-        PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsResponseData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse,
-        RefundsData, RefundsResponseData, RepeatPaymentData, RequestDetails, ResponseId,
+        DisputeDefendData, DisputeFlowData, DisputeResponseData, DisputeWebhookReference,
+        EventContext, MandateRevokeRequestData, MandateRevokeResponseData, PaymentCreateOrderData,
+        PaymentCreateOrderResponse, PaymentFlowData, PaymentMethodTokenResponse,
+        PaymentMethodTokenizationData, PaymentVoidData, PaymentWebhookReference,
+        PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
+        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
+        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundWebhookDetailsResponse, RefundWebhookReference, RefundsData,
+        RefundsResponseData, RepeatPaymentData, RequestDetails, ResponseId,
         ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
         ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
         SetupMandateRequestData, SubmitEvidenceData, SupportedPaymentMethodsExt,
-        WebhookDetailsResponse,
+        WebhookDetailsResponse, WebhookResourceReference,
     },
     payment_method_data::{DefaultPCIHolder, PaymentMethodData, PaymentMethodDataTypes},
     router_data::{ConnectorSpecificConfig, ErrorResponse},
@@ -833,8 +834,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn get_event_type(
         &self,
         request: RequestDetails,
-        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
-        _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<domain_types::connector_types::EventType, error_stack::Report<WebhookError>> {
         let notif: AdyenNotificationRequestItemWH =
             transformers::get_webhook_object_from_body(request.body).map_err(|err| {
@@ -844,11 +843,76 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         transformers::get_adyen_webhook_event_type(notif.event_code).map_err(|e| report!(e))
     }
 
+    fn get_webhook_event_reference(
+        &self,
+        request: RequestDetails,
+    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
+        use transformers::WebhookEventCode;
+
+        let notif: AdyenNotificationRequestItemWH =
+            transformers::get_webhook_object_from_body(request.body).map_err(|err| {
+                report!(WebhookError::WebhookBodyDecodingFailed)
+                    .attach_printable(format!("error while decoding webhook body {err}"))
+            })?;
+
+        let reference = match notif.event_code {
+            // Capture/cancellation/adjustment events: psp_reference is the event's own PSP ref;
+            // original_reference is the parent authorisation's PSP ref — that's the lookup key.
+            WebhookEventCode::Capture
+            | WebhookEventCode::CaptureFailed
+            | WebhookEventCode::Cancellation
+            | WebhookEventCode::AuthorisationAdjustment => {
+                WebhookResourceReference::Payment(PaymentWebhookReference {
+                    connector_transaction_id: notif.original_reference,
+                    merchant_transaction_id: Some(notif.merchant_reference),
+                })
+            }
+            // Authorisation and OfferClosed: psp_reference is the payment PSP ref.
+            WebhookEventCode::Authorisation
+            | WebhookEventCode::OfferClosed
+            | WebhookEventCode::RecurringContract => {
+                WebhookResourceReference::Payment(PaymentWebhookReference {
+                    connector_transaction_id: Some(notif.psp_reference),
+                    merchant_transaction_id: Some(notif.merchant_reference),
+                })
+            }
+            // Refund events: psp_reference is the refund's own PSP ref;
+            // original_reference is the parent payment's PSP ref.
+            WebhookEventCode::Refund
+            | WebhookEventCode::CancelOrRefund
+            | WebhookEventCode::RefundFailed
+            | WebhookEventCode::RefundReversed => {
+                WebhookResourceReference::Refund(RefundWebhookReference {
+                    connector_refund_id: Some(notif.psp_reference),
+                    merchant_refund_id: Some(notif.merchant_reference),
+                    connector_transaction_id: notif.original_reference,
+                })
+            }
+            // Dispute events: psp_reference is the dispute ID; original_reference is the parent payment.
+            WebhookEventCode::NotificationOfChargeback
+            | WebhookEventCode::Chargeback
+            | WebhookEventCode::ChargebackReversed
+            | WebhookEventCode::PrearbitrationWon
+            | WebhookEventCode::SecondChargeback
+            | WebhookEventCode::PrearbitrationLost => {
+                WebhookResourceReference::Dispute(DisputeWebhookReference {
+                    connector_dispute_id: Some(notif.psp_reference),
+                    connector_transaction_id: notif.original_reference,
+                })
+            }
+            // Unknown: no actionable reference.
+            WebhookEventCode::Unknown => return Ok(None),
+        };
+
+        Ok(Some(reference))
+    }
+
     fn process_payment_webhook(
         &self,
         request: RequestDetails,
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
+        _event_context: Option<EventContext>,
     ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
         let request_body_copy = request.body.clone();
         let notif: AdyenNotificationRequestItemWH =
@@ -889,7 +953,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             raw_connector_response: Some(String::from_utf8_lossy(&request_body_copy).to_string()),
             status_code: 200,
             response_headers: None,
-            transformation_status: common_enums::WebhookTransformationStatus::Complete,
             minor_amount_captured: None,
             amount_captured: None,
             error_reason,
