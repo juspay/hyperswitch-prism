@@ -41,8 +41,10 @@ use transformers::{
     NexinetsCaptureOrVoidRequest as NexinetsVoidRequest, NexinetsErrorResponse,
     NexinetsPaymentResponse as NexinetsCaptureResponse, NexinetsPaymentResponse,
     NexinetsPaymentResponse as NexinetsVoidResponse, NexinetsPaymentsRequest,
-    NexinetsPreAuthOrDebitResponse, NexinetsRefundRequest, NexinetsRefundResponse,
-    NexinetsRefundResponse as RefundSyncResponse,
+    NexinetsPreAuthOrDebitResponse,
+    NexinetsPreAuthOrDebitResponse as NexinetsRepeatPaymentResponse, NexinetsRefundRequest,
+    NexinetsRefundResponse, NexinetsRefundResponse as RefundSyncResponse,
+    NexinetsRepeatPaymentRequest,
 };
 
 use super::macros;
@@ -320,6 +322,12 @@ macros::create_all_prerequisites!(
             request_body: NexinetsVoidRequest,
             response_body: NexinetsVoidResponse,
             router_data: RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+        ),
+        (
+            flow: RepeatPayment,
+            request_body: NexinetsRepeatPaymentRequest<T>,
+            response_body: NexinetsRepeatPaymentResponse,
+            router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [],
@@ -580,6 +588,39 @@ macros::macro_connector_implementation!(
     }
 );
 
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Nexinets,
+    curl_request: Json(NexinetsRepeatPaymentRequest),
+    curl_response: NexinetsRepeatPaymentResponse,
+    flow_name: RepeatPayment,
+    resource_common_data: PaymentFlowData,
+    flow_request: RepeatPaymentData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            let url = if req.request.is_auto_capture() {
+                format!("{}/orders/debit", self.connector_base_url_payments(req))
+            } else {
+                format!("{}/orders/preauth", self.connector_base_url_payments(req))
+            };
+            Ok(url)
+        }
+    }
+);
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
         CreateOrder,
@@ -664,16 +705,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentFlowData,
         PaymentMethodTokenizationData<T>,
         PaymentMethodTokenResponse,
-    > for Nexinets<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        RepeatPayment,
-        PaymentFlowData,
-        RepeatPaymentData<T>,
-        PaymentsResponseData,
     > for Nexinets<T>
 {
 }

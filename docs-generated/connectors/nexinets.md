@@ -108,19 +108,19 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/nexinets/nexinets.py#L106) · [JavaScript](../../examples/nexinets/nexinets.js) · [Kotlin](../../examples/nexinets/nexinets.kt#L81) · [Rust](../../examples/nexinets/nexinets.rs#L105)
+**Examples:** [Python](../../examples/nexinets/nexinets.py#L132) · [JavaScript](../../examples/nexinets/nexinets.js) · [Kotlin](../../examples/nexinets/nexinets.kt#L84) · [Rust](../../examples/nexinets/nexinets.rs#L132)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/nexinets/nexinets.py#L125) · [JavaScript](../../examples/nexinets/nexinets.js) · [Kotlin](../../examples/nexinets/nexinets.kt#L97) · [Rust](../../examples/nexinets/nexinets.rs#L121)
+**Examples:** [Python](../../examples/nexinets/nexinets.py#L151) · [JavaScript](../../examples/nexinets/nexinets.js) · [Kotlin](../../examples/nexinets/nexinets.kt#L100) · [Rust](../../examples/nexinets/nexinets.rs#L148)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/nexinets/nexinets.py#L150) · [JavaScript](../../examples/nexinets/nexinets.js) · [Kotlin](../../examples/nexinets/nexinets.kt#L119) · [Rust](../../examples/nexinets/nexinets.rs#L144)
+**Examples:** [Python](../../examples/nexinets/nexinets.py#L176) · [JavaScript](../../examples/nexinets/nexinets.js) · [Kotlin](../../examples/nexinets/nexinets.kt#L122) · [Rust](../../examples/nexinets/nexinets.rs#L171)
 
 ## API Reference
 
@@ -129,6 +129,7 @@ Retrieve current payment status from the connector.
 | [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
 | [PaymentService.ProxyAuthorize](#paymentserviceproxyauthorize) | Payments | `PaymentServiceProxyAuthorizeRequest` |
+| [RecurringPaymentService.Charge](#recurringpaymentservicecharge) | Mandates | `RecurringPaymentServiceChargeRequest` |
 | [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
 
 ### Payments
@@ -291,7 +292,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/nexinets/nexinets.py#L172) · [TypeScript](../../examples/nexinets/nexinets.ts#L166) · [Kotlin](../../examples/nexinets/nexinets.kt#L137) · [Rust](../../examples/nexinets/nexinets.rs#L162)
+**Examples:** [Python](../../examples/nexinets/nexinets.py#L198) · [TypeScript](../../examples/nexinets/nexinets.ts#L189) · [Kotlin](../../examples/nexinets/nexinets.kt#L140) · [Rust](../../examples/nexinets/nexinets.rs#L189)
 
 #### PaymentService.Get
 
@@ -302,7 +303,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/nexinets/nexinets.py#L181) · [TypeScript](../../examples/nexinets/nexinets.ts#L175) · [Kotlin](../../examples/nexinets/nexinets.kt#L149) · [Rust](../../examples/nexinets/nexinets.rs#L174)
+**Examples:** [Python](../../examples/nexinets/nexinets.py#L207) · [TypeScript](../../examples/nexinets/nexinets.ts#L198) · [Kotlin](../../examples/nexinets/nexinets.kt#L152) · [Rust](../../examples/nexinets/nexinets.rs#L201)
 
 #### PaymentService.ProxyAuthorize
 
@@ -313,7 +314,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/nexinets/nexinets.py#L190) · [TypeScript](../../examples/nexinets/nexinets.ts#L184) · [Kotlin](../../examples/nexinets/nexinets.kt#L157) · [Rust](../../examples/nexinets/nexinets.rs#L181)
+**Examples:** [Python](../../examples/nexinets/nexinets.py#L216) · [TypeScript](../../examples/nexinets/nexinets.ts#L207) · [Kotlin](../../examples/nexinets/nexinets.kt#L160) · [Rust](../../examples/nexinets/nexinets.rs#L208)
 
 #### PaymentService.Refund
 
@@ -324,4 +325,17 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/nexinets/nexinets.py#L199) · [TypeScript](../../examples/nexinets/nexinets.ts#L193) · [Kotlin](../../examples/nexinets/nexinets.kt#L185) · [Rust](../../examples/nexinets/nexinets.rs#L188)
+**Examples:** [Python](../../examples/nexinets/nexinets.py#L234) · [TypeScript](../../examples/nexinets/nexinets.ts#L225) · [Kotlin](../../examples/nexinets/nexinets.kt#L219) · [Rust](../../examples/nexinets/nexinets.rs#L222)
+
+### Mandates
+
+#### RecurringPaymentService.Charge
+
+Charge using an existing stored recurring payment instruction. Processes repeat payments for subscriptions or recurring billing without collecting payment details.
+
+| | Message |
+|---|---------|
+| **Request** | `RecurringPaymentServiceChargeRequest` |
+| **Response** | `RecurringPaymentServiceChargeResponse` |
+
+**Examples:** [Python](../../examples/nexinets/nexinets.py#L225) · [TypeScript](../../examples/nexinets/nexinets.ts#L216) · [Kotlin](../../examples/nexinets/nexinets.kt#L188) · [Rust](../../examples/nexinets/nexinets.rs#L215)
