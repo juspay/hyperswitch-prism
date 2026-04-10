@@ -18,8 +18,8 @@
     "install:browsers": "playwright install chromium webkit"
   },
   "dependencies": {
-    "fastify": "^4.28.1",
-    "netlify": "^24.3.0",
+    "fastify": "^5.8.4",
+    "netlify": "^24.11.1",
     "playwright": "^1.53.0",
     "selenium-webdriver": "^4.41.0"
   },
