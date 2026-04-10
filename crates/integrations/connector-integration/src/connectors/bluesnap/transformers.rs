@@ -99,8 +99,8 @@ fn get_payer_info(
 fn map_ecp_account_type(
     bank_type: Option<common_enums::BankType>,
     bank_holder_type: Option<common_enums::BankHolderType>,
-) -> String {
-    match (bank_holder_type, bank_type) {
+) -> CustomResult<String, IntegrationError> {
+    let account_type = match (bank_holder_type, bank_type) {
         (Some(common_enums::BankHolderType::Business), Some(common_enums::BankType::Checking)) => {
             "CORPORATE_CHECKING"
         }
@@ -112,8 +112,15 @@ fn map_ecp_account_type(
         (Some(common_enums::BankHolderType::Personal), Some(common_enums::BankType::Checking))
         | (None, Some(common_enums::BankType::Checking))
         | (_, None) => "CONSUMER_CHECKING",
-    }
-    .to_string()
+        (_, Some(unsupported)) => {
+            return Err(error_stack::report!(IntegrationError::NotSupported {
+                message: format!("Bank type {unsupported:?} is not supported by BlueSnap"),
+                connector: "bluesnap",
+                context: Default::default(),
+            }))
+        }
+    };
+    Ok(account_type.to_string())
 }
 
 // Auth Type
@@ -409,7 +416,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     let payer_info = get_payer_info(address_details)?;
 
                     // Map to BlueSnap ECP account type format
-                    let account_type = map_ecp_account_type(*bank_type, *bank_holder_type);
+                    let account_type = map_ecp_account_type(*bank_type, *bank_holder_type)?;
 
                     let amount = super::BluesnapAmountConvertor::convert(
                         router_data.request.minor_amount,

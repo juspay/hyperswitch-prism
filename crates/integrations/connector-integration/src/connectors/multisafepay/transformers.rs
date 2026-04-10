@@ -316,6 +316,7 @@ fn get_gateway_from_payment_method<T: PaymentMethodDataTypes>(
                 BankDebitData::SepaBankDebit { .. } => Gateway::DirectDebit,
                 BankDebitData::AchBankDebit { .. }
                 | BankDebitData::BecsBankDebit { .. }
+                | BankDebitData::EftBankDebit { .. }
                 | BankDebitData::BacsBankDebit { .. }
                 | BankDebitData::SepaGuaranteedBankDebit { .. } => {
                     Err(IntegrationError::not_implemented(

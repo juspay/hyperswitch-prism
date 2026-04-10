@@ -1286,6 +1286,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "connector_request_kafka"
+version = "0.1.0"
+dependencies = [
+ "domain_types",
+ "error-stack 0.4.1",
+ "hyperswitch_masking",
+ "once_cell",
+ "rdkafka",
+ "serde_json",
+ "tracing",
+ "ucs_common_enums",
+ "ucs_common_utils",
+]
+
+[[package]]
 name = "const-oid"
 version = "0.9.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1899,6 +1914,7 @@ dependencies = [
  "chrono",
  "clap 4.6.0",
  "config",
+ "connector_request_kafka",
  "domain_types",
  "error-stack 0.4.1",
  "hex",
@@ -3229,6 +3245,7 @@ dependencies = [
  "config",
  "config_patch_derive",
  "connector-integration",
+ "connector_request_kafka",
  "domain_types",
  "error-stack 0.4.1",
  "external-services",

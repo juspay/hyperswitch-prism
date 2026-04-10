@@ -94,7 +94,7 @@ message PaymentMethod {
     OpenBanking open_banking = 58;
     Interac interac = 59;                                     // Interac - Canadian bank redirect payment method
     Bizum bizum = 156;
-    Eft eft = 157;
+    EftBankRedirect eft_bank_redirect = 157;
     
     // MOBILE PAYMENTS (60-69) - Direct variants
     DuitNow duit_now = 60;
@@ -122,7 +122,7 @@ message PaymentMethod {
     CIMBVaBankTransfer cimb_va_bank_transfer = 134;            // CIMB VA Bank transfer in Indonesia
     DanamonVaBankTransfer danamon_va_bank_transfer = 135;      // Danamon VA Bank transfer in Indonesia
     MandiriVaBankTransfer mandiri_va_bank_transfer = 136;      // Mandiri VA Bank transfer in Indonesia
-    LocalBankTransfer local_bank_transfer = 154;               // Generic local bank transfer
+    LocalBankTransfer local_bank_transfer = 154;              // Generic local bank transfer
     IndonesianBankTransfer indonesian_bank_transfer = 155;     // Indonesian bank transfer method
 
     // DIRECT DEBIT (100-109)
@@ -131,6 +131,7 @@ message PaymentMethod {
     Bacs bacs = 102;                                            // Bacs - Bankers' Automated Clearing Services
     Becs becs = 103;                                            // Becs - Bulk Electronic Clearing System - Australian direct debit
     SepaGuaranteedDebit sepa_guaranteed_debit = 104;            // SEPA Guaranteed Direct Debit - bank debit with payment guarantee
+    Eft eft = 105;                                              // Eft - Electronic Funds Transfer
 
     // BUY NOW, PAY LATER (110-119)
     Affirm affirm = 110;                                       // Affirm - US BNPL service
@@ -647,8 +648,8 @@ message MultibancoBankTransfer {
 
 }
 
-// Eft (Electronic Funds Transfer) - Generic electronic transfer of funds
-message Eft {
+// Eft Bank Redirect (Electronic Funds Transfer) - Generic electronic transfer of funds
+message EftBankRedirect {
   // Identifier for the specific Eft provider/service to be used  
   // Examples: "ozow", "paystack", "instant_eft"
   string provider = 1;
@@ -1062,6 +1063,24 @@ message Ach {
   BankHolderType bank_holder_type = 7;
 }
 
+// Eft - Electronic Funds Transfer
+message Eft {
+  // Account number for eft bank debit payment
+  SecretString account_number = 1;
+  
+  // Branch code for eft bank debit payment
+  SecretString branch_code = 2;
+  
+  // Bank account holder name
+  SecretString bank_account_holder_name = 3;
+  
+  // Bank name
+  BankNames bank_name = 4;
+  
+  // Bank type
+  BankType bank_type = 5;
+}
+
 // Sepa - Single Euro Payments Area direct debit
 message Sepa {
   // International bank account number (iban) for SEPA
@@ -1287,6 +1306,7 @@ enum BankNames {
   FederalBank = 159;
   IndianOverseasBank = 160;
   CentralBankOfIndia = 161;
+  Absa = 162;
 }
 
 // ============================================================================
@@ -1597,6 +1617,10 @@ enum BankType {
   BANK_TYPE_UNSPECIFIED = 0;
   BANK_TYPE_CHECKING = 1;
   BANK_TYPE_SAVINGS = 2;
+  BANK_TYPE_TRANSMISSION = 3;
+  BANK_TYPE_CURRENT = 4;
+  BANK_TYPE_BOND = 5;
+  BANK_TYPE_SUBSCRIPTION_SHARE = 6;
 }
 
 enum BankHolderType {

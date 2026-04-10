@@ -221,6 +221,10 @@ pub enum SamsungPayCardBrand {
 pub enum BankType {
     Checking,
     Savings,
+    Transmission,
+    Current,
+    Bond,
+    SubscriptionShare,
 }
 
 #[derive(
@@ -421,6 +425,7 @@ pub enum BankNames {
     FederalBank,
     IndianOverseasBank,
     CentralBankOfIndia,
+    Absa,
 }
 
 /// Specifies the regulated name for a card network, primarily used for US debit card routing regulations.
@@ -1598,6 +1603,23 @@ pub enum CountryAlpha3 {
     SDN, SUR, SJM, SWZ, SWE, CHE, SYR, TWN, TJK, TZA, THA, TLS, TGO, TKL, TON,
     TTO, TUN, TUR, TKM, TCA, TUV, UGA, UKR, ARE, GBR, USA, UMI, URY, UZB, VUT,
     VEN, VNM, VGB, VIR, WLF, ESH, YEM, ZMB, ZWE
+}
+
+#[derive(Debug, thiserror::Error, PartialEq, Clone)]
+pub enum KafkaClientError {
+    /// Invalid configuration provided
+    #[error("Invalid configuration: {message}")]
+    InvalidConfiguration { message: String },
+    #[error("Kafka connector request publishing not enabled")]
+    NotEnabled,
+    #[error("Kafka producer not initialized")]
+    ProducerNotInitialized,
+    #[error("Kafka producer construction failed")]
+    ProducerConstructionFailed,
+    #[error("Failed to fetch Kafka metadata")]
+    MetadataFetchFailed,
+    #[error("Unsupported payload format: {format}")]
+    UnsupportedPayloadFormat { format: String },
 }
 
 #[derive(Debug, thiserror::Error, PartialEq, Clone)]

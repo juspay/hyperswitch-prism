@@ -1546,6 +1546,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         match value {
             BankDebitData::AchBankDebit { .. }
             | BankDebitData::SepaBankDebit { .. }
+            | BankDebitData::EftBankDebit { .. }
             | BankDebitData::SepaGuaranteedBankDebit { .. }
             | BankDebitData::BecsBankDebit { .. }
             | BankDebitData::BacsBankDebit { .. } => Err(IntegrationError::not_implemented(

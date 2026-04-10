@@ -105,6 +105,7 @@ where
     let s = match bank_type {
         BankType::Checking => "Checking",
         BankType::Savings => "Savings",
+        _ => return Err(serde::ser::Error::custom("Unsupported bank type for Forte")),
     };
     serializer.serialize_str(s)
 }
@@ -287,6 +288,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 BankDebitData::BacsBankDebit { .. } => {
                     Err(IntegrationError::not_implemented(
                         "BACS bank debit is not supported by Forte. Only ACH (US) bank debits are supported.".to_string(),
+                    ))?
+                }
+                BankDebitData::EftBankDebit { .. } => {
+                    Err(IntegrationError::not_implemented(
+                        "EFT bank debit is not supported by Forte. Only ACH (US) bank debits are supported.".to_string(),
                     ))?
                 }
                 BankDebitData::SepaGuaranteedBankDebit { .. } => {

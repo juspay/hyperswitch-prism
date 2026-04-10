@@ -215,6 +215,12 @@ fn build_payload_bank_account_request_data(
                 Some(enums::BankType::Checking) | None => {
                     requests::PayloadBankAccountType::Checking
                 }
+                _ => {
+                    return Err(IntegrationError::not_implemented(format!(
+                        "Bank type {:?} is not supported for ACH bank debit",
+                        bank_type
+                    )))?
+                }
             };
 
             let bank_account = requests::PayloadBankAccount {
@@ -243,6 +249,7 @@ fn build_payload_bank_account_request_data(
         BankDebitData::SepaBankDebit { .. }
         | BankDebitData::SepaGuaranteedBankDebit { .. }
         | BankDebitData::BecsBankDebit { .. }
+        | BankDebitData::EftBankDebit { .. }
         | BankDebitData::BacsBankDebit { .. } => Err(IntegrationError::NotImplemented(
             domain_types::utils::get_unimplemented_payment_method_error_message("Payload"),
             Default::default(),
