@@ -197,3 +197,7 @@ pub struct PeachpaymentsTransactionType {
     pub value: i32,
     pub description: String,
 }
+
+// SetupMandate and RepeatPayment reuse the same response structure as Authorize
+pub type PeachpaymentsSetupMandateResponse = PeachpaymentsPaymentsResponse;
+pub type PeachpaymentsRepeatPaymentResponse = PeachpaymentsPaymentsResponse;

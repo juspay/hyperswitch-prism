@@ -459,7 +459,7 @@ connector_id: peachpayments
 doc: docs/connectors/peachpayments.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Card
-flows: authorize, capture, get, handle_event, proxy_authorize, refund, refund_get, void
+flows: authorize, capture, get, handle_event, proxy_authorize, proxy_setup_recurring, refund, refund_get, setup_recurring, void
 examples_python: examples/peachpayments/peachpayments.py
 
 ## PhonePe

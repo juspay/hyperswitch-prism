@@ -5,11 +5,12 @@ use common_enums::{AttemptStatus, RefundStatus};
 use common_utils::ext_traits::StringExt;
 use common_utils::{consts, errors::CustomResult, types::MinorUnit, SecretSerdeValue};
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
+    connector_flow::{Authorize, Capture, PSync, RSync, Refund, RepeatPayment, SetupMandate, Void},
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId,
+        MandateReference, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
+        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
+        SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError, WebhookError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
@@ -690,6 +691,422 @@ impl TryFrom<common_enums::CardNetwork> for requests::CardNetworkLowercase {
             common_enums::CardNetwork::Accel => Ok(Self::Accel),
             common_enums::CardNetwork::Nyce => Ok(Self::Nyce),
         }
+    }
+}
+
+// SetupMandate request transformer (initial CIT)
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        PeachpaymentsRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for requests::PeachpaymentsSetupMandateRequest<T>
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: PeachpaymentsRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let auth = PeachpaymentsAuthType::try_from(&item.router_data.connector_config)?;
+        let connector_meta_data = PeachpaymentsConnectorMetadataObject {
+            client_merchant_reference_id: auth.client_merchant_reference_id.ok_or(
+                IntegrationError::MissingRequiredField {
+                    field_name: "client_merchant_reference_id",
+                    context: Default::default(),
+                },
+            )?,
+            merchant_payment_method_route_id: auth.merchant_payment_method_route_id.ok_or(
+                IntegrationError::MissingRequiredField {
+                    field_name: "merchant_payment_method_route_id",
+                    context: Default::default(),
+                },
+            )?,
+        };
+
+        let cof_data = Some(requests::PeachpaymentsCofData {
+            cof_type: requests::CofType::Recurring,
+            source: requests::CofSource::Cit,
+            mode: requests::CofMode::Initial,
+        });
+
+        let transaction_data = match item.router_data.request.payment_method_data.clone() {
+            PaymentMethodData::Card(card_info) => {
+                let minor_amount = item.router_data.request.minor_amount.ok_or(
+                    IntegrationError::MissingRequiredField {
+                        field_name: "amount",
+                        context: Default::default(),
+                    },
+                )?;
+                requests::PeachpaymentsTransactionData::Card(requests::PeachpaymentsCardData {
+                    merchant_information: requests::PeachpaymentsMerchantInformation {
+                        client_merchant_reference_id: connector_meta_data
+                            .client_merchant_reference_id,
+                    },
+                    routing_reference: requests::PeachpaymentsRoutingReference {
+                        merchant_payment_method_route_id: connector_meta_data
+                            .merchant_payment_method_route_id,
+                    },
+                    card: requests::PeachpaymentsCardDetails {
+                        pan: card_info.card_number.clone(),
+                        cardholder_name: card_info.card_holder_name.clone(),
+                        expiry_year: Some(
+                            card_info.get_card_expiry_year_2_digit().change_context(
+                                IntegrationError::RequestEncodingFailed {
+                                    context: Default::default(),
+                                },
+                            )?,
+                        ),
+                        expiry_month: Some(card_info.card_exp_month),
+                        cvv: Some(card_info.card_cvc),
+                        eci: None,
+                    },
+                    amount: requests::PeachpaymentsAmount {
+                        amount: minor_amount,
+                        currency_code: item.router_data.request.currency,
+                        display_amount: None,
+                    },
+                    rrn: item.router_data.request.merchant_order_id.clone(),
+                    pre_auth_inc_ext_capture_flow: Some(requests::PeachpaymentsPreAuthFlow {
+                        dcc_mode: requests::DccMode::NoDcc,
+                        txn_ref_nr: item
+                            .router_data
+                            .resource_common_data
+                            .connector_request_reference_id
+                            .clone(),
+                    }),
+                    cof_data,
+                })
+            }
+            _ => {
+                return Err(IntegrationError::NotSupported {
+                    message: "Payment method not supported for SetupMandate".to_string(),
+                    connector: "peachpayments",
+                    context: Default::default(),
+                }
+                .into());
+            }
+        };
+
+        Ok(Self {
+            payment_method: requests::PeachpaymentsPaymentMethod::EcommerceCardPaymentOnly,
+            reference_id: item
+                .router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
+            ecommerce_card_payment_only_transaction_data: transaction_data,
+            pos_data: None,
+            send_date_time: OffsetDateTime::now_utc()
+                .format(&Iso8601::DEFAULT)
+                .map_err(|_| IntegrationError::RequestEncodingFailed {
+                    context: Default::default(),
+                })?,
+        })
+    }
+}
+
+// SetupMandate response transformer
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<responses::PeachpaymentsSetupMandateResponse, Self>>
+    for RouterDataV2<
+        SetupMandate,
+        PaymentFlowData,
+        SetupMandateRequestData<T>,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<responses::PeachpaymentsSetupMandateResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let (status, response) = match item.response {
+            responses::PeachpaymentsPaymentsResponse::Response(data) => {
+                let status: AttemptStatus = data.transaction_result.clone().into();
+                let response = if status == AttemptStatus::Failure {
+                    Err(ErrorResponse {
+                        code: get_error_code(data.response_code.as_ref()),
+                        message: get_error_message(data.response_code.as_ref()),
+                        reason: Some(get_error_message(data.response_code.as_ref())),
+                        status_code: item.http_code,
+                        attempt_status: Some(status),
+                        connector_transaction_id: Some(data.transaction_id.clone()),
+                        network_decline_code: None,
+                        network_advice_code: None,
+                        network_error_message: None,
+                    })
+                } else {
+                    // Use the transaction_id as the connector_mandate_id
+                    // This ID will be used as a reference for subsequent MIT payments
+                    let mandate_reference = Some(Box::new(MandateReference {
+                        connector_mandate_id: Some(data.transaction_id.clone()),
+                        payment_method_id: None,
+                        connector_mandate_request_reference_id: None,
+                    }));
+
+                    Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(
+                            data.transaction_id.clone(),
+                        ),
+                        redirection_data: None,
+                        mandate_reference,
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        connector_response_reference_id: Some(data.reference_id.clone()),
+                        incremental_authorization_allowed: None,
+                        status_code: item.http_code,
+                    })
+                };
+                (status, response)
+            }
+            responses::PeachpaymentsPaymentsResponse::WebhookResponse(webhook) => {
+                get_webhook_response(*webhook, item.http_code)?
+            }
+        };
+
+        Ok(Self {
+            response,
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
+    }
+}
+
+// RepeatPayment request transformer (subsequent MIT)
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        PeachpaymentsRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for requests::PeachpaymentsRepeatPaymentRequest<T>
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: PeachpaymentsRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let auth = PeachpaymentsAuthType::try_from(&item.router_data.connector_config)?;
+        let connector_meta_data = PeachpaymentsConnectorMetadataObject {
+            client_merchant_reference_id: auth.client_merchant_reference_id.ok_or(
+                IntegrationError::MissingRequiredField {
+                    field_name: "client_merchant_reference_id",
+                    context: Default::default(),
+                },
+            )?,
+            merchant_payment_method_route_id: auth.merchant_payment_method_route_id.ok_or(
+                IntegrationError::MissingRequiredField {
+                    field_name: "merchant_payment_method_route_id",
+                    context: Default::default(),
+                },
+            )?,
+        };
+
+        let cof_data = Some(requests::PeachpaymentsCofData {
+            cof_type: requests::CofType::Recurring,
+            source: requests::CofSource::Mit,
+            mode: requests::CofMode::Subsequent,
+        });
+
+        let transaction_data = match item.router_data.request.payment_method_data.clone() {
+            PaymentMethodData::Card(card_info) => {
+                requests::PeachpaymentsTransactionData::Card(requests::PeachpaymentsCardData {
+                    merchant_information: requests::PeachpaymentsMerchantInformation {
+                        client_merchant_reference_id: connector_meta_data
+                            .client_merchant_reference_id,
+                    },
+                    routing_reference: requests::PeachpaymentsRoutingReference {
+                        merchant_payment_method_route_id: connector_meta_data
+                            .merchant_payment_method_route_id,
+                    },
+                    card: requests::PeachpaymentsCardDetails {
+                        pan: card_info.card_number.clone(),
+                        cardholder_name: card_info.card_holder_name.clone(),
+                        expiry_year: Some(
+                            card_info.get_card_expiry_year_2_digit().change_context(
+                                IntegrationError::RequestEncodingFailed {
+                                    context: Default::default(),
+                                },
+                            )?,
+                        ),
+                        expiry_month: Some(card_info.card_exp_month),
+                        cvv: Some(card_info.card_cvc),
+                        eci: None,
+                    },
+                    amount: requests::PeachpaymentsAmount {
+                        amount: item.router_data.request.minor_amount,
+                        currency_code: item.router_data.request.currency,
+                        display_amount: None,
+                    },
+                    rrn: item.router_data.request.merchant_order_id.clone(),
+                    pre_auth_inc_ext_capture_flow: None,
+                    cof_data,
+                })
+            }
+            PaymentMethodData::NetworkToken(token_data) => {
+                requests::PeachpaymentsTransactionData::NetworkToken(
+                    requests::PeachpaymentsNetworkTokenData {
+                        merchant_information: requests::PeachpaymentsMerchantInformation {
+                            client_merchant_reference_id: connector_meta_data
+                                .client_merchant_reference_id,
+                        },
+                        routing_reference: requests::PeachpaymentsRoutingReference {
+                            merchant_payment_method_route_id: connector_meta_data
+                                .merchant_payment_method_route_id,
+                        },
+                        network_token_data: requests::PeachpaymentsNetworkTokenDetails {
+                            token: Secret::new(token_data.token_number.peek().clone()),
+                            expiry_year: token_data
+                                .get_token_expiry_year_2_digit()
+                                .change_context(IntegrationError::RequestEncodingFailed {
+                                    context: Default::default(),
+                                })?,
+                            expiry_month: token_data.token_exp_month,
+                            cryptogram: token_data.token_cryptogram,
+                            eci: token_data.eci,
+                            scheme: token_data
+                                .card_network
+                                .map(requests::CardNetworkLowercase::try_from)
+                                .transpose()
+                                .change_context(IntegrationError::RequestEncodingFailed {
+                                    context: Default::default(),
+                                })?,
+                        },
+                        amount: requests::PeachpaymentsAmount {
+                            amount: item.router_data.request.minor_amount,
+                            currency_code: item.router_data.request.currency,
+                            display_amount: None,
+                        },
+                        cof_data: requests::PeachpaymentsCofData {
+                            cof_type: requests::CofType::Recurring,
+                            source: requests::CofSource::Mit,
+                            mode: requests::CofMode::Subsequent,
+                        },
+                        rrn: item.router_data.request.merchant_order_id.clone(),
+                        pre_auth_inc_ext_capture_flow: None,
+                    },
+                )
+            }
+            PaymentMethodData::MandatePayment => {
+                return Err(IntegrationError::NotSupported {
+                    message: "MandatePayment without card data is not supported for peachpayments. Card data is required for recurring payments.".to_string(),
+                    connector: "peachpayments",
+                    context: Default::default(),
+                }
+                .into());
+            }
+            _ => {
+                return Err(IntegrationError::NotSupported {
+                    message: "Payment method not supported for RepeatPayment".to_string(),
+                    connector: "peachpayments",
+                    context: Default::default(),
+                }
+                .into());
+            }
+        };
+
+        Ok(Self {
+            payment_method: requests::PeachpaymentsPaymentMethod::EcommerceCardPaymentOnly,
+            reference_id: item
+                .router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
+            ecommerce_card_payment_only_transaction_data: transaction_data,
+            pos_data: None,
+            send_date_time: OffsetDateTime::now_utc()
+                .format(&Iso8601::DEFAULT)
+                .map_err(|_| IntegrationError::RequestEncodingFailed {
+                    context: Default::default(),
+                })?,
+        })
+    }
+}
+
+// RepeatPayment response transformer
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<responses::PeachpaymentsRepeatPaymentResponse, Self>>
+    for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<responses::PeachpaymentsRepeatPaymentResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let (status, response) = match item.response {
+            responses::PeachpaymentsPaymentsResponse::Response(data) => {
+                let status: AttemptStatus = data.transaction_result.clone().into();
+                let response = if status == AttemptStatus::Failure {
+                    Err(ErrorResponse {
+                        code: get_error_code(data.response_code.as_ref()),
+                        message: get_error_message(data.response_code.as_ref()),
+                        reason: Some(get_error_message(data.response_code.as_ref())),
+                        status_code: item.http_code,
+                        attempt_status: Some(status),
+                        connector_transaction_id: Some(data.transaction_id.clone()),
+                        network_decline_code: None,
+                        network_advice_code: None,
+                        network_error_message: None,
+                    })
+                } else {
+                    Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(
+                            data.transaction_id.clone(),
+                        ),
+                        redirection_data: None,
+                        mandate_reference: None,
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        connector_response_reference_id: Some(data.reference_id.clone()),
+                        incremental_authorization_allowed: None,
+                        status_code: item.http_code,
+                    })
+                };
+                (status, response)
+            }
+            responses::PeachpaymentsPaymentsResponse::WebhookResponse(webhook) => {
+                get_webhook_response(*webhook, item.http_code)?
+            }
+        };
+
+        Ok(Self {
+            response,
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
     }
 }
 

@@ -564,12 +564,48 @@
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_proxy_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          },
+          "auth_type": "NO_THREE_DS",
+          "setup_future_usage": "OFF_SESSION"
+        },
+        "sample": {
+          "url": "https://apitest.bankint.ppay.io/v/1/transactions/authorization",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key",
+            "x-exi-auth-ver": "v1",
+            "x-tenant-id": "probe_secret"
+          },
+          "body": "{\"paymentMethod\":\"ecommerce_card_payment_only\",\"referenceId\":\"probe_proxy_mandate_001\",\"ecommerceCardPaymentOnlyTransactionData\":{\"merchantInformation\":{\"clientMerchantReferenceId\":\"probe_merchant_ref_001\"},\"routingReference\":{\"merchantPaymentMethodRouteId\":\"probe_route_001\"},\"card\":{\"pan\":\"4111111111111111\",\"cardholderName\":\"John Doe\",\"expiryYear\":\"30\",\"expiryMonth\":\"03\",\"cvv\":\"123\"},\"amount\":{\"amount\":0,\"currencyCode\":\"USD\"},\"preAuthIncExtCaptureFlow\":{\"dccMode\":\"no_dcc\",\"txnRefNr\":\"probe_proxy_mandate_001\"},\"cofData\":{\"type\":\"recurring\",\"source\":\"cit\",\"mode\":\"initial\"}},\"sendDateTime\":\"2020-01-01T00:00:00+00:00\"}"
+        }
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "Payment method not supported for RepeatPayment is not supported by peachpayments"
       }
     },
     "recurring_revoke": {
@@ -633,7 +669,47 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/mandate-return",
+          "setup_future_usage": "OFF_SESSION",
+          "request_incremental_authorization": false,
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          }
+        },
+        "sample": {
+          "url": "https://apitest.bankint.ppay.io/v/1/transactions/authorization",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key",
+            "x-exi-auth-ver": "v1",
+            "x-tenant-id": "probe_secret"
+          },
+          "body": "{\"paymentMethod\":\"ecommerce_card_payment_only\",\"referenceId\":\"probe_mandate_001\",\"ecommerceCardPaymentOnlyTransactionData\":{\"merchantInformation\":{\"clientMerchantReferenceId\":\"probe_merchant_ref_001\"},\"routingReference\":{\"merchantPaymentMethodRouteId\":\"probe_route_001\"},\"card\":{\"pan\":\"4111111111111111\",\"cardholderName\":\"John Doe\",\"expiryYear\":\"30\",\"expiryMonth\":\"03\",\"cvv\":\"737\"},\"amount\":{\"amount\":0,\"currencyCode\":\"USD\"},\"preAuthIncExtCaptureFlow\":{\"dccMode\":\"no_dcc\",\"txnRefNr\":\"probe_mandate_001\"},\"cofData\":{\"type\":\"recurring\",\"source\":\"cit\",\"mode\":\"initial\"}},\"sendDateTime\":\"2020-01-01T00:00:00+00:00\"}"
+        }
       }
     },
     "token_authorize": {
@@ -644,7 +720,8 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "Payment method not supported for SetupMandate is not supported by peachpayments"
       }
     },
     "tokenize": {
