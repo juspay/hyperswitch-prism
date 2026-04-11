@@ -3457,7 +3457,7 @@ pub enum ConnectorSpecificClientAuthenticationResponse {
     Billwerk(BillwerkClientAuthenticationResponse),
     /// Datatrans SDK initialization data — transaction_id for Secure Fields initialization
     Datatrans(DatatransClientAuthenticationResponse),
-    /// Bambora SDK initialization data — token for Custom Checkout initialization
+    /// Bambora SDK initialization data — merchant_id for Custom Checkout SDK initialization
     Bambora(BamboraClientAuthenticationResponse),
     /// Payload SDK initialization data — client_token for Payload.js Checkout/Secure Input SDK
     Payload(PayloadClientAuthenticationResponse),
@@ -3626,10 +3626,12 @@ pub struct DatatransClientAuthenticationResponse {
     pub transaction_id: Secret<String>,
 }
 
-/// Bambora's token for client-side Custom Checkout SDK initialization
+/// Bambora's merchant_id for client-side Custom Checkout SDK initialization.
+/// Bambora's Custom Checkout SDK is initialized client-side by loading the SDK script
+/// with the merchant_id — there is no server-side session initialization API.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BamboraClientAuthenticationResponse {
-    /// The tokenization token returned from Bambora's tokenization API
+    /// The merchant_id from Bambora connector config, used to initialize the Custom Checkout SDK
     pub token: Secret<String>,
 }
 

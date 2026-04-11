@@ -67,7 +67,7 @@ connector_id: bambora
 doc: docs/connectors/bambora.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Card
-flows: authorize, capture, get, proxy_authorize, refund, refund_get, void
+flows: authorize, capture, create_client_authentication_token, get, proxy_authorize, refund, refund_get, token_authorize, void
 examples_python: examples/bambora/bambora.py
 
 ## Bamboraapac
