@@ -126,7 +126,7 @@ pub fn build_proxy_setup_recurring_request() -> PaymentServiceProxySetupRecurrin
         "card_holder_name": "John Doe",  // Cardholder Information.
     },
     "customer": {
-        "connector_customer_id": "cust_probe_123",  // Customer ID in the connector system.
+        "connector_customer_id": "probe_customer_001",  // Customer ID in the connector system.
     },
     "address": {
         "billing_address": {

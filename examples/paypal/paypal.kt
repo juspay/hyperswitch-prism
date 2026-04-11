@@ -43,6 +43,7 @@ private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAutho
             minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
             currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         }
+        shippingCost = 0L  // Cost of shipping for the order.
         paymentMethodBuilder.apply {  // Payment method to be used.
             cardBuilder.apply {  // Generic card payment.
                 cardNumberBuilder.value = "4111111111111111"  // Card Identification.
@@ -344,6 +345,7 @@ fun proxyAuthorize(txnId: String) {
                 tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
             }
         }
+        shippingCost = 0L  // Cost of shipping for the order.
     }.build()
     val response = client.proxy_authorize(request)
     println("Status: ${response.status.name}")

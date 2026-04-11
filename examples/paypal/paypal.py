@@ -34,6 +34,7 @@ def _build_authorize_request(capture_method: str):
                 "minor_amount": 1000,  # Amount in minor units (e.g., 1000 = $10.00).
                 "currency": "USD"  # ISO 4217 currency code (e.g., "USD", "EUR").
             },
+            "shipping_cost": 0,  # Cost of shipping for the order.
             "payment_method": {  # Payment method to be used.
                 "card": {  # Generic card payment.
                     "card_number": {"value": "4111111111111111"},  # Card Identification.
@@ -162,7 +163,8 @@ def _build_proxy_authorize_request():
                     "expires_in_seconds": 3600,  # Expiration timestamp (seconds since epoch).
                     "token_type": "Bearer"  # Token type (e.g., "Bearer", "Basic").
                 }
-            }
+            },
+            "shipping_cost": 0  # Cost of shipping for the order.
         },
         payment_pb2.PaymentServiceProxyAuthorizeRequest(),
     )

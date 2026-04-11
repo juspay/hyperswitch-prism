@@ -83,10 +83,10 @@ impl PaymentMethodDataTypes for DefaultPCIHolder {
 }
 
 impl PaymentMethodDataTypes for VaultTokenHolder {
-    type Inner = String; //Token
+    type Inner = Secret<String>; //Token
 
     fn peek_inner(inner: &Self::Inner) -> &str {
-        inner
+        inner.peek()
     }
 
     fn is_cobadged_inner(_inner: &Self::Inner) -> Result<bool, IntegrationError> {

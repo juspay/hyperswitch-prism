@@ -305,7 +305,7 @@ fun proxySetupRecurring(txnId: String) {
             cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
         }
         customerBuilder.apply {
-            connectorCustomerId = "cust_probe_123"  // Customer ID in the connector system.
+            connectorCustomerId = "probe_customer_001"  // Customer ID in the connector system.
         }
         addressBuilder.apply {
             billingAddressBuilder.apply {

@@ -99,6 +99,7 @@
             "minor_amount": 1000,
             "currency": "USD"
           },
+          "shipping_cost": 0,
           "payment_method": {
             "card": {
               "card_number": "4111111111111111",
@@ -180,6 +181,7 @@
             "minor_amount": 1000,
             "currency": "USD"
           },
+          "shipping_cost": 0,
           "payment_method": {
             "eps": {}
           },
@@ -226,6 +228,7 @@
             "minor_amount": 1000,
             "currency": "USD"
           },
+          "shipping_cost": 0,
           "payment_method": {
             "giropay": {}
           },
@@ -276,6 +279,7 @@
             "minor_amount": 1000,
             "currency": "USD"
           },
+          "shipping_cost": 0,
           "payment_method": {
             "google_pay": {
               "type": "CARD",
@@ -335,6 +339,7 @@
             "minor_amount": 1000,
             "currency": "USD"
           },
+          "shipping_cost": 0,
           "payment_method": {
             "ideal": {}
           },
@@ -489,6 +494,7 @@
             "minor_amount": 1000,
             "currency": "USD"
           },
+          "shipping_cost": 0,
           "payment_method": {
             "paypal_redirect": {
               "email": "test@example.com"
@@ -631,6 +637,7 @@
             "minor_amount": 1000,
             "currency": "USD"
           },
+          "shipping_cost": 0,
           "payment_method": {
             "sofort": {}
           },
@@ -857,7 +864,7 @@
     "post_authenticate": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: reference_id — Missing required field: reference_id (order_id)"
+        "error": "Failed to obtain authentication type"
       }
     },
     "pre_authenticate": {
@@ -893,7 +900,8 @@
               "expires_in_seconds": 3600,
               "token_type": "Bearer"
             }
-          }
+          },
+          "shipping_cost": 0
         },
         "sample": {
           "url": "https://api-m.sandbox.paypal.com/v2/checkout/orders",

@@ -4321,6 +4321,7 @@ message PaymentServiceTokenAuthorizeRequest {
   // Send the connector order identifier here if an order was created before
   // authorize
   optional string connector_order_id = 22;
+  optional int64 shipping_cost = 23;    // Cost of shipping for the order
 }
 
 message PaymentServiceTokenSetupRecurringRequest {
@@ -4348,7 +4349,7 @@ message PaymentServiceProxyAuthorizeRequest {
   Money amount = 2;
   // Card proxy for vault-aliased payments (VGS, Basis Theory, Spreedly).
   // Real card values are substituted by the proxy before reaching the connector.
-  CardDetails card_proxy = 3;
+  ProxyCardDetails card_proxy = 3;
   optional Customer customer = 4;
   PaymentAddress address = 5;
   optional CaptureMethod capture_method = 6;
@@ -4376,13 +4377,14 @@ message PaymentServiceProxyAuthorizeRequest {
   // Send the connector order identifier here if an order was created before
   // authorize
   optional string connector_order_id = 26;
+  optional int64 shipping_cost = 27;    // Cost of shipping for the order
 }
 
 message PaymentServiceProxySetupRecurringRequest {
   string merchant_recurring_payment_id = 1;
   Money amount = 2;
   // Card proxy for vault-aliased payments.
-  CardDetails card_proxy = 3;
+  ProxyCardDetails card_proxy = 3;
   optional Customer customer = 4;
   PaymentAddress address = 5;
   optional string return_url = 6;

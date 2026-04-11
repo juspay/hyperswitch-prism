@@ -610,7 +610,7 @@
             "card_holder_name": "John Doe"
           },
           "customer": {
-            "connector_customer_id": "cust_probe_123"
+            "connector_customer_id": "probe_customer_001"
           },
           "address": {
             "billing_address": {}
@@ -629,7 +629,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"createCustomerPaymentProfileRequest\":{\"merchantAuthentication\":{\"name\":\"probe_user\",\"transactionKey\":\"probe_key\"},\"customerProfileId\":\"cust_probe_123\",\"paymentProfile\":{\"billTo\":{},\"payment\":{\"creditCard\":{\"cardNumber\":\"4111111111111111\",\"expirationDate\":\"2030-03\",\"cardCode\":\"123\"}}},\"validationMode\":\"testMode\"}}"
+          "body": "{\"createCustomerPaymentProfileRequest\":{\"merchantAuthentication\":{\"name\":\"probe_user\",\"transactionKey\":\"probe_key\"},\"customerProfileId\":\"probe_customer_001\",\"paymentProfile\":{\"billTo\":{},\"payment\":{\"creditCard\":{\"cardNumber\":\"4111111111111111\",\"expirationDate\":\"2030-03\",\"cardCode\":\"123\"}}},\"validationMode\":\"testMode\"}}"
         }
       }
     },

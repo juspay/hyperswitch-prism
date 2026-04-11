@@ -28,6 +28,7 @@ pub fn build_authorize_request(capture_method: &str) -> PaymentServiceAuthorizeR
         "minor_amount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
         "currency": "USD",  // ISO 4217 currency code (e.g., "USD", "EUR").
     },
+    "shipping_cost": 0,  // Cost of shipping for the order.
     "payment_method": {  // Payment method to be used.
         "payment_method": {
             "card": {  // Generic card payment.
@@ -150,6 +151,7 @@ pub fn build_proxy_authorize_request() -> PaymentServiceProxyAuthorizeRequest {
             "token_type": "Bearer",  // Token type (e.g., "Bearer", "Basic").
         },
     },
+    "shipping_cost": 0,  // Cost of shipping for the order.
     })).unwrap_or_default()
 }
 
