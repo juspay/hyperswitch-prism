@@ -5,8 +5,8 @@
 // Trustpay — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx trustpay.ts checkout_autocapture
 
-import { PaymentClient, MerchantAuthenticationClient, EventClient, RefundClient, types } from 'hyperswitch-prism';
-const { ConnectorConfig, ConnectorSpecificConfig, SdkOptions, Environment, AuthenticationType, CaptureMethod, CountryAlpha2, Currency } = types;
+import { PaymentClient, MerchantAuthenticationClient, EventClient, RecurringPaymentClient, RefundClient, types } from 'hyperswitch-prism';
+const { ConnectorConfig, ConnectorSpecificConfig, SdkOptions, Environment, AuthenticationType, CaptureMethod, CountryAlpha2, Currency, PaymentMethodType } = types;
 
 const _defaultConfig: ConnectorConfig = {
     options: {
@@ -143,6 +143,36 @@ function _buildProxyAuthorizeRequest(): PaymentServiceProxyAuthorizeRequest {
             "ipAddress": "1.2.3.4"  // Device Information.
         },
         "state": {
+            "accessToken": {  // Access token obtained from connector.
+                "token": {"value": "probe_access_token"},  // The token string.
+                "expiresInSeconds": 3600,  // Expiration timestamp (seconds since epoch).
+                "tokenType": "Bearer"  // Token type (e.g., "Bearer", "Basic").
+            }
+        }
+    };
+}
+
+function _buildRecurringChargeRequest(): RecurringPaymentServiceChargeRequest {
+    return {
+        "connectorRecurringPaymentId": {  // Reference to existing mandate.
+            "connectorMandateId": {  // mandate_id sent by the connector.
+                "connectorMandateId": "probe-mandate-123"
+            }
+        },
+        "amount": {  // Amount Information.
+            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        },
+        "paymentMethod": {  // Optional payment Method Information (for network transaction flows).
+            "token": {  // Payment tokens.
+                "token": {"value": "probe_pm_token"}  // The token string representing a payment method.
+            }
+        },
+        "returnUrl": "https://example.com/recurring-return",
+        "connectorCustomerId": "cust_probe_123",
+        "paymentMethodType": PaymentMethodType.PAY_PAL,
+        "offSession": true,  // Behavioral Flags and Preferences.
+        "state": {  // State Information.
             "accessToken": {  // Access token obtained from connector.
                 "token": {"value": "probe_access_token"},  // The token string.
                 "expiresInSeconds": 3600,  // Expiration timestamp (seconds since epoch).
@@ -310,6 +340,15 @@ async function proxyAuthorize(merchantTransactionId: string, config: ConnectorCo
     return { status: proxyResponse.status };
 }
 
+// Flow: RecurringPaymentService.Charge
+async function recurringCharge(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<RecurringPaymentServiceChargeResponse> {
+    const recurringPaymentClient = new RecurringPaymentClient(config);
+
+    const recurringResponse = await recurringPaymentClient.charge(_buildRecurringChargeRequest());
+
+    return { status: recurringResponse.status };
+}
+
 // Flow: PaymentService.Refund
 async function refund(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<RefundResponse> {
     const paymentClient = new PaymentClient(config);
@@ -331,7 +370,7 @@ async function refundGet(merchantTransactionId: string, config: ConnectorConfig 
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processRefund, processGetPayment, authorize, createOrder, createServerAuthenticationToken, get, handleEvent, proxyAuthorize, refund, refundGet, _buildAuthorizeRequest, _buildCreateOrderRequest, _buildCreateServerAuthenticationTokenRequest, _buildGetRequest, _buildHandleEventRequest, _buildProxyAuthorizeRequest, _buildRefundRequest, _buildRefundGetRequest
+    processCheckoutAutocapture, processRefund, processGetPayment, authorize, createOrder, createServerAuthenticationToken, get, handleEvent, proxyAuthorize, recurringCharge, refund, refundGet, _buildAuthorizeRequest, _buildCreateOrderRequest, _buildCreateServerAuthenticationTokenRequest, _buildGetRequest, _buildHandleEventRequest, _buildProxyAuthorizeRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest
 };
 
 // CLI runner

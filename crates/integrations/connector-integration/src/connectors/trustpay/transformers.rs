@@ -1807,6 +1807,172 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
+// ===== REPEAT PAYMENT (MIT) FLOW IMPLEMENTATION =====
+
+/// TrustPay MIT uses the same response structure as regular payments
+pub type TrustpayRepeatPaymentResponse = TrustpayPaymentsResponse;
+
+/// TrustPay MIT request structure - uses CardToken for stored card payments
+/// This is used for Recurring Subsequent payments as per TrustPay spec
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "PascalCase")]
+pub struct TrustpayRepeatPaymentRequest {
+    pub payment_method: String,
+    pub merchant_identification: MerchantIdentification,
+    pub payment_information: TrustpayRepeatPaymentInformation,
+    pub callback_urls: CallbackURLs,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "PascalCase")]
+pub struct TrustpayRepeatPaymentInformation {
+    pub amount: Amount,
+    pub references: TrustpayRepeatPaymentReferences,
+    pub card_transaction: TrustpayRepeatCardTransaction,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "PascalCase")]
+pub struct TrustpayRepeatPaymentReferences {
+    pub merchant_reference: String,
+    #[serde(rename = "OriginalPaymentRequestId")]
+    pub original_payment_request_id: String,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "PascalCase")]
+pub struct TrustpayRepeatCardTransaction {
+    pub payment_type: String,
+    pub recurring: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card: Option<TrustpayRepeatCardInfo>,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "PascalCase")]
+pub struct TrustpayRepeatCardInfo {
+    pub token: String,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        TrustpayRouterData<
+            RouterDataV2<
+                domain_types::connector_flow::RepeatPayment,
+                PaymentFlowData,
+                domain_types::connector_types::RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for TrustpayRepeatPaymentRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: TrustpayRouterData<
+            RouterDataV2<
+                domain_types::connector_flow::RepeatPayment,
+                PaymentFlowData,
+                domain_types::connector_types::RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let amount = item
+            .connector
+            .amount_converter
+            .convert(
+                item.router_data.request.minor_amount,
+                item.router_data.request.currency,
+            )
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: Default::default(),
+            })?;
+
+        let auth = TrustpayAuthType::try_from(&item.router_data.connector_config).change_context(
+            IntegrationError::FailedToObtainAuthType {
+                context: Default::default(),
+            },
+        )?;
+
+        let return_url = item.router_data.request.get_router_return_url()?;
+
+        // Extract mandate token from mandate_reference
+        let mandate_token = match &item.router_data.request.mandate_reference {
+            domain_types::connector_types::MandateReferenceId::ConnectorMandateId(
+                connector_mandate_ref,
+            ) => connector_mandate_ref
+                .get_connector_mandate_id()
+                .ok_or_else(|| {
+                    error_stack::report!(IntegrationError::MissingRequiredField {
+                        field_name: "connector_mandate_id",
+                        context: Default::default(),
+                    })
+                })?,
+            domain_types::connector_types::MandateReferenceId::NetworkMandateId(_) => {
+                return Err(error_stack::report!(IntegrationError::NotImplemented(
+                    "Network mandate ID not supported for TrustPay MIT".to_string(),
+                    Default::default(),
+                )));
+            }
+            domain_types::connector_types::MandateReferenceId::NetworkTokenWithNTI(_) => {
+                return Err(error_stack::report!(IntegrationError::NotImplemented(
+                    "Network token with NTI not supported for TrustPay MIT".to_string(),
+                    Default::default(),
+                )));
+            }
+        };
+
+        // Get the original payment request ID from mandate_reference or connector_mandate_id
+        // TrustPay requires OriginalPaymentRequestId for recurring subsequent payments
+        let original_payment_request_id = item
+            .router_data
+            .request
+            .connector_mandate_id()
+            .unwrap_or_default();
+
+        // Build the MIT request using Card token per TrustPay spec
+        Ok(Self {
+            payment_method: "Card".to_string(),
+            merchant_identification: MerchantIdentification {
+                project_id: auth.project_id,
+            },
+            payment_information: TrustpayRepeatPaymentInformation {
+                amount: Amount {
+                    amount,
+                    currency: item.router_data.request.currency.to_string(),
+                },
+                references: TrustpayRepeatPaymentReferences {
+                    merchant_reference: item
+                        .router_data
+                        .resource_common_data
+                        .connector_request_reference_id
+                        .clone(),
+                    original_payment_request_id,
+                },
+                card_transaction: TrustpayRepeatCardTransaction {
+                    payment_type: "Purchase".to_string(),
+                    recurring: true,
+                    card: Some(TrustpayRepeatCardInfo {
+                        token: mandate_token,
+                    }),
+                },
+            },
+            callback_urls: CallbackURLs {
+                success: format!("{return_url}?status=SuccessOk"),
+                cancel: return_url.clone(),
+                error: return_url,
+            },
+        })
+    }
+}
+
+// Note: Response transformation for RepeatPayment uses TrustpayPaymentsResponse
+// which already has a TryFrom implementation above (line ~538)
+// TrustpayRepeatPaymentResponse is a type alias, so no additional implementation needed
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum RefundResponse {

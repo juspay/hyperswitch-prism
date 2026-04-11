@@ -984,7 +984,46 @@
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "connector_recurring_payment_id": {
+            "mandate_id_type": {
+              "connector_mandate_id": {
+                "connector_mandate_id": "probe-mandate-123"
+              }
+            }
+          },
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "token": {
+              "token": "probe_pm_token"
+            }
+          },
+          "return_url": "https://example.com/recurring-return",
+          "connector_customer_id": "cust_probe_123",
+          "payment_method_type": "PAY_PAL",
+          "off_session": true,
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://aapi.trustpay.eu/api/Payments/Payment",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"PaymentMethod\":\"Card\",\"MerchantIdentification\":{\"ProjectId\":\"probe_id\"},\"PaymentInformation\":{\"Amount\":{\"Amount\":\"10.00\",\"Currency\":\"USD\"},\"References\":{\"MerchantReference\":\"\",\"OriginalPaymentRequestId\":\"probe-mandate-123\"},\"CardTransaction\":{\"PaymentType\":\"Purchase\",\"Recurring\":true,\"Card\":{\"Token\":\"probe-mandate-123\"}}},\"CallbackUrls\":{\"success\":\"https://example.com/recurring-return?status=SuccessOk\",\"cancel\":\"https://example.com/recurring-return\",\"error\":\"https://example.com/recurring-return\"}}"
+        }
       }
     },
     "recurring_revoke": {
