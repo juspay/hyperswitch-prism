@@ -10051,6 +10051,19 @@ fn convert_connector_specific_to_grpc(
                 ),
             }
         }
+                ConnectorSpecificClientAuthenticationResponse::Peachpayments(peachpayments_data) => {
+            grpc_api_types::payments::ConnectorSpecificClientAuthenticationResponse {
+                connector: Some(
+                    grpc_api_types::payments::connector_specific_client_authentication_response::Connector::Peachpayments(
+                        grpc_api_types::payments::PeachpaymentsClientAuthenticationResponse {
+                            access_token: Some(peachpayments_data.access_token),
+                            token_type: peachpayments_data.token_type,
+                            expires_in: peachpayments_data.expires_in,
+                        },
+                    ),
+                ),
+            }
+        }
     };
     grpc_api_types::payments::ClientAuthenticationTokenData {
         sdk_type: Some(

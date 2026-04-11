@@ -2,7 +2,7 @@ use common_enums::Currency;
 use common_utils::MinorUnit;
 use domain_types::payment_method_data::{PaymentMethodDataTypes, RawCardNumber};
 use hyperswitch_masking::Secret;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
 #[derive(Debug, Serialize, Clone)]
@@ -243,4 +243,22 @@ pub struct PeachpaymentsCofData {
 #[serde(rename_all = "camelCase")]
 pub struct PeachpaymentsMerchantInformation {
     pub client_merchant_reference_id: Secret<String>,
+}
+
+/// OAuth token request for Peachpayments Embedded Checkout.
+/// POST /api/oauth/token — generates an access token for client-side SDK.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PeachpaymentsClientAuthRequest {
+    pub client_id: Secret<String>,
+    pub client_secret: Secret<String>,
+    pub merchant_id: Secret<String>,
+}
+
+/// OAuth token response from Peachpayments Authentication API.
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PeachpaymentsClientAuthResponse {
+    pub access_token: Secret<String>,
+    pub expires_in: Option<i64>,
+    pub token_type: Option<String>,
 }

@@ -432,7 +432,27 @@
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_client_session_id": "probe_sdk_session_001",
+          "domain_context": {
+            "payment": {
+              "amount": {
+                "minor_amount": 1000,
+                "currency": "USD"
+              }
+            }
+          }
+        },
+        "sample": {
+          "url": "https://apitest.bankint.ppay.io/v/1/api/oauth/token",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"clientId\":\"probe_key\",\"clientSecret\":\"probe_merchant_ref_001\",\"merchantId\":\"probe_secret\"}"
+        }
       }
     },
     "create_customer": {

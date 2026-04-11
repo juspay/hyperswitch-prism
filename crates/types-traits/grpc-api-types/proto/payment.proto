@@ -1558,6 +1558,7 @@ message ConnectorSpecificClientAuthenticationResponse {
     MultisafepayClientAuthenticationResponse multisafepay = 23;
     NexinetsClientAuthenticationResponse nexinets = 24;
     NexixpayClientAuthenticationResponse nexixpay = 25;
+    PeachpaymentsClientAuthenticationResponse peachpayments = 26;
   }
 }
 
@@ -1689,6 +1690,16 @@ message NexinetsClientAuthenticationResponse {
 message NexixpayClientAuthenticationResponse {
   SecretString security_token = 1;
   string hosted_page = 2;
+}
+
+// Peachpayments SDK initialization data — access_token for Embedded Checkout initialization
+message PeachpaymentsClientAuthenticationResponse {
+  // The OAuth access token for client-side Embedded Checkout API calls
+  SecretString access_token = 1;
+  // The token type (e.g., "Bearer")
+  optional string token_type = 2;
+  // The number of seconds until the token expires
+  optional int64 expires_in = 3;
 }
 
 // Stripe SDK initialization data — client_secret for stripe.confirmPayment()
