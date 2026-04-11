@@ -1,0 +1,20 @@
+version: "3.8"
+
+services:
+  payment-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    platform: linux/arm64
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - CYBERSOURCE_API_KEY=${CYBERSOURCE_API_KEY:-}
+      - CYBERSOURCE_MERCHANT_ACCOUNT=${CYBERSOURCE_MERCHANT_ACCOUNT:-}
+      - CYBERSOURCE_API_SECRET=${CYBERSOURCE_API_SECRET:-}
+      - PAYPAL_CLIENT_ID=${PAYPAL_CLIENT_ID:-}
+      - PAYPAL_CLIENT_SECRET=${PAYPAL_CLIENT_SECRET:-}
+      - ADYEN_API_KEY=${ADYEN_API_KEY:-}
+      - ADYEN_MERCHANT_ACCOUNT=${ADYEN_MERCHANT_ACCOUNT:-}
+    restart: unless-stopped
