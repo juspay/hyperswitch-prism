@@ -188,7 +188,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Wero | x |
 | Affirm | x |
 | Afterpay | x |
-| Klarna | x |
+| Klarna | ✓ |
 | UPI Collect | x |
 | UPI Intent | x |
 | UPI QR | x |
@@ -277,6 +277,15 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 ```python
 "payment_method": {
     "ideal": {
+    }
+}
+```
+
+##### Klarna
+
+```python
+"payment_method": {
+    "klarna": {  # Klarna - Swedish BNPL service.
     }
 }
 ```
