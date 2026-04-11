@@ -13,8 +13,8 @@ use integration_tests::harness::{
     scenario_api::{
         build_grpcurl_request_from_payload, do_assertion,
         execute_grpcurl_request_from_payload_with_trace, get_the_assertion_for_connector,
-        get_the_grpc_req_for_connector, run_test, DEFAULT_CONNECTOR, DEFAULT_ENDPOINT,
-        DEFAULT_SCENARIO, DEFAULT_SUITE,
+        get_the_grpc_req_for_connector, normalize_grpcurl_request_json, run_test,
+        DEFAULT_CONNECTOR, DEFAULT_ENDPOINT, DEFAULT_SCENARIO, DEFAULT_SUITE,
     },
     scenario_loader::load_suite_scenarios,
 };
@@ -127,7 +127,7 @@ fn main() {
         }
     };
 
-    if let Err(error) = resolve_auto_generate(&mut grpc_req) {
+    if let Err(error) = resolve_auto_generate(&mut grpc_req, connector) {
         write_report_entry(
             args.report,
             suite,
@@ -151,6 +151,9 @@ fn main() {
     }
 
     let (pm, pmt) = extract_pm_and_pmt(Some(&grpc_req));
+
+    // Normalise scenario JSON to proto-native field names and shapes for grpcurl.
+    let grpc_req = normalize_grpcurl_request_json(connector, suite, scenario, grpc_req);
 
     if let Err(error) = run_test(Some(suite), Some(scenario), Some(connector)) {
         write_report_entry(
@@ -578,7 +581,7 @@ mod tests {
     fn parses_named_flags() {
         let args = vec![
             "--suite",
-            "authorize",
+            "PaymentService/Authorize",
             "--scenario",
             "no3ds_auto_capture_credit_card",
             "--connector",
@@ -590,7 +593,7 @@ mod tests {
         .map(str::to_string);
 
         let parsed = parse_args(args).expect("args should parse");
-        assert_eq!(parsed.suite.as_deref(), Some("authorize"));
+        assert_eq!(parsed.suite.as_deref(), Some("PaymentService/Authorize"));
         assert_eq!(
             parsed.scenario.as_deref(),
             Some("no3ds_auto_capture_credit_card")
@@ -601,12 +604,16 @@ mod tests {
 
     #[test]
     fn parses_positionals() {
-        let args = vec!["authorize", "no3ds_manual_capture_credit_card", "adyen"]
-            .into_iter()
-            .map(str::to_string);
+        let args = vec![
+            "PaymentService/Authorize",
+            "no3ds_manual_capture_credit_card",
+            "adyen",
+        ]
+        .into_iter()
+        .map(str::to_string);
 
         let parsed = parse_args(args).expect("args should parse");
-        assert_eq!(parsed.suite.as_deref(), Some("authorize"));
+        assert_eq!(parsed.suite.as_deref(), Some("PaymentService/Authorize"));
         assert_eq!(
             parsed.scenario.as_deref(),
             Some("no3ds_manual_capture_credit_card")
@@ -618,7 +625,7 @@ mod tests {
     fn parses_tls_and_endpoint_flags() {
         let args = vec![
             "--suite",
-            "authorize",
+            "PaymentService/Authorize",
             "--scenario",
             "no3ds_auto_capture_credit_card",
             "--connector",
@@ -663,7 +670,7 @@ mod tests {
 
     #[test]
     fn parses_report_flag() {
-        let args = vec!["--suite", "authorize", "--report"]
+        let args = vec!["--suite", "PaymentService/Authorize", "--report"]
             .into_iter()
             .map(str::to_string);
 

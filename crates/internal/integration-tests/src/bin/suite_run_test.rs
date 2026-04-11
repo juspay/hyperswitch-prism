@@ -487,7 +487,7 @@ fn print_grpc_interface_coverage() {
 /// Prints usage/help text for suite runner.
 fn print_usage() {
     eprintln!(
-        "Usage:\n  cargo run -p integration-tests --bin suite_run_test -- --suite <suite> [--connector <name>] [options]\n  cargo run -p integration-tests --bin suite_run_test -- --all [--connector <name>] [options]\n  cargo run -p integration-tests --bin suite_run_test -- --all-connectors [options]\n  cargo run -p integration-tests --bin suite_run_test -- <suite>\n\nOptions:\n  --endpoint <host:port>   gRPC server endpoint\n  --creds-file <path>      Connector credentials file\n  --merchant-id <id>       Merchant ID\n  --tenant-id <id>         Tenant ID\n  --report                 Generate report.json and test_report/ markdown files\n  --tls                    Use TLS instead of plaintext\n\nBehavior:\n  - --suite: Runs all scenarios from <suite>_suite/scenario.json\n  - --all: Runs all suites supported by the selected connector\n  - --all-connectors: Runs all suites for all connectors (zero args needed)\n  - Report files are generated only when --report is passed\n  - Fails with exit code 1 if any scenario fails"
+        "Usage:\n  cargo run -p integration-tests --bin suite_run_test -- --suite <suite> [--connector <name>] [options]\n  cargo run -p integration-tests --bin suite_run_test -- --all [--connector <name>] [options]\n  cargo run -p integration-tests --bin suite_run_test -- --all-connectors [options]\n  cargo run -p integration-tests --bin suite_run_test -- <suite>\n\nOptions:\n  --endpoint <host:port>   gRPC server endpoint\n  --creds-file <path>      Connector credentials file\n  --merchant-id <id>       Merchant ID\n  --tenant-id <id>         Tenant ID\n  --report                 Generate report.json and test_report/ markdown files\n  --tls                    Use TLS instead of plaintext\n\nBehavior:\n  - --suite: Runs all scenarios from the suite's scenario.json\n  - --all: Runs all suites supported by the selected connector\n  - --all-connectors: Runs all suites for all connectors (zero args needed)\n  - Report files are generated only when --report is passed\n  - Fails with exit code 1 if any scenario fails"
     );
 }
 
@@ -498,20 +498,27 @@ mod tests {
 
     #[test]
     fn parses_suite_and_connector() {
-        let args = vec!["--suite", "authorize", "--connector", "stripe"]
-            .into_iter()
-            .map(str::to_string);
+        let args = vec![
+            "--suite",
+            "PaymentService/Authorize",
+            "--connector",
+            "stripe",
+        ]
+        .into_iter()
+        .map(str::to_string);
 
         let parsed = parse_args(args).expect("args should parse");
-        assert_eq!(parsed.suite.as_deref(), Some("authorize"));
+        assert_eq!(parsed.suite.as_deref(), Some("PaymentService/Authorize"));
         assert_eq!(parsed.connector.as_deref(), Some("stripe"));
     }
 
     #[test]
     fn parses_positional_suite() {
-        let args = vec!["authorize"].into_iter().map(str::to_string);
+        let args = vec!["PaymentService/Authorize"]
+            .into_iter()
+            .map(str::to_string);
         let parsed = parse_args(args).expect("args should parse");
-        assert_eq!(parsed.suite.as_deref(), Some("authorize"));
+        assert_eq!(parsed.suite.as_deref(), Some("PaymentService/Authorize"));
     }
 
     #[test]
@@ -536,7 +543,7 @@ mod tests {
 
     #[test]
     fn parses_report_flag() {
-        let args = vec!["--suite", "authorize", "--report"]
+        let args = vec!["--suite", "PaymentService/Authorize", "--report"]
             .into_iter()
             .map(str::to_string);
         let parsed = parse_args(args).expect("args should parse");

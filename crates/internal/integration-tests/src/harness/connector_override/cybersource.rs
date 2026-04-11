@@ -18,7 +18,7 @@ impl ConnectorOverride for CybersourceConnectorOverride {
     }
 
     fn transform_response(&self, suite: &str, _scenario: &str, response: &mut Value) {
-        if suite != "authenticate" {
+        if suite != "PaymentMethodAuthenticationService/Authenticate" {
             return;
         }
 

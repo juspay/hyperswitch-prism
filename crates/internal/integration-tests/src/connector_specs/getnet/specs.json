@@ -1,12 +1,12 @@
 {
   "connector": "getnet",
   "supported_suites": [
-    "authorize",
-    "capture",
-    "get",
-    "refund",
-    "refund_sync",
-    "server_authentication_token",
-    "void"
+    "PaymentService/Authorize",
+    "PaymentService/Capture",
+    "PaymentService/Get",
+    "PaymentService/Refund",
+    "RefundService/Get",
+    "MerchantAuthenticationService/CreateServerAuthenticationToken",
+    "PaymentService/Void"
   ]
 }

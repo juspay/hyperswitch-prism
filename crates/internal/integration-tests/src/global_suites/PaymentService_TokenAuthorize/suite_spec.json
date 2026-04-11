@@ -1,0 +1,16 @@
+{
+  "suite": "PaymentService/TokenAuthorize",
+  "suite_type": "dependent",
+  "depends_on": [
+    "MerchantAuthenticationService/CreateServerAuthenticationToken",
+    "CustomerService/Create",
+    {
+      "suite": "PaymentMethodService/Tokenize",
+      "context_map": {
+        "connector_token.value": "res.payment_method_token"
+      }
+    }
+  ],
+  "dependency_scope": "scenario",
+  "strict_dependencies": false
+}

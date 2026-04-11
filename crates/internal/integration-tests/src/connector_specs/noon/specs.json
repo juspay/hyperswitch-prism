@@ -1,14 +1,14 @@
 {
   "connector": "noon",
   "supported_suites": [
-    "authorize",
-    "capture",
-    "get",
-    "recurring_charge",
-    "refund",
-    "refund_sync",
-    "revoke_mandate",
-    "setup_recurring",
-    "void"
+    "PaymentService/Authorize",
+    "PaymentService/Capture",
+    "PaymentService/Get",
+    "RecurringPaymentService/Charge",
+    "PaymentService/Refund",
+    "RefundService/Get",
+    "RecurringPaymentService/Revoke",
+    "PaymentService/SetupRecurring",
+    "PaymentService/Void"
   ]
 }

@@ -1,13 +1,13 @@
 {
   "connector": "payload",
   "supported_suites": [
-    "authorize",
-    "capture",
-    "get",
-    "recurring_charge",
-    "refund",
-    "refund_sync",
-    "setup_recurring",
-    "void"
+    "PaymentService/Authorize",
+    "PaymentService/Capture",
+    "PaymentService/Get",
+    "RecurringPaymentService/Charge",
+    "PaymentService/Refund",
+    "RefundService/Get",
+    "PaymentService/SetupRecurring",
+    "PaymentService/Void"
   ]
 }

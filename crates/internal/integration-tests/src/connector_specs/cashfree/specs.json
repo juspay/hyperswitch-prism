@@ -1,7 +1,7 @@
 {
   "connector": "cashfree",
   "supported_suites": [
-    "authorize",
-    "create_order"
+    "PaymentService/Authorize",
+    "PaymentService/CreateOrder"
   ]
 }

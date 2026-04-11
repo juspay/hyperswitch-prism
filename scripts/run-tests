@@ -59,7 +59,7 @@ header()  { echo -e "\n${BOLD}$*${NC}"; }
 UCS_CONFIG_DIR="${HOME}/.config/integration-tests"
 SETUP_SENTINEL="${UCS_CONFIG_DIR}/setup.done"
 GRPC_PID_FILE="${REPO_ROOT}/.grpc-server.pid"
-GRPC_PORT="${GRPC_PORT:-50051}"
+GRPC_PORT="${GRPC_PORT:-8000}"
 GRPC_HOST="${GRPC_HOST:-0.0.0.0}"
 
 # ── Parse flags ────────────────────────────────────────────────────────────────
@@ -151,8 +151,8 @@ fi
 SERVER_MANAGED=false
 
 start_grpc_server() {
-  info "Building grpc-server (release)..."
-  cargo build -p grpc-server --release \
+  info "Building grpc-server (debug)..."
+  cargo build -p grpc-server \
     --manifest-path "${REPO_ROOT}/Cargo.toml" 2>&1
 
   info "Starting grpc-server on ${GRPC_HOST}:${GRPC_PORT}..."
@@ -160,7 +160,7 @@ start_grpc_server() {
   CS__SERVER__PORT="${GRPC_PORT}" \
   CS__COMMON__ENVIRONMENT=development \
   RUST_LOG=error \
-    "${REPO_ROOT}/target/release/grpc-server" > /dev/null 2>&1 &
+    "${REPO_ROOT}/target/debug/grpc-server" > /dev/null 2>&1 &
   echo $! > "${GRPC_PID_FILE}"
 
   info "Waiting for grpc-server to be ready on port ${GRPC_PORT}..."

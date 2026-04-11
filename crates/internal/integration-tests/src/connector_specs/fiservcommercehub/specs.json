@@ -1,11 +1,11 @@
 {
   "connector": "fiservcommercehub",
   "supported_suites": [
-    "authorize",
-    "get",
-    "refund",
-    "refund_sync",
-    "server_authentication_token",
-    "void"
+    "PaymentService/Authorize",
+    "PaymentService/Get",
+    "PaymentService/Refund",
+    "RefundService/Get",
+    "MerchantAuthenticationService/CreateServerAuthenticationToken",
+    "PaymentService/Void"
   ]
 }

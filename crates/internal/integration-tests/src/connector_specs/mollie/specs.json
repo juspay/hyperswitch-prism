@@ -1,12 +1,12 @@
 {
   "connector": "mollie",
   "supported_suites": [
-    "authorize",
-    "capture",
-    "get",
-    "refund",
-    "refund_sync",
-    "tokenize_payment_method",
-    "void"
+    "PaymentService/Authorize",
+    "PaymentService/Capture",
+    "PaymentService/Get",
+    "PaymentService/Refund",
+    "RefundService/Get",
+    "PaymentMethodService/Tokenize",
+    "PaymentService/Void"
   ]
 }

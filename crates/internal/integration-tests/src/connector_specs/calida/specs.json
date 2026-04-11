@@ -1,7 +1,7 @@
 {
   "connector": "calida",
   "supported_suites": [
-    "authorize",
-    "get"
+    "PaymentService/Authorize",
+    "PaymentService/Get"
   ]
 }

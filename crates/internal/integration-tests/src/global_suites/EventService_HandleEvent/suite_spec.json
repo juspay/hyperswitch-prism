@@ -1,0 +1,7 @@
+{
+  "suite": "EventService/HandleEvent",
+  "suite_type": "independent",
+  "depends_on": [],
+  "strict_dependencies": false,
+  "grpc_method": "types.EventService/HandleEvent"
+}

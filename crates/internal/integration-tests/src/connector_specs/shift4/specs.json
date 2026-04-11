@@ -1,12 +1,12 @@
 {
   "connector": "shift4",
   "supported_suites": [
-    "authorize",
-    "capture",
-    "create_customer",
-    "get",
-    "recurring_charge",
-    "refund",
-    "refund_sync"
+    "PaymentService/Authorize",
+    "PaymentService/Capture",
+    "CustomerService/Create",
+    "PaymentService/Get",
+    "RecurringPaymentService/Charge",
+    "PaymentService/Refund",
+    "RefundService/Get"
   ]
 }

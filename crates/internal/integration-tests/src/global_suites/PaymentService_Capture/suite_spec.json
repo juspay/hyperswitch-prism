@@ -1,0 +1,20 @@
+{
+  "suite": "PaymentService/Capture",
+  "suite_type": "dependent",
+  "depends_on": [
+    "MerchantAuthenticationService/CreateServerAuthenticationToken",
+    "MerchantAuthenticationService/CreateServerSessionAuthenticationToken",
+    "CustomerService/Create",
+    "PaymentMethodService/Tokenize",
+    {
+      "suite": "PaymentService/Authorize",
+      "scenario": "no3ds_manual_capture_credit_card",
+      "context_map": {
+        "amount_to_capture.minor_amount": "req.amount.minor_amount",
+        "amount_to_capture.currency": "req.amount.currency"
+      }
+    }
+  ],
+  "dependency_scope": "scenario",
+  "strict_dependencies": false
+}

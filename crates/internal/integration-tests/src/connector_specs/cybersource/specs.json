@@ -1,17 +1,17 @@
 {
   "connector": "cybersource",
   "supported_suites": [
-    "authenticate",
-    "authorize",
-    "capture",
-    "client_authentication_token",
-    "get",
-    "post_authenticate",
-    "pre_authenticate",
-    "recurring_charge",
-    "refund",
-    "refund_sync",
-    "setup_recurring",
-    "void"
+    "PaymentMethodAuthenticationService/Authenticate",
+    "PaymentService/Authorize",
+    "PaymentService/Capture",
+    "MerchantAuthenticationService/CreateClientAuthenticationToken",
+    "PaymentService/Get",
+    "PaymentMethodAuthenticationService/PostAuthenticate",
+    "PaymentMethodAuthenticationService/PreAuthenticate",
+    "RecurringPaymentService/Charge",
+    "PaymentService/Refund",
+    "RefundService/Get",
+    "PaymentService/SetupRecurring",
+    "PaymentService/Void"
   ]
 }

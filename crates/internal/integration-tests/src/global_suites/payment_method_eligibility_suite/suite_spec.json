@@ -1,6 +1,0 @@
-{
-  "suite": "payment_method_eligibility",
-  "suite_type": "independent",
-  "depends_on": [],
-  "strict_dependencies": false
-}

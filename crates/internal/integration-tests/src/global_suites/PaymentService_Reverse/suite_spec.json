@@ -1,0 +1,10 @@
+{
+  "suite": "PaymentService/Reverse",
+  "suite_type": "dependent",
+  "depends_on": [
+    "MerchantAuthenticationService/CreateServerSessionAuthenticationToken",
+    "PaymentService/Authorize",
+    "PaymentService/Capture"
+  ],
+  "strict_dependencies": true
+}

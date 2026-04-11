@@ -15,7 +15,7 @@
 //! the flow-to-suite mapping in `flow_to_suites` (map it to `None` instead).
 //!
 //! **Phase 3 — testable suite report**
-//! Derives the known suite list directly from `grpc_method_for_suite` in
+//! Derives the known suite list directly from `all_known_suites` in
 //! `scenario_api.rs` (the single source of truth). For every suite found there,
 //! reports whether it has a `scenario.json` and at least one connector declaring
 //! support. Suites missing either are printed as informational gaps (does not
@@ -60,29 +60,35 @@ const IGNORE_SERVICES: &[&str] = &["PayoutService", "DisputeService"];
 fn flow_to_suites(flow: &str) -> Option<&'static [&'static str]> {
     match flow {
         // Core payment flows
-        "Authorize" => Some(&["authorize"]),
-        "PSync" => Some(&["get"]),
-        "Capture" => Some(&["capture"]),
-        "Void" => Some(&["void"]),
-        "Refund" => Some(&["refund"]),
-        "RSync" => Some(&["refund_sync"]),
+        "Authorize" => Some(&["PaymentService/Authorize"]),
+        "PSync" => Some(&["PaymentService/Get"]),
+        "Capture" => Some(&["PaymentService/Capture"]),
+        "Void" => Some(&["PaymentService/Void"]),
+        "Refund" => Some(&["PaymentService/Refund"]),
+        "RSync" => Some(&["RefundService/Get"]),
         // Recurring/mandate flows
-        "SetupMandate" => Some(&["setup_recurring"]),
-        "RepeatPayment" => Some(&["recurring_charge"]),
-        "MandateRevoke" => Some(&["revoke_mandate"]),
+        "SetupMandate" => Some(&["PaymentService/SetupRecurring"]),
+        "RepeatPayment" => Some(&["RecurringPaymentService/Charge"]),
+        "MandateRevoke" => Some(&["RecurringPaymentService/Revoke"]),
         // Customer/token flows
-        "CreateConnectorCustomer" => Some(&["create_customer"]),
-        "PaymentMethodToken" => Some(&["tokenize_payment_method"]),
+        "CreateConnectorCustomer" => Some(&["CustomerService/Create"]),
+        "PaymentMethodToken" => Some(&["PaymentMethodService/Tokenize"]),
         // Authentication flows (now have test suites!)
-        "ServerAuthenticationToken" => Some(&["server_authentication_token"]),
-        "ClientAuthenticationToken" => Some(&["client_authentication_token"]),
-        "ServerSessionAuthenticationToken" => Some(&["server_session_authentication_token"]),
-        "PreAuthenticate" => Some(&["pre_authenticate"]),
-        "Authenticate" => Some(&["authenticate"]),
-        "PostAuthenticate" => Some(&["post_authenticate"]),
+        "ServerAuthenticationToken" => {
+            Some(&["MerchantAuthenticationService/CreateServerAuthenticationToken"])
+        }
+        "ClientAuthenticationToken" => {
+            Some(&["MerchantAuthenticationService/CreateClientAuthenticationToken"])
+        }
+        "ServerSessionAuthenticationToken" => {
+            Some(&["MerchantAuthenticationService/CreateServerSessionAuthenticationToken"])
+        }
+        "PreAuthenticate" => Some(&["PaymentMethodAuthenticationService/PreAuthenticate"]),
+        "Authenticate" => Some(&["PaymentMethodAuthenticationService/Authenticate"]),
+        "PostAuthenticate" => Some(&["PaymentMethodAuthenticationService/PostAuthenticate"]),
         // Advanced flows (now have test suites!)
-        "CreateOrder" => Some(&["create_order"]),
-        "IncrementalAuthorization" => Some(&["incremental_authorization"]),
+        "CreateOrder" => Some(&["PaymentService/CreateOrder"]),
+        "IncrementalAuthorization" => Some(&["PaymentService/IncrementalAuthorization"]),
         // Dispute flows — out of scope (no test suites yet).
         "Accept" => None,
         "DefendDispute" => None,
@@ -171,34 +177,37 @@ fn extract_balanced_parens(src: &str, start: usize) -> &str {
     &src[start..]
 }
 
-/// Derive the known suite list from `grpc_method_for_suite` in `scenario_api.rs`.
+/// Derive the known suite list from `all_known_suites` in `scenario_api.rs`.
 ///
-/// Parses every `"suite_name" => "types.Service/Method"` arm in the match block
-/// and returns them sorted, excluding suites whose service is in `IGNORE_SERVICES`.
+/// Parses every string literal in the `all_known_suites()` array and returns
+/// them sorted, excluding suites whose service is in `IGNORE_SERVICES`.
 ///
 /// This is the single source of truth — no hardcoded list needed here.
 fn extract_suites_from_scenario_api(scenario_api_path: &PathBuf) -> Vec<String> {
     let src = fs::read_to_string(scenario_api_path).expect("failed to read scenario_api.rs");
 
-    // Match arms of the form:
-    //   "suite_name" => "types.ServiceName/Method"
-    // or multi-line:
-    //   "suite_name" => {
-    //       "types.ServiceName/Method"
-    //   }
-    let arm_re =
-        Regex::new(r#""([a-z_]+)"\s*=>\s*\{?\s*"types\.([A-Za-z]+)/[A-Za-z]+"\s*\}?"#).unwrap();
+    // Find the all_known_suites function and parse string literals from it.
+    let suite_re = Regex::new(r#""([A-Za-z]+/[A-Za-z]+)""#).unwrap();
 
     let mut suites: BTreeSet<String> = BTreeSet::new();
 
-    for caps in arm_re.captures_iter(&src) {
-        let suite = caps[1].to_string();
-        let service = caps[2].to_string();
-        // Skip services that are out of scope.
-        if IGNORE_SERVICES.contains(&service.as_str()) {
-            continue;
+    if let Some(start) = src.find("fn all_known_suites()") {
+        let block = &src[start..];
+        if let Some(array_start) = block.find("&[") {
+            if let Some(array_end) = block[array_start..].find(']') {
+                let array_content = &block[array_start..array_start + array_end];
+                for caps in suite_re.captures_iter(array_content) {
+                    let suite = caps[1].to_string();
+                    // Extract service name (part before /)
+                    if let Some(service) = suite.split('/').next() {
+                        if IGNORE_SERVICES.contains(&service) {
+                            continue;
+                        }
+                    }
+                    suites.insert(suite);
+                }
+            }
         }
-        suites.insert(suite);
     }
 
     suites.into_iter().collect()
@@ -409,7 +418,7 @@ fn main() {
     println!("{}", "=".repeat(80));
     println!();
     println!(
-        "Suite list derived from grpc_method_for_suite in scenario_api.rs ({} suites, excluding: {}).",
+        "Suite list derived from all_known_suites in scenario_api.rs ({} suites, excluding: {}).",
         all_proto_suites.len(),
         IGNORE_SERVICES.join(", ")
     );
@@ -442,7 +451,7 @@ fn main() {
     let mut not_testable: Vec<(String, &str)> = Vec::new();
 
     for suite in &all_proto_suites {
-        let suite_dir = suites_root.join(format!("{suite}_suite"));
+        let suite_dir = suites_root.join(suite.replace('/', "_"));
         let has_scenario = suite_dir.join("scenario.json").exists();
         let connector_list = suite_connectors.get(suite).cloned().unwrap_or_default();
         let connector_count = connector_list.len();

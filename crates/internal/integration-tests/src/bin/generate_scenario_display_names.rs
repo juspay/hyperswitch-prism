@@ -166,12 +166,14 @@ fn discover_suites(single_suite: Option<&str>) -> Result<Vec<String>, String> {
         let Some(dir_name) = path.file_name().and_then(|value| value.to_str()) else {
             continue;
         };
-        if !dir_name.ends_with("_suite") {
-            continue;
-        }
 
         if path.join("scenario.json").is_file() {
-            suites.insert(dir_name.trim_end_matches("_suite").to_string());
+            // Directory names use `_` as separator (e.g. `PaymentService_Authorize`).
+            // Convert back to canonical suite name with `/`.
+            if let Some(sep_pos) = dir_name.find('_') {
+                let suite_name = format!("{}/{}", &dir_name[..sep_pos], &dir_name[sep_pos + 1..]);
+                suites.insert(suite_name);
+            }
         }
     }
 

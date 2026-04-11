@@ -1,5 +1,5 @@
 {
-  "pre_authenticate": {
+  "PaymentMethodAuthenticationService/PreAuthenticate": {
     "threeds_card_pre_authenticate": {
       "grpc_req": {
         "merchant_order_id": "pay_1234",
@@ -26,7 +26,7 @@
       }
     }
   },
-  "authenticate": {
+  "PaymentMethodAuthenticationService/Authenticate": {
     "threeds_card_authenticate": {
       "grpc_req": {
         "amount": {
@@ -52,7 +52,7 @@
       }
     }
   },
-  "post_authenticate": {
+  "PaymentMethodAuthenticationService/PostAuthenticate": {
     "threeds_card_post_authenticate": {
       "grpc_req": {
         "amount": {
@@ -84,7 +84,7 @@
       }
     }
   },
-  "authorize": {
+  "PaymentService/Authorize": {
     "threeds_manual_capture_credit_card": {
       "grpc_req": {
         "merchant_transaction_id": "pay_1234",
@@ -115,7 +115,7 @@
       }
     }
   },
-  "void": {
+  "PaymentService/Void": {
     "void_authorized_payment": {
       "grpc_req": {
         "amount": {
@@ -133,7 +133,7 @@
       }
     }
   },
-  "complete_authorize": {
+  "PaymentService/CompleteAuthorize": {
     "threeds_complete_authorize_credit_card": {
       "grpc_req": {
         "merchant_transaction_id": "pay_1234567890",

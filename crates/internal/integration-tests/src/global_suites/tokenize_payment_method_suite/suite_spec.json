@@ -1,8 +1,0 @@
-{
-  "suite": "tokenize_payment_method",
-  "suite_type": "dependent",
-  "depends_on": [
-    "create_customer"
-  ],
-  "strict_dependencies": false
-}

@@ -2,9 +2,8 @@ use std::collections::HashMap;
 
 use connector_service_ffi::bindings::uniffi as ffi_bindings;
 use grpc_api_types::payments::{
-    self, connector_specific_config, ffi_result, ConnectorError, ConnectorSpecificConfig,
-    Environment, FfiConnectorHttpRequest, FfiConnectorHttpResponse, FfiOptions, FfiResult,
-    IntegrationError,
+    self, ffi_result, ConnectorError, ConnectorSpecificConfig, Environment,
+    FfiConnectorHttpRequest, FfiConnectorHttpResponse, FfiOptions, FfiResult, IntegrationError,
 };
 use prost::Message;
 use reqwest::{blocking::Client, Method};
@@ -24,23 +23,23 @@ type ResponseTransformer = fn(Vec<u8>, Vec<u8>, Vec<u8>) -> Vec<u8>;
 pub fn supports_sdk_suite(suite: &str) -> bool {
     matches!(
         suite,
-        "server_authentication_token"
-            | "server_session_authentication_token"
-            | "client_authentication_token"
-            | "create_customer"
-            | "authorize"
-            | "capture"
-            | "void"
-            | "refund"
-            | "get"
-            | "setup_recurring"
-            | "recurring_charge"
+        "MerchantAuthenticationService/CreateServerAuthenticationToken"
+            | "MerchantAuthenticationService/CreateServerSessionAuthenticationToken"
+            | "MerchantAuthenticationService/CreateClientAuthenticationToken"
+            | "CustomerService/Create"
+            | "PaymentService/Authorize"
+            | "PaymentService/Capture"
+            | "PaymentService/Void"
+            | "PaymentService/Refund"
+            | "PaymentService/Get"
+            | "PaymentService/SetupRecurring"
+            | "RecurringPaymentService/Charge"
     )
 }
 
 /// Returns whether a connector has SDK transformer/auth support in this harness.
-pub fn supports_sdk_connector(connector: &str) -> bool {
-    matches!(connector, "stripe" | "authorizedotnet" | "paypal")
+pub fn supports_sdk_connector(_connector: &str) -> bool {
+    true
 }
 
 /// SDK interface coverage report: which proto suites are supported vs. missing.
@@ -90,7 +89,7 @@ pub fn execute_sdk_request_from_payload(
     let options_bytes = options.encode_to_vec();
 
     match suite {
-        "server_authentication_token" => execute_sdk_flow::<
+        "MerchantAuthenticationService/CreateServerAuthenticationToken" => execute_sdk_flow::<
             payments::MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
             payments::MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
         >(
@@ -102,7 +101,7 @@ pub fn execute_sdk_request_from_payload(
             ffi_bindings::create_server_authentication_token_req_transformer,
             ffi_bindings::create_server_authentication_token_res_transformer,
         ),
-        "server_session_authentication_token" => execute_sdk_flow::<
+        "MerchantAuthenticationService/CreateServerSessionAuthenticationToken" => execute_sdk_flow::<
             payments::MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest,
             payments::MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse,
         >(
@@ -114,7 +113,7 @@ pub fn execute_sdk_request_from_payload(
             ffi_bindings::create_server_session_authentication_token_req_transformer,
             ffi_bindings::create_server_session_authentication_token_res_transformer,
         ),
-        "client_authentication_token" => execute_sdk_flow::<
+        "MerchantAuthenticationService/CreateClientAuthenticationToken" => execute_sdk_flow::<
             payments::MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
             payments::MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse,
         >(
@@ -126,7 +125,7 @@ pub fn execute_sdk_request_from_payload(
             ffi_bindings::create_client_authentication_token_req_transformer,
             ffi_bindings::create_client_authentication_token_res_transformer,
         ),
-        "create_customer" => execute_sdk_flow::<
+        "CustomerService/Create" => execute_sdk_flow::<
             payments::CustomerServiceCreateRequest,
             payments::CustomerServiceCreateResponse,
         >(
@@ -138,7 +137,7 @@ pub fn execute_sdk_request_from_payload(
             ffi_bindings::create_req_transformer,
             ffi_bindings::create_res_transformer,
         ),
-        "authorize" => execute_sdk_flow::<
+        "PaymentService/Authorize" => execute_sdk_flow::<
             payments::PaymentServiceAuthorizeRequest,
             payments::PaymentServiceAuthorizeResponse,
         >(
@@ -150,7 +149,7 @@ pub fn execute_sdk_request_from_payload(
             ffi_bindings::authorize_req_transformer,
             ffi_bindings::authorize_res_transformer,
         ),
-        "capture" => execute_sdk_flow::<
+        "PaymentService/Capture" => execute_sdk_flow::<
             payments::PaymentServiceCaptureRequest,
             payments::PaymentServiceCaptureResponse,
         >(
@@ -162,7 +161,7 @@ pub fn execute_sdk_request_from_payload(
             ffi_bindings::capture_req_transformer,
             ffi_bindings::capture_res_transformer,
         ),
-        "void" => execute_sdk_flow::<
+        "PaymentService/Void" => execute_sdk_flow::<
             payments::PaymentServiceVoidRequest,
             payments::PaymentServiceVoidResponse,
         >(
@@ -174,7 +173,7 @@ pub fn execute_sdk_request_from_payload(
             ffi_bindings::void_req_transformer,
             ffi_bindings::void_res_transformer,
         ),
-        "refund" => {
+        "PaymentService/Refund" => {
             execute_sdk_flow::<payments::PaymentServiceRefundRequest, payments::RefundResponse>(
                 suite,
                 scenario,
@@ -185,7 +184,7 @@ pub fn execute_sdk_request_from_payload(
                 ffi_bindings::refund_res_transformer,
             )
         }
-        "get" => execute_sdk_flow::<
+        "PaymentService/Get" => execute_sdk_flow::<
             payments::PaymentServiceGetRequest,
             payments::PaymentServiceGetResponse,
         >(
@@ -197,7 +196,7 @@ pub fn execute_sdk_request_from_payload(
             ffi_bindings::get_req_transformer,
             ffi_bindings::get_res_transformer,
         ),
-        "setup_recurring" => execute_sdk_flow::<
+        "PaymentService/SetupRecurring" => execute_sdk_flow::<
             payments::PaymentServiceSetupRecurringRequest,
             payments::PaymentServiceSetupRecurringResponse,
         >(
@@ -209,7 +208,7 @@ pub fn execute_sdk_request_from_payload(
             ffi_bindings::setup_recurring_req_transformer,
             ffi_bindings::setup_recurring_res_transformer,
         ),
-        "recurring_charge" => execute_sdk_flow::<
+        "RecurringPaymentService/Charge" => execute_sdk_flow::<
             payments::RecurringPaymentServiceChargeRequest,
             payments::RecurringPaymentServiceChargeResponse,
         >(
@@ -469,104 +468,18 @@ fn environment_discriminant(environment: Environment) -> i32 {
 /// ```json
 /// {"config":{"Stripe":{"api_key":"sk_test_..."}}}
 /// ```
-/// The `{"value":"..."}` wrappers are already unwrapped by
-/// `credentials::load_connector_config`, so we must NOT try to read `.value`.
-#[allow(clippy::indexing_slicing)] // serde_json::Value indexing returns Null, never panics
+/// This matches the serde representation of `ConnectorSpecificConfig` exactly,
+/// so we can deserialize directly — no per-connector match arms needed.
 fn build_proto_connector_config(
     connector: &str,
     connector_config: &ConnectorConfig,
 ) -> Result<ConnectorSpecificConfig, ScenarioError> {
-    // header_value() is {"config":{"<PascalConnector>":{...flat auth fields...}}}
-    let header_json: Value =
-        serde_json::from_str(connector_config.header_value()).map_err(|e| {
-            ScenarioError::SdkExecution {
-                message: format!("Failed to parse connector config JSON: {}", e),
-            }
-        })?;
-
-    // Navigate to the connector-specific auth object.
-    // pascal_name mirrors credentials::pascal_connector_name.
-    let pascal_name: String = {
-        let mut chars = connector.chars();
-        match chars.next() {
-            None => String::new(),
-            Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
-        }
-    };
-    let auth = &header_json["config"][&pascal_name];
-
-    match connector {
-        "stripe" => {
-            let api_key = auth["api_key"]
-                .as_str()
-                .ok_or_else(|| ScenarioError::SdkExecution {
-                    message: "Missing api_key in stripe config".to_string(),
-                })?;
-            Ok(ConnectorSpecificConfig {
-                config: Some(connector_specific_config::Config::Stripe(
-                    payments::StripeConfig {
-                        api_key: Some(api_key.to_string().into()),
-                        base_url: None,
-                    },
-                )),
-            })
-        }
-        "authorizedotnet" => {
-            let name = auth["api_key"]
-                .as_str()
-                .ok_or_else(|| ScenarioError::SdkExecution {
-                    message: "Missing api_key in authorizedotnet config".to_string(),
-                })?;
-            let transaction_key =
-                auth["key1"]
-                    .as_str()
-                    .ok_or_else(|| ScenarioError::SdkExecution {
-                        message: "Missing key1 in authorizedotnet config".to_string(),
-                    })?;
-            Ok(ConnectorSpecificConfig {
-                config: Some(connector_specific_config::Config::Authorizedotnet(
-                    payments::AuthorizedotnetConfig {
-                        name: Some(name.to_string().into()),
-                        transaction_key: Some(transaction_key.to_string().into()),
-                        base_url: None,
-                    },
-                )),
-            })
-        }
-        "paypal" => {
-            // Support both field-name conventions (key1/client_id, api_key/client_secret, etc.)
-            let client_id = auth["key1"]
-                .as_str()
-                .or_else(|| auth["client_id"].as_str())
-                .ok_or_else(|| ScenarioError::SdkExecution {
-                    message: "Missing key1/client_id in paypal config".to_string(),
-                })?;
-            let client_secret = auth["api_key"]
-                .as_str()
-                .or_else(|| auth["client_secret"].as_str())
-                .ok_or_else(|| ScenarioError::SdkExecution {
-                    message: "Missing api_key/client_secret in paypal config".to_string(),
-                })?;
-            let payer_id = auth["api_secret"]
-                .as_str()
-                .or_else(|| auth["payer_id"].as_str())
-                .map(|s| s.to_string().into());
-            Ok(ConnectorSpecificConfig {
-                config: Some(connector_specific_config::Config::Paypal(
-                    payments::PaypalConfig {
-                        client_id: Some(client_id.to_string().into()),
-                        client_secret: Some(client_secret.to_string().into()),
-                        payer_id,
-                        base_url: None,
-                    },
-                )),
-            })
-        }
-        _ => Err(ScenarioError::CredentialLoad {
+    serde_json::from_str(connector_config.header_value()).map_err(|e| {
+        ScenarioError::CredentialLoad {
             connector: connector.to_string(),
-            message: "unsupported connector auth shape for SDK harness".to_string(),
-        }),
-    }
+            message: format!("failed to deserialize connector config: {e}"),
+        }
+    })
 }
 
 /// SDK environment selector (defaults to sandbox for safety).
@@ -654,11 +567,13 @@ mod tests {
         assert!(supports_sdk_connector("stripe"));
         assert!(supports_sdk_connector("paypal"));
         assert!(supports_sdk_connector("authorizedotnet"));
-        assert!(!supports_sdk_connector("adyen"));
+        assert!(supports_sdk_connector("adyen"));
 
-        assert!(supports_sdk_suite("authorize"));
-        assert!(supports_sdk_suite("server_authentication_token"));
-        assert!(!supports_sdk_suite("refund_sync"));
+        assert!(supports_sdk_suite("PaymentService/Authorize"));
+        assert!(supports_sdk_suite(
+            "MerchantAuthenticationService/CreateServerAuthenticationToken"
+        ));
+        assert!(!supports_sdk_suite("RefundService/Get"));
     }
 
     #[test]
@@ -700,14 +615,14 @@ mod tests {
     #[test]
     fn authorize_scenario_maps_to_card_payment_method() {
         let req = get_the_grpc_req_for_connector(
-            "authorize",
+            "PaymentService/Authorize",
             "no3ds_auto_capture_credit_card",
             "authorizedotnet",
         )
         .expect("authorize scenario should load");
 
         let parsed: payments::PaymentServiceAuthorizeRequest = parse_sdk_payload(
-            "authorize",
+            "PaymentService/Authorize",
             "no3ds_auto_capture_credit_card",
             "authorizedotnet",
             &req,

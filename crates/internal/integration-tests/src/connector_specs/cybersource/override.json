@@ -1,5 +1,5 @@
 {
-  "pre_authenticate": {
+  "PaymentMethodAuthenticationService/PreAuthenticate": {
     "threeds_card_pre_authenticate": {
       "grpc_req": {
         "connector_feature_data": {
@@ -17,7 +17,7 @@
       }
     }
   },
-  "authenticate": {
+  "PaymentMethodAuthenticationService/Authenticate": {
     "threeds_card_authenticate": {
       "grpc_req": {
         "connector_feature_data": {
@@ -35,7 +35,7 @@
       }
     }
   },
-  "post_authenticate": {
+  "PaymentMethodAuthenticationService/PostAuthenticate": {
     "threeds_card_post_authenticate": {
       "grpc_req": {
         "connector_feature_data": {
@@ -53,7 +53,7 @@
       }
     }
   },
-  "authorize": {
+  "PaymentService/Authorize": {
     "no3ds_auto_capture_google_pay_encrypted": {
       "grpc_req": {
         "connector_feature_data": {

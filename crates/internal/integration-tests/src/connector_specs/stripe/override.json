@@ -1,5 +1,5 @@
 {
-  "authorize": {
+  "PaymentService/Authorize": {
     "threeds_manual_capture_credit_card": {
       "grpc_req": {
         "payment_method": {
@@ -76,14 +76,14 @@
       }
     }
   },
-  "setup_recurring": {
+  "PaymentService/SetupRecurring": {
     "setup_recurring_with_order_context": {
       "grpc_req": {
         "off_session": null
       }
     }
   },
-  "revoke_mandate": {
+  "RecurringPaymentService/Revoke": {
     "revoke_with_reason": {
       "assert": {
         "status": {
@@ -93,7 +93,7 @@
       }
     }
   },
-  "handle_event": {
+  "EventService/HandleEvent": {
     "payment_succeeded": {
       "assert": {
         "source_verified": {

@@ -1,11 +1,11 @@
 {
   "connector": "placetopay",
   "supported_suites": [
-    "authorize",
-    "capture",
-    "void",
-    "refund",
-    "refund_sync",
-    "get"
+    "PaymentService/Authorize",
+    "PaymentService/Capture",
+    "PaymentService/Void",
+    "PaymentService/Refund",
+    "RefundService/Get",
+    "PaymentService/Get"
   ]
 }
