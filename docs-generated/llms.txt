@@ -547,7 +547,7 @@ connector_id: shift4
 doc: docs/connectors/shift4.md
 scenarios: checkout_autocapture, checkout_card, refund, get_payment
 payment_methods: Card, Eps, Ideal
-flows: authorize, capture, create_customer, get, proxy_authorize, recurring_charge, refund, refund_get
+flows: authorize, capture, create_client_authentication_token, create_customer, get, proxy_authorize, recurring_charge, refund, refund_get, token_authorize
 examples_python: examples/shift4/shift4.py
 
 ## Silverflow
