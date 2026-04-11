@@ -6,6 +6,8 @@
     "void",
     "refund",
     "get",
-    "refund_sync"
+    "refund_sync",
+    "recurring_charge",
+    "setup_recurring"
   ]
 }
