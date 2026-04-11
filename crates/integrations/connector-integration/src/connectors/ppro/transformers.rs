@@ -1,6 +1,6 @@
 use common_enums;
 use common_utils::consts;
-use hyperswitch_masking::Secret;
+use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use super::PproRouterData;
@@ -53,6 +53,8 @@ pub struct PproPaymentsRequest {
     pub consumer: Option<PproConsumer>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub authentication_settings: Option<Vec<PproAuthenticationSettings>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub webhooks_url: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -97,6 +99,9 @@ pub struct PproConsumer {
     pub email: Option<common_utils::pii::Email>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub country: Option<String>,
+    /// Unique consumer identifier required by PPRO for payment methods like Trustly
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub merchant_consumer_reference: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -193,14 +198,34 @@ where
                     }]
                 });
 
+        let email = router_data
+            .resource_common_data
+            .get_optional_billing_email()
+            .or_else(|| router_data.request.get_optional_email());
+
+        let merchant_consumer_reference = router_data
+            .request
+            .customer_id
+            .as_ref()
+            .map(|id| id.get_string_repr().to_string())
+            .or_else(|| {
+                router_data
+                    .resource_common_data
+                    .customer_id
+                    .as_ref()
+                    .map(|id| id.get_string_repr().to_string())
+            })
+            .or_else(|| email.as_ref().map(|e| e.peek().to_string()));
+
         let consumer = router_data
             .resource_common_data
             .get_billing_address()
             .ok()
             .map(|billing| PproConsumer {
                 name: billing.get_full_name().ok(),
-                email: router_data.resource_common_data.get_billing_email().ok(),
+                email: email.clone(),
                 country: billing.country.map(|c| c.to_string()),
+                merchant_consumer_reference: merchant_consumer_reference.clone(),
             });
 
         Ok(Self {
@@ -214,6 +239,12 @@ where
             amount,
             consumer,
             authentication_settings,
+            webhooks_url: router_data
+                .request
+                .webhook_url
+                .as_ref()
+                .filter(|url| url.starts_with("https://"))
+                .cloned(),
         })
     }
 }
@@ -930,6 +961,22 @@ where
                     }]
                 });
 
+        let email = router_data.request.email.clone();
+
+        let merchant_consumer_reference = router_data
+            .request
+            .customer_id
+            .as_ref()
+            .map(|id| id.get_string_repr().to_string())
+            .or_else(|| {
+                router_data
+                    .resource_common_data
+                    .customer_id
+                    .as_ref()
+                    .map(|id| id.get_string_repr().to_string())
+            })
+            .or_else(|| email.as_ref().map(|e| e.peek().to_string()));
+
         let consumer = router_data
             .resource_common_data
             .get_billing_address()
@@ -942,8 +989,9 @@ where
                         .as_ref()
                         .map(|n| Secret::new(n.clone()))
                 }),
-                email: router_data.request.email.clone(),
+                email: email.clone(),
                 country: billing.country.map(|c| c.to_string()),
+                merchant_consumer_reference: merchant_consumer_reference.clone(),
             });
 
         let start_date = router_data
