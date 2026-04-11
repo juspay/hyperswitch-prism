@@ -1,12 +1,12 @@
 use common_utils::{ext_traits::OptionExt, request::Method, FloatMajorUnit, StringMajorUnit};
 use domain_types::{
-    connector_flow::{Authorize, Capture, ClientAuthenticationToken},
+    connector_flow::{Authorize, Capture, ClientAuthenticationToken, RepeatPayment},
     connector_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
         ConnectorSpecificClientAuthenticationResponse, PaymentFlowData, PaymentsAuthorizeData,
         PaymentsCaptureData, PaymentsResponseData,
         RapydClientAuthenticationResponse as RapydClientAuthenticationResponseDomain,
-        RefundFlowData, RefundsData, RefundsResponseData, ResponseId,
+        RefundFlowData, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData},
@@ -735,3 +735,132 @@ impl TryFrom<ResponseRouterData<RapydClientAuthResponse, Self>>
         })
     }
 }
+
+// RepeatPayment (MIT) Request
+#[derive(Debug, Serialize)]
+pub struct RapydRepeatPaymentRequest {
+    pub amount: StringMajorUnit,
+    pub currency: common_enums::Currency,
+    pub initiation_type: RapydInitiationType,
+    pub original_payment: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub customer: Option<String>,
+    pub capture: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub merchant_reference_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub complete_payment_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_payment_url: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RapydInitiationType {
+    Recurring,
+    Unscheduled,
+    DelayedCharges,
+    NoShow,
+    Reauthorization,
+    Installment,
+}
+
+impl From<Option<common_enums::MitCategory>> for RapydInitiationType {
+    fn from(mit_category: Option<common_enums::MitCategory>) -> Self {
+        match mit_category {
+            Some(common_enums::MitCategory::Recurring) => Self::Recurring,
+            Some(common_enums::MitCategory::Installment) => Self::Installment,
+            Some(common_enums::MitCategory::Unscheduled)
+            | Some(common_enums::MitCategory::Resubmission) => Self::Unscheduled,
+            // Default to recurring for MIT when no category specified
+            None => Self::Recurring,
+        }
+    }
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        RapydRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for RapydRepeatPaymentRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        item: RapydRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        // Extract original_payment (payment ID) from mandate reference
+        let original_payment = item
+            .router_data
+            .request
+            .connector_mandate_id()
+            .or_else(|| item.router_data.request.get_network_mandate_id())
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "connector_mandate_id or network_mandate_id",
+                context: Default::default(),
+            })?;
+
+        let initiation_type =
+            RapydInitiationType::from(item.router_data.request.mit_category.clone());
+
+        let capture = Some(item.router_data.request.is_auto_capture());
+
+        let amount = item
+            .connector
+            .amount_converter
+            .convert(
+                item.router_data.request.minor_amount,
+                item.router_data.request.currency,
+            )
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?;
+
+        let return_url = item.router_data.request.router_return_url.clone();
+
+        // Use connector_customer from PaymentFlowData (set during setup mandate)
+        let connector_customer = item
+            .router_data
+            .resource_common_data
+            .connector_customer
+            .clone();
+
+        Ok(Self {
+            amount,
+            currency: item.router_data.request.currency,
+            initiation_type,
+            original_payment,
+            customer: connector_customer,
+            capture,
+            merchant_reference_id: Some(
+                item.router_data
+                    .resource_common_data
+                    .connector_request_reference_id
+                    .clone(),
+            ),
+            description: None,
+            complete_payment_url: return_url.clone(),
+            error_payment_url: return_url,
+        })
+    }
+}
+
+// RepeatPayment response reuses RapydPaymentsResponse (same as Authorize)
+// The generic TryFrom<ResponseRouterData<RapydPaymentsResponse, Self>> for RouterDataV2<F, PaymentFlowData, T, PaymentsResponseData>
+// already handles RepeatPayment since it's generic over F and T.

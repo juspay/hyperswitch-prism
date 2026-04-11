@@ -45,7 +45,8 @@ use transformers::{
     RapydPaymentsRequest, RapydPaymentsResponse as RapydCaptureResponse,
     RapydPaymentsResponse as RapydPSyncResponse, RapydPaymentsResponse,
     RapydPaymentsResponse as RapydVoidResponse, RapydPaymentsResponse as RapydAuthorizeResponse,
-    RapydRefundRequest, RefundResponse, RefundResponse as RapydRSyncResponse,
+    RapydPaymentsResponse as RapydRepeatPaymentResponse, RapydRefundRequest,
+    RapydRepeatPaymentRequest, RefundResponse, RefundResponse as RapydRSyncResponse,
 };
 
 use super::macros;
@@ -339,6 +340,12 @@ macros::create_all_prerequisites!(
             request_body: RapydClientAuthRequest,
             response_body: RapydClientAuthResponse,
             router_data: RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ),
+        (
+            flow: RepeatPayment,
+            request_body: RapydRepeatPaymentRequest,
+            response_body: RapydRepeatPaymentResponse,
+            router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -617,6 +624,40 @@ macros::macro_connector_implementation!(
     }
 );
 
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Rapyd,
+    curl_request: Json(RapydRepeatPaymentRequest),
+    curl_response: RapydRepeatPaymentResponse,
+    flow_name: RepeatPayment,
+    resource_common_data: PaymentFlowData,
+    flow_request: RepeatPaymentData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            let url = self.get_url(req)?;
+            let url_path = url.strip_prefix(self.connector_base_url_payments(req))
+                .unwrap_or(&url);
+            let body = self.get_request_body(req)?
+                .map(|content| content.get_inner_value().expose())
+                .unwrap_or_default();
+            self.build_headers(req, "post", url_path, &body)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}/v1/payments", self.connector_base_url_payments(req)))
+        }
+    }
+);
+
 // Stub implementations for unsupported flows
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
@@ -656,15 +697,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        RepeatPayment,
-        PaymentFlowData,
-        RepeatPaymentData<T>,
-        PaymentsResponseData,
-    > for Rapyd<T>
-{
-}
+// RepeatPayment ConnectorIntegrationV2 is now provided by macro_connector_implementation!
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
