@@ -240,7 +240,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
-            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::OpenBanking(_)

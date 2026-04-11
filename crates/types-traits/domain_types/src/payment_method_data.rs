@@ -264,7 +264,7 @@ pub enum PaymentMethodData<T: PaymentMethodDataTypes> {
     Upi(UpiData),
     Voucher(VoucherData),
     GiftCard(Box<GiftCardData>),
-    CardToken(CardToken),
+    PaymentMethodToken(PaymentMethodToken),
     OpenBanking(OpenBankingData),
     NetworkToken(NetworkTokenData),
     MobilePayment(MobilePaymentData),
@@ -378,16 +378,10 @@ pub struct GiftCardDetails {
     pub cvc: Secret<String>,
 }
 
-// TODO: Add payment method token field and also rename the struct to PaymentMethodToken since it is not being used anywhere
-#[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, Default)]
+#[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
 #[serde(rename_all = "snake_case")]
-// TODO: Add payment method token field and also rename the struct to PaymentMethodToken since it is not being used anywhere
-pub struct CardToken {
-    /// The card holder's name
-    pub card_holder_name: Option<Secret<String>>,
-
-    /// The CVC number for the card
-    pub card_cvc: Option<Secret<String>>,
+pub struct PaymentMethodToken {
+    pub token: Secret<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]

@@ -30,12 +30,12 @@ use domain_types::{
     payment_address::Address,
     payment_method_data::{
         self, ApplePayDecryptedData, ApplePayWalletData, CardDetailsForNetworkTransactionId,
-        CardToken, GooglePayDecryptedData, GooglePayWalletData, NetworkTokenData,
-        PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, SamsungPayWalletData, WalletData,
+        GooglePayDecryptedData, GooglePayWalletData, NetworkTokenData, PaymentMethodData,
+        PaymentMethodDataTypes, RawCardNumber, SamsungPayWalletData, WalletData,
     },
     router_data::{
         AdditionalPaymentMethodConnectorResponse, ConnectorSpecificConfig, ErrorResponse,
-        PaymentMethodToken, PazeDecryptedData,
+        PazeDecryptedData,
     },
     router_data_v2::RouterDataV2,
     router_request_types,
@@ -322,7 +322,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | PaymentMethodData::Voucher(_)
                 | PaymentMethodData::GiftCard(_)
                 | PaymentMethodData::OpenBanking(_)
-                | PaymentMethodData::CardToken(_)
+                | PaymentMethodData::PaymentMethodToken(_)
                 | PaymentMethodData::NetworkToken(_)
                 | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
                 | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
@@ -2195,32 +2195,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .into()),
             },
             PaymentMethodData::NetworkToken(token_data) => Self::try_from((&item, token_data)),
-            // TODO: Add payment method token field and also rename the struct to PaymentMethodToken since it is not being used anywhere
-            PaymentMethodData::CardToken(CardToken { .. }) => {
-                let token = item
-                    .router_data
-                    .resource_common_data
-                    .payment_method_token
-                    .as_ref()
-                    .map(|t| match t {
-                        PaymentMethodToken::Token(s) => s.clone(),
-                    })
-                    .ok_or_else(|| {
-                        error_stack::report!(IntegrationError::MissingRequiredField {
-                            field_name: "payment_method_token",
-                            context: IntegrationErrorContext {
-                                additional_context: Some(
-                                    "Cybersource CardToken flow requires a transient token JWT obtained from the Flex Microform session (capture_context)"
-                                        .to_string(),
-                                ),
-                                doc_url: Some(
-                                    "https://developer.cybersource.com/docs/cybs/en-us/digital-accept-flex/developer/all/rest/digital-accept-flex/microform-integ-v2.html"
-                                        .to_string(),
-                                ),
-                                ..Default::default()
-                            },
-                        })
-                    })?;
+            PaymentMethodData::PaymentMethodToken(token_data) => {
+                let token = token_data.token.clone();
 
                 let email = item
                     .router_data
@@ -2375,7 +2351,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
-            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
@@ -3114,7 +3090,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
-            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
@@ -3391,7 +3367,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
-            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
@@ -4413,9 +4389,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | PaymentMethodData::GiftCard(_)
                 | PaymentMethodData::OpenBanking(_)
                 | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
-                | PaymentMethodData::CardToken(_) => Err(IntegrationError::not_implemented(
-                    utils::get_unimplemented_payment_method_error_message("Cybersource"),
-                ))?,
+                | PaymentMethodData::PaymentMethodToken(_) => {
+                    Err(IntegrationError::not_implemented(
+                        utils::get_unimplemented_payment_method_error_message("Cybersource"),
+                    ))?
+                }
             },
         }
     }

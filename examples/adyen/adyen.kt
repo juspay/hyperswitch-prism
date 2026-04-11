@@ -17,6 +17,7 @@ import payments.PaymentServiceCaptureRequest
 import payments.PaymentServiceRefundRequest
 import payments.PaymentServiceVoidRequest
 import payments.MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest
+import payments.PaymentServiceCreateOrderRequest
 import payments.DisputeServiceAcceptRequest
 import payments.DisputeServiceDefendRequest
 import payments.DisputeServiceSubmitEvidenceRequest
@@ -228,6 +229,20 @@ fun createClientAuthenticationToken(txnId: String) {
     }.build()
     val response = client.create_client_authentication_token(request)
     println("StatusCode: ${response.statusCode}")
+}
+
+// Flow: PaymentService.CreateOrder
+fun createOrder(txnId: String) {
+    val client = PaymentClient(_defaultConfig)
+    val request = PaymentServiceCreateOrderRequest.newBuilder().apply {
+        merchantOrderId = "probe_order_001"  // Identification.
+        amountBuilder.apply {  // Amount Information.
+            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
+            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+    }.build()
+    val response = client.create_order(request)
+    println("Order: ${response.connectorOrderId}")
 }
 
 // Flow: DisputeService.Accept
@@ -506,6 +521,7 @@ fun main(args: Array<String>) {
         "authorize" -> authorize(txnId)
         "capture" -> capture(txnId)
         "createClientAuthenticationToken" -> createClientAuthenticationToken(txnId)
+        "createOrder" -> createOrder(txnId)
         "disputeAccept" -> disputeAccept(txnId)
         "disputeDefend" -> disputeDefend(txnId)
         "disputeSubmitEvidence" -> disputeSubmitEvidence(txnId)
@@ -517,6 +533,6 @@ fun main(args: Array<String>) {
         "setupRecurring" -> setupRecurring(txnId)
         "tokenAuthorize" -> tokenAuthorize(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, authorize, capture, createClientAuthenticationToken, disputeAccept, disputeDefend, disputeSubmitEvidence, handleEvent, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, setupRecurring, tokenAuthorize, void")
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, authorize, capture, createClientAuthenticationToken, createOrder, disputeAccept, disputeDefend, disputeSubmitEvidence, handleEvent, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, setupRecurring, tokenAuthorize, void")
     }
 }

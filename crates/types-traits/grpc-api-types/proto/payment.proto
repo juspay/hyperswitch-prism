@@ -2305,6 +2305,7 @@ message PaymentClientAuthenticationContext {
   optional CountryAlpha2 country_alpha2_code = 5;
   optional Customer customer = 6;
   optional SecretString metadata = 7;
+  optional string return_url = 8;
 }
 
 // Response message for SDK session

@@ -19,6 +19,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.04.10.0
+
+### Features
+
+- **connector:**
+  - Implement OrderCreate for paypal ([#941](https://github.com/juspay/connector-service/pull/941)) ([`95842c7`](https://github.com/juspay/connector-service/commit/95842c7f162099fbc091f4865c06495e04d8da97))
+  - Implement OrderCreate for adyen ([#955](https://github.com/juspay/connector-service/pull/955)) ([`b42ca6f`](https://github.com/juspay/connector-service/commit/b42ca6f36232a0da6d8fa0a362781352f3e4a142))
+  - Implement CreateClientAuthenticationToken for Multisafepay ([#989](https://github.com/juspay/connector-service/pull/989)) ([`3c95279`](https://github.com/juspay/connector-service/commit/3c95279e6660a6711a38d5f85413affc56b4a7de))
+  - Implement CreateClientAuthenticationToken for Datatrans ([#982](https://github.com/juspay/connector-service/pull/982)) ([`85a835a`](https://github.com/juspay/connector-service/commit/85a835af228cc89597d758e7702e54b44a636e45))
+- **shared:** Consolidate ClientAuthenticationToken shared types for batch 2 connectors ([#1023](https://github.com/juspay/connector-service/pull/1023)) ([`0af1179`](https://github.com/juspay/connector-service/commit/0af11797d06cec289fdac9255324ff4b45731c3b))
+
+### Bug Fixes
+
+- **redsys:** Add metadata fallback for ds_merchant_order ([#1019](https://github.com/juspay/connector-service/pull/1019)) ([`466be19`](https://github.com/juspay/connector-service/commit/466be1953a7e2b843c2531efd7842f3b6de0cccf))
+
+### Miscellaneous Tasks
+
+- Fix build issue ([#1017](https://github.com/juspay/connector-service/pull/1017)) ([`46b3524`](https://github.com/juspay/connector-service/commit/46b35240def861e20427ae30a26cbf840732d40e))
+
+**Full Changelog:** [`2026.04.09.0...2026.04.10.0`](https://github.com/juspay/connector-service/compare/2026.04.09.0...2026.04.10.0)
+
+- - -
+
 ## 2026.04.09.0
 
 ### Features
