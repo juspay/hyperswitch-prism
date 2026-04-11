@@ -1,10 +1,10 @@
 use crate::connectors::revolut::RevolutRouterData;
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, Refund},
+    connector_flow::{Authorize, Capture, PSync, Refund, RepeatPayment},
     connector_types::{
         PaymentFlowData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
         PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        ResponseId, WebhookDetailsResponse,
+        RepeatPaymentData, ResponseId, WebhookDetailsResponse,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
@@ -955,6 +955,138 @@ impl<F> TryFrom<ResponseRouterData<RevolutOrderCreateResponse, Self>>
                 ..router_data.resource_common_data
             },
             ..router_data
+        })
+    }
+}
+
+// RepeatPayment (MIT) related structures and implementations
+
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Serialize)]
+pub struct RevolutRepeatPaymentRequest {
+    pub amount: MinorUnit,
+    pub currency: common_enums::Currency,
+    pub description: Option<String>,
+    pub customer: Option<RevolutCustomer>,
+    pub capture_mode: Option<RevolutCaptureMode>,
+    pub metadata: Option<Secret<serde_json::Value>>,
+    pub merchant_order_data: Option<RevolutMerchantOrderData>,
+    pub redirect_url: Option<String>,
+    pub statement_descriptor_suffix: Option<String>,
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        RevolutRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for RevolutRepeatPaymentRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: RevolutRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+
+        let customer = router_data
+            .request
+            .email
+            .as_ref()
+            .map(|email| RevolutCustomer {
+                id: None,
+                full_name: None,
+                phone: None,
+                email: Some(email.clone()),
+                date_of_birth: None,
+            });
+
+        let merchant_order_data = Some(RevolutMerchantOrderData {
+            url: router_data.request.router_return_url.clone(),
+            reference: Some(
+                router_data
+                    .resource_common_data
+                    .connector_request_reference_id
+                    .clone(),
+            ),
+        });
+
+        Ok(Self {
+            amount: router_data.request.minor_amount,
+            currency: router_data.request.currency,
+            description: router_data.resource_common_data.description.clone(),
+            customer,
+            capture_mode: router_data.request.capture_method.map(|c| match c {
+                common_enums::CaptureMethod::Manual => RevolutCaptureMode::Manual,
+                _ => RevolutCaptureMode::Automatic,
+            }),
+            metadata: router_data.request.metadata.clone(),
+            merchant_order_data,
+            redirect_url: router_data.request.router_return_url.clone(),
+            statement_descriptor_suffix: router_data
+                .request
+                .billing_descriptor
+                .as_ref()
+                .and_then(|bd| bd.statement_descriptor_suffix.clone()),
+        })
+    }
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<RevolutOrderCreateResponse, Self>>
+    for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<RevolutOrderCreateResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response;
+
+        let status = match response.state {
+            RevolutOrderState::Authorised => AttemptStatus::Authorized,
+            RevolutOrderState::Completed => AttemptStatus::Charged,
+            RevolutOrderState::Failed => AttemptStatus::Failure,
+            RevolutOrderState::Cancelled => AttemptStatus::Voided,
+            RevolutOrderState::Pending => AttemptStatus::AuthenticationPending,
+            RevolutOrderState::Processing => AttemptStatus::Pending,
+        };
+
+        let merchant_reference = response
+            .merchant_order_data
+            .as_ref()
+            .and_then(|m| m.reference.clone());
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(response.id.clone()),
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: merchant_reference,
+                incremental_authorization_allowed: None,
+                status_code: 200,
+            }),
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
         })
     }
 }

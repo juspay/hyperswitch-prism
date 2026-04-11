@@ -57,8 +57,10 @@ use transformers as revolut;
 use transformers::{
     RevolutCaptureRequest, RevolutOrderCreateRequest, RevolutOrderCreateResponse,
     RevolutOrderCreateResponse as RevolutPSyncResponse,
-    RevolutOrderCreateResponse as RevolutCaptureResponse, RevolutRefundRequest,
+    RevolutOrderCreateResponse as RevolutCaptureResponse,
+    RevolutOrderCreateResponse as RevolutRepeatPaymentResponse, RevolutRefundRequest,
     RevolutRefundResponse, RevolutRefundResponse as RevolutRSyncResponse,
+    RevolutRepeatPaymentRequest,
 };
 
 pub(crate) mod headers {
@@ -490,15 +492,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        RepeatPayment,
-        PaymentFlowData,
-        RepeatPaymentData<T>,
-        PaymentsResponseData,
-    > for Revolut<T>
-{
-}
+// RepeatPayment ConnectorIntegrationV2 is implemented via macro_connector_implementation! below
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
@@ -678,6 +672,12 @@ macros::create_all_prerequisites!(
             flow: RSync,
             response_body: RevolutRSyncResponse,
             router_data: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        ),
+        (
+            flow: RepeatPayment,
+            request_body: RevolutRepeatPaymentRequest,
+            response_body: RevolutRepeatPaymentResponse,
+            router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [],
@@ -891,6 +891,35 @@ macros::macro_connector_implementation!(
             let order_id = req.request.connector_refund_id.clone();
             let base_url = req.resource_common_data.connectors.revolut.base_url.to_string();
             Ok(format!("{base_url}/api/orders/{order_id}"))
+        }
+    }
+);
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Revolut,
+    curl_request: Json(RevolutRepeatPaymentRequest),
+    curl_response: RevolutRepeatPaymentResponse,
+    flow_name: RepeatPayment,
+    resource_common_data: PaymentFlowData,
+    flow_request: RepeatPaymentData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            let base_url = self.connector_base_url(req);
+            Ok(format!("{base_url}/api/orders"))
         }
     }
 );
