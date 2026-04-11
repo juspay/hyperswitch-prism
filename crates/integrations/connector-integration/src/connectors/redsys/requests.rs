@@ -9,6 +9,7 @@ pub type RedsysAuthorizeRequest = super::transformers::RedsysTransaction;
 pub type RedsysCaptureRequest = super::transformers::RedsysTransaction;
 pub type RedsysVoidRequest = super::transformers::RedsysTransaction;
 pub type RedsysRefundRequest = super::transformers::RedsysTransaction;
+pub type RedsysClientAuthRequest = super::transformers::RedsysTransaction;
 
 /// Main payment request structure for Redsys API
 #[derive(Debug, Serialize)]

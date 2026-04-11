@@ -52,11 +52,12 @@ pub mod transformers;
 
 use requests::{
     RedsysAuthenticateRequest, RedsysAuthorizeRequest, RedsysCaptureRequest,
-    RedsysPreAuthenticateRequest, RedsysRefundRequest, RedsysVoidRequest,
+    RedsysClientAuthRequest, RedsysPreAuthenticateRequest, RedsysRefundRequest, RedsysVoidRequest,
 };
 use responses::{
     RedsysAuthenticateResponse, RedsysAuthorizeResponse, RedsysCaptureResponse,
-    RedsysPreAuthenticateResponse, RedsysRefundResponse, RedsysVoidResponse,
+    RedsysClientAuthResponse, RedsysPreAuthenticateResponse, RedsysRefundResponse,
+    RedsysVoidResponse,
 };
 
 pub(crate) mod headers {
@@ -212,15 +213,34 @@ macros::macro_connector_payout_implementation!(
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize]
 );
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        ClientAuthenticationToken,
-        PaymentFlowData,
-        ClientAuthenticationTokenRequestData,
-        PaymentsResponseData,
-    > for Redsys<T>
-{
-}
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Redsys,
+    curl_request: Json(RedsysClientAuthRequest),
+    curl_response: RedsysClientAuthResponse,
+    flow_name: ClientAuthenticationToken,
+    resource_common_data: PaymentFlowData,
+    flow_request: ClientAuthenticationTokenRequestData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}/sis/rest/iniciaPeticionREST", self.connector_base_url_payments(req)))
+        }
+    }
+);
 
 macros::create_amount_converter_wrapper!(connector_name: Redsys, amount_type: StringMinorUnit);
 macros::create_all_prerequisites!(
@@ -262,6 +282,12 @@ macros::create_all_prerequisites!(
             request_body: RedsysRefundRequest,
             response_body: RedsysRefundResponse,
             router_data: RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
+        ),
+        (
+            flow: ClientAuthenticationToken,
+            request_body: RedsysClientAuthRequest,
+            response_body: RedsysClientAuthResponse,
+            router_data: RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
         )
     ],
     amount_converters: [],

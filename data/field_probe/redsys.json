@@ -445,7 +445,8 @@
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Field 'ds_merchant_order' is too long for connector 'Redsys'"
       }
     },
     "create_customer": {
