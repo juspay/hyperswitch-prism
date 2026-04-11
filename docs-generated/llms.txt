@@ -546,7 +546,7 @@ examples_python: examples/revolv3/revolv3.py
 connector_id: shift4
 doc: docs/connectors/shift4.md
 scenarios: checkout_autocapture, checkout_card, refund, get_payment
-payment_methods: Card, Eps, Ideal
+payment_methods: Boleto, Card, Eps, Ideal
 flows: authorize, capture, create_customer, get, proxy_authorize, recurring_charge, refund, refund_get
 examples_python: examples/shift4/shift4.py
 
