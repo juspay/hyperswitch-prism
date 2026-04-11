@@ -8,11 +8,12 @@
 package examples.multisafepay
 
 import payments.PaymentClient
+import payments.FraudClient
 import payments.MerchantAuthenticationClient
 import payments.RefundClient
 import payments.PaymentServiceAuthorizeRequest
 import payments.PaymentServiceRefundRequest
-import payments.PaymentServiceGetRequest
+import payments.FraudServiceGetRequest
 import payments.MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest
 import payments.PaymentServiceProxyAuthorizeRequest
 import payments.RefundServiceGetRequest
@@ -54,14 +55,12 @@ private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAutho
     }.build()
 }
 
-private fun buildGetRequest(connectorTransactionIdStr: String): PaymentServiceGetRequest {
-    return PaymentServiceGetRequest.newBuilder().apply {
-        merchantTransactionId = "probe_merchant_txn_001"  // Identification.
+private fun buildGetRequest(connectorTransactionIdStr: String): FraudServiceGetRequest {
+    return FraudServiceGetRequest.newBuilder().apply {
+        merchantTransactionId = "probe_merchant_txn_001"
         connectorTransactionId = connectorTransactionIdStr
-        amountBuilder.apply {  // Amount Information.
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        }
+        minorAmount = 1000L
+        currency = "USD"
     }.build()
 }
 
@@ -126,6 +125,7 @@ fun processRefund(txnId: String, config: ConnectorConfig = _defaultConfig): Map<
 // Retrieve current payment status from the connector.
 fun processGetPayment(txnId: String, config: ConnectorConfig = _defaultConfig): Map<String, Any?> {
     val paymentClient = PaymentClient(config)
+    val fraudClient = FraudClient(config)
 
     // Step 1: Authorize — reserve funds on the payment method
     val authorizeResponse = paymentClient.authorize(buildAuthorizeRequest("MANUAL"))
@@ -136,7 +136,7 @@ fun processGetPayment(txnId: String, config: ConnectorConfig = _defaultConfig): 
     }
 
     // Step 2: Get — retrieve current payment status from the connector
-    val getResponse = paymentClient.get(buildGetRequest(authorizeResponse.connectorTransactionId ?: ""))
+    val getResponse = fraudClient.get(buildGetRequest(authorizeResponse.connectorTransactionId ?: ""))
 
     return mapOf("status" to getResponse.status.name, "transactionId" to getResponse.connectorTransactionId, "error" to getResponse.error)
 }
@@ -169,9 +169,9 @@ fun createClientAuthenticationToken(txnId: String) {
     println("StatusCode: ${response.statusCode}")
 }
 
-// Flow: PaymentService.Get
+// Flow: FraudService.Get
 fun get(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+    val client = FraudClient(_defaultConfig)
     val request = buildGetRequest("probe_connector_txn_001")
     val response = client.get(request)
     println("Status: ${response.status.name}")

@@ -96,18 +96,18 @@ let config = ConnectorConfig {
 
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
-| [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
+| [FraudService.Get](#fraudserviceget) | Other | `FraudServiceGetRequest` |
 | [EventService.HandleEvent](#eventservicehandleevent) | Events | `EventServiceHandleRequest` |
 
-### Payments
+### Other
 
-#### PaymentService.Get
+#### FraudService.Get
 
-Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.
+Retrieves fraud decision history and risk scores for a specific transaction. Supports customer service investigations and chargeback dispute preparation.
 
 | | Message |
 |---|---------|
-| **Request** | `PaymentServiceGetRequest` |
-| **Response** | `PaymentServiceGetResponse` |
+| **Request** | `FraudServiceGetRequest` |
+| **Response** | `FraudServiceGetResponse` |
 
-**Examples:** [Python](../../examples/cryptopay/cryptopay.py#L45) · [TypeScript](../../examples/cryptopay/cryptopay.ts#L41) · [Kotlin](../../examples/cryptopay/cryptopay.kt#L38) · [Rust](../../examples/cryptopay/cryptopay.rs#L44)
+**Examples:** [Python](../../examples/cryptopay/cryptopay.py#L45) · [TypeScript](../../examples/cryptopay/cryptopay.ts#L41) · [Kotlin](../../examples/cryptopay/cryptopay.kt#L35) · [Rust](../../examples/cryptopay/cryptopay.rs#L44)

@@ -98,7 +98,7 @@ let config = ConnectorConfig {
 |--------------------|----------|----------------------|
 | [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
 | [MerchantAuthenticationService.CreateServerSessionAuthenticationToken](#merchantauthenticationservicecreateserversessionauthenticationtoken) | Authentication | `MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest` |
-| [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
+| [FraudService.Get](#fraudserviceget) | Other | `FraudServiceGetRequest` |
 
 ### Payments
 
@@ -219,18 +219,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/paytm/paytm.py#L74) · [TypeScript](../../examples/paytm/paytm.ts#L68) · [Kotlin](../../examples/paytm/paytm.kt#L64) · [Rust](../../examples/paytm/paytm.rs#L77)
-
-#### PaymentService.Get
-
-Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceGetRequest` |
-| **Response** | `PaymentServiceGetResponse` |
-
-**Examples:** [Python](../../examples/paytm/paytm.py#L92) · [TypeScript](../../examples/paytm/paytm.ts#L86) · [Kotlin](../../examples/paytm/paytm.kt#L91) · [Rust](../../examples/paytm/paytm.rs#L96)
+**Examples:** [Python](../../examples/paytm/paytm.py#L75) · [TypeScript](../../examples/paytm/paytm.ts#L68) · [Kotlin](../../examples/paytm/paytm.kt#L63) · [Rust](../../examples/paytm/paytm.rs#L77)
 
 ### Authentication
 
@@ -243,4 +232,17 @@ Create a server-side session with the connector. Establishes session state for m
 | **Request** | `MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/paytm/paytm.py#L83) · [TypeScript](../../examples/paytm/paytm.ts#L77) · [Kotlin](../../examples/paytm/paytm.kt#L76) · [Rust](../../examples/paytm/paytm.rs#L89)
+**Examples:** [Python](../../examples/paytm/paytm.py#L84) · [TypeScript](../../examples/paytm/paytm.ts#L77) · [Kotlin](../../examples/paytm/paytm.kt#L75) · [Rust](../../examples/paytm/paytm.rs#L89)
+
+### Other
+
+#### FraudService.Get
+
+Retrieves fraud decision history and risk scores for a specific transaction. Supports customer service investigations and chargeback dispute preparation.
+
+| | Message |
+|---|---------|
+| **Request** | `FraudServiceGetRequest` |
+| **Response** | `FraudServiceGetResponse` |
+
+**Examples:** [Python](../../examples/paytm/paytm.py#L93) · [TypeScript](../../examples/paytm/paytm.ts#L86) · [Kotlin](../../examples/paytm/paytm.kt#L90) · [Rust](../../examples/paytm/paytm.rs#L96)

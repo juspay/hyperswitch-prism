@@ -99,19 +99,19 @@ pub fn build_create_server_authentication_token_request() -> MerchantAuthenticat
     })).unwrap_or_default()
 }
 
-pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetRequest {
-    serde_json::from_value::<PaymentServiceGetRequest>(serde_json::json!({
-    "merchant_transaction_id": "probe_merchant_txn_001",  // Identification.
+pub fn build_get_request(connector_transaction_id: &str) -> FraudServiceGetRequest {
+    serde_json::from_value::<FraudServiceGetRequest>(serde_json::json!({
+    "merchant_transaction_id": "probe_merchant_txn_001",
     "connector_transaction_id": connector_transaction_id,
-    "amount": {  // Amount Information.
-        "minor_amount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-        "currency": "USD",  // ISO 4217 currency code (e.g., "USD", "EUR").
+    "amount": {
+        "minor_amount": 1000,
+        "currency": "USD",
     },
-    "state": {  // State Information.
-        "access_token": {  // Access token obtained from connector.
-            "token": "probe_access_token",  // The token string.
-            "expires_in_seconds": 3600,  // Expiration timestamp (seconds since epoch).
-            "token_type": "Bearer",  // Token type (e.g., "Bearer", "Basic").
+    "state": {
+        "access_token": {
+            "token": "probe_access_token",
+            "expires_in_seconds": 3600,
+            "token_type": "Bearer",
         },
     },
     })).unwrap_or_default()
@@ -332,7 +332,7 @@ pub async fn create_server_authentication_token(client: &ConnectorClient, _merch
     Ok(format!("status: {:?}", response.status()))
 }
 
-// Flow: PaymentService.Get
+// Flow: FraudService.Get
 #[allow(dead_code)]
 pub async fn get(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
     let response = client.get(build_get_request("probe_connector_txn_001"), &HashMap::new(), None).await?;

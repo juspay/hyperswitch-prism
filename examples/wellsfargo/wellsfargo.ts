@@ -5,7 +5,7 @@
 // Wellsfargo — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx wellsfargo.ts checkout_autocapture
 
-import { PaymentClient, RefundClient, types } from 'hyperswitch-prism';
+import { PaymentClient, FraudClient, RefundClient, types } from 'hyperswitch-prism';
 const { ConnectorConfig, ConnectorSpecificConfig, SdkOptions, Environment, AcceptanceType, AuthenticationType, CaptureMethod, Currency, FutureUsage } = types;
 
 const _defaultConfig: ConnectorConfig = {
@@ -59,13 +59,13 @@ function _buildCaptureRequest(connectorTransactionId: string): PaymentServiceCap
     };
 }
 
-function _buildGetRequest(connectorTransactionId: string): PaymentServiceGetRequest {
+function _buildGetRequest(connectorTransactionId): FraudServiceGetRequest {
     return {
-        "merchantTransactionId": "probe_merchant_txn_001",  // Identification.
+        "merchantTransactionId": "probe_merchant_txn_001",
         "connectorTransactionId": connectorTransactionId,
-        "amount": {  // Amount Information.
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        "amount": {
+            "minorAmount": 1000,
+            "currency": "USD"
         }
     };
 }
@@ -291,8 +291,9 @@ async function processVoidPayment(merchantTransactionId: string, config: Connect
 
 // Get Payment Status
 // Retrieve current payment status from the connector.
-async function processGetPayment(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<PaymentServiceGetResponse> {
+async function processGetPayment(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<FraudServiceGetResponse> {
     const paymentClient = new PaymentClient(config);
+    const fraudClient = new FraudClient(config);
 
     // Step 1: Authorize — reserve funds on the payment method
     const authorizeResponse = await paymentClient.authorize(_buildAuthorizeRequest(CaptureMethod.MANUAL));
@@ -306,7 +307,7 @@ async function processGetPayment(merchantTransactionId: string, config: Connecto
     }
 
     // Step 2: Get — retrieve current payment status from the connector
-    const getResponse = await paymentClient.get(_buildGetRequest(authorizeResponse.connectorTransactionId));
+    const getResponse = await fraudClient.get(_buildGetRequest(authorizeResponse.connectorTransactionId));
 
     return { status: getResponse.status, transactionId: getResponse.connectorTransactionId, error: getResponse.error };
 }
@@ -329,11 +330,11 @@ async function capture(merchantTransactionId: string, config: ConnectorConfig = 
     return { status: captureResponse.status };
 }
 
-// Flow: PaymentService.Get
-async function get(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<PaymentServiceGetResponse> {
-    const paymentClient = new PaymentClient(config);
+// Flow: FraudService.Get
+async function get(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<FraudServiceGetResponse> {
+    const fraudClient = new FraudClient(config);
 
-    const getResponse = await paymentClient.get(_buildGetRequest('probe_connector_txn_001'));
+    const getResponse = await fraudClient.get(_buildGetRequest('probe_connector_txn_001'));
 
     return { status: getResponse.status };
 }

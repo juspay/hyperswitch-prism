@@ -108,7 +108,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/bluesnap/bluesnap.py#L179) · [JavaScript](../../examples/bluesnap/bluesnap.js) · [Kotlin](../../examples/bluesnap/bluesnap.kt#L108) · [Rust](../../examples/bluesnap/bluesnap.rs#L168)
+**Examples:** [Python](../../examples/bluesnap/bluesnap.py#L180) · [JavaScript](../../examples/bluesnap/bluesnap.js) · [Kotlin](../../examples/bluesnap/bluesnap.kt#L107) · [Rust](../../examples/bluesnap/bluesnap.rs#L168)
 
 ### Card Payment (Authorize + Capture)
 
@@ -122,25 +122,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/bluesnap/bluesnap.py#L198) · [JavaScript](../../examples/bluesnap/bluesnap.js) · [Kotlin](../../examples/bluesnap/bluesnap.kt#L124) · [Rust](../../examples/bluesnap/bluesnap.rs#L184)
+**Examples:** [Python](../../examples/bluesnap/bluesnap.py#L199) · [JavaScript](../../examples/bluesnap/bluesnap.js) · [Kotlin](../../examples/bluesnap/bluesnap.kt#L123) · [Rust](../../examples/bluesnap/bluesnap.rs#L184)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/bluesnap/bluesnap.py#L223) · [JavaScript](../../examples/bluesnap/bluesnap.js) · [Kotlin](../../examples/bluesnap/bluesnap.kt#L146) · [Rust](../../examples/bluesnap/bluesnap.rs#L207)
+**Examples:** [Python](../../examples/bluesnap/bluesnap.py#L224) · [JavaScript](../../examples/bluesnap/bluesnap.js) · [Kotlin](../../examples/bluesnap/bluesnap.kt#L145) · [Rust](../../examples/bluesnap/bluesnap.rs#L207)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/bluesnap/bluesnap.py#L248) · [JavaScript](../../examples/bluesnap/bluesnap.js) · [Kotlin](../../examples/bluesnap/bluesnap.kt#L168) · [Rust](../../examples/bluesnap/bluesnap.rs#L230)
+**Examples:** [Python](../../examples/bluesnap/bluesnap.py#L249) · [JavaScript](../../examples/bluesnap/bluesnap.js) · [Kotlin](../../examples/bluesnap/bluesnap.kt#L167) · [Rust](../../examples/bluesnap/bluesnap.rs#L230)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/bluesnap/bluesnap.py#L270) · [JavaScript](../../examples/bluesnap/bluesnap.js) · [Kotlin](../../examples/bluesnap/bluesnap.kt#L187) · [Rust](../../examples/bluesnap/bluesnap.rs#L249)
+**Examples:** [Python](../../examples/bluesnap/bluesnap.py#L271) · [JavaScript](../../examples/bluesnap/bluesnap.js) · [Kotlin](../../examples/bluesnap/bluesnap.kt#L186) · [Rust](../../examples/bluesnap/bluesnap.rs#L249)
 
 ## API Reference
 
@@ -149,7 +149,7 @@ Retrieve current payment status from the connector.
 | [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
 | [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
 | [MerchantAuthenticationService.CreateClientAuthenticationToken](#merchantauthenticationservicecreateclientauthenticationtoken) | Authentication | `MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest` |
-| [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
+| [FraudService.Get](#fraudserviceget) | Other | `FraudServiceGetRequest` |
 | [EventService.HandleEvent](#eventservicehandleevent) | Events | `EventServiceHandleRequest` |
 | [PaymentService.ProxyAuthorize](#paymentserviceproxyauthorize) | Payments | `PaymentServiceProxyAuthorizeRequest` |
 | [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
@@ -342,7 +342,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/bluesnap/bluesnap.py#L292) · [TypeScript](../../examples/bluesnap/bluesnap.ts#L272) · [Kotlin](../../examples/bluesnap/bluesnap.kt#L205) · [Rust](../../examples/bluesnap/bluesnap.rs#L267)
+**Examples:** [Python](../../examples/bluesnap/bluesnap.py#L294) · [TypeScript](../../examples/bluesnap/bluesnap.ts#L273) · [Kotlin](../../examples/bluesnap/bluesnap.kt#L205) · [Rust](../../examples/bluesnap/bluesnap.rs#L267)
 
 #### PaymentService.Capture
 
@@ -353,18 +353,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/bluesnap/bluesnap.py#L301) · [TypeScript](../../examples/bluesnap/bluesnap.ts#L281) · [Kotlin](../../examples/bluesnap/bluesnap.kt#L217) · [Rust](../../examples/bluesnap/bluesnap.rs#L279)
-
-#### PaymentService.Get
-
-Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceGetRequest` |
-| **Response** | `PaymentServiceGetResponse` |
-
-**Examples:** [Python](../../examples/bluesnap/bluesnap.py#L319) · [TypeScript](../../examples/bluesnap/bluesnap.ts#L299) · [Kotlin](../../examples/bluesnap/bluesnap.kt#L243) · [Rust](../../examples/bluesnap/bluesnap.rs#L293)
+**Examples:** [Python](../../examples/bluesnap/bluesnap.py#L303) · [TypeScript](../../examples/bluesnap/bluesnap.ts#L282) · [Kotlin](../../examples/bluesnap/bluesnap.kt#L217) · [Rust](../../examples/bluesnap/bluesnap.rs#L279)
 
 #### PaymentService.ProxyAuthorize
 
@@ -375,7 +364,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/bluesnap/bluesnap.py#L337) · [TypeScript](../../examples/bluesnap/bluesnap.ts#L317) · [Kotlin](../../examples/bluesnap/bluesnap.kt#L261) · [Rust](../../examples/bluesnap/bluesnap.rs#L307)
+**Examples:** [Python](../../examples/bluesnap/bluesnap.py#L339) · [TypeScript](../../examples/bluesnap/bluesnap.ts#L318) · [Kotlin](../../examples/bluesnap/bluesnap.kt#L261) · [Rust](../../examples/bluesnap/bluesnap.rs#L307)
 
 #### PaymentService.Refund
 
@@ -386,7 +375,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/bluesnap/bluesnap.py#L346) · [TypeScript](../../examples/bluesnap/bluesnap.ts#L326) · [Kotlin](../../examples/bluesnap/bluesnap.kt#L289) · [Rust](../../examples/bluesnap/bluesnap.rs#L314)
+**Examples:** [Python](../../examples/bluesnap/bluesnap.py#L348) · [TypeScript](../../examples/bluesnap/bluesnap.ts#L327) · [Kotlin](../../examples/bluesnap/bluesnap.kt#L289) · [Rust](../../examples/bluesnap/bluesnap.rs#L314)
 
 #### PaymentService.TokenAuthorize
 
@@ -397,7 +386,7 @@ Authorize using a connector-issued payment method token.
 | **Request** | `PaymentServiceTokenAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/bluesnap/bluesnap.py#L364) · [TypeScript](../../examples/bluesnap/bluesnap.ts#L344) · [Kotlin](../../examples/bluesnap/bluesnap.kt#L311) · [Rust](../../examples/bluesnap/bluesnap.rs#L328)
+**Examples:** [Python](../../examples/bluesnap/bluesnap.py#L366) · [TypeScript](../../examples/bluesnap/bluesnap.ts#L345) · [Kotlin](../../examples/bluesnap/bluesnap.kt#L311) · [Rust](../../examples/bluesnap/bluesnap.rs#L328)
 
 #### PaymentService.Void
 
@@ -408,7 +397,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/bluesnap/bluesnap.py#L373) · [TypeScript](../../examples/bluesnap/bluesnap.ts) · [Kotlin](../../examples/bluesnap/bluesnap.kt#L332) · [Rust](../../examples/bluesnap/bluesnap.rs#L335)
+**Examples:** [Python](../../examples/bluesnap/bluesnap.py#L375) · [TypeScript](../../examples/bluesnap/bluesnap.ts) · [Kotlin](../../examples/bluesnap/bluesnap.kt#L332) · [Rust](../../examples/bluesnap/bluesnap.rs#L335)
 
 ### Refunds
 
@@ -421,7 +410,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/bluesnap/bluesnap.py#L355) · [TypeScript](../../examples/bluesnap/bluesnap.ts#L335) · [Kotlin](../../examples/bluesnap/bluesnap.kt#L299) · [Rust](../../examples/bluesnap/bluesnap.rs#L321)
+**Examples:** [Python](../../examples/bluesnap/bluesnap.py#L357) · [TypeScript](../../examples/bluesnap/bluesnap.ts#L336) · [Kotlin](../../examples/bluesnap/bluesnap.kt#L299) · [Rust](../../examples/bluesnap/bluesnap.rs#L321)
 
 ### Authentication
 
@@ -434,4 +423,17 @@ Initialize client-facing SDK sessions for wallets, device fingerprinting, etc. R
 | **Request** | `MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/bluesnap/bluesnap.py#L310) · [TypeScript](../../examples/bluesnap/bluesnap.ts#L290) · [Kotlin](../../examples/bluesnap/bluesnap.kt#L227) · [Rust](../../examples/bluesnap/bluesnap.rs#L286)
+**Examples:** [Python](../../examples/bluesnap/bluesnap.py#L312) · [TypeScript](../../examples/bluesnap/bluesnap.ts#L291) · [Kotlin](../../examples/bluesnap/bluesnap.kt#L227) · [Rust](../../examples/bluesnap/bluesnap.rs#L286)
+
+### Other
+
+#### FraudService.Get
+
+Retrieves fraud decision history and risk scores for a specific transaction. Supports customer service investigations and chargeback dispute preparation.
+
+| | Message |
+|---|---------|
+| **Request** | `FraudServiceGetRequest` |
+| **Response** | `FraudServiceGetResponse` |
+
+**Examples:** [Python](../../examples/bluesnap/bluesnap.py#L321) · [TypeScript](../../examples/bluesnap/bluesnap.ts#L300) · [Kotlin](../../examples/bluesnap/bluesnap.kt#L243) · [Rust](../../examples/bluesnap/bluesnap.rs#L293)

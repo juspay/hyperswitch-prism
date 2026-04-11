@@ -10,6 +10,7 @@ import sys
 from google.protobuf.json_format import ParseDict
 from payments import PaymentClient
 from payments import MerchantAuthenticationClient
+from payments import FraudClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 _default_config = sdk_config_pb2.ConnectorConfig(
@@ -62,14 +63,14 @@ def _build_create_server_session_authentication_token_request():
 def _build_get_request(connector_transaction_id: str):
     return ParseDict(
         {
-            "merchant_transaction_id": "probe_merchant_txn_001",  # Identification.
+            "merchant_transaction_id": "probe_merchant_txn_001",
             "connector_transaction_id": connector_transaction_id,
-            "amount": {  # Amount Information.
-                "minor_amount": 1000,  # Amount in minor units (e.g., 1000 = $10.00).
-                "currency": "USD"  # ISO 4217 currency code (e.g., "USD", "EUR").
+            "amount": {
+                "minor_amount": 1000,
+                "currency": "USD"
             }
         },
-        payment_pb2.PaymentServiceGetRequest(),
+        payment_pb2.FraudServiceGetRequest(),
     )
 async def authorize(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """Flow: PaymentService.Authorize (UpiCollect)"""
@@ -90,10 +91,10 @@ async def create_server_session_authentication_token(merchant_transaction_id: st
 
 
 async def get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
-    """Flow: PaymentService.Get"""
-    payment_client = PaymentClient(config)
+    """Flow: FraudService.Get"""
+    fraud_client = FraudClient(config)
 
-    get_response = await payment_client.get(_build_get_request("probe_connector_txn_001"))
+    get_response = await fraud_client.get(_build_get_request("probe_connector_txn_001"))
 
     return {"status": get_response.status}
 

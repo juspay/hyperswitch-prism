@@ -97,7 +97,7 @@ let config = ConnectorConfig {
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
 | [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
-| [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
+| [FraudService.Get](#fraudserviceget) | Other | `FraudServiceGetRequest` |
 
 ### Payments
 
@@ -218,15 +218,17 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/phonepe/phonepe.py#L63) · [TypeScript](../../examples/phonepe/phonepe.ts#L60) · [Kotlin](../../examples/phonepe/phonepe.kt#L63) · [Rust](../../examples/phonepe/phonepe.rs#L65)
+**Examples:** [Python](../../examples/phonepe/phonepe.py#L64) · [TypeScript](../../examples/phonepe/phonepe.ts#L60) · [Kotlin](../../examples/phonepe/phonepe.kt#L62) · [Rust](../../examples/phonepe/phonepe.rs#L65)
 
-#### PaymentService.Get
+### Other
 
-Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.
+#### FraudService.Get
+
+Retrieves fraud decision history and risk scores for a specific transaction. Supports customer service investigations and chargeback dispute preparation.
 
 | | Message |
 |---|---------|
-| **Request** | `PaymentServiceGetRequest` |
-| **Response** | `PaymentServiceGetResponse` |
+| **Request** | `FraudServiceGetRequest` |
+| **Response** | `FraudServiceGetResponse` |
 
-**Examples:** [Python](../../examples/phonepe/phonepe.py#L72) · [TypeScript](../../examples/phonepe/phonepe.ts#L69) · [Kotlin](../../examples/phonepe/phonepe.kt#L75) · [Rust](../../examples/phonepe/phonepe.rs#L77)
+**Examples:** [Python](../../examples/phonepe/phonepe.py#L73) · [TypeScript](../../examples/phonepe/phonepe.ts#L69) · [Kotlin](../../examples/phonepe/phonepe.kt#L74) · [Rust](../../examples/phonepe/phonepe.rs#L77)

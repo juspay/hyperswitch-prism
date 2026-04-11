@@ -97,7 +97,7 @@ let config = ConnectorConfig {
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
 | [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
-| [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
+| [FraudService.Get](#fraudserviceget) | Other | `FraudServiceGetRequest` |
 
 ### Payments
 
@@ -208,13 +208,15 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 **Examples:** [Python](../../examples/loonio/loonio.py) · [TypeScript](../../examples/loonio/loonio.ts) · [Kotlin](../../examples/loonio/loonio.kt) · [Rust](../../examples/loonio/loonio.rs)
 
-#### PaymentService.Get
+### Other
 
-Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.
+#### FraudService.Get
+
+Retrieves fraud decision history and risk scores for a specific transaction. Supports customer service investigations and chargeback dispute preparation.
 
 | | Message |
 |---|---------|
-| **Request** | `PaymentServiceGetRequest` |
-| **Response** | `PaymentServiceGetResponse` |
+| **Request** | `FraudServiceGetRequest` |
+| **Response** | `FraudServiceGetResponse` |
 
-**Examples:** [Python](../../examples/loonio/loonio.py#L37) · [TypeScript](../../examples/loonio/loonio.ts#L36) · [Kotlin](../../examples/loonio/loonio.kt#L36) · [Rust](../../examples/loonio/loonio.rs#L38)
+**Examples:** [Python](../../examples/loonio/loonio.py#L37) · [TypeScript](../../examples/loonio/loonio.ts#L36) · [Kotlin](../../examples/loonio/loonio.kt#L33) · [Rust](../../examples/loonio/loonio.rs#L38)

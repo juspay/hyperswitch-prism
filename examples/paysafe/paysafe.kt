@@ -8,10 +8,11 @@
 package examples.paysafe
 
 import payments.PaymentClient
+import payments.FraudClient
 import payments.RefundClient
 import payments.PaymentMethodClient
 import payments.PaymentServiceCaptureRequest
-import payments.PaymentServiceGetRequest
+import payments.FraudServiceGetRequest
 import payments.PaymentServiceRefundRequest
 import payments.RefundServiceGetRequest
 import payments.PaymentServiceTokenAuthorizeRequest
@@ -35,14 +36,12 @@ private fun buildCaptureRequest(connectorTransactionIdStr: String): PaymentServi
     }.build()
 }
 
-private fun buildGetRequest(connectorTransactionIdStr: String): PaymentServiceGetRequest {
-    return PaymentServiceGetRequest.newBuilder().apply {
-        merchantTransactionId = "probe_merchant_txn_001"  // Identification.
+private fun buildGetRequest(connectorTransactionIdStr: String): FraudServiceGetRequest {
+    return FraudServiceGetRequest.newBuilder().apply {
+        merchantTransactionId = "probe_merchant_txn_001"
         connectorTransactionId = connectorTransactionIdStr
-        amountBuilder.apply {  // Amount Information.
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        }
+        minorAmount = 1000L
+        currency = "USD"
     }.build()
 }
 
@@ -86,9 +85,9 @@ fun capture(txnId: String) {
     println("Done: ${response.status.name}")
 }
 
-// Flow: PaymentService.Get
+// Flow: FraudService.Get
 fun get(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+    val client = FraudClient(_defaultConfig)
     val request = buildGetRequest("probe_connector_txn_001")
     val response = client.get(request)
     println("Status: ${response.status.name}")

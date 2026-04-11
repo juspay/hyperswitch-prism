@@ -98,7 +98,7 @@ let config = ConnectorConfig {
 |--------------------|----------|----------------------|
 | [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
 | [MerchantAuthenticationService.CreateServerAuthenticationToken](#merchantauthenticationservicecreateserverauthenticationtoken) | Authentication | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
-| [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
+| [FraudService.Get](#fraudserviceget) | Other | `FraudServiceGetRequest` |
 | [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
 | [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
 
@@ -230,18 +230,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/iatapay/iatapay.py#L125) · [TypeScript](../../examples/iatapay/iatapay.ts#L114) · [Kotlin](../../examples/iatapay/iatapay.kt#L102) · [Rust](../../examples/iatapay/iatapay.rs#L120)
-
-#### PaymentService.Get
-
-Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceGetRequest` |
-| **Response** | `PaymentServiceGetResponse` |
-
-**Examples:** [Python](../../examples/iatapay/iatapay.py#L143) · [TypeScript](../../examples/iatapay/iatapay.ts#L132) · [Kotlin](../../examples/iatapay/iatapay.kt#L124) · [Rust](../../examples/iatapay/iatapay.rs#L139)
+**Examples:** [Python](../../examples/iatapay/iatapay.py#L124) · [TypeScript](../../examples/iatapay/iatapay.ts#L112) · [Kotlin](../../examples/iatapay/iatapay.kt#L97) · [Rust](../../examples/iatapay/iatapay.rs#L120)
 
 #### PaymentService.Refund
 
@@ -252,7 +241,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/iatapay/iatapay.py#L152) · [TypeScript](../../examples/iatapay/iatapay.ts#L141) · [Kotlin](../../examples/iatapay/iatapay.kt#L132) · [Rust](../../examples/iatapay/iatapay.rs#L146)
+**Examples:** [Python](../../examples/iatapay/iatapay.py#L151) · [TypeScript](../../examples/iatapay/iatapay.ts#L139) · [Kotlin](../../examples/iatapay/iatapay.kt#L127) · [Rust](../../examples/iatapay/iatapay.rs#L146)
 
 ### Refunds
 
@@ -265,7 +254,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/iatapay/iatapay.py#L161) · [TypeScript](../../examples/iatapay/iatapay.ts#L150) · [Kotlin](../../examples/iatapay/iatapay.kt#L142) · [Rust](../../examples/iatapay/iatapay.rs#L153)
+**Examples:** [Python](../../examples/iatapay/iatapay.py#L160) · [TypeScript](../../examples/iatapay/iatapay.ts#L148) · [Kotlin](../../examples/iatapay/iatapay.kt#L137) · [Rust](../../examples/iatapay/iatapay.rs#L153)
 
 ### Authentication
 
@@ -278,4 +267,17 @@ Generate short-lived connector authentication token. Provides secure credentials
 | **Request** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/iatapay/iatapay.py#L134) · [TypeScript](../../examples/iatapay/iatapay.ts#L123) · [Kotlin](../../examples/iatapay/iatapay.kt#L114) · [Rust](../../examples/iatapay/iatapay.rs#L132)
+**Examples:** [Python](../../examples/iatapay/iatapay.py#L133) · [TypeScript](../../examples/iatapay/iatapay.ts#L121) · [Kotlin](../../examples/iatapay/iatapay.kt#L109) · [Rust](../../examples/iatapay/iatapay.rs#L132)
+
+### Other
+
+#### FraudService.Get
+
+Retrieves fraud decision history and risk scores for a specific transaction. Supports customer service investigations and chargeback dispute preparation.
+
+| | Message |
+|---|---------|
+| **Request** | `FraudServiceGetRequest` |
+| **Response** | `FraudServiceGetResponse` |
+
+**Examples:** [Python](../../examples/iatapay/iatapay.py#L142) · [TypeScript](../../examples/iatapay/iatapay.ts#L130) · [Kotlin](../../examples/iatapay/iatapay.kt#L119) · [Rust](../../examples/iatapay/iatapay.rs#L139)

@@ -5,8 +5,8 @@
 // Loonio — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx loonio.ts checkout_autocapture
 
-import { PaymentClient, types } from 'hyperswitch-prism';
-const { ConnectorConfig, ConnectorSpecificConfig, SdkOptions, Environment, Currency } = types;
+import { FraudClient, types } from 'hyperswitch-prism';
+const { ConnectorConfig, ConnectorSpecificConfig, SdkOptions, Environment } = types;
 
 const _defaultConfig: ConnectorConfig = {
     options: {
@@ -19,24 +19,24 @@ const _defaultConfig: ConnectorConfig = {
 // };
 
 
-function _buildGetRequest(connectorTransactionId: string): PaymentServiceGetRequest {
+function _buildGetRequest(connectorTransactionId): FraudServiceGetRequest {
     return {
-        "merchantTransactionId": "probe_merchant_txn_001",  // Identification.
+        "merchantTransactionId": "probe_merchant_txn_001",
         "connectorTransactionId": connectorTransactionId,
-        "amount": {  // Amount Information.
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        "amount": {
+            "minorAmount": 1000,
+            "currency": "USD"
         }
     };
 }
 
 
 // ANCHOR: scenario_functions
-// Flow: PaymentService.Get
-async function get(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<PaymentServiceGetResponse> {
-    const paymentClient = new PaymentClient(config);
+// Flow: FraudService.Get
+async function get(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<FraudServiceGetResponse> {
+    const fraudClient = new FraudClient(config);
 
-    const getResponse = await paymentClient.get(_buildGetRequest('probe_connector_txn_001'));
+    const getResponse = await fraudClient.get(_buildGetRequest('probe_connector_txn_001'));
 
     return { status: getResponse.status };
 }

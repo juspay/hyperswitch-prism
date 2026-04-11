@@ -52,6 +52,9 @@
 //   ├──────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────┤
 //   │ PaymentMethodAuthenticationService   │ Execute 3D Secure authentication flows. Verify cardholder identity through  │
 //   │                                      │ frictionless or challenge-based checks to reduce fraud liability.           │
+//   ├──────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────┤
+//   │ FraudService                         │ Real-time fraud detection and risk scoring for payment transactions. Score  │
+//   │                                      │ risk before authorization, verify after completion, and prevent chargebacks.│
 //   └──────────────────────────────────────┴─────────────────────────────────────────────────────────────────────────────┘
 //
 //
@@ -65,6 +68,7 @@ package types;
 
 import "payment.proto";
 import "payouts.proto";
+import "fraud.proto";
 
 option go_package = "github.com/juspay/connector-service/crates/types-traits/grpc-api-types/proto;proto";
 
@@ -319,5 +323,42 @@ service PayoutService {
 
   // Enroll disburse account.
   rpc EnrollDisburseAccount(PayoutServiceEnrollDisburseAccountRequest) returns (PayoutServiceEnrollDisburseAccountResponse);
+}
+
+// ============================================================================
+// FRAUD SERVICE — Assesses fraud risk throughout the payment lifecycle. Protects
+//                  revenue by detecting fraudulent transactions before authorization
+//                  and refining risk models with post-transaction data.
+// ============================================================================
+
+service FraudService {
+  // Assesses transaction risk using payment data and device fingerprinting before authorization.
+  // Enables merchants to block suspicious transactions before submitting to payment processors.
+  rpc EvaluatePreAuthorization(FraudServiceEvaluatePreAuthorizationRequest)
+      returns (FraudServiceEvaluatePreAuthorizationResponse);
+
+  // Re-evaluates risk after authorization using approval/decline results and 3DS outcomes.
+  // Allows merchants to flag high-risk approvals for manual review or additional verification.
+  rpc EvaluatePostAuthorization(FraudServiceEvaluatePostAuthorizationRequest)
+      returns (FraudServiceEvaluatePostAuthorizationResponse);
+
+  // Records transaction completion data including settlement status and final amounts.
+  // Feeds transaction outcomes back into fraud models to improve future risk detection.
+  rpc RecordTransactionData(FraudServiceRecordTransactionDataRequest)
+      returns (FraudServiceRecordTransactionDataResponse);
+
+  // Records order fulfillment status with shipping carrier and tracking information.
+  // Provides delivery confirmation to dispute chargebacks claiming non-receipt of goods.
+  rpc RecordFulfillmentData(FraudServiceRecordFulfillmentDataRequest)
+      returns (FraudServiceRecordFulfillmentDataResponse);
+
+  // Records product returns and refund details for completed transactions.
+  // Enables fraud systems to identify return fraud patterns and repeat abusers.
+  rpc RecordReturnData(FraudServiceRecordReturnDataRequest)
+      returns (FraudServiceRecordReturnDataResponse);
+
+  // Retrieves fraud decision history and risk scores for a specific transaction.
+  // Supports customer service investigations and chargeback dispute preparation.
+  rpc Get(FraudServiceGetRequest) returns (FraudServiceGetResponse);
 }
 

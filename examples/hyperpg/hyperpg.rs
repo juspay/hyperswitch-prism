@@ -50,15 +50,15 @@ pub fn build_authorize_request(capture_method: &str) -> PaymentServiceAuthorizeR
     })).unwrap_or_default()
 }
 
-pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetRequest {
-    serde_json::from_value::<PaymentServiceGetRequest>(serde_json::json!({
-    "merchant_transaction_id": "probe_merchant_txn_001",  // Identification.
+pub fn build_get_request(connector_transaction_id: &str) -> FraudServiceGetRequest {
+    serde_json::from_value::<FraudServiceGetRequest>(serde_json::json!({
+    "merchant_transaction_id": "probe_merchant_txn_001",
     "connector_transaction_id": connector_transaction_id,
-    "amount": {  // Amount Information.
-        "minor_amount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-        "currency": "USD",  // ISO 4217 currency code (e.g., "USD", "EUR").
+    "amount": {
+        "minor_amount": 1000,
+        "currency": "USD",
     },
-    "connector_order_reference_id": "probe_order_ref_001",  // Connector Reference Id.
+    "connector_order_reference_id": "probe_order_ref_001",
     })).unwrap_or_default()
 }
 
@@ -178,7 +178,7 @@ pub async fn authorize(client: &ConnectorClient, _merchant_transaction_id: &str)
     }
 }
 
-// Flow: PaymentService.Get
+// Flow: FraudService.Get
 #[allow(dead_code)]
 pub async fn get(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
     let response = client.get(build_get_request("probe_connector_txn_001"), &HashMap::new(), None).await?;

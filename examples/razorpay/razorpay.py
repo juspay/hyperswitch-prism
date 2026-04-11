@@ -9,6 +9,7 @@ import asyncio
 import sys
 from google.protobuf.json_format import ParseDict
 from payments import PaymentClient
+from payments import FraudClient
 from payments import EventClient
 from payments import RefundClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
@@ -85,14 +86,14 @@ def _build_create_order_request():
 def _build_get_request(connector_transaction_id: str):
     return ParseDict(
         {
-            "merchant_transaction_id": "probe_merchant_txn_001",  # Identification.
+            "merchant_transaction_id": "probe_merchant_txn_001",
             "connector_transaction_id": connector_transaction_id,
-            "amount": {  # Amount Information.
-                "minor_amount": 1000,  # Amount in minor units (e.g., 1000 = $10.00).
-                "currency": "USD"  # ISO 4217 currency code (e.g., "USD", "EUR").
+            "amount": {
+                "minor_amount": 1000,
+                "currency": "USD"
             }
         },
-        payment_pb2.PaymentServiceGetRequest(),
+        payment_pb2.FraudServiceGetRequest(),
     )
 
 def _build_handle_event_request():
@@ -232,6 +233,7 @@ async def process_get_payment(merchant_transaction_id: str, config: sdk_config_p
     Retrieve current payment status from the connector.
     """
     payment_client = PaymentClient(config)
+    fraud_client = FraudClient(config)
 
     # Step 1: Authorize — reserve funds on the payment method
     authorize_response = await payment_client.authorize(_build_authorize_request("MANUAL"))
@@ -243,7 +245,7 @@ async def process_get_payment(merchant_transaction_id: str, config: sdk_config_p
         return {"status": "pending", "transaction_id": authorize_response.connector_transaction_id}
 
     # Step 2: Get — retrieve current payment status from the connector
-    get_response = await payment_client.get(_build_get_request(authorize_response.connector_transaction_id))
+    get_response = await fraud_client.get(_build_get_request(authorize_response.connector_transaction_id))
 
     return {"status": getattr(get_response, "status", ""), "transaction_id": getattr(get_response, "connector_transaction_id", ""), "error": getattr(get_response, "error", None)}
 
@@ -276,10 +278,10 @@ async def create_order(merchant_transaction_id: str, config: sdk_config_pb2.Conn
 
 
 async def get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
-    """Flow: PaymentService.Get"""
-    payment_client = PaymentClient(config)
+    """Flow: FraudService.Get"""
+    fraud_client = FraudClient(config)
 
-    get_response = await payment_client.get(_build_get_request("probe_connector_txn_001"))
+    get_response = await fraud_client.get(_build_get_request("probe_connector_txn_001"))
 
     return {"status": get_response.status}
 

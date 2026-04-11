@@ -108,7 +108,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/paybox/paybox.py#L143) · [JavaScript](../../examples/paybox/paybox.js) · [Kotlin](../../examples/paybox/paybox.kt#L107) · [Rust](../../examples/paybox/paybox.rs#L135)
+**Examples:** [Python](../../examples/paybox/paybox.py#L144) · [JavaScript](../../examples/paybox/paybox.js) · [Kotlin](../../examples/paybox/paybox.kt#L106) · [Rust](../../examples/paybox/paybox.rs#L135)
 
 ### Card Payment (Authorize + Capture)
 
@@ -122,25 +122,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/paybox/paybox.py#L162) · [JavaScript](../../examples/paybox/paybox.js) · [Kotlin](../../examples/paybox/paybox.kt#L123) · [Rust](../../examples/paybox/paybox.rs#L151)
+**Examples:** [Python](../../examples/paybox/paybox.py#L163) · [JavaScript](../../examples/paybox/paybox.js) · [Kotlin](../../examples/paybox/paybox.kt#L122) · [Rust](../../examples/paybox/paybox.rs#L151)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/paybox/paybox.py#L187) · [JavaScript](../../examples/paybox/paybox.js) · [Kotlin](../../examples/paybox/paybox.kt#L145) · [Rust](../../examples/paybox/paybox.rs#L174)
+**Examples:** [Python](../../examples/paybox/paybox.py#L188) · [JavaScript](../../examples/paybox/paybox.js) · [Kotlin](../../examples/paybox/paybox.kt#L144) · [Rust](../../examples/paybox/paybox.rs#L174)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/paybox/paybox.py#L212) · [JavaScript](../../examples/paybox/paybox.js) · [Kotlin](../../examples/paybox/paybox.kt#L167) · [Rust](../../examples/paybox/paybox.rs#L197)
+**Examples:** [Python](../../examples/paybox/paybox.py#L213) · [JavaScript](../../examples/paybox/paybox.js) · [Kotlin](../../examples/paybox/paybox.kt#L166) · [Rust](../../examples/paybox/paybox.rs#L197)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/paybox/paybox.py#L234) · [JavaScript](../../examples/paybox/paybox.js) · [Kotlin](../../examples/paybox/paybox.kt#L186) · [Rust](../../examples/paybox/paybox.rs#L216)
+**Examples:** [Python](../../examples/paybox/paybox.py#L235) · [JavaScript](../../examples/paybox/paybox.js) · [Kotlin](../../examples/paybox/paybox.kt#L185) · [Rust](../../examples/paybox/paybox.rs#L216)
 
 ## API Reference
 
@@ -148,7 +148,7 @@ Retrieve current payment status from the connector.
 |--------------------|----------|----------------------|
 | [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
 | [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
-| [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
+| [FraudService.Get](#fraudserviceget) | Other | `FraudServiceGetRequest` |
 | [PaymentService.ProxyAuthorize](#paymentserviceproxyauthorize) | Payments | `PaymentServiceProxyAuthorizeRequest` |
 | [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
 | [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
@@ -277,7 +277,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/paybox/paybox.py#L256) · [TypeScript](../../examples/paybox/paybox.ts#L244) · [Kotlin](../../examples/paybox/paybox.kt#L204) · [Rust](../../examples/paybox/paybox.rs#L234)
+**Examples:** [Python](../../examples/paybox/paybox.py#L258) · [TypeScript](../../examples/paybox/paybox.ts#L245) · [Kotlin](../../examples/paybox/paybox.kt#L204) · [Rust](../../examples/paybox/paybox.rs#L234)
 
 #### PaymentService.Capture
 
@@ -288,18 +288,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/paybox/paybox.py#L265) · [TypeScript](../../examples/paybox/paybox.ts#L253) · [Kotlin](../../examples/paybox/paybox.kt#L216) · [Rust](../../examples/paybox/paybox.rs#L246)
-
-#### PaymentService.Get
-
-Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceGetRequest` |
-| **Response** | `PaymentServiceGetResponse` |
-
-**Examples:** [Python](../../examples/paybox/paybox.py#L274) · [TypeScript](../../examples/paybox/paybox.ts#L262) · [Kotlin](../../examples/paybox/paybox.kt#L226) · [Rust](../../examples/paybox/paybox.rs#L253)
+**Examples:** [Python](../../examples/paybox/paybox.py#L267) · [TypeScript](../../examples/paybox/paybox.ts#L254) · [Kotlin](../../examples/paybox/paybox.kt#L216) · [Rust](../../examples/paybox/paybox.rs#L246)
 
 #### PaymentService.ProxyAuthorize
 
@@ -310,7 +299,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/paybox/paybox.py#L283) · [TypeScript](../../examples/paybox/paybox.ts#L271) · [Kotlin](../../examples/paybox/paybox.kt#L234) · [Rust](../../examples/paybox/paybox.rs#L260)
+**Examples:** [Python](../../examples/paybox/paybox.py#L285) · [TypeScript](../../examples/paybox/paybox.ts#L272) · [Kotlin](../../examples/paybox/paybox.kt#L234) · [Rust](../../examples/paybox/paybox.rs#L260)
 
 #### PaymentService.Refund
 
@@ -321,7 +310,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/paybox/paybox.py#L292) · [TypeScript](../../examples/paybox/paybox.ts#L280) · [Kotlin](../../examples/paybox/paybox.kt#L262) · [Rust](../../examples/paybox/paybox.rs#L267)
+**Examples:** [Python](../../examples/paybox/paybox.py#L294) · [TypeScript](../../examples/paybox/paybox.ts#L281) · [Kotlin](../../examples/paybox/paybox.kt#L262) · [Rust](../../examples/paybox/paybox.rs#L267)
 
 #### PaymentService.Void
 
@@ -332,7 +321,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/paybox/paybox.py#L310) · [TypeScript](../../examples/paybox/paybox.ts) · [Kotlin](../../examples/paybox/paybox.kt#L284) · [Rust](../../examples/paybox/paybox.rs#L281)
+**Examples:** [Python](../../examples/paybox/paybox.py#L312) · [TypeScript](../../examples/paybox/paybox.ts) · [Kotlin](../../examples/paybox/paybox.kt#L284) · [Rust](../../examples/paybox/paybox.rs#L281)
 
 ### Refunds
 
@@ -345,4 +334,17 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/paybox/paybox.py#L301) · [TypeScript](../../examples/paybox/paybox.ts#L289) · [Kotlin](../../examples/paybox/paybox.kt#L272) · [Rust](../../examples/paybox/paybox.rs#L274)
+**Examples:** [Python](../../examples/paybox/paybox.py#L303) · [TypeScript](../../examples/paybox/paybox.ts#L290) · [Kotlin](../../examples/paybox/paybox.kt#L272) · [Rust](../../examples/paybox/paybox.rs#L274)
+
+### Other
+
+#### FraudService.Get
+
+Retrieves fraud decision history and risk scores for a specific transaction. Supports customer service investigations and chargeback dispute preparation.
+
+| | Message |
+|---|---------|
+| **Request** | `FraudServiceGetRequest` |
+| **Response** | `FraudServiceGetResponse` |
+
+**Examples:** [Python](../../examples/paybox/paybox.py#L276) · [TypeScript](../../examples/paybox/paybox.ts#L263) · [Kotlin](../../examples/paybox/paybox.kt#L226) · [Rust](../../examples/paybox/paybox.rs#L253)

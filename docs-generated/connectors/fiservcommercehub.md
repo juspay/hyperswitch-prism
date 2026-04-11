@@ -97,23 +97,12 @@ let config = ConnectorConfig {
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
 | [MerchantAuthenticationService.CreateServerAuthenticationToken](#merchantauthenticationservicecreateserverauthenticationtoken) | Authentication | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
-| [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
+| [FraudService.Get](#fraudserviceget) | Other | `FraudServiceGetRequest` |
 | [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
 | [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
 | [PaymentService.Void](#paymentservicevoid) | Payments | `PaymentServiceVoidRequest` |
 
 ### Payments
-
-#### PaymentService.Get
-
-Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceGetRequest` |
-| **Response** | `PaymentServiceGetResponse` |
-
-**Examples:** [Python](../../examples/fiservcommercehub/fiservcommercehub.py#L117) · [TypeScript](../../examples/fiservcommercehub/fiservcommercehub.ts#L106) · [Kotlin](../../examples/fiservcommercehub/fiservcommercehub.kt#L93) · [Rust](../../examples/fiservcommercehub/fiservcommercehub.rs#L107)
 
 #### PaymentService.Refund
 
@@ -124,7 +113,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/fiservcommercehub/fiservcommercehub.py#L126) · [TypeScript](../../examples/fiservcommercehub/fiservcommercehub.ts#L115) · [Kotlin](../../examples/fiservcommercehub/fiservcommercehub.kt#L101) · [Rust](../../examples/fiservcommercehub/fiservcommercehub.rs#L114)
+**Examples:** [Python](../../examples/fiservcommercehub/fiservcommercehub.py#L125) · [TypeScript](../../examples/fiservcommercehub/fiservcommercehub.ts#L113) · [Kotlin](../../examples/fiservcommercehub/fiservcommercehub.kt#L96) · [Rust](../../examples/fiservcommercehub/fiservcommercehub.rs#L114)
 
 #### PaymentService.Void
 
@@ -135,7 +124,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/fiservcommercehub/fiservcommercehub.py#L144) · [TypeScript](../../examples/fiservcommercehub/fiservcommercehub.ts) · [Kotlin](../../examples/fiservcommercehub/fiservcommercehub.kt#L130) · [Rust](../../examples/fiservcommercehub/fiservcommercehub.rs#L128)
+**Examples:** [Python](../../examples/fiservcommercehub/fiservcommercehub.py#L143) · [TypeScript](../../examples/fiservcommercehub/fiservcommercehub.ts) · [Kotlin](../../examples/fiservcommercehub/fiservcommercehub.kt#L125) · [Rust](../../examples/fiservcommercehub/fiservcommercehub.rs#L128)
 
 ### Refunds
 
@@ -148,7 +137,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/fiservcommercehub/fiservcommercehub.py#L135) · [TypeScript](../../examples/fiservcommercehub/fiservcommercehub.ts#L124) · [Kotlin](../../examples/fiservcommercehub/fiservcommercehub.kt#L111) · [Rust](../../examples/fiservcommercehub/fiservcommercehub.rs#L121)
+**Examples:** [Python](../../examples/fiservcommercehub/fiservcommercehub.py#L134) · [TypeScript](../../examples/fiservcommercehub/fiservcommercehub.ts#L122) · [Kotlin](../../examples/fiservcommercehub/fiservcommercehub.kt#L106) · [Rust](../../examples/fiservcommercehub/fiservcommercehub.rs#L121)
 
 ### Authentication
 
@@ -161,4 +150,17 @@ Generate short-lived connector authentication token. Provides secure credentials
 | **Request** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/fiservcommercehub/fiservcommercehub.py#L108) · [TypeScript](../../examples/fiservcommercehub/fiservcommercehub.ts#L97) · [Kotlin](../../examples/fiservcommercehub/fiservcommercehub.kt#L83) · [Rust](../../examples/fiservcommercehub/fiservcommercehub.rs#L100)
+**Examples:** [Python](../../examples/fiservcommercehub/fiservcommercehub.py#L107) · [TypeScript](../../examples/fiservcommercehub/fiservcommercehub.ts#L95) · [Kotlin](../../examples/fiservcommercehub/fiservcommercehub.kt#L78) · [Rust](../../examples/fiservcommercehub/fiservcommercehub.rs#L100)
+
+### Other
+
+#### FraudService.Get
+
+Retrieves fraud decision history and risk scores for a specific transaction. Supports customer service investigations and chargeback dispute preparation.
+
+| | Message |
+|---|---------|
+| **Request** | `FraudServiceGetRequest` |
+| **Response** | `FraudServiceGetResponse` |
+
+**Examples:** [Python](../../examples/fiservcommercehub/fiservcommercehub.py#L116) · [TypeScript](../../examples/fiservcommercehub/fiservcommercehub.ts#L104) · [Kotlin](../../examples/fiservcommercehub/fiservcommercehub.kt#L88) · [Rust](../../examples/fiservcommercehub/fiservcommercehub.rs#L107)

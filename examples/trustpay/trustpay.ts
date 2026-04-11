@@ -5,7 +5,7 @@
 // Trustpay — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx trustpay.ts checkout_autocapture
 
-import { PaymentClient, MerchantAuthenticationClient, EventClient, RefundClient, types } from 'hyperswitch-prism';
+import { PaymentClient, FraudClient, MerchantAuthenticationClient, EventClient, RefundClient, types } from 'hyperswitch-prism';
 const { ConnectorConfig, ConnectorSpecificConfig, SdkOptions, Environment, AuthenticationType, CaptureMethod, CountryAlpha2, Currency } = types;
 
 const _defaultConfig: ConnectorConfig = {
@@ -86,20 +86,18 @@ function _buildCreateServerAuthenticationTokenRequest(): MerchantAuthenticationS
     };
 }
 
-function _buildGetRequest(connectorTransactionId: string): PaymentServiceGetRequest {
+function _buildGetRequest(connectorTransactionId): FraudServiceGetRequest {
     return {
-        "merchantTransactionId": "probe_merchant_txn_001",  // Identification.
+        "merchantTransactionId": "probe_merchant_txn_001",
         "connectorTransactionId": connectorTransactionId,
-        "amount": {  // Amount Information.
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        "amount": {
+            "minorAmount": 1000,
+            "currency": "USD"
         },
-        "state": {  // State Information.
-            "accessToken": {  // Access token obtained from connector.
-                "token": {"value": "probe_access_token"},  // The token string.
-                "expiresInSeconds": 3600,  // Expiration timestamp (seconds since epoch).
-                "tokenType": "Bearer"  // Token type (e.g., "Bearer", "Basic").
-            }
+        "state": {
+            "token": "probe_access_token",
+            "expiresInSeconds": 3600,
+            "tokenType": "Bearer"
         }
     };
 }
@@ -236,8 +234,9 @@ async function processRefund(merchantTransactionId: string, config: ConnectorCon
 
 // Get Payment Status
 // Retrieve current payment status from the connector.
-async function processGetPayment(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<PaymentServiceGetResponse> {
+async function processGetPayment(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<FraudServiceGetResponse> {
     const paymentClient = new PaymentClient(config);
+    const fraudClient = new FraudClient(config);
 
     // Step 1: Authorize — reserve funds on the payment method
     const authorizeResponse = await paymentClient.authorize(_buildAuthorizeRequest(CaptureMethod.MANUAL));
@@ -251,7 +250,7 @@ async function processGetPayment(merchantTransactionId: string, config: Connecto
     }
 
     // Step 2: Get — retrieve current payment status from the connector
-    const getResponse = await paymentClient.get(_buildGetRequest(authorizeResponse.connectorTransactionId));
+    const getResponse = await fraudClient.get(_buildGetRequest(authorizeResponse.connectorTransactionId));
 
     return { status: getResponse.status, transactionId: getResponse.connectorTransactionId, error: getResponse.error };
 }
@@ -283,11 +282,11 @@ async function createServerAuthenticationToken(merchantTransactionId: string, co
     return { status: createResponse.status };
 }
 
-// Flow: PaymentService.Get
-async function get(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<PaymentServiceGetResponse> {
-    const paymentClient = new PaymentClient(config);
+// Flow: FraudService.Get
+async function get(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<FraudServiceGetResponse> {
+    const fraudClient = new FraudClient(config);
 
-    const getResponse = await paymentClient.get(_buildGetRequest('probe_connector_txn_001'));
+    const getResponse = await fraudClient.get(_buildGetRequest('probe_connector_txn_001'));
 
     return { status: getResponse.status };
 }

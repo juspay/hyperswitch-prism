@@ -108,7 +108,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/worldpayvantiv/worldpayvantiv.py#L148) · [JavaScript](../../examples/worldpayvantiv/worldpayvantiv.js) · [Kotlin](../../examples/worldpayvantiv/worldpayvantiv.kt#L104) · [Rust](../../examples/worldpayvantiv/worldpayvantiv.rs#L138)
+**Examples:** [Python](../../examples/worldpayvantiv/worldpayvantiv.py#L149) · [JavaScript](../../examples/worldpayvantiv/worldpayvantiv.js) · [Kotlin](../../examples/worldpayvantiv/worldpayvantiv.kt#L103) · [Rust](../../examples/worldpayvantiv/worldpayvantiv.rs#L138)
 
 ### Card Payment (Authorize + Capture)
 
@@ -122,25 +122,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/worldpayvantiv/worldpayvantiv.py#L167) · [JavaScript](../../examples/worldpayvantiv/worldpayvantiv.js) · [Kotlin](../../examples/worldpayvantiv/worldpayvantiv.kt#L120) · [Rust](../../examples/worldpayvantiv/worldpayvantiv.rs#L154)
+**Examples:** [Python](../../examples/worldpayvantiv/worldpayvantiv.py#L168) · [JavaScript](../../examples/worldpayvantiv/worldpayvantiv.js) · [Kotlin](../../examples/worldpayvantiv/worldpayvantiv.kt#L119) · [Rust](../../examples/worldpayvantiv/worldpayvantiv.rs#L154)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/worldpayvantiv/worldpayvantiv.py#L192) · [JavaScript](../../examples/worldpayvantiv/worldpayvantiv.js) · [Kotlin](../../examples/worldpayvantiv/worldpayvantiv.kt#L142) · [Rust](../../examples/worldpayvantiv/worldpayvantiv.rs#L177)
+**Examples:** [Python](../../examples/worldpayvantiv/worldpayvantiv.py#L193) · [JavaScript](../../examples/worldpayvantiv/worldpayvantiv.js) · [Kotlin](../../examples/worldpayvantiv/worldpayvantiv.kt#L141) · [Rust](../../examples/worldpayvantiv/worldpayvantiv.rs#L177)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/worldpayvantiv/worldpayvantiv.py#L217) · [JavaScript](../../examples/worldpayvantiv/worldpayvantiv.js) · [Kotlin](../../examples/worldpayvantiv/worldpayvantiv.kt#L164) · [Rust](../../examples/worldpayvantiv/worldpayvantiv.rs#L200)
+**Examples:** [Python](../../examples/worldpayvantiv/worldpayvantiv.py#L218) · [JavaScript](../../examples/worldpayvantiv/worldpayvantiv.js) · [Kotlin](../../examples/worldpayvantiv/worldpayvantiv.kt#L163) · [Rust](../../examples/worldpayvantiv/worldpayvantiv.rs#L200)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/worldpayvantiv/worldpayvantiv.py#L239) · [JavaScript](../../examples/worldpayvantiv/worldpayvantiv.js) · [Kotlin](../../examples/worldpayvantiv/worldpayvantiv.kt#L183) · [Rust](../../examples/worldpayvantiv/worldpayvantiv.rs#L219)
+**Examples:** [Python](../../examples/worldpayvantiv/worldpayvantiv.py#L240) · [JavaScript](../../examples/worldpayvantiv/worldpayvantiv.js) · [Kotlin](../../examples/worldpayvantiv/worldpayvantiv.kt#L182) · [Rust](../../examples/worldpayvantiv/worldpayvantiv.rs#L219)
 
 ## API Reference
 
@@ -148,7 +148,7 @@ Retrieve current payment status from the connector.
 |--------------------|----------|----------------------|
 | [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
 | [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
-| [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
+| [FraudService.Get](#fraudserviceget) | Other | `FraudServiceGetRequest` |
 | [PaymentService.ProxyAuthorize](#paymentserviceproxyauthorize) | Payments | `PaymentServiceProxyAuthorizeRequest` |
 | [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
 | [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
@@ -278,7 +278,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/worldpayvantiv/worldpayvantiv.py#L261) · [TypeScript](../../examples/worldpayvantiv/worldpayvantiv.ts#L247) · [Kotlin](../../examples/worldpayvantiv/worldpayvantiv.kt#L201) · [Rust](../../examples/worldpayvantiv/worldpayvantiv.rs#L237)
+**Examples:** [Python](../../examples/worldpayvantiv/worldpayvantiv.py#L263) · [TypeScript](../../examples/worldpayvantiv/worldpayvantiv.ts#L248) · [Kotlin](../../examples/worldpayvantiv/worldpayvantiv.kt#L201) · [Rust](../../examples/worldpayvantiv/worldpayvantiv.rs#L237)
 
 #### PaymentService.Capture
 
@@ -289,18 +289,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/worldpayvantiv/worldpayvantiv.py#L270) · [TypeScript](../../examples/worldpayvantiv/worldpayvantiv.ts#L256) · [Kotlin](../../examples/worldpayvantiv/worldpayvantiv.kt#L213) · [Rust](../../examples/worldpayvantiv/worldpayvantiv.rs#L249)
-
-#### PaymentService.Get
-
-Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceGetRequest` |
-| **Response** | `PaymentServiceGetResponse` |
-
-**Examples:** [Python](../../examples/worldpayvantiv/worldpayvantiv.py#L279) · [TypeScript](../../examples/worldpayvantiv/worldpayvantiv.ts#L265) · [Kotlin](../../examples/worldpayvantiv/worldpayvantiv.kt#L223) · [Rust](../../examples/worldpayvantiv/worldpayvantiv.rs#L256)
+**Examples:** [Python](../../examples/worldpayvantiv/worldpayvantiv.py#L272) · [TypeScript](../../examples/worldpayvantiv/worldpayvantiv.ts#L257) · [Kotlin](../../examples/worldpayvantiv/worldpayvantiv.kt#L213) · [Rust](../../examples/worldpayvantiv/worldpayvantiv.rs#L249)
 
 #### PaymentService.ProxyAuthorize
 
@@ -311,7 +300,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/worldpayvantiv/worldpayvantiv.py#L288) · [TypeScript](../../examples/worldpayvantiv/worldpayvantiv.ts#L274) · [Kotlin](../../examples/worldpayvantiv/worldpayvantiv.kt#L231) · [Rust](../../examples/worldpayvantiv/worldpayvantiv.rs#L263)
+**Examples:** [Python](../../examples/worldpayvantiv/worldpayvantiv.py#L290) · [TypeScript](../../examples/worldpayvantiv/worldpayvantiv.ts#L275) · [Kotlin](../../examples/worldpayvantiv/worldpayvantiv.kt#L231) · [Rust](../../examples/worldpayvantiv/worldpayvantiv.rs#L263)
 
 #### PaymentService.Refund
 
@@ -322,7 +311,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/worldpayvantiv/worldpayvantiv.py#L297) · [TypeScript](../../examples/worldpayvantiv/worldpayvantiv.ts#L283) · [Kotlin](../../examples/worldpayvantiv/worldpayvantiv.kt#L259) · [Rust](../../examples/worldpayvantiv/worldpayvantiv.rs#L270)
+**Examples:** [Python](../../examples/worldpayvantiv/worldpayvantiv.py#L299) · [TypeScript](../../examples/worldpayvantiv/worldpayvantiv.ts#L284) · [Kotlin](../../examples/worldpayvantiv/worldpayvantiv.kt#L259) · [Rust](../../examples/worldpayvantiv/worldpayvantiv.rs#L270)
 
 #### PaymentService.Reverse
 
@@ -333,7 +322,7 @@ Reverse a captured payment in full. Initiates a complete refund when you need to
 | **Request** | `PaymentServiceReverseRequest` |
 | **Response** | `PaymentServiceReverseResponse` |
 
-**Examples:** [Python](../../examples/worldpayvantiv/worldpayvantiv.py#L315) · [TypeScript](../../examples/worldpayvantiv/worldpayvantiv.ts#L301) · [Kotlin](../../examples/worldpayvantiv/worldpayvantiv.kt#L281) · [Rust](../../examples/worldpayvantiv/worldpayvantiv.rs#L284)
+**Examples:** [Python](../../examples/worldpayvantiv/worldpayvantiv.py#L317) · [TypeScript](../../examples/worldpayvantiv/worldpayvantiv.ts#L302) · [Kotlin](../../examples/worldpayvantiv/worldpayvantiv.kt#L281) · [Rust](../../examples/worldpayvantiv/worldpayvantiv.rs#L284)
 
 #### PaymentService.Void
 
@@ -344,7 +333,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/worldpayvantiv/worldpayvantiv.py#L324) · [TypeScript](../../examples/worldpayvantiv/worldpayvantiv.ts) · [Kotlin](../../examples/worldpayvantiv/worldpayvantiv.kt#L292) · [Rust](../../examples/worldpayvantiv/worldpayvantiv.rs#L291)
+**Examples:** [Python](../../examples/worldpayvantiv/worldpayvantiv.py#L326) · [TypeScript](../../examples/worldpayvantiv/worldpayvantiv.ts) · [Kotlin](../../examples/worldpayvantiv/worldpayvantiv.kt#L292) · [Rust](../../examples/worldpayvantiv/worldpayvantiv.rs#L291)
 
 ### Refunds
 
@@ -357,4 +346,17 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/worldpayvantiv/worldpayvantiv.py#L306) · [TypeScript](../../examples/worldpayvantiv/worldpayvantiv.ts#L292) · [Kotlin](../../examples/worldpayvantiv/worldpayvantiv.kt#L269) · [Rust](../../examples/worldpayvantiv/worldpayvantiv.rs#L277)
+**Examples:** [Python](../../examples/worldpayvantiv/worldpayvantiv.py#L308) · [TypeScript](../../examples/worldpayvantiv/worldpayvantiv.ts#L293) · [Kotlin](../../examples/worldpayvantiv/worldpayvantiv.kt#L269) · [Rust](../../examples/worldpayvantiv/worldpayvantiv.rs#L277)
+
+### Other
+
+#### FraudService.Get
+
+Retrieves fraud decision history and risk scores for a specific transaction. Supports customer service investigations and chargeback dispute preparation.
+
+| | Message |
+|---|---------|
+| **Request** | `FraudServiceGetRequest` |
+| **Response** | `FraudServiceGetResponse` |
+
+**Examples:** [Python](../../examples/worldpayvantiv/worldpayvantiv.py#L281) · [TypeScript](../../examples/worldpayvantiv/worldpayvantiv.ts#L266) · [Kotlin](../../examples/worldpayvantiv/worldpayvantiv.kt#L223) · [Rust](../../examples/worldpayvantiv/worldpayvantiv.rs#L256)

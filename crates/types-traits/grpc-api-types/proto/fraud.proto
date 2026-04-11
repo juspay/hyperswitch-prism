@@ -1,0 +1,328 @@
+syntax = "proto3";
+
+package types;
+
+import "payment.proto";
+import "payment_methods.proto";
+import "google/protobuf/empty.proto";
+
+option go_package = "github.com/juspay/connector-service/crates/types-traits/grpc-api-types/proto;proto";
+
+// ============================================================================
+// FRAUD ENUMERATIONS (Hyperswitch-Aligned - DO NOT MODIFY)
+// ============================================================================
+
+// Status of a fraud check - MUST MATCH Hyperswitch FraudCheckStatus EXACTLY
+// From: crates/common_enums/src/enums.rs
+enum FraudCheckStatus {
+  FRAUD_CHECK_STATUS_UNSPECIFIED = 0;
+  FRAUD_CHECK_STATUS_PENDING = 1;
+  FRAUD_CHECK_STATUS_FRAUD = 2;
+  FRAUD_CHECK_STATUS_LEGIT = 3;
+  FRAUD_CHECK_STATUS_MANUAL_REVIEW = 4;
+  FRAUD_CHECK_STATUS_TRANSACTION_FAILURE = 5;
+}
+
+// Fraud check action recommendation
+enum FraudAction {
+  FRAUD_ACTION_UNSPECIFIED = 0;
+  FRAUD_ACTION_ACCEPT = 1;
+  FRAUD_ACTION_REJECT = 2;
+}
+
+// Fulfillment status for order completion
+enum FulfillmentStatus {
+  FULFILLMENT_STATUS_UNSPECIFIED = 0;
+  FULFILLMENT_STATUS_PENDING = 1;
+  FULFILLMENT_STATUS_PARTIAL = 2;
+  FULFILLMENT_STATUS_COMPLETE = 3;
+  FULFILLMENT_STATUS_REPLACEMENT = 4;
+  FULFILLMENT_STATUS_CANCELLED = 5;
+}
+
+// Refund method for returns
+enum RefundMethod {
+  REFUND_METHOD_UNSPECIFIED = 0;
+  REFUND_METHOD_STORE_CREDIT = 1;
+  REFUND_METHOD_ORIGINAL_PAYMENT_INSTRUMENT = 2;
+  REFUND_METHOD_NEW_PAYMENT_INSTRUMENT = 3;
+}
+
+// ============================================================================
+// CORE FRAUD DATA MESSAGES
+// ============================================================================
+
+// Product information for fraud analysis
+message FraudProduct {
+  string product_id = 1;
+  string product_name = 2;
+  string product_type = 3;
+  int64 quantity = 4;
+  int64 unit_price = 5;
+  int64 total_amount = 6;
+  optional string brand = 7;
+  optional string category = 8;
+  optional string sub_category = 9;
+  optional string sku = 10;
+  optional bool requires_shipping = 11;
+}
+
+// Shipment destination information
+message FraudDestination {
+  SecretString full_name = 1;
+  optional string organization = 2;
+  optional SecretString email = 3;
+  Address address = 4;
+}
+
+// Fulfillment shipment details
+message FraudShipment {
+  string shipment_id = 1;
+  repeated FraudProduct products = 2;
+  FraudDestination destination = 3;
+  optional string tracking_company = 4;
+  repeated string tracking_numbers = 5;
+  repeated string tracking_urls = 6;
+  optional string carrier = 7;
+  optional string fulfillment_method = 8;
+  optional string shipment_status = 9;
+  optional int64 shipped_at = 10;
+}
+
+// Fraud score details
+message FraudScore {
+  int32 score = 1;
+  optional string risk_level = 2;
+  optional int32 threshold = 3;
+}
+
+// Fraud decision reason
+message FraudReason {
+  string code = 1;
+  string message = 2;
+  optional string description = 3;
+}
+
+// ============================================================================
+// EVALUATE PRE-AUTHORIZATION REQUEST/RESPONSE
+// ============================================================================
+
+message FraudServiceEvaluatePreAuthorizationRequest {
+  string merchant_fraud_id = 1;        // REQUIRED - was optional
+  string order_id = 2;                       // REQUIRED - was optional
+  optional string connector_fraud_id = 3;
+  Money amount = 4;
+  optional PaymentMethod payment_method = 5;
+  Customer customer = 6;                     // REQUIRED - was optional
+  repeated FraudProduct products = 7;
+  BrowserInformation browser_info = 8;       // REQUIRED - was optional
+  optional Address shipping_address = 9;
+  optional Address billing_address = 10;
+  optional string connector_name = 11;
+  optional SecretString connector_feature_data = 12;
+  optional string webhook_url = 13;
+  optional string previous_fraud_id = 14;
+  optional ConnectorState connector_state = 15;
+  string device_fingerprint = 16;            // NEW - Signifyd requirement
+  string session_id = 17;                    // NEW - Session tracking
+  bool synchronous = 18;                     // NEW - Riskified sync/async
+}
+
+message FraudServiceEvaluatePreAuthorizationResponse {
+  optional string merchant_fraud_id = 1;
+  optional string order_id = 2;
+  optional string connector_fraud_id = 3;
+  FraudCheckStatus fraud_check_status = 4;   // Hyperswitch-aligned
+  FraudAction recommended_action = 5;        // ACCEPT or REJECT
+  optional FraudScore score = 6;
+  repeated FraudReason reasons = 7;
+  optional string case_id = 8;
+  optional ErrorInfo error = 9;
+  uint32 status_code = 10;
+  optional SecretString connector_metadata = 11;
+  optional string redirect_url = 12;
+  optional ConnectorState connector_state = 13;
+  optional SecretString raw_connector_response = 14;
+  optional SecretString raw_connector_request = 15;
+}
+
+// ============================================================================
+// EVALUATE POST-AUTHORIZATION REQUEST/RESPONSE
+// ============================================================================
+
+message FraudServiceEvaluatePostAuthorizationRequest {
+  string merchant_fraud_id = 1;        // REQUIRED
+  string order_id = 2;                       // REQUIRED
+  optional string connector_fraud_id = 3;
+  string connector_transaction_id = 4;       // REQUIRED - was optional
+  Money amount = 5;
+  optional PaymentMethod payment_method = 6;
+  AuthorizationStatus authorization_status = 7;
+  optional string error_code = 8;
+  optional string error_message = 9;
+  optional string connector_name = 10;
+  optional SecretString connector_feature_data = 11;
+  optional string webhook_url = 12;
+  optional ConnectorState connector_state = 13;
+  string session_id = 14;                    // NEW
+}
+
+message FraudServiceEvaluatePostAuthorizationResponse {
+  optional string merchant_fraud_id = 1;
+  optional string order_id = 2;
+  optional string connector_fraud_id = 3;
+  FraudCheckStatus fraud_check_status = 4;   // Hyperswitch-aligned
+  FraudAction recommended_action = 5;        // ACCEPT or REJECT
+  optional FraudScore score = 6;
+  repeated FraudReason reasons = 7;
+  optional string case_id = 8;
+  optional ErrorInfo error = 9;
+  uint32 status_code = 10;
+  optional SecretString connector_metadata = 11;
+  optional ConnectorState connector_state = 12;
+  optional SecretString raw_connector_response = 13;
+  optional SecretString raw_connector_request = 14;
+}
+
+// ============================================================================
+// RECORD TRANSACTION DATA REQUEST/RESPONSE
+// ============================================================================
+
+message FraudServiceRecordTransactionDataRequest {
+  string merchant_fraud_id = 1;        // REQUIRED
+  string order_id = 2;                       // REQUIRED
+  Money amount = 3;
+  string session_id = 4;                     // NEW - was optional
+  optional Customer customer = 5;
+  repeated FraudProduct products = 6;
+  optional BrowserInformation browser_info = 7;
+  optional Address shipping_address = 8;
+  optional Address billing_address = 9;
+  optional SecretString connector_feature_data = 10;
+  optional string webhook_url = 11;
+  optional ConnectorState connector_state = 12;
+}
+
+message FraudServiceRecordTransactionDataResponse {
+  optional string merchant_fraud_id = 1;
+  optional string order_id = 2;
+  optional string connector_fraud_id = 3;
+  FraudCheckStatus fraud_check_status = 4;   // Hyperswitch-aligned
+  FraudAction recommended_action = 5;        // ACCEPT or REJECT
+  optional FraudScore score = 6;
+  repeated FraudReason reasons = 7;
+  optional ErrorInfo error = 8;
+  uint32 status_code = 9;
+  optional SecretString connector_metadata = 10;
+  optional ConnectorState connector_state = 11;
+  optional SecretString raw_connector_response = 12;
+  optional SecretString raw_connector_request = 13;
+}
+
+// ============================================================================
+// RECORD FULFILLMENT DATA REQUEST/RESPONSE
+// ============================================================================
+
+message FraudServiceRecordFulfillmentDataRequest {
+  string merchant_fraud_id = 1;        // REQUIRED
+  string order_id = 2;                       // REQUIRED
+  optional string connector_fraud_id = 3;
+  FulfillmentStatus fulfillment_status = 4;
+  repeated FraudShipment shipments = 5;
+  optional SecretString connector_feature_data = 6;
+  optional string webhook_url = 7;
+  optional ConnectorState connector_state = 8;
+  string session_id = 9;                     // NEW
+}
+
+message FraudServiceRecordFulfillmentDataResponse {
+  optional string merchant_fraud_id = 1;
+  optional string order_id = 2;
+  optional string connector_fraud_id = 3;
+  FraudCheckStatus fraud_check_status = 4;   // Hyperswitch-aligned
+  repeated string shipment_ids = 5;
+  optional ErrorInfo error = 6;
+  uint32 status_code = 7;
+  optional SecretString connector_metadata = 8;
+  optional ConnectorState connector_state = 9;
+  optional SecretString raw_connector_response = 10;
+  optional SecretString raw_connector_request = 11;
+}
+
+// ============================================================================
+// RECORD RETURN DATA REQUEST/RESPONSE
+// ============================================================================
+
+message FraudServiceRecordReturnDataRequest {
+  string merchant_fraud_id = 1;        // REQUIRED
+  string order_id = 2;                       // REQUIRED
+  optional string connector_fraud_id = 3;
+  optional string refund_transaction_id = 4;
+  Money amount = 5;
+  RefundMethod refund_method = 6;
+  optional string return_reason = 7;
+  optional string return_reason_code = 8;
+  optional SecretString connector_feature_data = 9;
+  optional string webhook_url = 10;
+  optional ConnectorState connector_state = 11;
+  string session_id = 12;                    // NEW
+}
+
+message FraudServiceRecordReturnDataResponse {
+  optional string merchant_fraud_id = 1;
+  optional string order_id = 2;
+  optional string connector_fraud_id = 3;
+  FraudCheckStatus fraud_check_status = 4;   // Hyperswitch-aligned
+  optional string return_id = 5;
+  optional ErrorInfo error = 6;
+  uint32 status_code = 7;
+  optional SecretString connector_metadata = 8;
+  optional ConnectorState connector_state = 9;
+  optional SecretString raw_connector_response = 10;
+  optional SecretString raw_connector_request = 11;
+}
+
+// ============================================================================
+// GET REQUEST/RESPONSE (Status Sync)
+// ============================================================================
+
+message FraudServiceGetRequest {
+  string merchant_fraud_id = 1;        // REQUIRED
+  string order_id = 2;                       // REQUIRED
+  optional string connector_fraud_id = 3;
+  optional string case_id = 4;
+}
+
+message FraudServiceGetResponse {
+  optional string merchant_fraud_id = 1;
+  optional string order_id = 2;
+  optional string connector_fraud_id = 3;
+  FraudCheckStatus fraud_check_status = 4;   // Hyperswitch-aligned
+  FraudAction recommended_action = 5;        // ACCEPT or REJECT
+  optional FraudScore score = 6;
+  repeated FraudReason reasons = 7;
+  optional string case_id = 8;
+  optional string reviewed_by = 9;
+  optional int64 reviewed_at = 10;
+  optional ErrorInfo error = 11;
+  uint32 status_code = 12;
+  optional SecretString connector_metadata = 13;
+  optional ConnectorState connector_state = 14;
+}
+
+// ============================================================================
+// FRAUD-SPECIFIC EVENT CONTENT (for webhooks)
+// ============================================================================
+
+message FraudEventContent {
+  optional string merchant_fraud_id = 1;
+  optional string order_id = 2;
+  optional string connector_fraud_id = 3;
+  WebhookEventType event_type = 4;
+  FraudCheckStatus fraud_check_status = 5;   // Hyperswitch-aligned
+  FraudAction recommended_action = 6;        // ACCEPT or REJECT
+  optional FraudScore score = 7;
+  repeated FraudReason reasons = 8;
+  optional string case_id = 9;
+  int64 event_timestamp = 10;
+}

@@ -98,7 +98,7 @@ let config = ConnectorConfig {
 |--------------------|----------|----------------------|
 | [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
 | [MerchantAuthenticationService.CreateServerAuthenticationToken](#merchantauthenticationservicecreateserverauthenticationtoken) | Authentication | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
-| [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
+| [FraudService.Get](#fraudserviceget) | Other | `FraudServiceGetRequest` |
 | [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
 
 ### Payments
@@ -210,17 +210,6 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 **Examples:** [Python](../../examples/volt/volt.py) · [TypeScript](../../examples/volt/volt.ts) · [Kotlin](../../examples/volt/volt.kt) · [Rust](../../examples/volt/volt.rs)
 
-#### PaymentService.Get
-
-Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceGetRequest` |
-| **Response** | `PaymentServiceGetResponse` |
-
-**Examples:** [Python](../../examples/volt/volt.py#L83) · [TypeScript](../../examples/volt/volt.ts#L77) · [Kotlin](../../examples/volt/volt.kt#L76) · [Rust](../../examples/volt/volt.rs#L78)
-
 #### PaymentService.Refund
 
 Process a partial or full refund for a captured payment. Returns funds to the customer when goods are returned or services are cancelled.
@@ -230,7 +219,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/volt/volt.py#L92) · [TypeScript](../../examples/volt/volt.ts#L86) · [Kotlin](../../examples/volt/volt.kt#L84) · [Rust](../../examples/volt/volt.rs#L85)
+**Examples:** [Python](../../examples/volt/volt.py#L91) · [TypeScript](../../examples/volt/volt.ts#L84) · [Kotlin](../../examples/volt/volt.kt#L79) · [Rust](../../examples/volt/volt.rs#L85)
 
 ### Authentication
 
@@ -243,4 +232,17 @@ Generate short-lived connector authentication token. Provides secure credentials
 | **Request** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/volt/volt.py#L74) · [TypeScript](../../examples/volt/volt.ts#L68) · [Kotlin](../../examples/volt/volt.kt#L66) · [Rust](../../examples/volt/volt.rs#L71)
+**Examples:** [Python](../../examples/volt/volt.py#L73) · [TypeScript](../../examples/volt/volt.ts#L66) · [Kotlin](../../examples/volt/volt.kt#L61) · [Rust](../../examples/volt/volt.rs#L71)
+
+### Other
+
+#### FraudService.Get
+
+Retrieves fraud decision history and risk scores for a specific transaction. Supports customer service investigations and chargeback dispute preparation.
+
+| | Message |
+|---|---------|
+| **Request** | `FraudServiceGetRequest` |
+| **Response** | `FraudServiceGetResponse` |
+
+**Examples:** [Python](../../examples/volt/volt.py#L82) · [TypeScript](../../examples/volt/volt.ts#L75) · [Kotlin](../../examples/volt/volt.kt#L71) · [Rust](../../examples/volt/volt.rs#L78)

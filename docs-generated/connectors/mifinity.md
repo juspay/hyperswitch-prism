@@ -97,7 +97,7 @@ let config = ConnectorConfig {
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
 | [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
-| [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
+| [FraudService.Get](#fraudserviceget) | Other | `FraudServiceGetRequest` |
 
 ### Payments
 
@@ -208,13 +208,15 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 **Examples:** [Python](../../examples/mifinity/mifinity.py) · [TypeScript](../../examples/mifinity/mifinity.ts) · [Kotlin](../../examples/mifinity/mifinity.kt) · [Rust](../../examples/mifinity/mifinity.rs)
 
-#### PaymentService.Get
+### Other
 
-Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.
+#### FraudService.Get
+
+Retrieves fraud decision history and risk scores for a specific transaction. Supports customer service investigations and chargeback dispute preparation.
 
 | | Message |
 |---|---------|
-| **Request** | `PaymentServiceGetRequest` |
-| **Response** | `PaymentServiceGetResponse` |
+| **Request** | `FraudServiceGetRequest` |
+| **Response** | `FraudServiceGetResponse` |
 
-**Examples:** [Python](../../examples/mifinity/mifinity.py#L37) · [TypeScript](../../examples/mifinity/mifinity.ts#L36) · [Kotlin](../../examples/mifinity/mifinity.kt#L36) · [Rust](../../examples/mifinity/mifinity.rs#L38)
+**Examples:** [Python](../../examples/mifinity/mifinity.py#L37) · [TypeScript](../../examples/mifinity/mifinity.ts#L36) · [Kotlin](../../examples/mifinity/mifinity.kt#L33) · [Rust](../../examples/mifinity/mifinity.rs#L38)
