@@ -14,18 +14,21 @@ use crate::{connectors::bankofamerica::BankofamericaRouterData, types::ResponseR
 use cards;
 use common_enums;
 use domain_types::{
-    connector_flow::{Authorize, Capture, Refund, SetupMandate, Void},
+    connector_flow::{Authorize, Capture, ClientAuthenticationToken, Refund, SetupMandate, Void},
     connector_types::{
-        MandateReference, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
-        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, ResponseId, SetupMandateRequestData,
+        BankOfAmericaClientAuthenticationResponse as BankOfAmericaClientAuthenticationResponseDomain,
+        ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
+        ConnectorSpecificClientAuthenticationResponse, MandateReference, PaymentFlowData,
+        PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
+        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
+        ResponseId, SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError},
     payment_address::Address,
     payment_method_data::{
-        self, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData,
+        self, CardToken, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData,
     },
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, PaymentMethodToken},
     router_data_v2::RouterDataV2,
     utils::{is_payment_failure, CardIssuer},
 };
@@ -115,6 +118,13 @@ pub enum PaymentInformation<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 > {
     Cards(Box<CardPaymentInformation<T>>),
+    FluidData(Box<FluidDataPaymentInformation>),
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FluidDataPaymentInformation {
+    fluid_data: FluidData,
 }
 
 #[derive(Debug, Serialize)]
@@ -597,6 +607,58 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 )
                 .into()),
             },
+            // TODO: Add payment method token field and also rename the struct to PaymentMethodToken since it is not being used anywhere
+            PaymentMethodData::CardToken(CardToken { .. }) => {
+                let token = item
+                    .router_data
+                    .resource_common_data
+                    .payment_method_token
+                    .as_ref()
+                    .map(|t| match t {
+                        PaymentMethodToken::Token(s) => s.clone(),
+                    })
+                    .ok_or_else(|| {
+                        error_stack::report!(IntegrationError::MissingRequiredField {
+                            field_name: "payment_method_token",
+                            context: Default::default(),
+                        })
+                    })?;
+
+                let fluid_data = FluidData {
+                    value: token,
+                    descriptor: None,
+                };
+
+                let email = item
+                    .router_data
+                    .request
+                    .get_email()
+                    .or(item.router_data.resource_common_data.get_billing_email())?;
+                let bill_to = build_bill_to(
+                    item.router_data.resource_common_data.get_optional_billing(),
+                    email,
+                )?;
+                let order_information = OrderInformationWithBill::try_from((&item, Some(bill_to)))?;
+                let processing_information = ProcessingInformation::try_from((&item, None, None))?;
+
+                Ok(Self {
+                    processing_information,
+                    payment_information: PaymentInformation::FluidData(Box::new(
+                        FluidDataPaymentInformation { fluid_data },
+                    )),
+                    order_information,
+                    client_reference_information: ClientReferenceInformation {
+                        code: Some(
+                            item.router_data
+                                .resource_common_data
+                                .connector_request_reference_id
+                                .clone(),
+                        ),
+                    },
+                    consumer_authentication_information: None,
+                    merchant_defined_information: None,
+                })
+            }
             PaymentMethodData::MandatePayment
             | PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::PayLater(_)
@@ -1761,6 +1823,49 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     utils::get_unimplemented_payment_method_error_message("BankOfAmerica"),
                 ))?,
             },
+            // TODO: Add payment method token field and also rename the struct to PaymentMethodToken since it is not being used anywhere
+            PaymentMethodData::CardToken(CardToken { .. }) => {
+                let token = item
+                    .router_data
+                    .resource_common_data
+                    .payment_method_token
+                    .as_ref()
+                    .map(|t| match t {
+                        PaymentMethodToken::Token(s) => s.clone(),
+                    })
+                    .ok_or_else(|| {
+                        error_stack::report!(IntegrationError::MissingRequiredField {
+                            field_name: "payment_method_token",
+                            context: Default::default(),
+                        })
+                    })?;
+
+                let fluid_data = FluidData {
+                    value: token,
+                    descriptor: None,
+                };
+
+                let order_information = OrderInformationWithBill::try_from(&item)?;
+                let processing_information = ProcessingInformation::try_from((&item, None, None))?;
+
+                Ok(Self {
+                    processing_information,
+                    payment_information: PaymentInformation::FluidData(Box::new(
+                        FluidDataPaymentInformation { fluid_data },
+                    )),
+                    order_information,
+                    client_reference_information: ClientReferenceInformation {
+                        code: Some(
+                            item.router_data
+                                .resource_common_data
+                                .connector_request_reference_id
+                                .clone(),
+                        ),
+                    },
+                    consumer_authentication_information: None,
+                    merchant_defined_information: None,
+                })
+            }
             PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::PayLater(_)
             | PaymentMethodData::BankRedirect(_)
@@ -2399,6 +2504,171 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 )?,
             },
             merchant_defined_information,
+        })
+    }
+}
+
+// ---- ClientAuthenticationToken flow types ----
+
+/// Creates a BankOfAmerica Flex Microform session for client-side tokenization.
+/// The capture_context JWT is returned to the frontend for Flex Microform SDK initialization.
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BankOfAmericaClientAuthRequest {
+    pub target_origins: Vec<String>,
+    pub client_version: String,
+    pub allowed_card_networks: Option<Vec<String>>,
+    pub fields: Value,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        BankofamericaRouterData<
+            RouterDataV2<
+                ClientAuthenticationToken,
+                PaymentFlowData,
+                ClientAuthenticationTokenRequestData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for BankOfAmericaClientAuthRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        item: BankofamericaRouterData<
+            RouterDataV2<
+                ClientAuthenticationToken,
+                PaymentFlowData,
+                ClientAuthenticationTokenRequestData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = item.router_data;
+
+        let return_url = router_data
+            .resource_common_data
+            .return_url
+            .clone()
+            .unwrap_or_else(|| "https://hyperswitch.io".to_string());
+
+        // Extract the origin from the return_url for target_origins
+        let target_origin = url::Url::parse(&return_url)
+            .map(|u| {
+                format!(
+                    "{}://{}",
+                    u.scheme(),
+                    u.host_str().unwrap_or("hyperswitch.io")
+                )
+            })
+            .unwrap_or_else(|_| "https://hyperswitch.io".to_string());
+
+        Ok(Self {
+            target_origins: vec![target_origin],
+            client_version: "0.11".to_string(),
+            allowed_card_networks: Some(vec![
+                "VISA".to_string(),
+                "MASTERCARD".to_string(),
+                "AMEX".to_string(),
+                "DISCOVER".to_string(),
+            ]),
+            fields: serde_json::json!({
+                "paymentInformation": {
+                    "card": {
+                        "number": {},
+                        "securityCode": {}
+                    }
+                }
+            }),
+        })
+    }
+}
+
+/// BankOfAmerica Flex session response -- the capture context JWT for SDK initialization.
+/// The Flex v2 sessions endpoint returns a raw JWT string with content-type application/jwt,
+/// so we implement a custom Deserialize that handles both raw strings and JSON objects.
+#[derive(Debug, Serialize)]
+pub struct BankOfAmericaClientAuthResponse {
+    pub capture_context: String,
+}
+
+impl<'de> Deserialize<'de> for BankOfAmericaClientAuthResponse {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct BankOfAmericaClientAuthVisitor;
+
+        impl<'de> serde::de::Visitor<'de> for BankOfAmericaClientAuthVisitor {
+            type Value = BankOfAmericaClientAuthResponse;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                formatter.write_str("a JWT string or a JSON object with keyId")
+            }
+
+            fn visit_str<E: serde::de::Error>(self, v: &str) -> Result<Self::Value, E> {
+                Ok(BankOfAmericaClientAuthResponse {
+                    capture_context: v.to_string(),
+                })
+            }
+
+            fn visit_string<E: serde::de::Error>(self, v: String) -> Result<Self::Value, E> {
+                Ok(BankOfAmericaClientAuthResponse { capture_context: v })
+            }
+
+            fn visit_map<A: serde::de::MapAccess<'de>>(
+                self,
+                mut map: A,
+            ) -> Result<Self::Value, A::Error> {
+                let mut key_id = None;
+                while let Some(key) = map.next_key::<String>()? {
+                    if key == "keyId" {
+                        key_id = Some(map.next_value::<String>()?);
+                    } else {
+                        let _ = map.next_value::<Value>()?;
+                    }
+                }
+                Ok(BankOfAmericaClientAuthResponse {
+                    capture_context: key_id.unwrap_or_default(),
+                })
+            }
+        }
+
+        deserializer.deserialize_any(BankOfAmericaClientAuthVisitor)
+    }
+}
+
+impl TryFrom<ResponseRouterData<BankOfAmericaClientAuthResponse, Self>>
+    for RouterDataV2<
+        ClientAuthenticationToken,
+        PaymentFlowData,
+        ClientAuthenticationTokenRequestData,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<BankOfAmericaClientAuthResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response;
+
+        let capture_context = Secret::new(response.capture_context);
+
+        let session_data = ClientAuthenticationTokenData::ConnectorSpecific(Box::new(
+            ConnectorSpecificClientAuthenticationResponse::BankOfAmerica(
+                BankOfAmericaClientAuthenticationResponseDomain { capture_context },
+            ),
+        ));
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::ClientAuthenticationTokenResponse {
+                session_data,
+                status_code: item.http_code,
+            }),
+            ..item.router_data
         })
     }
 }
