@@ -1,0 +1,2 @@
+hyperswitch-prism==0.0.1
+flask>=2.0.0
