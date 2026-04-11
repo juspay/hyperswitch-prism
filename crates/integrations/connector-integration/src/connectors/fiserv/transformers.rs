@@ -5,11 +5,11 @@ use common_utils::{
     types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
+    connector_flow::{Authorize, Capture, PSync, RSync, Refund, RepeatPayment, Void},
     connector_types::{
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId,
+        RefundsResponseData, RepeatPaymentData, ResponseId,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
@@ -435,6 +435,76 @@ pub struct FiservSyncRequest {
 pub struct FiservRefundSyncRequest {
     pub merchant_details: MerchantDetails,
     pub reference_transaction_details: ReferenceTransactionDetails,
+}
+
+// ===== REPEAT PAYMENT (MIT) REQUEST/RESPONSE TYPES =====
+
+/// StoredCredentials object for Fiserv MIT transactions
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StoredCredentials {
+    pub sequence: StoredCredentialsSequence,
+    pub scheduled: bool,
+    pub initiator: StoredCredentialsInitiator,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub referenced_scheme_transaction_id: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum StoredCredentialsSequence {
+    First,
+    Subsequent,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum StoredCredentialsInitiator {
+    Cardholder,
+    Merchant,
+}
+
+/// RepeatPayment request for Fiserv - a card charge with storedCredentials for MIT
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FiservRepeatPaymentRequest<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+> {
+    pub amount: Amount,
+    pub source: Source<T>,
+    pub transaction_details: TransactionDetails,
+    pub transaction_interaction: TransactionInteraction,
+    pub merchant_details: MerchantDetails,
+    pub stored_credentials: StoredCredentials,
+}
+
+/// Response type for RepeatPayment (same structure as FiservPaymentsResponse)
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FiservRepeatPaymentResponse {
+    pub gateway_response: GatewayResponse,
+}
+
+/// Helper to extract network transaction ID (schemeTransactionId) from MandateReferenceId
+fn extract_network_transaction_id(
+    mandate_reference: &domain_types::connector_types::MandateReferenceId,
+) -> Result<String, error_stack::Report<IntegrationError>> {
+    match mandate_reference {
+        domain_types::connector_types::MandateReferenceId::NetworkMandateId(network_txn_id) => {
+            Ok(network_txn_id.clone())
+        }
+        domain_types::connector_types::MandateReferenceId::ConnectorMandateId(
+            connector_mandate,
+        ) => connector_mandate.get_connector_mandate_id().ok_or_else(|| {
+            report!(IntegrationError::MissingRequiredField {
+                field_name: "connector_mandate_id",
+                context: Default::default(),
+            })
+        }),
+        domain_types::connector_types::MandateReferenceId::NetworkTokenWithNTI(nti_ref) => {
+            Ok(nti_ref.network_transaction_id.clone())
+        }
+    }
 }
 
 // Implementations for FiservRouterData - needed for the macro framework
@@ -1228,6 +1298,182 @@ impl<F, Req, Res> TryFrom<ResponseRouterData<FiservErrorResponse, Self>>
             network_advice_code: None,
             network_error_message: None,
         });
+
+        Ok(router_data_out)
+    }
+}
+
+// ===== REPEAT PAYMENT (MIT) TryFrom IMPLEMENTATIONS =====
+
+// TryFrom FiservRouterData wrapper for RepeatPayment request
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        FiservRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for FiservRepeatPaymentRequest<T>
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: FiservRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let req = &item.router_data;
+        let auth: FiservAuthType = FiservAuthType::try_from(&req.connector_config)?;
+
+        // Convert amount from minor to major unit
+        let total = item
+            .connector
+            .amount_converter
+            .convert(req.request.minor_amount, req.request.currency)
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: Default::default(),
+            })?;
+
+        let amount = Amount {
+            total,
+            currency: req.request.currency.to_string(),
+        };
+
+        let merchant_details = MerchantDetails {
+            merchant_id: auth.merchant_account,
+            terminal_id: auth.terminal_id,
+        };
+
+        // Extract card data from payment_method_data
+        let source = match &req.request.payment_method_data {
+            PaymentMethodData::Card(card_data) => Ok(Source::PaymentCard {
+                card: CardData {
+                    card_data: card_data.card_number.clone(),
+                    expiration_month: card_data.card_exp_month.clone(),
+                    expiration_year: card_data.get_expiry_year_4_digit(),
+                    security_code: Some(card_data.card_cvc.clone()),
+                },
+            }),
+            _ => Err(error_stack::report!(IntegrationError::not_implemented(
+                utils::get_unimplemented_payment_method_error_message("fiserv"),
+            ))),
+        }?;
+
+        // Extract the network transaction ID (schemeTransactionId) from mandate reference
+        let referenced_scheme_transaction_id =
+            extract_network_transaction_id(&req.request.mandate_reference)?;
+
+        let transaction_details = TransactionDetails {
+            capture_flag: Some(matches!(
+                req.request.capture_method,
+                Some(enums::CaptureMethod::Automatic)
+                    | Some(enums::CaptureMethod::SequentialAutomatic)
+                    | None
+            )),
+            reversal_reason_code: None,
+            merchant_transaction_id: Some(
+                req.resource_common_data
+                    .connector_request_reference_id
+                    .clone(),
+            ),
+            operation_type: None,
+        };
+
+        let transaction_interaction = TransactionInteraction {
+            origin: TransactionInteractionOrigin::Ecom,
+            eci_indicator: TransactionInteractionEciIndicator::ChannelEncrypted,
+            pos_condition_code: TransactionInteractionPosConditionCode::CardNotPresentEcom,
+        };
+
+        Ok(Self {
+            amount,
+            source,
+            transaction_details,
+            transaction_interaction,
+            merchant_details,
+            stored_credentials: StoredCredentials {
+                sequence: StoredCredentialsSequence::Subsequent,
+                scheduled: false,
+                initiator: StoredCredentialsInitiator::Merchant,
+                referenced_scheme_transaction_id: Some(referenced_scheme_transaction_id),
+            },
+        })
+    }
+}
+
+// Response transformation for RepeatPayment
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<FiservRepeatPaymentResponse, Self>>
+    for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<FiservRepeatPaymentResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let ResponseRouterData {
+            response,
+            router_data,
+            http_code,
+        } = item;
+
+        let gateway_resp = &response.gateway_response;
+        let status = enums::AttemptStatus::from(gateway_resp.transaction_state.clone());
+
+        let mut router_data_out = router_data;
+        router_data_out.resource_common_data.status = status;
+
+        let response_payload = PaymentsResponseData::TransactionResponse {
+            resource_id: ResponseId::ConnectorTransactionId(
+                gateway_resp
+                    .gateway_transaction_id
+                    .clone()
+                    .unwrap_or_else(|| {
+                        gateway_resp
+                            .transaction_processing_details
+                            .transaction_id
+                            .clone()
+                    }),
+            ),
+            redirection_data: None,
+            mandate_reference: None,
+            connector_metadata: None,
+            network_txn_id: None,
+            connector_response_reference_id: Some(
+                gateway_resp.transaction_processing_details.order_id.clone(),
+            ),
+            incremental_authorization_allowed: None,
+            status_code: http_code,
+        };
+
+        if status == enums::AttemptStatus::Failure || status == enums::AttemptStatus::Voided {
+            router_data_out.response = Err(ErrorResponse {
+                code: gateway_resp
+                    .transaction_processing_details
+                    .transaction_id
+                    .clone(),
+                message: format!("Payment status: {:?}", gateway_resp.transaction_state),
+                reason: None,
+                status_code: http_code,
+                attempt_status: Some(status),
+                connector_transaction_id: gateway_resp.gateway_transaction_id.clone(),
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+            });
+        } else {
+            router_data_out.response = Ok(response_payload);
+        }
 
         Ok(router_data_out)
     }
