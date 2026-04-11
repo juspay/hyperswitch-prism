@@ -42,11 +42,11 @@ use interfaces::{
 use serde::Serialize;
 use transformers::{
     BamboraapacAuthorizeResponse, BamboraapacCaptureRequest, BamboraapacCaptureResponse,
-    BamboraapacErrorResponse, BamboraapacPSyncRequest, BamboraapacPSyncResponse,
-    BamboraapacPaymentRequest, BamboraapacRSyncRequest, BamboraapacRSyncResponse,
-    BamboraapacRefundRequest, BamboraapacRefundResponse, BamboraapacRepeatPaymentRequest,
-    BamboraapacRepeatPaymentResponse, BamboraapacSetupMandateRequest,
-    BamboraapacSetupMandateResponse,
+    BamboraapacClientAuthRequest, BamboraapacClientAuthResponse, BamboraapacErrorResponse,
+    BamboraapacPSyncRequest, BamboraapacPSyncResponse, BamboraapacPaymentRequest,
+    BamboraapacRSyncRequest, BamboraapacRSyncResponse, BamboraapacRefundRequest,
+    BamboraapacRefundResponse, BamboraapacRepeatPaymentRequest, BamboraapacRepeatPaymentResponse,
+    BamboraapacSetupMandateRequest, BamboraapacSetupMandateResponse,
 };
 
 use super::macros;
@@ -274,6 +274,13 @@ macros::create_all_prerequisites!(
             response_body: BamboraapacRepeatPaymentResponse,
             response_format: xml,
             router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: ClientAuthenticationToken,
+            request_body: BamboraapacClientAuthRequest,
+            response_body: BamboraapacClientAuthResponse,
+            response_format: xml,
+            router_data: RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
         )
     ],
     amount_converters: [],
@@ -696,12 +703,27 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        ClientAuthenticationToken,
-        PaymentFlowData,
-        ClientAuthenticationTokenRequestData,
-        PaymentsResponseData,
-    > for Bamboraapac<T>
-{
-}
+// ClientAuthenticationToken flow — calls Bambora APAC TokeniseCreditCard SOAP API
+// to create a token for client-side SDK initialization
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_headers, get_error_response_v2, get_content_type],
+    connector: Bamboraapac,
+    curl_request: SoapXml(BamboraapacClientAuthRequest),
+    curl_response: BamboraapacClientAuthResponse,
+    flow_name: ClientAuthenticationToken,
+    resource_common_data: PaymentFlowData,
+    flow_request: ClientAuthenticationTokenRequestData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    preprocess_response: true,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_url(
+            &self,
+            req: &RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}/sipp.asmx", self.connector_base_url_payments(req)))
+        }
+    }
+);

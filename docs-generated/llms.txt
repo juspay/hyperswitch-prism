@@ -75,7 +75,7 @@ connector_id: bamboraapac
 doc: docs/connectors/bamboraapac.md
 scenarios: checkout_autocapture, checkout_card, refund, get_payment
 payment_methods: Card
-flows: authorize, capture, get, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring
+flows: authorize, capture, create_client_authentication_token, get, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, token_authorize
 examples_python: examples/bamboraapac/bamboraapac.py
 
 ## Bankofamerica

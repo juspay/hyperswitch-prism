@@ -8,17 +8,20 @@
 package examples.bamboraapac
 
 import payments.PaymentClient
+import payments.MerchantAuthenticationClient
 import payments.RecurringPaymentClient
 import payments.RefundClient
 import payments.PaymentServiceAuthorizeRequest
 import payments.PaymentServiceCaptureRequest
 import payments.PaymentServiceRefundRequest
 import payments.PaymentServiceGetRequest
+import payments.MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest
 import payments.PaymentServiceProxyAuthorizeRequest
 import payments.PaymentServiceProxySetupRecurringRequest
 import payments.RecurringPaymentServiceChargeRequest
 import payments.RefundServiceGetRequest
 import payments.PaymentServiceSetupRecurringRequest
+import payments.PaymentServiceTokenAuthorizeRequest
 import payments.AcceptanceType
 import payments.AuthenticationType
 import payments.CaptureMethod
@@ -198,6 +201,22 @@ fun capture(txnId: String) {
     println("Done: ${response.status.name}")
 }
 
+// Flow: MerchantAuthenticationService.CreateClientAuthenticationToken
+fun createClientAuthenticationToken(txnId: String) {
+    val client = MerchantAuthenticationClient(_defaultConfig)
+    val request = MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest.newBuilder().apply {
+        merchantClientSessionId = "probe_sdk_session_001"  // Infrastructure.
+        paymentBuilder.apply {  // FrmClientAuthenticationContext frm = 5; // future: device fingerprinting PayoutClientAuthenticationContext payout = 6; // future: payout verification widget.
+            amountBuilder.apply {
+                minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
+                currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            }
+        }
+    }.build()
+    val response = client.create_client_authentication_token(request)
+    println("StatusCode: ${response.statusCode}")
+}
+
 // Flow: PaymentService.Get
 fun get(txnId: String) {
     val client = PaymentClient(_defaultConfig)
@@ -357,6 +376,27 @@ fun setupRecurring(txnId: String) {
     }
 }
 
+// Flow: PaymentService.TokenAuthorize
+fun tokenAuthorize(txnId: String) {
+    val client = PaymentClient(_defaultConfig)
+    val request = PaymentServiceTokenAuthorizeRequest.newBuilder().apply {
+        merchantTransactionId = "probe_tokenized_txn_001"
+        amountBuilder.apply {
+            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
+            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+        connectorTokenBuilder.value = "pm_1AbcXyzStripeTestToken"  // Connector-issued token. Replaces PaymentMethod entirely. Examples: Stripe pm_xxx, Adyen recurringDetailReference, Braintree nonce.
+        addressBuilder.apply {
+            billingAddressBuilder.apply {
+            }
+        }
+        captureMethod = CaptureMethod.AUTOMATIC
+        returnUrl = "https://example.com/return"
+    }.build()
+    val response = client.token_authorize(request)
+    println("Status: ${response.status.name}")
+}
+
 
 fun main(args: Array<String>) {
     val txnId = "order_001"
@@ -368,6 +408,7 @@ fun main(args: Array<String>) {
         "processGetPayment" -> processGetPayment(txnId)
         "authorize" -> authorize(txnId)
         "capture" -> capture(txnId)
+        "createClientAuthenticationToken" -> createClientAuthenticationToken(txnId)
         "get" -> get(txnId)
         "proxyAuthorize" -> proxyAuthorize(txnId)
         "proxySetupRecurring" -> proxySetupRecurring(txnId)
@@ -375,6 +416,7 @@ fun main(args: Array<String>) {
         "refund" -> refund(txnId)
         "refundGet" -> refundGet(txnId)
         "setupRecurring" -> setupRecurring(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processGetPayment, authorize, capture, get, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring")
+        "tokenAuthorize" -> tokenAuthorize(txnId)
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processGetPayment, authorize, capture, createClientAuthenticationToken, get, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring, tokenAuthorize")
     }
 }

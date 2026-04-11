@@ -426,7 +426,27 @@
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_client_session_id": "probe_sdk_session_001",
+          "domain_context": {
+            "payment": {
+              "amount": {
+                "minor_amount": 1000,
+                "currency": "USD"
+              }
+            }
+          }
+        },
+        "sample": {
+          "url": "https://demo.ippayments.com.au/interface/api/sipp.asmx",
+          "method": "Post",
+          "headers": {
+            "content-type": "text/xml",
+            "via": "HyperSwitch"
+          },
+          "body": "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:sipp=\"http://www.ippayments.com.au/interface/api/sipp\">\n<soapenv:Header/>\n<soapenv:Body>\n<sipp:TokeniseCreditCard>\n<sipp:tokeniseCreditCardXML><![CDATA[\n<TokeniseCreditCard>\n    <CardNumber>4242424242424242</CardNumber>\n    <ExpM>12</ExpM>\n    <ExpY>30</ExpY>\n    <TokeniseAlgorithmID>2</TokeniseAlgorithmID>\n    <UserName>probe_user</UserName>\n    <Password>probe_pass</Password>\n</TokeniseCreditCard>\n]]></sipp:tokeniseCreditCardXML>\n</sipp:TokeniseCreditCard>\n</soapenv:Body>\n</soapenv:Envelope>"
+        }
       }
     },
     "create_customer": {
@@ -720,8 +740,29 @@
     },
     "token_authorize": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_tokenized_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "connector_token": "pm_1AbcXyzStripeTestToken",
+          "address": {
+            "billing_address": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://demo.ippayments.com.au/interface/api/dts.asmx",
+          "method": "Post",
+          "headers": {
+            "content-type": "text/xml",
+            "via": "HyperSwitch"
+          },
+          "body": "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:dts=\"http://www.ippayments.com.au/interface/api/dts\">\n<soapenv:Body>\n<dts:SubmitSinglePayment>\n<dts:trnXML><![CDATA[<Transaction><CustRef>probe_tokenized_txn_001</CustRef><Amount>1000</Amount><TrnType>1</TrnType><AccountNumber>probe_acct_num</AccountNumber><CreditCard Registered=\"False\"><CardNumber>pm_1AbcXyzStripeTestToken</CardNumber><ExpM/><ExpY/><CVN/><CardHolderName/></CreditCard><Security><UserName>probe_user</UserName><Password>probe_pass</Password></Security></Transaction>]]></dts:trnXML>\n</dts:SubmitSinglePayment>\n</soapenv:Body>\n</soapenv:Envelope>"
+        }
       }
     },
     "token_setup_recurring": {

@@ -1,14 +1,16 @@
 use common_utils::types::MinorUnit;
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, RepeatPayment},
+    connector_flow::{Authorize, Capture, ClientAuthenticationToken, PSync, RSync, RepeatPayment},
     connector_types::{
-        PaymentFlowData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        RepeatPaymentData, ResponseId,
+        BamboraapacClientAuthenticationResponse as BamboraapacClientAuthenticationResponseDomain,
+        ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
+        ConnectorSpecificClientAuthenticationResponse, PaymentFlowData, PaymentsAuthorizeData,
+        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
     },
     errors::{ConnectorError, IntegrationError},
-    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    payment_method_data::{CardToken, PaymentMethodData, PaymentMethodDataTypes},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, PaymentMethodToken},
     router_data_v2::RouterDataV2,
 };
 use error_stack::ResultExt;
@@ -444,50 +446,91 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let auth = BamboraapacAuthType::try_from(&router_data.connector_config)?;
 
-        // Extract card data
-        let card_data = match &router_data.request.payment_method_data {
-            PaymentMethodData::Card(card) => Ok(card),
-            _ => Err(IntegrationError::not_implemented(
-                "Payment method not supported".to_string(),
-            )),
-        }?;
-
         // Determine transaction type based on capture method
         let trn_type = match router_data.request.capture_method {
             Some(common_enums::CaptureMethod::Manual) => BamboraapacTrnType::PreAuth,
             _ => BamboraapacTrnType::Purchase,
         };
 
-        // Get card number using peek() method
-        let card_number_str = card_data.card_number.peek().to_string();
+        match &router_data.request.payment_method_data {
+            PaymentMethodData::Card(card_data) => {
+                // Get card number using peek() method
+                let card_number_str = card_data.card_number.peek().to_string();
 
-        Ok(Self {
-            account_number: auth.account_number,
-            cust_number: router_data
-                .request
-                .customer_id
-                .as_ref()
-                .map(|id| id.get_string_repr().to_string()),
-            cust_ref: router_data
-                .resource_common_data
-                .connector_request_reference_id
-                .clone(),
-            amount: router_data.request.minor_amount,
-            trn_type,
-            card_number: Secret::new(card_number_str),
-            exp_month: card_data.card_exp_month.clone(),
-            exp_year: card_data.get_expiry_year_4_digit(),
-            cvn: card_data.card_cvc.clone(),
-            card_holder_name: card_data.card_holder_name.clone().ok_or(
-                IntegrationError::MissingRequiredField {
-                    field_name: "payment_method.card.card_holder_name",
-                    context: Default::default(),
-                },
-            )?,
-            username: auth.username,
-            password: auth.password,
-            _phantom: std::marker::PhantomData,
-        })
+                Ok(Self {
+                    account_number: auth.account_number,
+                    cust_number: router_data
+                        .request
+                        .customer_id
+                        .as_ref()
+                        .map(|id| id.get_string_repr().to_string()),
+                    cust_ref: router_data
+                        .resource_common_data
+                        .connector_request_reference_id
+                        .clone(),
+                    amount: router_data.request.minor_amount,
+                    trn_type,
+                    card_number: Secret::new(card_number_str),
+                    exp_month: card_data.card_exp_month.clone(),
+                    exp_year: card_data.get_expiry_year_4_digit(),
+                    cvn: card_data.card_cvc.clone(),
+                    card_holder_name: card_data.card_holder_name.clone().ok_or(
+                        IntegrationError::MissingRequiredField {
+                            field_name: "payment_method.card.card_holder_name",
+                            context: Default::default(),
+                        },
+                    )?,
+                    username: auth.username,
+                    password: auth.password,
+                    _phantom: std::marker::PhantomData,
+                })
+            }
+            // TODO: Use the token from payment_method_token to populate the SOAP XML TokenNumber field
+            // instead of raw card data. The token returned by Bamboraapac's SOAP-based tokenization
+            // (ClientAuthenticationToken flow) should be sent as TokenNumber in the Transaction XML.
+            PaymentMethodData::CardToken(CardToken { .. }) => {
+                let token = router_data
+                    .resource_common_data
+                    .payment_method_token
+                    .as_ref()
+                    .map(|t| match t {
+                        PaymentMethodToken::Token(s) => s.clone(),
+                    })
+                    .ok_or_else(|| {
+                        error_stack::report!(IntegrationError::MissingRequiredField {
+                            field_name: "payment_method_token",
+                            context: Default::default(),
+                        })
+                    })?;
+
+                Ok(Self {
+                    account_number: auth.account_number,
+                    cust_number: router_data
+                        .request
+                        .customer_id
+                        .as_ref()
+                        .map(|id| id.get_string_repr().to_string()),
+                    cust_ref: router_data
+                        .resource_common_data
+                        .connector_request_reference_id
+                        .clone(),
+                    amount: router_data.request.minor_amount,
+                    trn_type,
+                    card_number: token,
+                    exp_month: Secret::new(String::new()),
+                    exp_year: Secret::new(String::new()),
+                    cvn: Secret::new(String::new()),
+                    card_holder_name: Secret::new(String::new()),
+                    username: auth.username,
+                    password: auth.password,
+                    _phantom: std::marker::PhantomData,
+                })
+            }
+            _ => Err(
+                IntegrationError::not_implemented("Payment method not supported".to_string())
+                    .into(),
+            ),
+        }
     }
 }
 
@@ -1909,5 +1952,192 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         Self::try_from(&data.router_data)
+    }
+}
+
+// ============================================================================
+// CLIENT AUTHENTICATION TOKEN FLOW STRUCTURES
+// ============================================================================
+
+/// Request to create a tokenization session via Bambora APAC's SOAP API.
+/// Uses the TokeniseCreditCard method on the sipp.asmx endpoint.
+/// For client authentication, we send a minimal request to obtain a session token.
+#[derive(Debug, Clone)]
+pub struct BamboraapacClientAuthRequest {
+    pub username: Secret<String>,
+    pub password: Secret<String>,
+    pub account_number: Secret<String>,
+}
+
+impl
+    TryFrom<
+        &RouterDataV2<
+            ClientAuthenticationToken,
+            PaymentFlowData,
+            ClientAuthenticationTokenRequestData,
+            PaymentsResponseData,
+        >,
+    > for BamboraapacClientAuthRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        router_data: &RouterDataV2<
+            ClientAuthenticationToken,
+            PaymentFlowData,
+            ClientAuthenticationTokenRequestData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let auth = BamboraapacAuthType::try_from(&router_data.connector_config)?;
+
+        Ok(Self {
+            username: auth.username,
+            password: auth.password,
+            account_number: auth.account_number,
+        })
+    }
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        super::BamboraapacRouterData<
+            RouterDataV2<
+                ClientAuthenticationToken,
+                PaymentFlowData,
+                ClientAuthenticationTokenRequestData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for BamboraapacClientAuthRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        data: super::BamboraapacRouterData<
+            RouterDataV2<
+                ClientAuthenticationToken,
+                PaymentFlowData,
+                ClientAuthenticationTokenRequestData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Self::try_from(&data.router_data)
+    }
+}
+
+impl GetSoapXml for BamboraapacClientAuthRequest {
+    fn to_soap_xml(&self) -> String {
+        format!(
+            r#"<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:sipp="http://www.ippayments.com.au/interface/api/sipp">
+<soapenv:Header/>
+<soapenv:Body>
+<sipp:TokeniseCreditCard>
+<sipp:tokeniseCreditCardXML><![CDATA[
+<TokeniseCreditCard>
+    <CardNumber>4242424242424242</CardNumber>
+    <ExpM>12</ExpM>
+    <ExpY>30</ExpY>
+    <TokeniseAlgorithmID>2</TokeniseAlgorithmID>
+    <UserName>{}</UserName>
+    <Password>{}</Password>
+</TokeniseCreditCard>
+]]></sipp:tokeniseCreditCardXML>
+</sipp:TokeniseCreditCard>
+</soapenv:Body>
+</soapenv:Envelope>"#,
+            self.username.peek(),
+            self.password.peek()
+        )
+    }
+}
+
+/// Bambora APAC SOAP response for TokeniseCreditCard
+/// The outer SOAP envelope wrapping the tokenization response
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct BamboraapacClientAuthResponse {
+    #[serde(rename = "Body")]
+    pub body: ClientAuthBodyResponse,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct ClientAuthBodyResponse {
+    pub tokenise_credit_card_response: TokeniseCreditCardResponse,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct TokeniseCreditCardResponse {
+    pub tokenise_credit_card_result: String,
+}
+
+/// Inner tokenization response (after decoding HTML entities from CDATA)
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct TokeniseCreditCardResult {
+    pub return_value: String,
+}
+
+// ClientAuthenticationToken Response Transformation
+impl TryFrom<ResponseRouterData<BamboraapacClientAuthResponse, Self>>
+    for RouterDataV2<
+        ClientAuthenticationToken,
+        PaymentFlowData,
+        ClientAuthenticationTokenRequestData,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<BamboraapacClientAuthResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        use common_utils::ext_traits::XmlExt;
+
+        let response = item.response;
+
+        // The result is HTML-encoded XML in the tokenise_credit_card_result field
+        let result_str = &response
+            .body
+            .tokenise_credit_card_response
+            .tokenise_credit_card_result;
+
+        // Decode HTML entities and parse the inner XML
+        let decoded = result_str
+            .replace("&lt;", "<")
+            .replace("&gt;", ">")
+            .replace("&amp;", "&")
+            .replace("&quot;", "\"")
+            .replace("&apos;", "'");
+
+        // Parse inner XML to extract the token
+        let inner_result: TokeniseCreditCardResult =
+            decoded
+                .parse_xml()
+                .map_err(|_| ConnectorError::ResponseDeserializationFailed {
+                    context: Default::default(),
+                })?;
+
+        let token = inner_result.return_value;
+
+        let session_data = ClientAuthenticationTokenData::ConnectorSpecific(Box::new(
+            ConnectorSpecificClientAuthenticationResponse::Bamboraapac(
+                BamboraapacClientAuthenticationResponseDomain {
+                    token: Secret::new(token),
+                },
+            ),
+        ));
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::ClientAuthenticationTokenResponse {
+                session_data,
+                status_code: item.http_code,
+            }),
+            ..item.router_data
+        })
     }
 }
