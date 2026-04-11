@@ -40,8 +40,9 @@ use interfaces::{
 };
 use serde::Serialize;
 use transformers::{
-    CheckoutErrorResponse, PaymentCaptureRequest, PaymentCaptureResponse, PaymentVoidRequest,
-    PaymentVoidResponse, PaymentsRequest, PaymentsRequest as SetupMandateRequest,
+    CheckoutCreateOrderRequest, CheckoutCreateOrderResponse, CheckoutErrorResponse,
+    PaymentCaptureRequest, PaymentCaptureResponse, PaymentVoidRequest, PaymentVoidResponse,
+    PaymentsRequest, PaymentsRequest as SetupMandateRequest,
     PaymentsRequest as RepeatPaymentRequest, PaymentsResponse, PaymentsResponse as PSyncResponse,
     PaymentsResponse as SetupMandateResponse, PaymentsResponse as RepeatPaymentResponse,
     RSyncResponse, RefundRequest, RefundResponse,
@@ -133,6 +134,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Checkout<T>
 {
+    fn should_do_order_create(&self) -> bool {
+        true
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::SetupMandateV2<T> for Checkout<T>
@@ -252,6 +256,12 @@ macros::create_all_prerequisites!(
             flow: RSync,
             response_body: RSyncResponse,
             router_data: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        ),
+        (
+            flow: CreateOrder,
+            request_body: CheckoutCreateOrderRequest,
+            response_body: CheckoutCreateOrderResponse,
+            router_data: RouterDataV2<CreateOrder, PaymentFlowData, PaymentCreateOrderData, PaymentCreateOrderResponse>,
         )
     ],
     amount_converters: [],
@@ -668,15 +678,33 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        CreateOrder,
-        PaymentFlowData,
-        PaymentCreateOrderData,
-        PaymentCreateOrderResponse,
-    > for Checkout<T>
-{
-}
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Checkout,
+    curl_request: Json(CheckoutCreateOrderRequest),
+    curl_response: CheckoutCreateOrderResponse,
+    flow_name: CreateOrder,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentCreateOrderData,
+    flow_response: PaymentCreateOrderResponse,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<CreateOrder, PaymentFlowData, PaymentCreateOrderData, PaymentCreateOrderResponse>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<CreateOrder, PaymentFlowData, PaymentCreateOrderData, PaymentCreateOrderResponse>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}payment-sessions", self.connector_base_url_payments(req)))
+        }
+    }
+);
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<

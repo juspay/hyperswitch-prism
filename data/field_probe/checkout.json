@@ -551,7 +551,24 @@
     },
     "create_order": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_order_id": "probe_order_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://api.sandbox.checkout.com/payment-sessions",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_secret",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"reference\":\"probe_order_001\",\"processing_channel_id\":\"probe_id\"}"
+        }
       }
     },
     "create_server_authentication_token": {
