@@ -5,6 +5,7 @@ use hyperswitch_masking::Secret;
 use serde::Serialize;
 
 use crate::utils::MerchantDefinedInformation;
+use cards;
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -122,4 +123,159 @@ pub struct ReversalInformation {
 pub struct BarclaycardRefundRequest {
     pub order_information: OrderInformation,
     pub client_reference_information: ClientReferenceInformation,
+}
+
+// --- SetupMandate (Zero-dollar auth for TMS token creation) types ---
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BarclaycardSetupMandateRequest<
+    T: PaymentMethodDataTypes + Sync + Send + 'static + Serialize,
+> {
+    pub processing_information: SetupMandateProcessingInformation,
+    pub payment_information: PaymentInformation<T>,
+    pub order_information: OrderInformationWithBill,
+    pub client_reference_information: ClientReferenceInformation,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SetupMandateProcessingInformation {
+    pub commerce_indicator: String,
+    pub capture: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub action_list: Option<Vec<BarclaycardActionsList>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub action_token_types: Option<Vec<BarclaycardActionsTokenType>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub authorization_options: Option<SetupMandateAuthorizationOptions>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum BarclaycardActionsList {
+    TokenCreate,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum BarclaycardActionsTokenType {
+    PaymentInstrument,
+    Customer,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SetupMandateAuthorizationOptions {
+    pub initiator: Option<SetupMandateInitiator>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SetupMandateInitiator {
+    #[serde(rename = "type")]
+    pub initiator_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub credential_stored_on_file: Option<bool>,
+}
+
+// --- RepeatPayment (MIT) types ---
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BarclaycardRepeatPaymentRequest {
+    pub processing_information: RepeatPaymentProcessingInformation,
+    pub payment_information: RepeatPaymentInformation,
+    pub order_information: OrderInformationWithBill,
+    pub client_reference_information: ClientReferenceInformation,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub merchant_defined_information: Option<Vec<MerchantDefinedInformation>>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RepeatPaymentProcessingInformation {
+    pub commerce_indicator: String,
+    pub capture: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub authorization_options: Option<AuthorizationOptions>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthorizationOptions {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub initiator: Option<PaymentInitiator>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub merchant_initiated_transaction: Option<MerchantInitiatedTransaction>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaymentInitiator {
+    #[serde(rename = "type")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub initiator_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stored_credential_used: Option<bool>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MerchantInitiatedTransaction {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub previous_transaction_id: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub original_authorized_amount: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum RepeatPaymentInformation {
+    MandatePayment(Box<MandatePaymentInformation>),
+    Cards(Box<CardWithNtiPaymentInformation>),
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CardWithNtiPaymentInformation {
+    pub card: CardWithNti,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CardWithNti {
+    pub number: cards::CardNumber,
+    pub expiration_month: Secret<String>,
+    pub expiration_year: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub security_code: Option<Secret<String>>,
+    #[serde(rename = "type")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub type_selection_indicator: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MandatePaymentInformation {
+    pub payment_instrument: PaymentInstrument,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card: Option<MandateCard>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaymentInstrument {
+    pub id: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MandateCard {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub type_selection_indicator: Option<String>,
 }
