@@ -6,11 +6,11 @@ use common_utils::{
 };
 use domain_types::errors::{ConnectorError, IntegrationError};
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
+    connector_flow::{Authorize, Capture, PSync, RSync, Refund, RepeatPayment, Void},
     connector_types::{
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId,
+        RefundsResponseData, RepeatPaymentData, ResponseId,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::ConnectorSpecificConfig,
@@ -1415,5 +1415,174 @@ impl TryFrom<ResponseRouterData<AirwallexAccessTokenResponse, Self>>
         );
 
         Ok(router_data)
+    }
+}
+
+// ===== REPEAT PAYMENT (MIT) FLOW TYPES =====
+
+/// RepeatPayment request for Airwallex MIT flow.
+/// Creates a payment intent with stored payment method (triggered by merchant).
+/// Uses the create endpoint since the charge flow doesn't go through CreateOrder.
+#[derive(Debug, Serialize)]
+pub struct AirwallexRepeatPaymentRequest {
+    pub request_id: String,
+    pub amount: StringMajorUnit,
+    pub currency: Currency,
+    pub merchant_order_id: String,
+    pub payment_method: AirwallexRepeatPaymentMethod,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payment_method_options: Option<AirwallexPaymentOptions>,
+    /// Referrer data for Airwallex whitelisting
+    pub referrer_data: AirwallexReferrerData,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub return_url: Option<String>,
+}
+
+/// Payment method reference for MIT - uses the stored payment method ID
+#[derive(Debug, Serialize)]
+pub struct AirwallexRepeatPaymentMethod {
+    pub id: String,
+}
+
+/// Reuse the same response structure for RepeatPayment
+pub type AirwallexRepeatPaymentResponse = AirwallexPaymentsResponse;
+
+// Request transformer for RepeatPayment (MIT) flow - wrapper from AirwallexRouterData
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        super::AirwallexRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for AirwallexRepeatPaymentRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: super::AirwallexRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        // Extract the stored payment method ID from connector_mandate_id
+        let payment_method_id = item.router_data.request.connector_mandate_id().ok_or(
+            IntegrationError::MissingRequiredField {
+                field_name: "connector_mandate_id",
+                context: Default::default(),
+            },
+        )?;
+
+        let auto_capture = matches!(
+            item.router_data.request.capture_method,
+            Some(common_enums::CaptureMethod::Automatic)
+        );
+
+        let payment_method_options = Some(AirwallexPaymentOptions {
+            card: Some(AirwallexCardOptions {
+                auto_capture: Some(auto_capture),
+            }),
+        });
+
+        // Convert amount using the connector's amount converter
+        let amount = item
+            .connector
+            .amount_converter
+            .convert(
+                item.router_data.request.minor_amount,
+                item.router_data.request.currency,
+            )
+            .map_err(|_| IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?;
+
+        // Generate unique request_id for RepeatPayment
+        let request_id = format!(
+            "repeat_{}",
+            item.router_data
+                .resource_common_data
+                .connector_request_reference_id
+        );
+
+        let referrer_data = AirwallexReferrerData {
+            r_type: "hyperswitch".to_string(),
+            version: "1.0.0".to_string(),
+        };
+
+        Ok(Self {
+            request_id,
+            amount,
+            currency: item.router_data.request.currency,
+            merchant_order_id: item
+                .router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
+            payment_method: AirwallexRepeatPaymentMethod {
+                id: payment_method_id,
+            },
+            payment_method_options,
+            referrer_data,
+            return_url: item.router_data.request.router_return_url.clone(),
+        })
+    }
+}
+
+// Response transformer for RepeatPayment (MIT) flow
+impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<AirwallexRepeatPaymentResponse, Self>>
+    for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<AirwallexRepeatPaymentResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let status = get_payment_status(&item.response.status, &item.response.next_action);
+
+        // Handle redirection for 3DS if required
+        let redirection_data = item.response.next_action.as_ref().and_then(|next_action| {
+            if next_action.action_type == "redirect" {
+                next_action.url.as_ref().and_then(|url_str| {
+                    Url::parse(url_str)
+                        .ok()
+                        .map(|url| Box::new(RedirectForm::from((url, Method::Get))))
+                })
+            } else {
+                None
+            }
+        });
+
+        // Extract network transaction ID
+        let network_txn_id = item
+            .response
+            .network_transaction_id
+            .or(item.response.authorization_code.clone());
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(item.response.id),
+                redirection_data,
+                mandate_reference: None,
+                connector_metadata: None,
+                network_txn_id,
+                connector_response_reference_id: item.response.payment_intent_id,
+                incremental_authorization_allowed: Some(false),
+                status_code: item.http_code,
+            }),
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
     }
 }

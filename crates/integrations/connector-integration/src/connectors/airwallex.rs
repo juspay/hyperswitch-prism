@@ -45,7 +45,8 @@ use transformers::{
     AirwallexCaptureRequest, AirwallexCaptureResponse, AirwallexIntentRequest,
     AirwallexIntentResponse, AirwallexPaymentRequest, AirwallexPaymentsResponse,
     AirwallexRefundRequest, AirwallexRefundResponse, AirwallexRefundSyncResponse,
-    AirwallexSyncResponse, AirwallexVoidRequest, AirwallexVoidResponse,
+    AirwallexRepeatPaymentRequest, AirwallexRepeatPaymentResponse, AirwallexSyncResponse,
+    AirwallexVoidRequest, AirwallexVoidResponse,
 };
 
 use super::macros;
@@ -265,6 +266,12 @@ macros::create_all_prerequisites!(
             request_body: AirwallexIntentRequest,
             response_body: AirwallexIntentResponse,
             router_data: RouterDataV2<CreateOrder, PaymentFlowData, PaymentCreateOrderData, PaymentCreateOrderResponse>,
+        ),
+        (
+            flow: RepeatPayment,
+            request_body: AirwallexRepeatPaymentRequest,
+            response_body: AirwallexRepeatPaymentResponse,
+            router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -566,6 +573,42 @@ macros::macro_connector_implementation!(
     }
 );
 
+// RepeatPayment (MIT) Flow
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Airwallex,
+    curl_request: Json(AirwallexRepeatPaymentRequest),
+    curl_response: AirwallexRepeatPaymentResponse,
+    flow_name: RepeatPayment,
+    resource_common_data: PaymentFlowData,
+    flow_request: RepeatPaymentData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            let access_token = req.resource_common_data.get_access_token()
+                .change_context(IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
+            Ok(self.build_headers(&access_token))
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            // RepeatPayment creates a new payment intent with stored payment method
+            // Using create endpoint since the charge flow doesn't go through CreateOrder
+            Ok(format!(
+                "{}/pa/payment_intents/create",
+                &req.resource_common_data.connectors.airwallex.base_url
+            ))
+        }
+    }
+);
+
 // Payment Void Post Capture
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
@@ -618,16 +661,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 // ServerAuthenticationToken - Airwallex Authentication Flow - will be implemented using macro
 
-// Repeat Payment
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        RepeatPayment,
-        PaymentFlowData,
-        RepeatPaymentData<T>,
-        PaymentsResponseData,
-    > for Airwallex<T>
-{
-}
+// Repeat Payment (MIT) - implemented using macro below
 
 // Order Create - implemented using macro above
 

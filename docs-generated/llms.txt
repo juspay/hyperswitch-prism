@@ -43,7 +43,7 @@ connector_id: airwallex
 doc: docs/connectors/airwallex.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Blik, Card, Ideal, Trustly
-flows: authorize, capture, create_order, create_server_authentication_token, get, proxy_authorize, refund, refund_get, void
+flows: authorize, capture, create_order, create_server_authentication_token, get, proxy_authorize, recurring_charge, refund, refund_get, void
 examples_python: examples/airwallex/airwallex.py
 
 ## Authipay
