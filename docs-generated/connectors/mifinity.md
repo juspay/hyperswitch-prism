@@ -97,6 +97,7 @@ let config = ConnectorConfig {
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
 | [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
+| [MerchantAuthenticationService.CreateClientAuthenticationToken](#merchantauthenticationservicecreateclientauthenticationtoken) | Authentication | `MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
 
 ### Payments
@@ -217,4 +218,17 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/mifinity/mifinity.py#L37) · [TypeScript](../../examples/mifinity/mifinity.ts#L36) · [Kotlin](../../examples/mifinity/mifinity.kt#L36) · [Rust](../../examples/mifinity/mifinity.rs#L38)
+**Examples:** [Python](../../examples/mifinity/mifinity.py#L59) · [TypeScript](../../examples/mifinity/mifinity.ts#L55) · [Kotlin](../../examples/mifinity/mifinity.kt#L54) · [Rust](../../examples/mifinity/mifinity.rs#L59)
+
+### Authentication
+
+#### MerchantAuthenticationService.CreateClientAuthenticationToken
+
+Initialize client-facing SDK sessions for wallets, device fingerprinting, etc. Returns structured data the client SDK needs to render payment/verification UI.
+
+| | Message |
+|---|---------|
+| **Request** | `MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest` |
+| **Response** | `MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse` |
+
+**Examples:** [Python](../../examples/mifinity/mifinity.py#L50) · [TypeScript](../../examples/mifinity/mifinity.ts#L46) · [Kotlin](../../examples/mifinity/mifinity.kt#L38) · [Rust](../../examples/mifinity/mifinity.rs#L52)

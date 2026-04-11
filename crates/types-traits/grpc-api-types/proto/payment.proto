@@ -1558,6 +1558,7 @@ message ConnectorSpecificClientAuthenticationResponse {
     MultisafepayClientAuthenticationResponse multisafepay = 23;
     NexinetsClientAuthenticationResponse nexinets = 24;
     NexixpayClientAuthenticationResponse nexixpay = 25;
+    MifinityClientAuthenticationResponse mifinity = 26;
   }
 }
 
@@ -1689,6 +1690,14 @@ message NexinetsClientAuthenticationResponse {
 message NexixpayClientAuthenticationResponse {
   SecretString security_token = 1;
   string hosted_page = 2;
+}
+
+// Mifinity SDK initialization data — initialization_token for iframe initialization
+message MifinityClientAuthenticationResponse {
+  // The initialization token for client-side iframe rendering
+  SecretString initialization_token = 1;
+  // The trace ID for tracking the payment transaction
+  string trace_id = 2;
 }
 
 // Stripe SDK initialization data — client_secret for stripe.confirmPayment()

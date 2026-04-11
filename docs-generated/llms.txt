@@ -331,7 +331,7 @@ connector_id: mifinity
 doc: docs/connectors/mifinity.md
 scenarios: none
 payment_methods: Mifinity
-flows: authorize, get
+flows: authorize, create_client_authentication_token, get
 examples_python: none
 
 ## Mollie

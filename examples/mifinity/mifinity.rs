@@ -21,6 +21,20 @@ fn build_client() -> ConnectorClient {
     ConnectorClient::new(config, None).unwrap()
 }
 
+pub fn build_create_client_authentication_token_request() -> MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest {
+    serde_json::from_value::<MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest>(serde_json::json!({
+    "merchant_client_session_id": "probe_sdk_session_001",  // Infrastructure.
+    "domain_context": {
+        "payment": {
+            "amount": {
+                "minor_amount": 1000,
+                "currency": "USD",
+            },
+        },
+    },
+    })).unwrap_or_default()
+}
+
 pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetRequest {
     serde_json::from_value::<PaymentServiceGetRequest>(serde_json::json!({
     "merchant_transaction_id": "probe_merchant_txn_001",  // Identification.
@@ -33,6 +47,13 @@ pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetReq
 }
 
 
+// Flow: MerchantAuthenticationService.CreateClientAuthenticationToken
+#[allow(dead_code)]
+pub async fn create_client_authentication_token(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client.create_client_authentication_token(build_create_client_authentication_token_request(), &HashMap::new(), None).await?;
+    Ok(format!("status: {:?}", response.status_code))
+}
+
 // Flow: PaymentService.Get
 #[allow(dead_code)]
 pub async fn get(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
@@ -44,10 +65,11 @@ pub async fn get(client: &ConnectorClient, _merchant_transaction_id: &str) -> Re
 #[tokio::main]
 async fn main() {
     let client = build_client();
-    let flow = std::env::args().nth(1).unwrap_or_else(|| "get".to_string());
+    let flow = std::env::args().nth(1).unwrap_or_else(|| "create_client_authentication_token".to_string());
     let result: Result<String, Box<dyn std::error::Error>> = match flow.as_str() {
+        "create_client_authentication_token" => create_client_authentication_token(&client, "order_001").await,
         "get" => get(&client, "order_001").await,
-        _ => { eprintln!("Unknown flow: {}. Available: get", flow); return; }
+        _ => { eprintln!("Unknown flow: {}. Available: create_client_authentication_token, get", flow); return; }
     };
     match result {
         Ok(msg) => println!("✓ {msg}"),

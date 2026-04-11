@@ -1,8 +1,11 @@
 use common_enums::{enums, Currency};
 use common_utils::{pii::Email, types::StringMajorUnit};
 use domain_types::{
-    connector_flow::Authorize,
+    connector_flow::{Authorize, ClientAuthenticationToken},
     connector_types::{
+        ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
+        ConnectorSpecificClientAuthenticationResponse,
+        MifinityClientAuthenticationResponse as MifinityClientAuthenticationResponseDomain,
         PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData, ResponseId,
     },
     errors::{ConnectorError, IntegrationError},
@@ -289,14 +292,14 @@ impl TryFrom<&ConnectorSpecificConfig> for MifinityAuthType {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MifinityPaymentsResponse {
-    payload: Vec<MifinityPayload>,
+    pub(crate) payload: Vec<MifinityPayload>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MifinityPayload {
-    trace_id: String,
-    initialization_token: Secret<String>,
+    pub(crate) trace_id: String,
+    pub(crate) initialization_token: Secret<String>,
 }
 
 impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -486,4 +489,160 @@ pub struct MifinityErrorList {
     pub error_code: String,
     pub message: String,
     pub field: Option<String>,
+}
+
+// ---- ClientAuthenticationToken flow types ----
+
+/// Request to Mifinity's init-iframe API for client-side SDK initialization.
+/// The initialization_token is returned to the frontend for iframe rendering.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MifinityClientAuthRequest {
+    pub money: Money,
+    pub validation_key: String,
+    pub client_reference: String,
+    pub trace_id: String,
+    pub description: String,
+    pub destination_account_number: Secret<String>,
+    pub brand_id: Secret<String>,
+    pub return_url: String,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        MifinityRouterData<
+            RouterDataV2<
+                ClientAuthenticationToken,
+                PaymentFlowData,
+                ClientAuthenticationTokenRequestData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for MifinityClientAuthRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        item: MifinityRouterData<
+            RouterDataV2<
+                ClientAuthenticationToken,
+                PaymentFlowData,
+                ClientAuthenticationTokenRequestData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = item.router_data;
+        let auth_type = MifinityAuthType::try_from(&router_data.connector_config)?;
+
+        let money = Money {
+            amount: item
+                .connector
+                .amount_converter
+                .convert(router_data.request.amount, router_data.request.currency)
+                .change_context(IntegrationError::RequestEncodingFailed {
+                    context: Default::default(),
+                })?,
+            currency: router_data.request.currency,
+        };
+
+        let validation_key = format!(
+            "payment_validation_key_{}_{}",
+            router_data
+                .resource_common_data
+                .merchant_id
+                .get_string_repr(),
+            router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone()
+        );
+
+        let trace_id = router_data
+            .resource_common_data
+            .connector_request_reference_id
+            .clone();
+
+        let return_url = router_data
+            .resource_common_data
+            .return_url
+            .clone()
+            .unwrap_or_else(|| "https://hyperswitch.io".to_string());
+
+        let brand_id = auth_type
+            .brand_id
+            .ok_or(IntegrationError::InvalidConnectorConfig {
+                config: "brand_id",
+                context: Default::default(),
+            })?;
+
+        let destination_account_number = auth_type.destination_account_number.ok_or(
+            IntegrationError::InvalidConnectorConfig {
+                config: "destination_account_number",
+                context: Default::default(),
+            },
+        )?;
+
+        let client_reference = router_data
+            .resource_common_data
+            .merchant_id
+            .get_string_repr()
+            .to_string();
+
+        Ok(Self {
+            money,
+            validation_key,
+            client_reference,
+            trace_id: trace_id.clone(),
+            description: trace_id,
+            destination_account_number,
+            brand_id,
+            return_url,
+        })
+    }
+}
+
+/// Mifinity's init-iframe response for ClientAuthenticationToken flow.
+/// Reuses the same MifinityPaymentsResponse structure since the endpoint is the same.
+pub type MifinityClientAuthResponse = MifinityPaymentsResponse;
+
+impl TryFrom<ResponseRouterData<MifinityClientAuthResponse, Self>>
+    for RouterDataV2<
+        ClientAuthenticationToken,
+        PaymentFlowData,
+        ClientAuthenticationTokenRequestData,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<MifinityClientAuthResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let payload = item.response.payload.first();
+        match payload {
+            Some(payload) => {
+                let session_data = ClientAuthenticationTokenData::ConnectorSpecific(Box::new(
+                    ConnectorSpecificClientAuthenticationResponse::Mifinity(
+                        MifinityClientAuthenticationResponseDomain {
+                            initialization_token: payload.initialization_token.clone(),
+                            trace_id: payload.trace_id.clone(),
+                        },
+                    ),
+                ));
+
+                Ok(Self {
+                    response: Ok(PaymentsResponseData::ClientAuthenticationTokenResponse {
+                        session_data,
+                        status_code: item.http_code,
+                    }),
+                    ..item.router_data
+                })
+            }
+            None => Err(ConnectorError::ResponseDeserializationFailed {
+                context: Default::default(),
+            }
+            .into()),
+        }
+    }
 }

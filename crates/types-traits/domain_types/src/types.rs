@@ -10051,6 +10051,18 @@ fn convert_connector_specific_to_grpc(
                 ),
             }
         }
+                ConnectorSpecificClientAuthenticationResponse::Mifinity(mifinity_data) => {
+            grpc_api_types::payments::ConnectorSpecificClientAuthenticationResponse {
+                connector: Some(
+                    grpc_api_types::payments::connector_specific_client_authentication_response::Connector::Mifinity(
+                        grpc_api_types::payments::MifinityClientAuthenticationResponse {
+                            initialization_token: Some(mifinity_data.initialization_token),
+                            trace_id: mifinity_data.trace_id,
+                        },
+                    ),
+                ),
+            }
+        }
     };
     grpc_api_types::payments::ClientAuthenticationTokenData {
         sdk_type: Some(

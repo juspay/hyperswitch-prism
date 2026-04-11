@@ -8,6 +8,7 @@
 import asyncio
 import sys
 from google.protobuf.json_format import ParseDict
+from payments import MerchantAuthenticationClient
 from payments import PaymentClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
@@ -22,6 +23,18 @@ _default_config = sdk_config_pb2.ConnectorConfig(
 
 
 
+def _build_create_client_authentication_token_request():
+    return ParseDict(
+        {
+            "merchant_client_session_id": "probe_sdk_session_001",  # Infrastructure.
+            "domain_context": {
+                "minor_amount": 1000,
+                "currency": "USD"
+            }
+        },
+        payment_pb2.MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest(),
+    )
+
 def _build_get_request(connector_transaction_id: str):
     return ParseDict(
         {
@@ -34,6 +47,15 @@ def _build_get_request(connector_transaction_id: str):
         },
         payment_pb2.PaymentServiceGetRequest(),
     )
+async def create_client_authentication_token(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: MerchantAuthenticationService.CreateClientAuthenticationToken"""
+    merchantauthentication_client = MerchantAuthenticationClient(config)
+
+    create_response = await merchantauthentication_client.create_client_authentication_token(_build_create_client_authentication_token_request())
+
+    return {"status": create_response.status}
+
+
 async def get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """Flow: PaymentService.Get"""
     payment_client = PaymentClient(config)
@@ -43,7 +65,7 @@ async def get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConf
     return {"status": get_response.status}
 
 if __name__ == "__main__":
-    scenario = sys.argv[1] if len(sys.argv) > 1 else "get"
+    scenario = sys.argv[1] if len(sys.argv) > 1 else "create_client_authentication_token"
     fn = globals().get(f"process_{scenario}")
     if not fn:
         available = [k[8:] for k in globals() if k.startswith("process_")]
