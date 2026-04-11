@@ -6,11 +6,11 @@ use base64::{engine::general_purpose::STANDARD, Engine};
 use common_enums::{AttemptStatus, RefundStatus};
 use common_utils::{consts, pii::Email, types::MinorUnit};
 use domain_types::{
-    connector_flow::{Authorize, PSync, RSync, Refund},
+    connector_flow::{Authorize, PSync, RSync, Refund, RepeatPayment, SetupMandate},
     connector_types::{
-        PaymentCreateOrderData, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        ResponseId,
+        MandateReference, PaymentCreateOrderData, PaymentFlowData, PaymentsAuthorizeData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
     payment_address::Address,
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, UpiData},
@@ -748,6 +748,427 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             resource_common_data: PaymentFlowData {
                 status: AttemptStatus::AuthenticationPending,
                 ..data.resource_common_data
+            },
+            ..data
+        })
+    }
+}
+
+// ============ SetupMandate (Zero Dollar Auth / Token Creation) Types ============
+
+/// SetupMandate request reuses the same payment request structure but with
+/// save=true and recurring="1" to create a token for future MIT payments.
+#[derive(Debug, Serialize)]
+pub struct RazorpayV2SetupMandateRequest {
+    pub amount: MinorUnit,
+    pub currency: String,
+    pub order_id: String,
+    pub email: Email,
+    pub contact: Secret<String>,
+    pub method: String,
+    pub description: Option<String>,
+    pub notes: Option<RazorpayV2Notes>,
+    pub callback_url: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub customer_id: Option<String>,
+    pub save: bool,
+    pub recurring: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub token: Option<RazorpayV2TokenDetails>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct RazorpayV2TokenDetails {
+    pub max_amount: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expire_at: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub frequency: Option<String>,
+}
+
+impl<U: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        &RazorpayV2RouterData<
+            &RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<U>,
+                PaymentsResponseData,
+            >,
+            U,
+        >,
+    > for RazorpayV2SetupMandateRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        item: &RazorpayV2RouterData<
+            &RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<U>,
+                PaymentsResponseData,
+            >,
+            U,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let order_id = item
+            .order_id
+            .as_ref()
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "order_id",
+                context: Default::default(),
+            })?;
+
+        Ok(Self {
+            amount: item.amount,
+            currency: item.router_data.request.currency.to_string(),
+            order_id: order_id.to_string(),
+            email: item
+                .router_data
+                .resource_common_data
+                .get_billing_email()
+                .or_else(|_| {
+                    Email::from_str("customer@example.com").map_err(|_| {
+                        error_stack::Report::new(IntegrationError::InvalidDataFormat {
+                            field_name: "billing.email",
+                            context: Default::default(),
+                        })
+                    })
+                })?,
+            contact: Secret::new(
+                item.router_data
+                    .resource_common_data
+                    .get_billing_phone_number()
+                    .map(|phone| phone.expose())
+                    .unwrap_or_else(|_| "9999999999".to_string()),
+            ),
+            method: "card".to_string(),
+            description: Some("Setup mandate for recurring payments".to_string()),
+            notes: item.router_data.request.metadata.clone().expose_option(),
+            callback_url: item
+                .router_data
+                .request
+                .router_return_url
+                .clone()
+                .unwrap_or_default(),
+            customer_id: item
+                .router_data
+                .request
+                .customer_id
+                .as_ref()
+                .map(|id| id.get_string_repr().to_string()),
+            save: true,
+            recurring: "1".to_string(),
+            token: Some(RazorpayV2TokenDetails {
+                max_amount: Some(1500000),
+                expire_at: None,
+                frequency: Some("as_presented".to_string()),
+            }),
+        })
+    }
+}
+
+/// Response for SetupMandate - extracts token info for mandate_reference
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RazorpayV2SetupMandateResponse {
+    pub id: String,
+    pub entity: Option<String>,
+    pub amount: Option<i64>,
+    pub currency: Option<String>,
+    pub status: RazorpayStatus,
+    pub order_id: Option<String>,
+    pub method: Option<String>,
+    pub email: Option<Email>,
+    pub contact: Option<Secret<String>>,
+    pub token_id: Option<String>,
+    pub customer_id: Option<String>,
+    pub error_code: Option<String>,
+    pub error_description: Option<String>,
+    pub error_reason: Option<String>,
+    pub notes: Option<Value>,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    ForeignTryFrom<(RazorpayV2SetupMandateResponse, Self, u16, Vec<u8>)>
+    for RouterDataV2<
+        SetupMandate,
+        PaymentFlowData,
+        SetupMandateRequestData<T>,
+        PaymentsResponseData,
+    >
+{
+    type Error = ConnectorError;
+
+    fn foreign_try_from(
+        (response, data, _status_code, _raw_response): (
+            RazorpayV2SetupMandateResponse,
+            Self,
+            u16,
+            Vec<u8>,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let status = match response.status {
+            RazorpayStatus::Created | RazorpayStatus::Authorized | RazorpayStatus::Captured => {
+                AttemptStatus::Charged
+            }
+            RazorpayStatus::Failed => AttemptStatus::Failure,
+            RazorpayStatus::Refunded => AttemptStatus::AutoRefunded,
+        };
+
+        // Build mandate_reference using token_id as the connector_mandate_id
+        // This token_id will be used for subsequent RepeatPayment (MIT) calls
+        let mandate_reference = response.token_id.as_ref().map(|token_id| {
+            Box::new(MandateReference {
+                connector_mandate_id: Some(token_id.clone()),
+                payment_method_id: None,
+                connector_mandate_request_reference_id: None,
+            })
+        });
+
+        let payments_response_data = match response.status {
+            RazorpayStatus::Created
+            | RazorpayStatus::Authorized
+            | RazorpayStatus::Captured
+            | RazorpayStatus::Refunded => Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(response.id),
+                redirection_data: None,
+                connector_metadata: None,
+                mandate_reference,
+                network_txn_id: None,
+                connector_response_reference_id: response.order_id,
+                incremental_authorization_allowed: None,
+                status_code: _status_code,
+            }),
+            RazorpayStatus::Failed => Err(ErrorResponse {
+                code: response
+                    .error_code
+                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                message: response
+                    .error_description
+                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                reason: response.error_reason,
+                status_code: _status_code,
+                attempt_status: Some(status),
+                connector_transaction_id: Some(response.id),
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+            }),
+        };
+
+        Ok(Self {
+            response: payments_response_data,
+            resource_common_data: PaymentFlowData {
+                status,
+                ..data.resource_common_data.clone()
+            },
+            ..data
+        })
+    }
+}
+
+// ============ RepeatPayment (MIT - Subsequent Recurring Payment) Types ============
+
+/// Request for creating a recurring payment using a stored token (MIT)
+#[derive(Debug, Serialize)]
+pub struct RazorpayV2RepeatPaymentRequest {
+    pub email: Email,
+    pub contact: Secret<String>,
+    pub amount: MinorUnit,
+    pub currency: String,
+    pub order_id: String,
+    pub customer_id: String,
+    pub token: String,
+    pub recurring: String,
+    pub description: Option<String>,
+    pub notes: Option<RazorpayV2Notes>,
+}
+
+impl<U: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        &RazorpayV2RouterData<
+            &RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<U>,
+                PaymentsResponseData,
+            >,
+            U,
+        >,
+    > for RazorpayV2RepeatPaymentRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        item: &RazorpayV2RouterData<
+            &RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<U>,
+                PaymentsResponseData,
+            >,
+            U,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let order_id = item
+            .order_id
+            .as_ref()
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "order_id",
+                context: Default::default(),
+            })?;
+
+        // Get the connector_mandate_id (token) from the mandate reference
+        let connector_mandate_id = item.router_data.request.connector_mandate_id().ok_or(
+            IntegrationError::MissingRequiredField {
+                field_name: "connector_mandate_id",
+                context: Default::default(),
+            },
+        )?;
+
+        // Get customer_id from the resource_common_data
+        let customer_id = item
+            .router_data
+            .resource_common_data
+            .customer_id
+            .as_ref()
+            .map(|id| id.get_string_repr().to_string())
+            .unwrap_or_default();
+
+        Ok(Self {
+            email: item.router_data.request.get_email().or_else(|_| {
+                Email::from_str("customer@example.com").map_err(|_| {
+                    error_stack::Report::new(IntegrationError::InvalidDataFormat {
+                        field_name: "email",
+                        context: Default::default(),
+                    })
+                })
+            })?,
+            contact: Secret::new(
+                item.router_data
+                    .resource_common_data
+                    .get_billing_phone_number()
+                    .map(|phone| phone.expose())
+                    .unwrap_or_else(|_| "9999999999".to_string()),
+            ),
+            amount: item.amount,
+            currency: item.router_data.request.currency.to_string(),
+            order_id: order_id.to_string(),
+            customer_id,
+            token: connector_mandate_id,
+            recurring: "1".to_string(),
+            description: Some("Recurring payment via RazorpayV2".to_string()),
+            notes: item.router_data.request.metadata.clone().expose_option(),
+        })
+    }
+}
+
+/// Response for RepeatPayment
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RazorpayV2RepeatPaymentResponse {
+    pub id: Option<String>,
+    pub razorpay_payment_id: Option<String>,
+    pub entity: Option<String>,
+    pub amount: Option<i64>,
+    pub currency: Option<String>,
+    pub status: Option<RazorpayStatus>,
+    pub order_id: Option<String>,
+    pub method: Option<String>,
+    pub customer_id: Option<String>,
+    pub token_id: Option<String>,
+    pub recurring: Option<bool>,
+    pub email: Option<Email>,
+    pub contact: Option<Secret<String>>,
+    pub error_code: Option<String>,
+    pub error_description: Option<String>,
+    pub error_reason: Option<String>,
+    pub notes: Option<Value>,
+    pub fee: Option<i64>,
+    pub tax: Option<i64>,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    ForeignTryFrom<(RazorpayV2RepeatPaymentResponse, Self, u16, Vec<u8>)>
+    for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
+{
+    type Error = ConnectorError;
+
+    fn foreign_try_from(
+        (response, data, _status_code, _raw_response): (
+            RazorpayV2RepeatPaymentResponse,
+            Self,
+            u16,
+            Vec<u8>,
+        ),
+    ) -> Result<Self, Self::Error> {
+        // Extract payment ID from either field
+        let payment_id = response
+            .id
+            .or(response.razorpay_payment_id)
+            .unwrap_or_default();
+
+        let status = match response.status {
+            Some(RazorpayStatus::Created) => AttemptStatus::Pending,
+            Some(RazorpayStatus::Authorized) => AttemptStatus::Authorized,
+            Some(RazorpayStatus::Captured) => AttemptStatus::Charged,
+            Some(RazorpayStatus::Refunded) => AttemptStatus::AutoRefunded,
+            Some(RazorpayStatus::Failed) => AttemptStatus::Failure,
+            None => {
+                // If no status but we have a payment_id, assume success
+                if !payment_id.is_empty() {
+                    AttemptStatus::Charged
+                } else {
+                    AttemptStatus::Failure
+                }
+            }
+        };
+
+        // Build mandate_reference preserving the token for future use
+        let mandate_reference = response.token_id.as_ref().map(|token_id| {
+            Box::new(MandateReference {
+                connector_mandate_id: Some(token_id.clone()),
+                payment_method_id: None,
+                connector_mandate_request_reference_id: None,
+            })
+        });
+
+        let payments_response_data = if status == AttemptStatus::Failure {
+            Err(ErrorResponse {
+                code: response
+                    .error_code
+                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                message: response
+                    .error_description
+                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                reason: response.error_reason,
+                status_code: _status_code,
+                attempt_status: Some(status),
+                connector_transaction_id: if payment_id.is_empty() {
+                    None
+                } else {
+                    Some(payment_id)
+                },
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+            })
+        } else {
+            Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(payment_id),
+                redirection_data: None,
+                connector_metadata: None,
+                mandate_reference,
+                network_txn_id: None,
+                connector_response_reference_id: response.order_id,
+                incremental_authorization_allowed: None,
+                status_code: _status_code,
+            })
+        };
+
+        Ok(Self {
+            response: payments_response_data,
+            resource_common_data: PaymentFlowData {
+                status,
+                ..data.resource_common_data.clone()
             },
             ..data
         })
