@@ -269,13 +269,60 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let merchant_id = auth.merchant_id.clone();
 
         // Extract payer info (only for UPI Collect)
-        let payer_info = match payment_method_data {
-            PaymentMethodData::Upi(upi_data) => {
-                get_vpa_id_from_upi(upi_data).map(|vpa_id| PayerInfo {
+        let (country, payer_info) = match item.router_data.request.payment_method_data.clone() {
+            PaymentMethodData::Upi(upi_data) => (
+                CountryAlpha2::IN,
+                get_vpa_id_from_upi(&upi_data).map(|vpa_id| PayerInfo {
                     token_id: Secret::new(vpa_id.expose()),
-                })
+                }),
+            ),
+            PaymentMethodData::BankRedirect(bank_redirect_data) => match bank_redirect_data {
+                BankRedirectData::Ideal { .. } => (CountryAlpha2::NL, None),
+                BankRedirectData::LocalBankRedirect {} => (CountryAlpha2::AT, None),
+                BankRedirectData::BancontactCard { .. }
+                | BankRedirectData::Bizum {}
+                | BankRedirectData::Blik { .. }
+                | BankRedirectData::Eft { .. }
+                | BankRedirectData::Eps { .. }
+                | BankRedirectData::Giropay { .. }
+                | BankRedirectData::Interac { .. }
+                | BankRedirectData::OnlineBankingCzechRepublic { .. }
+                | BankRedirectData::OnlineBankingFinland { .. }
+                | BankRedirectData::OnlineBankingPoland { .. }
+                | BankRedirectData::OnlineBankingSlovakia { .. }
+                | BankRedirectData::OpenBankingUk { .. }
+                | BankRedirectData::Przelewy24 { .. }
+                | BankRedirectData::Sofort { .. }
+                | BankRedirectData::Trustly { .. }
+                | BankRedirectData::OnlineBankingFpx { .. }
+                | BankRedirectData::OnlineBankingThailand { .. }
+                | BankRedirectData::Netbanking { .. }
+                | BankRedirectData::OpenBanking { .. } => Err(IntegrationError::not_implemented(
+                    domain_types::utils::get_unimplemented_payment_method_error_message("iatapay"),
+                ))?,
+            },
+            PaymentMethodData::Card(_)
+            | PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::Wallet(_)
+            | PaymentMethodData::PayLater(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::BankTransfer(_)
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::Reward
+            | PaymentMethodData::MobilePayment(_)
+            | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_) => {
+                Err(IntegrationError::not_implemented(
+                    domain_types::utils::get_unimplemented_payment_method_error_message("iatapay"),
+                ))?
             }
-            _ => None,
         };
 
         // Get return URL and webhook URL
