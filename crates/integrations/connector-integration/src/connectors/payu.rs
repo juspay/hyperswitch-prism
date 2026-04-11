@@ -47,8 +47,8 @@ use serde::Serialize;
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 
 use transformers::{
-    is_upi_collect_flow, PayuAuthType, PayuPaymentRequest, PayuPaymentResponse, PayuSyncRequest,
-    PayuSyncResponse,
+    is_upi_collect_flow, PayuAuthType, PayuPaymentRequest, PayuPaymentResponse,
+    PayuRepeatPaymentRequest, PayuRepeatPaymentResponse, PayuSyncRequest, PayuSyncResponse,
 };
 
 use super::macros;
@@ -223,6 +223,12 @@ macros::create_all_prerequisites!(
             request_body: PayuSyncRequest,
             response_body: PayuSyncResponse,
             router_data: RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
+        ),
+        (
+            flow: RepeatPayment,
+            request_body: PayuRepeatPaymentRequest,
+            response_body: PayuRepeatPaymentResponse,
+            router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -437,6 +443,81 @@ macros::macro_connector_implementation!(
     }
 );
 
+// Implement RepeatPayment (MIT) flow using macro framework
+macros::macro_connector_implementation!(
+    connector_default_implementations: [],
+    connector: Payu,
+    curl_request: FormUrlEncoded(PayuRepeatPaymentRequest),
+    curl_response: PayuRepeatPaymentResponse,
+    flow_name: RepeatPayment,
+    resource_common_data: PaymentFlowData,
+    flow_request: RepeatPaymentData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            _req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            Ok(vec![
+                ("Content-Type".to_string(), "application/x-www-form-urlencoded".into()),
+                ("Accept".to_string(), "application/json".into()),
+            ])
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            let base_url = self.base_url(&req.resource_common_data.connectors);
+            Ok(format!("{base_url}/_payment"))
+        }
+
+        fn get_content_type(&self) -> &'static str {
+            "application/x-www-form-urlencoded"
+        }
+
+        fn get_error_response_v2(
+            &self,
+            res: Response,
+            _event_builder: Option<&mut events::Event>,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            let response: PayuRepeatPaymentResponse = res
+                .response
+                .parse_struct("PayU RepeatPayment ErrorResponse")
+                .change_context(crate::utils::response_handling_fail_for_connector(res.status_code, "payu"))?;
+
+            if response.error.is_some() {
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code: response.error.unwrap_or_default(),
+                    message: response.message.unwrap_or_default(),
+                    reason: None,
+                    attempt_status: Some(enums::AttemptStatus::Failure),
+                    connector_transaction_id: response.reference_id,
+                    network_error_message: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                })
+            } else {
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code: "UNKNOWN_ERROR".to_string(),
+                    message: "Unknown PayU RepeatPayment error".to_string(),
+                    reason: None,
+                    attempt_status: Some(enums::AttemptStatus::Failure),
+                    connector_transaction_id: None,
+                    network_error_message: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                })
+            }
+        }
+    }
+);
+
 // Implement ConnectorCommon trait
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorCommon
     for Payu<T>
@@ -491,15 +572,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize + Ser
     > for Payu<T>
 {
 }
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize + Serialize>
-    ConnectorIntegrationV2<
-        RepeatPayment,
-        PaymentFlowData,
-        RepeatPaymentData<T>,
-        PaymentsResponseData,
-    > for Payu<T>
-{
-}
+// RepeatPayment stub removed - full implementation below via macro
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize + Serialize>
     ConnectorIntegrationV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>
     for Payu<T>

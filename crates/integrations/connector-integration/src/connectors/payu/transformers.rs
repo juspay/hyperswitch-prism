@@ -1,9 +1,10 @@
 use common_enums::{self, AttemptStatus, Currency};
 use common_utils::{pii::IpAddress, Email};
 use domain_types::{
-    connector_flow::{Authorize, PSync},
+    connector_flow::{Authorize, PSync, RepeatPayment},
     connector_types::{
-        PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData, ResponseId,
+        MandateReferenceId, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData,
+        PaymentsSyncData, RepeatPaymentData, ResponseId,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, UpiData},
@@ -1018,5 +1019,396 @@ fn map_payu_sync_status(payu_status: &str, txn_detail: &PayuTransactionDetail) -
             // Unknown status - treat as failure for safety
             AttemptStatus::Failure
         }
+    }
+}
+
+// === RepeatPayment (MIT) Request and Response Types ===
+
+// PayU MIT/Recurring Request - uses the same /_payment endpoint
+// For merchant-initiated transactions, PayU India requires the user_token
+// (card token from a previous transaction) to charge without 2FA
+#[derive(Debug, Serialize)]
+pub struct PayuRepeatPaymentRequest {
+    // Core payment fields
+    pub key: String,                                  // Merchant key
+    pub txnid: String,                                // Transaction ID
+    pub amount: common_utils::types::StringMajorUnit, // Amount in string major units
+    pub currency: Currency,                           // Currency code
+    pub productinfo: String,                          // Product description
+
+    // Customer information
+    pub firstname: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lastname: Option<Secret<String>>,
+    pub email: Email,
+    pub phone: Secret<String>,
+
+    // URLs
+    pub surl: String, // Success URL
+    pub furl: String, // Failure URL
+
+    // MIT-specific fields
+    pub user_token: String, // Card/mandate token from previous transaction (connector_mandate_id)
+
+    // S2S fields
+    pub txn_s2s_flow: String,                     // S2S flow type
+    pub s2s_client_ip: Secret<String, IpAddress>, // Client IP
+    pub s2s_device_info: String,                  // Device info
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub api_version: Option<String>, // API version
+
+    // Security
+    pub hash: String, // SHA-512 signature
+
+    // User defined fields
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub udf1: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub udf2: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub udf3: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub udf4: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub udf5: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub udf6: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub udf7: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub udf8: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub udf9: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub udf10: Option<String>,
+}
+
+// PayU MIT Response - same structure as regular payment response
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PayuRepeatPaymentResponse {
+    // Success response fields
+    #[serde(deserialize_with = "deserialize_payu_status")]
+    pub status: Option<PayuStatusValue>,
+    pub token: Option<String>,
+    #[serde(alias = "referenceId")]
+    pub reference_id: Option<String>,
+    #[serde(alias = "returnUrl")]
+    pub return_url: Option<String>,
+    #[serde(alias = "merchantName")]
+    pub merchant_name: Option<String>,
+    pub amount: Option<String>,
+    #[serde(alias = "txnId")]
+    pub txn_id: Option<String>,
+
+    // Result field for collect-style flows
+    pub result: Option<PayuResult>,
+
+    // Error response fields
+    pub error: Option<String>,
+    pub message: Option<String>,
+}
+
+// Hash generation for RepeatPayment request
+// Same format as regular payment: sha512(key|txnid|amount|productinfo|firstname|email|udf1..udf10|salt)
+fn generate_payu_repeat_payment_hash(
+    request: &PayuRepeatPaymentRequest,
+    merchant_salt: &Secret<String>,
+) -> Result<String, IntegrationError> {
+    use sha2::{Digest, Sha512};
+
+    let hash_fields = vec![
+        request.key.clone(),
+        request.txnid.clone(),
+        request.amount.get_amount_as_string(),
+        request.productinfo.clone(),
+        request.firstname.peek().clone(),
+        request.email.peek().clone(),
+        request.udf1.as_deref().unwrap_or("").to_string(),
+        request.udf2.as_deref().unwrap_or("").to_string(),
+        request.udf3.as_deref().unwrap_or("").to_string(),
+        request.udf4.as_deref().unwrap_or("").to_string(),
+        request.udf5.as_deref().unwrap_or("").to_string(),
+        request.udf6.as_deref().unwrap_or("").to_string(),
+        request.udf7.as_deref().unwrap_or("").to_string(),
+        request.udf8.as_deref().unwrap_or("").to_string(),
+        request.udf9.as_deref().unwrap_or("").to_string(),
+        request.udf10.as_deref().unwrap_or("").to_string(),
+        merchant_salt.peek().to_string(),
+    ];
+
+    let hash_string = hash_fields.join("|");
+    let mut hasher = Sha512::new();
+    hasher.update(hash_string.as_bytes());
+    let result = hasher.finalize();
+    Ok(hex::encode(result))
+}
+
+// Helper to extract connector mandate ID from MandateReferenceId
+fn extract_connector_mandate_id(
+    mandate_reference: &MandateReferenceId,
+) -> Result<String, IntegrationError> {
+    match mandate_reference {
+        MandateReferenceId::ConnectorMandateId(connector_mandate_ref) => connector_mandate_ref
+            .get_connector_mandate_id()
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "connector_mandate_id",
+                context: Default::default(),
+            }),
+        MandateReferenceId::NetworkMandateId(network_transaction_id) => {
+            Ok(network_transaction_id.clone())
+        }
+        MandateReferenceId::NetworkTokenWithNTI(_) => Err(IntegrationError::NotSupported {
+            message: "Network token with NTI not supported for PayU MIT".to_string(),
+            connector: "PayU",
+            context: Default::default(),
+        }),
+    }
+}
+
+// RepeatPayment Request conversion from RouterData
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        super::PayuRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for PayuRepeatPaymentRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: super::PayuRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+
+        // Use AmountConvertor framework for proper amount handling
+        let amount = item
+            .connector
+            .amount_converter
+            .convert(
+                router_data.request.minor_amount,
+                router_data.request.currency,
+            )
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: Default::default(),
+            })?;
+
+        // Extract authentication
+        let auth = PayuAuthType::try_from(&router_data.connector_config)?;
+
+        // Extract mandate token (user_token) from mandate reference
+        let user_token = extract_connector_mandate_id(&router_data.request.mandate_reference)?;
+
+        // Extract metadata for UDF fields
+        let metadata = router_data.request.metadata.as_ref();
+        let get_metadata_field = |field: &str| -> Option<String> {
+            metadata
+                .and_then(|m| m.peek().get(field))
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string())
+        };
+
+        // Build request
+        let mut request = Self {
+            key: auth.api_key.peek().to_string(),
+            txnid: router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
+            amount,
+            currency: router_data.request.currency,
+            productinfo: constants::PRODUCT_INFO.to_string(),
+
+            // Customer info
+            firstname: router_data
+                .resource_common_data
+                .get_billing_first_name()
+                .change_context(IntegrationError::MissingRequiredField {
+                    field_name: "billing.first_name",
+                    context: Default::default(),
+                })?,
+            lastname: router_data
+                .resource_common_data
+                .get_optional_billing_last_name(),
+            email: router_data
+                .resource_common_data
+                .get_billing_email()
+                .change_context(IntegrationError::MissingRequiredField {
+                    field_name: "billing.email",
+                    context: Default::default(),
+                })?,
+            phone: router_data
+                .resource_common_data
+                .get_billing_phone_number()
+                .change_context(IntegrationError::MissingRequiredField {
+                    field_name: "billing.phone_number",
+                    context: Default::default(),
+                })?,
+
+            // URLs
+            surl: router_data
+                .request
+                .router_return_url
+                .clone()
+                .unwrap_or_else(|| "https://example.com/success".to_string()),
+            furl: router_data
+                .request
+                .router_return_url
+                .clone()
+                .unwrap_or_else(|| "https://example.com/failure".to_string()),
+
+            // MIT-specific: stored card token
+            user_token,
+
+            // S2S fields
+            txn_s2s_flow: constants::UPI_S2S_FLOW.to_string(),
+            s2s_client_ip: router_data
+                .request
+                .get_ip_address_as_optional()
+                .ok_or_else(|| {
+                    report!(IntegrationError::MissingRequiredField {
+                        field_name: "IP address",
+                        context: Default::default()
+                    })
+                })?,
+            s2s_device_info: constants::DEVICE_INFO.to_string(),
+            api_version: Some(constants::API_VERSION.to_string()),
+
+            // Hash will be calculated below
+            hash: String::new(),
+
+            // UDF fields from metadata
+            udf1: get_metadata_field("udf1")
+                .or(Some(router_data.resource_common_data.payment_id.clone())),
+            udf2: get_metadata_field("udf2").or(Some(
+                router_data
+                    .resource_common_data
+                    .merchant_id
+                    .get_string_repr()
+                    .to_string(),
+            )),
+            udf3: get_metadata_field("udf3"),
+            udf4: get_metadata_field("udf4"),
+            udf5: get_metadata_field("udf5"),
+            udf6: get_metadata_field("udf6"),
+            udf7: get_metadata_field("udf7"),
+            udf8: get_metadata_field("udf8"),
+            udf9: get_metadata_field("udf9"),
+            udf10: get_metadata_field("udf10"),
+        };
+
+        // Generate hash signature
+        request.hash = generate_payu_repeat_payment_hash(&request, &auth.api_secret)?;
+
+        Ok(request)
+    }
+}
+
+// RepeatPayment Response conversion
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<PayuRepeatPaymentResponse, Self>>
+    for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<PayuRepeatPaymentResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response;
+
+        // Check if this is an error response
+        if let Some(error_code) = &response.error {
+            let error_transaction_id = response
+                .reference_id
+                .clone()
+                .or_else(|| response.txn_id.clone())
+                .or_else(|| response.token.clone());
+
+            let error_response = ErrorResponse {
+                status_code: item.http_code,
+                code: error_code.clone(),
+                message: response.message.clone().unwrap_or_default(),
+                reason: None,
+                attempt_status: Some(AttemptStatus::Failure),
+                connector_transaction_id: error_transaction_id,
+                network_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+            };
+
+            return Ok(Self {
+                response: Err(error_response),
+                resource_common_data: PaymentFlowData {
+                    status: AttemptStatus::Failure,
+                    ..item.router_data.resource_common_data
+                },
+                ..item.router_data
+            });
+        }
+
+        // Extract transaction ID
+        let transaction_id = response
+            .reference_id
+            .or_else(|| response.txn_id.clone())
+            .or_else(|| response.token.clone())
+            .unwrap_or_else(|| item.router_data.resource_common_data.payment_id.clone());
+
+        // Determine status based on response
+        let (status, connector_txn_id) = match &response.status {
+            Some(PayuStatusValue::IntStatus(1)) => {
+                // Success - MIT payment processed
+                (AttemptStatus::Charged, transaction_id.clone())
+            }
+            Some(PayuStatusValue::StringStatus(s)) if s == "success" => {
+                // Success response with result object
+                let (status, txn_id) = response
+                    .result
+                    .map(|result| {
+                        let st = match result.status.to_lowercase().as_str() {
+                            "success" | "captured" => AttemptStatus::Charged,
+                            "pending" => AttemptStatus::Pending,
+                            "auth" => AttemptStatus::Authorized,
+                            _ => AttemptStatus::Failure,
+                        };
+                        (st, result.mihpayid)
+                    })
+                    .unwrap_or((AttemptStatus::Charged, transaction_id.clone()));
+                (status, txn_id)
+            }
+            _ => (AttemptStatus::Failure, transaction_id.clone()),
+        };
+
+        let payment_response_data = PaymentsResponseData::TransactionResponse {
+            resource_id: ResponseId::ConnectorTransactionId(connector_txn_id.clone()),
+            redirection_data: None,
+            mandate_reference: None,
+            connector_metadata: None,
+            network_txn_id: None,
+            connector_response_reference_id: Some(connector_txn_id),
+            incremental_authorization_allowed: None,
+            status_code: item.http_code,
+        };
+
+        Ok(Self {
+            response: Ok(payment_response_data),
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
     }
 }

@@ -451,7 +451,7 @@ connector_id: payu
 doc: docs/connectors/payu.md
 scenarios: none
 payment_methods: UpiCollect, UpiIntent, UpiQr
-flows: authorize, get
+flows: authorize, get, recurring_charge
 examples_python: none
 
 ## Peachpayments

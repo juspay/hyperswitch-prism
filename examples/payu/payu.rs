@@ -64,6 +64,44 @@ pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetReq
     })).unwrap_or_default()
 }
 
+pub fn build_recurring_charge_request() -> RecurringPaymentServiceChargeRequest {
+    serde_json::from_value::<RecurringPaymentServiceChargeRequest>(serde_json::json!({
+    "connector_recurring_payment_id": {  // Reference to existing mandate.
+        "mandate_id_type": {
+            "connector_mandate_id": {
+                "connector_mandate_id": "probe-mandate-123",
+            },
+        },
+    },
+    "amount": {  // Amount Information.
+        "minor_amount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+        "currency": "USD",  // ISO 4217 currency code (e.g., "USD", "EUR").
+    },
+    "payment_method": {  // Optional payment Method Information (for network transaction flows).
+        "payment_method": {
+            "token": {  // Payment tokens.
+                "token": "probe_pm_token",  // The token string representing a payment method.
+            },
+        }
+    },
+    "return_url": "https://example.com/recurring-return",
+    "address": {  // Address Information.
+        "billing_address": {
+            "first_name": "John",  // Personal Information.
+            "email": "test@example.com",  // Contact Information.
+            "phone_number": "4155552671",
+            "phone_country_code": "+1",
+        },
+    },
+    "connector_customer_id": "cust_probe_123",
+    "browser_info": {  // Browser Information.
+        "ip_address": "1.2.3.4",  // Device Information.
+    },
+    "payment_method_type": "PAY_PAL",
+    "off_session": true,  // Behavioral Flags and Preferences.
+    })).unwrap_or_default()
+}
+
 
 // Flow: PaymentService.Authorize (UpiCollect)
 #[allow(dead_code)]
@@ -84,6 +122,13 @@ pub async fn get(client: &ConnectorClient, _merchant_transaction_id: &str) -> Re
     Ok(format!("status: {:?}", response.status()))
 }
 
+// Flow: RecurringPaymentService.Charge
+#[allow(dead_code)]
+pub async fn recurring_charge(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client.recurring_charge(build_recurring_charge_request(), &HashMap::new(), None).await?;
+    Ok(format!("status: {:?}", response.status()))
+}
+
 #[allow(dead_code)]
 #[tokio::main]
 async fn main() {
@@ -92,7 +137,8 @@ async fn main() {
     let result: Result<String, Box<dyn std::error::Error>> = match flow.as_str() {
         "authorize" => authorize(&client, "order_001").await,
         "get" => get(&client, "order_001").await,
-        _ => { eprintln!("Unknown flow: {}. Available: authorize, get", flow); return; }
+        "recurring_charge" => recurring_charge(&client, "order_001").await,
+        _ => { eprintln!("Unknown flow: {}. Available: authorize, get, recurring_charge", flow); return; }
     };
     match result {
         Ok(msg) => println!("✓ {msg}"),

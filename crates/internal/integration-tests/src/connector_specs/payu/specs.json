@@ -2,6 +2,7 @@
   "connector": "payu",
   "supported_suites": [
     "authorize",
-    "get"
+    "get",
+    "recurring_charge"
   ]
 }

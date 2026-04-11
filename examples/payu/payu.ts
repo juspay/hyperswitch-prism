@@ -5,8 +5,8 @@
 // Payu — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx payu.ts checkout_autocapture
 
-import { PaymentClient, types } from 'hyperswitch-prism';
-const { ConnectorConfig, ConnectorSpecificConfig, SdkOptions, Environment, AuthenticationType, CaptureMethod, Currency } = types;
+import { PaymentClient, RecurringPaymentClient, types } from 'hyperswitch-prism';
+const { ConnectorConfig, ConnectorSpecificConfig, SdkOptions, Environment, AuthenticationType, CaptureMethod, Currency, PaymentMethodType } = types;
 
 const _defaultConfig: ConnectorConfig = {
     options: {
@@ -59,6 +59,40 @@ function _buildGetRequest(connectorTransactionId: string): PaymentServiceGetRequ
     };
 }
 
+function _buildRecurringChargeRequest(): RecurringPaymentServiceChargeRequest {
+    return {
+        "connectorRecurringPaymentId": {  // Reference to existing mandate.
+            "connectorMandateId": {  // mandate_id sent by the connector.
+                "connectorMandateId": "probe-mandate-123"
+            }
+        },
+        "amount": {  // Amount Information.
+            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        },
+        "paymentMethod": {  // Optional payment Method Information (for network transaction flows).
+            "token": {  // Payment tokens.
+                "token": {"value": "probe_pm_token"}  // The token string representing a payment method.
+            }
+        },
+        "returnUrl": "https://example.com/recurring-return",
+        "address": {  // Address Information.
+            "billingAddress": {
+                "firstName": {"value": "John"},  // Personal Information.
+                "email": {"value": "test@example.com"},  // Contact Information.
+                "phoneNumber": {"value": "4155552671"},
+                "phoneCountryCode": "+1"
+            }
+        },
+        "connectorCustomerId": "cust_probe_123",
+        "browserInfo": {  // Browser Information.
+            "ipAddress": "1.2.3.4"  // Device Information.
+        },
+        "paymentMethodType": PaymentMethodType.PAY_PAL,
+        "offSession": true  // Behavioral Flags and Preferences.
+    };
+}
+
 
 // ANCHOR: scenario_functions
 // Flow: PaymentService.Authorize (UpiCollect)
@@ -79,10 +113,19 @@ async function get(merchantTransactionId: string, config: ConnectorConfig = _def
     return { status: getResponse.status };
 }
 
+// Flow: RecurringPaymentService.Charge
+async function recurringCharge(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<RecurringPaymentServiceChargeResponse> {
+    const recurringPaymentClient = new RecurringPaymentClient(config);
+
+    const recurringResponse = await recurringPaymentClient.charge(_buildRecurringChargeRequest());
+
+    return { status: recurringResponse.status };
+}
+
 
 // Export all process* functions for the smoke test
 export {
-    authorize, get, _buildAuthorizeRequest, _buildGetRequest
+    authorize, get, recurringCharge, _buildAuthorizeRequest, _buildGetRequest, _buildRecurringChargeRequest
 };
 
 // CLI runner
