@@ -4,7 +4,9 @@
     "authorize",
     "client_authentication_token",
     "get",
+    "recurring_charge",
     "refund",
-    "refund_sync"
+    "refund_sync",
+    "setup_recurring"
   ]
 }
