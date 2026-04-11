@@ -2,10 +2,14 @@ use common_enums::enums::{self, AttemptStatus, CountryAlpha2};
 use common_utils::{ext_traits::Encode, pii, request::Method, types::StringMajorUnit};
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, MandateRevoke, Refund, RepeatPayment, SetupMandate, Void,
+        Authorize, Capture, ClientAuthenticationToken, MandateRevoke, Refund, RepeatPayment,
+        SetupMandate, Void,
     },
     connector_types::{
-        MandateReference, MandateReferenceId, MandateRevokeRequestData, MandateRevokeResponseData,
+        ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
+        ConnectorSpecificClientAuthenticationResponse, MandateReference, MandateReferenceId,
+        MandateRevokeRequestData, MandateRevokeResponseData,
+        NoonClientAuthenticationResponse as NoonClientAuthenticationResponseDomain,
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
         PaymentsResponseData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
         RepeatPaymentData, ResponseId, SetupMandateRequestData,
@@ -1673,6 +1677,152 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 }
             },
             ..router_data
+        })
+    }
+}
+
+// ---- ClientAuthenticationToken flow types ----
+
+/// Creates a Noon order for client-side SDK initialization.
+/// The order_id and checkout_url (postUrl) are returned to the frontend for
+/// Noon SDK/redirect-based checkout initialization.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NoonClientAuthRequest {
+    pub api_operation: NoonApiOperations,
+    pub order: NoonClientAuthOrder,
+    pub configuration: NoonClientAuthConfiguration,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NoonClientAuthOrder {
+    pub amount: StringMajorUnit,
+    pub currency: Option<enums::Currency>,
+    pub channel: NoonChannels,
+    pub category: Option<String>,
+    pub reference: String,
+    pub name: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NoonClientAuthConfiguration {
+    pub payment_action: NoonPaymentActions,
+    pub return_url: Option<String>,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        NoonRouterData<
+            RouterDataV2<
+                ClientAuthenticationToken,
+                PaymentFlowData,
+                ClientAuthenticationTokenRequestData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for NoonClientAuthRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        data: NoonRouterData<
+            RouterDataV2<
+                ClientAuthenticationToken,
+                PaymentFlowData,
+                ClientAuthenticationTokenRequestData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let amount = data
+            .connector
+            .amount_converter
+            .convert(
+                data.router_data.request.amount,
+                data.router_data.request.currency,
+            )
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?;
+
+        let item = data.router_data;
+
+        let order = NoonClientAuthOrder {
+            amount,
+            currency: Some(item.request.currency),
+            channel: NoonChannels::Web,
+            category: None,
+            reference: item
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
+            name: "Client Authentication Token".to_string(),
+        };
+
+        let configuration = NoonClientAuthConfiguration {
+            payment_action: NoonPaymentActions::Sale,
+            return_url: item.resource_common_data.return_url.clone(),
+        };
+
+        Ok(Self {
+            api_operation: NoonApiOperations::Initiate,
+            order,
+            configuration,
+        })
+    }
+}
+
+/// Noon client auth response — wraps the standard NoonPaymentsResponseResult
+#[derive(Debug, Serialize, Deserialize)]
+pub struct NoonClientAuthResponse {
+    pub result: NoonClientAuthResponseResult,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NoonClientAuthResponseResult {
+    pub order: NoonPaymentsOrderResponse,
+    pub checkout_data: Option<NoonCheckoutData>,
+}
+
+impl TryFrom<ResponseRouterData<NoonClientAuthResponse, Self>>
+    for RouterDataV2<
+        ClientAuthenticationToken,
+        PaymentFlowData,
+        ClientAuthenticationTokenRequestData,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<NoonClientAuthResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response;
+        let order = response.result.order;
+        let checkout_data = response.result.checkout_data;
+
+        let checkout_url = checkout_data
+            .map(|cd| cd.post_url.to_string())
+            .unwrap_or_default();
+
+        let session_data = ClientAuthenticationTokenData::ConnectorSpecific(Box::new(
+            ConnectorSpecificClientAuthenticationResponse::Noon(
+                NoonClientAuthenticationResponseDomain {
+                    order_id: order.id,
+                    checkout_url: Secret::new(checkout_url),
+                },
+            ),
+        ));
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::ClientAuthenticationTokenResponse {
+                session_data,
+                status_code: item.http_code,
+            }),
+            ..item.router_data
         })
     }
 }

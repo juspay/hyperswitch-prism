@@ -49,9 +49,10 @@ use error_stack::{report, ResultExt};
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 
 use transformers::{
-    self as noon, NoonAuthType, NoonErrorResponse, NoonPaymentsActionRequest,
-    NoonPaymentsActionRequest as NoonPaymentsRefundActionRequest, NoonPaymentsCancelRequest,
-    NoonPaymentsRequest, NoonPaymentsResponse, NoonPaymentsResponse as NoonPaymentsSyncResponse,
+    self as noon, NoonAuthType, NoonClientAuthRequest, NoonClientAuthResponse, NoonErrorResponse,
+    NoonPaymentsActionRequest, NoonPaymentsActionRequest as NoonPaymentsRefundActionRequest,
+    NoonPaymentsCancelRequest, NoonPaymentsRequest, NoonPaymentsResponse,
+    NoonPaymentsResponse as NoonPaymentsSyncResponse,
     NoonPaymentsResponse as NoonPaymentsCaptureResponse,
     NoonPaymentsResponse as NoonPaymentsVoidResponse, NoonRepeatPaymentRequest,
     NoonRepeatPaymentResponse, NoonRevokeMandateRequest, NoonRevokeMandateResponse, RefundResponse,
@@ -407,6 +408,12 @@ macros::create_all_prerequisites!(
             request_body: NoonRepeatPaymentRequest<T>,
             response_body: NoonRepeatPaymentResponse,
             router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: ClientAuthenticationToken,
+            request_body: NoonClientAuthRequest,
+            response_body: NoonClientAuthResponse,
+            router_data: RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -783,6 +790,34 @@ macros::macro_connector_implementation!(
     }
 );
 
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Noon,
+    curl_request: Json(NoonClientAuthRequest),
+    curl_response: NoonClientAuthResponse,
+    flow_name: ClientAuthenticationToken,
+    resource_common_data: PaymentFlowData,
+    flow_request: ClientAuthenticationTokenRequestData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}payment/v1/order", self.connector_base_url_payments(req)))
+        }
+    }
+);
+
 // Implementation for empty stubs - these will need to be properly implemented later
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
@@ -888,14 +923,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        ClientAuthenticationToken,
-        PaymentFlowData,
-        ClientAuthenticationTokenRequestData,
-        PaymentsResponseData,
-    > for Noon<T>
-{
-}
+// ClientAuthenticationToken implementation is provided via macro_connector_implementation below
 
 // SourceVerification implementations for authentication flows
