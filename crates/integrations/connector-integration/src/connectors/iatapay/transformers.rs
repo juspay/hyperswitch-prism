@@ -269,13 +269,43 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let merchant_id = auth.merchant_id.clone();
 
         // Extract payer info (only for UPI Collect)
-        let payer_info = match payment_method_data {
+        let (country, payer_info) = match payment_method_data {
             PaymentMethodData::Upi(upi_data) => {
-                get_vpa_id_from_upi(upi_data).map(|vpa_id| PayerInfo {
+                let payer_info = get_vpa_id_from_upi(upi_data).map(|vpa_id| PayerInfo {
                     token_id: Secret::new(vpa_id.expose()),
-                })
+                });
+                (CountryAlpha2::IN, payer_info)
             }
-            _ => None,
+            PaymentMethodData::RealTimePayment(real_time_payment_data) => {
+                match **real_time_payment_data {
+                    RealTimePaymentData::DuitNow {} => (CountryAlpha2::MY, None),
+                    RealTimePaymentData::Fps {} => (CountryAlpha2::HK, None),
+                    RealTimePaymentData::PromptPay {} => (CountryAlpha2::TH, None),
+                    RealTimePaymentData::VietQr {} => (CountryAlpha2::VN, None),
+                }
+            }
+            PaymentMethodData::Card(_)
+            | PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::Wallet(_)
+            | PaymentMethodData::PayLater(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::BankTransfer(_)
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::Reward
+            | PaymentMethodData::MobilePayment(_)
+            | PaymentMethodData::BankRedirect(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_) => {
+                Err(IntegrationError::not_implemented(
+                    domain_types::utils::get_unimplemented_payment_method_error_message("iatapay"),
+                ))?
+            }
         };
 
         // Get return URL and webhook URL
