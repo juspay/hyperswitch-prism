@@ -3,6 +3,7 @@
   "supported_suites": [
     "authorize",
     "server_session_authentication_token",
-    "get"
+    "get",
+    "recurring_charge"
   ]
 }

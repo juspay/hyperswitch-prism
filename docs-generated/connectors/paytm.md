@@ -99,6 +99,7 @@ let config = ConnectorConfig {
 | [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
 | [MerchantAuthenticationService.CreateServerSessionAuthenticationToken](#merchantauthenticationservicecreateserversessionauthenticationtoken) | Authentication | `MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
+| [RecurringPaymentService.Charge](#recurringpaymentservicecharge) | Mandates | `RecurringPaymentServiceChargeRequest` |
 
 ### Payments
 
@@ -219,7 +220,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/paytm/paytm.py#L74) · [TypeScript](../../examples/paytm/paytm.ts#L68) · [Kotlin](../../examples/paytm/paytm.kt#L64) · [Rust](../../examples/paytm/paytm.rs#L77)
+**Examples:** [Python](../../examples/paytm/paytm.py#L100) · [TypeScript](../../examples/paytm/paytm.ts#L91) · [Kotlin](../../examples/paytm/paytm.kt#L67) · [Rust](../../examples/paytm/paytm.rs#L104)
 
 #### PaymentService.Get
 
@@ -230,7 +231,20 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/paytm/paytm.py#L92) · [TypeScript](../../examples/paytm/paytm.ts#L86) · [Kotlin](../../examples/paytm/paytm.kt#L91) · [Rust](../../examples/paytm/paytm.rs#L96)
+**Examples:** [Python](../../examples/paytm/paytm.py#L118) · [TypeScript](../../examples/paytm/paytm.ts#L109) · [Kotlin](../../examples/paytm/paytm.kt#L94) · [Rust](../../examples/paytm/paytm.rs#L123)
+
+### Mandates
+
+#### RecurringPaymentService.Charge
+
+Charge using an existing stored recurring payment instruction. Processes repeat payments for subscriptions or recurring billing without collecting payment details.
+
+| | Message |
+|---|---------|
+| **Request** | `RecurringPaymentServiceChargeRequest` |
+| **Response** | `RecurringPaymentServiceChargeResponse` |
+
+**Examples:** [Python](../../examples/paytm/paytm.py#L127) · [TypeScript](../../examples/paytm/paytm.ts#L118) · [Kotlin](../../examples/paytm/paytm.kt#L102) · [Rust](../../examples/paytm/paytm.rs#L130)
 
 ### Authentication
 
@@ -243,4 +257,4 @@ Create a server-side session with the connector. Establishes session state for m
 | **Request** | `MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/paytm/paytm.py#L83) · [TypeScript](../../examples/paytm/paytm.ts#L77) · [Kotlin](../../examples/paytm/paytm.kt#L76) · [Rust](../../examples/paytm/paytm.rs#L89)
+**Examples:** [Python](../../examples/paytm/paytm.py#L109) · [TypeScript](../../examples/paytm/paytm.ts#L100) · [Kotlin](../../examples/paytm/paytm.kt#L79) · [Rust](../../examples/paytm/paytm.rs#L116)

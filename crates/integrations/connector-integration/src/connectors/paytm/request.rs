@@ -233,3 +233,24 @@ pub struct PaytmTransactionStatusReqBody {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub txn_type: Option<String>, // PREAUTH, CAPTURE, RELEASE, WITHDRAW
 }
+
+// RepeatPayment (MIT / Subscription Renew) flow request structures
+
+#[derive(Debug, Serialize)]
+pub struct PaytmRepeatPaymentRequest {
+    pub head: PaytmRequestHeader,
+    pub body: PaytmRepeatPaymentReqBody,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PaytmRepeatPaymentReqBody {
+    pub mid: Secret<String>,
+    #[serde(rename = "orderId")]
+    pub order_id: String,
+    #[serde(rename = "txnAmount")]
+    pub txn_amount: PaytmAmount,
+    #[serde(rename = "subscriptionId")]
+    pub subscription_id: String,
+    #[serde(rename = "extendInfo", skip_serializing_if = "Option::is_none")]
+    pub extend_info: Option<PaytmExtendInfo>,
+}

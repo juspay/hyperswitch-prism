@@ -443,7 +443,7 @@ connector_id: paytm
 doc: docs/connectors/paytm.md
 scenarios: none
 payment_methods: UpiCollect, UpiIntent, UpiQr
-flows: authorize, create_server_session_authentication_token, get
+flows: authorize, create_server_session_authentication_token, get, recurring_charge
 examples_python: none
 
 ## PayU

@@ -9,12 +9,15 @@ package examples.paytm
 
 import payments.PaymentClient
 import payments.MerchantAuthenticationClient
+import payments.RecurringPaymentClient
 import payments.PaymentServiceAuthorizeRequest
 import payments.MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest
 import payments.PaymentServiceGetRequest
+import payments.RecurringPaymentServiceChargeRequest
 import payments.AuthenticationType
 import payments.CaptureMethod
 import payments.Currency
+import payments.PaymentMethodType
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
@@ -95,6 +98,37 @@ fun get(txnId: String) {
     println("Status: ${response.status.name}")
 }
 
+// Flow: RecurringPaymentService.Charge
+fun recurringCharge(txnId: String) {
+    val client = RecurringPaymentClient(_defaultConfig)
+    val request = RecurringPaymentServiceChargeRequest.newBuilder().apply {
+        connectorRecurringPaymentIdBuilder.apply {  // Reference to existing mandate.
+            connectorMandateIdBuilder.apply {  // mandate_id sent by the connector.
+                connectorMandateIdBuilder.apply {
+                    connectorMandateId = "probe-mandate-123"
+                }
+            }
+        }
+        amountBuilder.apply {  // Amount Information.
+            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
+            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+        paymentMethodBuilder.apply {  // Optional payment Method Information (for network transaction flows).
+            tokenBuilder.apply {  // Payment tokens.
+                tokenBuilder.value = "probe_pm_token"  // The token string representing a payment method.
+            }
+        }
+        returnUrl = "https://example.com/recurring-return"
+        connectorCustomerId = "cust_probe_123"
+        paymentMethodType = PaymentMethodType.PAY_PAL
+        offSession = true  // Behavioral Flags and Preferences.
+    }.build()
+    val response = client.charge(request)
+    if (response.status.name == "FAILED")
+        throw RuntimeException("Recurring_Charge failed: ${response.error.unifiedDetails.message}")
+    println("Done: ${response.status.name}")
+}
+
 
 fun main(args: Array<String>) {
     val txnId = "order_001"
@@ -103,6 +137,7 @@ fun main(args: Array<String>) {
         "authorize" -> authorize(txnId)
         "createServerSessionAuthenticationToken" -> createServerSessionAuthenticationToken(txnId)
         "get" -> get(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: authorize, createServerSessionAuthenticationToken, get")
+        "recurringCharge" -> recurringCharge(txnId)
+        else -> System.err.println("Unknown flow: $flow. Available: authorize, createServerSessionAuthenticationToken, get, recurringCharge")
     }
 }
