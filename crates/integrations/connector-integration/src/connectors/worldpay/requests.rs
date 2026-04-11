@@ -2,9 +2,27 @@ use common_utils::types::MinorUnit;
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
+/// Worldpay authorize request that handles both card payments (`/api/payments`)
+/// and APM bank debit payments (`/apmPayments`).
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(untagged)]
+pub enum WorldpayAuthorizeRequest<
+    T: domain_types::payment_method_data::PaymentMethodDataTypes
+        + std::fmt::Debug
+        + Sync
+        + Send
+        + 'static
+        + Serialize,
+> {
+    /// Standard card payment request
+    Card(Box<WorldpayCardPaymentRequest<T>>),
+    /// APM bank debit payment request (ACH, SEPA, EFT)
+    Apm(Box<WorldpayApmPaymentRequest>),
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct WorldpayAuthorizeRequest<
+pub struct WorldpayCardPaymentRequest<
     T: domain_types::payment_method_data::PaymentMethodDataTypes
         + std::fmt::Debug
         + Sync
@@ -385,3 +403,120 @@ pub type WorldpayPostAuthenticateRequest = WorldpayAuthenticateRequest;
 
 // RepeatPayment uses the same request structure as Authorize (MIT vs CIT)
 pub type WorldpayRepeatPaymentRequest<T> = WorldpayAuthorizeRequest<T>;
+
+// ============================================================
+// APM (Alternative Payment Methods) request types for BankDebit
+// ============================================================
+
+/// APM payment request for Worldpay's `/apmPayments` endpoint.
+/// Used for bank debit methods like ACH, SEPA, and EFT.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldpayApmPaymentRequest {
+    pub transaction_reference: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub order_reference: Option<String>,
+    pub merchant: ApmMerchant,
+    pub instruction: ApmInstruction,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApmMerchant {
+    pub entity: Secret<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApmInstruction {
+    pub method: ApmMethod,
+    pub value: PaymentValue,
+    pub narrative: InstructionNarrative,
+    pub payment_instrument: ApmPaymentInstrument,
+    pub customer: ApmCustomer,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub customer_agreement: Option<ApmCustomerAgreement>,
+}
+
+/// APM method types for bank debit
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ApmMethod {
+    Ach,
+    Sepa,
+    Eft,
+}
+
+/// APM payment instrument (bank debit specific)
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApmPaymentInstrument {
+    #[serde(rename = "type")]
+    pub instrument_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub account_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub account_number: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub routing_number: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub iban: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub swift_bic: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub account_holder_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub language: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub billing_address: Option<ApmBillingAddress>,
+}
+
+/// APM billing address (matches Worldpay APM API format)
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApmBillingAddress {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub address1: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub address2: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub address3: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub city: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub postal_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub state: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub country_code: Option<String>,
+}
+
+/// APM customer object
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApmCustomer {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub first_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email: Option<String>,
+}
+
+/// APM customer agreement (for SEPA mandates)
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApmCustomerAgreement {
+    #[serde(rename = "type")]
+    pub agreement_type: String,
+    pub mandate: ApmMandate,
+}
+
+/// APM mandate (for SEPA)
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApmMandate {
+    #[serde(rename = "type")]
+    pub mandate_type: String,
+    pub mandate_id: String,
+}
