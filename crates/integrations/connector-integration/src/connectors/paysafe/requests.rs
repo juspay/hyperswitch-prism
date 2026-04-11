@@ -301,6 +301,23 @@ pub struct PaysafeBillingDetails {
     pub country: common_enums::CountryAlpha2,
 }
 
+// ClientAuthenticationToken flow request
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeClientAuthRequest {
+    pub merchant_ref_num: String,
+    pub amount: MinorUnit,
+    pub currency_code: common_enums::Currency,
+    pub payment_type: PaysafePaymentType,
+    pub transaction_type: TransactionType,
+    pub account_id: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub return_links: Option<Vec<ReturnLink>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub billing_details: Option<PaysafeBillingDetails>,
+}
+
 // Type aliases for flows
 pub type PaysafePaymentMethodTokenRequest<T> = PaysafeSetupMandateRequest<T>;
 pub type PaysafeRepeatPaymentRequest = PaysafePaymentsRequest;
