@@ -218,7 +218,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/gigadat/gigadat.py#L52) · [TypeScript](../../examples/gigadat/gigadat.ts#L49) · [Kotlin](../../examples/gigadat/gigadat.kt#L50) · [Rust](../../examples/gigadat/gigadat.rs#L51)
+**Examples:** [Python](../../examples/gigadat/gigadat.py) · [TypeScript](../../examples/gigadat/gigadat.ts#L49) · [Kotlin](../../examples/gigadat/gigadat.kt#L50) · [Rust](../../examples/gigadat/gigadat.rs)
 
 #### PaymentService.Refund
 
@@ -229,4 +229,4 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/gigadat/gigadat.py#L61) · [TypeScript](../../examples/gigadat/gigadat.ts#L58) · [Kotlin](../../examples/gigadat/gigadat.kt#L58) · [Rust](../../examples/gigadat/gigadat.rs#L58)
+**Examples:** [Python](../../examples/gigadat/gigadat.py) · [TypeScript](../../examples/gigadat/gigadat.ts#L58) · [Kotlin](../../examples/gigadat/gigadat.kt#L58) · [Rust](../../examples/gigadat/gigadat.rs)

@@ -217,4 +217,4 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/cashfree/cashfree.py#L49) · [TypeScript](../../examples/cashfree/cashfree.ts#L48) · [Kotlin](../../examples/cashfree/cashfree.kt#L50) · [Rust](../../examples/cashfree/cashfree.rs#L53)
+**Examples:** [Python](../../examples/cashfree/cashfree.py) · [TypeScript](../../examples/cashfree/cashfree.ts#L48) · [Kotlin](../../examples/cashfree/cashfree.kt#L50) · [Rust](../../examples/cashfree/cashfree.rs)

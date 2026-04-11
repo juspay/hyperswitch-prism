@@ -233,7 +233,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/ppro/ppro.py#L146) · [TypeScript](../../examples/ppro/ppro.ts#L128) · [Kotlin](../../examples/ppro/ppro.kt#L105) · [Rust](../../examples/ppro/ppro.rs#L138)
+**Examples:** [Python](../../examples/ppro/ppro.py) · [TypeScript](../../examples/ppro/ppro.ts#L128) · [Kotlin](../../examples/ppro/ppro.kt#L105) · [Rust](../../examples/ppro/ppro.rs)
 
 #### PaymentService.Capture
 
@@ -244,7 +244,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/ppro/ppro.py#L155) · [TypeScript](../../examples/ppro/ppro.ts#L137) · [Kotlin](../../examples/ppro/ppro.kt#L117) · [Rust](../../examples/ppro/ppro.rs#L150)
+**Examples:** [Python](../../examples/ppro/ppro.py) · [TypeScript](../../examples/ppro/ppro.ts#L137) · [Kotlin](../../examples/ppro/ppro.kt#L117) · [Rust](../../examples/ppro/ppro.rs)
 
 #### PaymentService.Get
 
@@ -255,7 +255,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/ppro/ppro.py#L164) · [TypeScript](../../examples/ppro/ppro.ts#L146) · [Kotlin](../../examples/ppro/ppro.kt#L127) · [Rust](../../examples/ppro/ppro.rs#L157)
+**Examples:** [Python](../../examples/ppro/ppro.py) · [TypeScript](../../examples/ppro/ppro.ts#L146) · [Kotlin](../../examples/ppro/ppro.kt#L127) · [Rust](../../examples/ppro/ppro.rs)
 
 #### PaymentService.Refund
 
@@ -266,7 +266,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/ppro/ppro.py#L191) · [TypeScript](../../examples/ppro/ppro.ts#L173) · [Kotlin](../../examples/ppro/ppro.kt#L176) · [Rust](../../examples/ppro/ppro.rs#L178)
+**Examples:** [Python](../../examples/ppro/ppro.py) · [TypeScript](../../examples/ppro/ppro.ts#L173) · [Kotlin](../../examples/ppro/ppro.kt#L176) · [Rust](../../examples/ppro/ppro.rs)
 
 #### PaymentService.Void
 
@@ -277,7 +277,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/ppro/ppro.py#L209) · [TypeScript](../../examples/ppro/ppro.ts) · [Kotlin](../../examples/ppro/ppro.kt#L198) · [Rust](../../examples/ppro/ppro.rs#L192)
+**Examples:** [Python](../../examples/ppro/ppro.py) · [TypeScript](../../examples/ppro/ppro.ts) · [Kotlin](../../examples/ppro/ppro.kt#L198) · [Rust](../../examples/ppro/ppro.rs)
 
 ### Refunds
 
@@ -290,7 +290,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/ppro/ppro.py#L200) · [TypeScript](../../examples/ppro/ppro.ts#L182) · [Kotlin](../../examples/ppro/ppro.kt#L186) · [Rust](../../examples/ppro/ppro.rs#L185)
+**Examples:** [Python](../../examples/ppro/ppro.py) · [TypeScript](../../examples/ppro/ppro.ts#L182) · [Kotlin](../../examples/ppro/ppro.kt#L186) · [Rust](../../examples/ppro/ppro.rs)
 
 ### Mandates
 
@@ -303,4 +303,4 @@ Charge using an existing stored recurring payment instruction. Processes repeat 
 | **Request** | `RecurringPaymentServiceChargeRequest` |
 | **Response** | `RecurringPaymentServiceChargeResponse` |
 
-**Examples:** [Python](../../examples/ppro/ppro.py#L182) · [TypeScript](../../examples/ppro/ppro.ts#L164) · [Kotlin](../../examples/ppro/ppro.kt#L145) · [Rust](../../examples/ppro/ppro.rs#L171)
+**Examples:** [Python](../../examples/ppro/ppro.py) · [TypeScript](../../examples/ppro/ppro.ts#L164) · [Kotlin](../../examples/ppro/ppro.kt#L145) · [Rust](../../examples/ppro/ppro.rs)

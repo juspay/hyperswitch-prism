@@ -159,7 +159,7 @@ async fn wait_for_server(endpoint: &str, max_secs: u32) -> Result<(), String> {
 /// connector builder functions directly — no grpc_* wrappers needed.
 async fn run_grpc_scenarios(
     connector_name: &str,
-    _client: &GrpcClient,
+    client: &GrpcClient,
 ) -> Vec<(String, Result<String, Box<dyn Error>>)> {
     include!(concat!(env!("OUT_DIR"), "/grpc_scenarios.rs"))
 }

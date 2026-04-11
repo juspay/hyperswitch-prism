@@ -7,7 +7,6 @@
 
 import asyncio
 import sys
-from google.protobuf.json_format import ParseDict
 from payments import MerchantAuthenticationClient
 from payments import PaymentClient
 from payments import EventClient
@@ -26,56 +25,44 @@ _default_config = sdk_config_pb2.ConnectorConfig(
 
 
 def _build_create_server_authentication_token_request():
-    return ParseDict(
-        {
-        },
-        payment_pb2.MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest(),
+    return payment_pb2.MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest(
     )
 
 def _build_get_request(connector_transaction_id: str):
-    return ParseDict(
-        {
-            "merchant_transaction_id": "probe_merchant_txn_001",  # Identification.
-            "connector_transaction_id": connector_transaction_id,
-            "amount": {  # Amount Information.
-                "minor_amount": 1000,  # Amount in minor units (e.g., 1000 = $10.00).
-                "currency": "USD"  # ISO 4217 currency code (e.g., "USD", "EUR").
-            },
-            "state": {  # State Information.
-                "access_token": {  # Access token obtained from connector.
-                    "token": {"value": "probe_access_token"},  # The token string.
-                    "expires_in_seconds": 3600,  # Expiration timestamp (seconds since epoch).
-                    "token_type": "Bearer"  # Token type (e.g., "Bearer", "Basic").
-                }
-            }
-        },
-        payment_pb2.PaymentServiceGetRequest(),
+    return payment_pb2.PaymentServiceGetRequest(
+        merchant_transaction_id="probe_merchant_txn_001",  # Identification.
+        connector_transaction_id=connector_transaction_id,
+        amount=payment_pb2.Money(  # Amount Information.
+            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
+            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        ),
+        state=payment_pb2.ConnectorState(  # State Information.
+            access_token=payment_pb2.AccessToken(  # Access token obtained from connector.
+                token=payment_methods_pb2.SecretString(value="probe_access_token"),  # The token string.
+                expires_in_seconds=3600,  # Expiration timestamp (seconds since epoch).
+                token_type="Bearer",  # Token type (e.g., "Bearer", "Basic").
+            ),
+        ),
     )
 
 def _build_handle_event_request():
-    return ParseDict(
-        {
-        },
-        payment_pb2.EventServiceHandleRequest(),
+    return payment_pb2.EventServiceHandleRequest(
     )
 
 def _build_refund_get_request():
-    return ParseDict(
-        {
-            "merchant_refund_id": "probe_refund_001",  # Identification.
-            "connector_transaction_id": "probe_connector_txn_001",
-            "refund_id": "probe_refund_id_001",
-            "state": {  # State Information.
-                "access_token": {  # Access token obtained from connector.
-                    "token": {"value": "probe_access_token"},  # The token string.
-                    "expires_in_seconds": 3600,  # Expiration timestamp (seconds since epoch).
-                    "token_type": "Bearer"  # Token type (e.g., "Bearer", "Basic").
-                }
-            }
-        },
-        payment_pb2.RefundServiceGetRequest(),
+    return payment_pb2.RefundServiceGetRequest(
+        merchant_refund_id="probe_refund_001",  # Identification.
+        connector_transaction_id="probe_connector_txn_001",
+        refund_id="probe_refund_id_001",
+        state=payment_pb2.ConnectorState(  # State Information.
+            access_token=payment_pb2.AccessToken(  # Access token obtained from connector.
+                token=payment_methods_pb2.SecretString(value="probe_access_token"),  # The token string.
+                expires_in_seconds=3600,  # Expiration timestamp (seconds since epoch).
+                token_type="Bearer",  # Token type (e.g., "Bearer", "Basic").
+            ),
+        ),
     )
-async def create_server_authentication_token(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+async def process_create_server_authentication_token(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """Flow: MerchantAuthenticationService.CreateServerAuthenticationToken"""
     merchantauthentication_client = MerchantAuthenticationClient(config)
 
@@ -84,7 +71,7 @@ async def create_server_authentication_token(merchant_transaction_id: str, confi
     return {"status": create_response.status}
 
 
-async def get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+async def process_get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """Flow: PaymentService.Get"""
     payment_client = PaymentClient(config)
 
@@ -93,7 +80,7 @@ async def get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConf
     return {"status": get_response.status}
 
 
-async def handle_event(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+async def process_handle_event(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """Flow: EventService.HandleEvent"""
     event_client = EventClient(config)
 
@@ -102,7 +89,7 @@ async def handle_event(merchant_transaction_id: str, config: sdk_config_pb2.Conn
     return {"status": handle_response.status}
 
 
-async def refund_get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+async def process_refund_get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """Flow: RefundService.Get"""
     refund_client = RefundClient(config)
 

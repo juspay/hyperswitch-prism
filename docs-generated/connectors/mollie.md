@@ -108,25 +108,25 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/mollie/mollie.py#L148) · [JavaScript](../../examples/mollie/mollie.js) · [Kotlin](../../examples/mollie/mollie.kt#L93) · [Rust](../../examples/mollie/mollie.rs#L140)
+**Examples:** [Python](../../examples/mollie/mollie.py#L123) · [JavaScript](../../examples/mollie/mollie.js) · [Kotlin](../../examples/mollie/mollie.kt#L93) · [Rust](../../examples/mollie/mollie.rs#L169)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/mollie/mollie.py#L167) · [JavaScript](../../examples/mollie/mollie.js) · [Kotlin](../../examples/mollie/mollie.kt#L109) · [Rust](../../examples/mollie/mollie.rs#L156)
+**Examples:** [Python](../../examples/mollie/mollie.py#L142) · [JavaScript](../../examples/mollie/mollie.js) · [Kotlin](../../examples/mollie/mollie.kt#L109) · [Rust](../../examples/mollie/mollie.rs#L185)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/mollie/mollie.py#L192) · [JavaScript](../../examples/mollie/mollie.js) · [Kotlin](../../examples/mollie/mollie.kt#L131) · [Rust](../../examples/mollie/mollie.rs#L179)
+**Examples:** [Python](../../examples/mollie/mollie.py#L167) · [JavaScript](../../examples/mollie/mollie.js) · [Kotlin](../../examples/mollie/mollie.kt#L131) · [Rust](../../examples/mollie/mollie.rs#L208)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/mollie/mollie.py#L214) · [JavaScript](../../examples/mollie/mollie.js) · [Kotlin](../../examples/mollie/mollie.kt#L150) · [Rust](../../examples/mollie/mollie.rs#L198)
+**Examples:** [Python](../../examples/mollie/mollie.py#L189) · [JavaScript](../../examples/mollie/mollie.js) · [Kotlin](../../examples/mollie/mollie.kt#L150) · [Rust](../../examples/mollie/mollie.rs#L227)
 
 ## API Reference
 
@@ -263,7 +263,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/mollie/mollie.py#L236) · [TypeScript](../../examples/mollie/mollie.ts#L223) · [Kotlin](../../examples/mollie/mollie.kt#L168) · [Rust](../../examples/mollie/mollie.rs#L216)
+**Examples:** [Python](../../examples/mollie/mollie.py) · [TypeScript](../../examples/mollie/mollie.ts#L223) · [Kotlin](../../examples/mollie/mollie.kt#L168) · [Rust](../../examples/mollie/mollie.rs)
 
 #### PaymentService.Get
 
@@ -274,7 +274,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/mollie/mollie.py#L245) · [TypeScript](../../examples/mollie/mollie.ts#L232) · [Kotlin](../../examples/mollie/mollie.kt#L180) · [Rust](../../examples/mollie/mollie.rs#L228)
+**Examples:** [Python](../../examples/mollie/mollie.py) · [TypeScript](../../examples/mollie/mollie.ts#L232) · [Kotlin](../../examples/mollie/mollie.kt#L180) · [Rust](../../examples/mollie/mollie.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -285,7 +285,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/mollie/mollie.py#L254) · [TypeScript](../../examples/mollie/mollie.ts#L241) · [Kotlin](../../examples/mollie/mollie.kt#L188) · [Rust](../../examples/mollie/mollie.rs#L235)
+**Examples:** [Python](../../examples/mollie/mollie.py) · [TypeScript](../../examples/mollie/mollie.ts#L241) · [Kotlin](../../examples/mollie/mollie.kt#L188) · [Rust](../../examples/mollie/mollie.rs)
 
 #### PaymentService.Refund
 
@@ -296,7 +296,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/mollie/mollie.py#L263) · [TypeScript](../../examples/mollie/mollie.ts#L250) · [Kotlin](../../examples/mollie/mollie.kt#L217) · [Rust](../../examples/mollie/mollie.rs#L242)
+**Examples:** [Python](../../examples/mollie/mollie.py) · [TypeScript](../../examples/mollie/mollie.ts#L250) · [Kotlin](../../examples/mollie/mollie.kt#L217) · [Rust](../../examples/mollie/mollie.rs)
 
 #### PaymentService.TokenAuthorize
 
@@ -307,7 +307,7 @@ Authorize using a connector-issued payment method token.
 | **Request** | `PaymentServiceTokenAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/mollie/mollie.py#L281) · [TypeScript](../../examples/mollie/mollie.ts#L268) · [Kotlin](../../examples/mollie/mollie.kt#L239) · [Rust](../../examples/mollie/mollie.rs#L256)
+**Examples:** [Python](../../examples/mollie/mollie.py) · [TypeScript](../../examples/mollie/mollie.ts#L268) · [Kotlin](../../examples/mollie/mollie.kt#L239) · [Rust](../../examples/mollie/mollie.rs)
 
 #### PaymentService.Void
 
@@ -318,7 +318,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/mollie/mollie.py#L290) · [TypeScript](../../examples/mollie/mollie.ts) · [Kotlin](../../examples/mollie/mollie.kt#L261) · [Rust](../../examples/mollie/mollie.rs#L263)
+**Examples:** [Python](../../examples/mollie/mollie.py) · [TypeScript](../../examples/mollie/mollie.ts) · [Kotlin](../../examples/mollie/mollie.kt#L261) · [Rust](../../examples/mollie/mollie.rs)
 
 ### Refunds
 
@@ -331,4 +331,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/mollie/mollie.py#L272) · [TypeScript](../../examples/mollie/mollie.ts#L259) · [Kotlin](../../examples/mollie/mollie.kt#L227) · [Rust](../../examples/mollie/mollie.rs#L249)
+**Examples:** [Python](../../examples/mollie/mollie.py) · [TypeScript](../../examples/mollie/mollie.ts#L259) · [Kotlin](../../examples/mollie/mollie.kt#L227) · [Rust](../../examples/mollie/mollie.rs)

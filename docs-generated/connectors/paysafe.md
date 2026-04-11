@@ -115,7 +115,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/paysafe/paysafe.py#L134) · [TypeScript](../../examples/paysafe/paysafe.ts#L119) · [Kotlin](../../examples/paysafe/paysafe.kt#L80) · [Rust](../../examples/paysafe/paysafe.rs#L123)
+**Examples:** [Python](../../examples/paysafe/paysafe.py) · [TypeScript](../../examples/paysafe/paysafe.ts#L119) · [Kotlin](../../examples/paysafe/paysafe.kt#L80) · [Rust](../../examples/paysafe/paysafe.rs)
 
 #### PaymentService.Get
 
@@ -126,7 +126,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/paysafe/paysafe.py#L143) · [TypeScript](../../examples/paysafe/paysafe.ts#L128) · [Kotlin](../../examples/paysafe/paysafe.kt#L90) · [Rust](../../examples/paysafe/paysafe.rs#L130)
+**Examples:** [Python](../../examples/paysafe/paysafe.py) · [TypeScript](../../examples/paysafe/paysafe.ts#L128) · [Kotlin](../../examples/paysafe/paysafe.kt#L90) · [Rust](../../examples/paysafe/paysafe.rs)
 
 #### PaymentService.Refund
 
@@ -137,7 +137,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/paysafe/paysafe.py#L152) · [TypeScript](../../examples/paysafe/paysafe.ts#L137) · [Kotlin](../../examples/paysafe/paysafe.kt#L98) · [Rust](../../examples/paysafe/paysafe.rs#L137)
+**Examples:** [Python](../../examples/paysafe/paysafe.py) · [TypeScript](../../examples/paysafe/paysafe.ts#L137) · [Kotlin](../../examples/paysafe/paysafe.kt#L98) · [Rust](../../examples/paysafe/paysafe.rs)
 
 #### PaymentService.TokenAuthorize
 
@@ -148,7 +148,7 @@ Authorize using a connector-issued payment method token.
 | **Request** | `PaymentServiceTokenAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/paysafe/paysafe.py#L170) · [TypeScript](../../examples/paysafe/paysafe.ts#L155) · [Kotlin](../../examples/paysafe/paysafe.kt#L120) · [Rust](../../examples/paysafe/paysafe.rs#L151)
+**Examples:** [Python](../../examples/paysafe/paysafe.py) · [TypeScript](../../examples/paysafe/paysafe.ts#L155) · [Kotlin](../../examples/paysafe/paysafe.kt#L120) · [Rust](../../examples/paysafe/paysafe.rs)
 
 #### PaymentMethodService.Tokenize
 
@@ -159,7 +159,7 @@ Tokenize payment method for secure storage. Replaces raw card details with secur
 | **Request** | `PaymentMethodServiceTokenizeRequest` |
 | **Response** | `PaymentMethodServiceTokenizeResponse` |
 
-**Examples:** [Python](../../examples/paysafe/paysafe.py#L179) · [TypeScript](../../examples/paysafe/paysafe.ts#L164) · [Kotlin](../../examples/paysafe/paysafe.kt#L141) · [Rust](../../examples/paysafe/paysafe.rs#L158)
+**Examples:** [Python](../../examples/paysafe/paysafe.py) · [TypeScript](../../examples/paysafe/paysafe.ts#L164) · [Kotlin](../../examples/paysafe/paysafe.kt#L141) · [Rust](../../examples/paysafe/paysafe.rs)
 
 #### PaymentService.Void
 
@@ -170,7 +170,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/paysafe/paysafe.py#L188) · [TypeScript](../../examples/paysafe/paysafe.ts) · [Kotlin](../../examples/paysafe/paysafe.kt#L168) · [Rust](../../examples/paysafe/paysafe.rs#L165)
+**Examples:** [Python](../../examples/paysafe/paysafe.py) · [TypeScript](../../examples/paysafe/paysafe.ts) · [Kotlin](../../examples/paysafe/paysafe.kt#L168) · [Rust](../../examples/paysafe/paysafe.rs)
 
 ### Refunds
 
@@ -183,4 +183,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/paysafe/paysafe.py#L161) · [TypeScript](../../examples/paysafe/paysafe.ts#L146) · [Kotlin](../../examples/paysafe/paysafe.kt#L108) · [Rust](../../examples/paysafe/paysafe.rs#L144)
+**Examples:** [Python](../../examples/paysafe/paysafe.py) · [TypeScript](../../examples/paysafe/paysafe.ts#L146) · [Kotlin](../../examples/paysafe/paysafe.kt#L108) · [Rust](../../examples/paysafe/paysafe.rs)

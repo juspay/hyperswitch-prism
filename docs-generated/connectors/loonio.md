@@ -217,4 +217,4 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/loonio/loonio.py#L37) · [TypeScript](../../examples/loonio/loonio.ts#L36) · [Kotlin](../../examples/loonio/loonio.kt#L36) · [Rust](../../examples/loonio/loonio.rs#L38)
+**Examples:** [Python](../../examples/loonio/loonio.py) · [TypeScript](../../examples/loonio/loonio.ts#L36) · [Kotlin](../../examples/loonio/loonio.kt#L36) · [Rust](../../examples/loonio/loonio.rs)

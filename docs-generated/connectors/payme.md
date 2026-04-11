@@ -108,7 +108,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/payme/payme.py#L165) · [JavaScript](../../examples/payme/payme.js) · [Kotlin](../../examples/payme/payme.kt#L113) · [Rust](../../examples/payme/payme.rs#L155)
+**Examples:** [Python](../../examples/payme/payme.py#L138) · [JavaScript](../../examples/payme/payme.js) · [Kotlin](../../examples/payme/payme.kt#L113) · [Rust](../../examples/payme/payme.rs#L187)
 
 ### Card Payment (Authorize + Capture)
 
@@ -122,25 +122,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/payme/payme.py#L184) · [JavaScript](../../examples/payme/payme.js) · [Kotlin](../../examples/payme/payme.kt#L129) · [Rust](../../examples/payme/payme.rs#L171)
+**Examples:** [Python](../../examples/payme/payme.py#L157) · [JavaScript](../../examples/payme/payme.js) · [Kotlin](../../examples/payme/payme.kt#L129) · [Rust](../../examples/payme/payme.rs#L203)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/payme/payme.py#L209) · [JavaScript](../../examples/payme/payme.js) · [Kotlin](../../examples/payme/payme.kt#L151) · [Rust](../../examples/payme/payme.rs#L194)
+**Examples:** [Python](../../examples/payme/payme.py#L182) · [JavaScript](../../examples/payme/payme.js) · [Kotlin](../../examples/payme/payme.kt#L151) · [Rust](../../examples/payme/payme.rs#L226)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/payme/payme.py#L234) · [JavaScript](../../examples/payme/payme.js) · [Kotlin](../../examples/payme/payme.kt#L173) · [Rust](../../examples/payme/payme.rs#L217)
+**Examples:** [Python](../../examples/payme/payme.py#L207) · [JavaScript](../../examples/payme/payme.js) · [Kotlin](../../examples/payme/payme.kt#L173) · [Rust](../../examples/payme/payme.rs#L249)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/payme/payme.py#L256) · [JavaScript](../../examples/payme/payme.js) · [Kotlin](../../examples/payme/payme.kt#L192) · [Rust](../../examples/payme/payme.rs#L236)
+**Examples:** [Python](../../examples/payme/payme.py#L229) · [JavaScript](../../examples/payme/payme.js) · [Kotlin](../../examples/payme/payme.kt#L192) · [Rust](../../examples/payme/payme.rs#L268)
 
 ## API Reference
 
@@ -278,7 +278,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/payme/payme.py#L278) · [TypeScript](../../examples/payme/payme.ts#L264) · [Kotlin](../../examples/payme/payme.kt#L210) · [Rust](../../examples/payme/payme.rs#L254)
+**Examples:** [Python](../../examples/payme/payme.py) · [TypeScript](../../examples/payme/payme.ts#L264) · [Kotlin](../../examples/payme/payme.kt#L210) · [Rust](../../examples/payme/payme.rs)
 
 #### PaymentService.Capture
 
@@ -289,7 +289,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/payme/payme.py#L287) · [TypeScript](../../examples/payme/payme.ts#L273) · [Kotlin](../../examples/payme/payme.kt#L222) · [Rust](../../examples/payme/payme.rs#L266)
+**Examples:** [Python](../../examples/payme/payme.py) · [TypeScript](../../examples/payme/payme.ts#L273) · [Kotlin](../../examples/payme/payme.kt#L222) · [Rust](../../examples/payme/payme.rs)
 
 #### PaymentService.CreateOrder
 
@@ -300,7 +300,7 @@ Create a payment order for later processing. Establishes a transaction context t
 | **Request** | `PaymentServiceCreateOrderRequest` |
 | **Response** | `PaymentServiceCreateOrderResponse` |
 
-**Examples:** [Python](../../examples/payme/payme.py#L296) · [TypeScript](../../examples/payme/payme.ts#L282) · [Kotlin](../../examples/payme/payme.kt#L232) · [Rust](../../examples/payme/payme.rs#L273)
+**Examples:** [Python](../../examples/payme/payme.py) · [TypeScript](../../examples/payme/payme.ts#L282) · [Kotlin](../../examples/payme/payme.kt#L232) · [Rust](../../examples/payme/payme.rs)
 
 #### PaymentService.Get
 
@@ -311,7 +311,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/payme/payme.py#L305) · [TypeScript](../../examples/payme/payme.ts#L291) · [Kotlin](../../examples/payme/payme.kt#L246) · [Rust](../../examples/payme/payme.rs#L280)
+**Examples:** [Python](../../examples/payme/payme.py) · [TypeScript](../../examples/payme/payme.ts#L291) · [Kotlin](../../examples/payme/payme.kt#L246) · [Rust](../../examples/payme/payme.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -322,7 +322,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/payme/payme.py#L314) · [TypeScript](../../examples/payme/payme.ts#L300) · [Kotlin](../../examples/payme/payme.kt#L254) · [Rust](../../examples/payme/payme.rs#L287)
+**Examples:** [Python](../../examples/payme/payme.py) · [TypeScript](../../examples/payme/payme.ts#L300) · [Kotlin](../../examples/payme/payme.kt#L254) · [Rust](../../examples/payme/payme.rs)
 
 #### PaymentService.Refund
 
@@ -333,7 +333,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/payme/payme.py#L323) · [TypeScript](../../examples/payme/payme.ts#L309) · [Kotlin](../../examples/payme/payme.kt#L287) · [Rust](../../examples/payme/payme.rs#L294)
+**Examples:** [Python](../../examples/payme/payme.py) · [TypeScript](../../examples/payme/payme.ts#L309) · [Kotlin](../../examples/payme/payme.kt#L287) · [Rust](../../examples/payme/payme.rs)
 
 #### PaymentService.Void
 
@@ -344,7 +344,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/payme/payme.py#L341) · [TypeScript](../../examples/payme/payme.ts) · [Kotlin](../../examples/payme/payme.kt#L309) · [Rust](../../examples/payme/payme.rs#L308)
+**Examples:** [Python](../../examples/payme/payme.py) · [TypeScript](../../examples/payme/payme.ts) · [Kotlin](../../examples/payme/payme.kt#L309) · [Rust](../../examples/payme/payme.rs)
 
 ### Refunds
 
@@ -357,4 +357,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/payme/payme.py#L332) · [TypeScript](../../examples/payme/payme.ts#L318) · [Kotlin](../../examples/payme/payme.kt#L297) · [Rust](../../examples/payme/payme.rs#L301)
+**Examples:** [Python](../../examples/payme/payme.py) · [TypeScript](../../examples/payme/payme.ts#L318) · [Kotlin](../../examples/payme/payme.kt#L297) · [Rust](../../examples/payme/payme.rs)

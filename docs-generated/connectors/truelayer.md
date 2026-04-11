@@ -112,7 +112,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/truelayer/truelayer.py#L87) · [TypeScript](../../examples/truelayer/truelayer.ts#L77) · [Kotlin](../../examples/truelayer/truelayer.kt#L59) · [Rust](../../examples/truelayer/truelayer.rs#L79)
+**Examples:** [Python](../../examples/truelayer/truelayer.py) · [TypeScript](../../examples/truelayer/truelayer.ts#L77) · [Kotlin](../../examples/truelayer/truelayer.kt#L59) · [Rust](../../examples/truelayer/truelayer.rs)
 
 ### Refunds
 
@@ -125,7 +125,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/truelayer/truelayer.py#L105) · [TypeScript](../../examples/truelayer/truelayer.ts#L95) · [Kotlin](../../examples/truelayer/truelayer.kt#L77) · [Rust](../../examples/truelayer/truelayer.rs#L93)
+**Examples:** [Python](../../examples/truelayer/truelayer.py) · [TypeScript](../../examples/truelayer/truelayer.ts#L95) · [Kotlin](../../examples/truelayer/truelayer.kt#L77) · [Rust](../../examples/truelayer/truelayer.rs)
 
 ### Authentication
 
@@ -138,4 +138,4 @@ Generate short-lived connector authentication token. Provides secure credentials
 | **Request** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/truelayer/truelayer.py#L78) · [TypeScript](../../examples/truelayer/truelayer.ts#L68) · [Kotlin](../../examples/truelayer/truelayer.kt#L49) · [Rust](../../examples/truelayer/truelayer.rs#L72)
+**Examples:** [Python](../../examples/truelayer/truelayer.py) · [TypeScript](../../examples/truelayer/truelayer.ts#L68) · [Kotlin](../../examples/truelayer/truelayer.kt#L49) · [Rust](../../examples/truelayer/truelayer.rs)

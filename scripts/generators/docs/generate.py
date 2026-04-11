@@ -1212,8 +1212,7 @@ def check_example_syntax(examples_dir: Path, connectors: Optional[list[str]] = N
                 if result.returncode != 0:
                     errors.append(f"Kotlin: {f.relative_to(examples_dir.parent)}: {result.stderr.strip()}")
 
-    # Rust — format check via rustfmt (syntax-level); full compile needs cargo check
-    # Full compilation: cargo check -p hyperswitch-payments-client (from repo root)
+    # Rust — format check via rustfmt (syntax-level) + full compile via cargo check
     rustfmt_ok = False
     try:
         subprocess.run(["rustfmt", "--version"], capture_output=True, check=True)
@@ -1222,18 +1221,49 @@ def check_example_syntax(examples_dir: Path, connectors: Optional[list[str]] = N
         pass
     if rustfmt_ok:
         for f in rs_files:
-            result = subprocess.run(
-                ["rustfmt", "--check", "--edition", "2021", str(f)],
-                capture_output=True, text=True,
-            )
-            # rustfmt --check exits 1 only on formatting diffs, not syntax errors.
-            # Run rustfmt without --check to detect parse errors.
             result2 = subprocess.run(
                 ["rustfmt", "--edition", "2021", "--check", str(f)],
                 capture_output=True, text=True,
             )
             if "error" in result2.stderr.lower():
                 errors.append(f"Rust: {f.relative_to(examples_dir.parent)}: {result2.stderr.strip()}")
+
+    # Rust full compilation — cargo check -p hyperswitch-smoke-test with CONNECTORS env var.
+    # This validates that generated examples type-check against the real prost-generated types.
+    cargo_ok = False
+    try:
+        subprocess.run(["cargo", "--version"], capture_output=True, check=True)
+        cargo_ok = True
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        pass
+    if cargo_ok and rs_files:
+        # Derive connector names from the rs_files paths (examples/{connector}/*.rs)
+        connector_names: list[str] = []
+        for f in rs_files:
+            # examples/{connector}/{connector}.rs → connector name is the parent dir
+            connector_dir = f.parent.name
+            if connector_dir and connector_dir not in connector_names:
+                connector_names.append(connector_dir)
+        if connector_names:
+            connectors_env = ",".join(connector_names)
+            repo_root = examples_dir.parent
+            print(f"  Running cargo check for connectors: {connectors_env} ...")
+            cargo_result = subprocess.run(
+                ["cargo", "check", "-p", "hyperswitch-smoke-test", "--message-format=short"],
+                cwd=str(repo_root),
+                env={**__import__("os").environ, "CONNECTORS": connectors_env},
+                capture_output=True,
+                text=True,
+                timeout=300,
+            )
+            if cargo_result.returncode != 0:
+                # Collect error lines from stderr/stdout
+                combined = cargo_result.stdout + cargo_result.stderr
+                for line in combined.splitlines():
+                    if "error" in line.lower() and line.strip():
+                        errors.append(f"Rust (cargo): {line.strip()}")
+                if not any("Rust (cargo)" in e for e in errors):
+                    errors.append(f"Rust (cargo check failed): {combined[:500].strip()}")
 
     if errors:
         print(f"\n  Syntax errors in {len(errors)} example file(s):")
@@ -1244,7 +1274,8 @@ def check_example_syntax(examples_dir: Path, connectors: Optional[list[str]] = N
         ts_note = "" if tsc_ok else " (tsc unavailable — TypeScript skipped)"
         kt_note = "" if kt_ok else " (Gradle/kotlinc unavailable — Kotlin skipped)"
         rs_note = "" if rustfmt_ok else " (rustfmt unavailable — Rust skipped)"
-        print(f"  ✓ Syntax check passed ({checks}){ts_note}{kt_note}{rs_note}")
+        cargo_note = "" if cargo_ok else " (cargo unavailable — Rust compilation skipped)"
+        print(f"  ✓ Syntax check passed ({checks}){ts_note}{kt_note}{rs_note}{cargo_note}")
 
 
 def cmd_list():
