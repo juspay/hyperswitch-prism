@@ -3467,6 +3467,8 @@ pub enum ConnectorSpecificClientAuthenticationResponse {
     Nexinets(NexinetsClientAuthenticationResponse),
     /// Nexixpay SDK initialization data — security_token and hosted_page URL for HPP initialization
     Nexixpay(NexixpayClientAuthenticationResponse),
+    /// Ppro SDK initialization data — charge_id and redirect_url for client-side payment authentication
+    Ppro(PproClientAuthenticationResponse),
 }
 
 /// Stripe's client_secret for browser-side stripe.confirmPayment()
@@ -3661,6 +3663,15 @@ pub struct NexixpayClientAuthenticationResponse {
     pub security_token: Secret<String>,
     /// The hosted payment page URL for client-side redirect
     pub hosted_page: String,
+}
+
+/// Ppro's charge_id and redirect_url for client-side payment authentication
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PproClientAuthenticationResponse {
+    /// The payment charge ID for tracking the payment
+    pub charge_id: String,
+    /// The redirect URL for client-side payment authentication
+    pub redirect_url: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
