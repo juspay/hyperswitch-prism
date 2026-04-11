@@ -5,14 +5,20 @@ use common_utils::{
 };
 use domain_types::errors::{ConnectorError, IntegrationError};
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, PaymentMethodToken, RSync, Refund, Void},
+    connector_flow::{
+        Authorize, Capture, ClientAuthenticationToken, PSync, PaymentMethodToken, RSync, Refund,
+        Void,
+    },
     connector_types::{
+        ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
+        ConnectorSpecificClientAuthenticationResponse,
+        MollieClientAuthenticationResponse as MollieClientAuthenticationResponseDomain,
         PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
         PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
         PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
         ResponseId,
     },
-    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
+    payment_method_data::{CardToken, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
@@ -213,6 +219,28 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 MolliePaymentMethodData::CreditCard(Box::new(CreditCardMethodData {
                     card_token,
                     billing_address,
+                    shipping_address: None,
+                }))
+            }
+            // TODO: Add payment method token field and also rename the struct to PaymentMethodToken since it is not being used anywhere
+            PaymentMethodData::CardToken(CardToken { .. }) => {
+                let token = item
+                    .resource_common_data
+                    .payment_method_token
+                    .as_ref()
+                    .map(|t| match t {
+                        domain_types::router_data::PaymentMethodToken::Token(s) => s.clone(),
+                    })
+                    .ok_or_else(|| {
+                        error_stack::report!(IntegrationError::MissingRequiredField {
+                            field_name: "payment_method_token",
+                            context: Default::default(),
+                        })
+                    })?;
+
+                MolliePaymentMethodData::CreditCard(Box::new(CreditCardMethodData {
+                    card_token: Some(token),
+                    billing_address: None,
                     shipping_address: None,
                 }))
             }
@@ -843,3 +871,154 @@ pub type MollieCaptureResponse = MolliePaymentsResponse;
 pub type MolliePSyncResponse = MolliePaymentsResponse;
 pub type MollieVoidResponse = MolliePaymentsResponse;
 pub type MollieRSyncResponse = MollieRefundResponse;
+
+// ---- ClientAuthenticationToken flow types ----
+
+/// Creates a Mollie payment for client-side SDK initialization.
+/// The checkout URL is returned to the frontend for client-side redirect
+/// to complete payment via Mollie's hosted checkout page.
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MollieClientAuthRequest {
+    pub amount: MollieAmount,
+    pub description: String,
+    pub redirect_url: String,
+    pub metadata: serde_json::Value,
+}
+
+/// Mollie payment response for ClientAuthenticationToken flow.
+/// Reuses the same response format as the Authorize flow.
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MollieClientAuthResponse {
+    pub id: String,
+    pub resource: String,
+    pub mode: String,
+    pub status: MolliePaymentStatus,
+    pub amount: MollieAmount,
+    pub description: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub method: Option<String>,
+    pub created_at: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expires_at: Option<String>,
+    #[serde(rename = "_links")]
+    pub links: MollieLinks,
+}
+
+// ClientAuthenticationToken Request Transformation
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        MollieRouterData<
+            RouterDataV2<
+                ClientAuthenticationToken,
+                PaymentFlowData,
+                ClientAuthenticationTokenRequestData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for MollieClientAuthRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: MollieRouterData<
+            RouterDataV2<
+                ClientAuthenticationToken,
+                PaymentFlowData,
+                ClientAuthenticationTokenRequestData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = item.router_data;
+
+        // Convert amount to string major unit format (e.g., "10.00" for $10.00)
+        let converter = StringMajorUnitForConnector;
+        let amount_value = converter
+            .convert(router_data.request.amount, router_data.request.currency)
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })
+            .attach_printable("Failed to convert amount to string major unit")?;
+
+        // Build metadata with orderId
+        let mut metadata_map = serde_json::Map::new();
+        metadata_map.insert(
+            "orderId".to_string(),
+            serde_json::Value::String(
+                router_data
+                    .resource_common_data
+                    .connector_request_reference_id
+                    .clone(),
+            ),
+        );
+
+        Ok(Self {
+            amount: MollieAmount {
+                currency: router_data.request.currency,
+                value: amount_value,
+            },
+            description: format!(
+                "Payment {}",
+                router_data
+                    .resource_common_data
+                    .connector_request_reference_id
+            ),
+            redirect_url: router_data
+                .resource_common_data
+                .return_url
+                .clone()
+                .unwrap_or_else(|| "https://example.com/return".to_string()),
+            metadata: serde_json::Value::Object(metadata_map),
+        })
+    }
+}
+
+// ClientAuthenticationToken Response Transformation
+impl TryFrom<ResponseRouterData<MollieClientAuthResponse, Self>>
+    for RouterDataV2<
+        ClientAuthenticationToken,
+        PaymentFlowData,
+        ClientAuthenticationTokenRequestData,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<MollieClientAuthResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response;
+
+        // Extract checkout URL from _links — this is the client-side redirect URL
+        let checkout_url = response
+            .links
+            .checkout
+            .as_ref()
+            .map(|link| Secret::new(link.href.clone()))
+            .ok_or(ConnectorError::ResponseHandlingFailed {
+                context: Default::default(),
+            })?;
+
+        let session_data = ClientAuthenticationTokenData::ConnectorSpecific(Box::new(
+            ConnectorSpecificClientAuthenticationResponse::Mollie(
+                MollieClientAuthenticationResponseDomain {
+                    payment_id: response.id,
+                    checkout_url,
+                },
+            ),
+        ));
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::ClientAuthenticationTokenResponse {
+                session_data,
+                status_code: item.http_code,
+            }),
+            ..item.router_data
+        })
+    }
+}
