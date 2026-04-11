@@ -48,6 +48,18 @@ def _build_authorize_request(capture_method: str):
         payment_pb2.PaymentServiceAuthorizeRequest(),
     )
 
+def _build_create_order_request():
+    return ParseDict(
+        {
+            "merchant_order_id": "probe_order_001",  # Identification.
+            "amount": {  # Amount Information.
+                "minor_amount": 1000,  # Amount in minor units (e.g., 1000 = $10.00).
+                "currency": "USD"  # ISO 4217 currency code (e.g., "USD", "EUR").
+            }
+        },
+        payment_pb2.PaymentServiceCreateOrderRequest(),
+    )
+
 def _build_create_server_session_authentication_token_request():
     return ParseDict(
         {
@@ -78,6 +90,15 @@ async def authorize(merchant_transaction_id: str, config: sdk_config_pb2.Connect
     authorize_response = await payment_client.authorize(_build_authorize_request("AUTOMATIC"))
 
     return {"status": authorize_response.status, "transaction_id": authorize_response.connector_transaction_id}
+
+
+async def create_order(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: PaymentService.CreateOrder"""
+    payment_client = PaymentClient(config)
+
+    create_response = await payment_client.create_order(_build_create_order_request())
+
+    return {"status": create_response.status}
 
 
 async def create_server_session_authentication_token(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):

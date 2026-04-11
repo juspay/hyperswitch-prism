@@ -466,7 +466,23 @@
     },
     "create_order": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_order_id": "probe_order_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://securestage.paytmpayments.com/theia/api/v1/initiateTransaction?mid=probe_merchant&orderId=probe_order_001",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"head\":{\"clientId\":null,\"version\":\"v1\",\"requestTimestamp\":\"0000000000\",\"signature\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"},\"body\":{\"requestType\":\"Payment\",\"mid\":\"probe_merchant\",\"orderId\":\"probe_order_001\",\"websiteName\":\"probe_website\",\"txnAmount\":{\"value\":\"10.00\",\"currency\":\"USD\"},\"userInfo\":{\"custId\":\"cus_default\",\"mobile\":null,\"email\":null,\"firstName\":null,\"lastName\":null},\"enablePaymentMode\":[{\"mode\":\"UPI\",\"channels\":[\"UPIPUSH\",\"UPI\"]}],\"callbackUrl\":\"https://default-callback.com\"}}"
+        }
       }
     },
     "create_server_authentication_token": {

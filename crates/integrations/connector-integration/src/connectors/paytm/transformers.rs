@@ -12,9 +12,10 @@ use cbc::{
 use common_enums::AttemptStatus;
 use common_utils::{errors::CustomResult, request::Method};
 use domain_types::{
-    connector_flow::{Authorize, PSync, ServerSessionAuthenticationToken},
+    connector_flow::{Authorize, CreateOrder, PSync, ServerSessionAuthenticationToken},
     connector_types::{
-        PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData, ResponseId,
+        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentsAuthorizeData,
+        PaymentsResponseData, PaymentsSyncData, ResponseId,
         ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
     },
     errors::{ConnectorError, IntegrationError},
@@ -39,22 +40,22 @@ use crate::{
 use serde::{Deserialize, Serialize};
 
 pub use super::request::{
-    PaytmAmount, PaytmAuthorizeRequest, PaytmEnableMethod, PaytmExtendInfo, PaytmGoodsInfo,
-    PaytmInitiateReqBody, PaytmInitiateTxnRequest, PaytmNativeProcessRequestBody,
-    PaytmNativeProcessTxnRequest, PaytmProcessBodyTypes, PaytmProcessHeadTypes,
-    PaytmProcessTxnRequest, PaytmRequestHeader, PaytmShippingInfo, PaytmTransactionStatusReqBody,
-    PaytmTransactionStatusRequest, PaytmTxnTokenType, PaytmUserInfo,
+    PaytmAmount, PaytmAuthorizeRequest, PaytmCreateOrderRequest, PaytmEnableMethod,
+    PaytmExtendInfo, PaytmGoodsInfo, PaytmInitiateReqBody, PaytmInitiateTxnRequest,
+    PaytmNativeProcessRequestBody, PaytmNativeProcessTxnRequest, PaytmProcessBodyTypes,
+    PaytmProcessHeadTypes, PaytmProcessTxnRequest, PaytmRequestHeader, PaytmShippingInfo,
+    PaytmTransactionStatusReqBody, PaytmTransactionStatusRequest, PaytmTxnTokenType, PaytmUserInfo,
 };
 pub use super::response::{
     PaytmBankForm, PaytmBankFormBody, PaytmBankFormResponse, PaytmCallbackErrorBody,
-    PaytmCallbackErrorResponse, PaytmDeepLinkInfo, PaytmErrorBody, PaytmErrorResponse,
-    PaytmInitiateTxnResponse, PaytmNativeProcessFailureResp, PaytmNativeProcessRespBodyTypes,
-    PaytmNativeProcessSuccessResp, PaytmNativeProcessTxnResponse, PaytmProcessFailureResp,
-    PaytmProcessHead, PaytmProcessRespBodyTypes, PaytmProcessSuccessResp, PaytmProcessTxnResponse,
-    PaytmResBodyTypes, PaytmRespBody, PaytmRespHead, PaytmResultInfo, PaytmSessionTokenErrorBody,
-    PaytmSessionTokenErrorResponse, PaytmSuccessTransactionBody, PaytmSuccessTransactionResponse,
-    PaytmTransactionStatusRespBody, PaytmTransactionStatusRespBodyTypes,
-    PaytmTransactionStatusResponse, PaytmTxnInfo,
+    PaytmCallbackErrorResponse, PaytmCreateOrderResponse, PaytmDeepLinkInfo, PaytmErrorBody,
+    PaytmErrorResponse, PaytmInitiateTxnResponse, PaytmNativeProcessFailureResp,
+    PaytmNativeProcessRespBodyTypes, PaytmNativeProcessSuccessResp, PaytmNativeProcessTxnResponse,
+    PaytmProcessFailureResp, PaytmProcessHead, PaytmProcessRespBodyTypes, PaytmProcessSuccessResp,
+    PaytmProcessTxnResponse, PaytmResBodyTypes, PaytmRespBody, PaytmRespHead, PaytmResultInfo,
+    PaytmSessionTokenErrorBody, PaytmSessionTokenErrorResponse, PaytmSuccessTransactionBody,
+    PaytmSuccessTransactionResponse, PaytmTransactionStatusRespBody,
+    PaytmTransactionStatusRespBodyTypes, PaytmTransactionStatusResponse, PaytmTxnInfo,
 };
 
 // PayTM API Constants
@@ -142,6 +143,200 @@ impl TryFrom<&ConnectorSpecificConfig> for PaytmAuthType {
 pub enum UpiFlowType {
     Intent,
     Collect,
+}
+
+// ================================
+// CreateOrder Flow
+// ================================
+
+// PaytmCreateOrderRequest TryFrom CreateOrder RouterData
+impl<
+        T: domain_types::payment_method_data::PaymentMethodDataTypes
+            + std::fmt::Debug
+            + Sync
+            + Send
+            + 'static
+            + Serialize,
+    >
+    TryFrom<
+        MacroPaytmRouterData<
+            RouterDataV2<
+                CreateOrder,
+                PaymentFlowData,
+                PaymentCreateOrderData,
+                PaymentCreateOrderResponse,
+            >,
+            T,
+        >,
+    > for PaytmCreateOrderRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: MacroPaytmRouterData<
+            RouterDataV2<
+                CreateOrder,
+                PaymentFlowData,
+                PaymentCreateOrderData,
+                PaymentCreateOrderResponse,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let auth = PaytmAuthType::try_from(&item.router_data.connector_config)?;
+
+        // Convert amount using the connector's amount converter
+        let amount = item
+            .connector
+            .amount_converter
+            .convert(
+                item.router_data.request.amount,
+                item.router_data.request.currency,
+            )
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: Default::default(),
+            })?;
+
+        let paytm_amount = PaytmAmount {
+            value: amount,
+            currency: item.router_data.request.currency,
+        };
+
+        let user_info = PaytmUserInfo {
+            cust_id: item
+                .router_data
+                .resource_common_data
+                .get_customer_id()
+                .unwrap_or_default(),
+            mobile: item
+                .router_data
+                .resource_common_data
+                .get_optional_billing_phone_number(),
+            email: item
+                .router_data
+                .resource_common_data
+                .get_optional_billing_email(),
+            first_name: item
+                .router_data
+                .resource_common_data
+                .get_optional_billing_first_name(),
+            last_name: item
+                .router_data
+                .resource_common_data
+                .get_optional_billing_last_name(),
+        };
+
+        let return_url = item.router_data.resource_common_data.get_return_url();
+
+        let body = PaytmInitiateReqBody {
+            request_type: constants::REQUEST_TYPE_PAYMENT.to_string(),
+            mid: auth.merchant_id.clone(),
+            order_id: item
+                .router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
+            website_name: Secret::new(auth.website.peek().to_string()),
+            txn_amount: paytm_amount,
+            user_info,
+            enable_payment_mode: vec![PaytmEnableMethod {
+                mode: constants::PAYMENT_MODE_UPI.to_string(),
+                channels: Some(vec![
+                    constants::UPI_CHANNEL_UPIPUSH.to_string(),
+                    constants::PAYMENT_MODE_UPI.to_string(),
+                ]),
+            }],
+            callback_url: return_url.unwrap_or_else(|| constants::DEFAULT_CALLBACK_URL.to_string()),
+            goods: None,
+            shipping_info: None,
+            extend_info: None,
+        };
+
+        // Create header with checksum signature
+        let head = create_paytm_header(&body, &auth, None)?;
+
+        Ok(Self { head, body })
+    }
+}
+
+// CreateOrder response transformation
+impl TryFrom<ResponseRouterData<PaytmCreateOrderResponse, Self>>
+    for RouterDataV2<
+        CreateOrder,
+        PaymentFlowData,
+        PaymentCreateOrderData,
+        PaymentCreateOrderResponse,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<PaytmCreateOrderResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = &item.response;
+        let mut router_data = item.router_data;
+
+        match &response.body {
+            PaytmResBodyTypes::SuccessBody(success_body) => {
+                // Check for duplicate/error cases
+                if success_body.result_info.result_code == "0002" {
+                    router_data.resource_common_data = PaymentFlowData {
+                        status: AttemptStatus::Failure,
+                        ..router_data.resource_common_data
+                    };
+                    router_data.response = Err(domain_types::router_data::ErrorResponse {
+                        code: success_body.result_info.result_code.clone(),
+                        message: success_body.result_info.result_msg.clone(),
+                        reason: Some(success_body.result_info.result_msg.clone()),
+                        status_code: item.http_code,
+                        attempt_status: Some(AttemptStatus::Failure),
+                        connector_transaction_id: None,
+                        network_decline_code: None,
+                        network_advice_code: None,
+                        network_error_message: None,
+                    });
+                } else {
+                    // Success: store order_id and txnToken
+                    let order_id = router_data
+                        .resource_common_data
+                        .connector_request_reference_id
+                        .clone();
+
+                    router_data.response = Ok(PaymentCreateOrderResponse {
+                        order_id: order_id.clone(),
+                        session_data: None,
+                    });
+
+                    router_data.resource_common_data = PaymentFlowData {
+                        status: AttemptStatus::Pending,
+                        reference_id: Some(order_id),
+                        // Store txnToken as session_token for Authorize flow
+                        session_token: Some(success_body.txn_token.clone().expose()),
+                        ..router_data.resource_common_data
+                    };
+                }
+            }
+            PaytmResBodyTypes::FailureBody(failure_body) => {
+                router_data.resource_common_data = PaymentFlowData {
+                    status: AttemptStatus::Failure,
+                    ..router_data.resource_common_data
+                };
+                router_data.response = Err(domain_types::router_data::ErrorResponse {
+                    code: failure_body.result_info.result_code.clone(),
+                    message: failure_body.result_info.result_msg.clone(),
+                    reason: Some(failure_body.result_info.result_msg.clone()),
+                    status_code: item.http_code,
+                    attempt_status: Some(AttemptStatus::Failure),
+                    connector_transaction_id: None,
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                });
+            }
+        }
+
+        Ok(router_data)
+    }
 }
 
 // ================================

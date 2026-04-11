@@ -5,6 +5,19 @@ use common_utils::types::StringMajorUnit;
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
+// ================================
+// CreateOrder flow response structures
+// ================================
+
+/// CreateOrder response - uses the same Paytm Initiate Transaction response structure
+/// Returns txnToken and resultInfo for the order creation step
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PaytmCreateOrderResponse {
+    pub head: PaytmRespHead,
+    pub body: PaytmResBodyTypes,
+}
+
+// ================================
 // Response structures for ServerSessionAuthenticationToken flow
 
 #[derive(Debug, Deserialize, Serialize)]
