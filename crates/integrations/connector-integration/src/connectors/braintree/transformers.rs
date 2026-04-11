@@ -62,6 +62,8 @@ pub mod constants {
     pub const AUTHORIZE_AND_VAULT_APPLE_PAY_MUTATION: &str = "mutation authorizeApplepay($input: AuthorizePaymentMethodInput!) { authorizePaymentMethod(input: $input) { transaction { id legacyId amount { value currencyCode } status paymentMethod { id } } } }";
     pub const CHARGE_PAYPAL_MUTATION: &str = "mutation ChargePaypal($input: ChargePaymentMethodInput!) { chargePaymentMethod(input: $input) { transaction { id status amount { value currencyCode } } } }";
     pub const AUTHORIZE_PAYPAL_MUTATION: &str = "mutation authorizePaypal($input: AuthorizePaymentMethodInput!) { authorizePaymentMethod(input: $input) { transaction { id legacyId amount { value currencyCode } status } } }";
+    pub const CHARGE_US_BANK_ACCOUNT_MUTATION: &str = "mutation ChargeUsBankAccount($input: ChargeUsBankAccountInput!) { chargeUsBankAccount(input: $input) { transaction { id amount { value } paymentMethodSnapshot { ... on UsBankAccountDetails { accountholderName accountType verified } } status } } }";
+    pub const TOKENIZE_US_BANK_ACCOUNT_MUTATION: &str = "mutation TokenizeUsBankAccount($input: TokenizeUsBankAccountInput!) { tokenizeUsBankAccount(input: $input) { paymentMethod { id usage details { ... on UsBankAccountDetails { accountholderName accountType bankName last4 routingNumber verified } } } } }";
 }
 
 pub type CardPaymentRequest = GenericBraintreeRequest<VariablePaymentInput>;
@@ -73,6 +75,8 @@ pub type BraintreeRefundRequest = GenericBraintreeRequest<BraintreeRefundVariabl
 pub type BraintreePSyncRequest = GenericBraintreeRequest<PSyncInput>;
 pub type BraintreeRSyncRequest = GenericBraintreeRequest<RSyncInput>;
 pub type BraintreeWalletRequest = GenericBraintreeRequest<GenericVariableInput<WalletPaymentInput>>;
+
+pub type BraintreeAchRequest = GenericBraintreeRequest<GenericVariableInput<AchTokenizeInput>>;
 
 pub type BraintreeRefundResponse = GenericBraintreeResponse<RefundResponse>;
 pub type BraintreeCaptureResponse = GenericBraintreeResponse<CaptureResponse>;
@@ -121,8 +125,124 @@ pub struct WalletPaymentInput {
     transaction: WalletTransactionBody,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+// ACH Bank Debit types
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct AchChargeInput {
+    payment_method_id: Secret<String>,
+    transaction: AchTransactionBody,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AchTransactionBody {
+    amount: StringMajorUnit,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    merchant_account_id: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    order_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AchChargeResponseTransaction {
+    pub id: String,
+    pub status: BraintreePaymentStatus,
+    pub amount: Option<AchAmount>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct AchAmount {
+    pub value: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AchChargeData {
+    pub charge_us_bank_account: AchChargeTransactionWrapper,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct AchChargeTransactionWrapper {
+    pub transaction: AchChargeResponseTransaction,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct AchChargeResponse {
+    pub data: AchChargeData,
+}
+
+// ACH Tokenization types
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AchTokenizeInput {
+    us_bank_account: AchTokenizeBankAccount,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AchTokenizeBankAccount {
+    routing_number: Secret<String>,
+    account_number: Secret<String>,
+    account_type: AchAccountType,
+    ach_mandate: String,
+    individual_owner: AchIndividualOwner,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    billing_address: Option<AchBillingAddress>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum AchAccountType {
+    Checking,
+    Savings,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AchIndividualOwner {
+    first_name: Secret<String>,
+    last_name: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AchBillingAddress {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    street_address: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    city: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    state: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    zip_code: Option<Secret<String>>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct AchTokenizePaymentMethod {
+    pub id: Secret<String>,
+    pub usage: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AchTokenizeResponseData {
+    pub tokenize_us_bank_account: AchTokenizePaymentMethodWrapper,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AchTokenizePaymentMethodWrapper {
+    pub payment_method: AchTokenizePaymentMethod,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct AchTokenizeResponse {
+    pub data: AchTokenizeResponseData,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
 pub struct BraintreeApiErrorResponse {
     pub api_error_response: ApiErrorResponse,
 }
@@ -249,6 +369,7 @@ pub enum BraintreePaymentsRequest {
     CardThreeDs(BraintreeClientTokenRequest),
     Mandate(MandatePaymentRequest),
     Wallet(BraintreeWalletRequest),
+    Ach(BraintreeAchRequest),
 }
 
 #[derive(Debug, Deserialize)]
@@ -594,11 +715,76 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .into()),
                 }
             }
+            PaymentMethodData::BankDebit(ref bank_debit_data) => {
+                match bank_debit_data {
+                    domain_types::payment_method_data::BankDebitData::AchBankDebit {
+                        account_number,
+                        routing_number,
+                        bank_account_holder_name,
+                        bank_type,
+                        ..
+                    } => {
+                        let holder_name = bank_account_holder_name
+                            .clone()
+                            .or_else(|| {
+                                item.router_data
+                                    .resource_common_data
+                                    .get_billing_full_name()
+                                    .ok()
+                            })
+                            .ok_or(IntegrationError::MissingRequiredField {
+                                field_name: "bank_account_holder_name",
+                                context: Default::default(),
+                            })?;
+
+                        let (first_name, last_name) = split_name(&holder_name);
+
+                        let account_type = match bank_type {
+                            Some(enums::BankType::Savings) => AchAccountType::Savings,
+                            _ => AchAccountType::Checking,
+                        };
+
+                        let billing_address = item
+                            .router_data
+                            .resource_common_data
+                            .get_billing_address()
+                            .ok()
+                            .map(|addr| AchBillingAddress {
+                                street_address: addr.line1.clone(),
+                                city: addr.city.clone(),
+                                state: addr.state.clone(),
+                                zip_code: addr.zip.clone(),
+                            });
+
+                        // First tokenize the US bank account
+                        let query = constants::TOKENIZE_US_BANK_ACCOUNT_MUTATION.to_string();
+                        let variables = GenericVariableInput {
+                            input: AchTokenizeInput {
+                                us_bank_account: AchTokenizeBankAccount {
+                                    routing_number: routing_number.clone(),
+                                    account_number: account_number.clone(),
+                                    account_type,
+                                    ach_mandate: "By clicking submit, I authorize Braintree to debit the indicated bank account.".to_string(),
+                                    individual_owner: AchIndividualOwner {
+                                        first_name: first_name.into(),
+                                        last_name: last_name.into(),
+                                    },
+                                    billing_address,
+                                },
+                            },
+                        };
+                        Ok(Self::Ach(BraintreeAchRequest { query, variables }))
+                    }
+                    _ => Err(IntegrationError::not_implemented(
+                        utils::get_unimplemented_payment_method_error_message("braintree"),
+                    )
+                    .into()),
+                }
+            }
             PaymentMethodData::MandatePayment
             | PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::PayLater(_)
             | PaymentMethodData::BankRedirect(_)
-            | PaymentMethodData::BankDebit(_)
             | PaymentMethodData::BankTransfer(_)
             | PaymentMethodData::Crypto(_)
             | PaymentMethodData::Reward
@@ -631,6 +817,7 @@ pub struct AuthResponse {
 pub enum BraintreeAuthResponse {
     AuthResponse(Box<AuthResponse>),
     ClientTokenResponse(Box<ClientTokenResponse>),
+    AchTokenizeResponse(Box<AchTokenizeResponse>),
     ErrorResponse(Box<ErrorResponse>),
     WalletAuthResponse(Box<WalletAuthResponse>),
 }
@@ -785,6 +972,35 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                             item.router_data.request.payment_method_data.clone(),
                             complete_authorize_url,
                         )?)),
+                        mandate_reference: None,
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        connector_response_reference_id: None,
+                        incremental_authorization_allowed: None,
+                        status_code: item.http_code,
+                    }),
+                    ..item.router_data
+                })
+            }
+            BraintreeAuthResponse::AchTokenizeResponse(ach_response) => {
+                let payment_method_id = ach_response
+                    .data
+                    .tokenize_us_bank_account
+                    .payment_method
+                    .id
+                    .clone();
+                // ACH tokenization returns a single-use token. The status is Pending
+                // as the bank account needs further verification/vaulting.
+                Ok(Self {
+                    resource_common_data: PaymentFlowData {
+                        status: enums::AttemptStatus::Pending,
+                        ..item.router_data.resource_common_data
+                    },
+                    response: Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(
+                            payment_method_id.clone().expose(),
+                        ),
+                        redirection_data: None,
                         mandate_reference: None,
                         connector_metadata: None,
                         network_txn_id: None,
@@ -1004,6 +1220,33 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                     ..item.router_data
                 })
             }
+            BraintreePaymentsResponse::AchTokenizeResponse(ach_response) => {
+                let payment_method_id = ach_response
+                    .data
+                    .tokenize_us_bank_account
+                    .payment_method
+                    .id
+                    .clone();
+                Ok(Self {
+                    resource_common_data: PaymentFlowData {
+                        status: enums::AttemptStatus::Pending,
+                        ..item.router_data.resource_common_data
+                    },
+                    response: Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(
+                            payment_method_id.clone().expose(),
+                        ),
+                        redirection_data: None,
+                        mandate_reference: None,
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        connector_response_reference_id: None,
+                        incremental_authorization_allowed: None,
+                        status_code: item.http_code,
+                    }),
+                    ..item.router_data
+                })
+            }
             BraintreePaymentsResponse::ClientTokenResponse(client_token_data) => {
                 let payment_method_token = match &item.router_data.request.payment_method_data {
                     PaymentMethodData::PaymentMethodToken(t) => t.token.clone(),
@@ -1039,7 +1282,6 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                             item.router_data.request.payment_method_data.clone(),
                             complete_authorize_url,
                         )?)),
-
                         mandate_reference: None,
                         connector_metadata: None,
                         network_txn_id: None,
@@ -1110,6 +1352,7 @@ pub struct WalletAuthDataResponse {
 pub enum BraintreePaymentsResponse {
     PaymentsResponse(Box<PaymentsResponse>),
     WalletPaymentsResponse(Box<WalletPaymentsResponse>),
+    AchTokenizeResponse(Box<AchTokenizeResponse>),
     ClientTokenResponse(Box<ClientTokenResponse>),
     ErrorResponse(Box<ErrorResponse>),
 }
@@ -2622,6 +2865,16 @@ fn get_braintree_redirect_form<
         },
         acs_url: complete_authorize_url,
     })
+}
+
+fn split_name(full_name: &Secret<String>) -> (String, String) {
+    let name_str = full_name.clone().expose();
+    let parts: Vec<&str> = name_str.trim().splitn(2, ' ').collect();
+    match (parts.first(), parts.get(1)) {
+        (Some(first), Some(last)) => (first.to_string(), last.to_string()),
+        (Some(first), None) => (first.to_string(), first.to_string()),
+        _ => ("Unknown".to_string(), "Unknown".to_string()),
+    }
 }
 
 fn validate_currency(
