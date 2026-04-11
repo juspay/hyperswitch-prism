@@ -47,8 +47,8 @@ use serde::Serialize;
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 
 use transformers::{
-    is_upi_collect_flow, PayuAuthType, PayuPaymentRequest, PayuPaymentResponse, PayuSyncRequest,
-    PayuSyncResponse,
+    is_upi_collect_flow, PayuAuthType, PayuCreateOrderRequest, PayuCreateOrderResponse,
+    PayuPaymentRequest, PayuPaymentResponse, PayuSyncRequest, PayuSyncResponse,
 };
 
 use super::macros;
@@ -213,6 +213,12 @@ macros::create_all_prerequisites!(
     generic_type: T,
     api: [
         (
+            flow: CreateOrder,
+            request_body: PayuCreateOrderRequest,
+            response_body: PayuCreateOrderResponse,
+            router_data: RouterDataV2<CreateOrder, PaymentFlowData, PaymentCreateOrderData, PaymentCreateOrderResponse>,
+        ),
+        (
             flow: Authorize,
             request_body: PayuPaymentRequest,
             response_body: PayuPaymentResponse,
@@ -278,6 +284,67 @@ macros::create_all_prerequisites!(
     }
 );
 
+// Implement CreateOrder flow using macro framework
+macros::macro_connector_implementation!(
+    connector_default_implementations: [],
+    connector: Payu,
+    curl_request: FormUrlEncoded(PayuCreateOrderRequest),
+    curl_response: PayuCreateOrderResponse,
+    flow_name: CreateOrder,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentCreateOrderData,
+    flow_response: PaymentCreateOrderResponse,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            _req: &RouterDataV2<CreateOrder, PaymentFlowData, PaymentCreateOrderData, PaymentCreateOrderResponse>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            Ok(vec![
+                ("Content-Type".to_string(), "application/x-www-form-urlencoded".into()),
+                ("Accept".to_string(), "application/json".into()),
+            ])
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<CreateOrder, PaymentFlowData, PaymentCreateOrderData, PaymentCreateOrderResponse>,
+        ) -> CustomResult<String, IntegrationError> {
+            let base_url = self.base_url(&req.resource_common_data.connectors).trim_end_matches('/');
+            Ok(format!("{base_url}/_payment"))
+        }
+
+        fn get_content_type(&self) -> &'static str {
+            "application/x-www-form-urlencoded"
+        }
+
+        fn get_error_response_v2(
+            &self,
+            res: Response,
+            _event_builder: Option<&mut events::Event>,
+        ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+            let response: PayuCreateOrderResponse = res
+                .response
+                .parse_struct("PayU CreateOrder ErrorResponse")
+                .change_context(crate::utils::response_handling_fail_for_connector(res.status_code, "payu"))?;
+
+            Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: response.error.unwrap_or_else(|| "UNKNOWN_ERROR".to_string()),
+                message: response.message.unwrap_or_else(|| "Unknown PayU error".to_string()),
+                reason: None,
+                attempt_status: Some(enums::AttemptStatus::Failure),
+                connector_transaction_id: response.txn_id,
+                network_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+            })
+        }
+    }
+);
+
 // Implement PSync flow using macro framework
 macros::macro_connector_implementation!(
     connector_default_implementations: [],
@@ -308,7 +375,7 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<String, IntegrationError> {
             // Based on Haskell implementation: uses /merchant/postservice.php?form=2 for verification
             // Test: https://test.payu.in/merchant/postservice.php?form=2
-            let base_url = self.base_url(&req.resource_common_data.connectors);
+            let base_url = self.base_url(&req.resource_common_data.connectors).trim_end_matches('/');
             Ok(format!("{base_url}/merchant/postservice.php?form=2"))
         }
 
@@ -387,7 +454,7 @@ macros::macro_connector_implementation!(
             // Based on Haskell Endpoints.hs: uses /_payment endpoint for UPI transactions
             // Test: https://test.payu.in/_payment
             // Prod: https://secure.payu.in/_payment
-            let base_url = self.base_url(&req.resource_common_data.connectors);
+            let base_url = self.base_url(&req.resource_common_data.connectors).trim_end_matches('/');
             Ok(format!("{base_url}/_payment"))
         }
         fn get_content_type(&self) -> &'static str {
@@ -513,15 +580,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize + Ser
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize + Serialize>
     ConnectorIntegrationV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>
     for Payu<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize + Serialize>
-    ConnectorIntegrationV2<
-        CreateOrder,
-        PaymentFlowData,
-        PaymentCreateOrderData,
-        PaymentCreateOrderResponse,
-    > for Payu<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

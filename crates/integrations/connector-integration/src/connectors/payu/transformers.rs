@@ -1,9 +1,10 @@
 use common_enums::{self, AttemptStatus, Currency};
-use common_utils::{pii::IpAddress, Email};
+use common_utils::{pii::IpAddress, types, Email};
 use domain_types::{
-    connector_flow::{Authorize, PSync},
+    connector_flow::{Authorize, CreateOrder, PSync},
     connector_types::{
-        PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData, ResponseId,
+        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentsAuthorizeData,
+        PaymentsResponseData, PaymentsSyncData, ResponseId,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, UpiData},
@@ -103,11 +104,11 @@ impl TryFrom<&ConnectorSpecificConfig> for PayuAuthType {
 #[derive(Debug, Serialize)]
 pub struct PayuPaymentRequest {
     // Core payment fields
-    pub key: String,                                  // Merchant key
-    pub txnid: String,                                // Transaction ID
-    pub amount: common_utils::types::StringMajorUnit, // Amount in string major units
-    pub currency: Currency,                           // Currency code
-    pub productinfo: String,                          // Product description
+    pub key: String,                    // Merchant key
+    pub txnid: String,                  // Transaction ID
+    pub amount: types::StringMajorUnit, // Amount in string major units
+    pub currency: Currency,             // Currency code
+    pub productinfo: String,            // Product description
 
     // Customer information
     pub firstname: Secret<String>,
@@ -1018,5 +1019,334 @@ fn map_payu_sync_status(payu_status: &str, txn_detail: &PayuTransactionDetail) -
             // Unknown status - treat as failure for safety
             AttemptStatus::Failure
         }
+    }
+}
+
+// ============================================================================
+// CreateOrder Flow Types and Implementations
+// ============================================================================
+
+/// PayU CreateOrder Request - Creates a pending order without completing the payment
+/// This follows the same structure as PayuPaymentRequest but for the CreateOrder flow
+#[derive(Debug, Serialize)]
+pub struct PayuCreateOrderRequest {
+    pub key: String,
+    pub txnid: String,
+    pub amount: types::StringMajorUnit,
+    pub currency: Currency,
+    pub productinfo: String,
+    pub firstname: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lastname: Option<Secret<String>>,
+    pub email: Email,
+    pub phone: Secret<String>,
+    pub surl: String,
+    pub furl: String,
+    pub hash: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pg: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bankcode: Option<String>,
+    pub txn_s2s_flow: String,
+    pub s2s_client_ip: Secret<String, IpAddress>,
+    pub s2s_device_info: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub api_version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub udf1: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub udf2: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub udf3: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub udf4: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub udf5: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub udf6: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub udf7: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub udf8: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub udf9: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub udf10: Option<String>,
+}
+
+/// PayU CreateOrder Response - Contains the order ID and status
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PayuCreateOrderResponse {
+    #[serde(deserialize_with = "deserialize_payu_status")]
+    pub status: Option<PayuStatusValue>,
+    pub token: Option<Secret<String>>,
+    #[serde(alias = "referenceId")]
+    pub reference_id: Option<String>,
+    #[serde(alias = "txnId")]
+    pub txn_id: Option<String>,
+    pub error: Option<String>,
+    pub message: Option<String>,
+}
+
+// CreateOrder Request conversion
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        super::PayuRouterData<
+            RouterDataV2<
+                CreateOrder,
+                PaymentFlowData,
+                PaymentCreateOrderData,
+                PaymentCreateOrderResponse,
+            >,
+            T,
+        >,
+    > for PayuCreateOrderRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: super::PayuRouterData<
+            RouterDataV2<
+                CreateOrder,
+                PaymentFlowData,
+                PaymentCreateOrderData,
+                PaymentCreateOrderResponse,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+
+        // Use AmountConvertor framework for proper amount handling
+        let amount = item
+            .connector
+            .amount_converter
+            .convert(router_data.request.amount, router_data.request.currency)
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: Default::default(),
+            })?;
+
+        // Extract authentication
+        let auth = PayuAuthType::try_from(&router_data.connector_config)?;
+
+        // Generate UDF fields
+        let udf_fields = generate_createorder_udf_fields(router_data);
+
+        // Get return URL from PaymentFlowData
+        let return_url = router_data
+            .resource_common_data
+            .get_return_url()
+            .unwrap_or_else(|| "https://example.com/return".to_string());
+
+        // For CreateOrder flow, we use a default IP address since browser_info is not available
+        // This is acceptable as the order is created pending completion
+        let client_ip = Secret::new("127.0.0.1".to_string());
+
+        // Build request with required fields - use defaults for CreateOrder
+        // since billing info may not be available in the CreateOrder request
+        let firstname = router_data
+            .resource_common_data
+            .get_optional_billing_first_name()
+            .unwrap_or_else(|| Secret::new("Customer".to_string()));
+        let email = router_data
+            .resource_common_data
+            .get_optional_billing_email()
+            .or_else(|| Email::try_from("customer@example.com".to_string()).ok())
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "billing.email",
+                context: Default::default(),
+            })?;
+        let phone = router_data
+            .resource_common_data
+            .get_optional_billing_phone_number()
+            .unwrap_or_else(|| Secret::new("9999999999".to_string()));
+
+        let mut request = Self {
+            key: auth.api_key.peek().to_string(),
+            txnid: router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
+            amount,
+            currency: router_data.request.currency,
+            productinfo: constants::PRODUCT_INFO.to_string(),
+            firstname,
+            lastname: router_data
+                .resource_common_data
+                .get_optional_billing_last_name(),
+            email,
+            phone,
+            surl: return_url.clone(),
+            furl: return_url,
+            hash: String::new(),
+            pg: Some(constants::UPI_PG.to_string()),
+            bankcode: Some(constants::UPI_INTENT_BANKCODE.to_string()),
+            txn_s2s_flow: constants::UPI_S2S_FLOW.to_string(),
+            s2s_client_ip: client_ip,
+            s2s_device_info: constants::DEVICE_INFO.to_string(),
+            api_version: Some(constants::API_VERSION.to_string()),
+            udf1: udf_fields.first().and_then(|f| f.clone()),
+            udf2: udf_fields.get(1).and_then(|f| f.clone()),
+            udf3: udf_fields.get(2).and_then(|f| f.clone()),
+            udf4: udf_fields.get(3).and_then(|f| f.clone()),
+            udf5: udf_fields.get(4).and_then(|f| f.clone()),
+            udf6: udf_fields.get(5).and_then(|f| f.clone()),
+            udf7: udf_fields.get(6).and_then(|f| f.clone()),
+            udf8: udf_fields.get(7).and_then(|f| f.clone()),
+            udf9: udf_fields.get(8).and_then(|f| f.clone()),
+            udf10: udf_fields.get(9).and_then(|f| f.clone()),
+        };
+
+        // Generate hash signature
+        request.hash = generate_payu_createorder_hash(&request, &auth.api_secret)?;
+
+        Ok(request)
+    }
+}
+
+// Generate UDF fields for CreateOrder flow
+fn generate_createorder_udf_fields<T>(
+    router_data: &RouterDataV2<CreateOrder, PaymentFlowData, PaymentCreateOrderData, T>,
+) -> [Option<String>; 10] {
+    let metadata = router_data.request.metadata.as_ref();
+
+    let get_metadata_field = |field: &str| -> Option<String> {
+        metadata
+            .and_then(|m| m.peek().get(field))
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string())
+    };
+
+    [
+        get_metadata_field("udf1")
+            .or_else(|| Some(router_data.resource_common_data.payment_id.clone())),
+        get_metadata_field("udf2").or_else(|| {
+            Some(
+                router_data
+                    .resource_common_data
+                    .merchant_id
+                    .get_string_repr()
+                    .to_string(),
+            )
+        }),
+        get_metadata_field("udf3"),
+        get_metadata_field("udf4"),
+        get_metadata_field("udf5"),
+        get_metadata_field("udf6"),
+        get_metadata_field("udf7"),
+        get_metadata_field("udf8"),
+        get_metadata_field("udf9"),
+        get_metadata_field("udf10"),
+    ]
+}
+
+// Hash generation for PayU CreateOrder request
+fn generate_payu_createorder_hash(
+    request: &PayuCreateOrderRequest,
+    merchant_salt: &Secret<String>,
+) -> Result<String, IntegrationError> {
+    use sha2::{Digest, Sha512};
+
+    let hash_fields = vec![
+        request.key.clone(),
+        request.txnid.clone(),
+        request.amount.get_amount_as_string(),
+        request.productinfo.clone(),
+        request.firstname.peek().clone(),
+        request.email.peek().clone(),
+        request.udf1.as_deref().unwrap_or("").to_string(),
+        request.udf2.as_deref().unwrap_or("").to_string(),
+        request.udf3.as_deref().unwrap_or("").to_string(),
+        request.udf4.as_deref().unwrap_or("").to_string(),
+        request.udf5.as_deref().unwrap_or("").to_string(),
+        request.udf6.as_deref().unwrap_or("").to_string(),
+        request.udf7.as_deref().unwrap_or("").to_string(),
+        request.udf8.as_deref().unwrap_or("").to_string(),
+        request.udf9.as_deref().unwrap_or("").to_string(),
+        request.udf10.as_deref().unwrap_or("").to_string(),
+        merchant_salt.peek().to_string(),
+    ];
+
+    let hash_string = hash_fields.join("|");
+
+    let mut hasher = Sha512::new();
+    hasher.update(hash_string.as_bytes());
+    let result = hasher.finalize();
+    Ok(hex::encode(result))
+}
+
+// CreateOrder Response conversion
+impl TryFrom<ResponseRouterData<PayuCreateOrderResponse, Self>>
+    for RouterDataV2<
+        CreateOrder,
+        PaymentFlowData,
+        PaymentCreateOrderData,
+        PaymentCreateOrderResponse,
+    >
+{
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+
+    fn try_from(
+        item: ResponseRouterData<PayuCreateOrderResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response;
+
+        // Check for error response
+        if let Some(error_code) = &response.error {
+            let error_transaction_id = response
+                .reference_id
+                .clone()
+                .or_else(|| response.txn_id.clone())
+                .or_else(|| response.token.as_ref().map(|s| s.peek().clone()));
+
+            let error_response = ErrorResponse {
+                status_code: item.http_code,
+                code: error_code.clone(),
+                message: response.message.clone().unwrap_or_default(),
+                reason: None,
+                attempt_status: Some(AttemptStatus::Failure),
+                connector_transaction_id: error_transaction_id,
+                network_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+            };
+
+            return Ok(Self {
+                response: Err(error_response),
+                resource_common_data: PaymentFlowData {
+                    status: AttemptStatus::Failure,
+                    ..item.router_data.resource_common_data
+                },
+                ..item.router_data
+            });
+        }
+
+        // Extract order ID
+        let order_id = response
+            .reference_id
+            .or_else(|| response.txn_id.clone())
+            .or_else(|| response.token.as_ref().map(|s| s.peek().clone()))
+            .unwrap_or_else(|| item.router_data.resource_common_data.payment_id.clone());
+
+        // Determine status
+        let status = match &response.status {
+            Some(PayuStatusValue::IntStatus(1)) => AttemptStatus::AuthenticationPending,
+            Some(PayuStatusValue::StringStatus(s)) if s == "success" => {
+                AttemptStatus::AuthenticationPending
+            }
+            _ => AttemptStatus::Failure,
+        };
+
+        Ok(Self {
+            response: Ok(PaymentCreateOrderResponse {
+                order_id,
+                session_data: None,
+            }),
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
     }
 }
