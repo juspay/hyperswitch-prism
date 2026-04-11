@@ -108,7 +108,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/barclaycard/barclaycard.py#L164) · [JavaScript](../../examples/barclaycard/barclaycard.js) · [Kotlin](../../examples/barclaycard/barclaycard.kt#L119) · [Rust](../../examples/barclaycard/barclaycard.rs#L156)
+**Examples:** [Python](../../examples/barclaycard/barclaycard.py#L206) · [JavaScript](../../examples/barclaycard/barclaycard.js) · [Kotlin](../../examples/barclaycard/barclaycard.kt#L122) · [Rust](../../examples/barclaycard/barclaycard.rs#L197)
 
 ### Card Payment (Authorize + Capture)
 
@@ -122,25 +122,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/barclaycard/barclaycard.py#L183) · [JavaScript](../../examples/barclaycard/barclaycard.js) · [Kotlin](../../examples/barclaycard/barclaycard.kt#L135) · [Rust](../../examples/barclaycard/barclaycard.rs#L172)
+**Examples:** [Python](../../examples/barclaycard/barclaycard.py#L225) · [JavaScript](../../examples/barclaycard/barclaycard.js) · [Kotlin](../../examples/barclaycard/barclaycard.kt#L138) · [Rust](../../examples/barclaycard/barclaycard.rs#L213)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/barclaycard/barclaycard.py#L208) · [JavaScript](../../examples/barclaycard/barclaycard.js) · [Kotlin](../../examples/barclaycard/barclaycard.kt#L157) · [Rust](../../examples/barclaycard/barclaycard.rs#L195)
+**Examples:** [Python](../../examples/barclaycard/barclaycard.py#L250) · [JavaScript](../../examples/barclaycard/barclaycard.js) · [Kotlin](../../examples/barclaycard/barclaycard.kt#L160) · [Rust](../../examples/barclaycard/barclaycard.rs#L236)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/barclaycard/barclaycard.py#L233) · [JavaScript](../../examples/barclaycard/barclaycard.js) · [Kotlin](../../examples/barclaycard/barclaycard.kt#L179) · [Rust](../../examples/barclaycard/barclaycard.rs#L218)
+**Examples:** [Python](../../examples/barclaycard/barclaycard.py#L275) · [JavaScript](../../examples/barclaycard/barclaycard.js) · [Kotlin](../../examples/barclaycard/barclaycard.kt#L182) · [Rust](../../examples/barclaycard/barclaycard.rs#L259)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/barclaycard/barclaycard.py#L255) · [JavaScript](../../examples/barclaycard/barclaycard.js) · [Kotlin](../../examples/barclaycard/barclaycard.kt#L198) · [Rust](../../examples/barclaycard/barclaycard.rs#L237)
+**Examples:** [Python](../../examples/barclaycard/barclaycard.py#L297) · [JavaScript](../../examples/barclaycard/barclaycard.js) · [Kotlin](../../examples/barclaycard/barclaycard.kt#L201) · [Rust](../../examples/barclaycard/barclaycard.rs#L278)
 
 ## API Reference
 
@@ -148,10 +148,12 @@ Retrieve current payment status from the connector.
 |--------------------|----------|----------------------|
 | [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
 | [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
+| [MerchantAuthenticationService.CreateClientAuthenticationToken](#merchantauthenticationservicecreateclientauthenticationtoken) | Authentication | `MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
 | [PaymentService.ProxyAuthorize](#paymentserviceproxyauthorize) | Payments | `PaymentServiceProxyAuthorizeRequest` |
 | [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
 | [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
+| [PaymentService.TokenAuthorize](#paymentservicetokenauthorize) | Payments | `PaymentServiceTokenAuthorizeRequest` |
 | [PaymentService.Void](#paymentservicevoid) | Payments | `PaymentServiceVoidRequest` |
 
 ### Payments
@@ -277,7 +279,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/barclaycard/barclaycard.py#L277) · [TypeScript](../../examples/barclaycard/barclaycard.ts#L265) · [Kotlin](../../examples/barclaycard/barclaycard.kt#L216) · [Rust](../../examples/barclaycard/barclaycard.rs#L255)
+**Examples:** [Python](../../examples/barclaycard/barclaycard.py#L319) · [TypeScript](../../examples/barclaycard/barclaycard.ts#L302) · [Kotlin](../../examples/barclaycard/barclaycard.kt#L219) · [Rust](../../examples/barclaycard/barclaycard.rs#L296)
 
 #### PaymentService.Capture
 
@@ -288,7 +290,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/barclaycard/barclaycard.py#L286) · [TypeScript](../../examples/barclaycard/barclaycard.ts#L274) · [Kotlin](../../examples/barclaycard/barclaycard.kt#L228) · [Rust](../../examples/barclaycard/barclaycard.rs#L267)
+**Examples:** [Python](../../examples/barclaycard/barclaycard.py#L328) · [TypeScript](../../examples/barclaycard/barclaycard.ts#L311) · [Kotlin](../../examples/barclaycard/barclaycard.kt#L231) · [Rust](../../examples/barclaycard/barclaycard.rs#L308)
 
 #### PaymentService.Get
 
@@ -299,7 +301,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/barclaycard/barclaycard.py#L295) · [TypeScript](../../examples/barclaycard/barclaycard.ts#L283) · [Kotlin](../../examples/barclaycard/barclaycard.kt#L238) · [Rust](../../examples/barclaycard/barclaycard.rs#L274)
+**Examples:** [Python](../../examples/barclaycard/barclaycard.py#L346) · [TypeScript](../../examples/barclaycard/barclaycard.ts#L329) · [Kotlin](../../examples/barclaycard/barclaycard.kt#L257) · [Rust](../../examples/barclaycard/barclaycard.rs#L322)
 
 #### PaymentService.ProxyAuthorize
 
@@ -310,7 +312,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/barclaycard/barclaycard.py#L304) · [TypeScript](../../examples/barclaycard/barclaycard.ts#L292) · [Kotlin](../../examples/barclaycard/barclaycard.kt#L246) · [Rust](../../examples/barclaycard/barclaycard.rs#L281)
+**Examples:** [Python](../../examples/barclaycard/barclaycard.py#L355) · [TypeScript](../../examples/barclaycard/barclaycard.ts#L338) · [Kotlin](../../examples/barclaycard/barclaycard.kt#L265) · [Rust](../../examples/barclaycard/barclaycard.rs#L329)
 
 #### PaymentService.Refund
 
@@ -321,7 +323,18 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/barclaycard/barclaycard.py#L313) · [TypeScript](../../examples/barclaycard/barclaycard.ts#L301) · [Kotlin](../../examples/barclaycard/barclaycard.kt#L284) · [Rust](../../examples/barclaycard/barclaycard.rs#L288)
+**Examples:** [Python](../../examples/barclaycard/barclaycard.py#L364) · [TypeScript](../../examples/barclaycard/barclaycard.ts#L347) · [Kotlin](../../examples/barclaycard/barclaycard.kt#L303) · [Rust](../../examples/barclaycard/barclaycard.rs#L336)
+
+#### PaymentService.TokenAuthorize
+
+Authorize using a connector-issued payment method token.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceTokenAuthorizeRequest` |
+| **Response** | `PaymentServiceAuthorizeResponse` |
+
+**Examples:** [Python](../../examples/barclaycard/barclaycard.py#L382) · [TypeScript](../../examples/barclaycard/barclaycard.ts#L365) · [Kotlin](../../examples/barclaycard/barclaycard.kt#L325) · [Rust](../../examples/barclaycard/barclaycard.rs#L350)
 
 #### PaymentService.Void
 
@@ -332,7 +345,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/barclaycard/barclaycard.py#L331) · [TypeScript](../../examples/barclaycard/barclaycard.ts) · [Kotlin](../../examples/barclaycard/barclaycard.kt#L306) · [Rust](../../examples/barclaycard/barclaycard.rs#L302)
+**Examples:** [Python](../../examples/barclaycard/barclaycard.py#L391) · [TypeScript](../../examples/barclaycard/barclaycard.ts) · [Kotlin](../../examples/barclaycard/barclaycard.kt#L356) · [Rust](../../examples/barclaycard/barclaycard.rs#L357)
 
 ### Refunds
 
@@ -345,4 +358,17 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/barclaycard/barclaycard.py#L322) · [TypeScript](../../examples/barclaycard/barclaycard.ts#L310) · [Kotlin](../../examples/barclaycard/barclaycard.kt#L294) · [Rust](../../examples/barclaycard/barclaycard.rs#L295)
+**Examples:** [Python](../../examples/barclaycard/barclaycard.py#L373) · [TypeScript](../../examples/barclaycard/barclaycard.ts#L356) · [Kotlin](../../examples/barclaycard/barclaycard.kt#L313) · [Rust](../../examples/barclaycard/barclaycard.rs#L343)
+
+### Authentication
+
+#### MerchantAuthenticationService.CreateClientAuthenticationToken
+
+Initialize client-facing SDK sessions for wallets, device fingerprinting, etc. Returns structured data the client SDK needs to render payment/verification UI.
+
+| | Message |
+|---|---------|
+| **Request** | `MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest` |
+| **Response** | `MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse` |
+
+**Examples:** [Python](../../examples/barclaycard/barclaycard.py#L337) · [TypeScript](../../examples/barclaycard/barclaycard.ts#L320) · [Kotlin](../../examples/barclaycard/barclaycard.kt#L241) · [Rust](../../examples/barclaycard/barclaycard.rs#L315)

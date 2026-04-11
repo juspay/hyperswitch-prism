@@ -209,6 +209,60 @@ pub struct AuthenticationErrorInformation {
     pub rmsg: String,
 }
 
+/// Barclaycard Flex session response — the capture context JWT for SDK initialization.
+/// The Flex v2 sessions endpoint returns a raw JWT string with content-type application/jwt,
+/// so we implement a custom Deserialize that handles both raw strings and JSON objects.
+#[derive(Debug, Serialize)]
+pub struct BarclaycardClientAuthResponse {
+    pub capture_context: String,
+}
+
+impl<'de> Deserialize<'de> for BarclaycardClientAuthResponse {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct BarclaycardClientAuthVisitor;
+
+        impl<'de> serde::de::Visitor<'de> for BarclaycardClientAuthVisitor {
+            type Value = BarclaycardClientAuthResponse;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                formatter.write_str("a JWT string or a JSON object with keyId")
+            }
+
+            fn visit_str<E: serde::de::Error>(self, v: &str) -> Result<Self::Value, E> {
+                Ok(BarclaycardClientAuthResponse {
+                    capture_context: v.to_string(),
+                })
+            }
+
+            fn visit_string<E: serde::de::Error>(self, v: String) -> Result<Self::Value, E> {
+                Ok(BarclaycardClientAuthResponse { capture_context: v })
+            }
+
+            fn visit_map<A: serde::de::MapAccess<'de>>(
+                self,
+                mut map: A,
+            ) -> Result<Self::Value, A::Error> {
+                let mut key_id = None;
+                while let Some(key) = map.next_key::<String>()? {
+                    if key == "keyId" {
+                        key_id = Some(map.next_value::<String>()?);
+                    } else {
+                        let _ = map.next_value::<serde_json::Value>()?;
+                    }
+                }
+                Ok(BarclaycardClientAuthResponse {
+                    capture_context: key_id.unwrap_or_default(),
+                })
+            }
+        }
+
+        deserializer.deserialize_any(BarclaycardClientAuthVisitor)
+    }
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
 pub enum BarclaycardErrorResponse {

@@ -8,11 +8,15 @@ use base64::Engine;
 use common_enums::CurrencyUnit;
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt, Method};
 use domain_types::{
-    connector_flow::{Authorize, Capture, IncrementalAuthorization, PSync, RSync, Refund, Void},
+    connector_flow::{
+        Authorize, Capture, ClientAuthenticationToken, IncrementalAuthorization, PSync, RSync,
+        Refund, Void,
+    },
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
+        ClientAuthenticationTokenRequestData, PaymentFlowData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, ResponseId,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
@@ -32,12 +36,13 @@ use time::OffsetDateTime;
 use transformers::{self as barclaycard};
 
 use requests::{
-    BarclaycardCaptureRequest, BarclaycardPaymentsRequest, BarclaycardRefundRequest,
-    BarclaycardVoidRequest,
+    BarclaycardCaptureRequest, BarclaycardClientAuthRequest, BarclaycardPaymentsRequest,
+    BarclaycardRefundRequest, BarclaycardVoidRequest,
 };
 use responses::{
-    BarclaycardAuthorizeResponse, BarclaycardCaptureResponse, BarclaycardRefundResponse,
-    BarclaycardRsyncResponse, BarclaycardTransactionResponse, BarclaycardVoidResponse,
+    BarclaycardAuthorizeResponse, BarclaycardCaptureResponse, BarclaycardClientAuthResponse,
+    BarclaycardRefundResponse, BarclaycardRsyncResponse, BarclaycardTransactionResponse,
+    BarclaycardVoidResponse,
 };
 
 use super::macros;
@@ -346,14 +351,118 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+// Manual implementation for ClientAuthenticationToken flow.
+// Cannot use macro_connector_implementation! because Barclaycard Flex v2 sessions API
+// returns a raw JWT string (content-type: application/jwt), not JSON.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
-        domain_types::connector_flow::ClientAuthenticationToken,
+        ClientAuthenticationToken,
         PaymentFlowData,
-        domain_types::connector_types::ClientAuthenticationTokenRequestData,
+        ClientAuthenticationTokenRequestData,
         PaymentsResponseData,
     > for Barclaycard<T>
 {
+    fn get_http_method(&self) -> Method {
+        Method::Post
+    }
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+    fn get_headers(
+        &self,
+        req: &RouterDataV2<
+            ClientAuthenticationToken,
+            PaymentFlowData,
+            ClientAuthenticationTokenRequestData,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+        self.build_headers(req)
+    }
+    fn get_url(
+        &self,
+        req: &RouterDataV2<
+            ClientAuthenticationToken,
+            PaymentFlowData,
+            ClientAuthenticationTokenRequestData,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Ok(format!(
+            "{}/flex/v2/sessions",
+            self.connector_base_url_payments(req)
+        ))
+    }
+    fn get_request_body(
+        &self,
+        req: &RouterDataV2<
+            ClientAuthenticationToken,
+            PaymentFlowData,
+            ClientAuthenticationTokenRequestData,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<Option<common_utils::request::RequestContent>, IntegrationError> {
+        let bridge = self.client_authentication_token;
+        let input_data = BarclaycardRouterData {
+            connector: self.to_owned(),
+            router_data: req.clone(),
+        };
+        let request = bridge.request_body(input_data)?;
+        Ok(Some(common_utils::request::RequestContent::Json(Box::new(
+            request,
+        ))))
+    }
+    fn handle_response_v2(
+        &self,
+        data: &RouterDataV2<
+            ClientAuthenticationToken,
+            PaymentFlowData,
+            ClientAuthenticationTokenRequestData,
+            PaymentsResponseData,
+        >,
+        event_builder: Option<&mut events::Event>,
+        res: Response,
+    ) -> CustomResult<
+        RouterDataV2<
+            ClientAuthenticationToken,
+            PaymentFlowData,
+            ClientAuthenticationTokenRequestData,
+            PaymentsResponseData,
+        >,
+        ConnectorError,
+    > {
+        // Barclaycard Flex v2 sessions API returns a raw JWT string (content-type: application/jwt)
+        let capture_context_jwt = String::from_utf8(res.response.to_vec())
+            .map_err(|_| ConnectorError::response_handling_failed(res.status_code))?;
+
+        let response_body = BarclaycardClientAuthResponse {
+            capture_context: capture_context_jwt,
+        };
+        event_builder.map(|i| i.set_connector_response(&response_body));
+
+        let response_router_data = ResponseRouterData {
+            response: response_body,
+            router_data: data.clone(),
+            http_code: res.status_code,
+        };
+
+        let result = RouterDataV2::<
+            ClientAuthenticationToken,
+            PaymentFlowData,
+            ClientAuthenticationTokenRequestData,
+            PaymentsResponseData,
+        >::try_from(response_router_data)
+        .map_err(|e| e.change_context(ConnectorError::response_handling_failed(res.status_code)))?;
+
+        Ok(result)
+    }
+    fn get_error_response_v2(
+        &self,
+        res: Response,
+        event_builder: Option<&mut events::Event>,
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -413,6 +522,12 @@ macros::create_all_prerequisites!(
             flow: RSync,
             response_body: BarclaycardRsyncResponse,
             router_data: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        ),
+        (
+            flow: ClientAuthenticationToken,
+            request_body: BarclaycardClientAuthRequest,
+            response_body: BarclaycardClientAuthResponse,
+            router_data: RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
         )
     ],
     amount_converters: [],
