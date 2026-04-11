@@ -28,24 +28,49 @@
         "error": "Payment method is not supported by Shift4"
       },
       "AliPayRedirect": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Shift4"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "ali_pay_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.shift4.com/charges",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"captured\":true,\"paymentMethod\":{\"type\":\"alipay\",\"billing\":{\"address\":{\"line1\":null,\"line2\":null,\"city\":null,\"state\":null,\"zip\":null,\"country\":null}}},\"flow\":{\"returnUrl\":\"https://example.com/return\"}}"
+        }
       },
       "AmazonPayRedirect": {
         "status": "not_supported",
-        "error": "Payment method is not supported by Shift4"
+        "error": "Wallet type AmazonPayRedirect(AmazonPayRedirectData) is not supported by Shift4 is not supported by Shift4"
       },
       "ApplePay": {
         "status": "not_supported",
-        "error": "Payment method is not supported by Shift4"
+        "error": "Wallet type ApplePay(ApplePayWalletData { payment_data: Encrypted(\"eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9\"), payment_method: ApplepayPaymentMethod { display_name: \"Visa 1111\", network: \"Visa\", pm_type: \"debit\" }, transaction_identifier: \"probe_txn_id\" }) is not supported by Shift4 is not supported by Shift4"
       },
       "ApplePayDecrypted": {
         "status": "not_supported",
-        "error": "Payment method is not supported by Shift4"
+        "error": "Wallet type ApplePay(ApplePayWalletData { payment_data: Decrypted(ApplePayDecryptedData { application_primary_account_number: CardNumber(411111**********), application_expiration_month: *** alloc::string::String ***, application_expiration_year: *** alloc::string::String ***, payment_data: ApplePayCryptogramData { online_payment_cryptogram: *** alloc::string::String ***, eci_indicator: Some(\"05\") } }), payment_method: ApplepayPaymentMethod { display_name: \"Visa 1111\", network: \"Visa\", pm_type: \"debit\" }, transaction_identifier: \"probe_txn_id\" }) is not supported by Shift4 is not supported by Shift4"
       },
       "ApplePayThirdPartySdk": {
         "status": "not_supported",
-        "error": "Payment method is not supported by Shift4"
+        "error": "Wallet type ApplePayThirdPartySdk(ApplePayThirdPartySdkData { token: Some(*** alloc::string::String ***) }) is not supported by Shift4 is not supported by Shift4"
       },
       "Bacs": {
         "status": "not_supported",
@@ -77,7 +102,7 @@
       },
       "Bluecode": {
         "status": "not_supported",
-        "error": "Payment method is not supported by Shift4"
+        "error": "Wallet type BluecodeRedirect is not supported by Shift4 is not supported by Shift4"
       },
       "BniVaBankTransfer": {
         "status": "not_supported",
@@ -130,7 +155,7 @@
       },
       "CashappQr": {
         "status": "not_supported",
-        "error": "Payment method is not supported by Shift4"
+        "error": "Wallet type CashappQr(CashappQr) is not supported by Shift4 is not supported by Shift4"
       },
       "CimbVaBankTransfer": {
         "status": "not_supported",
@@ -207,15 +232,15 @@
       },
       "GooglePay": {
         "status": "not_supported",
-        "error": "Payment method is not supported by Shift4"
+        "error": "Wallet type GooglePay(GooglePayWalletData { pm_type: \"CARD\", description: \"Visa 1111\", info: GooglePayPaymentMethodInfo { card_network: \"VISA\", card_details: \"1111\", assurance_details: None }, tokenization_data: Encrypted(GpayEncryptedTokenizationData { token_type: \"PAYMENT_GATEWAY\", token: \"{\\\"id\\\":\\\"tok_probe_gpay\\\",\\\"object\\\":\\\"token\\\",\\\"type\\\":\\\"card\\\"}\" }) }) is not supported by Shift4 is not supported by Shift4"
       },
       "GooglePayDecrypted": {
         "status": "not_supported",
-        "error": "Payment method is not supported by Shift4"
+        "error": "Wallet type GooglePay(GooglePayWalletData { pm_type: \"CARD\", description: \"Visa 1111\", info: GooglePayPaymentMethodInfo { card_network: \"VISA\", card_details: \"1111\", assurance_details: None }, tokenization_data: Decrypted(GooglePayDecryptedData { card_exp_month: *** alloc::string::String ***, card_exp_year: *** alloc::string::String ***, application_primary_account_number: CardNumber(411111**********), cryptogram: Some(*** alloc::string::String ***), eci_indicator: Some(\"05\") }) }) is not supported by Shift4 is not supported by Shift4"
       },
       "GooglePayThirdPartySdk": {
         "status": "not_supported",
-        "error": "Payment method is not supported by Shift4"
+        "error": "Wallet type GooglePayThirdPartySdk(GooglePayThirdPartySdkData { token: Some(*** alloc::string::String ***) }) is not supported by Shift4 is not supported by Shift4"
       },
       "Ideal": {
         "status": "supported",
@@ -292,11 +317,11 @@
       },
       "MbWay": {
         "status": "not_supported",
-        "error": "Payment method is not supported by Shift4"
+        "error": "Wallet type MbWay(MbWayData) is not supported by Shift4 is not supported by Shift4"
       },
       "Mifinity": {
         "status": "not_supported",
-        "error": "Payment method is not supported by Shift4"
+        "error": "Wallet type Mifinity(MifinityData { date_of_birth: *** time::date::Date ***, language_preference: Some(\"en\") }) is not supported by Shift4 is not supported by Shift4"
       },
       "MiniStop": {
         "status": "not_supported",
@@ -360,11 +385,11 @@
       },
       "PaypalRedirect": {
         "status": "not_supported",
-        "error": "Payment method is not supported by Shift4"
+        "error": "Wallet type PaypalRedirect(PaypalRedirection { email: Some(Email(****@example.com)) }) is not supported by Shift4 is not supported by Shift4"
       },
       "PaypalSdk": {
         "status": "not_supported",
-        "error": "Payment method is not supported by Shift4"
+        "error": "Wallet type PaypalSdk(PayPalWalletData { token: \"probe_paypal_sdk_token\" }) is not supported by Shift4 is not supported by Shift4"
       },
       "Paze": {
         "status": "not_supported",
@@ -396,15 +421,15 @@
       },
       "RevolutPay": {
         "status": "not_supported",
-        "error": "Payment method is not supported by Shift4"
+        "error": "Wallet type RevolutPay(RevolutPayData) is not supported by Shift4 is not supported by Shift4"
       },
       "SamsungPay": {
         "status": "not_supported",
-        "error": "Payment method is not supported by Shift4"
+        "error": "Wallet type SamsungPay(SamsungPayWalletData { payment_credential: SamsungPayWalletCredentials { method: Some(\"3DS\"), recurring_payment: Some(false), card_brand: Visa, dpan_last_four_digits: None, card_last_four_digits: \"1234\", token_data: SamsungPayTokenData { three_ds_type: Some(\"S\"), version: \"100\", data: *** alloc::string::String *** } } }) is not supported by Shift4 is not supported by Shift4"
       },
       "Satispay": {
         "status": "not_supported",
-        "error": "Payment method is not supported by Shift4"
+        "error": "Wallet type Satispay(SatispayData) is not supported by Shift4 is not supported by Shift4"
       },
       "Seicomart": {
         "status": "not_supported",
@@ -448,11 +473,11 @@
       },
       "WeChatPayQr": {
         "status": "not_supported",
-        "error": "Payment method is not supported by Shift4"
+        "error": "Wallet type WeChatPayQr(WeChatPayQr) is not supported by Shift4 is not supported by Shift4"
       },
       "Wero": {
         "status": "not_supported",
-        "error": "Payment method is not supported by Shift4"
+        "error": "Wallet type Wero(WeroData) is not supported by Shift4 is not supported by Shift4"
       }
     },
     "capture": {

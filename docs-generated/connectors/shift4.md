@@ -177,7 +177,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Cash App | x |
 | PayPal | x |
 | WeChat Pay | x |
-| Alipay | x |
+| Alipay | ✓ |
 | Revolut Pay | x |
 | MiFinity | x |
 | Bluecode | x |
