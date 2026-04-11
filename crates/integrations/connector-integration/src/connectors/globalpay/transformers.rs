@@ -7,17 +7,17 @@ use common_utils::request::Method;
 use common_utils::types::StringMinorUnit;
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, ClientAuthenticationToken, PSync, RSync, Refund,
+        Authorize, Capture, ClientAuthenticationToken, PSync, RSync, Refund, RepeatPayment,
         ServerAuthenticationToken, Void,
     },
     connector_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
         ConnectorSpecificClientAuthenticationResponse,
         GlobalpayClientAuthenticationResponse as GlobalpayClientAuthenticationResponseDomain,
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId, ServerAuthenticationTokenRequestData,
-        ServerAuthenticationTokenResponseData,
+        MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        ResponseId, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{
@@ -49,6 +49,8 @@ pub type GlobalpayVoidResponse = GlobalpayPaymentsResponse;
 pub type GlobalpayCaptureResponse = GlobalpayPaymentsResponse;
 /// Response type for RSync flow - reuses GlobalpayRefundResponse
 pub type GlobalpayRSyncResponse = GlobalpayRefundResponse;
+/// Response type for RepeatPayment (MIT) flow - reuses GlobalpayPaymentsResponse
+pub type GlobalpayRepeatPaymentResponse = GlobalpayPaymentsResponse;
 
 // ===== CONSTANTS =====
 
@@ -303,6 +305,16 @@ pub enum StoredCredentialType {
 pub enum StoredCredentialSequence {
     First,
     Subsequent,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum StoredCredentialReason {
+    Incremental,
+    Resubmission,
+    Reauthorization,
+    DelayedCharge,
+    NoShow,
 }
 
 #[derive(Debug, Serialize)]
@@ -1179,6 +1191,270 @@ impl TryFrom<ResponseRouterData<GlobalpayClientAuthResponse, Self>>
                 session_data,
                 status_code: item.http_code,
             }),
+            ..item.router_data
+        })
+    }
+}
+
+// ===== REPEAT PAYMENT (MIT) FLOW STRUCTURES =====
+
+/// Stored credential data for MIT transactions.
+/// Uses GlobalPay's MIT-specific field names (model, reason) which differ from the
+/// CIT stored_credential fields.
+#[derive(Debug, Serialize)]
+pub struct MitStoredCredential {
+    pub model: Option<StoredCredentialType>,
+    pub sequence: Option<StoredCredentialSequence>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<StoredCredentialReason>,
+}
+
+/// Request for merchant-initiated transactions (MIT) via RepeatPayment flow.
+/// GlobalPay uses the same /transactions endpoint but with initiator=MERCHANT
+/// and stored_credential fields for subsequent recurring payments.
+#[derive(Debug, Serialize)]
+pub struct GlobalpayRepeatPaymentRequest<T: PaymentMethodDataTypes> {
+    pub account_name: String,
+    pub channel: String,
+    pub amount: StringMinorUnit,
+    pub currency: common_enums::Currency,
+    pub reference: String,
+    pub country: common_enums::CountryAlpha2,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub capture_mode: Option<GlobalpayCaptureMode>,
+    pub initiator: InitiatorType,
+    pub stored_credential: MitStoredCredential,
+    pub payment_method: GlobalpayRepeatPaymentMethod<T>,
+}
+
+/// Payment method for MIT - includes card details plus brand_reference from initial CIT
+#[derive(Debug, Serialize)]
+pub struct GlobalpayRepeatPaymentMethod<T: PaymentMethodDataTypes> {
+    pub entry_mode: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card: Option<GlobalpayMitCard<T>>,
+}
+
+/// Card data for MIT transactions - includes card details and brand_reference
+#[derive(Debug, Serialize)]
+pub struct GlobalpayMitCard<T: PaymentMethodDataTypes> {
+    pub number: RawCardNumber<T>,
+    pub expiry_month: Secret<String>,
+    pub expiry_year: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cvv: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cvv_indicator: Option<String>,
+    pub brand_reference: String,
+}
+
+/// Helper to extract network transaction ID from mandate reference
+fn extract_network_transaction_id(
+    mandate_reference: &MandateReferenceId,
+) -> Result<String, error_stack::Report<IntegrationError>> {
+    match mandate_reference {
+        MandateReferenceId::NetworkMandateId(network_txn_id) => Ok(network_txn_id.clone()),
+        MandateReferenceId::ConnectorMandateId(connector_mandate_ref) => connector_mandate_ref
+            .get_connector_mandate_id()
+            .ok_or_else(|| {
+                error_stack::report!(IntegrationError::MissingRequiredField {
+                    field_name: "connector_mandate_id",
+                    context: Default::default()
+                })
+            }),
+        MandateReferenceId::NetworkTokenWithNTI(_) => {
+            Err(error_stack::report!(IntegrationError::not_implemented(
+                "Network token with NTI not supported for GlobalPay repeat payments".to_string()
+            )))
+        }
+    }
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        GlobalpayRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for GlobalpayRepeatPaymentRequest<T>
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        wrapper: GlobalpayRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let item = &wrapper.router_data;
+
+        // Extract network transaction ID (brand_reference) from mandate reference
+        let network_txn_id = extract_network_transaction_id(&item.request.mandate_reference)?;
+
+        // Extract card details from payment method data
+        let card = match &item.request.payment_method_data {
+            PaymentMethodData::Card(card_data) => {
+                let expiry_year_2digit = card_data.get_card_expiry_year_2_digit().change_context(
+                    IntegrationError::RequestEncodingFailed {
+                        context: Default::default(),
+                    },
+                )?;
+
+                Some(GlobalpayMitCard {
+                    number: card_data.card_number.clone(),
+                    expiry_month: card_data.card_exp_month.clone(),
+                    expiry_year: expiry_year_2digit,
+                    cvv: None, // CVV typically not required for MIT
+                    cvv_indicator: Some("NOT_PRESENT".to_string()),
+                    brand_reference: network_txn_id,
+                })
+            }
+            _ => {
+                // For non-card MIT, just send brand_reference without card details
+                None
+            }
+        };
+
+        // Determine capture_mode based on capture_method
+        let capture_mode = match item.request.capture_method {
+            Some(common_enums::CaptureMethod::Manual) => Some(GlobalpayCaptureMode::Later),
+            _ => Some(GlobalpayCaptureMode::Auto),
+        };
+
+        // Get country from billing address or use default
+        let country = item
+            .resource_common_data
+            .get_billing_country()
+            .unwrap_or(common_enums::CountryAlpha2::US);
+
+        Ok(Self {
+            account_name: constants::ACCOUNT_NAME.to_string(),
+            channel: constants::CHANNEL_CNP.to_string(),
+            amount: GlobalpayAmountConvertor::convert(
+                item.request.minor_amount,
+                item.request.currency,
+            )
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?,
+            currency: item.request.currency,
+            reference: item
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
+            country,
+            capture_mode,
+            initiator: InitiatorType::Merchant,
+            stored_credential: MitStoredCredential {
+                model: Some(StoredCredentialType::Recurring),
+                sequence: Some(StoredCredentialSequence::Subsequent),
+                reason: Some(StoredCredentialReason::Incremental),
+            },
+            payment_method: GlobalpayRepeatPaymentMethod {
+                entry_mode: constants::ENTRY_MODE_ECOM.to_string(),
+                card,
+            },
+        })
+    }
+}
+
+// RepeatPayment response - reuses GlobalpayPaymentsResponse via type alias
+impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<GlobalpayPaymentsResponse, Self>>
+    for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<GlobalpayPaymentsResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let status = AttemptStatus::from(item.response.status.clone());
+
+        // Extract network transaction ID from card response
+        let network_txn_id = item
+            .response
+            .payment_method
+            .as_ref()
+            .and_then(|pm| pm.card.as_ref())
+            .and_then(|card| card.brand_reference.as_ref())
+            .map(|s| s.peek().to_string());
+
+        // Build mandate_reference for ongoing MIT flows
+        let mandate_reference = item
+            .response
+            .payment_method
+            .as_ref()
+            .and_then(|pm| pm.id.as_ref())
+            .map(|id| {
+                Box::new(MandateReference {
+                    connector_mandate_id: Some(id.peek().to_string()),
+                    payment_method_id: None,
+                    connector_mandate_request_reference_id: None,
+                })
+            });
+
+        // Handle failure responses separately
+        let response = match status {
+            AttemptStatus::Failure => Err(ErrorResponse {
+                status_code: item.http_code,
+                code: item
+                    .response
+                    .payment_method
+                    .as_ref()
+                    .and_then(|pm| pm.result.clone())
+                    .unwrap_or_else(|| "UNKNOWN_ERROR".to_string()),
+                message: item
+                    .response
+                    .payment_method
+                    .as_ref()
+                    .and_then(|pm| pm.message.clone())
+                    .unwrap_or_else(|| "Repeat payment failed".to_string()),
+                reason: item
+                    .response
+                    .payment_method
+                    .as_ref()
+                    .and_then(|pm| pm.message.clone()),
+                attempt_status: Some(status),
+                connector_transaction_id: Some(item.response.id.clone()),
+                network_decline_code: item
+                    .response
+                    .payment_method
+                    .as_ref()
+                    .and_then(|pm| pm.result.clone()),
+                network_advice_code: None,
+                network_error_message: item
+                    .response
+                    .payment_method
+                    .as_ref()
+                    .and_then(|pm| pm.message.clone()),
+            }),
+            _ => Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
+                redirection_data: None,
+                mandate_reference,
+                connector_metadata: None,
+                network_txn_id,
+                connector_response_reference_id: item.response.reference.clone(),
+                incremental_authorization_allowed: None,
+                status_code: item.http_code,
+            }),
+        };
+
+        Ok(Self {
+            response,
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
             ..item.router_data
         })
     }

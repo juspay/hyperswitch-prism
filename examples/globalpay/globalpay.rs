@@ -144,6 +144,40 @@ pub fn build_proxy_authorize_request() -> PaymentServiceProxyAuthorizeRequest {
     })).unwrap_or_default()
 }
 
+pub fn build_recurring_charge_request() -> RecurringPaymentServiceChargeRequest {
+    serde_json::from_value::<RecurringPaymentServiceChargeRequest>(serde_json::json!({
+    "connector_recurring_payment_id": {  // Reference to existing mandate.
+        "mandate_id_type": {
+            "connector_mandate_id": {
+                "connector_mandate_id": "probe-mandate-123",
+            },
+        },
+    },
+    "amount": {  // Amount Information.
+        "minor_amount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+        "currency": "USD",  // ISO 4217 currency code (e.g., "USD", "EUR").
+    },
+    "payment_method": {  // Optional payment Method Information (for network transaction flows).
+        "payment_method": {
+            "token": {  // Payment tokens.
+                "token": "probe_pm_token",  // The token string representing a payment method.
+            },
+        }
+    },
+    "return_url": "https://example.com/recurring-return",
+    "connector_customer_id": "cust_probe_123",
+    "payment_method_type": "PAY_PAL",
+    "off_session": true,  // Behavioral Flags and Preferences.
+    "state": {  // State Information.
+        "access_token": {  // Access token obtained from connector.
+            "token": "probe_access_token",  // The token string.
+            "expires_in_seconds": 3600,  // Expiration timestamp (seconds since epoch).
+            "token_type": "Bearer",  // Token type (e.g., "Bearer", "Basic").
+        },
+    },
+    })).unwrap_or_default()
+}
+
 pub fn build_refund_request(connector_transaction_id: &str) -> PaymentServiceRefundRequest {
     serde_json::from_value::<PaymentServiceRefundRequest>(serde_json::json!({
     "merchant_refund_id": "probe_refund_001",  // Identification.
@@ -365,6 +399,13 @@ pub async fn proxy_authorize(client: &ConnectorClient, _merchant_transaction_id:
     Ok(format!("status: {:?}", response.status()))
 }
 
+// Flow: RecurringPaymentService.Charge
+#[allow(dead_code)]
+pub async fn recurring_charge(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client.recurring_charge(build_recurring_charge_request(), &HashMap::new(), None).await?;
+    Ok(format!("status: {:?}", response.status()))
+}
+
 // Flow: PaymentService.Refund
 #[allow(dead_code)]
 pub async fn refund(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
@@ -410,11 +451,12 @@ async fn main() {
         "create_server_authentication_token" => create_server_authentication_token(&client, "order_001").await,
         "get" => get(&client, "order_001").await,
         "proxy_authorize" => proxy_authorize(&client, "order_001").await,
+        "recurring_charge" => recurring_charge(&client, "order_001").await,
         "refund" => refund(&client, "order_001").await,
         "refund_get" => refund_get(&client, "order_001").await,
         "token_authorize" => token_authorize(&client, "order_001").await,
         "void" => void(&client, "order_001").await,
-        _ => { eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, authorize, capture, create_client_authentication_token, create_server_authentication_token, get, proxy_authorize, refund, refund_get, token_authorize, void", flow); return; }
+        _ => { eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, authorize, capture, create_client_authentication_token, create_server_authentication_token, get, proxy_authorize, recurring_charge, refund, refund_get, token_authorize, void", flow); return; }
     };
     match result {
         Ok(msg) => println!("✓ {msg}"),

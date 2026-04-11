@@ -690,7 +690,47 @@
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "connector_recurring_payment_id": {
+            "mandate_id_type": {
+              "connector_mandate_id": {
+                "connector_mandate_id": "probe-mandate-123"
+              }
+            }
+          },
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "token": {
+              "token": "probe_pm_token"
+            }
+          },
+          "return_url": "https://example.com/recurring-return",
+          "connector_customer_id": "cust_probe_123",
+          "payment_method_type": "PAY_PAL",
+          "off_session": true,
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://apis.sandbox.globalpay.com/ucp/transactions",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-gp-version": "2021-03-22"
+          },
+          "body": "{\"account_name\":\"transaction_processing\",\"channel\":\"CNP\",\"amount\":\"1000\",\"currency\":\"USD\",\"reference\":\"\",\"country\":\"US\",\"capture_mode\":\"AUTO\",\"initiator\":\"MERCHANT\",\"stored_credential\":{\"model\":\"RECURRING\",\"sequence\":\"SUBSEQUENT\",\"reason\":\"INCREMENTAL\"},\"payment_method\":{\"entry_mode\":\"ECOM\"}}"
+        }
       }
     },
     "recurring_revoke": {
