@@ -1466,14 +1466,19 @@ pub enum CaptureSyncResponse {
 pub struct PaymentCreateOrderData {
     pub amount: MinorUnit,
     pub currency: Currency,
+    pub merchant_order_id: Option<String>,
     pub integrity_object: Option<CreateOrderIntegrityObject>,
     pub metadata: Option<SecretSerdeValue>,
     pub webhook_url: Option<String>,
     pub payment_method_type: Option<common_enums::PaymentMethodType>,
+    pub order_details: Option<Vec<payment_address::OrderDetailsWithAmount>>,
 }
 
 #[derive(Debug, Clone)]
 pub struct PaymentCreateOrderResponse {
+    /// Merchant's order ID from the original request
+    pub merchant_order_id: Option<String>,
+    /// Connector-generated order ID
     pub connector_order_id: String,
     /// Optional SDK session data for wallet flows (Apple Pay, Google Pay) and other SDK types
     pub session_data: Option<ClientAuthenticationTokenData>,

@@ -3956,6 +3956,7 @@ pub fn generate_create_order_response(
     let response = match transaction_response {
         Ok(PaymentCreateOrderResponse {
             connector_order_id,
+            merchant_order_id,
             session_data,
         }) => {
             let grpc_session_data = session_data
@@ -3968,7 +3969,7 @@ pub fn generate_create_order_response(
                 error: None,
                 status_code: 200,
                 response_headers,
-                merchant_order_id: None,
+                merchant_order_id,
                 raw_connector_request,
                 raw_connector_response,
                 session_data: grpc_session_data,
@@ -8419,9 +8420,20 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceCreateOrderRequest>
             value.payment_method_type(),
         )?;
 
+        let order_details = (!value.order_details.is_empty())
+            .then(|| {
+                value
+                    .order_details
+                    .into_iter()
+                    .map(OrderDetailsWithAmount::foreign_try_from)
+                    .collect::<Result<Vec<_>, _>>()
+            })
+            .transpose()?;
+
         Ok(Self {
             amount: amount.amount,
             currency: amount.currency,
+            merchant_order_id: value.merchant_order_id.clone(),
             integrity_object: None,
             metadata: value
                 .metadata
@@ -8429,6 +8441,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceCreateOrderRequest>
                 .transpose()?,
             webhook_url,
             payment_method_type,
+            order_details,
         })
     }
 }
