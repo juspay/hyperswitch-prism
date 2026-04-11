@@ -44,8 +44,9 @@ use transformers::{
     self as trustpayments, TrustpaymentsAuthorizeRequest, TrustpaymentsAuthorizeResponse,
     TrustpaymentsCaptureRequest, TrustpaymentsCaptureResponse, TrustpaymentsPSyncRequest,
     TrustpaymentsPSyncResponse, TrustpaymentsRSyncRequest, TrustpaymentsRSyncResponse,
-    TrustpaymentsRefundRequest, TrustpaymentsRefundResponse, TrustpaymentsVoidRequest,
-    TrustpaymentsVoidResponse,
+    TrustpaymentsRefundRequest, TrustpaymentsRefundResponse, TrustpaymentsRepeatPaymentRequest,
+    TrustpaymentsRepeatPaymentResponse, TrustpaymentsSetupMandateRequest,
+    TrustpaymentsSetupMandateResponse, TrustpaymentsVoidRequest, TrustpaymentsVoidResponse,
 };
 
 use super::macros;
@@ -266,6 +267,18 @@ macros::create_all_prerequisites!(
             request_body: TrustpaymentsVoidRequest,
             response_body: TrustpaymentsVoidResponse,
             router_data: RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+        ),
+        (
+            flow: SetupMandate,
+            request_body: TrustpaymentsSetupMandateRequest,
+            response_body: TrustpaymentsSetupMandateResponse,
+            router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: RepeatPayment,
+            request_body: TrustpaymentsRepeatPaymentRequest,
+            response_body: TrustpaymentsRepeatPaymentResponse,
+            router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -593,27 +606,65 @@ macros::macro_connector_implementation!(
     }
 );
 
-// Setup Mandate
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        SetupMandate,
-        PaymentFlowData,
-        SetupMandateRequestData<T>,
-        PaymentsResponseData,
-    > for Trustpayments<T>
-{
-}
+// ===== SETUP MANDATE FLOW IMPLEMENTATION =====
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Trustpayments,
+    curl_request: Json(TrustpaymentsSetupMandateRequest),
+    curl_response: TrustpaymentsSetupMandateResponse,
+    flow_name: SetupMandate,
+    resource_common_data: PaymentFlowData,
+    flow_request: SetupMandateRequestData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
 
-// Repeat Payment
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        RepeatPayment,
-        PaymentFlowData,
-        RepeatPaymentData<T>,
-        PaymentsResponseData,
-    > for Trustpayments<T>
-{
-}
+        fn get_url(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}/json/", self.connector_base_url_payments(req)))
+        }
+    }
+);
+
+// ===== REPEAT PAYMENT FLOW IMPLEMENTATION =====
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Trustpayments,
+    curl_request: Json(TrustpaymentsRepeatPaymentRequest),
+    curl_response: TrustpaymentsRepeatPaymentResponse,
+    flow_name: RepeatPayment,
+    resource_common_data: PaymentFlowData,
+    flow_request: RepeatPaymentData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}/json/", self.connector_base_url_payments(req)))
+        }
+    }
+);
 
 // Mandate Revoke
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
