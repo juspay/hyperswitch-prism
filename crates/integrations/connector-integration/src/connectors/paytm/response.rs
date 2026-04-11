@@ -54,6 +54,15 @@ pub struct PaytmErrorBody {
     pub result_info: PaytmResultInfo,
 }
 
+// ClientAuthenticationToken flow response structure
+// Uses the same response format as ServerSessionAuthenticationToken (initiateTransaction),
+// but needs a distinct type to avoid conflicting trait implementations in macros.
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PaytmClientAuthResponse {
+    pub head: PaytmRespHead,
+    pub body: PaytmResBodyTypes,
+}
+
 // Error response structure
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PaytmErrorResponse {

@@ -44,8 +44,14 @@ use serde::Serialize;
 use transformers as paytm;
 
 use self::{
-    request::{PaytmAuthorizeRequest, PaytmInitiateTxnRequest, PaytmTransactionStatusRequest},
-    response::{PaytmInitiateTxnResponse, PaytmProcessTxnResponse, PaytmTransactionStatusResponse},
+    request::{
+        PaytmAuthorizeRequest, PaytmClientAuthRequest, PaytmInitiateTxnRequest,
+        PaytmTransactionStatusRequest,
+    },
+    response::{
+        PaytmClientAuthResponse, PaytmInitiateTxnResponse, PaytmProcessTxnResponse,
+        PaytmTransactionStatusResponse,
+    },
 };
 use crate::{connectors::macros, types::ResponseRouterData};
 use domain_types::errors::ConnectorError;
@@ -73,6 +79,12 @@ macros::create_all_prerequisites!(
             request_body: PaytmTransactionStatusRequest,
             response_body: PaytmTransactionStatusResponse,
             router_data: RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
+        ),
+        (
+            flow: ClientAuthenticationToken,
+            request_body: PaytmClientAuthRequest,
+            response_body: PaytmClientAuthResponse,
+            router_data: RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
         )
     ],
     amount_converters: [amount_converter: StringMajorUnit],
@@ -657,15 +669,51 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        ClientAuthenticationToken,
-        PaymentFlowData,
-        ClientAuthenticationTokenRequestData,
-        PaymentsResponseData,
-    > for Paytm<T>
-{
-}
+// ClientAuthenticationToken flow implementation using macros
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Paytm,
+    curl_request: Json(PaytmClientAuthRequest),
+    curl_response: PaytmClientAuthResponse,
+    flow_name: ClientAuthenticationToken,
+    resource_common_data: PaymentFlowData,
+    flow_request: ClientAuthenticationTokenRequestData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            let headers = self.get_auth_header(&req.connector_config)?;
+            Ok(headers)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            let base_url = self.connector_base_url(req);
+            let auth = paytm::PaytmAuthType::try_from(&req.connector_config)?;
+            let merchant_id = auth.merchant_id.peek();
+            let order_id = &req.resource_common_data.connector_request_reference_id;
+
+            Ok(format!(
+                "{base_url}theia/api/v1/initiateTransaction?mid={merchant_id}&orderId={order_id}"
+            ))
+        }
+
+        fn get_5xx_error_response(
+            &self,
+            res: Response,
+            event_builder: Option<&mut events::Event>,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            self.build_custom_error_response(res, event_builder)
+        }
+    }
+);
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<

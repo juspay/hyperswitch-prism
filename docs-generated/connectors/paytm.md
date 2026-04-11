@@ -97,6 +97,7 @@ let config = ConnectorConfig {
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
 | [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
+| [MerchantAuthenticationService.CreateClientAuthenticationToken](#merchantauthenticationservicecreateclientauthenticationtoken) | Authentication | `MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest` |
 | [MerchantAuthenticationService.CreateServerSessionAuthenticationToken](#merchantauthenticationservicecreateserversessionauthenticationtoken) | Authentication | `MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
 
@@ -219,7 +220,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/paytm/paytm.py#L74) · [TypeScript](../../examples/paytm/paytm.ts#L68) · [Kotlin](../../examples/paytm/paytm.kt#L64) · [Rust](../../examples/paytm/paytm.rs#L77)
+**Examples:** [Python](../../examples/paytm/paytm.py#L86) · [TypeScript](../../examples/paytm/paytm.ts#L78) · [Kotlin](../../examples/paytm/paytm.kt#L65) · [Rust](../../examples/paytm/paytm.rs#L91)
 
 #### PaymentService.Get
 
@@ -230,9 +231,20 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/paytm/paytm.py#L92) · [TypeScript](../../examples/paytm/paytm.ts#L86) · [Kotlin](../../examples/paytm/paytm.kt#L91) · [Rust](../../examples/paytm/paytm.rs#L96)
+**Examples:** [Python](../../examples/paytm/paytm.py#L113) · [TypeScript](../../examples/paytm/paytm.ts#L105) · [Kotlin](../../examples/paytm/paytm.kt#L108) · [Rust](../../examples/paytm/paytm.rs#L117)
 
 ### Authentication
+
+#### MerchantAuthenticationService.CreateClientAuthenticationToken
+
+Initialize client-facing SDK sessions for wallets, device fingerprinting, etc. Returns structured data the client SDK needs to render payment/verification UI.
+
+| | Message |
+|---|---------|
+| **Request** | `MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest` |
+| **Response** | `MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse` |
+
+**Examples:** [Python](../../examples/paytm/paytm.py#L95) · [TypeScript](../../examples/paytm/paytm.ts#L87) · [Kotlin](../../examples/paytm/paytm.kt#L77) · [Rust](../../examples/paytm/paytm.rs#L103)
 
 #### MerchantAuthenticationService.CreateServerSessionAuthenticationToken
 
@@ -243,4 +255,4 @@ Create a server-side session with the connector. Establishes session state for m
 | **Request** | `MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/paytm/paytm.py#L83) · [TypeScript](../../examples/paytm/paytm.ts#L77) · [Kotlin](../../examples/paytm/paytm.kt#L76) · [Rust](../../examples/paytm/paytm.rs#L89)
+**Examples:** [Python](../../examples/paytm/paytm.py#L104) · [TypeScript](../../examples/paytm/paytm.ts#L96) · [Kotlin](../../examples/paytm/paytm.kt#L93) · [Rust](../../examples/paytm/paytm.rs#L110)
