@@ -461,10 +461,20 @@ pub(crate) fn base_refund_get_request() -> RefundServiceGetRequest {
 }
 
 pub(crate) fn base_recurring_revoke_request() -> RecurringPaymentServiceRevokeRequest {
+    #[allow(deprecated)]
     RecurringPaymentServiceRevokeRequest {
         merchant_revoke_id: Some("probe_revoke_001".to_string()),
-        mandate_id: "probe_mandate_001".to_string(),
-        connector_mandate_id: Some("probe_connector_mandate_001".to_string()),
+        merchant_mandate_id: "probe_mandate_001".to_string(),
+        connector_mandate_id: None,
+        mandate_reference_id: Some(MandateReference {
+            mandate_id_type: Some(MandateIdType::ConnectorMandateId(
+                ConnectorMandateReferenceId {
+                    connector_mandate_id: Some("probe_connector_mandate_001".to_string()),
+                    payment_method_id: None,
+                    connector_mandate_request_reference_id: None,
+                },
+            )),
+        }),
     }
 }
 

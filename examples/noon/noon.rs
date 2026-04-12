@@ -165,8 +165,14 @@ pub fn build_recurring_charge_request() -> RecurringPaymentServiceChargeRequest 
 pub fn build_recurring_revoke_request() -> RecurringPaymentServiceRevokeRequest {
     serde_json::from_value::<RecurringPaymentServiceRevokeRequest>(serde_json::json!({
     "merchant_revoke_id": "probe_revoke_001",  // Identification.
-    "mandate_id": "probe_mandate_001",  // Mandate Details.
-    "connector_mandate_id": "probe_connector_mandate_001",
+    "merchant_mandate_id": "probe_mandate_001",  // Mandate Details Merchant-side identifier for the mandate being revoked.
+    "mandate_reference_id": {  // Typed mandate reference supporting connector mandate ids, network transaction ids, and network-token-with-NTI references. Preferred over the legacy `connector_mandate_id` field above.
+        "mandate_id_type": {
+            "connector_mandate_id": {
+                "connector_mandate_id": "probe_connector_mandate_001",
+            },
+        },
+    },
     })).unwrap_or_default()
 }
 

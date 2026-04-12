@@ -507,7 +507,7 @@ connector_id: razorpay
 doc: docs/connectors/razorpay.md
 scenarios: checkout_autocapture, checkout_card, refund, get_payment
 payment_methods: Card, UpiCollect, UpiIntent, UpiQr
-flows: authorize, capture, create_order, get, handle_event, proxy_authorize, refund, refund_get
+flows: authorize, capture, create_order, get, handle_event, proxy_authorize, recurring_revoke, refund, refund_get
 examples_python: examples/razorpay/razorpay.py
 
 ## Razorpay V2

@@ -108,7 +108,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/razorpay/razorpay.py#L160) · [JavaScript](../../examples/razorpay/razorpay.js) · [Kotlin](../../examples/razorpay/razorpay.kt#L103) · [Rust](../../examples/razorpay/razorpay.rs#L150)
+**Examples:** [Python](../../examples/razorpay/razorpay.py#L175) · [JavaScript](../../examples/razorpay/razorpay.js) · [Kotlin](../../examples/razorpay/razorpay.kt#L105) · [Rust](../../examples/razorpay/razorpay.rs#L164)
 
 ### Card Payment (Authorize + Capture)
 
@@ -122,19 +122,19 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/razorpay/razorpay.py#L179) · [JavaScript](../../examples/razorpay/razorpay.js) · [Kotlin](../../examples/razorpay/razorpay.kt#L119) · [Rust](../../examples/razorpay/razorpay.rs#L166)
+**Examples:** [Python](../../examples/razorpay/razorpay.py#L194) · [JavaScript](../../examples/razorpay/razorpay.js) · [Kotlin](../../examples/razorpay/razorpay.kt#L121) · [Rust](../../examples/razorpay/razorpay.rs#L180)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/razorpay/razorpay.py#L204) · [JavaScript](../../examples/razorpay/razorpay.js) · [Kotlin](../../examples/razorpay/razorpay.kt#L141) · [Rust](../../examples/razorpay/razorpay.rs#L189)
+**Examples:** [Python](../../examples/razorpay/razorpay.py#L219) · [JavaScript](../../examples/razorpay/razorpay.js) · [Kotlin](../../examples/razorpay/razorpay.kt#L143) · [Rust](../../examples/razorpay/razorpay.rs#L203)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/razorpay/razorpay.py#L229) · [JavaScript](../../examples/razorpay/razorpay.js) · [Kotlin](../../examples/razorpay/razorpay.kt#L163) · [Rust](../../examples/razorpay/razorpay.rs#L212)
+**Examples:** [Python](../../examples/razorpay/razorpay.py#L244) · [JavaScript](../../examples/razorpay/razorpay.js) · [Kotlin](../../examples/razorpay/razorpay.kt#L165) · [Rust](../../examples/razorpay/razorpay.rs#L226)
 
 ## API Reference
 
@@ -146,6 +146,7 @@ Retrieve current payment status from the connector.
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
 | [EventService.HandleEvent](#eventservicehandleevent) | Events | `EventServiceHandleRequest` |
 | [PaymentService.ProxyAuthorize](#paymentserviceproxyauthorize) | Payments | `PaymentServiceProxyAuthorizeRequest` |
+| [RecurringPaymentService.Revoke](#recurringpaymentservicerevoke) | Mandates | `RecurringPaymentServiceRevokeRequest` |
 | [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
 | [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
 
@@ -282,7 +283,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/razorpay/razorpay.py#L251) · [TypeScript](../../examples/razorpay/razorpay.ts#L236) · [Kotlin](../../examples/razorpay/razorpay.kt#L181) · [Rust](../../examples/razorpay/razorpay.rs#L230)
+**Examples:** [Python](../../examples/razorpay/razorpay.py#L266) · [TypeScript](../../examples/razorpay/razorpay.ts#L248) · [Kotlin](../../examples/razorpay/razorpay.kt#L183) · [Rust](../../examples/razorpay/razorpay.rs#L244)
 
 #### PaymentService.Capture
 
@@ -293,7 +294,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/razorpay/razorpay.py#L260) · [TypeScript](../../examples/razorpay/razorpay.ts#L245) · [Kotlin](../../examples/razorpay/razorpay.kt#L193) · [Rust](../../examples/razorpay/razorpay.rs#L242)
+**Examples:** [Python](../../examples/razorpay/razorpay.py#L275) · [TypeScript](../../examples/razorpay/razorpay.ts#L257) · [Kotlin](../../examples/razorpay/razorpay.kt#L195) · [Rust](../../examples/razorpay/razorpay.rs#L256)
 
 #### PaymentService.CreateOrder
 
@@ -304,7 +305,7 @@ Create a payment order for later processing. Establishes a transaction context t
 | **Request** | `PaymentServiceCreateOrderRequest` |
 | **Response** | `PaymentServiceCreateOrderResponse` |
 
-**Examples:** [Python](../../examples/razorpay/razorpay.py#L269) · [TypeScript](../../examples/razorpay/razorpay.ts#L254) · [Kotlin](../../examples/razorpay/razorpay.kt#L203) · [Rust](../../examples/razorpay/razorpay.rs#L249)
+**Examples:** [Python](../../examples/razorpay/razorpay.py#L284) · [TypeScript](../../examples/razorpay/razorpay.ts#L266) · [Kotlin](../../examples/razorpay/razorpay.kt#L205) · [Rust](../../examples/razorpay/razorpay.rs#L263)
 
 #### PaymentService.Get
 
@@ -315,7 +316,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/razorpay/razorpay.py#L278) · [TypeScript](../../examples/razorpay/razorpay.ts#L263) · [Kotlin](../../examples/razorpay/razorpay.kt#L217) · [Rust](../../examples/razorpay/razorpay.rs#L256)
+**Examples:** [Python](../../examples/razorpay/razorpay.py#L293) · [TypeScript](../../examples/razorpay/razorpay.ts#L275) · [Kotlin](../../examples/razorpay/razorpay.kt#L219) · [Rust](../../examples/razorpay/razorpay.rs#L270)
 
 #### PaymentService.ProxyAuthorize
 
@@ -326,7 +327,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/razorpay/razorpay.py#L296) · [TypeScript](../../examples/razorpay/razorpay.ts#L281) · [Kotlin](../../examples/razorpay/razorpay.kt#L235) · [Rust](../../examples/razorpay/razorpay.rs#L270)
+**Examples:** [Python](../../examples/razorpay/razorpay.py#L311) · [TypeScript](../../examples/razorpay/razorpay.ts#L293) · [Kotlin](../../examples/razorpay/razorpay.kt#L237) · [Rust](../../examples/razorpay/razorpay.rs#L284)
 
 #### PaymentService.Refund
 
@@ -337,7 +338,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/razorpay/razorpay.py#L305) · [TypeScript](../../examples/razorpay/razorpay.ts#L290) · [Kotlin](../../examples/razorpay/razorpay.kt#L268) · [Rust](../../examples/razorpay/razorpay.rs#L277)
+**Examples:** [Python](../../examples/razorpay/razorpay.py#L329) · [TypeScript](../../examples/razorpay/razorpay.ts#L311) · [Kotlin](../../examples/razorpay/razorpay.kt#L286) · [Rust](../../examples/razorpay/razorpay.rs#L298)
 
 ### Refunds
 
@@ -350,4 +351,17 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/razorpay/razorpay.py#L314) · [TypeScript](../../examples/razorpay/razorpay.ts#L299) · [Kotlin](../../examples/razorpay/razorpay.kt#L278) · [Rust](../../examples/razorpay/razorpay.rs#L284)
+**Examples:** [Python](../../examples/razorpay/razorpay.py#L338) · [TypeScript](../../examples/razorpay/razorpay.ts#L320) · [Kotlin](../../examples/razorpay/razorpay.kt#L296) · [Rust](../../examples/razorpay/razorpay.rs#L305)
+
+### Mandates
+
+#### RecurringPaymentService.Revoke
+
+Cancel an existing recurring payment mandate. Stops future automatic charges on customer's stored consent for subscription cancellations.
+
+| | Message |
+|---|---------|
+| **Request** | `RecurringPaymentServiceRevokeRequest` |
+| **Response** | `RecurringPaymentServiceRevokeResponse` |
+
+**Examples:** [Python](../../examples/razorpay/razorpay.py#L320) · [TypeScript](../../examples/razorpay/razorpay.ts#L302) · [Kotlin](../../examples/razorpay/razorpay.kt#L270) · [Rust](../../examples/razorpay/razorpay.rs#L291)

@@ -390,7 +390,7 @@ impl GetIntegrityObject<MandateRevokeIntegrityObject> for MandateRevokeRequestDa
 
     fn get_request_integrity_object(&self) -> MandateRevokeIntegrityObject {
         MandateRevokeIntegrityObject {
-            mandate_id: self.mandate_id.clone(),
+            merchant_mandate_id: self.merchant_mandate_id.clone(),
         }
     }
 }
@@ -941,11 +941,11 @@ impl FlowIntegrity for MandateRevokeIntegrityObject {
     ) -> Result<(), IntegrityCheckError> {
         let mut mismatched_fields = Vec::new();
 
-        if req_integrity_object.mandate_id != res_integrity_object.mandate_id {
+        if req_integrity_object.merchant_mandate_id != res_integrity_object.merchant_mandate_id {
             mismatched_fields.push(format_mismatch(
-                "mandate_id",
-                &req_integrity_object.mandate_id.expose(),
-                &res_integrity_object.mandate_id.expose(),
+                "merchant_mandate_id",
+                &req_integrity_object.merchant_mandate_id.expose(),
+                &res_integrity_object.merchant_mandate_id.expose(),
             ));
         }
 

@@ -580,3 +580,12 @@ fn collect_values_by_removing_signature(value: &Value, signature: &str) -> Vec<S
             .collect(),
     }
 }
+
+/// Extracts customer_id as an Optional String from PaymentFlowData.
+pub fn get_customer_id_as_optional_string(
+    customer_id: &Option<common_utils::id_type::CustomerId>,
+) -> Option<String> {
+    customer_id
+        .as_ref()
+        .map(|id| id.get_string_repr().to_string())
+}
