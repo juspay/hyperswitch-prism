@@ -92,41 +92,8 @@
         "error": "This feature is not implemented: Selected payment method through Noon"
       },
       "Card": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "card": {
-              "card_number": "4111111111111111",
-              "card_exp_month": "03",
-              "card_exp_year": "2030",
-              "card_cvc": "737",
-              "card_holder_name": "John Doe"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "order_category": "mobile",
-          "description": "Probe payment"
-        },
-        "sample": {
-          "url": "https://api-test.noonpayments.com/payment/v1/order",
-          "method": "Post",
-          "headers": {
-            "authorization": "Key cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"apiOperation\":\"INITIATE\",\"order\":{\"amount\":\"10.00\",\"currency\":\"USD\",\"channel\":\"WEB\",\"category\":\"mobile\",\"reference\":\"probe_txn_001\",\"name\":\"Probe payment\",\"nvp\":null,\"ipAddress\":null},\"configuration\":{\"tokenizeCC\":null,\"paymentAction\":\"SALE\",\"returnUrl\":\"https://example.com/return\"},\"paymentData\":{\"type\":\"CARD\",\"data\":{\"nameOnCard\":null,\"numberPlain\":\"4111111111111111\",\"expiryMonth\":\"03\",\"expiryYear\":\"2030\",\"cvv\":\"737\"}},\"subscription\":null,\"billing\":{\"address\":{\"street\":null,\"street2\":null,\"city\":null,\"stateProvince\":null,\"country\":null,\"postalCode\":null}}}"
-        }
+        "status": "error",
+        "error": "Stuck on field: order_category. order_category is required for Noon authorize payments to specify the nature of the transaction — Missing required field: order_category. order_category is required for Noon authorize payments to specify the nature of the transaction"
       },
       "CashappQr": {
         "status": "not_implemented",
@@ -181,95 +148,12 @@
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "GooglePay": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "google_pay": {
-              "type": "CARD",
-              "description": "Visa 1111",
-              "info": {
-                "card_network": "VISA",
-                "card_details": "1111"
-              },
-              "tokenization_data": {
-                "encrypted_data": {
-                  "token_type": "PAYMENT_GATEWAY",
-                  "token": "{\"id\":\"tok_probe_gpay\",\"object\":\"token\",\"type\":\"card\"}"
-                }
-              }
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "order_category": "mobile",
-          "description": "Probe payment"
-        },
-        "sample": {
-          "url": "https://api-test.noonpayments.com/payment/v1/order",
-          "method": "Post",
-          "headers": {
-            "authorization": "Key cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"apiOperation\":\"INITIATE\",\"order\":{\"amount\":\"10.00\",\"currency\":\"USD\",\"channel\":\"WEB\",\"category\":\"mobile\",\"reference\":\"probe_txn_001\",\"name\":\"Probe payment\",\"nvp\":null,\"ipAddress\":null},\"configuration\":{\"tokenizeCC\":null,\"paymentAction\":\"SALE\",\"returnUrl\":\"https://example.com/return\"},\"paymentData\":{\"type\":\"GOOGLEPAY\",\"data\":{\"apiVersionMinor\":0,\"apiVersion\":2,\"paymentMethodData\":{\"type\":\"CARD\",\"description\":\"Visa 1111\",\"info\":{\"card_network\":\"VISA\",\"card_details\":\"1111\",\"assurance_details\":null},\"tokenization_data\":{\"type\":\"PAYMENT_GATEWAY\",\"token\":\"{\\\"id\\\":\\\"tok_probe_gpay\\\",\\\"object\\\":\\\"token\\\",\\\"type\\\":\\\"card\\\"}\"}}}},\"subscription\":null,\"billing\":{\"address\":{\"street\":null,\"street2\":null,\"city\":null,\"stateProvince\":null,\"country\":null,\"postalCode\":null}}}"
-        }
+        "status": "error",
+        "error": "Stuck on field: order_category. order_category is required for Noon authorize payments to specify the nature of the transaction — Missing required field: order_category. order_category is required for Noon authorize payments to specify the nature of the transaction"
       },
       "GooglePayDecrypted": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "google_pay": {
-              "type": "CARD",
-              "description": "Visa 1111",
-              "info": {
-                "card_network": "VISA",
-                "card_details": "1111"
-              },
-              "tokenization_data": {
-                "decrypted_data": {
-                  "card_exp_month": "03",
-                  "card_exp_year": "2030",
-                  "application_primary_account_number": "4111111111111111",
-                  "cryptogram": "AAAAAA==",
-                  "eci_indicator": "05"
-                }
-              }
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "order_category": "mobile",
-          "description": "Probe payment"
-        },
-        "sample": {
-          "url": "https://api-test.noonpayments.com/payment/v1/order",
-          "method": "Post",
-          "headers": {
-            "authorization": "Key cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"apiOperation\":\"INITIATE\",\"order\":{\"amount\":\"10.00\",\"currency\":\"USD\",\"channel\":\"WEB\",\"category\":\"mobile\",\"reference\":\"probe_txn_001\",\"name\":\"Probe payment\",\"nvp\":null,\"ipAddress\":null},\"configuration\":{\"tokenizeCC\":null,\"paymentAction\":\"SALE\",\"returnUrl\":\"https://example.com/return\"},\"paymentData\":{\"type\":\"GOOGLEPAY\",\"data\":{\"apiVersionMinor\":0,\"apiVersion\":2,\"paymentMethodData\":{\"type\":\"CARD\",\"description\":\"Visa 1111\",\"info\":{\"card_network\":\"VISA\",\"card_details\":\"1111\",\"assurance_details\":null},\"tokenization_data\":{\"cardExpMonth\":\"03\",\"cardExpYear\":\"2030\",\"applicationPrimaryAccountNumber\":\"4111111111111111\",\"cryptogram\":\"AAAAAA==\",\"eciIndicator\":\"05\"}}}},\"subscription\":null,\"billing\":{\"address\":{\"street\":null,\"street2\":null,\"city\":null,\"stateProvince\":null,\"country\":null,\"postalCode\":null}}}"
-        }
+        "status": "error",
+        "error": "Stuck on field: order_category. order_category is required for Noon authorize payments to specify the nature of the transaction — Missing required field: order_category. order_category is required for Noon authorize payments to specify the nature of the transaction"
       },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
@@ -392,37 +276,8 @@
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "PaypalRedirect": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "paypal_redirect": {
-              "email": "test@example.com"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "order_category": "mobile",
-          "description": "Probe payment"
-        },
-        "sample": {
-          "url": "https://api-test.noonpayments.com/payment/v1/order",
-          "method": "Post",
-          "headers": {
-            "authorization": "Key cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"apiOperation\":\"INITIATE\",\"order\":{\"amount\":\"10.00\",\"currency\":\"USD\",\"channel\":\"WEB\",\"category\":\"mobile\",\"reference\":\"probe_txn_001\",\"name\":\"Probe payment\",\"nvp\":null,\"ipAddress\":null},\"configuration\":{\"tokenizeCC\":null,\"paymentAction\":\"SALE\",\"returnUrl\":\"https://example.com/return\"},\"paymentData\":{\"type\":\"PAYPAL\",\"data\":{\"returnUrl\":\"https://example.com/return\"}},\"subscription\":null,\"billing\":{\"address\":{\"street\":null,\"street2\":null,\"city\":null,\"stateProvince\":null,\"country\":null,\"postalCode\":null}}}"
-        }
+        "status": "error",
+        "error": "Stuck on field: order_category. order_category is required for Noon authorize payments to specify the nature of the transaction — Missing required field: order_category. order_category is required for Noon authorize payments to specify the nature of the transaction"
       },
       "PaypalSdk": {
         "status": "not_implemented",
@@ -552,7 +407,8 @@
     },
     "create_order": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Stuck on field: description — Missing required field: description"
       }
     },
     "create_server_authentication_token": {
@@ -635,78 +491,14 @@
     },
     "proxy_authorize": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_proxy_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "card_proxy": {
-            "card_number": "4111111111111111",
-            "card_exp_month": "03",
-            "card_exp_year": "2030",
-            "card_cvc": "123",
-            "card_holder_name": "John Doe"
-          },
-          "address": {
-            "billing_address": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "order_category": "mobile",
-          "description": "Probe payment"
-        },
-        "sample": {
-          "url": "https://api-test.noonpayments.com/payment/v1/order",
-          "method": "Post",
-          "headers": {
-            "authorization": "Key cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"apiOperation\":\"INITIATE\",\"order\":{\"amount\":\"10.00\",\"currency\":\"USD\",\"channel\":\"WEB\",\"category\":\"mobile\",\"reference\":\"probe_proxy_txn_001\",\"name\":\"Probe payment\",\"nvp\":null,\"ipAddress\":null},\"configuration\":{\"tokenizeCC\":null,\"paymentAction\":\"SALE\",\"returnUrl\":\"https://example.com/return\"},\"paymentData\":{\"type\":\"CARD\",\"data\":{\"nameOnCard\":null,\"numberPlain\":\"4111111111111111\",\"expiryMonth\":\"03\",\"expiryYear\":\"2030\",\"cvv\":\"123\"}},\"subscription\":null,\"billing\":{\"address\":{\"street\":null,\"street2\":null,\"city\":null,\"stateProvince\":null,\"country\":null,\"postalCode\":null}}}"
-        }
+        "status": "error",
+        "error": "Stuck on field: order_category. order_category is required for Noon authorize payments to specify the nature of the transaction — Missing required field: order_category. order_category is required for Noon authorize payments to specify the nature of the transaction"
       }
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_recurring_payment_id": "probe_proxy_mandate_001",
-          "amount": {
-            "minor_amount": 0,
-            "currency": "USD"
-          },
-          "card_proxy": {
-            "card_number": "4111111111111111",
-            "card_exp_month": "03",
-            "card_exp_year": "2030",
-            "card_cvc": "123",
-            "card_holder_name": "John Doe"
-          },
-          "address": {
-            "billing_address": {}
-          },
-          "metadata": "{\"order_category\":\"mobile\",\"description\":\"purchase desc\"}",
-          "customer_acceptance": {
-            "acceptance_type": "OFFLINE",
-            "accepted_at": 0
-          },
-          "auth_type": "NO_THREE_DS",
-          "setup_future_usage": "OFF_SESSION"
-        },
-        "sample": {
-          "url": "https://api-test.noonpayments.com/payment/v1/order",
-          "method": "Post",
-          "headers": {
-            "authorization": "Key cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"apiOperation\":\"INITIATE\",\"order\":{\"amount\":\"0.01\",\"currency\":\"USD\",\"channel\":\"WEB\",\"category\":\"mobile\",\"reference\":\"probe_proxy_mandate_001\",\"name\":\"purchase desc\",\"nvp\":{\"1\":\"description=purchase desc\",\"2\":\"order_category=mobile\"},\"ipAddress\":null},\"configuration\":{\"tokenizeCC\":null,\"paymentAction\":\"SALE\",\"returnUrl\":null},\"paymentData\":{\"type\":\"CARD\",\"data\":{\"nameOnCard\":null,\"numberPlain\":\"4111111111111111\",\"expiryMonth\":\"03\",\"expiryYear\":\"2030\",\"cvv\":\"123\"}},\"subscription\":null,\"billing\":{\"address\":{\"street\":null,\"street2\":null,\"city\":null,\"stateProvince\":null,\"country\":null,\"postalCode\":null}}}"
-        }
+        "status": "error",
+        "error": "Stuck on field: order_category in metadata. order_category must be provided in metadata for Noon setup mandate flow to classify the transaction type — Missing required field: order_category in metadata. order_category must be provided in metadata for Noon setup mandate flow to classify the transaction type"
       }
     },
     "recurring_charge": {
@@ -743,7 +535,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"apiOperation\":\"INITIATE\",\"order\":{\"amount\":\"10.00\",\"currency\":null,\"channel\":\"WEB\",\"category\":null,\"reference\":\"\",\"name\":\"Probe payment\",\"nvp\":null,\"ipAddress\":null},\"configuration\":{\"tokenizeCC\":null,\"paymentAction\":\"SALE\",\"returnUrl\":\"https://example.com/recurring-return\"},\"paymentData\":{\"type\":\"SUBSCRIPTION\",\"data\":{\"subscriptionIdentifier\":\"probe-mandate-123\"}},\"subscription\":null,\"billing\":null}"
+          "body": "{\"apiOperation\":\"INITIATE\",\"order\":{\"amount\":\"10.00\",\"channel\":\"WEB\",\"reference\":\"\",\"name\":\"Probe payment\"},\"configuration\":{\"tokenizeCC\":null,\"paymentAction\":\"SALE\",\"returnUrl\":\"https://example.com/recurring-return\"},\"paymentData\":{\"type\":\"SUBSCRIPTION\",\"data\":{\"subscriptionIdentifier\":\"probe-mandate-123\"}},\"subscription\":null,\"billing\":null}"
         }
       }
     },
@@ -820,7 +612,7 @@
     "setup_recurring": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: description — Missing required field: description"
+        "error": "Stuck on field: order_category in metadata. order_category must be provided in metadata for Noon setup mandate flow to classify the transaction type — Missing required field: order_category in metadata. order_category must be provided in metadata for Noon setup mandate flow to classify the transaction type"
       }
     },
     "token_authorize": {

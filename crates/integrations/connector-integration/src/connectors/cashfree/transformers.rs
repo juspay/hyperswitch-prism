@@ -511,18 +511,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 // Response Transformations
 // ============================================================================
 
-impl TryFrom<CashfreeOrderCreateResponse> for PaymentCreateOrderResponse {
-    type Error = Report<ConnectorError>;
-
-    fn try_from(response: CashfreeOrderCreateResponse) -> Result<Self, Self::Error> {
-        Ok(Self {
-            connector_order_id: response.payment_session_id,
-            session_data: None,
-        })
-    }
-}
-
-// Add the missing TryFrom implementation for macro compatibility
 impl TryFrom<ResponseRouterData<CashfreeOrderCreateResponse, Self>>
     for RouterDataV2<
         CreateOrder,
@@ -536,20 +524,17 @@ impl TryFrom<ResponseRouterData<CashfreeOrderCreateResponse, Self>>
     fn try_from(
         item: ResponseRouterData<CashfreeOrderCreateResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let response = item.response;
-        let order_response = PaymentCreateOrderResponse::try_from(response)?;
-
-        // Extract order_id before moving order_response
-        let order_id = order_response.connector_order_id.clone();
+        let order_response = PaymentCreateOrderResponse {
+            merchant_order_id: item.router_data.request.merchant_order_id.clone(),
+            connector_order_id: item.response.payment_session_id.clone(),
+            session_data: None,
+        };
 
         Ok(Self {
             response: Ok(order_response),
             resource_common_data: PaymentFlowData {
-                // Update status to indicate successful order creation
                 status: common_enums::AttemptStatus::Pending,
-                // Set connector_order_id to the payment_session_id for use in authorize flow
-                reference_id: Some(order_id.clone()),
-                connector_order_id: Some(order_id),
+                connector_order_id: Some(item.response.payment_session_id.clone()),
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
