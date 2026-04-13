@@ -13,13 +13,19 @@ from payments import RefundClient
 from payments import PaymentMethodClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
+SUPPORTED_FLOWS = ["capture", "get", "recurring_charge", "refund", "refund_get", "token_authorize", "token_setup_recurring", "tokenize", "void"]
+
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
+    connector_config=payment_pb2.ConnectorSpecificConfig(
+        billwerk=payment_pb2.BillwerkConfig(
+            api_key=payment_methods_pb2.SecretString(value="YOUR_API_KEY"),
+            public_api_key=payment_methods_pb2.SecretString(value="YOUR_PUBLIC_API_KEY"),
+            base_url="YOUR_BASE_URL",
+            secondary_base_url="YOUR_SECONDARY_BASE_URL",
+        ),
+    ),
 )
-# Standalone credentials (field names depend on connector auth type):
-# _default_config.connector_config.CopyFrom(payment_pb2.ConnectorSpecificConfig(
-#     billwerk=payment_pb2.BillwerkConfig(api_key=...),
-# ))
 
 
 
@@ -48,7 +54,9 @@ def _build_get_request(connector_transaction_id: str):
 def _build_recurring_charge_request():
     return payment_pb2.RecurringPaymentServiceChargeRequest(
         connector_recurring_payment_id=payment_pb2.MandateReference(  # Reference to existing mandate.
-            mandate_id_type={"connector_mandate_id": {"connector_mandate_id": "probe-mandate-123"}},
+            connector_mandate_id=payment_pb2.ConnectorMandateReferenceId(  # mandate_id sent by the connector.
+                connector_mandate_id="probe-mandate-123",
+            ),
         ),
         amount=payment_pb2.Money(  # Amount Information.
             minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).

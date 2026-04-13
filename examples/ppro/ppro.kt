@@ -7,18 +7,12 @@
 
 package examples.ppro
 
+import types.Payment.*
+import types.PaymentMethods.*
 import payments.PaymentClient
 import payments.EventClient
 import payments.RecurringPaymentClient
 import payments.RefundClient
-import payments.PaymentServiceAuthorizeRequest
-import payments.PaymentServiceCaptureRequest
-import payments.PaymentServiceGetRequest
-import payments.EventServiceHandleRequest
-import payments.RecurringPaymentServiceChargeRequest
-import payments.PaymentServiceRefundRequest
-import payments.RefundServiceGetRequest
-import payments.PaymentServiceVoidRequest
 import payments.AuthenticationType
 import payments.CaptureMethod
 import payments.Currency
@@ -26,6 +20,25 @@ import payments.PaymentMethodType
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
+import payments.ConnectorSpecificConfig
+import types.Payment.PproConfig
+import payments.SecretString
+
+val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "get", "recurring_charge", "refund", "refund_get", "void")
+
+val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
+    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
+    .setConnectorConfig(
+        ConnectorSpecificConfig.newBuilder()
+            .setPpro(PproConfig.newBuilder()
+                .setApiKey(SecretString.newBuilder().setValue("YOUR_API_KEY").build())
+                .setMerchantId(SecretString.newBuilder().setValue("YOUR_MERCHANT_ID").build())
+                .setBaseUrl("YOUR_BASE_URL")
+                .build())
+            .build()
+    )
+    .build()
+
 
 
 private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAuthorizeRequest {
@@ -95,12 +108,6 @@ private fun buildVoidRequest(connectorTransactionIdStr: String): PaymentServiceV
     }.build()
 }
 
-val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
-    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    // .setConnectorConfig(...) — set your connector config here
-    .build()
-
-
 // Flow: PaymentService.Authorize (Ideal)
 fun authorize(txnId: String) {
     val client = PaymentClient(_defaultConfig)
@@ -138,7 +145,7 @@ fun handleEvent(txnId: String) {
 
     }.build()
     val response = client.handle_event(request)
-    println("Status: ${response.status.name}")
+    println("Event status: ${response.eventStatus.name}")
 }
 
 // Flow: RecurringPaymentService.Charge

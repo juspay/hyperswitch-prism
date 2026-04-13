@@ -14,13 +14,21 @@ from payments import EventClient
 from payments import RecurringPaymentClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
+SUPPORTED_FLOWS = ["authorize", "capture", "create_client_authentication_token", "create_order", "dispute_accept", "dispute_defend", "dispute_submit_evidence", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "setup_recurring", "token_authorize", "void"]
+
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
+    connector_config=payment_pb2.ConnectorSpecificConfig(
+        adyen=payment_pb2.AdyenConfig(
+            api_key=payment_methods_pb2.SecretString(value="YOUR_API_KEY"),
+            merchant_account=payment_methods_pb2.SecretString(value="YOUR_MERCHANT_ACCOUNT"),
+            review_key=payment_methods_pb2.SecretString(value="YOUR_REVIEW_KEY"),
+            base_url="YOUR_BASE_URL",
+            dispute_base_url="YOUR_DISPUTE_BASE_URL",
+            endpoint_prefix="YOUR_ENDPOINT_PREFIX",
+        ),
+    ),
 )
-# Standalone credentials (field names depend on connector auth type):
-# _default_config.connector_config.CopyFrom(payment_pb2.ConnectorSpecificConfig(
-#     adyen=payment_pb2.AdyenConfig(api_key=...),
-# ))
 
 
 
@@ -75,7 +83,12 @@ def _build_capture_request(connector_transaction_id: str):
 def _build_create_client_authentication_token_request():
     return payment_pb2.MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest(
         merchant_client_session_id="probe_sdk_session_001",  # Infrastructure.
-        domain_context={"payment": {"amount": {"minor_amount": 1000, "currency": "USD"}}},
+        payment=payment_pb2.PaymentClientAuthenticationContext(  # FrmClientAuthenticationContext frm = 5; // future: device fingerprinting PayoutClientAuthenticationContext payout = 6; // future: payout verification widget.
+            amount=payment_pb2.Money(
+                minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
+                currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+            ),
+        ),
     )
 
 def _build_create_order_request():
@@ -108,10 +121,6 @@ def _build_dispute_submit_evidence_request():
         connector_transaction_id="probe_txn_001",
         dispute_id="probe_dispute_id_001",
         # evidence_documents: [{"evidence_type": "SERVICE_DOCUMENTATION", "file_content": [112, 114, 111, 98, 101, 32, 101, 118, 105, 100, 101, 110, 99, 101, 32, 99, 111, 110, 116, 101, 110, 116], "file_mime_type": "application/pdf"}]  # Collection of evidence documents.
-    )
-
-def _build_handle_event_request():
-    return payment_pb2.EventServiceHandleRequest(
     )
 
 def _build_proxy_authorize_request():
@@ -194,7 +203,9 @@ def _build_proxy_setup_recurring_request():
 def _build_recurring_charge_request():
     return payment_pb2.RecurringPaymentServiceChargeRequest(
         connector_recurring_payment_id=payment_pb2.MandateReference(  # Reference to existing mandate.
-            mandate_id_type={"connector_mandate_id": {"connector_mandate_id": "probe-mandate-123"}},
+            connector_mandate_id=payment_pb2.ConnectorMandateReferenceId(  # mandate_id sent by the connector.
+                connector_mandate_id="probe-mandate-123",
+            ),
         ),
         amount=payment_pb2.Money(  # Amount Information.
             minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
@@ -441,15 +452,6 @@ async def process_dispute_submit_evidence(merchant_transaction_id: str, config: 
     dispute_response = await dispute_client.submit_evidence(_build_dispute_submit_evidence_request())
 
     return {"status": dispute_response.status}
-
-
-async def process_handle_event(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
-    """Flow: EventService.HandleEvent"""
-    event_client = EventClient(config)
-
-    handle_response = await event_client.handle_event(_build_handle_event_request())
-
-    return {"status": handle_response.status}
 
 
 async def process_proxy_authorize(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):

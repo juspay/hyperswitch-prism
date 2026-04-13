@@ -7,23 +7,38 @@
 
 package examples.peachpayments
 
+import types.Payment.*
+import types.PaymentMethods.*
 import payments.PaymentClient
 import payments.EventClient
 import payments.RefundClient
-import payments.PaymentServiceAuthorizeRequest
-import payments.PaymentServiceCaptureRequest
-import payments.PaymentServiceRefundRequest
-import payments.PaymentServiceVoidRequest
-import payments.PaymentServiceGetRequest
-import payments.EventServiceHandleRequest
-import payments.PaymentServiceProxyAuthorizeRequest
-import payments.RefundServiceGetRequest
 import payments.AuthenticationType
 import payments.CaptureMethod
 import payments.Currency
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
+import payments.ConnectorSpecificConfig
+import types.Payment.PeachpaymentsConfig
+import payments.SecretString
+
+val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "get", "proxy_authorize", "refund", "refund_get", "void")
+
+val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
+    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
+    .setConnectorConfig(
+        ConnectorSpecificConfig.newBuilder()
+            .setPeachpayments(PeachpaymentsConfig.newBuilder()
+                .setApiKey(SecretString.newBuilder().setValue("YOUR_API_KEY").build())
+                .setTenantId(SecretString.newBuilder().setValue("YOUR_TENANT_ID").build())
+                .setBaseUrl("YOUR_BASE_URL")
+                .setClientMerchantReferenceId(SecretString.newBuilder().setValue("YOUR_CLIENT_MERCHANT_REFERENCE_ID").build())
+                .setMerchantPaymentMethodRouteId(SecretString.newBuilder().setValue("YOUR_MERCHANT_PAYMENT_METHOD_ROUTE_ID").build())
+                .build())
+            .build()
+    )
+    .build()
+
 
 
 private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAuthorizeRequest {
@@ -97,12 +112,6 @@ private fun buildVoidRequest(connectorTransactionIdStr: String): PaymentServiceV
         }
     }.build()
 }
-
-val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
-    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    // .setConnectorConfig(...) — set your connector config here
-    .build()
-
 
 // Scenario: One-step Payment (Authorize + Capture)
 // Simple payment that authorizes and captures in one call. Use for immediate charges.
@@ -239,7 +248,7 @@ fun handleEvent(txnId: String) {
 
     }.build()
     val response = client.handle_event(request)
-    println("Status: ${response.status.name}")
+    println("Event status: ${response.eventStatus.name}")
 }
 
 // Flow: PaymentService.ProxyAuthorize

@@ -4,7 +4,7 @@
 //
 // Billwerk — all scenarios and flows in one file.
 // Run a scenario:  cargo run --example billwerk -- process_checkout_card
-
+#![allow(clippy::needless_update)]
 use grpc_api_types::payments::*;
 use grpc_api_types::payments::connector_specific_config;
 use hyperswitch_payments_client::ConnectorClient;
@@ -14,6 +14,8 @@ use grpc_api_types::payments::payment_method;
 use cards::CardNumber;
 use std::str::FromStr;
 
+#[allow(dead_code)]
+pub const SUPPORTED_FLOWS: &[&str] = &["capture", "get", "recurring_charge", "refund", "refund_get", "token_authorize", "token_setup_recurring", "tokenize", "void"];
 
 #[allow(dead_code)]
 fn build_client() -> ConnectorClient {
@@ -42,7 +44,6 @@ pub fn build_capture_request(connector_transaction_id: &str) -> PaymentServiceCa
         amount_to_capture: Some(Money {  // Capture Details.
             minor_amount: 1000,  // Amount in minor units (e.g., 1000 = $10.00).
             currency: Currency::Usd.into(),  // ISO 4217 currency code (e.g., "USD", "EUR").
-            ..Default::default()
         }),
         ..Default::default()
     }
@@ -55,7 +56,6 @@ pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetReq
         amount: Some(Money {  // Amount Information.
             minor_amount: 1000,  // Amount in minor units (e.g., 1000 = $10.00).
             currency: Currency::Usd.into(),  // ISO 4217 currency code (e.g., "USD", "EUR").
-            ..Default::default()
         }),
         connector_order_reference_id: Some("probe_order_ref_001".to_string()),  // Connector Reference Id.
         ..Default::default()
@@ -71,12 +71,10 @@ pub fn build_recurring_charge_request() -> RecurringPaymentServiceChargeRequest 
         amount: Some(Money {  // Amount Information.
             minor_amount: 1000,  // Amount in minor units (e.g., 1000 = $10.00).
             currency: Currency::Usd.into(),  // ISO 4217 currency code (e.g., "USD", "EUR").
-            ..Default::default()
         }),
         payment_method: Some(PaymentMethod {  // Optional payment Method Information (for network transaction flows).
             payment_method: Some(payment_method::PaymentMethod::Token(TokenPaymentMethodType {
                 token: Some(Secret::new("probe_pm_token".to_string())),  // The token string representing a payment method.
-                ..Default::default()
             })),
             ..Default::default()
         }),
@@ -96,7 +94,6 @@ pub fn build_refund_request(connector_transaction_id: &str) -> PaymentServiceRef
         refund_amount: Some(Money {
             minor_amount: 1000,  // Amount in minor units (e.g., 1000 = $10.00).
             currency: Currency::Usd.into(),  // ISO 4217 currency code (e.g., "USD", "EUR").
-            ..Default::default()
         }),
         reason: Some("customer_request".to_string()),  // Reason for the refund.
         ..Default::default()
@@ -118,7 +115,6 @@ pub fn build_token_authorize_request() -> PaymentServiceTokenAuthorizeRequest {
         amount: Some(Money {
             minor_amount: 1000,  // Amount in minor units (e.g., 1000 = $10.00).
             currency: Currency::Usd.into(),  // ISO 4217 currency code (e.g., "USD", "EUR").
-            ..Default::default()
         }),
         connector_token: Some(Secret::new("pm_1AbcXyzStripeTestToken".to_string())),  // Connector-issued token. Replaces PaymentMethod entirely. Examples: Stripe pm_xxx, Adyen recurringDetailReference, Braintree nonce.
         address: Some(PaymentAddress {
@@ -139,7 +135,6 @@ pub fn build_token_setup_recurring_request() -> PaymentServiceTokenSetupRecurrin
         amount: Some(Money {
             minor_amount: 0,  // Amount in minor units (e.g., 1000 = $10.00).
             currency: Currency::Usd.into(),  // ISO 4217 currency code (e.g., "USD", "EUR").
-            ..Default::default()
         }),
         connector_token: Some(Secret::new("pm_1AbcXyzStripeTestToken".to_string())),
         address: Some(PaymentAddress {
@@ -154,9 +149,7 @@ pub fn build_token_setup_recurring_request() -> PaymentServiceTokenSetupRecurrin
             online_mandate_details: Some(OnlineMandate {  // Details if the acceptance was an online mandate.
                 ip_address: Some("127.0.0.1".to_string()),  // IP address from which the mandate was accepted.
                 user_agent: "Mozilla/5.0".to_string(),  // User agent string of the browser used for mandate acceptance.
-                ..Default::default()
             }),
-            ..Default::default()
         }),
         setup_mandate_details: Some(SetupMandateDetails {
             mandate_type: Some(MandateType {  // Type of mandate (single_use or multi_use) with amount details.
@@ -179,7 +172,6 @@ pub fn build_tokenize_request() -> PaymentMethodServiceTokenizeRequest {
         amount: Some(Money {  // Payment Information.
             minor_amount: 1000,  // Amount in minor units (e.g., 1000 = $10.00).
             currency: Currency::Usd.into(),  // ISO 4217 currency code (e.g., "USD", "EUR").
-            ..Default::default()
         }),
         payment_method: Some(PaymentMethod {
             payment_method: Some(payment_method::PaymentMethod::Card(CardDetails {

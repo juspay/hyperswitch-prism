@@ -10,13 +10,19 @@ import sys
 from payments import PaymentClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
+SUPPORTED_FLOWS = ["get"]
+
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
+    connector_config=payment_pb2.ConnectorSpecificConfig(
+        mifinity=payment_pb2.MifinityConfig(
+            key=payment_methods_pb2.SecretString(value="YOUR_KEY"),
+            base_url="YOUR_BASE_URL",
+            brand_id=payment_methods_pb2.SecretString(value="YOUR_BRAND_ID"),
+            destination_account_number=payment_methods_pb2.SecretString(value="YOUR_DESTINATION_ACCOUNT_NUMBER"),
+        ),
+    ),
 )
-# Standalone credentials (field names depend on connector auth type):
-# _default_config.connector_config.CopyFrom(payment_pb2.ConnectorSpecificConfig(
-#     mifinity=payment_pb2.MifinityConfig(api_key=...),
-# ))
 
 
 

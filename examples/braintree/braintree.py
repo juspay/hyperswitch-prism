@@ -13,13 +13,29 @@ from payments import RefundClient
 from payments import PaymentMethodClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
+SUPPORTED_FLOWS = ["capture", "create_client_authentication_token", "get", "refund", "refund_get", "tokenize", "void"]
+
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
+    connector_config=payment_pb2.ConnectorSpecificConfig(
+        braintree=payment_pb2.BraintreeConfig(
+            public_key=payment_methods_pb2.SecretString(value="YOUR_PUBLIC_KEY"),
+            private_key=payment_methods_pb2.SecretString(value="YOUR_PRIVATE_KEY"),
+            base_url="YOUR_BASE_URL",
+            merchant_account_id=payment_methods_pb2.SecretString(value="YOUR_MERCHANT_ACCOUNT_ID"),
+            merchant_config_currency="YOUR_MERCHANT_CONFIG_CURRENCY",
+            apple_pay_supported_networks=["YOUR_APPLE_PAY_SUPPORTED_NETWORKS"],
+            apple_pay_merchant_capabilities=["YOUR_APPLE_PAY_MERCHANT_CAPABILITIES"],
+            apple_pay_label="YOUR_APPLE_PAY_LABEL",
+            gpay_merchant_name="YOUR_GPAY_MERCHANT_NAME",
+            gpay_merchant_id="YOUR_GPAY_MERCHANT_ID",
+            gpay_allowed_auth_methods=["YOUR_GPAY_ALLOWED_AUTH_METHODS"],
+            gpay_allowed_card_networks=["YOUR_GPAY_ALLOWED_CARD_NETWORKS"],
+            paypal_client_id="YOUR_PAYPAL_CLIENT_ID",
+            gpay_gateway_merchant_id="YOUR_GPAY_GATEWAY_MERCHANT_ID",
+        ),
+    ),
 )
-# Standalone credentials (field names depend on connector auth type):
-# _default_config.connector_config.CopyFrom(payment_pb2.ConnectorSpecificConfig(
-#     braintree=payment_pb2.BraintreeConfig(api_key=...),
-# ))
 
 
 
@@ -37,7 +53,12 @@ def _build_capture_request(connector_transaction_id: str):
 def _build_create_client_authentication_token_request():
     return payment_pb2.MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest(
         merchant_client_session_id="probe_sdk_session_001",  # Infrastructure.
-        domain_context={"payment": {"amount": {"minor_amount": 1000, "currency": "USD"}}},
+        payment=payment_pb2.PaymentClientAuthenticationContext(  # FrmClientAuthenticationContext frm = 5; // future: device fingerprinting PayoutClientAuthenticationContext payout = 6; // future: payout verification widget.
+            amount=payment_pb2.Money(
+                minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
+                currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+            ),
+        ),
     )
 
 def _build_get_request(connector_transaction_id: str):

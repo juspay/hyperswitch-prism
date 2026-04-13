@@ -7,18 +7,12 @@
 
 package examples.shift4
 
+import types.Payment.*
+import types.PaymentMethods.*
 import payments.PaymentClient
 import payments.CustomerClient
 import payments.RecurringPaymentClient
 import payments.RefundClient
-import payments.PaymentServiceAuthorizeRequest
-import payments.PaymentServiceCaptureRequest
-import payments.PaymentServiceRefundRequest
-import payments.PaymentServiceGetRequest
-import payments.CustomerServiceCreateRequest
-import payments.PaymentServiceProxyAuthorizeRequest
-import payments.RecurringPaymentServiceChargeRequest
-import payments.RefundServiceGetRequest
 import payments.AuthenticationType
 import payments.CaptureMethod
 import payments.Currency
@@ -26,6 +20,24 @@ import payments.PaymentMethodType
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
+import payments.ConnectorSpecificConfig
+import types.Payment.Shift4Config
+import payments.SecretString
+
+val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "create_customer", "get", "proxy_authorize", "recurring_charge", "refund", "refund_get")
+
+val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
+    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
+    .setConnectorConfig(
+        ConnectorSpecificConfig.newBuilder()
+            .setShift4(Shift4Config.newBuilder()
+                .setApiKey(SecretString.newBuilder().setValue("YOUR_API_KEY").build())
+                .setBaseUrl("YOUR_BASE_URL")
+                .build())
+            .build()
+    )
+    .build()
+
 
 
 private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAuthorizeRequest {
@@ -89,12 +101,6 @@ private fun buildRefundRequest(connectorTransactionIdStr: String): PaymentServic
         reason = "customer_request"  // Reason for the refund.
     }.build()
 }
-
-val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
-    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    // .setConnectorConfig(...) — set your connector config here
-    .build()
-
 
 // Scenario: One-step Payment (Authorize + Capture)
 // Simple payment that authorizes and captures in one call. Use for immediate charges.

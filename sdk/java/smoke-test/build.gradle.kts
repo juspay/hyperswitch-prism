@@ -20,9 +20,17 @@ dependencies {
 
 sourceSets {
     main {
-        // Include generated connector examples so process* functions are available via reflection
-        // for the FFI smoke test (test-package target). Examples are not needed for gRPC test.
-        kotlin.srcDir(file("../../../examples/stripe"))
+        // Include ALL connector examples directly so process* functions are available via
+        // reflection for the FFI smoke test. Each connector dir becomes a source root.
+        val examplesDir = file("../../../examples")
+        if (examplesDir.exists()) {
+            examplesDir.listFiles()
+                ?.filter { it.isDirectory }
+                ?.forEach { kotlin.srcDir(it) }
+        }
+        // Exclude the legacy generated/ subdirectory to avoid duplicate declarations
+        // (examples/ is already included above as individual source roots).
+        kotlin.exclude("**/generated/**")
         resources.srcDir(file("src/main/resources"))
     }
 }

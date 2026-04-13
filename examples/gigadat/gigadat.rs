@@ -4,12 +4,14 @@
 //
 // Gigadat — all scenarios and flows in one file.
 // Run a scenario:  cargo run --example gigadat -- process_checkout_card
-
+#![allow(clippy::needless_update)]
 use grpc_api_types::payments::*;
 use grpc_api_types::payments::connector_specific_config;
 use hyperswitch_payments_client::ConnectorClient;
 use std::collections::HashMap;
 
+#[allow(dead_code)]
+pub const SUPPORTED_FLOWS: &[&str] = &["get", "refund"];
 
 #[allow(dead_code)]
 fn build_client() -> ConnectorClient {
@@ -39,7 +41,6 @@ pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetReq
         amount: Some(Money {  // Amount Information.
             minor_amount: 1000,  // Amount in minor units (e.g., 1000 = $10.00).
             currency: Currency::Usd.into(),  // ISO 4217 currency code (e.g., "USD", "EUR").
-            ..Default::default()
         }),
         ..Default::default()
     }
@@ -53,7 +54,6 @@ pub fn build_refund_request(connector_transaction_id: &str) -> PaymentServiceRef
         refund_amount: Some(Money {
             minor_amount: 1000,  // Amount in minor units (e.g., 1000 = $10.00).
             currency: Currency::Usd.into(),  // ISO 4217 currency code (e.g., "USD", "EUR").
-            ..Default::default()
         }),
         reason: Some("customer_request".to_string()),  // Reason for the refund.
         ..Default::default()

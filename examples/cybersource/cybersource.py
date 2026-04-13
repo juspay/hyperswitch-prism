@@ -13,13 +13,21 @@ from payments import RecurringPaymentClient
 from payments import RefundClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
+SUPPORTED_FLOWS = ["authenticate", "authorize", "capture", "get", "post_authenticate", "pre_authenticate", "proxy_authorize", "recurring_charge", "recurring_revoke", "refund", "refund_get", "token_authorize", "void"]
+
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
+    connector_config=payment_pb2.ConnectorSpecificConfig(
+        cybersource=payment_pb2.CybersourceConfig(
+            api_key=payment_methods_pb2.SecretString(value="YOUR_API_KEY"),
+            merchant_account=payment_methods_pb2.SecretString(value="YOUR_MERCHANT_ACCOUNT"),
+            api_secret=payment_methods_pb2.SecretString(value="YOUR_API_SECRET"),
+            base_url="YOUR_BASE_URL",
+            disable_avs=False,
+            disable_cvn=False,
+        ),
+    ),
 )
-# Standalone credentials (field names depend on connector auth type):
-# _default_config.connector_config.CopyFrom(payment_pb2.ConnectorSpecificConfig(
-#     cybersource=payment_pb2.CybersourceConfig(api_key=...),
-# ))
 
 
 
@@ -178,7 +186,9 @@ def _build_proxy_authorize_request():
 def _build_recurring_charge_request():
     return payment_pb2.RecurringPaymentServiceChargeRequest(
         connector_recurring_payment_id=payment_pb2.MandateReference(  # Reference to existing mandate.
-            mandate_id_type={"connector_mandate_id": {"connector_mandate_id": "probe-mandate-123"}},
+            connector_mandate_id=payment_pb2.ConnectorMandateReferenceId(  # mandate_id sent by the connector.
+                connector_mandate_id="probe-mandate-123",
+            ),
         ),
         amount=payment_pb2.Money(  # Amount Information.
             minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).

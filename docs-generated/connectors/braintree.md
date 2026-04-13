@@ -22,11 +22,25 @@ from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
+    connector_config=payment_pb2.ConnectorSpecificConfig(
+        braintree=payment_pb2.BraintreeConfig(
+            public_key=payment_methods_pb2.SecretString(value="YOUR_PUBLIC_KEY"),
+            private_key=payment_methods_pb2.SecretString(value="YOUR_PRIVATE_KEY"),
+            base_url="YOUR_BASE_URL",
+            merchant_account_id=payment_methods_pb2.SecretString(value="YOUR_MERCHANT_ACCOUNT_ID"),
+            merchant_config_currency="YOUR_MERCHANT_CONFIG_CURRENCY",
+            apple_pay_supported_networks=["YOUR_APPLE_PAY_SUPPORTED_NETWORKS"],
+            apple_pay_merchant_capabilities=["YOUR_APPLE_PAY_MERCHANT_CAPABILITIES"],
+            apple_pay_label="YOUR_APPLE_PAY_LABEL",
+            gpay_merchant_name="YOUR_GPAY_MERCHANT_NAME",
+            gpay_merchant_id="YOUR_GPAY_MERCHANT_ID",
+            gpay_allowed_auth_methods=["YOUR_GPAY_ALLOWED_AUTH_METHODS"],
+            gpay_allowed_card_networks=["YOUR_GPAY_ALLOWED_CARD_NETWORKS"],
+            paypal_client_id="YOUR_PAYPAL_CLIENT_ID",
+            gpay_gateway_merchant_id="YOUR_GPAY_GATEWAY_MERCHANT_ID",
+        ),
+    ),
 )
-# Set credentials before running (field names depend on connector auth type):
-# config.connector_config.CopyFrom(payment_pb2.ConnectorSpecificConfig(
-#     braintree=payment_pb2.BraintreeConfig(api_key=...),
-# ))
 
 ```
 
@@ -38,14 +52,29 @@ config = sdk_config_pb2.ConnectorConfig(
 <details><summary>JavaScript</summary>
 
 ```javascript
-const { ConnectorClient } = require('connector-service-node-ffi');
+const { PaymentClient } = require('hyperswitch-prism');
+const { ConnectorConfig, Environment, Connector } = require('hyperswitch-prism').types;
 
-// Reuse this client for all flows
-const client = new ConnectorClient({
-    connector: 'Braintree',
-    environment: 'sandbox',
-    connector_auth_type: {
-        header_key: { api_key: 'YOUR_API_KEY' },
+const config = ConnectorConfig.create({
+    connector: Connector.BRAINTREE,
+    environment: Environment.SANDBOX,
+    auth: {
+        braintree: {
+            publicKey: { value: 'YOUR_PUBLIC_KEY' },
+            privateKey: { value: 'YOUR_PRIVATE_KEY' },
+            baseUrl: 'YOUR_BASE_URL',
+            merchantAccountId: { value: 'YOUR_MERCHANT_ACCOUNT_ID' },
+            merchantConfigCurrency: 'YOUR_MERCHANT_CONFIG_CURRENCY',
+            applePaySupportedNetworks: ['YOUR_APPLE_PAY_SUPPORTED_NETWORKS'],
+            applePayMerchantCapabilities: ['YOUR_APPLE_PAY_MERCHANT_CAPABILITIES'],
+            applePayLabel: 'YOUR_APPLE_PAY_LABEL',
+            gpayMerchantName: 'YOUR_GPAY_MERCHANT_NAME',
+            gpayMerchantId: 'YOUR_GPAY_MERCHANT_ID',
+            gpayAllowedAuthMethods: ['YOUR_GPAY_ALLOWED_AUTH_METHODS'],
+            gpayAllowedCardNetworks: ['YOUR_GPAY_ALLOWED_CARD_NETWORKS'],
+            paypalClientId: 'YOUR_PAYPAL_CLIENT_ID',
+            gpayGatewayMerchantId: 'YOUR_GPAY_GATEWAY_MERCHANT_ID',
+        }
     },
 });
 ```
@@ -59,11 +88,26 @@ const client = new ConnectorClient({
 
 ```kotlin
 val config = ConnectorConfig.newBuilder()
-    .setConnector("Braintree")
-    .setEnvironment(Environment.SANDBOX)
-    .setAuth(
-        ConnectorAuthType.newBuilder()
-            .setHeaderKey(HeaderKey.newBuilder().setApiKey("YOUR_API_KEY"))
+    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
+    .setConnectorConfig(
+        ConnectorSpecificConfig.newBuilder()
+            .setBraintree(BraintreeConfig.newBuilder()
+                .setPublicKey(SecretString.newBuilder().setValue("YOUR_PUBLIC_KEY").build())
+                .setPrivateKey(SecretString.newBuilder().setValue("YOUR_PRIVATE_KEY").build())
+                .setBaseUrl("YOUR_BASE_URL")
+                .setMerchantAccountId(SecretString.newBuilder().setValue("YOUR_MERCHANT_ACCOUNT_ID").build())
+                .setMerchantConfigCurrency("YOUR_MERCHANT_CONFIG_CURRENCY")
+                .addAllApplePaySupportedNetworks(listOf("YOUR_APPLE_PAY_SUPPORTED_NETWORKS"))
+                .addAllApplePayMerchantCapabilities(listOf("YOUR_APPLE_PAY_MERCHANT_CAPABILITIES"))
+                .setApplePayLabel("YOUR_APPLE_PAY_LABEL")
+                .setGpayMerchantName("YOUR_GPAY_MERCHANT_NAME")
+                .setGpayMerchantId("YOUR_GPAY_MERCHANT_ID")
+                .addAllGpayAllowedAuthMethods(listOf("YOUR_GPAY_ALLOWED_AUTH_METHODS"))
+                .addAllGpayAllowedCardNetworks(listOf("YOUR_GPAY_ALLOWED_CARD_NETWORKS"))
+                .setPaypalClientId("YOUR_PAYPAL_CLIENT_ID")
+                .setGpayGatewayMerchantId("YOUR_GPAY_GATEWAY_MERCHANT_ID")
+                .build())
+            .build()
     )
     .build()
 ```
@@ -76,13 +120,32 @@ val config = ConnectorConfig.newBuilder()
 <details><summary>Rust</summary>
 
 ```rust
-use connector_service_sdk::{ConnectorClient, ConnectorConfig};
+use grpc_api_types::payments::*;
+use grpc_api_types::payments::connector_specific_config;
 
 let config = ConnectorConfig {
-    connector: "Braintree".to_string(),
-    environment: Environment::Sandbox,
-    auth: ConnectorAuth::HeaderKey { api_key: "YOUR_API_KEY".into() },
-    ..Default::default()
+    connector_config: Some(ConnectorSpecificConfig {
+            config: Some(connector_specific_config::Config::Braintree(BraintreeConfig {
+                public_key: Some(hyperswitch_masking::Secret::new("YOUR_PUBLIC_KEY".to_string())),  // Authentication credential
+                private_key: Some(hyperswitch_masking::Secret::new("YOUR_PRIVATE_KEY".to_string())),  // Authentication credential
+                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                merchant_account_id: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_ACCOUNT_ID".to_string())),  // Authentication credential
+                merchant_config_currency: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                apple_pay_supported_networks: vec!["value".to_string()],  // Array field
+                apple_pay_merchant_capabilities: vec!["value".to_string()],  // Array field
+                apple_pay_label: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                gpay_merchant_name: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                gpay_merchant_id: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                gpay_allowed_auth_methods: vec!["value".to_string()],  // Array field
+                gpay_allowed_card_networks: vec!["value".to_string()],  // Array field
+                paypal_client_id: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                gpay_gateway_merchant_id: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                ..Default::default()
+            })),
+        }),
+    options: Some(SdkOptions {
+        environment: Environment::Sandbox.into(),
+    }),
 };
 ```
 
@@ -223,7 +286,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/braintree/braintree.py) · [TypeScript](../../examples/braintree/braintree.ts#L108) · [Kotlin](../../examples/braintree/braintree.kt#L76) · [Rust](../../examples/braintree/braintree.rs)
+**Examples:** [Python](../../examples/braintree/braintree.py) · [TypeScript](../../examples/braintree/braintree.ts#L125) · [Kotlin](../../examples/braintree/braintree.kt#L95) · [Rust](../../examples/braintree/braintree.rs)
 
 #### PaymentService.Get
 
@@ -234,7 +297,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/braintree/braintree.py) · [TypeScript](../../examples/braintree/braintree.ts#L126) · [Kotlin](../../examples/braintree/braintree.kt#L102) · [Rust](../../examples/braintree/braintree.rs)
+**Examples:** [Python](../../examples/braintree/braintree.py) · [TypeScript](../../examples/braintree/braintree.ts#L143) · [Kotlin](../../examples/braintree/braintree.kt#L121) · [Rust](../../examples/braintree/braintree.rs)
 
 #### PaymentService.Refund
 
@@ -245,7 +308,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/braintree/braintree.py) · [TypeScript](../../examples/braintree/braintree.ts#L135) · [Kotlin](../../examples/braintree/braintree.kt#L110) · [Rust](../../examples/braintree/braintree.rs)
+**Examples:** [Python](../../examples/braintree/braintree.py) · [TypeScript](../../examples/braintree/braintree.ts#L152) · [Kotlin](../../examples/braintree/braintree.kt#L129) · [Rust](../../examples/braintree/braintree.rs)
 
 #### PaymentMethodService.Tokenize
 
@@ -256,7 +319,7 @@ Tokenize payment method for secure storage. Replaces raw card details with secur
 | **Request** | `PaymentMethodServiceTokenizeRequest` |
 | **Response** | `PaymentMethodServiceTokenizeResponse` |
 
-**Examples:** [Python](../../examples/braintree/braintree.py) · [TypeScript](../../examples/braintree/braintree.ts#L153) · [Kotlin](../../examples/braintree/braintree.kt#L133) · [Rust](../../examples/braintree/braintree.rs)
+**Examples:** [Python](../../examples/braintree/braintree.py) · [TypeScript](../../examples/braintree/braintree.ts#L170) · [Kotlin](../../examples/braintree/braintree.kt#L152) · [Rust](../../examples/braintree/braintree.rs)
 
 #### PaymentService.Void
 
@@ -267,7 +330,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/braintree/braintree.py) · [TypeScript](../../examples/braintree/braintree.ts) · [Kotlin](../../examples/braintree/braintree.kt#L159) · [Rust](../../examples/braintree/braintree.rs)
+**Examples:** [Python](../../examples/braintree/braintree.py) · [TypeScript](../../examples/braintree/braintree.ts) · [Kotlin](../../examples/braintree/braintree.kt#L178) · [Rust](../../examples/braintree/braintree.rs)
 
 ### Refunds
 
@@ -280,7 +343,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/braintree/braintree.py) · [TypeScript](../../examples/braintree/braintree.ts#L144) · [Kotlin](../../examples/braintree/braintree.kt#L120) · [Rust](../../examples/braintree/braintree.rs)
+**Examples:** [Python](../../examples/braintree/braintree.py) · [TypeScript](../../examples/braintree/braintree.ts#L161) · [Kotlin](../../examples/braintree/braintree.kt#L139) · [Rust](../../examples/braintree/braintree.rs)
 
 ### Authentication
 
@@ -293,4 +356,4 @@ Initialize client-facing SDK sessions for wallets, device fingerprinting, etc. R
 | **Request** | `MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/braintree/braintree.py) · [TypeScript](../../examples/braintree/braintree.ts#L117) · [Kotlin](../../examples/braintree/braintree.kt#L86) · [Rust](../../examples/braintree/braintree.rs)
+**Examples:** [Python](../../examples/braintree/braintree.py) · [TypeScript](../../examples/braintree/braintree.ts#L134) · [Kotlin](../../examples/braintree/braintree.kt#L105) · [Rust](../../examples/braintree/braintree.rs)

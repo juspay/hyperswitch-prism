@@ -12,13 +12,18 @@ from payments import EventClient
 from payments import RefundClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
+SUPPORTED_FLOWS = ["authorize", "capture", "get", "proxy_authorize", "refund", "refund_get", "token_authorize"]
+
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
+    connector_config=payment_pb2.ConnectorSpecificConfig(
+        revolut=payment_pb2.RevolutConfig(
+            secret_api_key=payment_methods_pb2.SecretString(value="YOUR_SECRET_API_KEY"),
+            signing_secret=payment_methods_pb2.SecretString(value="YOUR_SIGNING_SECRET"),
+            base_url="YOUR_BASE_URL",
+        ),
+    ),
 )
-# Standalone credentials (field names depend on connector auth type):
-# _default_config.connector_config.CopyFrom(payment_pb2.ConnectorSpecificConfig(
-#     revolut=payment_pb2.RevolutConfig(api_key=...),
-# ))
 
 
 
@@ -65,10 +70,6 @@ def _build_get_request(connector_transaction_id: str):
             minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
             currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
         ),
-    )
-
-def _build_handle_event_request():
-    return payment_pb2.EventServiceHandleRequest(
     )
 
 def _build_proxy_authorize_request():
@@ -125,10 +126,6 @@ def _build_token_authorize_request():
         ),
         capture_method=payment_pb2.CaptureMethod.Value("AUTOMATIC"),
         return_url="https://example.com/return",
-    )
-
-def _build_verify_redirect_request():
-    return payment_pb2.PaymentServiceVerifyRedirectResponseRequest(
     )
 async def process_checkout_autocapture(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """One-step Payment (Authorize + Capture)
@@ -248,15 +245,6 @@ async def process_get(merchant_transaction_id: str, config: sdk_config_pb2.Conne
     return {"status": get_response.status}
 
 
-async def process_handle_event(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
-    """Flow: EventService.HandleEvent"""
-    event_client = EventClient(config)
-
-    handle_response = await event_client.handle_event(_build_handle_event_request())
-
-    return {"status": handle_response.status}
-
-
 async def process_proxy_authorize(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """Flow: PaymentService.ProxyAuthorize"""
     payment_client = PaymentClient(config)
@@ -291,15 +279,6 @@ async def process_token_authorize(merchant_transaction_id: str, config: sdk_conf
     token_response = await payment_client.token_authorize(_build_token_authorize_request())
 
     return {"status": token_response.status}
-
-
-async def process_verify_redirect(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
-    """Flow: PaymentService.VerifyRedirectResponse"""
-    payment_client = PaymentClient(config)
-
-    verify_response = await payment_client.verify_redirect(_build_verify_redirect_request())
-
-    return {"status": verify_response.status}
 
 if __name__ == "__main__":
     scenario = sys.argv[1] if len(sys.argv) > 1 else "checkout_autocapture"

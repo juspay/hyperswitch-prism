@@ -4,7 +4,7 @@
 //
 // Getnet — all scenarios and flows in one file.
 // Run a scenario:  cargo run --example getnet -- process_checkout_card
-
+#![allow(clippy::needless_update)]
 use grpc_api_types::payments::*;
 use grpc_api_types::payments::connector_specific_config;
 use hyperswitch_payments_client::ConnectorClient;
@@ -14,6 +14,8 @@ use grpc_api_types::payments::payment_method;
 use cards::CardNumber;
 use std::str::FromStr;
 
+#[allow(dead_code)]
+pub const SUPPORTED_FLOWS: &[&str] = &["authorize", "capture", "create_server_authentication_token", "get", "proxy_authorize", "refund", "refund_get", "void"];
 
 #[allow(dead_code)]
 fn build_client() -> ConnectorClient {
@@ -41,7 +43,6 @@ pub fn build_authorize_request(capture_method: &str) -> PaymentServiceAuthorizeR
         amount: Some(Money {  // The amount for the payment.
             minor_amount: 1000,  // Amount in minor units (e.g., 1000 = $10.00).
             currency: Currency::Usd.into(),  // ISO 4217 currency code (e.g., "USD", "EUR").
-            ..Default::default()
         }),
         payment_method: Some(PaymentMethod {  // Payment method to be used.
             payment_method: Some(payment_method::PaymentMethod::Card(CardDetails {
@@ -68,7 +69,6 @@ pub fn build_authorize_request(capture_method: &str) -> PaymentServiceAuthorizeR
                 token: Some(Secret::new("probe_access_token".to_string())),  // The token string.
                 expires_in_seconds: Some(3600),  // Expiration timestamp (seconds since epoch).
                 token_type: Some("Bearer".to_string()),  // Token type (e.g., "Bearer", "Basic").
-                ..Default::default()
             }),
             ..Default::default()
         }),
@@ -83,14 +83,12 @@ pub fn build_capture_request(connector_transaction_id: &str) -> PaymentServiceCa
         amount_to_capture: Some(Money {  // Capture Details.
             minor_amount: 1000,  // Amount in minor units (e.g., 1000 = $10.00).
             currency: Currency::Usd.into(),  // ISO 4217 currency code (e.g., "USD", "EUR").
-            ..Default::default()
         }),
         state: Some(ConnectorState {  // State Information.
             access_token: Some(AccessToken {  // Access token obtained from connector.
                 token: Some(Secret::new("probe_access_token".to_string())),  // The token string.
                 expires_in_seconds: Some(3600),  // Expiration timestamp (seconds since epoch).
                 token_type: Some("Bearer".to_string()),  // Token type (e.g., "Bearer", "Basic").
-                ..Default::default()
             }),
             ..Default::default()
         }),
@@ -112,14 +110,12 @@ pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetReq
         amount: Some(Money {  // Amount Information.
             minor_amount: 1000,  // Amount in minor units (e.g., 1000 = $10.00).
             currency: Currency::Usd.into(),  // ISO 4217 currency code (e.g., "USD", "EUR").
-            ..Default::default()
         }),
         state: Some(ConnectorState {  // State Information.
             access_token: Some(AccessToken {  // Access token obtained from connector.
                 token: Some(Secret::new("probe_access_token".to_string())),  // The token string.
                 expires_in_seconds: Some(3600),  // Expiration timestamp (seconds since epoch).
                 token_type: Some("Bearer".to_string()),  // Token type (e.g., "Bearer", "Basic").
-                ..Default::default()
             }),
             ..Default::default()
         }),
@@ -133,7 +129,6 @@ pub fn build_proxy_authorize_request() -> PaymentServiceProxyAuthorizeRequest {
         amount: Some(Money {
             minor_amount: 1000,  // Amount in minor units (e.g., 1000 = $10.00).
             currency: Currency::Usd.into(),  // ISO 4217 currency code (e.g., "USD", "EUR").
-            ..Default::default()
         }),
         card_proxy: Some(CardDetails {  // Card proxy for vault-aliased payments (VGS, Basis Theory, Spreedly). Real card values are substituted by the proxy before reaching the connector.
             card_number: Some(CardNumber::from_str("4111111111111111").unwrap()),  // Card Identification.
@@ -157,7 +152,6 @@ pub fn build_proxy_authorize_request() -> PaymentServiceProxyAuthorizeRequest {
                 token: Some(Secret::new("probe_access_token".to_string())),  // The token string.
                 expires_in_seconds: Some(3600),  // Expiration timestamp (seconds since epoch).
                 token_type: Some("Bearer".to_string()),  // Token type (e.g., "Bearer", "Basic").
-                ..Default::default()
             }),
             ..Default::default()
         }),
@@ -173,7 +167,6 @@ pub fn build_refund_request(connector_transaction_id: &str) -> PaymentServiceRef
         refund_amount: Some(Money {
             minor_amount: 1000,  // Amount in minor units (e.g., 1000 = $10.00).
             currency: Currency::Usd.into(),  // ISO 4217 currency code (e.g., "USD", "EUR").
-            ..Default::default()
         }),
         reason: Some("customer_request".to_string()),  // Reason for the refund.
         state: Some(ConnectorState {  // State data for access token storage and.
@@ -181,7 +174,6 @@ pub fn build_refund_request(connector_transaction_id: &str) -> PaymentServiceRef
                 token: Some(Secret::new("probe_access_token".to_string())),  // The token string.
                 expires_in_seconds: Some(3600),  // Expiration timestamp (seconds since epoch).
                 token_type: Some("Bearer".to_string()),  // Token type (e.g., "Bearer", "Basic").
-                ..Default::default()
             }),
             ..Default::default()
         }),
@@ -199,7 +191,6 @@ pub fn build_refund_get_request() -> RefundServiceGetRequest {
                 token: Some(Secret::new("probe_access_token".to_string())),  // The token string.
                 expires_in_seconds: Some(3600),  // Expiration timestamp (seconds since epoch).
                 token_type: Some("Bearer".to_string()),  // Token type (e.g., "Bearer", "Basic").
-                ..Default::default()
             }),
             ..Default::default()
         }),
@@ -214,14 +205,12 @@ pub fn build_void_request(connector_transaction_id: &str) -> PaymentServiceVoidR
         amount: Some(Money {  // Amount Information.
             minor_amount: 1000,  // Amount in minor units (e.g., 1000 = $10.00).
             currency: Currency::Usd.into(),  // ISO 4217 currency code (e.g., "USD", "EUR").
-            ..Default::default()
         }),
         state: Some(ConnectorState {  // State Information.
             access_token: Some(AccessToken {  // Access token obtained from connector.
                 token: Some(Secret::new("probe_access_token".to_string())),  // The token string.
                 expires_in_seconds: Some(3600),  // Expiration timestamp (seconds since epoch).
                 token_type: Some("Bearer".to_string()),  // Token type (e.g., "Bearer", "Basic").
-                ..Default::default()
             }),
             ..Default::default()
         }),

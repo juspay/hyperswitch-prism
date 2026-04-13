@@ -7,17 +7,37 @@
 
 package examples.paytm
 
+import types.Payment.*
+import types.PaymentMethods.*
 import payments.PaymentClient
 import payments.MerchantAuthenticationClient
-import payments.PaymentServiceAuthorizeRequest
-import payments.MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest
-import payments.PaymentServiceGetRequest
 import payments.AuthenticationType
 import payments.CaptureMethod
 import payments.Currency
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
+import payments.ConnectorSpecificConfig
+import types.Payment.PaytmConfig
+import payments.SecretString
+
+val SUPPORTED_FLOWS = listOf<String>("authorize", "create_server_session_authentication_token", "get")
+
+val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
+    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
+    .setConnectorConfig(
+        ConnectorSpecificConfig.newBuilder()
+            .setPaytm(PaytmConfig.newBuilder()
+                .setMerchantId(SecretString.newBuilder().setValue("YOUR_MERCHANT_ID").build())
+                .setMerchantKey(SecretString.newBuilder().setValue("YOUR_MERCHANT_KEY").build())
+                .setWebsite(SecretString.newBuilder().setValue("YOUR_WEBSITE").build())
+                .setClientId(SecretString.newBuilder().setValue("YOUR_CLIENT_ID").build())
+                .setBaseUrl("YOUR_BASE_URL")
+                .build())
+            .build()
+    )
+    .build()
+
 
 
 private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAuthorizeRequest {
@@ -54,12 +74,6 @@ private fun buildGetRequest(connectorTransactionIdStr: String): PaymentServiceGe
     }.build()
 }
 
-val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
-    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    // .setConnectorConfig(...) — set your connector config here
-    .build()
-
-
 // Flow: PaymentService.Authorize (UpiCollect)
 fun authorize(txnId: String) {
     val client = PaymentClient(_defaultConfig)
@@ -84,7 +98,7 @@ fun createServerSessionAuthenticationToken(txnId: String) {
         }
     }.build()
     val response = client.create_server_session_authentication_token(request)
-    println("Status: ${response.status.name}")
+    println("Session token: ${response.sessionToken} (statusCode=${response.statusCode})")
 }
 
 // Flow: PaymentService.Get

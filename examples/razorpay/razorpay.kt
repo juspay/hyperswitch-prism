@@ -7,23 +7,26 @@
 
 package examples.razorpay
 
+import types.Payment.*
+import types.PaymentMethods.*
 import payments.PaymentClient
 import payments.EventClient
 import payments.RefundClient
-import payments.PaymentServiceAuthorizeRequest
-import payments.PaymentServiceCaptureRequest
-import payments.PaymentServiceRefundRequest
-import payments.PaymentServiceGetRequest
-import payments.PaymentServiceCreateOrderRequest
-import payments.EventServiceHandleRequest
-import payments.PaymentServiceProxyAuthorizeRequest
-import payments.RefundServiceGetRequest
 import payments.AuthenticationType
 import payments.CaptureMethod
 import payments.Currency
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
+
+
+val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "create_order", "get", "proxy_authorize", "refund", "refund_get")
+
+val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
+    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
+    // .setConnectorConfig(...) — set your Razorpay credentials here
+    .build()
+
 
 
 private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAuthorizeRequest {
@@ -91,12 +94,6 @@ private fun buildRefundRequest(connectorTransactionIdStr: String): PaymentServic
         reason = "customer_request"  // Reason for the refund.
     }.build()
 }
-
-val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
-    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    // .setConnectorConfig(...) — set your connector config here
-    .build()
-
 
 // Scenario: One-step Payment (Authorize + Capture)
 // Simple payment that authorizes and captures in one call. Use for immediate charges.
@@ -228,7 +225,7 @@ fun handleEvent(txnId: String) {
 
     }.build()
     val response = client.handle_event(request)
-    println("Status: ${response.status.name}")
+    println("Event status: ${response.eventStatus.name}")
 }
 
 // Flow: PaymentService.ProxyAuthorize

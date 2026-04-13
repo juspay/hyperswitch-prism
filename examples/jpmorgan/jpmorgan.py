@@ -12,13 +12,23 @@ from payments import MerchantAuthenticationClient
 from payments import RefundClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
+SUPPORTED_FLOWS = ["authorize", "capture", "create_client_authentication_token", "create_server_authentication_token", "get", "proxy_authorize", "refund", "refund_get", "token_authorize", "void"]
+
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
+    connector_config=payment_pb2.ConnectorSpecificConfig(
+        jpmorgan=payment_pb2.JpmorganConfig(
+            client_id=payment_methods_pb2.SecretString(value="YOUR_CLIENT_ID"),
+            client_secret=payment_methods_pb2.SecretString(value="YOUR_CLIENT_SECRET"),
+            base_url="YOUR_BASE_URL",
+            company_name=payment_methods_pb2.SecretString(value="YOUR_COMPANY_NAME"),
+            product_name=payment_methods_pb2.SecretString(value="YOUR_PRODUCT_NAME"),
+            merchant_purchase_description=payment_methods_pb2.SecretString(value="YOUR_MERCHANT_PURCHASE_DESCRIPTION"),
+            statement_descriptor=payment_methods_pb2.SecretString(value="YOUR_STATEMENT_DESCRIPTOR"),
+            secondary_base_url="YOUR_SECONDARY_BASE_URL",
+        ),
+    ),
 )
-# Standalone credentials (field names depend on connector auth type):
-# _default_config.connector_config.CopyFrom(payment_pb2.ConnectorSpecificConfig(
-#     jpmorgan=payment_pb2.JpmorganConfig(api_key=...),
-# ))
 
 
 
@@ -74,7 +84,12 @@ def _build_capture_request(connector_transaction_id: str):
 def _build_create_client_authentication_token_request():
     return payment_pb2.MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest(
         merchant_client_session_id="probe_sdk_session_001",  # Infrastructure.
-        domain_context={"payment": {"amount": {"minor_amount": 1000, "currency": "USD"}}},
+        payment=payment_pb2.PaymentClientAuthenticationContext(  # FrmClientAuthenticationContext frm = 5; // future: device fingerprinting PayoutClientAuthenticationContext payout = 6; // future: payout verification widget.
+            amount=payment_pb2.Money(
+                minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
+                currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+            ),
+        ),
     )
 
 def _build_create_server_authentication_token_request():

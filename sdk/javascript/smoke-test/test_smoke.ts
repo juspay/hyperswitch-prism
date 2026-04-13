@@ -191,62 +191,59 @@ function discoverAndValidate(
     }
   }
 
+  // Helper: find implementation function for a flow in the module.
+  // Tries (in order): mapped scenario fn, process-prefixed flow fn, camelCase flow fn (no prefix).
+  function findFlowFn(name: string): Function | undefined {
+    const exampleFn = flowToExampleFn?.[name];
+    if (exampleFn && typeof mod[toPascalCase(exampleFn)] === "function")
+      return mod[toPascalCase(exampleFn)];
+    if (typeof mod[toPascalCase(name)] === "function")
+      return mod[toPascalCase(name)];
+    // Fallback: examples expose flow functions under camelCase without process prefix
+    // e.g. flow "authorize" → mod["authorize"], flow "proxy_authorize" → mod["proxyAuthorize"]
+    const camel = name.replace(/_([a-z])/g, (_, l) => l.toUpperCase());
+    if (typeof mod[camel] === "function") return mod[camel];
+    return undefined;
+  }
+
   // CHECK 1: declared without implementation
-  // In mock mode, harnesses use flow-based naming (processAuthorize) not example-based (processCheckoutCard)
-  const implemented = new Set<string>();
   const missing: string[] = [];
   for (const name of effectiveDeclared) {
-    // Try example-based naming first (normal mode)
-    const exampleFn = flowToExampleFn?.[name];
-    if (exampleFn && typeof mod[toPascalCase(exampleFn)] === "function") {
-      implemented.add(name);
-    } 
-    // Then try flow-based naming (mock mode with harnesses)
-    else if (typeof mod[toPascalCase(name)] === "function") {
-      implemented.add(name);
-    } else {
-      missing.push(name);
-    }
+    if (!findFlowFn(name)) missing.push(name);
   }
   if (missing.length > 0) {
-    return `COVERAGE ERROR: SUPPORTED_FLOWS declares ${JSON.stringify(missing)} but no process* function found for them.`;
+    return `COVERAGE ERROR: SUPPORTED_FLOWS declares ${JSON.stringify(missing)} but no implementation found for them.`;
   }
 
   // CHECK 2: scan ALL process* exports (only when SUPPORTED_FLOWS is explicitly defined)
-  // In mock mode with harnesses, functions use flow-based naming (processAuthorize) not example-based
   if (!legacyMode) {
     const allProcessFns = new Set(
       Object.keys(mod)
         .filter(k => k.startsWith("process") && typeof mod[k] === "function")
         .map(k => fromPascalCase(k))
     );
-    // Accept both mapped example function names and direct flow names
-    const validNames = new Set([
-      ...Object.values(flowToExampleFn || {}).filter(Boolean) as string[],
-      ...manifest  // Direct flow names are also valid (mock mode with harnesses)
-    ]);
-    const undeclared = [...allProcessFns].filter(n => !validNames.has(n));
+    const manifestSet = new Set(manifest);
+    // Only flag process* functions whose base name IS a known flow but not in SUPPORTED_FLOWS.
+    // Scenario functions (e.g. checkout_autocapture) whose name is not in manifest are allowed.
+    const undeclared = [...allProcessFns].filter(n => manifestSet.has(n) && !effectiveDeclared.includes(n));
     if (undeclared.length > 0) {
-      return `COVERAGE ERROR: process* functions exist but not mapped to any flow: ${JSON.stringify(undeclared)}`;
+      return `COVERAGE ERROR: process* functions exist for flows ${JSON.stringify(undeclared)} but they're not in SUPPORTED_FLOWS`;
     }
 
-    // CHECK 3
-    const manifestSet = new Set(manifest);
+    // CHECK 3: Warn about entries in SUPPORTED_FLOWS not in the flow manifest.
+    // These are typically composite scenario names (create_customer, recurring_charge)
+    // not individually listed in flows.json. Warn only — don't fail.
     const stale = effectiveDeclared.filter(n => !manifestSet.has(n));
     if (stale.length > 0) {
-      return `COVERAGE ERROR: SUPPORTED_FLOWS contains flows that no longer exist in flows.json: ${JSON.stringify(stale)}`;
+      console.log(`  [warn] SUPPORTED_FLOWS contains entries not in flows.json (scenario names): ${JSON.stringify(stale)}`);
     }
   }
 
-  // Return (key, fn) pairs - use example name if available, otherwise flow name
+  // Return (key, fn) pairs for the test runner
   return effectiveDeclared.map(name => {
+    const fn = findFlowFn(name)!;
     const exampleFn = flowToExampleFn?.[name];
-    // Prefer example-based naming if function exists, otherwise use flow-based
-    if (exampleFn && typeof mod[toPascalCase(exampleFn)] === "function") {
-      return { key: exampleFn, fn: mod[toPascalCase(exampleFn)] };
-    }
-    // Use flow-based naming (for mock mode with harnesses)
-    return { key: name, fn: mod[toPascalCase(name)] };
+    return { key: exampleFn ?? name, fn };
   });
 }
 
@@ -475,8 +472,6 @@ async function runTests(
   let resolvedExamplesDir: string;
   if (examplesDir) {
     resolvedExamplesDir = examplesDir;
-  } else if (mock) {
-    resolvedExamplesDir = path.join(sdkRoot, "smoke-test", "generated");
   } else {
     resolvedExamplesDir = path.join(__dirname, "..", "..", "..", "..", "examples");
   }

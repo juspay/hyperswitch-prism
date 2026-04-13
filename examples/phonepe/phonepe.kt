@@ -7,15 +7,35 @@
 
 package examples.phonepe
 
+import types.Payment.*
+import types.PaymentMethods.*
 import payments.PaymentClient
-import payments.PaymentServiceAuthorizeRequest
-import payments.PaymentServiceGetRequest
 import payments.AuthenticationType
 import payments.CaptureMethod
 import payments.Currency
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
+import payments.ConnectorSpecificConfig
+import types.Payment.PhonepeConfig
+import payments.SecretString
+
+val SUPPORTED_FLOWS = listOf<String>("authorize", "get")
+
+val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
+    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
+    .setConnectorConfig(
+        ConnectorSpecificConfig.newBuilder()
+            .setPhonepe(PhonepeConfig.newBuilder()
+                .setMerchantId(SecretString.newBuilder().setValue("YOUR_MERCHANT_ID").build())
+                .setSaltKey(SecretString.newBuilder().setValue("YOUR_SALT_KEY").build())
+                .setSaltIndex(SecretString.newBuilder().setValue("YOUR_SALT_INDEX").build())
+                .setBaseUrl("YOUR_BASE_URL")
+                .build())
+            .build()
+    )
+    .build()
+
 
 
 private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAuthorizeRequest {
@@ -52,12 +72,6 @@ private fun buildGetRequest(connectorTransactionIdStr: String): PaymentServiceGe
         connectorOrderReferenceId = "probe_order_ref_001"  // Connector Reference Id.
     }.build()
 }
-
-val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
-    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    // .setConnectorConfig(...) — set your connector config here
-    .build()
-
 
 // Flow: PaymentService.Authorize (UpiCollect)
 fun authorize(txnId: String) {

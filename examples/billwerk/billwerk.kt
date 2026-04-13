@@ -7,19 +7,12 @@
 
 package examples.billwerk
 
+import types.Payment.*
+import types.PaymentMethods.*
 import payments.PaymentClient
 import payments.RecurringPaymentClient
 import payments.RefundClient
 import payments.PaymentMethodClient
-import payments.PaymentServiceCaptureRequest
-import payments.PaymentServiceGetRequest
-import payments.RecurringPaymentServiceChargeRequest
-import payments.PaymentServiceRefundRequest
-import payments.RefundServiceGetRequest
-import payments.PaymentServiceTokenAuthorizeRequest
-import payments.PaymentServiceTokenSetupRecurringRequest
-import payments.PaymentMethodServiceTokenizeRequest
-import payments.PaymentServiceVoidRequest
 import payments.AcceptanceType
 import payments.CaptureMethod
 import payments.Currency
@@ -28,6 +21,26 @@ import payments.PaymentMethodType
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
+import payments.ConnectorSpecificConfig
+import types.Payment.BillwerkConfig
+import payments.SecretString
+
+val SUPPORTED_FLOWS = listOf<String>("capture", "get", "recurring_charge", "refund", "refund_get", "token_authorize", "token_setup_recurring", "tokenize", "void")
+
+val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
+    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
+    .setConnectorConfig(
+        ConnectorSpecificConfig.newBuilder()
+            .setBillwerk(BillwerkConfig.newBuilder()
+                .setApiKey(SecretString.newBuilder().setValue("YOUR_API_KEY").build())
+                .setPublicApiKey(SecretString.newBuilder().setValue("YOUR_PUBLIC_API_KEY").build())
+                .setBaseUrl("YOUR_BASE_URL")
+                .setSecondaryBaseUrl("YOUR_SECONDARY_BASE_URL")
+                .build())
+            .build()
+    )
+    .build()
+
 
 
 private fun buildCaptureRequest(connectorTransactionIdStr: String): PaymentServiceCaptureRequest {
@@ -72,12 +85,6 @@ private fun buildVoidRequest(connectorTransactionIdStr: String): PaymentServiceV
         connectorTransactionId = connectorTransactionIdStr
     }.build()
 }
-
-val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
-    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    // .setConnectorConfig(...) — set your connector config here
-    .build()
-
 
 // Flow: PaymentService.Capture
 fun capture(txnId: String) {

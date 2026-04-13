@@ -7,18 +7,12 @@
 
 package examples.trustpay
 
+import types.Payment.*
+import types.PaymentMethods.*
 import payments.PaymentClient
 import payments.MerchantAuthenticationClient
 import payments.EventClient
 import payments.RefundClient
-import payments.PaymentServiceAuthorizeRequest
-import payments.PaymentServiceRefundRequest
-import payments.PaymentServiceGetRequest
-import payments.PaymentServiceCreateOrderRequest
-import payments.MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest
-import payments.EventServiceHandleRequest
-import payments.PaymentServiceProxyAuthorizeRequest
-import payments.RefundServiceGetRequest
 import payments.AuthenticationType
 import payments.CaptureMethod
 import payments.CountryAlpha2
@@ -26,6 +20,27 @@ import payments.Currency
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
+import payments.ConnectorSpecificConfig
+import types.Payment.TrustpayConfig
+import payments.SecretString
+
+val SUPPORTED_FLOWS = listOf<String>("authorize", "create_order", "create_server_authentication_token", "get", "proxy_authorize", "refund", "refund_get")
+
+val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
+    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
+    .setConnectorConfig(
+        ConnectorSpecificConfig.newBuilder()
+            .setTrustpay(TrustpayConfig.newBuilder()
+                .setApiKey(SecretString.newBuilder().setValue("YOUR_API_KEY").build())
+                .setProjectId(SecretString.newBuilder().setValue("YOUR_PROJECT_ID").build())
+                .setSecretKey(SecretString.newBuilder().setValue("YOUR_SECRET_KEY").build())
+                .setBaseUrl("YOUR_BASE_URL")
+                .setBaseUrlBankRedirects("YOUR_BASE_URL_BANK_REDIRECTS")
+                .build())
+            .build()
+    )
+    .build()
+
 
 
 private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAuthorizeRequest {
@@ -110,12 +125,6 @@ private fun buildRefundRequest(connectorTransactionIdStr: String): PaymentServic
         }
     }.build()
 }
-
-val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
-    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    // .setConnectorConfig(...) — set your connector config here
-    .build()
-
 
 // Scenario: One-step Payment (Authorize + Capture)
 // Simple payment that authorizes and captures in one call. Use for immediate charges.
@@ -214,7 +223,7 @@ fun createServerAuthenticationToken(txnId: String) {
 
     }.build()
     val response = client.create_server_authentication_token(request)
-    println("Status: ${response.status.name}")
+    println("StatusCode: ${response.statusCode}")
 }
 
 // Flow: PaymentService.Get
@@ -232,7 +241,7 @@ fun handleEvent(txnId: String) {
 
     }.build()
     val response = client.handle_event(request)
-    println("Status: ${response.status.name}")
+    println("Event status: ${response.eventStatus.name}")
 }
 
 // Flow: PaymentService.ProxyAuthorize

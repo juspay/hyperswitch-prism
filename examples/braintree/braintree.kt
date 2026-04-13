@@ -7,21 +7,46 @@
 
 package examples.braintree
 
+import types.Payment.*
+import types.PaymentMethods.*
 import payments.PaymentClient
 import payments.MerchantAuthenticationClient
 import payments.RefundClient
 import payments.PaymentMethodClient
-import payments.PaymentServiceCaptureRequest
-import payments.MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest
-import payments.PaymentServiceGetRequest
-import payments.PaymentServiceRefundRequest
-import payments.RefundServiceGetRequest
-import payments.PaymentMethodServiceTokenizeRequest
-import payments.PaymentServiceVoidRequest
 import payments.Currency
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
+import payments.ConnectorSpecificConfig
+import types.Payment.BraintreeConfig
+import payments.SecretString
+
+val SUPPORTED_FLOWS = listOf<String>("capture", "create_client_authentication_token", "get", "refund", "refund_get", "tokenize", "void")
+
+val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
+    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
+    .setConnectorConfig(
+        ConnectorSpecificConfig.newBuilder()
+            .setBraintree(BraintreeConfig.newBuilder()
+                .setPublicKey(SecretString.newBuilder().setValue("YOUR_PUBLIC_KEY").build())
+                .setPrivateKey(SecretString.newBuilder().setValue("YOUR_PRIVATE_KEY").build())
+                .setBaseUrl("YOUR_BASE_URL")
+                .setMerchantAccountId(SecretString.newBuilder().setValue("YOUR_MERCHANT_ACCOUNT_ID").build())
+                .setMerchantConfigCurrency("YOUR_MERCHANT_CONFIG_CURRENCY")
+                .addAllApplePaySupportedNetworks(listOf("YOUR_APPLE_PAY_SUPPORTED_NETWORKS"))
+                .addAllApplePayMerchantCapabilities(listOf("YOUR_APPLE_PAY_MERCHANT_CAPABILITIES"))
+                .setApplePayLabel("YOUR_APPLE_PAY_LABEL")
+                .setGpayMerchantName("YOUR_GPAY_MERCHANT_NAME")
+                .setGpayMerchantId("YOUR_GPAY_MERCHANT_ID")
+                .addAllGpayAllowedAuthMethods(listOf("YOUR_GPAY_ALLOWED_AUTH_METHODS"))
+                .addAllGpayAllowedCardNetworks(listOf("YOUR_GPAY_ALLOWED_CARD_NETWORKS"))
+                .setPaypalClientId("YOUR_PAYPAL_CLIENT_ID")
+                .setGpayGatewayMerchantId("YOUR_GPAY_GATEWAY_MERCHANT_ID")
+                .build())
+            .build()
+    )
+    .build()
+
 
 
 private fun buildCaptureRequest(connectorTransactionIdStr: String): PaymentServiceCaptureRequest {
@@ -65,12 +90,6 @@ private fun buildVoidRequest(connectorTransactionIdStr: String): PaymentServiceV
         connectorTransactionId = connectorTransactionIdStr
     }.build()
 }
-
-val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
-    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    // .setConnectorConfig(...) — set your connector config here
-    .build()
-
 
 // Flow: PaymentService.Capture
 fun capture(txnId: String) {

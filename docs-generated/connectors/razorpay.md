@@ -22,11 +22,10 @@ from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
+    # connector_config=payment_pb2.ConnectorSpecificConfig(
+    #     razorpay=payment_pb2.RazorpayConfig(api_key=...),
+    # ),
 )
-# Set credentials before running (field names depend on connector auth type):
-# config.connector_config.CopyFrom(payment_pb2.ConnectorSpecificConfig(
-#     razorpay=payment_pb2.RazorpayConfig(api_key=...),
-# ))
 
 ```
 
@@ -38,15 +37,13 @@ config = sdk_config_pb2.ConnectorConfig(
 <details><summary>JavaScript</summary>
 
 ```javascript
-const { ConnectorClient } = require('connector-service-node-ffi');
+const { PaymentClient } = require('hyperswitch-prism');
+const { ConnectorConfig, Environment, Connector } = require('hyperswitch-prism').types;
 
-// Reuse this client for all flows
-const client = new ConnectorClient({
-    connector: 'Razorpay',
-    environment: 'sandbox',
-    connector_auth_type: {
-        header_key: { api_key: 'YOUR_API_KEY' },
-    },
+const config = ConnectorConfig.create({
+    connector: Connector.RAZORPAY,
+    environment: Environment.SANDBOX,
+    // auth: { razorpay: { apiKey: { value: 'YOUR_API_KEY' } } },
 });
 ```
 
@@ -59,12 +56,8 @@ const client = new ConnectorClient({
 
 ```kotlin
 val config = ConnectorConfig.newBuilder()
-    .setConnector("Razorpay")
-    .setEnvironment(Environment.SANDBOX)
-    .setAuth(
-        ConnectorAuthType.newBuilder()
-            .setHeaderKey(HeaderKey.newBuilder().setApiKey("YOUR_API_KEY"))
-    )
+    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
+    // .setConnectorConfig(...) — set your Razorpay credentials here
     .build()
 ```
 
@@ -76,13 +69,14 @@ val config = ConnectorConfig.newBuilder()
 <details><summary>Rust</summary>
 
 ```rust
-use connector_service_sdk::{ConnectorClient, ConnectorConfig};
+use grpc_api_types::payments::*;
+use grpc_api_types::payments::connector_specific_config;
 
 let config = ConnectorConfig {
-    connector: "Razorpay".to_string(),
-    environment: Environment::Sandbox,
-    auth: ConnectorAuth::HeaderKey { api_key: "YOUR_API_KEY".into() },
-    ..Default::default()
+    connector_config: None,  // TODO: Add your connector config here,
+    options: Some(SdkOptions {
+        environment: Environment::Sandbox.into(),
+    }),
 };
 ```
 
@@ -108,7 +102,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/razorpay/razorpay.py#L135) · [JavaScript](../../examples/razorpay/razorpay.js) · [Kotlin](../../examples/razorpay/razorpay.kt#L103) · [Rust](../../examples/razorpay/razorpay.rs#L176)
+**Examples:** [Python](../../examples/razorpay/razorpay.py#L132) · [JavaScript](../../examples/razorpay/razorpay.js) · [Kotlin](../../examples/razorpay/razorpay.kt#L100) · [Rust](../../examples/razorpay/razorpay.rs#L172)
 
 ### Card Payment (Authorize + Capture)
 
@@ -122,19 +116,19 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/razorpay/razorpay.py#L154) · [JavaScript](../../examples/razorpay/razorpay.js) · [Kotlin](../../examples/razorpay/razorpay.kt#L119) · [Rust](../../examples/razorpay/razorpay.rs#L192)
+**Examples:** [Python](../../examples/razorpay/razorpay.py#L151) · [JavaScript](../../examples/razorpay/razorpay.js) · [Kotlin](../../examples/razorpay/razorpay.kt#L116) · [Rust](../../examples/razorpay/razorpay.rs#L188)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/razorpay/razorpay.py#L179) · [JavaScript](../../examples/razorpay/razorpay.js) · [Kotlin](../../examples/razorpay/razorpay.kt#L141) · [Rust](../../examples/razorpay/razorpay.rs#L215)
+**Examples:** [Python](../../examples/razorpay/razorpay.py#L176) · [JavaScript](../../examples/razorpay/razorpay.js) · [Kotlin](../../examples/razorpay/razorpay.kt#L138) · [Rust](../../examples/razorpay/razorpay.rs#L211)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/razorpay/razorpay.py#L204) · [JavaScript](../../examples/razorpay/razorpay.js) · [Kotlin](../../examples/razorpay/razorpay.kt#L163) · [Rust](../../examples/razorpay/razorpay.rs#L238)
+**Examples:** [Python](../../examples/razorpay/razorpay.py#L201) · [JavaScript](../../examples/razorpay/razorpay.js) · [Kotlin](../../examples/razorpay/razorpay.kt#L160) · [Rust](../../examples/razorpay/razorpay.rs#L234)
 
 ## API Reference
 
@@ -262,13 +256,13 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "card": {  # Generic card payment.
-        "card_number": {"value": "4111111111111111"},  # Card Identification.
-        "card_exp_month": {"value": "03"},
-        "card_exp_year": {"value": "2030"},
-        "card_cvc": {"value": "737"},
-        "card_holder_name": {"value": "John Doe"}  # Cardholder Information.
-    }
+  "card": {
+    "card_number": "4111111111111111",
+    "card_exp_month": "03",
+    "card_exp_year": "2030",
+    "card_cvc": "737",
+    "card_holder_name": "John Doe"
+  }
 }
 ```
 
@@ -276,13 +270,13 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "upi_collect": {  # UPI Collect.
-        "vpa_id": {"value": "test@upi"}  # Virtual Payment Address.
-    }
+  "upi_collect": {
+    "vpa_id": "test@upi"
+  }
 }
 ```
 
-**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L236) · [Kotlin](../../examples/razorpay/razorpay.kt#L181) · [Rust](../../examples/razorpay/razorpay.rs)
+**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L234) · [Kotlin](../../examples/razorpay/razorpay.kt#L178) · [Rust](../../examples/razorpay/razorpay.rs)
 
 #### PaymentService.Capture
 
@@ -293,7 +287,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L245) · [Kotlin](../../examples/razorpay/razorpay.kt#L193) · [Rust](../../examples/razorpay/razorpay.rs)
+**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L243) · [Kotlin](../../examples/razorpay/razorpay.kt#L190) · [Rust](../../examples/razorpay/razorpay.rs)
 
 #### PaymentService.CreateOrder
 
@@ -304,7 +298,7 @@ Create a payment order for later processing. Establishes a transaction context t
 | **Request** | `PaymentServiceCreateOrderRequest` |
 | **Response** | `PaymentServiceCreateOrderResponse` |
 
-**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L254) · [Kotlin](../../examples/razorpay/razorpay.kt#L203) · [Rust](../../examples/razorpay/razorpay.rs)
+**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L252) · [Kotlin](../../examples/razorpay/razorpay.kt#L200) · [Rust](../../examples/razorpay/razorpay.rs)
 
 #### PaymentService.Get
 
@@ -315,7 +309,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L263) · [Kotlin](../../examples/razorpay/razorpay.kt#L217) · [Rust](../../examples/razorpay/razorpay.rs)
+**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L261) · [Kotlin](../../examples/razorpay/razorpay.kt#L214) · [Rust](../../examples/razorpay/razorpay.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -326,7 +320,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L281) · [Kotlin](../../examples/razorpay/razorpay.kt#L235) · [Rust](../../examples/razorpay/razorpay.rs)
+**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L279) · [Kotlin](../../examples/razorpay/razorpay.kt#L232) · [Rust](../../examples/razorpay/razorpay.rs)
 
 #### PaymentService.Refund
 
@@ -337,7 +331,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L290) · [Kotlin](../../examples/razorpay/razorpay.kt#L268) · [Rust](../../examples/razorpay/razorpay.rs)
+**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L288) · [Kotlin](../../examples/razorpay/razorpay.kt#L265) · [Rust](../../examples/razorpay/razorpay.rs)
 
 ### Refunds
 
@@ -350,4 +344,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L299) · [Kotlin](../../examples/razorpay/razorpay.kt#L278) · [Rust](../../examples/razorpay/razorpay.rs)
+**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L297) · [Kotlin](../../examples/razorpay/razorpay.kt#L275) · [Rust](../../examples/razorpay/razorpay.rs)

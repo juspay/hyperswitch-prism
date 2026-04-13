@@ -7,12 +7,33 @@
 
 package examples.mifinity
 
+import types.Payment.*
+import types.PaymentMethods.*
 import payments.PaymentClient
-import payments.PaymentServiceGetRequest
 import payments.Currency
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
+import payments.ConnectorSpecificConfig
+import types.Payment.MifinityConfig
+import payments.SecretString
+
+val SUPPORTED_FLOWS = listOf<String>("get")
+
+val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
+    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
+    .setConnectorConfig(
+        ConnectorSpecificConfig.newBuilder()
+            .setMifinity(MifinityConfig.newBuilder()
+                .setKey(SecretString.newBuilder().setValue("YOUR_KEY").build())
+                .setBaseUrl("YOUR_BASE_URL")
+                .setBrandId(SecretString.newBuilder().setValue("YOUR_BRAND_ID").build())
+                .setDestinationAccountNumber(SecretString.newBuilder().setValue("YOUR_DESTINATION_ACCOUNT_NUMBER").build())
+                .build())
+            .build()
+    )
+    .build()
+
 
 
 private fun buildGetRequest(connectorTransactionIdStr: String): PaymentServiceGetRequest {
@@ -25,12 +46,6 @@ private fun buildGetRequest(connectorTransactionIdStr: String): PaymentServiceGe
         }
     }.build()
 }
-
-val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
-    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    // .setConnectorConfig(...) — set your connector config here
-    .build()
-
 
 // Flow: PaymentService.Get
 fun get(txnId: String) {

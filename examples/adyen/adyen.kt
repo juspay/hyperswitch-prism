@@ -7,26 +7,13 @@
 
 package examples.adyen
 
+import types.Payment.*
+import types.PaymentMethods.*
 import payments.PaymentClient
 import payments.MerchantAuthenticationClient
 import payments.DisputeClient
 import payments.EventClient
 import payments.RecurringPaymentClient
-import payments.PaymentServiceAuthorizeRequest
-import payments.PaymentServiceCaptureRequest
-import payments.PaymentServiceRefundRequest
-import payments.PaymentServiceVoidRequest
-import payments.MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest
-import payments.PaymentServiceCreateOrderRequest
-import payments.DisputeServiceAcceptRequest
-import payments.DisputeServiceDefendRequest
-import payments.DisputeServiceSubmitEvidenceRequest
-import payments.EventServiceHandleRequest
-import payments.PaymentServiceProxyAuthorizeRequest
-import payments.PaymentServiceProxySetupRecurringRequest
-import payments.RecurringPaymentServiceChargeRequest
-import payments.PaymentServiceSetupRecurringRequest
-import payments.PaymentServiceTokenAuthorizeRequest
 import payments.AcceptanceType
 import payments.AuthenticationType
 import payments.CaptureMethod
@@ -36,6 +23,28 @@ import payments.PaymentMethodType
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
+import payments.ConnectorSpecificConfig
+import types.Payment.AdyenConfig
+import payments.SecretString
+
+val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "create_client_authentication_token", "create_order", "dispute_accept", "dispute_defend", "dispute_submit_evidence", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "setup_recurring", "token_authorize", "void")
+
+val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
+    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
+    .setConnectorConfig(
+        ConnectorSpecificConfig.newBuilder()
+            .setAdyen(AdyenConfig.newBuilder()
+                .setApiKey(SecretString.newBuilder().setValue("YOUR_API_KEY").build())
+                .setMerchantAccount(SecretString.newBuilder().setValue("YOUR_MERCHANT_ACCOUNT").build())
+                .setReviewKey(SecretString.newBuilder().setValue("YOUR_REVIEW_KEY").build())
+                .setBaseUrl("YOUR_BASE_URL")
+                .setDisputeBaseUrl("YOUR_DISPUTE_BASE_URL")
+                .setEndpointPrefix("YOUR_ENDPOINT_PREFIX")
+                .build())
+            .build()
+    )
+    .build()
+
 
 
 private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAuthorizeRequest {
@@ -107,12 +116,6 @@ private fun buildVoidRequest(connectorTransactionIdStr: String): PaymentServiceV
         connectorTransactionId = connectorTransactionIdStr
     }.build()
 }
-
-val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
-    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    // .setConnectorConfig(...) — set your connector config here
-    .build()
-
 
 // Scenario: One-step Payment (Authorize + Capture)
 // Simple payment that authorizes and captures in one call. Use for immediate charges.
@@ -290,7 +293,7 @@ fun handleEvent(txnId: String) {
 
     }.build()
     val response = client.handle_event(request)
-    println("Status: ${response.status.name}")
+    println("Event status: ${response.eventStatus.name}")
 }
 
 // Flow: PaymentService.ProxyAuthorize

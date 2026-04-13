@@ -12,13 +12,19 @@ from payments import PaymentClient
 from payments import RefundClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
+SUPPORTED_FLOWS = ["authenticate", "capture", "get", "pre_authenticate", "refund", "refund_get", "void"]
+
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
+    connector_config=payment_pb2.ConnectorSpecificConfig(
+        redsys=payment_pb2.RedsysConfig(
+            merchant_id=payment_methods_pb2.SecretString(value="YOUR_MERCHANT_ID"),
+            terminal_id=payment_methods_pb2.SecretString(value="YOUR_TERMINAL_ID"),
+            sha256_pwd=payment_methods_pb2.SecretString(value="YOUR_SHA256_PWD"),
+            base_url="YOUR_BASE_URL",
+        ),
+    ),
 )
-# Standalone credentials (field names depend on connector auth type):
-# _default_config.connector_config.CopyFrom(payment_pb2.ConnectorSpecificConfig(
-#     redsys=payment_pb2.RedsysConfig(api_key=...),
-# ))
 
 
 

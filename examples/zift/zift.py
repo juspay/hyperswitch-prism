@@ -10,13 +10,19 @@ import sys
 from payments import PaymentClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
+SUPPORTED_FLOWS = ["authorize", "capture", "get", "proxy_authorize", "proxy_setup_recurring", "refund", "setup_recurring", "void"]
+
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
+    connector_config=payment_pb2.ConnectorSpecificConfig(
+        zift=payment_pb2.ZiftConfig(
+            user_name=payment_methods_pb2.SecretString(value="YOUR_USER_NAME"),
+            password=payment_methods_pb2.SecretString(value="YOUR_PASSWORD"),
+            account_id=payment_methods_pb2.SecretString(value="YOUR_ACCOUNT_ID"),
+            base_url="YOUR_BASE_URL",
+        ),
+    ),
 )
-# Standalone credentials (field names depend on connector auth type):
-# _default_config.connector_config.CopyFrom(payment_pb2.ConnectorSpecificConfig(
-#     zift=payment_pb2.ZiftConfig(api_key=...),
-# ))
 
 
 

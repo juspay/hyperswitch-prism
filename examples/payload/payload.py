@@ -13,13 +13,16 @@ from payments import RecurringPaymentClient
 from payments import RefundClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
+SUPPORTED_FLOWS = ["authorize", "capture", "get", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "void"]
+
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
+    connector_config=payment_pb2.ConnectorSpecificConfig(
+        payload=payment_pb2.PayloadConfig(
+            base_url="YOUR_BASE_URL",
+        ),
+    ),
 )
-# Standalone credentials (field names depend on connector auth type):
-# _default_config.connector_config.CopyFrom(payment_pb2.ConnectorSpecificConfig(
-#     payload=payment_pb2.PayloadConfig(api_key=...),
-# ))
 
 
 
@@ -93,10 +96,6 @@ def _build_get_request(connector_transaction_id: str):
                 token_type="Bearer",  # Token type (e.g., "Bearer", "Basic").
             ),
         ),
-    )
-
-def _build_handle_event_request():
-    return payment_pb2.EventServiceHandleRequest(
     )
 
 def _build_proxy_authorize_request():
@@ -175,7 +174,9 @@ def _build_proxy_setup_recurring_request():
 def _build_recurring_charge_request():
     return payment_pb2.RecurringPaymentServiceChargeRequest(
         connector_recurring_payment_id=payment_pb2.MandateReference(  # Reference to existing mandate.
-            mandate_id_type={"connector_mandate_id": {"connector_mandate_id": "probe-mandate-123"}},
+            connector_mandate_id=payment_pb2.ConnectorMandateReferenceId(  # mandate_id sent by the connector.
+                connector_mandate_id="probe-mandate-123",
+            ),
         ),
         amount=payment_pb2.Money(  # Amount Information.
             minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
@@ -425,15 +426,6 @@ async def process_get(merchant_transaction_id: str, config: sdk_config_pb2.Conne
     get_response = await payment_client.get(_build_get_request("probe_connector_txn_001"))
 
     return {"status": get_response.status}
-
-
-async def process_handle_event(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
-    """Flow: EventService.HandleEvent"""
-    event_client = EventClient(config)
-
-    handle_response = await event_client.handle_event(_build_handle_event_request())
-
-    return {"status": handle_response.status}
 
 
 async def process_proxy_authorize(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):

@@ -7,23 +7,26 @@
 
 package examples.finix
 
+import types.Payment.*
+import types.PaymentMethods.*
 import payments.PaymentClient
 import payments.CustomerClient
 import payments.RefundClient
 import payments.PaymentMethodClient
-import payments.PaymentServiceCaptureRequest
-import payments.CustomerServiceCreateRequest
-import payments.PaymentServiceGetRequest
-import payments.PaymentServiceRefundRequest
-import payments.RefundServiceGetRequest
-import payments.PaymentServiceTokenAuthorizeRequest
-import payments.PaymentMethodServiceTokenizeRequest
-import payments.PaymentServiceVoidRequest
 import payments.CaptureMethod
 import payments.Currency
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
+
+
+val SUPPORTED_FLOWS = listOf<String>("capture", "create_customer", "get", "refund", "refund_get", "token_authorize", "tokenize", "void")
+
+val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
+    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
+    // .setConnectorConfig(...) — set your Finix credentials here
+    .build()
+
 
 
 private fun buildCaptureRequest(connectorTransactionIdStr: String): PaymentServiceCaptureRequest {
@@ -67,12 +70,6 @@ private fun buildVoidRequest(connectorTransactionIdStr: String): PaymentServiceV
         connectorTransactionId = connectorTransactionIdStr
     }.build()
 }
-
-val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
-    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    // .setConnectorConfig(...) — set your connector config here
-    .build()
-
 
 // Flow: PaymentService.Capture
 fun capture(txnId: String) {

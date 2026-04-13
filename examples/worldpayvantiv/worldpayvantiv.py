@@ -11,13 +11,22 @@ from payments import PaymentClient
 from payments import RefundClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
+SUPPORTED_FLOWS = ["authorize", "capture", "get", "proxy_authorize", "refund", "refund_get", "reverse", "void"]
+
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
+    connector_config=payment_pb2.ConnectorSpecificConfig(
+        worldpayvantiv=payment_pb2.WorldpayvantivConfig(
+            user=payment_methods_pb2.SecretString(value="YOUR_USER"),
+            password=payment_methods_pb2.SecretString(value="YOUR_PASSWORD"),
+            merchant_id=payment_methods_pb2.SecretString(value="YOUR_MERCHANT_ID"),
+            base_url="YOUR_BASE_URL",
+            report_group="YOUR_REPORT_GROUP",
+            merchant_config_currency="YOUR_MERCHANT_CONFIG_CURRENCY",
+            secondary_base_url="YOUR_SECONDARY_BASE_URL",
+        ),
+    ),
 )
-# Standalone credentials (field names depend on connector auth type):
-# _default_config.connector_config.CopyFrom(payment_pb2.ConnectorSpecificConfig(
-#     worldpayvantiv=payment_pb2.WorldpayvantivConfig(api_key=...),
-# ))
 
 
 
@@ -107,10 +116,10 @@ def _build_refund_get_request():
         refund_id="probe_refund_id_001",
     )
 
-def _build_reverse_request():
+def _build_reverse_request(connector_transaction_id: str):
     return payment_pb2.PaymentServiceReverseRequest(
         merchant_reverse_id="probe_reverse_001",  # Identification.
-        connector_transaction_id="probe_connector_txn_001",
+        connector_transaction_id=connector_transaction_id,
     )
 
 def _build_void_request(connector_transaction_id: str):
@@ -289,7 +298,7 @@ async def process_reverse(merchant_transaction_id: str, config: sdk_config_pb2.C
     """Flow: PaymentService.Reverse"""
     payment_client = PaymentClient(config)
 
-    reverse_response = await payment_client.reverse(_build_reverse_request())
+    reverse_response = await payment_client.reverse(_build_reverse_request("probe_connector_txn_001"))
 
     return {"status": reverse_response.status}
 

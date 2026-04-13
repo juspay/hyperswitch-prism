@@ -11,13 +11,19 @@ from payments import PaymentClient
 from payments import RefundClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
+SUPPORTED_FLOWS = ["authorize", "get", "proxy_authorize", "refund", "refund_get", "token_authorize", "void"]
+
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
+    connector_config=payment_pb2.ConnectorSpecificConfig(
+        mollie=payment_pb2.MollieConfig(
+            api_key=payment_methods_pb2.SecretString(value="YOUR_API_KEY"),
+            profile_token=payment_methods_pb2.SecretString(value="YOUR_PROFILE_TOKEN"),
+            base_url="YOUR_BASE_URL",
+            secondary_base_url="YOUR_SECONDARY_BASE_URL",
+        ),
+    ),
 )
-# Standalone credentials (field names depend on connector auth type):
-# _default_config.connector_config.CopyFrom(payment_pb2.ConnectorSpecificConfig(
-#     mollie=payment_pb2.MollieConfig(api_key=...),
-# ))
 
 
 

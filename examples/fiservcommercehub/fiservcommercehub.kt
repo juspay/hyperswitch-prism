@@ -7,18 +7,36 @@
 
 package examples.fiservcommercehub
 
+import types.Payment.*
+import types.PaymentMethods.*
 import payments.MerchantAuthenticationClient
 import payments.PaymentClient
 import payments.RefundClient
-import payments.MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest
-import payments.PaymentServiceGetRequest
-import payments.PaymentServiceRefundRequest
-import payments.RefundServiceGetRequest
-import payments.PaymentServiceVoidRequest
 import payments.Currency
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
+import payments.ConnectorSpecificConfig
+import types.Payment.FiservcommercehubConfig
+import payments.SecretString
+
+val SUPPORTED_FLOWS = listOf<String>("create_server_authentication_token", "get", "refund", "refund_get", "void")
+
+val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
+    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
+    .setConnectorConfig(
+        ConnectorSpecificConfig.newBuilder()
+            .setFiservcommercehub(FiservcommercehubConfig.newBuilder()
+                .setApiKey(SecretString.newBuilder().setValue("YOUR_API_KEY").build())
+                .setSecret(SecretString.newBuilder().setValue("YOUR_SECRET").build())
+                .setMerchantId(SecretString.newBuilder().setValue("YOUR_MERCHANT_ID").build())
+                .setTerminalId(SecretString.newBuilder().setValue("YOUR_TERMINAL_ID").build())
+                .setBaseUrl("YOUR_BASE_URL")
+                .build())
+            .build()
+    )
+    .build()
+
 
 
 private fun buildGetRequest(connectorTransactionIdStr: String): PaymentServiceGetRequest {
@@ -73,12 +91,6 @@ private fun buildVoidRequest(connectorTransactionIdStr: String): PaymentServiceV
     }.build()
 }
 
-val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
-    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    // .setConnectorConfig(...) — set your connector config here
-    .build()
-
-
 // Flow: MerchantAuthenticationService.CreateServerAuthenticationToken
 fun createServerAuthenticationToken(txnId: String) {
     val client = MerchantAuthenticationClient(_defaultConfig)
@@ -86,7 +98,7 @@ fun createServerAuthenticationToken(txnId: String) {
 
     }.build()
     val response = client.create_server_authentication_token(request)
-    println("Status: ${response.status.name}")
+    println("StatusCode: ${response.statusCode}")
 }
 
 // Flow: PaymentService.Get

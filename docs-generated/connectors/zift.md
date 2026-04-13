@@ -22,11 +22,15 @@ from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
+    connector_config=payment_pb2.ConnectorSpecificConfig(
+        zift=payment_pb2.ZiftConfig(
+            user_name=payment_methods_pb2.SecretString(value="YOUR_USER_NAME"),
+            password=payment_methods_pb2.SecretString(value="YOUR_PASSWORD"),
+            account_id=payment_methods_pb2.SecretString(value="YOUR_ACCOUNT_ID"),
+            base_url="YOUR_BASE_URL",
+        ),
+    ),
 )
-# Set credentials before running (field names depend on connector auth type):
-# config.connector_config.CopyFrom(payment_pb2.ConnectorSpecificConfig(
-#     zift=payment_pb2.ZiftConfig(api_key=...),
-# ))
 
 ```
 
@@ -38,14 +42,19 @@ config = sdk_config_pb2.ConnectorConfig(
 <details><summary>JavaScript</summary>
 
 ```javascript
-const { ConnectorClient } = require('connector-service-node-ffi');
+const { PaymentClient } = require('hyperswitch-prism');
+const { ConnectorConfig, Environment, Connector } = require('hyperswitch-prism').types;
 
-// Reuse this client for all flows
-const client = new ConnectorClient({
-    connector: 'Zift',
-    environment: 'sandbox',
-    connector_auth_type: {
-        header_key: { api_key: 'YOUR_API_KEY' },
+const config = ConnectorConfig.create({
+    connector: Connector.ZIFT,
+    environment: Environment.SANDBOX,
+    auth: {
+        zift: {
+            userName: { value: 'YOUR_USER_NAME' },
+            password: { value: 'YOUR_PASSWORD' },
+            accountId: { value: 'YOUR_ACCOUNT_ID' },
+            baseUrl: 'YOUR_BASE_URL',
+        }
     },
 });
 ```
@@ -59,11 +68,16 @@ const client = new ConnectorClient({
 
 ```kotlin
 val config = ConnectorConfig.newBuilder()
-    .setConnector("Zift")
-    .setEnvironment(Environment.SANDBOX)
-    .setAuth(
-        ConnectorAuthType.newBuilder()
-            .setHeaderKey(HeaderKey.newBuilder().setApiKey("YOUR_API_KEY"))
+    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
+    .setConnectorConfig(
+        ConnectorSpecificConfig.newBuilder()
+            .setZift(ZiftConfig.newBuilder()
+                .setUserName(SecretString.newBuilder().setValue("YOUR_USER_NAME").build())
+                .setPassword(SecretString.newBuilder().setValue("YOUR_PASSWORD").build())
+                .setAccountId(SecretString.newBuilder().setValue("YOUR_ACCOUNT_ID").build())
+                .setBaseUrl("YOUR_BASE_URL")
+                .build())
+            .build()
     )
     .build()
 ```
@@ -76,13 +90,22 @@ val config = ConnectorConfig.newBuilder()
 <details><summary>Rust</summary>
 
 ```rust
-use connector_service_sdk::{ConnectorClient, ConnectorConfig};
+use grpc_api_types::payments::*;
+use grpc_api_types::payments::connector_specific_config;
 
 let config = ConnectorConfig {
-    connector: "Zift".to_string(),
-    environment: Environment::Sandbox,
-    auth: ConnectorAuth::HeaderKey { api_key: "YOUR_API_KEY".into() },
-    ..Default::default()
+    connector_config: Some(ConnectorSpecificConfig {
+            config: Some(connector_specific_config::Config::Zift(ZiftConfig {
+                user_name: Some(hyperswitch_masking::Secret::new("YOUR_USER_NAME".to_string())),  // Authentication credential
+                password: Some(hyperswitch_masking::Secret::new("YOUR_PASSWORD".to_string())),  // Authentication credential
+                account_id: Some(hyperswitch_masking::Secret::new("YOUR_ACCOUNT_ID".to_string())),  // Authentication credential
+                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                ..Default::default()
+            })),
+        }),
+    options: Some(SdkOptions {
+        environment: Environment::Sandbox.into(),
+    }),
 };
 ```
 
@@ -108,7 +131,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/zift/zift.py#L170) · [JavaScript](../../examples/zift/zift.js) · [Kotlin](../../examples/zift/zift.kt#L106) · [Rust](../../examples/zift/zift.rs#L228)
+**Examples:** [Python](../../examples/zift/zift.py#L176) · [JavaScript](../../examples/zift/zift.js) · [Kotlin](../../examples/zift/zift.kt#L114) · [Rust](../../examples/zift/zift.rs#L223)
 
 ### Card Payment (Authorize + Capture)
 
@@ -122,25 +145,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/zift/zift.py#L189) · [JavaScript](../../examples/zift/zift.js) · [Kotlin](../../examples/zift/zift.kt#L122) · [Rust](../../examples/zift/zift.rs#L244)
+**Examples:** [Python](../../examples/zift/zift.py#L195) · [JavaScript](../../examples/zift/zift.js) · [Kotlin](../../examples/zift/zift.kt#L130) · [Rust](../../examples/zift/zift.rs#L239)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/zift/zift.py#L214) · [JavaScript](../../examples/zift/zift.js) · [Kotlin](../../examples/zift/zift.kt#L144) · [Rust](../../examples/zift/zift.rs#L267)
+**Examples:** [Python](../../examples/zift/zift.py#L220) · [JavaScript](../../examples/zift/zift.js) · [Kotlin](../../examples/zift/zift.kt#L152) · [Rust](../../examples/zift/zift.rs#L262)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/zift/zift.py#L239) · [JavaScript](../../examples/zift/zift.js) · [Kotlin](../../examples/zift/zift.kt#L166) · [Rust](../../examples/zift/zift.rs#L290)
+**Examples:** [Python](../../examples/zift/zift.py#L245) · [JavaScript](../../examples/zift/zift.js) · [Kotlin](../../examples/zift/zift.kt#L174) · [Rust](../../examples/zift/zift.rs#L285)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/zift/zift.py#L261) · [JavaScript](../../examples/zift/zift.js) · [Kotlin](../../examples/zift/zift.kt#L185) · [Rust](../../examples/zift/zift.rs#L309)
+**Examples:** [Python](../../examples/zift/zift.py#L267) · [JavaScript](../../examples/zift/zift.js) · [Kotlin](../../examples/zift/zift.kt#L193) · [Rust](../../examples/zift/zift.rs#L304)
 
 ## API Reference
 
@@ -268,17 +291,17 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "card": {  # Generic card payment.
-        "card_number": {"value": "4111111111111111"},  # Card Identification.
-        "card_exp_month": {"value": "03"},
-        "card_exp_year": {"value": "2030"},
-        "card_cvc": {"value": "737"},
-        "card_holder_name": {"value": "John Doe"}  # Cardholder Information.
-    }
+  "card": {
+    "card_number": "4111111111111111",
+    "card_exp_month": "03",
+    "card_exp_year": "2030",
+    "card_cvc": "737",
+    "card_holder_name": "John Doe"
+  }
 }
 ```
 
-**Examples:** [Python](../../examples/zift/zift.py) · [TypeScript](../../examples/zift/zift.ts#L295) · [Kotlin](../../examples/zift/zift.kt#L203) · [Rust](../../examples/zift/zift.rs)
+**Examples:** [Python](../../examples/zift/zift.py) · [TypeScript](../../examples/zift/zift.ts#L300) · [Kotlin](../../examples/zift/zift.kt#L211) · [Rust](../../examples/zift/zift.rs)
 
 #### PaymentService.Capture
 
@@ -289,7 +312,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/zift/zift.py) · [TypeScript](../../examples/zift/zift.ts#L304) · [Kotlin](../../examples/zift/zift.kt#L215) · [Rust](../../examples/zift/zift.rs)
+**Examples:** [Python](../../examples/zift/zift.py) · [TypeScript](../../examples/zift/zift.ts#L309) · [Kotlin](../../examples/zift/zift.kt#L223) · [Rust](../../examples/zift/zift.rs)
 
 #### PaymentService.Get
 
@@ -300,7 +323,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/zift/zift.py) · [TypeScript](../../examples/zift/zift.ts#L313) · [Kotlin](../../examples/zift/zift.kt#L225) · [Rust](../../examples/zift/zift.rs)
+**Examples:** [Python](../../examples/zift/zift.py) · [TypeScript](../../examples/zift/zift.ts#L318) · [Kotlin](../../examples/zift/zift.kt#L233) · [Rust](../../examples/zift/zift.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -311,7 +334,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/zift/zift.py) · [TypeScript](../../examples/zift/zift.ts#L322) · [Kotlin](../../examples/zift/zift.kt#L233) · [Rust](../../examples/zift/zift.rs)
+**Examples:** [Python](../../examples/zift/zift.py) · [TypeScript](../../examples/zift/zift.ts#L327) · [Kotlin](../../examples/zift/zift.kt#L241) · [Rust](../../examples/zift/zift.rs)
 
 #### PaymentService.ProxySetupRecurring
 
@@ -322,7 +345,7 @@ Setup recurring mandate using vault-aliased card data.
 | **Request** | `PaymentServiceProxySetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/zift/zift.py) · [TypeScript](../../examples/zift/zift.ts#L331) · [Kotlin](../../examples/zift/zift.kt#L262) · [Rust](../../examples/zift/zift.rs)
+**Examples:** [Python](../../examples/zift/zift.py) · [TypeScript](../../examples/zift/zift.ts#L336) · [Kotlin](../../examples/zift/zift.kt#L270) · [Rust](../../examples/zift/zift.rs)
 
 #### PaymentService.Refund
 
@@ -333,7 +356,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/zift/zift.py) · [TypeScript](../../examples/zift/zift.ts#L340) · [Kotlin](../../examples/zift/zift.kt#L294) · [Rust](../../examples/zift/zift.rs)
+**Examples:** [Python](../../examples/zift/zift.py) · [TypeScript](../../examples/zift/zift.ts#L345) · [Kotlin](../../examples/zift/zift.kt#L302) · [Rust](../../examples/zift/zift.rs)
 
 #### PaymentService.SetupRecurring
 
@@ -344,7 +367,7 @@ Configure a payment method for recurring billing. Sets up the mandate and paymen
 | **Request** | `PaymentServiceSetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/zift/zift.py) · [TypeScript](../../examples/zift/zift.ts#L349) · [Kotlin](../../examples/zift/zift.kt#L304) · [Rust](../../examples/zift/zift.rs)
+**Examples:** [Python](../../examples/zift/zift.py) · [TypeScript](../../examples/zift/zift.ts#L354) · [Kotlin](../../examples/zift/zift.kt#L312) · [Rust](../../examples/zift/zift.rs)
 
 #### PaymentService.Void
 
@@ -355,4 +378,4 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/zift/zift.py) · [TypeScript](../../examples/zift/zift.ts) · [Kotlin](../../examples/zift/zift.kt#L344) · [Rust](../../examples/zift/zift.rs)
+**Examples:** [Python](../../examples/zift/zift.py) · [TypeScript](../../examples/zift/zift.ts) · [Kotlin](../../examples/zift/zift.kt#L352) · [Rust](../../examples/zift/zift.rs)

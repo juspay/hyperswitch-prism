@@ -7,20 +7,35 @@
 
 package examples.redsys
 
+import types.Payment.*
+import types.PaymentMethods.*
 import payments.PaymentMethodAuthenticationClient
 import payments.PaymentClient
 import payments.RefundClient
-import payments.PaymentMethodAuthenticationServiceAuthenticateRequest
-import payments.PaymentServiceCaptureRequest
-import payments.PaymentServiceGetRequest
-import payments.PaymentMethodAuthenticationServicePreAuthenticateRequest
-import payments.PaymentServiceRefundRequest
-import payments.RefundServiceGetRequest
-import payments.PaymentServiceVoidRequest
 import payments.Currency
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
+import payments.ConnectorSpecificConfig
+import types.Payment.RedsysConfig
+import payments.SecretString
+
+val SUPPORTED_FLOWS = listOf<String>("authenticate", "capture", "get", "pre_authenticate", "refund", "refund_get", "void")
+
+val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
+    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
+    .setConnectorConfig(
+        ConnectorSpecificConfig.newBuilder()
+            .setRedsys(RedsysConfig.newBuilder()
+                .setMerchantId(SecretString.newBuilder().setValue("YOUR_MERCHANT_ID").build())
+                .setTerminalId(SecretString.newBuilder().setValue("YOUR_TERMINAL_ID").build())
+                .setSha256Pwd(SecretString.newBuilder().setValue("YOUR_SHA256_PWD").build())
+                .setBaseUrl("YOUR_BASE_URL")
+                .build())
+            .build()
+    )
+    .build()
+
 
 
 private fun buildCaptureRequest(connectorTransactionIdStr: String): PaymentServiceCaptureRequest {
@@ -68,12 +83,6 @@ private fun buildVoidRequest(connectorTransactionIdStr: String): PaymentServiceV
         }
     }.build()
 }
-
-val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
-    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    // .setConnectorConfig(...) — set your connector config here
-    .build()
-
 
 // Flow: PaymentMethodAuthenticationService.Authenticate
 fun authenticate(txnId: String) {

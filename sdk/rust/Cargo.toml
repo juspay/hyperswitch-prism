@@ -3,6 +3,9 @@ name = "hyperswitch-payments-client"
 version = "0.1.0"
 edition = "2021"
 
+[lints.clippy]
+needless_update = "allow"
+
 [[example]]
 name = "stripe"
 path = "../../examples/stripe/stripe.rs"
