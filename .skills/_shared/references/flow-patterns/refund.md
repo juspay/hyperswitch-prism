@@ -19,7 +19,7 @@ Full refunds with no request body -- the connector resolves amount internally.
 pub struct {ConnectorName}RefundRequest {}
 
 impl TryFrom<...> for {ConnectorName}RefundRequest {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         _item: {ConnectorName}RouterData<RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>, T>,
@@ -44,7 +44,7 @@ pub struct {ConnectorName}RefundRequest {
 }
 
 impl TryFrom<...> for {ConnectorName}RefundRequest {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: {ConnectorName}RouterData<RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>, T>,
@@ -267,24 +267,24 @@ request body. The connector tracks cumulative refund totals internally.
 
 ### NotSupported Error Pattern
 
-Use `ConnectorError::NotSupported` to reject unsupported refund scenarios early,
+Use `IntegrationError::NotSupported` to reject unsupported refund scenarios early,
 before making API calls. Always be specific about what is not supported.
 
 ```rust
 // Partial refunds not supported
 if is_partial_refund(&router_data.request) {
-    return Err(ConnectorError::NotSupported {
+    return Err(IntegrationError::NotSupported {
         message: "Partial refunds are not supported by this connector".to_string(),
-        connector: "{ConnectorName}".to_string(),
+        connector: "{ConnectorName, context: Default::default() }".to_string(),
     }.into());
 }
 
 // Payment method not supported for refunds
 match &router_data.request.payment_method {
     PaymentMethod::BankTransfer(_) => {
-        return Err(ConnectorError::NotSupported {
+        return Err(IntegrationError::NotSupported {
             message: "Refunds for bank transfers are not supported by this connector".to_string(),
-            connector: "{ConnectorName}".to_string(),
+            connector: "{ConnectorName, context: Default::default() }".to_string(),
         }.into());
     }
     _ => {}
@@ -293,9 +293,9 @@ match &router_data.request.payment_method {
 // Currency restriction
 const UNSUPPORTED_CURRENCIES: &[&str] = &["BTC", "ETH"];
 if UNSUPPORTED_CURRENCIES.contains(&router_data.request.currency.to_string().as_str()) {
-    return Err(ConnectorError::NotSupported {
+    return Err(IntegrationError::NotSupported {
         message: format!(
-            "Refunds for {} currency are not supported by this connector",
+            "Refunds for {, context: Default::default() } currency are not supported by this connector",
             router_data.request.currency
         ),
         connector: "{ConnectorName}".to_string(),

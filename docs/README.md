@@ -1,28 +1,6 @@
-<div align="center">
-
-
-# Hyperswitch Prism
-
+## 🎯 What is Prism?
 
 **One integration. Any payment processor. Zero lock-in.**
-
-
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-
-
-*A high-performance payment abstraction library, and part of [Juspay Hyperswitch](https://hyperswitch.io/) — the open-source, composable payments platform with 40,000+ GitHub stars, trusted by leading brands worldwide.*
-
-
-[GitHub](https://github.com/juspay/hyperswitch) · [Website](https://hyperswitch.io/) · [Documentation](https://docs.hyperswitch.io/)
-
-
-</div>
-
-
----
-
-
-## 🎯 What is Prism?
 
 Today, integrating multiple payment processors either makes developers running in circles with AI agents to recreate integrations from specs, or developers spending months of engineering effort.
 
@@ -37,7 +15,7 @@ Because every payment processor has diverse APIs, error codes, authentication me
 
 | ❌ Without Prism | ✅ With Prism |
 |------------------------------|----------------------------|
-| 🗂️ 100+ different API schemas | 📋 Single unified schema |
+| 🗂️ 60+ different API schemas | 📋 Single unified schema |
 | ⏳ Never ending agent loops/ months of integration work | ⚡ Hours to integrate, Agent driven |
 | 🔗 Brittle, provider-specific code | 🔓 Portable, provider-agnostic code |
 | 🚫 Hard to switch providers | 🔄 Change providers in 1 line |
@@ -49,7 +27,7 @@ Because every payment processor has diverse APIs, error codes, authentication me
 ## ✨ Features
 
 
-- **🔌 100+ Connectors** — Stripe, Adyen, Braintree, PayPal, Worldpay, and more
+- **🔌 60+ Connectors** — Stripe, Adyen, Braintree, PayPal, Worldpay, and more
 - **🌍 Global Coverage** — Cards, wallets, bank transfers, BNPL, and regional methods
 - **🚀 Zero Overhead** — Rust core with native bindings, no overhead
 - **🔒 PCI-Compliant by Design** — Stateless, no data storage
@@ -81,7 +59,7 @@ The Prism library is compliant for payment processing by design. It is:
          ┌───────────────────────┼───────────────────────┬───────────────────────┐
          ▼                       ▼                       ▼                       ▼
    ┌──────────┐           ┌──────────┐           ┌──────────┐           ┌──────────┐
-   │  Stripe  │           │  Adyen   │           │ Braintree│           │ 50+ more │
+   │  Stripe  │           │  Adyen   │           │ Braintree│           │ 60+ more │
    └──────────┘           └──────────┘           └──────────┘           └──────────┘
 ```
 
@@ -104,7 +82,7 @@ npm install hyperswitch-prism
 #### **Python**
 
 ```bash
-pip install payments
+pip install hyperswitch-prism
 ```
 
 #### **Java**
@@ -114,7 +92,7 @@ Add to your `pom.xml`:
 ```xml
 <dependency>
     <groupId>com.juspay.hyperswitch</groupId>
-    <artifactId>prism</artifactId>
+    <artifactId>hyperswitch-prism</artifactId>
     <version>1.0.0</version>
 </dependency>
 ```
@@ -129,7 +107,7 @@ For detailed installation instructions, see [Installation Guide](./getting-start
 
 ---
 
-### Create a Payment Order
+### Authorize a Payment
 
 <!-- tabs:start -->
 
@@ -137,40 +115,51 @@ For detailed installation instructions, see [Installation Guide](./getting-start
 
 ```javascript
 const { PaymentClient } = require('hyperswitch-prism');
-const { ConnectorConfig, ConnectorSpecificConfig, SdkOptions, Environment } = require('hyperswitch-prism').types;
+const types = require('hyperswitch-prism').types;
 
 async function main() {
   // Configure Stripe client (Primary payment processor)
-  const stripeConfig = ConnectorConfig.create({
-    options: SdkOptions.create({ environment: Environment.SANDBOX }),
-  });
-  stripeConfig.connectorConfig = ConnectorSpecificConfig.create({
-    stripe: { apiKey: { value: process.env.STRIPE_API_KEY } }
-  });
+  const stripeConfig = {
+    connectorConfig: {
+      stripe: { apiKey: { value: process.env.STRIPE_API_KEY } }
+    }
+  };
   const stripeClient = new PaymentClient(stripeConfig);
 
   // Configure Adyen client (Secondary payment processor)
-  const adyenConfig = ConnectorConfig.create({
-    options: SdkOptions.create({ environment: Environment.SANDBOX }),
-  });
-  adyenConfig.connectorConfig = ConnectorSpecificConfig.create({
-    adyen: {
-      apiKey: { value: process.env.ADYEN_API_KEY },
-      merchantAccount: process.env.ADYEN_MERCHANT_ACCOUNT
+  const adyenConfig = {
+    connectorConfig: {
+      adyen: {
+        apiKey: { value: process.env.ADYEN_API_KEY },
+        merchantAccount: process.env.ADYEN_MERCHANT_ACCOUNT
+      }
     }
-  });
+  };
   const adyenClient = new PaymentClient(adyenConfig);
 
-  const order = await stripeClient.createOrder({
-    merchantOrderId: 'order-123',
+  // Authorize a payment
+  const auth = await stripeClient.authorize({
+    merchantTransactionId: 'order-123',
     amount: {
       minorAmount: 1000,
-      currency: "USD"
+      currency: types.Currency.USD
     },
-    orderType: 'PAYMENT',
-    description: 'Test order'
+    paymentMethod: {
+      card: {
+        cardNumber: { value: '4242424242424242' },
+        cardExpMonth: { value: '12' },
+        cardExpYear: { value: '2027' },
+        cardCvc: { value: '123' },
+        cardHolderName: { value: 'Jane Doe' }
+      }
+    },
+    captureMethod: types.CaptureMethod.AUTOMATIC,
+    address: { billingAddress: {} },
+    authType: types.AuthenticationType.NO_THREE_DS,
+    returnUrl: "https://example.com/return"
   });
-  console.log('Order ID:', order.connectorOrderId);
+  console.log('Transaction ID:', auth.connectorTransactionId);
+  console.log('Status:', auth.status);
 }
 
 main().catch(console.error);
@@ -184,27 +173,35 @@ Once the basic plumbing is implemented you can leverage Prism's core benefit - *
 
 
 ```javascript
-  // Routing rule: EUR -> Adyen, USD -> Stripe
-  const currency = 'USD';
-  const client = currency === 'EUR' ? adyenClient : stripeClient;
+const { PaymentClient } = require('hyperswitch-prism');
+const types = require('hyperswitch-prism').types;
 
-  const order = await client.createOrder({
-    merchantOrderId: 'order-123',
-    amount: {
-      minorAmount: 1000,
-      currency: EUR
-    },
-    orderType: 'PAYMENT',
-    description: 'Test order'
-  });
+// Routing rule: EUR -> Adyen, USD -> Stripe
+const currency = types.Currency.USD;
+const client = currency === types.Currency.EUR ? adyenClient : stripeClient;
 
-  console.log(`Order created with ${currency === 'EUR' ? 'Adyen' : 'Stripe'}`);
+const auth = await client.authorize({
+  merchantTransactionId: 'order-123',
+  amount: {
+    minorAmount: 1000,
+    currency: currency
+  },
+  paymentMethod: {
+    card: {
+      cardNumber: { value: '4242424242424242' },
+      cardExpMonth: { value: '12' },
+      cardExpYear: { value: '2027' },
+      cardCvc: { value: '123' },
+      cardHolderName: { value: 'Jane Doe' }
+    }
+  },
+  captureMethod: types.CaptureMethod.AUTOMATIC,
+  address: { billingAddress: {} },
+  authType: types.AuthenticationType.NO_THREE_DS,
+  returnUrl: "https://example.com/return"
+});
 
-// EUR goes to Adyen
-createOrder('order-456', 'EUR', 2500);
-
-// USD goes to Stripe
-createOrder('order-123', 'USD', 1000);
+console.log(`Payment authorized with ${currency === types.Currency.EUR ? 'Adyen' : 'Stripe'}`);
 ```
 
 **One integration pattern. Any service category.**

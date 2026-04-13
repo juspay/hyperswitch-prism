@@ -1,1 +1,1 @@
-rootProject.name = "hyperswitch-payments"
+rootProject.name = "prism"

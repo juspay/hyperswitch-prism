@@ -116,8 +116,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | BankTransferData::InstantBankTransfer {}
             | BankTransferData::InstantBankTransferFinland {}
             | BankTransferData::InstantBankTransferPoland {} => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Adyen"),
+                Err(errors::IntegrationError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Adyen", Default::default()),
                 ).into())
             }
         }
@@ -162,9 +162,9 @@ PaymentMethodData::BankTransfer(bank_transfer_data) => match bank_transfer_data.
                 balance_funding_type: BankTransferType::BankTransfers,
                 payment_method_type: StripePaymentMethodType::CustomerBalance,
                 country: payment_request_details.billing_address.country
-                    .ok_or(ConnectorError::MissingRequiredField {
+                    .ok_or(IntegrationError::MissingRequiredField {
                         field_name: "billing_address.country",
-                    })?,
+                    , context: Default::default() })?,
             }),
         )),
         Some(StripePaymentMethodType::CustomerBalance),
@@ -219,23 +219,23 @@ impl From<WebhookStatus> for enums::AttemptStatus {
 ```rust
 // Multibanco requires email
 let email = payment_request_details.billing_address.email.ok_or(
-    ConnectorError::MissingRequiredField {
+    IntegrationError::MissingRequiredField {
         field_name: "billing_address.email",
-    },
+    , context: Default::default() },
 )?;
 
 // SEPA requires country
 let country = payment_request_details.billing_address.country.ok_or(
-    ConnectorError::MissingRequiredField {
+    IntegrationError::MissingRequiredField {
         field_name: "billing_address.country",
-    },
+    , context: Default::default() },
 )?;
 ```
 
 ## Key Implementation Notes
 
 1. **Always async**: Return `AuthenticationPending` or `Authorized` initially; never `Charged`. Rely on webhooks for final status.
-2. **Variant exhaustiveness**: Match all `BankTransferData` variants. Return `ConnectorError::NotImplemented` for unsupported ones.
+2. **Variant exhaustiveness**: Match all `BankTransferData` variants. Return `IntegrationError::NotImplemented` for unsupported ones.
 3. **Box large variants**: Use `Box::new(...)` when wrapping transfer data structs to avoid large enum sizes.
 4. **Dynamic URL routing**: Some connectors need different endpoints per bank transfer sub-type -- use a nested match on `BankTransferData` inside `get_url`.
 5. **Timeout**: Bank transfers can take up to 72 hours. Configure extended timeouts accordingly.

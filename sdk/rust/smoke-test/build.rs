@@ -1,16 +1,114 @@
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
 
 /// Type alias for gRPC module tuple to avoid complex type warning
-/// (connector_name, Vec<(flow_key, grpc_field, grpc_method, builder_fn, needs_txn, self_auth)>)
 type GrpcModule<'a> = (
     String,
     Vec<(&'a str, &'a str, &'a str, &'a str, bool, bool)>,
 );
 
+/// Flow manifest data containing flows list and flow-to-example-fn mapping
+struct FlowManifest {
+    flows: Vec<String>,
+    flow_to_example_fn: HashMap<String, Option<String>>,
+}
+
+/// Load flows.json manifest and return both flows list and flow-to-example-fn mapping.
+/// Returns empty data if file doesn't exist (allows CI builds without generated files).
+fn load_flow_manifest(repo_root: &Path) -> FlowManifest {
+    let manifest_path = repo_root.join("sdk").join("generated").join("flows.json");
+    println!("cargo:rerun-if-changed={}", manifest_path.display());
+
+    let text = match fs::read_to_string(&manifest_path) {
+        Ok(t) => t,
+        Err(_) => {
+            println!(
+                "cargo:warning=flows.json not found at {}. Skipping smoke test generation.",
+                manifest_path.display()
+            );
+            return FlowManifest {
+                flows: Vec::new(),
+                flow_to_example_fn: HashMap::new(),
+            };
+        }
+    };
+
+    // Parse flows array
+    let flows_start = text
+        .find("\"flows\"")
+        .expect("flows key not found in flows.json");
+    let bracket_start = text[flows_start..]
+        .find('[')
+        .expect("flows array not found")
+        + flows_start;
+    let bracket_end = text[bracket_start..]
+        .find(']')
+        .expect("flows array end not found")
+        + bracket_start;
+    let array_content = &text[bracket_start + 1..bracket_end];
+
+    let flows: Vec<String> = array_content
+        .split(',')
+        .map(|s| s.trim().trim_matches('"').to_string())
+        .filter(|s| !s.is_empty())
+        .collect();
+
+    // Parse flow_to_example_fn mapping if present
+    let mut flow_to_example_fn: HashMap<String, Option<String>> = HashMap::new();
+    if let Some(mapping_start) = text.find("\"flow_to_example_fn\"") {
+        if let Some(brace_start) = text[mapping_start..].find('{') {
+            let brace_start = brace_start + mapping_start;
+            if let Some((block, _)) = extract_brace_block(&text[brace_start..]) {
+                // Parse "flow": "example_fn" or "flow": null pairs
+                for line in block.split(',') {
+                    let line = line.trim();
+                    if line.is_empty() {
+                        continue;
+                    }
+                    // Extract key and value
+                    if let Some(colon_pos) = line.find(':') {
+                        let key = line[..colon_pos].trim().trim_matches('"').to_string();
+                        let value = line[colon_pos + 1..].trim();
+                        if value == "null" {
+                            flow_to_example_fn.insert(key, None);
+                        } else {
+                            let val = value.trim_matches('"').to_string();
+                            flow_to_example_fn.insert(key, Some(val));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    FlowManifest {
+        flows,
+        flow_to_example_fn,
+    }
+}
+
+/// Read SUPPORTED_FLOWS from example .rs file content.
+fn load_supported_flows_from_example(content: &str) -> Option<Vec<String>> {
+    // Match: pub const SUPPORTED_FLOWS: &[&str] = &["flow1", "flow2", ...];
+    let marker = "pub const SUPPORTED_FLOWS: &[&str] = &[";
+    let start = content.find(marker)?;
+    let after = &content[start + marker.len()..];
+    let end = after
+        .find("];")
+        .unwrap_or_else(|| after.find(']').expect("SUPPORTED_FLOWS array not closed"));
+    let array_content = &after[..end];
+
+    let flows: Vec<String> = array_content
+        .split(',')
+        .map(|s| s.trim().trim_matches('"').to_string())
+        .filter(|s| !s.is_empty())
+        .collect();
+    Some(flows)
+}
+
 /// Extracts the content of a JSON object block starting at the first `{` in `text`.
-/// Returns (block_content_without_outer_braces, length_consumed).
 fn extract_brace_block(text: &str) -> Option<(&str, usize)> {
     let brace_pos = text.find('{')?;
     let block = &text[brace_pos..];
@@ -32,10 +130,10 @@ fn extract_brace_block(text: &str) -> Option<(&str, usize)> {
 
 /// Reads data/field_probe/{connector}.json and returns the set of flow keys
 /// that have at least one variant with status == "supported". Returns None if no probe file.
-///
-/// Uses a brace-counting JSON scanner (no external JSON dependency) to stay
-/// within the "flows" section and avoid false matches inside proto_request payloads.
-fn load_supported_flows(examples_dir: &Path, connector: &str) -> Option<HashSet<String>> {
+fn load_supported_flows_from_probe(
+    examples_dir: &Path,
+    connector: &str,
+) -> Option<HashSet<String>> {
     let probe_file = examples_dir
         .join("..")
         .join("data")
@@ -47,13 +145,10 @@ fn load_supported_flows(examples_dir: &Path, connector: &str) -> Option<HashSet<
     println!("cargo:rerun-if-changed={}", probe_file.display());
     let text = fs::read_to_string(&probe_file).ok()?;
 
-    // Locate the "flows": { ... } section.
     let flows_marker = "\"flows\":";
     let flows_start = text.find(flows_marker)?;
     let (flows_block, _) = extract_brace_block(&text[flows_start + flows_marker.len()..])?;
 
-    // Within the flows block, each top-level key is a flow name.
-    // Scan by finding `"flow_key":` patterns and extracting the variants block.
     let all_flow_keys = [
         "authorize",
         "capture",
@@ -77,13 +172,12 @@ fn load_supported_flows(examples_dir: &Path, connector: &str) -> Option<HashSet<
         "proxied_authorize",
         "proxied_setup_recurring",
     ];
+
     let mut supported = HashSet::new();
     for flow_key in all_flow_keys {
-        // Match `"flow_key":` as a JSON key within the flows block.
         let key_pattern = format!("\"{}\":", flow_key);
         if let Some(pos) = flows_block.find(&key_pattern) {
             let after_colon = &flows_block[pos + key_pattern.len()..];
-            // Extract the variants block { "Ach": { ... }, ... }
             if let Some((variants_block, _)) = extract_brace_block(after_colon) {
                 if variants_block.contains("\"supported\"") {
                     supported.insert(flow_key.to_string());
@@ -95,37 +189,32 @@ fn load_supported_flows(examples_dir: &Path, connector: &str) -> Option<HashSet<
 }
 
 fn main() {
+    // Declare env-var dependencies so cargo reruns this script when they change.
+    println!("cargo:rerun-if-env-changed=CONNECTORS");
+    println!("cargo:rerun-if-env-changed=HARNESS_DIR");
+
     let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
-    let examples_dir = Path::new(&manifest_dir).join("../../../examples");
+    let repo_root = Path::new(&manifest_dir).join("../../..");
+    // Allow overriding examples directory via HARNESS_DIR env var (used in mock mode)
+    let examples_dir = std::env::var("HARNESS_DIR")
+        .map(|p| Path::new(&p).to_path_buf())
+        .unwrap_or_else(|_| repo_root.join("examples"));
     let out_dir = std::env::var("OUT_DIR").unwrap();
     let connectors_path = format!("{out_dir}/connectors.rs");
     let scenarios_path = format!("{out_dir}/connector_scenarios.rs");
     let grpc_scenarios_path = format!("{out_dir}/grpc_scenarios.rs");
     let grpc_helpers_path = format!("{out_dir}/grpc_helpers.rs");
 
-    // Known FFI scenario function names (subset may be present in any connector).
-    let all_scenarios: &[(&str, &str)] = &[
-        ("checkout_autocapture", "process_checkout_autocapture"),
-        ("checkout_card", "process_checkout_card"),
-        ("checkout_wallet", "process_checkout_wallet"),
-        ("checkout_bank", "process_checkout_bank"),
-        ("refund", "process_refund"),
-        ("recurring", "process_recurring"),
-        ("void_payment", "process_void_payment"),
-        ("get_payment", "process_get_payment"),
-        ("create_customer", "process_create_customer"),
-        ("tokenize", "process_tokenize"),
-        ("authentication", "process_authentication"),
-        ("tokenized_checkout", "process_tokenized_checkout"),
-        ("tokenized_recurring", "process_tokenized_recurring"),
-        ("proxy_checkout", "process_proxy_checkout"),
-        ("proxy_3ds_checkout", "process_proxy_3ds_checkout"),
-    ];
+    // Load canonical flow manifest from flows.json
+    let manifest_data = load_flow_manifest(&repo_root);
+    let manifest = &manifest_data.flows;
+    let _flow_to_example_fn = &manifest_data.flow_to_example_fn; // Prefixed with underscore as it's no longer used in legacy mode
+    println!(
+        "cargo:warning=Loaded {} flows from flows.json",
+        manifest.len()
+    );
 
     // Flow metadata for gRPC dispatch via builder functions.
-    // Fields: (flow_key, grpc_field, grpc_method, builder_fn, needs_txn_id, self_auth)
-    //   needs_txn_id : receives connector_transaction_id from the shared AUTOMATIC authorize pre-run
-    //   self_auth    : must run its own MANUAL authorize inline (capture, void)
     let flow_meta: &[(&str, &str, &str, &str, bool, bool)] = &[
         (
             "authorize",
@@ -306,14 +395,14 @@ fn main() {
         .map(|s| s.split(',').map(|s| s.trim().to_string()).collect())
         .unwrap_or_else(|| vec!["stripe".to_string()]);
 
-    let mut modules: Vec<(String, Vec<(&'static str, &'static str)>)> = Vec::new();
-    // grpc_modules: connector_name -> list of present (flow_key, grpc_field, grpc_method, builder_fn, needs_txn, self_auth)
+    // Store scenario data as (connector_name, Vec<(flow_key, fn_name)>)
+    // fn_name is stored as String to avoid lifetime issues
+    let mut modules: Vec<(String, Vec<(String, String)>)> = Vec::new();
     let mut grpc_modules: Vec<GrpcModule> = Vec::new();
 
     for connector_name in &allowed_connectors {
         let rs_file = examples_dir
             .join(connector_name)
-            .join("rust")
             .join(format!("{connector_name}.rs"));
         if !rs_file.exists() {
             continue;
@@ -322,57 +411,89 @@ fn main() {
         println!("cargo:rerun-if-changed={}", rs_file.display());
         let content = fs::read_to_string(&rs_file).unwrap_or_default();
 
-        // Load field_probe supported flows — used as authoritative filter (same as JS smoke test).
-        let field_probe_supported = load_supported_flows(&examples_dir, connector_name);
-        if let Some(ref supported) = field_probe_supported {
-            println!(
-                "cargo:warning=field_probe[{connector_name}]: {} supported flows",
-                supported.len()
+        // Load SUPPORTED_FLOWS from example file (new approach)
+        let declared_flows = load_supported_flows_from_example(&content);
+
+        // Load field_probe supported flows (legacy support)
+        let field_probe_supported = load_supported_flows_from_probe(&examples_dir, connector_name);
+
+        // Discover FFI process_* functions using SUPPORTED_FLOWS with 3-check validation
+        let mut present: Vec<(String, String)> = Vec::new();
+
+        // Skip connectors without SUPPORTED_FLOWS (they need to add it)
+        let declared = match declared_flows {
+            Some(flows) => flows,
+            None => {
+                println!("cargo:warning=Skipping connector '{}': No SUPPORTED_FLOWS found. Add: pub const SUPPORTED_FLOWS: &[&str] = &[...];", connector_name);
+                continue;
+            }
+        };
+
+        let manifest_set: HashSet<_> = manifest.iter().cloned().collect();
+
+        // CHECK 1: Verify all declared flows have implementations
+        let mut missing = Vec::new();
+        for flow in &declared {
+            let fn_name = format!("process_{}", flow);
+            if !content.contains(&format!("pub async fn {}(", fn_name)) {
+                missing.push(flow.clone());
+            }
+        }
+        if !missing.is_empty() {
+            panic!(
+                "COVERAGE ERROR [{}]: SUPPORTED_FLOWS declares {:?} but no process_* function found for them.",
+                connector_name, missing
             );
         }
 
-        // Discover FFI process_* functions.
-        let mut present = Vec::new();
-        for (key, fn_name) in all_scenarios {
-            if content.contains(&format!("pub async fn {fn_name}(")) {
-                present.push((*key, *fn_name));
+        // CHECK 2: Verify no undeclared process_* functions exist
+        // Scan for all pub async fn process_* patterns
+        for line in content.lines() {
+            if let Some(pos) = line.find("pub async fn process_") {
+                let after_process = &line[pos + 21..]; // after "pub async fn process_" (21 chars)
+                if let Some(paren_pos) = after_process.find('(') {
+                    let flow_name = &after_process[..paren_pos];
+                    if !declared.iter().any(|d| d == flow_name) {
+                        panic!(
+                            "COVERAGE ERROR [{}]: process_{} exists but '{}' not in SUPPORTED_FLOWS.",
+                            connector_name, flow_name, flow_name
+                        );
+                    }
+                }
             }
         }
-        // Also discover direct flow functions (authorize, capture, void, etc.)
-        let direct_flows = [
-            ("authorize", "authorize"),
-            ("capture", "capture"),
-            ("void", "void"),
-            ("get", "get"),
-            ("refund", "refund"),
-            ("reverse", "reverse"),
-            ("create_customer", "create_customer"),
-            ("tokenize", "tokenize"),
-            ("setup_recurring", "setup_recurring"),
-            ("recurring_charge", "recurring_charge"),
-        ];
-        for (key, fn_name) in direct_flows {
-            if content.contains(&format!("pub async fn {fn_name}("))
-                && !present.iter().any(|(k, _)| *k == key)
-            {
-                present.push((key, fn_name));
-            }
+
+        // CHECK 3: Verify all declared flows exist in manifest
+        let stale: Vec<_> = declared
+            .iter()
+            .filter(|flow| !manifest_set.contains(*flow))
+            .cloned()
+            .collect();
+        if !stale.is_empty() {
+            panic!(
+                "COVERAGE ERROR [{}]: SUPPORTED_FLOWS contains flows that no longer exist in flows.json: {:?}",
+                connector_name, stale
+            );
         }
+
+        // Add validated flows
+        for flow in declared {
+            present.push((flow.clone(), format!("process_{}", flow)));
+        }
+
         if !present.is_empty() {
             modules.push((connector_name.clone(), present));
         }
 
-        // Discover gRPC flows: builder function present AND flow supported in field_probe.
-        // This mirrors the JS smoke test which filters by field_probe.supportedFlows.
+        // Discover gRPC flows
         let mut grpc_present: Vec<(&str, &str, &str, &str, bool, bool)> = Vec::new();
         for &(flow_key, grpc_field, grpc_method, builder_fn, needs_txn, self_auth) in flow_meta {
-            // Skip if not supported in field_probe (when probe file exists).
             if let Some(ref supported) = field_probe_supported {
                 if !supported.contains(flow_key) {
                     continue;
                 }
             }
-            if content.contains(&format!("fn {builder_fn}(")) {
+            if content.contains(&format!("fn {}(", builder_fn)) {
                 grpc_present.push((
                     flow_key,
                     grpc_field,
@@ -402,10 +523,7 @@ fn main() {
         }
 
         for name in &all_names {
-            let path = examples_dir
-                .join(name.as_str())
-                .join("rust")
-                .join(format!("{name}.rs"));
+            let path = examples_dir.join(name.as_str()).join(format!("{name}.rs"));
             let canonical = path.canonicalize().unwrap_or(path.clone());
             code.push_str(&format!(
                 "pub mod {name} {{\n    include!(r\"{}\");\n}}\n",
@@ -425,23 +543,53 @@ fn main() {
     {
         let mut code = String::new();
         code.push_str("// AUTO-GENERATED by build.rs — do not edit manually.\n\n");
-        code.push_str("match connector_name {\n");
-        for (name, scenarios) in &modules {
-            code.push_str(&format!("    \"{name}\" => {{\n"));
-            code.push_str("        let mut results = vec![];\n");
-            for (key, fn_name) in scenarios {
-                code.push_str(&format!(
-                    "        results.push((\"{key}\".to_string(), connectors::{name}::{fn_name}(client, &txn_id).await));\n"
-                ));
+        if modules.is_empty() {
+            code.push_str("{\n");
+            code.push_str("    let _ = connector_name;\n");
+            code.push_str("    vec![]\n");
+            code.push_str("}\n");
+        } else {
+            code.push_str("match connector_name {\n");
+            for (name, scenarios) in &modules {
+                // Build a map of flow -> example_fn_name for this connector
+                let implemented: std::collections::HashMap<_, _> = scenarios
+                    .iter()
+                    .map(|(k, v)| (k.as_str(), v.as_str()))
+                    .collect();
+                code.push_str(&format!("    \"{name}\" => {{\n"));
+                code.push_str("        let mut results = vec![];\n");
+                // Include ALL flows from manifest, using flow_to_example_fn mapping
+                for flow in manifest {
+                    if let Some(example_fn) = implemented.get(flow.as_str()) {
+                        // Flow has an implementation - call the example function
+                        // Use the actual result message for normal mode, mock request info for mock mode
+                        code.push_str(&format!(
+                            "        match connectors::{}::{}(client, &txn_id).await {{\n",
+                            name, example_fn
+                        ));
+                        code.push_str("            Ok(msg) => results.push((\"");
+                        code.push_str(flow);
+                        code.push_str("\".to_string(), Ok(msg))),\n");
+                        code.push_str("            Err(e) => results.push((\"");
+                        code.push_str(flow);
+                        code.push_str("\".to_string(), Err(e))),\n");
+                        code.push_str("        }\n");
+                    } else {
+                        // Flow not implemented
+                        code.push_str(&format!(
+                            "        results.push((\"{}\".to_string(), Err(format!(\"NOT IMPLEMENTED — No example function for flow '{}'\").into())));\n",
+                            flow, flow
+                        ));
+                    }
+                }
+                code.push_str("        results\n    }\n");
             }
-            code.push_str("        results\n    }\n");
+            code.push_str("    _ => vec![],\n}\n");
         }
-        code.push_str("    _ => vec![],\n}\n");
         fs::write(&scenarios_path, code).unwrap();
     }
 
-    // ── grpc_helpers.rs (module-level async helpers for self-auth flows) ─────────
-    // Included at module level in grpc_smoke_test.rs so async fn definitions are valid.
+    // ── grpc_helpers.rs ───────────────────────────────────────────────────────
     {
         let mut helpers = String::new();
         helpers.push_str("// AUTO-GENERATED by build.rs — do not edit manually.\n\n");
@@ -457,12 +605,16 @@ fn main() {
                     _ => "format!(\"status_code: {}\", response.status_code)".to_string(),
                 };
                 helpers.push_str("#[allow(dead_code)]\n");
-                helpers.push_str(&format!("async fn _run_grpc_{flow_key}_{name}(\n"));
+                helpers.push_str(&format!("async fn _run_grpc_{}_{}(\n", flow_key, name));
                 helpers.push_str("    client: &hyperswitch_payments_client::GrpcClient,\n");
                 helpers.push_str(") -> Result<String, Box<dyn std::error::Error>> {\n");
-                helpers.push_str(&format!("    let auth = client.{grpc_field}.authorize(\n"));
                 helpers.push_str(&format!(
-                    "        connectors::{name}::build_authorize_request(\"MANUAL\")\n"
+                    "    let auth = client.{}.authorize(\n",
+                    grpc_field
+                ));
+                helpers.push_str(&format!(
+                    "        connectors::{}::build_authorize_request(\"MANUAL\")\n",
+                    name
                 ));
                 helpers.push_str("    ).await.map_err(|e| e.to_string())?;\n");
                 helpers.push_str("    if auth.status_code >= 400 {\n");
@@ -470,16 +622,18 @@ fn main() {
                 helpers.push_str("    }\n");
                 helpers.push_str("    let conn_txn = auth.connector_transaction_id.as_deref().unwrap_or(\"\");\n");
                 helpers.push_str(&format!(
-                    "    let response = client.{grpc_field}.{grpc_method}(\n"
+                    "    let response = client.{}.{}(\n",
+                    grpc_field, grpc_method
                 ));
                 helpers.push_str(&format!(
-                    "        connectors::{name}::{builder_fn}(conn_txn)\n"
+                    "        connectors::{}::{}(conn_txn)\n",
+                    name, builder_fn
                 ));
                 helpers.push_str("    ).await.map_err(|e| e.to_string())?;\n");
                 helpers.push_str("    if response.status_code >= 400 {\n");
                 helpers.push_str("        return Err(hyperswitch_payments_client::grpc_response_err(response.status_code, &response.error));\n");
                 helpers.push_str("    }\n");
-                helpers.push_str(&format!("    Ok({ret})\n"));
+                helpers.push_str(&format!("    Ok({})\n", ret));
                 helpers.push_str("}\n\n");
             }
         }
@@ -487,79 +641,87 @@ fn main() {
         fs::write(&grpc_helpers_path, helpers).unwrap();
     }
 
-    // ── grpc_scenarios.rs (match expression included inside run_grpc_scenarios) ──
-    // Included in expression position — must contain only the match expression.
+    // ── grpc_scenarios.rs ─────────────────────────────────────────────────────
     {
         let mut code = String::new();
         code.push_str("// AUTO-GENERATED by build.rs — do not edit manually.\n");
-        code.push_str("// Calls connector build_*_request() builders directly — no grpc_* wrappers needed.\n\n");
+        code.push_str("// Calls connector build_*_request() builders directly.\n\n");
 
-        code.push_str("match connector_name {\n");
+        if grpc_modules.is_empty() {
+            code.push_str("{\n");
+            code.push_str("    let _ = connector_name;\n");
+            code.push_str("    vec![]\n");
+            code.push_str("}\n");
+        } else {
+            code.push_str("match connector_name {\n");
 
-        for (name, flows) in &grpc_modules {
-            let has_authorize = flows.iter().any(|&(k, ..)| k == "authorize");
-            let has_dependents = flows.iter().any(|&(_, _, _, _, needs_txn, _)| needs_txn);
+            for (name, flows) in &grpc_modules {
+                let has_authorize = flows.iter().any(|&(k, ..)| k == "authorize");
+                let has_dependents = flows.iter().any(|&(_, _, _, _, needs_txn, _)| needs_txn);
 
-            code.push_str(&format!("    \"{name}\" => {{\n"));
-            code.push_str("        let mut results = vec![];\n");
+                code.push_str(&format!("    \"{name}\" => {{\n"));
+                code.push_str("        let mut results = vec![];\n");
 
-            // Pre-run AUTOMATIC authorize to obtain the connector txn_id for dependent flows.
-            if has_authorize && has_dependents {
-                code.push_str(&format!(
+                if has_authorize && has_dependents {
+                    code.push_str(&format!(
                     "        let pre_auth_res = client.payment.authorize(connectors::{name}::build_authorize_request(\"AUTOMATIC\")).await;\n"
                 ));
-                code.push_str("        let authorize_txn_id = pre_auth_res.as_ref().ok()\n");
-                code.push_str("            .and_then(|r| r.connector_transaction_id.as_deref())\n");
-                code.push_str("            .unwrap_or(\"probe_connector_txn_001\").to_string();\n");
-                // Check if authorize returned an error status code
-                code.push_str("        let auth_result = match &pre_auth_res {\n");
-                code.push_str("            Ok(r) if r.status_code >= 400 => {\n");
-                code.push_str("                let err_msg = r.error.as_ref()\n");
-                code.push_str("                    .and_then(|e| {\n");
-                code.push_str("                        // Try unified_details first, then connector_details, then issuer_details\n");
-                code.push_str("                        e.unified_details.as_ref()\n");
-                code.push_str("                            .and_then(|u| u.message.as_ref())\n");
-                code.push_str("                            .or_else(|| e.connector_details.as_ref().and_then(|c| c.message.as_ref()))\n");
-                code.push_str("                            .or_else(|| e.issuer_details.as_ref().and_then(|i| i.message.as_ref()))\n");
-                code.push_str("                            .map(|s| s.as_str())\n");
-                code.push_str("                    })\n");
-                code.push_str("                    .unwrap_or(\"no error details available\");\n");
-                code.push_str(
-                    "                Err(format!(\"HTTP {}: {}\", r.status_code, err_msg))\n",
-                );
-                code.push_str("            },\n");
-                code.push_str("            Ok(r) => {\n");
-                code.push_str("                Ok(format!(\"txn_id: {}, status_code: {}\",\n");
-                code.push_str("                    r.connector_transaction_id.as_deref().unwrap_or(\"-\"), r.status_code))\n");
-                code.push_str("            },\n");
-                code.push_str("            Err(e) => Err(e.to_string()),\n");
-                code.push_str("        };\n");
-                code.push_str("        results.push((\"authorize\".to_string(), auth_result.map_err(|e| e.into())));\n");
-            }
-
-            for &(flow_key, grpc_field, grpc_method, builder_fn, needs_txn, self_auth) in flows {
-                // Skip authorize — already handled in the pre-run block above.
-                if flow_key == "authorize" && has_authorize && has_dependents {
-                    continue;
+                    code.push_str("        let authorize_txn_id = pre_auth_res.as_ref().ok()\n");
+                    code.push_str(
+                        "            .and_then(|r| r.connector_transaction_id.as_deref())\n",
+                    );
+                    code.push_str(
+                        "            .unwrap_or(\"probe_connector_txn_001\").to_string();\n",
+                    );
+                    code.push_str("        let auth_result = match &pre_auth_res {\n");
+                    code.push_str("            Ok(r) if r.status_code >= 400 => {\n");
+                    code.push_str("                let err_msg = r.error.as_ref()\n");
+                    code.push_str("                    .and_then(|e| {\n");
+                    code.push_str("                        e.unified_details.as_ref()\n");
+                    code.push_str(
+                        "                            .and_then(|u| u.message.as_ref())\n",
+                    );
+                    code.push_str("                            .or_else(|| e.connector_details.as_ref().and_then(|c| c.message.as_ref()))\n");
+                    code.push_str("                            .or_else(|| e.issuer_details.as_ref().and_then(|i| i.message.as_ref()))\n");
+                    code.push_str("                            .map(|s| s.as_str())\n");
+                    code.push_str("                    })\n");
+                    code.push_str(
+                        "                    .unwrap_or(\"no error details available\");\n",
+                    );
+                    code.push_str(
+                        "                Err(format!(\"HTTP {}: {}\", r.status_code, err_msg))\n",
+                    );
+                    code.push_str("            },\n");
+                    code.push_str("            Ok(r) => {\n");
+                    code.push_str("                Ok(format!(\"txn_id: {}, status_code: {}\",\n");
+                    code.push_str("                    r.connector_transaction_id.as_deref().unwrap_or(\"-\"), r.status_code))\n");
+                    code.push_str("            },\n");
+                    code.push_str("            Err(e) => Err(e.to_string()),\n");
+                    code.push_str("        };\n");
+                    code.push_str("        results.push((\"authorize\".to_string(), auth_result.map_err(|e| e.into())));\n");
                 }
 
-                if self_auth {
-                    code.push_str(&format!(
-                        "        results.push((\"{flow_key}\".to_string(), _run_grpc_{flow_key}_{name}(client).await));\n"
-                    ));
-                } else {
-                    // Flows with a dynamic string param: authorize (capture_method),
-                    // or flows that receive a connector txn_id from an upstream step.
-                    // All other flows have no-param builders.
-                    let builder_arg = if flow_key == "authorize" {
-                        "\"AUTOMATIC\"".to_string()
-                    } else if needs_txn {
-                        "&authorize_txn_id".to_string()
-                    } else {
-                        String::new() // no-param builder
-                    };
+                for &(flow_key, grpc_field, grpc_method, builder_fn, needs_txn, self_auth) in flows
+                {
+                    if flow_key == "authorize" && has_authorize && has_dependents {
+                        continue;
+                    }
 
-                    let ret = match flow_key {
+                    if self_auth {
+                        code.push_str(&format!(
+                        "        results.push((\"{}\".to_string(), _run_grpc_{}_{}(client).await));\n",
+                        flow_key, flow_key, name
+                    ));
+                    } else {
+                        let builder_arg = if flow_key == "authorize" {
+                            "\"AUTOMATIC\"".to_string()
+                        } else if needs_txn {
+                            "&authorize_txn_id".to_string()
+                        } else {
+                            String::new()
+                        };
+
+                        let ret = match flow_key {
                         "authorize" | "tokenized_authorize" | "proxied_authorize" =>
                             "format!(\"txn_id: {}, status_code: {}, error: {}\", r.connector_transaction_id.as_deref().unwrap_or(\"-\"), r.status_code, r.error.as_deref().unwrap_or(\"-\"))",
                         "get" | "reverse" =>
@@ -577,23 +739,24 @@ fn main() {
                         _ => "format!(\"status_code: {}\", r.status_code)",
                     };
 
-                    let has_status = ret.contains("status_code");
+                        let has_status = ret.contains("status_code");
 
-                    code.push_str(&format!("        results.push((\"{flow_key}\".to_string(), match client.{grpc_field}.{grpc_method}(connectors::{name}::{builder_fn}({builder_arg})).await {{\n"));
-                    if has_status {
-                        code.push_str("            Ok(r) if r.status_code >= 400 =>\n");
-                        code.push_str("                Err(hyperswitch_payments_client::grpc_response_err(r.status_code, &r.error)),\n");
+                        code.push_str(&format!("        results.push((\"{}\".to_string(), match client.{}.{}(connectors::{}::{}({})).await {{\n", flow_key, grpc_field, grpc_method, name, builder_fn, builder_arg));
+                        if has_status {
+                            code.push_str("            Ok(r) if r.status_code >= 400 =>\n");
+                            code.push_str("                Err(hyperswitch_payments_client::grpc_response_err(r.status_code, &r.error)),\n");
+                        }
+                        code.push_str(&format!("            Ok(r) => Ok({}),\n", ret));
+                        code.push_str("            Err(e) => Err(e.to_string().into()),\n");
+                        code.push_str("        }));\n");
                     }
-                    code.push_str(&format!("            Ok(r) => Ok({ret}),\n"));
-                    code.push_str("            Err(e) => Err(e.to_string().into()),\n");
-                    code.push_str("        }));\n");
                 }
+
+                code.push_str("        results\n    }\n");
             }
 
-            code.push_str("        results\n    }\n");
+            code.push_str("    _ => vec![],\n}\n");
         }
-
-        code.push_str("    _ => vec![],\n}\n");
         fs::write(&grpc_scenarios_path, code).unwrap();
     }
 }

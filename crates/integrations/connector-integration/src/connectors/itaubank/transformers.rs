@@ -1,7 +1,7 @@
 use domain_types::{
     connector_flow::*,
     connector_types::*,
-    errors::ConnectorError,
+    errors::{ConnectorError, IntegrationError},
     payouts::payout_method_data::{Bank, PayoutMethodData, PixBankTransfer},
     payouts::payouts_types::*,
     router_data::ConnectorSpecificConfig,
@@ -24,7 +24,7 @@ pub struct ItaubankAuthType {
 }
 
 impl TryFrom<&ConnectorSpecificConfig> for ItaubankAuthType {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(config: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         match config {
@@ -36,7 +36,10 @@ impl TryFrom<&ConnectorSpecificConfig> for ItaubankAuthType {
                 client_id: client_id.clone(),
                 client_secret: client_secret.clone(),
             }),
-            _ => Err(ConnectorError::FailedToObtainAuthType.into()),
+            _ => Err(IntegrationError::FailedToObtainAuthType {
+                context: Default::default(),
+            }
+            .into()),
         }
     }
 }
@@ -63,21 +66,21 @@ pub struct ItaubankAccessTokenRequest {
 impl
     TryFrom<
         &RouterDataV2<
-            CreateAccessToken,
+            ServerAuthenticationToken,
             PaymentFlowData,
-            AccessTokenRequestData,
-            AccessTokenResponseData,
+            ServerAuthenticationTokenRequestData,
+            ServerAuthenticationTokenResponseData,
         >,
     > for ItaubankAccessTokenRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         req: &RouterDataV2<
-            CreateAccessToken,
+            ServerAuthenticationToken,
             PaymentFlowData,
-            AccessTokenRequestData,
-            AccessTokenResponseData,
+            ServerAuthenticationTokenRequestData,
+            ServerAuthenticationTokenResponseData,
         >,
     ) -> Result<Self, Self::Error> {
         let auth = ItaubankAuthType::try_from(&req.connector_config)?;
@@ -147,7 +150,7 @@ impl
         >,
     > for ItaubankTransferRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         req: &RouterDataV2<
@@ -160,10 +163,14 @@ impl
         let converter = StringMajorUnitForConnector;
         let valor_pagamento = converter
             .convert(req.request.amount, req.request.source_currency)
-            .change_context(ConnectorError::RequestEncodingFailed)?;
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?;
 
         let data_pagamento = common_utils::date_time::date_as_yyyymmddthhmmssmmmz()
-            .change_context(ConnectorError::RequestEncodingFailed)?;
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?;
 
         let recebedor = match req.request.payout_method_data.clone() {
             Some(PayoutMethodData::Bank(Bank::Pix(PixBankTransfer {
@@ -184,8 +191,9 @@ impl
                 let agencia = bank_branch
                     .map(|b| {
                         b.parse::<i64>()
-                            .change_context(ConnectorError::InvalidDataFormat {
+                            .change_context(IntegrationError::InvalidDataFormat {
                                 field_name: "bank_branch",
+                                context: Default::default(),
                             })
                     })
                     .transpose()?;
@@ -275,6 +283,9 @@ impl TryFrom<ResponseRouterData<ItaubankErrorResponse, Self>>
     fn try_from(
         _item: ResponseRouterData<ItaubankErrorResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        Err(ConnectorError::NotImplemented("PSync for Itaubank".to_string()).into())
+        Err(ConnectorError::ResponseHandlingFailed {
+            context: Default::default(),
+        }
+        .into())
     }
 }

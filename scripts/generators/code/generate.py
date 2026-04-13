@@ -34,7 +34,15 @@ TEMPLATES_DIR = Path(__file__).parent / "templates"
 
 SERVICES_PROTO = REPO_ROOT / "crates/types-traits/grpc-api-types/proto/services.proto"
 FFI_SERVICES_DIR = REPO_ROOT / "crates/ffi/ffi/src/services"
-PROTO_DESCRIPTOR = Path(__file__).parent / "services.desc"
+
+PROTO_DIR = REPO_ROOT / "crates/types-traits/grpc-api-types/proto"
+PROTO_FILES = [
+    "services.proto",
+    "payment.proto",
+    "payouts.proto",
+    "payment_methods.proto",
+    "sdk_config.proto",
+]
 
 RUST_HANDLERS_OUT = REPO_ROOT / "crates/ffi/ffi/src/handlers/_generated_flow_registrations.rs"
 RUST_FFI_FLOWS_OUT = REPO_ROOT / "crates/ffi/ffi/src/bindings/_generated_ffi_flows.rs"
@@ -54,18 +62,44 @@ env = Environment(
 )
 
 
-def ensure_descriptor_exists() -> None:
-    """Verify proto descriptor file exists and is readable."""
-    if not PROTO_DESCRIPTOR.exists():
-        print(
-            f"ERROR: Proto descriptor not found: {PROTO_DESCRIPTOR}",
-            file=sys.stderr,
-        )
-        print(
-            "Run 'make generate' from the sdk directory to generate the descriptor.",
-            file=sys.stderr,
-        )
-        sys.exit(1)
+def build_descriptor_set():
+    """
+    Build a FileDescriptorSet from proto files using grpc_tools.protoc.
+    Returns a FileDescriptorSet object compiled in-memory.
+    """
+    import tempfile
+    import os
+    from pathlib import Path
+    from grpc_tools import protoc
+    from google.protobuf.descriptor_pb2 import FileDescriptorSet
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".desc") as tmp:
+        tmp_path = tmp.name
+
+    # Find grpc_tools proto includes (e.g., google/protobuf/empty.proto)
+    grpc_tools_proto_dir = Path(protoc.__file__).parent / "_proto"
+
+    proto_paths = [str(PROTO_DIR / f) for f in PROTO_FILES]
+    args = [
+        "protoc",
+        f"--proto_path={PROTO_DIR}",
+        f"--proto_path={grpc_tools_proto_dir}",
+        f"--descriptor_set_out={tmp_path}",
+        "--include_source_info",
+    ] + proto_paths
+
+    ret = protoc.main(args)
+    if ret != 0:
+        os.unlink(tmp_path)
+        raise RuntimeError(f"protoc failed with exit code {ret}")
+
+    try:
+        with open(tmp_path, "rb") as f:
+            desc_set = FileDescriptorSet.FromString(f.read())
+    finally:
+        os.unlink(tmp_path)
+
+    return desc_set
 
 
 # ── Source parsing ───────────────────────────────────────────────────────────
@@ -76,7 +110,7 @@ def to_snake_case(name: str) -> str:
     return re.sub("([a-z0-9])([A-Z])", r"\1_\2", s).lower()
 
 
-def _service_flow_prefix(service_name: str) -> str | None:
+def _service_flow_prefix(service_name: str) -> Optional[str]:
     """
     Derive the transformer name prefix for services whose RPCs collide with
     PaymentService.  Only services of the form ``{Prefix}PaymentService`` get a
@@ -95,9 +129,9 @@ def _service_flow_prefix(service_name: str) -> str | None:
     return without_svc if without_svc else None
 
 
-def parse_proto_rpcs(desc_file: Path) -> dict[str, dict]:
+def parse_proto_rpcs(desc_set) -> dict[str, dict]:
     """
-    Parse RPC definitions from a protobuf descriptor file.
+    Parse RPC definitions from a protobuf FileDescriptorSet.
 
     Uses protoc-generated descriptor to properly handle:
       - All proto syntax (imports, nested types, options)
@@ -113,10 +147,6 @@ def parse_proto_rpcs(desc_file: Path) -> dict[str, dict]:
     names like ``proxied_authorize`` or ``tokenized_setup_recurring`` can be
     matched by ``discover_flows()``.
     """
-    from google.protobuf.descriptor_pb2 import FileDescriptorSet
-
-    with open(desc_file, 'rb') as f:
-        desc_set = FileDescriptorSet.FromString(f.read())
 
     rpcs: dict[str, dict] = {}
 
@@ -243,13 +273,17 @@ def parse_single_flows(services_dir: Path) -> dict[str, str]:
     return flows
 
 
-def discover_flows() -> tuple[list[dict], list[dict]]:
+def discover_flows(desc_set=None) -> tuple[list[dict], list[dict]]:
     """
     Cross-reference proto RPCs with implemented service transformers.
     Returns (standard_flows, single_flows) — both sorted by name.
     Standard flows use req+HTTP+res; single flows call the transformer directly.
+    
+    If desc_set is not provided, it will be built automatically from proto files.
     """
-    proto_rpcs = parse_proto_rpcs(PROTO_DESCRIPTOR)
+    if desc_set is None:
+        desc_set = build_descriptor_set()
+    proto_rpcs = parse_proto_rpcs(desc_set)
     service_flows = parse_service_flows(FFI_SERVICES_DIR)
     single_flow_names = parse_single_flows(FFI_SERVICES_DIR)
 
@@ -279,8 +313,9 @@ def discover_flows() -> tuple[list[dict], list[dict]]:
 
     implemented = set(service_flows.keys()) | set(single_flow_names.keys())
     unimplemented = sorted(set(proto_rpcs) - implemented)
-    if unimplemented:
-        print(f"  Proto RPCs not yet implemented (skipped): {unimplemented}")
+    # Suppressed: shows prefixed RPC names that are alternate lookup keys
+    # if unimplemented:
+    #     print(f"  Proto RPCs not yet implemented (skipped): {unimplemented}")
 
     return flows, single_flows
 
@@ -337,17 +372,22 @@ def grpc_method_path(service: str, rpc_name: str) -> str:
     return f"{service_to_grpc_field(service)}/{rpc_name}"
 
 
-# Special-case grpc_* function names for flows where the bare RPC name is
-# ambiguous or non-descriptive (e.g. CustomerService.Create → "create_customer").
-_GRPC_EXAMPLE_FN_OVERRIDES: dict[tuple[str, str], str] = {
-    ("CustomerService",        "create"): "create_customer",
-    ("RecurringPaymentService", "charge"): "recurring_charge",
+# Special-case flow names where the bare RPC name is ambiguous or non-descriptive.
+# Used for SDK method names and gRPC examples.
+_FLOW_NAME_OVERRIDES: dict[tuple[str, str], str] = {
+    ("CustomerService", "Create"): "create_customer",
+    ("RecurringPaymentService", "Charge"): "recurring_charge",
+    ("RecurringPaymentService", "Revoke"): "recurring_revoke",
+    ("RefundService", "Get"): "refund_get",
+    ("PayoutService", "Get"): "payout_get",
+    ("PayoutService", "Create"): "payout_create",
+    ("PayoutService", "Void"): "payout_void",
 }
 
 
-def grpc_example_fn_name(service: str, rpc_name: str) -> str:
-    """Canonical grpc_* smoke-test function suffix for a (service, rpc) pair."""
-    return _GRPC_EXAMPLE_FN_OVERRIDES.get((service, rpc_name), rpc_name)
+def get_flow_method_name(service: str, rpc_name: str) -> str:
+    """Get the SDK method name for a flow, applying overrides if needed."""
+    return _FLOW_NAME_OVERRIDES.get((service, rpc_name), to_snake_case(rpc_name))
 
 
 # Register helpers as Jinja2 globals so templates can call them directly.
@@ -357,7 +397,7 @@ env.globals["service_to_grpc_struct"]    = service_to_grpc_struct
 env.globals["service_to_grpc_field"]     = service_to_grpc_field
 env.globals["service_to_grpc_js_field"]  = service_to_grpc_js_field
 env.globals["grpc_method_path"]          = grpc_method_path
-env.globals["grpc_example_fn_name"]      = grpc_example_fn_name
+env.globals["get_flow_method_name"]      = get_flow_method_name
 env.globals["to_camel"]      = to_camel
 env.globals["to_snake_case"] = to_snake_case
 
@@ -579,14 +619,49 @@ def gen_rust_ffi_flows(flows: list[dict]) -> None:
     )
 
 
-def _grpc_groups() -> tuple[list[str], dict[str, list[dict]]]:
+RUST_CONNECTOR_CLIENT_OUT = SDK_ROOT / "rust/src/_generated_connector_client.rs"
+
+
+def gen_rust_connector_client(flows: list[dict], single_flows: list[dict] = []) -> None:
+    """Generate connector_client.rs — auto-generated ConnectorClient with all flow methods."""
+    import subprocess
+
+    groups = group_by_service(flows)
+    single_groups = group_by_service(single_flows)
+    all_services = sorted(set(groups) | set(single_groups))
+
+    render(
+        "rust/connector_client.rs.j2",
+        RUST_CONNECTOR_CLIENT_OUT,
+        flows=flows,
+        single_flows=single_flows,
+        all_services=all_services,
+        groups=groups,
+        single_groups=single_groups,
+    )
+
+    # Format with rustfmt so the file matches `cargo fmt` output exactly.
+    result = subprocess.run(
+        ["rustfmt", "--edition", "2021", str(RUST_CONNECTOR_CLIENT_OUT)],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        print(f"  warning: rustfmt failed: {result.stderr.strip()}")
+
+
+def _grpc_groups(desc_set=None) -> tuple[list[str], dict[str, list[dict]]]:
     """Shared helper: all proto RPCs grouped by service (used by JS + Rust gRPC generators).
     
     Returns all RPCs grouped by service. For services where the simple RPC name
     is already taken by another service (e.g., PaymentService.Authorize), uses
     the prefixed name (e.g., tokenized_authorize, proxied_authorize).
+    
+    If desc_set is not provided, it will be built automatically from proto files.
     """
-    all_rpcs = parse_proto_rpcs(PROTO_DESCRIPTOR)
+    if desc_set is None:
+        desc_set = build_descriptor_set()
+    all_rpcs = parse_proto_rpcs(desc_set)
     
     # First pass: identify which service owns each simple RPC name
     simple_name_to_service: dict[str, str] = {}
@@ -613,9 +688,9 @@ def _grpc_groups() -> tuple[list[str], dict[str, list[dict]]]:
     return list(groups.keys()), groups
 
 
-def gen_python_grpc_client() -> None:
+def gen_python_grpc_client(desc_set=None) -> None:
     """Generate _generated_grpc_client.py — Python gRPC sub-clients and GrpcClient from proto RPCs."""
-    services, groups = _grpc_groups()
+    services, groups = _grpc_groups(desc_set)
     render(
         "python/grpc_client.py.j2",
         PY_GRPC_CLIENT_OUT,
@@ -624,9 +699,9 @@ def gen_python_grpc_client() -> None:
     )
 
 
-def gen_kotlin_grpc_client() -> None:
+def gen_kotlin_grpc_client(desc_set=None) -> None:
     """Generate GrpcClient.kt — Kotlin gRPC sub-clients and GrpcClient from proto RPCs."""
-    services, groups = _grpc_groups()
+    services, groups = _grpc_groups(desc_set)
     render(
         "kotlin/grpc_client.kt.j2",
         KOTLIN_GRPC_CLIENT_OUT,
@@ -645,7 +720,7 @@ _VALUE_WRAPPER_TYPES = frozenset([
 
 
 def _collect_proto_field_maps(
-    desc_file: Path,
+    desc_set,
 ) -> tuple[dict[str, list[str]], dict[str, dict[str, str]]]:
     """
     Parse proto descriptor in one pass and return:
@@ -653,10 +728,7 @@ def _collect_proto_field_maps(
       msg_field_types:{MessageName: {camelCaseFieldName: NestedTypeName}} — other message fields
     Both maps are keyed by short message name (e.g. "Ach", not ".types.Ach").
     """
-    from google.protobuf.descriptor_pb2 import FileDescriptorSet, FieldDescriptorProto
-
-    with open(desc_file, "rb") as f:
-        desc_set = FileDescriptorSet.FromString(f.read())
+    from google.protobuf.descriptor_pb2 import FieldDescriptorProto
 
     secret_fields: dict[str, list[str]] = {}
     msg_field_types: dict[str, dict[str, str]] = {}
@@ -688,11 +760,11 @@ def _collect_proto_field_maps(
     return secret_fields, msg_field_types
 
 
-def gen_javascript_grpc_client() -> None:
+def gen_javascript_grpc_client(desc_set=None) -> None:
     """Generate _generated_grpc_client.ts — JS gRPC sub-clients and GrpcClient from proto RPCs."""
-    services, groups = _grpc_groups()
+    services, groups = _grpc_groups(desc_set)
     all_types = sorted({t for flows in groups.values() for f in flows for t in (f["request"], f["response"])})
-    secret_string_fields, msg_field_types = _collect_proto_field_maps(PROTO_DESCRIPTOR)
+    secret_string_fields, msg_field_types = _collect_proto_field_maps(desc_set if desc_set else build_descriptor_set())
     render(
         "javascript/grpc_client.ts.j2",
         JS_GRPC_CLIENT_OUT,
@@ -704,9 +776,9 @@ def gen_javascript_grpc_client() -> None:
     )
 
 
-def gen_javascript_grpc_example_flows() -> None:
+def gen_javascript_grpc_example_flows(desc_set=None) -> None:
     """Generate examples/_generated_grpc_example_flows.js — generic grpc_* smoke-test functions."""
-    services, groups = _grpc_groups()
+    services, groups = _grpc_groups(desc_set)
     render(
         "javascript/grpc_example_flows.js.j2",
         JS_GRPC_EXAMPLE_FLOWS_OUT,
@@ -715,11 +787,11 @@ def gen_javascript_grpc_example_flows() -> None:
     )
 
 
-def gen_rust_grpc_client() -> None:
+def gen_rust_grpc_client(desc_set=None) -> None:
     """Generate _generated_grpc_client.rs from all proto RPCs (not filtered by FFI impl)."""
     import subprocess
 
-    services, groups = _grpc_groups()
+    services, groups = _grpc_groups(desc_set)
     all_types = sorted({t for flows in groups.values() for f in flows for t in (f["request"], f["response"])})
 
     render(
@@ -740,6 +812,84 @@ def gen_rust_grpc_client() -> None:
         print(f"  warning: rustfmt failed: {result.stderr.strip()}")
 
 
+# ── Flow manifest generator ──────────────────────────────────────────────────
+
+FLOW_MANIFEST_OUT = SDK_ROOT / "generated" / "flows.json"
+
+
+def emit_flow_manifest(flows: list[dict], single_flows: list[dict]) -> None:
+    """
+    Writes sdk/generated/flows.json with the canonical list of implemented flows.
+    Called after all flow discovery is complete.
+    
+    A flow appears in flows.json ONLY if generate.py finds both:
+      (a) a matching RPC in services.proto, AND
+      (b) a *_req_transformer implementation in crates/ffi/ffi/src/services/*.rs
+    
+    Also includes flow_to_example_fn mapping for smoke tests to know which
+    example function to call for each flow (since examples use scenario-based
+    naming like 'checkout_card' instead of flow-based naming like 'authorize').
+    """
+    import json
+    
+    # Combine standard flows and single-step flows
+    all_flow_names = sorted(set(f["name"] for f in flows) | set(f["name"] for f in single_flows))
+    
+    # Mapping from flow name to example function name
+    # Examples use scenario-based naming (e.g., checkout_card) not flow-based (e.g., authorize)
+    flow_to_example_fn = {
+        "accept": None,  # Not implemented in examples
+        "authenticate": None,
+        "authorize": "checkout_card",  # Primary card-based authorize example
+        "capture": "checkout_card",    # Part of checkout_card scenario
+        "charge": None,
+        "create": None,
+        "create_client_authentication_token": None,
+        "create_order": None,
+        "create_server_authentication_token": None,
+        "create_server_session_authentication_token": None,
+        "defend": None,
+        "get": "get_payment",
+        "handle_event": None,
+        "incremental_authorization": None,
+        "payout_create": None,
+        "payout_create_link": None,
+        "payout_create_recipient": None,
+        "payout_enroll_disburse_account": None,
+        "payout_get": None,
+        "payout_stage": None,
+        "payout_transfer": None,
+        "payout_void": None,
+        "post_authenticate": None,
+        "pre_authenticate": None,
+        "proxy_authorize": None,
+        "proxy_setup_recurring": None,
+        "recurring_revoke": None,
+        "refund": "refund",
+        "refund_get": None,
+        "reverse": None,
+        "setup_recurring": None,
+        "submit_evidence": None,
+        "token_authorize": None,
+        "token_setup_recurring": None,
+        "tokenize": None,
+        "verify_redirect_response": None,
+        "void": "void_payment",
+    }
+    
+    manifest = {
+        "schema_version": 2,
+        "generated_from": "services.proto",
+        "flows": all_flow_names,
+        "flow_to_example_fn": flow_to_example_fn,
+        "note": "flow_to_example_fn maps flow names to example function names. Null means no example implementation.",
+    }
+    
+    FLOW_MANIFEST_OUT.parent.mkdir(parents=True, exist_ok=True)
+    FLOW_MANIFEST_OUT.write_text(json.dumps(manifest, indent=2) + "\n")
+    print(f"  Wrote {FLOW_MANIFEST_OUT.relative_to(REPO_ROOT)} ({len(all_flow_names)} flows)")
+
+
 # ── Entry point ──────────────────────────────────────────────────────────────
 
 def main() -> None:
@@ -756,13 +906,17 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    ensure_descriptor_exists()
-
     print(f"Parsing: {SERVICES_PROTO.relative_to(REPO_ROOT)}")
     print(f"Parsing: {FFI_SERVICES_DIR.relative_to(REPO_ROOT)}/*.rs")
     print()
 
-    flows, single_flows = discover_flows()
+    desc_set = build_descriptor_set()
+    flows, single_flows = discover_flows(desc_set)
+    
+    # Generate flow manifest for smoke test coverage
+    print("Generating flow manifest...")
+    emit_flow_manifest(flows, single_flows)
+    print()
 
     print(f"Discovered {len(flows)} flows: {[f['name'] for f in flows]}")
     if single_flows:
@@ -773,23 +927,25 @@ def main() -> None:
         print("Generating Rust FFI flow registrations...")
         gen_rust_handlers(flows)
         gen_rust_ffi_flows(flows)
+        print("Generating Rust connector client...")
+        gen_rust_connector_client(flows, single_flows)
 
     if args.lang in ("grpc", "all"):
         print("Generating Rust gRPC client...")
-        gen_rust_grpc_client()
+        gen_rust_grpc_client(desc_set)
         print("Generating JavaScript gRPC client...")
-        gen_javascript_grpc_client()
+        gen_javascript_grpc_client(desc_set)
         print("Generating Python gRPC client...")
-        gen_python_grpc_client()
+        gen_python_grpc_client(desc_set)
         print("Generating Kotlin gRPC client...")
-        gen_kotlin_grpc_client()
+        gen_kotlin_grpc_client(desc_set)
 
     if args.lang in ("python", "all"):
         print("Generating Python SDK...")
         gen_python(flows, single_flows)
         gen_python_stub(flows, single_flows)
         gen_python_clients(flows, single_flows)
-        gen_python_grpc_client()
+        gen_python_grpc_client(desc_set)
 
     if args.lang in ("javascript", "all"):
         print("Generating JavaScript SDK...")

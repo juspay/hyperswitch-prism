@@ -16,7 +16,7 @@ use crate::{
     utils,
 };
 
-pub type Error = error_stack::Report<errors::ConnectorError>;
+pub type Error = error_stack::Report<errors::IntegrationError>;
 
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct BrowserInformation {
@@ -149,7 +149,7 @@ pub struct AuthenticationData {
 }
 
 impl TryFrom<payments::AuthenticationData> for AuthenticationData {
-    type Error = error_stack::Report<errors::ApplicationErrorResponse>;
+    type Error = error_stack::Report<errors::IntegrationError>;
     fn try_from(value: payments::AuthenticationData) -> Result<Self, Self::Error> {
         let payments::AuthenticationData {
             eci,
@@ -165,41 +165,28 @@ impl TryFrom<payments::AuthenticationData> for AuthenticationData {
             network_params,
         } = value;
         let message_version = message_version.map(|message_version|{
-            SemanticVersion::from_str(&message_version).change_context(errors::ApplicationErrorResponse::BadRequest(errors::ApiError{
-                sub_code: "INVALID_SEMANTIC_VERSION_DATA".to_owned(),
-                error_identifier: 400,
-                error_message: "Invalid semantic version format. Expected format: 'major.minor.patch' (e.g., '2.1.0')".to_string(),
-                error_object: Some(serde_json::json!({
-                    "field": "message_version",
-                    "provided_value": message_version,
-                    "expected_format": "major.minor.patch",
-                    "examples": ["1.0.0", "2.1.0", "2.2.0"],
-                    "validation_rule": "Must be in format X.Y.Z where X, Y, Z are non-negative integers"
-                })),
-            }))
+            SemanticVersion::from_str(&message_version).change_context(errors::IntegrationError::InvalidDataFormat {
+                field_name: "message_version",
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(format!(
+                        "Invalid semantic version format. Expected format: 'major.minor.patch' (e.g., '2.1.0'). Provided: '{}'",
+                        message_version
+                    )),
+                    ..Default::default()
+                },
+            })
         }).transpose()?;
         let trans_status = trans_status.map(|trans_status|{
-            payments::TransactionStatus::try_from(trans_status).change_context(errors::ApplicationErrorResponse::BadRequest(errors::ApiError{
-                sub_code: "INVALID_TRANSACTION_STATUS".to_owned(),
-                error_identifier: 400,
-                error_message: "Invalid transaction status format. Expected one of the valid 3DS transaction status values".to_string(),
-                error_object: Some(serde_json::json!({
-                    "field": "transaction_status",
-                    "provided_value": trans_status,
-                    "expected_values": [
-                        "Y (Success)",
-                        "N (Failure)", 
-                        "U (Verification Not Performed)",
-                        "A (Not Verified)",
-                        "R (Rejected)",
-                        "C (Challenge Required)",
-                        "D (Challenge Required - Decoupled Authentication)",
-                        "I (Information Only)"
-                    ],
-                    "validation_rule": "Must be one of the valid 3DS transaction status codes (Y, N, U, A, R, C, D, I)",
-                    "description": "Transaction status represents the result of 3D Secure authentication/verification process"
-                })),
-            }))}).transpose()?.map(common_enums::TransactionStatus::foreign_from);
+            payments::TransactionStatus::try_from(trans_status).change_context(errors::IntegrationError::InvalidDataFormat {
+                field_name: "transaction_status",
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(format!(
+                        "Invalid transaction status format. Expected one of: Y, N, U, A, R, C, D, I. Provided: '{}'",
+                        trans_status
+                    )),
+                    ..Default::default()
+                },
+            })}).transpose()?.map(common_enums::TransactionStatus::foreign_from);
 
         Ok(Self {
             ucaf_collection_indicator,
@@ -223,7 +210,7 @@ impl TryFrom<payments::AuthenticationData> for AuthenticationData {
 }
 
 impl TryFrom<payments::NetworkParams> for NetworkParams {
-    type Error = error_stack::Report<errors::ApplicationErrorResponse>;
+    type Error = error_stack::Report<errors::IntegrationError>;
     fn try_from(value: payments::NetworkParams) -> Result<Self, Self::Error> {
         Ok(Self {
             cartes_bancaires: value
@@ -235,21 +222,20 @@ impl TryFrom<payments::NetworkParams> for NetworkParams {
 }
 
 impl TryFrom<payments::CartesBancairesParams> for CartesBancairesParams {
-    type Error = error_stack::Report<errors::ApplicationErrorResponse>;
+    type Error = error_stack::Report<errors::IntegrationError>;
     fn try_from(value: payments::CartesBancairesParams) -> Result<Self, Self::Error> {
         let cavv_algorithm = payments::CavvAlgorithm::try_from(value.cavv_algorithm)
             .ok()
             .map(common_enums::CavvAlgorithm::foreign_from)
-            .ok_or_else(|| {
-                errors::ApplicationErrorResponse::BadRequest(errors::ApiError {
-                    sub_code: "INVALID_CAVV_ALGORITHM".to_owned(),
-                    error_identifier: 400,
-                    error_message: "Invalid CAVV algorithm value".to_string(),
-                    error_object: Some(serde_json::json!({
-                        "field": "cavv_algorithm",
-                        "provided_value": value.cavv_algorithm,
-                    })),
-                })
+            .ok_or_else(|| errors::IntegrationError::InvalidDataFormat {
+                field_name: "cavv_algorithm",
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(format!(
+                        "Invalid CAVV algorithm value: {}",
+                        value.cavv_algorithm
+                    )),
+                    ..Default::default()
+                },
             })?;
         Ok(Self {
             cavv_algorithm,
@@ -452,7 +438,7 @@ pub struct PostAuthenticateIntegrityObject {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
-pub struct SdkSessionTokenIntegrityObject {}
+pub struct ClientAuthenticationTokenIntegrityObject {}
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct IncrementalAuthorizationIntegrityObject {}

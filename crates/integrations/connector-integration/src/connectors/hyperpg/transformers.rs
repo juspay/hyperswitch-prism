@@ -1,6 +1,7 @@
 use crate::{connectors::hyperpg::HyperpgRouterData, types::ResponseRouterData};
 use common_enums::{AttemptStatus, RefundStatus};
 use common_utils::{request::Method, AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector};
+use domain_types::errors::{ConnectorError, IntegrationError};
 use domain_types::router_response_types::RedirectForm;
 use domain_types::{
     connector_flow::{Authorize, PSync, RSync, Refund},
@@ -8,7 +9,6 @@ use domain_types::{
         PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData,
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
-    errors,
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
@@ -29,7 +29,7 @@ pub struct HyperpgAuthType {
 }
 
 impl TryFrom<&ConnectorSpecificConfig> for HyperpgAuthType {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(auth_type: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         match auth_type {
@@ -44,7 +44,9 @@ impl TryFrom<&ConnectorSpecificConfig> for HyperpgAuthType {
                 merchant_id: merchant_id.to_owned(),
             }),
             _other => Err(error_stack::report!(
-                errors::ConnectorError::FailedToObtainAuthType
+                IntegrationError::FailedToObtainAuthType {
+                    context: Default::default()
+                }
             )),
         }
     }
@@ -166,7 +168,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         >,
     > for HyperpgAuthorizeRequest
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         wrapper: HyperpgRouterData<
@@ -208,29 +210,30 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                 )
             }
             PaymentMethodData::Wallet(_wallet) => {
-                return Err(error_stack::report!(errors::ConnectorError::NotSupported {
+                return Err(error_stack::report!(IntegrationError::NotSupported {
                     message: "Wallet payment method is not supported".to_string(),
                     connector: "hyperpg",
+                    context: Default::default()
                 }));
             }
             PaymentMethodData::PayLater(_paylater) => {
-                return Err(error_stack::report!(errors::ConnectorError::NotSupported {
+                return Err(error_stack::report!(IntegrationError::NotSupported {
                     message: "PayLater payment method is not supported".to_string(),
                     connector: "hyperpg",
+                    context: Default::default()
                 }));
             }
             PaymentMethodData::Voucher(_voucher) => {
-                return Err(error_stack::report!(errors::ConnectorError::NotSupported {
+                return Err(error_stack::report!(IntegrationError::NotSupported {
                     message: "Voucher payment method is not supported".to_string(),
                     connector: "hyperpg",
+                    context: Default::default()
                 }));
             }
             _ => {
-                return Err(error_stack::report!(
-                    errors::ConnectorError::NotImplemented(
-                        "This payment method is not implemented".to_string(),
-                    )
-                ));
+                return Err(error_stack::report!(IntegrationError::not_implemented(
+                    "This payment method is not implemented".to_string(),
+                )));
             }
         };
 
@@ -286,7 +289,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         >,
     > for HyperpgRefundRequest
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         wrapper: HyperpgRouterData<
@@ -302,7 +305,9 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                 router_data.request.minor_refund_amount,
                 router_data.request.currency,
             )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?;
 
         Ok(Self {
             unique_request_id: router_data.request.connector_transaction_id.clone(),
@@ -372,7 +377,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<ResponseRouterData<HyperpgAuthorizeResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<HyperpgAuthorizeResponse, Self>,
@@ -383,7 +388,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         let status = AttemptStatus::from(&response.status);
 
         let connector_metadata = serde_json::json!(HyperpgMeta {
-            order_id: Some(response.order_id.clone()),
+            order_id: Some(response.order_id.clone())
         });
 
         let redirection_data = response.payment.as_ref().and_then(|links| {
@@ -419,7 +424,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
 impl TryFrom<ResponseRouterData<HyperpgSyncResponse, Self>>
     for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<HyperpgSyncResponse, Self>) -> Result<Self, Self::Error> {
         let response = &item.response;
@@ -450,7 +455,7 @@ impl TryFrom<ResponseRouterData<HyperpgSyncResponse, Self>>
 impl TryFrom<ResponseRouterData<HyperpgRefundResponse, Self>>
     for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<HyperpgRefundResponse, Self>,
@@ -479,7 +484,7 @@ impl TryFrom<ResponseRouterData<HyperpgRefundResponse, Self>>
 impl TryFrom<ResponseRouterData<HyperpgRefundSyncResponse, Self>>
     for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<HyperpgRefundSyncResponse, Self>,

@@ -1,0 +1,12 @@
+{
+  "connector": "shift4",
+  "supported_suites": [
+    "authorize",
+    "capture",
+    "create_customer",
+    "get",
+    "recurring_charge",
+    "refund",
+    "refund_sync"
+  ]
+}

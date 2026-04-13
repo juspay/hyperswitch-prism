@@ -1,0 +1,12 @@
+{
+  "connector": "dlocal",
+  "supported_suites": [
+    "authorize",
+    "capture",
+    "get",
+    "recurring_charge",
+    "refund",
+    "refund_sync",
+    "void"
+  ]
+}

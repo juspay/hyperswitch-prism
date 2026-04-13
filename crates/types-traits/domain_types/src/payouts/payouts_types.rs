@@ -1,7 +1,8 @@
 use super::payout_method_data::PayoutMethodData;
 use crate::{
     connector_types::{
-        AccessTokenResponseData, ConnectorResponseHeaders, RawConnectorRequestResponse,
+        ConnectorResponseHeaders, RawConnectorRequestResponse,
+        ServerAuthenticationTokenResponseData,
     },
     types::Connectors,
     utils::{missing_field_err, Error},
@@ -17,7 +18,7 @@ pub struct PayoutFlowData {
     pub raw_connector_response: Option<Secret<String>>,
     pub connector_response_headers: Option<http::HeaderMap>,
     pub raw_connector_request: Option<Secret<String>>,
-    pub access_token: Option<AccessTokenResponseData>,
+    pub access_token: Option<ServerAuthenticationTokenResponseData>,
     pub test_mode: Option<bool>,
 }
 
@@ -57,13 +58,16 @@ impl PayoutFlowData {
             .ok_or_else(missing_field_err("access_token"))
     }
 
-    pub fn get_access_token_data(&self) -> Result<AccessTokenResponseData, Error> {
+    pub fn get_access_token_data(&self) -> Result<ServerAuthenticationTokenResponseData, Error> {
         self.access_token
             .clone()
             .ok_or_else(missing_field_err("access_token"))
     }
 
-    pub fn set_access_token(mut self, access_token: Option<AccessTokenResponseData>) -> Self {
+    pub fn set_access_token(
+        mut self,
+        access_token: Option<ServerAuthenticationTokenResponseData>,
+    ) -> Self {
         self.access_token = access_token;
         self
     }

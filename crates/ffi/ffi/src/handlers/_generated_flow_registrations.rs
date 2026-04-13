@@ -10,10 +10,12 @@ use grpc_api_types::payments::{
     DisputeServiceDefendResponse,
     DisputeServiceSubmitEvidenceRequest,
     DisputeServiceSubmitEvidenceResponse,
-    MerchantAuthenticationServiceCreateAccessTokenRequest,
-    MerchantAuthenticationServiceCreateAccessTokenResponse,
-    MerchantAuthenticationServiceCreateSessionTokenRequest,
-    MerchantAuthenticationServiceCreateSessionTokenResponse,
+    MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
+    MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse,
+    MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
+    MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
+    MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest,
+    MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse,
     PaymentMethodAuthenticationServiceAuthenticateRequest,
     PaymentMethodAuthenticationServiceAuthenticateResponse,
     PaymentMethodAuthenticationServicePostAuthenticateRequest,
@@ -30,6 +32,8 @@ use grpc_api_types::payments::{
     PaymentServiceCreateOrderResponse,
     PaymentServiceGetRequest,
     PaymentServiceGetResponse,
+    PaymentServiceIncrementalAuthorizationRequest,
+    PaymentServiceIncrementalAuthorizationResponse,
     PaymentServiceProxyAuthorizeRequest,
     PaymentServiceProxySetupRecurringRequest,
     PaymentServiceRefundRequest,
@@ -43,7 +47,10 @@ use grpc_api_types::payments::{
     PaymentServiceVoidResponse,
     RecurringPaymentServiceChargeRequest,
     RecurringPaymentServiceChargeResponse,
+    RecurringPaymentServiceRevokeRequest,
+    RecurringPaymentServiceRevokeResponse,
     RefundResponse,
+    RefundServiceGetRequest,
 };
 use grpc_api_types::payouts::{
     PayoutServiceCreateLinkRequest,
@@ -71,16 +78,20 @@ use crate::services::payments::{
     capture_req_transformer, capture_res_transformer,
     charge_req_transformer, charge_res_transformer,
     create_req_transformer, create_res_transformer,
-    create_access_token_req_transformer, create_access_token_res_transformer,
+    create_client_authentication_token_req_transformer, create_client_authentication_token_res_transformer,
     create_order_req_transformer, create_order_res_transformer,
-    create_session_token_req_transformer, create_session_token_res_transformer,
+    create_server_authentication_token_req_transformer, create_server_authentication_token_res_transformer,
+    create_server_session_authentication_token_req_transformer, create_server_session_authentication_token_res_transformer,
     defend_req_transformer, defend_res_transformer,
     get_req_transformer, get_res_transformer,
+    incremental_authorization_req_transformer, incremental_authorization_res_transformer,
     post_authenticate_req_transformer, post_authenticate_res_transformer,
     pre_authenticate_req_transformer, pre_authenticate_res_transformer,
     proxy_authorize_req_transformer, proxy_authorize_res_transformer,
     proxy_setup_recurring_req_transformer, proxy_setup_recurring_res_transformer,
+    recurring_revoke_req_transformer, recurring_revoke_res_transformer,
     refund_req_transformer, refund_res_transformer,
+    refund_get_req_transformer, refund_get_res_transformer,
     reverse_req_transformer, reverse_res_transformer,
     setup_recurring_req_transformer, setup_recurring_res_transformer,
     submit_evidence_req_transformer, submit_evidence_res_transformer,
@@ -112,16 +123,20 @@ impl_flow_handlers!(capture, PaymentServiceCaptureRequest, PaymentServiceCapture
 impl_flow_handlers!(charge, RecurringPaymentServiceChargeRequest, RecurringPaymentServiceChargeResponse, charge_req_transformer, charge_res_transformer);
 // create: CustomerService.Create — Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information.
 impl_flow_handlers!(create, CustomerServiceCreateRequest, CustomerServiceCreateResponse, create_req_transformer, create_res_transformer);
-// create_access_token: MerchantAuthenticationService.CreateAccessToken — Generate short-lived connector authentication token. Provides secure credentials for connector API access without storing secrets client-side.
-impl_flow_handlers!(create_access_token, MerchantAuthenticationServiceCreateAccessTokenRequest, MerchantAuthenticationServiceCreateAccessTokenResponse, create_access_token_req_transformer, create_access_token_res_transformer);
+// create_client_authentication_token: MerchantAuthenticationService.CreateClientAuthenticationToken — Initialize client-facing SDK sessions for wallets, device fingerprinting, etc. Returns structured data the client SDK needs to render payment/verification UI.
+impl_flow_handlers!(create_client_authentication_token, MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest, MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse, create_client_authentication_token_req_transformer, create_client_authentication_token_res_transformer);
 // create_order: PaymentService.CreateOrder — Create a payment order for later processing. Establishes a transaction context that can be authorized or captured in subsequent API calls.
 impl_flow_handlers!(create_order, PaymentServiceCreateOrderRequest, PaymentServiceCreateOrderResponse, create_order_req_transformer, create_order_res_transformer);
-// create_session_token: MerchantAuthenticationService.CreateSessionToken — Create session token for payment processing. Maintains session state across multiple payment operations for improved security and tracking.
-impl_flow_handlers!(create_session_token, MerchantAuthenticationServiceCreateSessionTokenRequest, MerchantAuthenticationServiceCreateSessionTokenResponse, create_session_token_req_transformer, create_session_token_res_transformer);
+// create_server_authentication_token: MerchantAuthenticationService.CreateServerAuthenticationToken — Generate short-lived connector authentication token. Provides secure credentials for connector API access without storing secrets client-side.
+impl_flow_handlers!(create_server_authentication_token, MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest, MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse, create_server_authentication_token_req_transformer, create_server_authentication_token_res_transformer);
+// create_server_session_authentication_token: MerchantAuthenticationService.CreateServerSessionAuthenticationToken — Create a server-side session with the connector. Establishes session state for multi-step operations like 3DS verification or wallet authorization.
+impl_flow_handlers!(create_server_session_authentication_token, MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest, MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse, create_server_session_authentication_token_req_transformer, create_server_session_authentication_token_res_transformer);
 // defend: DisputeService.Defend — Submit defense with reason code for dispute. Presents formal argument against customer's chargeback claim with supporting documentation.
 impl_flow_handlers!(defend, DisputeServiceDefendRequest, DisputeServiceDefendResponse, defend_req_transformer, defend_res_transformer);
 // get: PaymentService.Get — Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.
 impl_flow_handlers!(get, PaymentServiceGetRequest, PaymentServiceGetResponse, get_req_transformer, get_res_transformer);
+// incremental_authorization: PaymentService.IncrementalAuthorization — Increase the authorized amount for an existing payment. Enables you to capture additional funds when the transaction amount changes after initial authorization.
+impl_flow_handlers!(incremental_authorization, PaymentServiceIncrementalAuthorizationRequest, PaymentServiceIncrementalAuthorizationResponse, incremental_authorization_req_transformer, incremental_authorization_res_transformer);
 // payout_create: PayoutService.Create — Creates a payout.
 impl_flow_handlers!(payout_create, PayoutServiceCreateRequest, PayoutServiceCreateResponse, payout_create_req_transformer, payout_create_res_transformer);
 // payout_create_link: PayoutService.CreateLink — Creates a link between the recipient and the payout.
@@ -146,8 +161,12 @@ impl_flow_handlers!(pre_authenticate, PaymentMethodAuthenticationServicePreAuthe
 impl_flow_handlers!(proxy_authorize, PaymentServiceProxyAuthorizeRequest, PaymentServiceAuthorizeResponse, proxy_authorize_req_transformer, proxy_authorize_res_transformer);
 // proxy_setup_recurring: PaymentService.ProxySetupRecurring — Setup recurring mandate using vault-aliased card data.
 impl_flow_handlers!(proxy_setup_recurring, PaymentServiceProxySetupRecurringRequest, PaymentServiceSetupRecurringResponse, proxy_setup_recurring_req_transformer, proxy_setup_recurring_res_transformer);
+// recurring_revoke: RecurringPaymentService.Revoke — Cancel an existing recurring payment mandate. Stops future automatic charges on customer's stored consent for subscription cancellations.
+impl_flow_handlers!(recurring_revoke, RecurringPaymentServiceRevokeRequest, RecurringPaymentServiceRevokeResponse, recurring_revoke_req_transformer, recurring_revoke_res_transformer);
 // refund: PaymentService.Refund — Process a partial or full refund for a captured payment. Returns funds to the customer when goods are returned or services are cancelled.
 impl_flow_handlers!(refund, PaymentServiceRefundRequest, RefundResponse, refund_req_transformer, refund_res_transformer);
+// refund_get: RefundService.Get — Retrieve refund status from the payment processor. Tracks refund progress through processor settlement for accurate customer communication.
+impl_flow_handlers!(refund_get, RefundServiceGetRequest, RefundResponse, refund_get_req_transformer, refund_get_res_transformer);
 // reverse: PaymentService.Reverse — Reverse a captured payment in full. Initiates a complete refund when you need to cancel a settled transaction rather than just an authorization.
 impl_flow_handlers!(reverse, PaymentServiceReverseRequest, PaymentServiceReverseResponse, reverse_req_transformer, reverse_res_transformer);
 // setup_recurring: PaymentService.SetupRecurring — Configure a payment method for recurring billing. Sets up the mandate and payment details needed for future automated charges.

@@ -10,7 +10,7 @@ use cards::CardNumber;
 use grpc_api_types::payments::{
     payment_method, payment_service_client::PaymentServiceClient, Address, AuthenticationType,
     BrowserInformation, CaptureMethod, CardDetails, Currency, PaymentAddress, PaymentMethod,
-    PaymentServiceAuthorizeRequest, PaymentStatus,
+    PaymentServiceAuthorizeRequest,
 };
 use grpc_server::app;
 use hyperswitch_masking::Secret;
@@ -117,22 +117,27 @@ async fn test_config_override() -> Result<(), Box<dyn std::error::Error>> {
         // Make the request
         let response = client.authorize(request).await;
 
-        // The gRPC call succeeds - this proves the config override was processed
-        // The business logic returns a failure status (expected with test data)
-        let response = response.expect("gRPC call should succeed").into_inner();
-
-        // Verify we got a business-level failure (expected with invalid test data)
-        // This confirms the config override mechanism works without crashing
-        assert_eq!(
-            response.status,
-            i32::from(PaymentStatus::Failure),
-            "Expected failure due to test data, got status: {:?}",
-            response.status
-        );
-        assert!(
-            response.error.is_some(),
-            "Expected error details in response"
-        );
+        // The config override was processed if the request reached the connector layer.
+        // Integration errors (missing required fields) now correctly return tonic::Status
+        // instead of being swallowed into Ok(response with error field).
+        // Either a connector business error (Ok with error field) or an integration error
+        // (Err tonic::Status) proves the config override was applied.
+        match response {
+            Ok(response) => {
+                let response = response.into_inner();
+                assert!(
+                    response.error.is_some(),
+                    "Expected error details in response"
+                );
+            }
+            Err(status) => {
+                assert_eq!(
+                    status.code(),
+                    tonic::Code::InvalidArgument,
+                    "integration errors from authorize should map via IntoGrpcStatus (e.g. invalid_argument), not a generic INTERNAL: {status:?}"
+                );
+            }
+        }
     });
     Ok(())
 }

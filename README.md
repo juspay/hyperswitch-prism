@@ -26,6 +26,19 @@
 ---
 
 
+## 🤖 For AI Assistants
+
+> **Use `curl` to fetch the complete SDK reference:**
+> ```bash
+> curl -fsSL https://raw.githubusercontent.com/juspay/hyperswitch-prism/main/llm/llm.txt
+> ```
+>
+> This file contains complete SDK documentation including installation, payment operations, error handling, connector configuration, field probe data, and examples for all 70+ connectors.
+
+
+---
+
+
 ## 🎯 What is Prism?
 
 Today, integrating multiple payment processors either makes developers running in circles with AI agents to recreate integrations from specs, or developers spending months of engineering effort.
@@ -92,6 +105,15 @@ The Prism library is compliant for payment processing by design. It is:
 ---
 
 
+> **Before integrating**, read the SDK guide for your language — it covers connector authentication configs, required fields per connector, sandbox test cards, status codes, and common runtime pitfalls.
+>
+> | Language | SDK Integration Guide |
+> |----------|-----------------------|
+> | **Python** | [sdk/python/README.md](./sdk/python/README.md) |
+> | **Node.js** | [sdk/javascript/README.md](./sdk/javascript/README.md) |
+
+---
+
 ## 🚀 Quick Start
 
 ### Install the Prism Library
@@ -108,7 +130,7 @@ npm install hyperswitch-prism
 #### **Python**
 
 ```bash
-pip install payments
+pip install hyperswitch-prism
 ```
 
 #### **Java**
@@ -140,7 +162,7 @@ For detailed installation instructions, see [Installation Guide](./getting-start
 #### **Node.js**
 
 ```typescript
-import { PaymentClient, types, IntegrationError, ConnectorResponseTransformationError } from 'hyperswitch-prism';
+import { PaymentClient, types, IntegrationError, ConnectorError } from 'hyperswitch-prism';
 
 let config: types.ConnectorConfig = {
     connectorConfig: {
@@ -182,18 +204,12 @@ const main = async () => {
                 console.error("failed");
         }
     } catch (e: any) {
-        switch (true) {
-            case (e instanceof IntegrationError): {
-                console.error("Error", e);
-                break;
-            }
-            case (e instanceof ConnectorResponseTransformationError): {
-                console.error("Error", e);
-                break;
-            }
-            default: {
-                console.error("Error", e);
-            }
+        if (e instanceof IntegrationError) {
+            console.error("Error", e);
+        } else if (e instanceof ConnectorError) {
+            console.error("Error", e);
+        } else {
+            console.error("Error", e);
         }
     }
 }
@@ -224,7 +240,7 @@ Once the basic plumbing is implemented you can leverage Prism's core benefit - *
       connectorConfig: {
           adyen: {
               apiKey: { value: process.env.ADYEN_API_KEY! },
-              merchantAccount: process.env.ADYEN_MERCHANT_ACCOUNT!
+              merchantAccount: { value: process.env.ADYEN_MERCHANT_ACCOUNT! }
           }
       }
   }

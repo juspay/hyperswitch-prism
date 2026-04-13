@@ -121,15 +121,13 @@ pub struct Service {
 impl Service {
     /// # Panics
     ///
-    /// Will panic if EventPublisher initialization fails, database password, hash key isn't present in configs or unable to
+    /// Will panic if database password, hash key isn't present in configs or unable to
     /// deserialize any of the above keys
     #[allow(clippy::expect_used)]
     pub async fn new(config: Arc<configs::Config>) -> Self {
-        // Initialize the global EventPublisher - fail fast on startup
+        // Initialize the global EventPublisher - logs a warning if Kafka is unavailable
         if config.events.enabled {
-            common_utils::init_event_publisher(&config.events)
-                .expect("Failed to initialize global EventPublisher during startup");
-            logger::info!("Global EventPublisher initialized successfully");
+            common_utils::init_event_publisher(&config.events);
         } else {
             logger::info!("EventPublisher disabled in configuration");
         }

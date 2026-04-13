@@ -9,7 +9,11 @@
     "authorize": {
       "Ach": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
+      "AchBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
       },
       "Affirm": {
         "status": "not_supported",
@@ -19,6 +23,18 @@
         "status": "not_supported",
         "error": "PayLater payment method is not supported is not supported by hyperpg"
       },
+      "Alfamart": {
+        "status": "not_supported",
+        "error": "Voucher payment method is not supported is not supported by hyperpg"
+      },
+      "AliPayRedirect": {
+        "status": "not_supported",
+        "error": "Wallet payment method is not supported is not supported by hyperpg"
+      },
+      "AmazonPayRedirect": {
+        "status": "not_supported",
+        "error": "Wallet payment method is not supported is not supported by hyperpg"
+      },
       "ApplePay": {
         "status": "not_supported",
         "error": "Wallet payment method is not supported is not supported by hyperpg"
@@ -27,17 +43,53 @@
         "status": "not_supported",
         "error": "Wallet payment method is not supported is not supported by hyperpg"
       },
+      "ApplePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "Wallet payment method is not supported is not supported by hyperpg"
+      },
       "Bacs": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
+      "BacsBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
+      "BancontactCard": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
+      "BcaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
       },
       "Becs": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
+      "Bizum": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
       },
       "Blik": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
+      "Bluecode": {
+        "status": "not_supported",
+        "error": "Wallet payment method is not supported is not supported by hyperpg"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
+      "Boleto": {
+        "status": "not_supported",
+        "error": "Voucher payment method is not supported is not supported by hyperpg"
+      },
+      "BriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
       },
       "Card": {
         "status": "supported",
@@ -75,6 +127,58 @@
           "body": "{\"merchant_id\":\"probe_merchant\",\"payment_method_type\":\"CARD\",\"card_number\":\"4111111111111111\",\"card_security_code\":\"737\",\"card_exp_month\":\"03\",\"card_exp_year\":\"2030\",\"name_on_card\":\"John Doe\",\"format\":\"json\",\"redirect_after_payment\":true,\"order\":{\"order_id\":\"probe_txn_001\",\"amount\":10.0,\"currency\":\"USD\",\"return_url\":\"https://example.com/return\"}}"
         }
       },
+      "CashappQr": {
+        "status": "not_supported",
+        "error": "Wallet payment method is not supported is not supported by hyperpg"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
+      "ClassicReward": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "EVoucher": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
+      "Efecty": {
+        "status": "not_supported",
+        "error": "Voucher payment method is not supported is not supported by hyperpg"
+      },
+      "Eft": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
+      "Eps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
+      "FamilyMart": {
+        "status": "not_supported",
+        "error": "Voucher payment method is not supported is not supported by hyperpg"
+      },
+      "Giropay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
       "GooglePay": {
         "status": "not_supported",
         "error": "Wallet payment method is not supported is not supported by hyperpg"
@@ -83,15 +187,163 @@
         "status": "not_supported",
         "error": "Wallet payment method is not supported is not supported by hyperpg"
       },
+      "GooglePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "Wallet payment method is not supported is not supported by hyperpg"
+      },
       "Ideal": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
+      "Indomaret": {
+        "status": "not_supported",
+        "error": "Voucher payment method is not supported is not supported by hyperpg"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
+      "InstantBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
+      "Interac": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
       },
       "Klarna": {
         "status": "not_supported",
         "error": "PayLater payment method is not supported is not supported by hyperpg"
       },
+      "Lawson": {
+        "status": "not_supported",
+        "error": "Voucher payment method is not supported is not supported by hyperpg"
+      },
+      "LocalBankRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
+      "LocalBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
+      "MbWay": {
+        "status": "not_supported",
+        "error": "Wallet payment method is not supported is not supported by hyperpg"
+      },
+      "Mifinity": {
+        "status": "not_supported",
+        "error": "Wallet payment method is not supported is not supported by hyperpg"
+      },
+      "MiniStop": {
+        "status": "not_supported",
+        "error": "Voucher payment method is not supported is not supported by hyperpg"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
+      "OpenBanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "OpenBankingUk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
+      "Oxxo": {
+        "status": "not_supported",
+        "error": "Voucher payment method is not supported is not supported by hyperpg"
+      },
+      "PagoEfectivo": {
+        "status": "not_supported",
+        "error": "Voucher payment method is not supported is not supported by hyperpg"
+      },
+      "PayEasy": {
+        "status": "not_supported",
+        "error": "Voucher payment method is not supported is not supported by hyperpg"
+      },
+      "PaySafeCard": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
       "PaypalRedirect": {
+        "status": "not_supported",
+        "error": "Wallet payment method is not supported is not supported by hyperpg"
+      },
+      "PaypalSdk": {
+        "status": "not_supported",
+        "error": "Wallet payment method is not supported is not supported by hyperpg"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "PermataBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
+      "Pix": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
+      "Przelewy24": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
+      "Pse": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
+      "RedCompra": {
+        "status": "not_supported",
+        "error": "Voucher payment method is not supported is not supported by hyperpg"
+      },
+      "RedPagos": {
+        "status": "not_supported",
+        "error": "Voucher payment method is not supported is not supported by hyperpg"
+      },
+      "RevolutPay": {
         "status": "not_supported",
         "error": "Wallet payment method is not supported is not supported by hyperpg"
       },
@@ -99,13 +351,57 @@
         "status": "not_supported",
         "error": "Wallet payment method is not supported is not supported by hyperpg"
       },
+      "Satispay": {
+        "status": "not_supported",
+        "error": "Wallet payment method is not supported is not supported by hyperpg"
+      },
+      "Seicomart": {
+        "status": "not_supported",
+        "error": "Voucher payment method is not supported is not supported by hyperpg"
+      },
       "Sepa": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
+      "SepaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
+      "SevenEleven": {
+        "status": "not_supported",
+        "error": "Voucher payment method is not supported is not supported by hyperpg"
+      },
+      "Sofort": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
+      "Trustly": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
       },
       "UpiCollect": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: This payment method is not implemented"
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
+      "UpiIntent": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
+      "UpiQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
+      "WeChatPayQr": {
+        "status": "not_supported",
+        "error": "Wallet payment method is not supported is not supported by hyperpg"
+      },
+      "Wero": {
+        "status": "not_supported",
+        "error": "Wallet payment method is not supported is not supported by hyperpg"
       }
     },
     "capture": {
@@ -113,7 +409,7 @@
         "status": "not_implemented"
       }
     },
-    "create_access_token": {
+    "create_client_authentication_token": {
       "default": {
         "status": "not_implemented"
       }
@@ -128,7 +424,12 @@
         "status": "not_implemented"
       }
     },
-    "create_session_token": {
+    "create_server_authentication_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_server_session_authentication_token": {
       "default": {
         "status": "not_implemented"
       }
@@ -143,7 +444,17 @@
         "status": "not_implemented"
       }
     },
+    "dispute_get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "eligibility": {
       "default": {
         "status": "not_implemented"
       }
@@ -173,6 +484,16 @@
         }
       }
     },
+    "handle_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "post_authenticate": {
       "default": {
         "status": "not_implemented"
@@ -183,7 +504,53 @@
         "status": "not_implemented"
       }
     },
+    "proxy_authorize": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_proxy_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://sandbox.hyperpg.in/txns",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfdXNlcjo=",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-merchantid": "probe_merchant"
+          },
+          "body": "{\"merchant_id\":\"probe_merchant\",\"payment_method_type\":\"CARD\",\"card_number\":\"4111111111111111\",\"card_security_code\":\"123\",\"card_exp_month\":\"03\",\"card_exp_year\":\"2030\",\"name_on_card\":\"John Doe\",\"format\":\"json\",\"redirect_after_payment\":true,\"order\":{\"order_id\":\"probe_proxy_txn_001\",\"amount\":10.0,\"currency\":\"USD\",\"return_url\":\"https://example.com/return\"}}"
+        }
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "recurring_charge": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "recurring_revoke": {
       "default": {
         "status": "not_implemented"
       }
@@ -214,6 +581,27 @@
         }
       }
     },
+    "refund_get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "refund_id": "probe_refund_id_001"
+        },
+        "sample": {
+          "url": "https://sandbox.hyperpg.in/orders/probe_refund_id_001",
+          "method": "Get",
+          "headers": {
+            "authorization": "Basic cHJvYmVfdXNlcjo=",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-merchantid": "probe_merchant"
+          },
+          "body": null
+        }
+      }
+    },
     "reverse": {
       "default": {
         "status": "not_implemented"
@@ -224,7 +612,23 @@
         "status": "not_implemented"
       }
     },
+    "token_authorize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "tokenize": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "verify_redirect": {
       "default": {
         "status": "not_implemented"
       }

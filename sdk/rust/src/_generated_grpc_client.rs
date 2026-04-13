@@ -28,12 +28,12 @@ use grpc_api_types::payments::{
     DisputeServiceSubmitEvidenceResponse,
     EventServiceHandleRequest,
     EventServiceHandleResponse,
-    MerchantAuthenticationServiceCreateAccessTokenRequest,
-    MerchantAuthenticationServiceCreateAccessTokenResponse,
-    MerchantAuthenticationServiceCreateSdkSessionTokenRequest,
-    MerchantAuthenticationServiceCreateSdkSessionTokenResponse,
-    MerchantAuthenticationServiceCreateSessionTokenRequest,
-    MerchantAuthenticationServiceCreateSessionTokenResponse,
+    MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
+    MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse,
+    MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
+    MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
+    MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest,
+    MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse,
     PaymentMethodAuthenticationServiceAuthenticateRequest,
     PaymentMethodAuthenticationServiceAuthenticateResponse,
     PaymentMethodAuthenticationServicePostAuthenticateRequest,
@@ -198,22 +198,22 @@ impl_grpc_client!(
     GrpcMerchantAuthenticationClient,
     MerchantAuthenticationServiceClient,
     (
-        create_access_token,
-        create_access_token,
-        MerchantAuthenticationServiceCreateAccessTokenRequest,
-        MerchantAuthenticationServiceCreateAccessTokenResponse
+        create_server_authentication_token,
+        create_server_authentication_token,
+        MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
+        MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse
     ),
     (
-        create_session_token,
-        create_session_token,
-        MerchantAuthenticationServiceCreateSessionTokenRequest,
-        MerchantAuthenticationServiceCreateSessionTokenResponse
+        create_server_session_authentication_token,
+        create_server_session_authentication_token,
+        MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest,
+        MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse
     ),
     (
-        create_sdk_session_token,
-        create_sdk_session_token,
-        MerchantAuthenticationServiceCreateSdkSessionTokenRequest,
-        MerchantAuthenticationServiceCreateSdkSessionTokenResponse
+        create_client_authentication_token,
+        create_client_authentication_token,
+        MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
+        MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse
     ),
 );
 
@@ -443,7 +443,7 @@ impl_grpc_client!(
 /// let _ = client.customer.create(Default::default()).await;
 /// let _ = client.dispute.submit_evidence(Default::default()).await;
 /// let _ = client.event.handle_event(Default::default()).await;
-/// let _ = client.merchant_authentication.create_access_token(Default::default()).await;
+/// let _ = client.merchant_authentication.create_server_authentication_token(Default::default()).await;
 /// # Ok(()) }
 /// ```
 pub struct GrpcClient {

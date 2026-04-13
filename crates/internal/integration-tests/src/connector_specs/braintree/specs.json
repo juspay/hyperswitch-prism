@@ -1,0 +1,13 @@
+{
+  "connector": "braintree",
+  "supported_suites": [
+    "capture",
+    "client_authentication_token",
+    "get",
+    "recurring_charge",
+    "refund",
+    "refund_sync",
+    "tokenize_payment_method",
+    "void"
+  ]
+}

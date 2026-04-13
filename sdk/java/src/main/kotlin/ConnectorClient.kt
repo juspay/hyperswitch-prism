@@ -16,30 +16,39 @@ package payments
 import com.google.protobuf.ByteString
 import com.google.protobuf.MessageLite
 import com.google.protobuf.Parser
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Exception raised when req_transformer fails (integration error).
  * Wraps IntegrationError and provides access to proto fields.
  */
-class IntegrationError(val proto: types.SdkConfig.IntegrationError) : Exception(proto.getErrorMessage())
+class IntegrationError(val proto: types.SdkConfig.IntegrationError) : Exception(proto.errorMessage) {
+    val errorCode: String get() = proto.errorCode
+    val suggestedAction: String? get() = if (proto.hasSuggestedAction()) proto.suggestedAction else null
+    val docUrl: String? get() = if (proto.hasDocUrl()) proto.docUrl else null
+}
 
 /**
  * Exception raised when res_transformer fails (response transformation error).
- * Wraps ConnectorResponseTransformationError and provides access to proto fields.
+ * Wraps ConnectorError and provides access to proto fields.
  */
-class ConnectorResponseTransformationError(val proto: types.SdkConfig.ConnectorResponseTransformationError) : Exception(proto.getErrorMessage())
+class ConnectorError(val proto: types.SdkConfig.ConnectorError) : Exception(proto.errorMessage) {
+    val errorCode: String get() = proto.errorCode
+    val httpStatusCode: Int? get() = if (proto.hasHttpStatusCode()) proto.httpStatusCode else null
+}
 
 open class ConnectorClient(
     val config: ConnectorConfig,
     val defaults: RequestConfig = RequestConfig.getDefaultInstance(),
     libPath: String? = null
 ) {
-    private val httpClient: okhttp3.OkHttpClient
+    private val baseHttpConfig: HttpConfig
+    private val clientCache: ConcurrentHashMap<String, okhttp3.OkHttpClient>
 
     init {
-        // Instance-level cache: create the primary connection pool at startup
-        val httpConfig = if (defaults.hasHttp()) defaults.http else null
-        this.httpClient = HttpClient.createClient(httpConfig)
+        // Store base HTTP config (merged with defaults)
+        this.baseHttpConfig = if (defaults.hasHttp()) defaults.http else HttpConfig.getDefaultInstance()
+        this.clientCache = ConcurrentHashMap()
     }
 
     /**
@@ -55,20 +64,30 @@ open class ConnectorClient(
     /**
      * Merges request-level HTTP overrides with client defaults.
      */
-    private fun resolveHttpConfig(overrides: RequestConfig?): HttpConfig? {
-        val clientHttp = if (defaults.hasHttp()) defaults.http else null
+    private fun resolveHttpConfig(overrides: RequestConfig?): HttpConfig {
         val overrideHttp = if (overrides != null && overrides.hasHttp()) overrides.http else null
 
-        if (overrideHttp == null) return clientHttp
-        
+        if (overrideHttp == null) return baseHttpConfig
+
         // Merge: Field-level override > Client default
         val builder = HttpConfig.newBuilder()
-        if (clientHttp != null) {
-            builder.mergeFrom(clientHttp)
-        }
+        builder.mergeFrom(baseHttpConfig)
         builder.mergeFrom(overrideHttp)
-        
+
         return builder.build()
+    }
+
+    /**
+     * Get or create a cached HTTP client based on the effective proxy configuration.
+     */
+    private fun getOrCreateClient(httpConfig: HttpConfig): okhttp3.OkHttpClient {
+        val proxy = if (httpConfig.hasProxy()) httpConfig.proxy else null
+        val cacheKey = HttpClient.generateProxyCacheKey(proxy)
+
+        // ConcurrentHashMap.computeIfAbsent is atomic and thread-safe
+        return clientCache.computeIfAbsent(cacheKey) {
+            HttpClient.createClient(httpConfig)
+        }
     }
 
     /**
@@ -77,7 +96,7 @@ open class ConnectorClient(
      * @param resultBytes Raw bytes returned by the req_transformer FFI call
      * @return FfiConnectorHttpRequest on success (HTTP_REQUEST type)
      * @throws IntegrationError if result type is INTEGRATION_ERROR
-     * @throws ConnectorResponseTransformationError if result type is CONNECTOR_RESPONSE_TRANSFORMATION_ERROR
+     * @throws ConnectorError if result type is CONNECTOR_ERROR
      * @throws IllegalStateException if result type is unknown
      */
     private fun checkReq(resultBytes: ByteArray): FfiConnectorHttpRequest {
@@ -85,7 +104,7 @@ open class ConnectorClient(
         return when (result.getType()) {
             types.SdkConfig.FfiResult.Type.HTTP_REQUEST -> result.getHttpRequest()
             types.SdkConfig.FfiResult.Type.INTEGRATION_ERROR -> throw IntegrationError(result.getIntegrationError())
-            types.SdkConfig.FfiResult.Type.CONNECTOR_RESPONSE_TRANSFORMATION_ERROR -> throw ConnectorResponseTransformationError(result.getConnectorResponseTransformationError())
+            types.SdkConfig.FfiResult.Type.CONNECTOR_ERROR -> throw ConnectorError(result.getConnectorError())
             else -> throw IllegalStateException("Unknown result type: ${result.getType()}")
         }
     }
@@ -95,7 +114,7 @@ open class ConnectorClient(
      *
      * @param resultBytes Raw bytes returned by the res_transformer FFI call
      * @return FfiConnectorHttpResponse on success (HTTP_RESPONSE type)
-     * @throws ConnectorResponseTransformationError if result type is CONNECTOR_RESPONSE_TRANSFORMATION_ERROR
+     * @throws ConnectorError if result type is CONNECTOR_ERROR
      * @throws IntegrationError if result type is INTEGRATION_ERROR
      * @throws IllegalStateException if result type is unknown
      */
@@ -103,7 +122,7 @@ open class ConnectorClient(
         val result = types.SdkConfig.FfiResult.parseFrom(resultBytes)
         return when (result.getType()) {
             types.SdkConfig.FfiResult.Type.HTTP_RESPONSE -> result.getHttpResponse()
-            types.SdkConfig.FfiResult.Type.CONNECTOR_RESPONSE_TRANSFORMATION_ERROR -> throw ConnectorResponseTransformationError(result.getConnectorResponseTransformationError())
+            types.SdkConfig.FfiResult.Type.CONNECTOR_ERROR -> throw ConnectorError(result.getConnectorError())
             types.SdkConfig.FfiResult.Type.INTEGRATION_ERROR -> throw IntegrationError(result.getIntegrationError())
             else -> throw IllegalStateException("Unknown result type: ${result.getType()}")
         }
@@ -132,7 +151,7 @@ open class ConnectorClient(
         // 1. Resolve final configuration (Pattern-based merging)
         val ffiOptions = resolveFfiOptions(options)
         val optionsBytes = ffiOptions.toByteArray()
-        val httpConfig = resolveHttpConfig(options)
+        val effectiveHttpConfig = resolveHttpConfig(options)
 
         // 2. Build connector HTTP request via FFI
         val connectorRequestBytes = reqTransformer(requestBytes, optionsBytes)
@@ -145,10 +164,13 @@ open class ConnectorClient(
             body = if (connectorRequest.hasBody()) connectorRequest.body.toByteArray() else null
         )
 
-        // 3. Execute HTTP request via standardized HttpClient using the connection pool
-        val response = HttpClient.execute(httpRequest, httpConfig, this.httpClient)
+        // 3. Get or create cached HTTP client based on effective proxy config
+        val httpClient = getOrCreateClient(effectiveHttpConfig)
 
-        // 4. Encode HTTP response as FfiConnectorHttpResponse protobuf bytes
+        // 4. Execute HTTP request via standardized HttpClient using the cached connection pool
+        val response = HttpClient.execute(httpRequest, effectiveHttpConfig, httpClient)
+
+        // 5. Encode HTTP response as FfiConnectorHttpResponse protobuf bytes
         val ffiResponseBytes = FfiConnectorHttpResponse.newBuilder()
             .setStatusCode(response.statusCode)
             .putAllHeaders(response.headers)
@@ -156,7 +178,7 @@ open class ConnectorClient(
             .build()
             .toByteArray()
 
-        // 5. Parse connector response via FFI
+        // 6. Parse connector response via FFI
         val resultBytes = resTransformer(
             ffiResponseBytes,
             requestBytes,

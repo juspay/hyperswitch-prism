@@ -144,14 +144,14 @@ impl TryFrom<ResponseRouterData<ConnectorOrderResponse, Self>> for CreateOrderRo
 impl<T: PaymentMethodDataTypes> TryFrom<&RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>>
     for ConnectorPaymentRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(item: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>) -> Result<Self, Self::Error> {
         // Extract order_id from CreateOrder response
         let order_id = item.resource_common_data.reference_id.clone()
-            .ok_or(ConnectorError::MissingRequiredField {
+            .ok_or(IntegrationError::MissingRequiredField {
                 field_name: "reference_id (order_id from CreateOrder)",
-            })?;
+            , context: Default::default() })?;
 
         Ok(Self {
             order_id,
@@ -209,7 +209,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<
     >
 > for ConnectorOrderRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: ConnectorRouterData<
@@ -236,7 +236,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<
 impl TryFrom<&RouterDataV2<CreateOrder, PaymentFlowData, PaymentCreateOrderData, PaymentCreateOrderResponse>>
     for ConnectorOrderRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(item: &RouterDataV2<CreateOrder, PaymentFlowData, PaymentCreateOrderData, PaymentCreateOrderResponse>) -> Result<Self, Self::Error> {
         // Transform without converter access
@@ -263,7 +263,7 @@ let amount = item.connector.amount_converter
         item.router_data.request.amount,  // MinorUnit
         item.router_data.request.currency,
     )
-    .map_err(|e| ConnectorError::RequestEncodingFailedWithReason(format!("Amount conversion failed: {e}")))?;
+    .map_err(|e| IntegrationError::RequestEncodingFailedWithReason(format!("Amount conversion failed: {e}")))?;
 
 // Or manual conversion
 let amount_i64 = item.request.amount.get_amount_as_i64();
@@ -346,13 +346,13 @@ impl TryFrom<ResponseRouterData<CashfreeOrderCreateResponse, Self>> for CreateOr
 impl<T: PaymentMethodDataTypes> TryFrom<&RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>>
     for CashfreePaymentRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(item: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>) -> Result<Self, Self::Error> {
         let payment_session_id = item.resource_common_data.reference_id.clone()
-            .ok_or(ConnectorError::MissingRequiredField {
+            .ok_or(IntegrationError::MissingRequiredField {
                 field_name: "payment_session_id",
-            })?;
+            , context: Default::default() })?;
 
         Ok(Self {
             payment_session_id,
@@ -522,9 +522,9 @@ Modify the Authorize request to use `reference_id` from CreateOrder:
 ```rust
 let order_id = item.resource_common_data.reference_id
     .clone()
-    .ok_or(ConnectorError::MissingRequiredField {
+    .ok_or(IntegrationError::MissingRequiredField {
         field_name: "reference_id (order_id from CreateOrder)",
-    })?;
+    , context: Default::default() })?;
 ```
 
 ## Troubleshooting

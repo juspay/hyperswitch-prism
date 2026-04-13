@@ -1,0 +1,37 @@
+{
+  "check_card_eligibility": {
+    "grpc_req": {
+      "amount": {
+        "minor_amount": 6000,
+        "currency": "USD"
+      },
+      "payment_method_type": "CARD",
+      "country_code": "US",
+      "currency": "USD"
+    },
+    "assert": {
+      "eligible": {
+        "equals": true
+      }
+    },
+    "is_default": true,
+    "display_name": "Card Eligibility | USD | US"
+  },
+  "check_wallet_eligibility": {
+    "grpc_req": {
+      "amount": {
+        "minor_amount": 6000,
+        "currency": "USD"
+      },
+      "payment_method_type": "WALLET",
+      "country_code": "US",
+      "currency": "USD"
+    },
+    "assert": {
+      "eligible": {
+        "must_exist": true
+      }
+    },
+    "display_name": "Wallet Eligibility | USD | US"
+  }
+}

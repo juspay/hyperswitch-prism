@@ -1,0 +1,119 @@
+{
+  "authorize": {
+    "threeds_manual_capture_credit_card": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4000002760003184"
+            }
+          }
+        }
+      }
+    },
+    "no3ds_auto_capture_google_pay_encrypted": {
+      "grpc_req": {}
+    },
+    "no3ds_auto_capture_ideal": {
+      "grpc_req": {
+        "setup_future_usage": null
+      }
+    },
+    "no3ds_auto_capture_giropay": {
+      "grpc_req": {}
+    },
+    "no3ds_auto_capture_bancontact": {
+      "grpc_req": {
+        "setup_future_usage": null
+      }
+    },
+    "no3ds_auto_capture_afterpay_clearpay": {
+      "grpc_req": {
+        "setup_future_usage": null
+      }
+    },
+    "no3ds_auto_capture_alipay": {
+      "grpc_req": {
+        "setup_future_usage": null
+      }
+    },
+    "no3ds_auto_capture_przelewy24": {
+      "grpc_req": {
+        "setup_future_usage": null
+      }
+    },
+    "no3ds_auto_capture_eps": {
+      "grpc_req": {
+        "setup_future_usage": null
+      }
+    },
+    "no3ds_auto_capture_sepa_bank_transfer": {
+      "grpc_req": {}
+    },
+    "no3ds_auto_capture_ach_bank_transfer": {
+      "grpc_req": {
+        "setup_future_usage": null
+      }
+    },
+    "no3ds_auto_capture_bacs_bank_transfer": {
+      "grpc_req": {}
+    },
+    "no3ds_fail_payment": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4000000000000002"
+            }
+          }
+        }
+      },
+      "assert": {
+        "status": null,
+        "error.connector_details.message": {
+          "contains": "declin"
+        }
+      }
+    }
+  },
+  "setup_recurring": {
+    "setup_recurring_with_order_context": {
+      "grpc_req": {
+        "off_session": null
+      }
+    }
+  },
+  "revoke_mandate": {
+    "revoke_with_reason": {
+      "assert": {
+        "status": {
+          "one_of": ["REVOKED", "INACTIVE", "MANDATE_REVOKE_FAILED"]
+        },
+        "error": null
+      }
+    }
+  },
+  "handle_event": {
+    "payment_succeeded": {
+      "assert": {
+        "source_verified": {
+          "must_not_exist": true
+        }
+      }
+    },
+    "payment_failed": {
+      "assert": {
+        "source_verified": {
+          "must_not_exist": true
+        }
+      }
+    },
+    "refund_succeeded": {
+      "assert": {
+        "source_verified": {
+          "must_not_exist": true
+        }
+      }
+    }
+  }
+}

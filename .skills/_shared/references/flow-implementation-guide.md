@@ -71,13 +71,13 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<{FlowName}, {FlowData}, {RequestData}, {ResponseData}>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
             self.build_headers(req)
         }
         fn get_url(
             &self,
             req: &RouterDataV2<{FlowName}, {FlowData}, {RequestData}, {ResponseData}>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, errors::IntegrationError> {
             Ok(format!("{}/endpoint", self.connector_base_url_payments(req)))
         }
     }
@@ -150,7 +150,7 @@ impl From<{ConnectorName}PaymentStatus> for AttemptStatus {
 impl<T: PaymentMethodDataTypes> TryFrom<&{ConnectorName}RouterData<&RouterDataV2<
     Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData
 >, T>> for {ConnectorName}PaymentRequest<T> {
-    type Error = Report<errors::ConnectorError>;
+    type Error = Report<errors::IntegrationError>;
     fn try_from(item: &{ConnectorName}RouterData<&RouterDataV2<...>, T>) -> Result<Self, Self::Error> {
         // Extract fields from item.router_data.request
         // Use item.amount for converted amount
@@ -163,7 +163,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<&{ConnectorName}RouterData<&RouterDataV2
 ```rust
 impl<T> TryFrom<ResponseRouterData<Authorize, {ConnectorName}PaymentResponse, PaymentsAuthorizeData<T>, PaymentsResponseData>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData> {
-    type Error = Report<errors::ConnectorError>;
+    type Error = Report<errors::IntegrationError>;
     fn try_from(item: ResponseRouterData<...>) -> Result<Self, Self::Error> {
         Ok(Self {
             status: AttemptStatus::from(item.response.status),

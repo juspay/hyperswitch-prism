@@ -1,0 +1,13 @@
+{
+  "connector": "finix",
+  "supported_suites": [
+    "authorize",
+    "capture",
+    "create_customer",
+    "get",
+    "refund",
+    "refund_sync",
+    "tokenize_payment_method",
+    "void"
+  ]
+}

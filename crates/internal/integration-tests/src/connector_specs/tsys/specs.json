@@ -1,0 +1,11 @@
+{
+  "connector": "tsys",
+  "supported_suites": [
+    "authorize",
+    "capture",
+    "get",
+    "refund",
+    "refund_sync",
+    "void"
+  ]
+}

@@ -1,6 +1,6 @@
 use connector_integration::types::ConnectorData;
 use domain_types::{
-    connector_types::{AccessTokenResponseData, ConnectorEnum},
+    connector_types::{ConnectorEnum, ServerAuthenticationTokenResponseData},
     utils::ForeignTryFrom as _,
 };
 use grpc_api_types::payments::{
@@ -13,8 +13,8 @@ use grpc_api_types::payments::{
     CompositeCaptureResponse, CompositeGetRequest, CompositeGetResponse, CompositeRefundGetRequest,
     CompositeRefundGetResponse, CompositeRefundRequest, CompositeRefundResponse,
     CompositeVoidRequest, CompositeVoidResponse, ConnectorState, CustomerServiceCreateResponse,
-    MerchantAuthenticationServiceCreateAccessTokenRequest,
-    MerchantAuthenticationServiceCreateAccessTokenResponse, PaymentMethod,
+    MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
+    MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse, PaymentMethod,
     PaymentServiceAuthorizeRequest, PaymentServiceAuthorizeResponse, PaymentServiceCaptureRequest,
     PaymentServiceCaptureResponse, PaymentServiceGetResponse, PaymentServiceRefundRequest,
     PaymentServiceVoidRequest, PaymentServiceVoidResponse, RefundResponse, RefundServiceGetRequest,
@@ -30,7 +30,7 @@ pub trait CompositeAccessTokenRequest {
     fn build_access_token_request(
         &self,
         connector: &ConnectorEnum,
-    ) -> MerchantAuthenticationServiceCreateAccessTokenRequest;
+    ) -> MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest;
 }
 
 impl CompositeAccessTokenRequest for CompositeAuthorizeRequest {
@@ -45,8 +45,10 @@ impl CompositeAccessTokenRequest for CompositeAuthorizeRequest {
     fn build_access_token_request(
         &self,
         connector: &ConnectorEnum,
-    ) -> MerchantAuthenticationServiceCreateAccessTokenRequest {
-        MerchantAuthenticationServiceCreateAccessTokenRequest::foreign_from((self, connector))
+    ) -> MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
+        MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest::foreign_from((
+            self, connector,
+        ))
     }
 }
 
@@ -62,8 +64,10 @@ impl CompositeAccessTokenRequest for CompositeGetRequest {
     fn build_access_token_request(
         &self,
         connector: &ConnectorEnum,
-    ) -> MerchantAuthenticationServiceCreateAccessTokenRequest {
-        MerchantAuthenticationServiceCreateAccessTokenRequest::foreign_from((self, connector))
+    ) -> MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
+        MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest::foreign_from((
+            self, connector,
+        ))
     }
 }
 
@@ -79,8 +83,10 @@ impl CompositeAccessTokenRequest for CompositeRefundRequest {
     fn build_access_token_request(
         &self,
         connector: &ConnectorEnum,
-    ) -> MerchantAuthenticationServiceCreateAccessTokenRequest {
-        MerchantAuthenticationServiceCreateAccessTokenRequest::foreign_from((self, connector))
+    ) -> MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
+        MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest::foreign_from((
+            self, connector,
+        ))
     }
 }
 
@@ -96,8 +102,10 @@ impl CompositeAccessTokenRequest for CompositeRefundGetRequest {
     fn build_access_token_request(
         &self,
         connector: &ConnectorEnum,
-    ) -> MerchantAuthenticationServiceCreateAccessTokenRequest {
-        MerchantAuthenticationServiceCreateAccessTokenRequest::foreign_from((self, connector))
+    ) -> MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
+        MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest::foreign_from((
+            self, connector,
+        ))
     }
 }
 
@@ -113,8 +121,10 @@ impl CompositeAccessTokenRequest for CompositeVoidRequest {
     fn build_access_token_request(
         &self,
         connector: &ConnectorEnum,
-    ) -> MerchantAuthenticationServiceCreateAccessTokenRequest {
-        MerchantAuthenticationServiceCreateAccessTokenRequest::foreign_from((self, connector))
+    ) -> MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
+        MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest::foreign_from((
+            self, connector,
+        ))
     }
 }
 
@@ -130,8 +140,10 @@ impl CompositeAccessTokenRequest for CompositeCaptureRequest {
     fn build_access_token_request(
         &self,
         connector: &ConnectorEnum,
-    ) -> MerchantAuthenticationServiceCreateAccessTokenRequest {
-        MerchantAuthenticationServiceCreateAccessTokenRequest::foreign_from((self, connector))
+    ) -> MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
+        MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest::foreign_from((
+            self, connector,
+        ))
     }
 }
 
@@ -166,13 +178,16 @@ where
     C: CustomerService + Clone + Send + Sync + 'static,
     R: RefundService + Clone + Send + Sync + 'static,
 {
-    async fn create_access_token<Req: CompositeAccessTokenRequest>(
+    async fn create_server_authentication_token<Req: CompositeAccessTokenRequest>(
         &self,
         connector: &ConnectorEnum,
         payload: &Req,
         metadata: &tonic::metadata::MetadataMap,
         extensions: &tonic::Extensions,
-    ) -> Result<Option<MerchantAuthenticationServiceCreateAccessTokenResponse>, tonic::Status> {
+    ) -> Result<
+        Option<MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
+        tonic::Status,
+    > {
         let should_do_access_token = {
             let payment_method = payload
                 .payment_method()
@@ -193,7 +208,7 @@ where
         let payload_access_token = payload
             .state()
             .and_then(|state| state.access_token.as_ref())
-            .and_then(|token| AccessTokenResponseData::foreign_try_from(token).ok());
+            .and_then(|token| ServerAuthenticationTokenResponseData::foreign_try_from(token).ok());
         let should_create_access_token = should_do_access_token && payload_access_token.is_none();
 
         let access_token_response = match should_create_access_token {
@@ -205,7 +220,7 @@ where
 
                 let access_token_response = self
                     .merchant_authentication_service
-                    .create_access_token(access_token_request)
+                    .create_server_authentication_token(access_token_request)
                     .await?
                     .into_inner();
 
@@ -264,7 +279,9 @@ where
     async fn authorize(
         &self,
         payload: &CompositeAuthorizeRequest,
-        access_token_response: Option<&MerchantAuthenticationServiceCreateAccessTokenResponse>,
+        access_token_response: Option<
+            &MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
+        >,
         create_customer_response: Option<&CustomerServiceCreateResponse>,
         metadata: &tonic::metadata::MetadataMap,
         extensions: &tonic::Extensions,
@@ -297,7 +314,7 @@ where
         let connector =
             connector_from_composite_authorize_metadata(&metadata).map_err(|err| *err)?;
         let access_token_response = self
-            .create_access_token(&connector, &payload, &metadata, &extensions)
+            .create_server_authentication_token(&connector, &payload, &metadata, &extensions)
             .await?;
         let create_customer_response = self
             .create_connector_customer(&connector, &payload, &metadata, &extensions)
@@ -322,7 +339,9 @@ where
     async fn get(
         &self,
         payload: &CompositeGetRequest,
-        access_token_response: Option<&MerchantAuthenticationServiceCreateAccessTokenResponse>,
+        access_token_response: Option<
+            &MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
+        >,
         metadata: &tonic::metadata::MetadataMap,
         extensions: &tonic::Extensions,
     ) -> Result<PaymentServiceGetResponse, tonic::Status> {
@@ -349,7 +368,7 @@ where
         let connector =
             connector_from_composite_authorize_metadata(&metadata).map_err(|err| *err)?;
         let access_token_response = self
-            .create_access_token(&connector, &payload, &metadata, &extensions)
+            .create_server_authentication_token(&connector, &payload, &metadata, &extensions)
             .await?;
         let get_response = self
             .get(
@@ -369,7 +388,9 @@ where
     async fn refund(
         &self,
         payload: &CompositeRefundRequest,
-        access_token_response: Option<&MerchantAuthenticationServiceCreateAccessTokenResponse>,
+        access_token_response: Option<
+            &MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
+        >,
         metadata: &tonic::metadata::MetadataMap,
         extensions: &tonic::Extensions,
     ) -> Result<RefundResponse, tonic::Status> {
@@ -398,7 +419,7 @@ where
         let connector =
             connector_from_composite_authorize_metadata(&metadata).map_err(|err| *err)?;
         let access_token_response = self
-            .create_access_token(&connector, &payload, &metadata, &extensions)
+            .create_server_authentication_token(&connector, &payload, &metadata, &extensions)
             .await?;
         let refund_response = self
             .refund(
@@ -418,7 +439,9 @@ where
     async fn refund_get(
         &self,
         payload: &CompositeRefundGetRequest,
-        access_token_response: Option<&MerchantAuthenticationServiceCreateAccessTokenResponse>,
+        access_token_response: Option<
+            &MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
+        >,
         metadata: &tonic::metadata::MetadataMap,
         extensions: &tonic::Extensions,
     ) -> Result<RefundResponse, tonic::Status> {
@@ -447,7 +470,7 @@ where
         let connector =
             connector_from_composite_authorize_metadata(&metadata).map_err(|err| *err)?;
         let access_token_response = self
-            .create_access_token(&connector, &payload, &metadata, &extensions)
+            .create_server_authentication_token(&connector, &payload, &metadata, &extensions)
             .await?;
         let refund_get_response = self
             .refund_get(
@@ -467,7 +490,9 @@ where
     async fn void(
         &self,
         payload: &CompositeVoidRequest,
-        access_token_response: Option<&MerchantAuthenticationServiceCreateAccessTokenResponse>,
+        access_token_response: Option<
+            &MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
+        >,
         metadata: &tonic::metadata::MetadataMap,
         extensions: &tonic::Extensions,
     ) -> Result<PaymentServiceVoidResponse, tonic::Status> {
@@ -492,7 +517,7 @@ where
         let connector =
             connector_from_composite_authorize_metadata(&metadata).map_err(|err| *err)?;
         let access_token_response = self
-            .create_access_token(&connector, &payload, &metadata, &extensions)
+            .create_server_authentication_token(&connector, &payload, &metadata, &extensions)
             .await?;
         let void_response = self
             .void(
@@ -512,7 +537,9 @@ where
     async fn capture(
         &self,
         payload: &CompositeCaptureRequest,
-        access_token_response: Option<&MerchantAuthenticationServiceCreateAccessTokenResponse>,
+        access_token_response: Option<
+            &MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
+        >,
         metadata: &tonic::metadata::MetadataMap,
         extensions: &tonic::Extensions,
     ) -> Result<PaymentServiceCaptureResponse, tonic::Status> {
@@ -541,7 +568,7 @@ where
         let connector =
             connector_from_composite_authorize_metadata(&metadata).map_err(|err| *err)?;
         let access_token_response = self
-            .create_access_token(&connector, &payload, &metadata, &extensions)
+            .create_server_authentication_token(&connector, &payload, &metadata, &extensions)
             .await?;
         let capture_response = self
             .capture(

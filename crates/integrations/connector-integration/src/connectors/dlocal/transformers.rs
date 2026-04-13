@@ -1,13 +1,13 @@
 use common_utils::{pii, request::Method, FloatMajorUnit};
 use domain_types::{
-    connector_flow::{self, Authorize},
+    connector_flow::{self, Authorize, RepeatPayment},
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId,
+        MandateReferenceId, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
+        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
     },
-    errors::ConnectorError,
-    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
+    errors::{ConnectorError, IntegrationError},
+    payment_method_data::{self, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
@@ -46,6 +46,8 @@ pub struct ThreeDSecureReqData {
 pub enum PaymentMethodId {
     #[default]
     Card,
+    #[serde(untagged)]
+    Other(String),
 }
 
 #[derive(Debug, Serialize, Default, Deserialize, Clone, Eq, PartialEq)]
@@ -53,7 +55,8 @@ pub enum PaymentMethodId {
 pub enum PaymentMethodFlow {
     #[default]
     Direct,
-    ReDirect,
+    #[serde(rename = "REDIRECT")]
+    Redirect,
 }
 
 #[derive(Default, Debug, Serialize, PartialEq)]
@@ -66,11 +69,17 @@ pub struct DlocalPaymentsRequest<
     pub payment_method_id: PaymentMethodId,
     pub payment_method_flow: PaymentMethodFlow,
     pub payer: Payer,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub card: Option<Card<T>>,
     pub order_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub three_dsecure: Option<ThreeDSecureReqData>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub callback_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub notification_url: Option<String>,
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -86,7 +95,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for DlocalPaymentsRequest<T>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(
         item: DlocalRouterData<
             RouterDataV2<
@@ -105,6 +114,19 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .get_billing_address()?;
         let country = *address.get_country()?;
         let name = address.get_full_name()?;
+        let amount = utils::convert_amount(
+            item.connector.amount_converter,
+            item.router_data.request.minor_amount,
+            item.router_data.request.currency,
+        )?;
+        let order_id = item
+            .router_data
+            .resource_common_data
+            .connector_request_reference_id
+            .clone();
+        let callback_url = Some(item.router_data.request.get_router_return_url()?);
+        let description = item.router_data.resource_common_data.description.clone();
+
         match item.router_data.request.payment_method_data {
             PaymentMethodData::Card(ref ccard) => {
                 let should_capture = matches!(
@@ -112,11 +134,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     Some(common_enums::CaptureMethod::Automatic)
                         | Some(common_enums::CaptureMethod::SequentialAutomatic)
                 );
-                let amount = utils::convert_amount(
-                    item.connector.amount_converter,
-                    item.router_data.request.minor_amount,
-                    item.router_data.request.currency,
-                )?;
                 let payment_request = Self {
                     amount,
                     currency: item.router_data.request.currency,
@@ -137,19 +154,40 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         expiration_year: ccard.card_exp_year.clone(),
                         capture: should_capture.to_string(),
                     }),
-                    order_id: item
-                        .router_data
-                        .resource_common_data
-                        .connector_request_reference_id
-                        .clone(),
+                    order_id,
                     three_dsecure: match item.router_data.resource_common_data.auth_type {
                         common_enums::AuthenticationType::ThreeDs => {
                             Some(ThreeDSecureReqData { force: true })
                         }
                         common_enums::AuthenticationType::NoThreeDs => None,
                     },
-                    callback_url: Some(item.router_data.request.get_router_return_url()?),
-                    description: item.router_data.resource_common_data.description.clone(),
+                    callback_url,
+                    description,
+                    notification_url: None,
+                };
+                Ok(payment_request)
+            }
+            PaymentMethodData::BankDebit(ref bank_debit_data) => {
+                let (payment_method_id, _notification_url) =
+                    get_bank_debit_payment_method_id(bank_debit_data, country)?;
+                let webhook_url = item.router_data.request.webhook_url.clone();
+                let payment_request = Self {
+                    amount,
+                    currency: item.router_data.request.currency,
+                    payment_method_id,
+                    payment_method_flow: PaymentMethodFlow::Redirect,
+                    country,
+                    payer: Payer {
+                        name,
+                        email,
+                        document: get_doc_from_currency(country.to_string()),
+                    },
+                    card: None,
+                    order_id,
+                    three_dsecure: None,
+                    callback_url,
+                    description,
+                    notification_url: webhook_url,
                 };
                 Ok(payment_request)
             }
@@ -157,7 +195,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::Wallet(_)
             | PaymentMethodData::PayLater(_)
             | PaymentMethodData::BankRedirect(_)
-            | PaymentMethodData::BankDebit(_)
             | PaymentMethodData::BankTransfer(_)
             | PaymentMethodData::Crypto(_)
             | PaymentMethodData::MandatePayment
@@ -168,11 +205,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
-            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(ConnectorError::NotImplemented(
+                Err(IntegrationError::not_implemented(
                     crate::utils::get_unimplemented_payment_method_error_message("Dlocal"),
                 ))?
             }
@@ -201,7 +238,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for DlocalPaymentsCaptureRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(
         item: DlocalRouterData<
             RouterDataV2<
@@ -225,7 +262,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .request
                     .connector_transaction_id
                     .get_connector_transaction_id()
-                    .change_context(ConnectorError::MissingConnectorTransactionID)?,
+                    .change_context(IntegrationError::MissingConnectorTransactionID {
+                        context: Default::default(),
+                    })?,
             ),
             amount,
             currency: item.router_data.request.currency.to_string(),
@@ -237,6 +276,157 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         })
     }
 }
+// RepeatPayment (MIT) flow types
+
+#[derive(Debug, Serialize, Clone, Eq, PartialEq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum StoredCredentialType {
+    CardOnFile,
+    Subscription,
+    UnscheduledCardOnFile,
+    Installments,
+}
+
+impl From<Option<common_enums::MitCategory>> for StoredCredentialType {
+    fn from(category: Option<common_enums::MitCategory>) -> Self {
+        match category {
+            Some(common_enums::MitCategory::Recurring) => Self::Subscription,
+            Some(common_enums::MitCategory::Installment) => Self::Installments,
+            Some(common_enums::MitCategory::Unscheduled) => Self::UnscheduledCardOnFile,
+            Some(common_enums::MitCategory::Resubmission) => Self::UnscheduledCardOnFile,
+            None => Self::CardOnFile,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Clone, Eq, PartialEq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum StoredCredentialUsage {
+    Used,
+}
+
+#[derive(Debug, Serialize)]
+pub struct DlocalRepeatPaymentCard {
+    pub card_id: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub capture: Option<String>,
+    pub stored_credential_type: StoredCredentialType,
+    pub stored_credential_usage: StoredCredentialUsage,
+}
+
+#[derive(Debug, Serialize)]
+pub struct DlocalRepeatPaymentRequest {
+    pub amount: FloatMajorUnit,
+    pub currency: common_enums::Currency,
+    pub country: common_enums::CountryAlpha2,
+    pub payment_method_id: PaymentMethodId,
+    pub payment_method_flow: PaymentMethodFlow,
+    pub payer: Payer,
+    pub card: DlocalRepeatPaymentCard,
+    pub order_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub notification_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        DlocalRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for DlocalRepeatPaymentRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        item: DlocalRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+
+        // Extract connector_mandate_id (card_id from a prior CIT)
+        let card_id = match &router_data.request.mandate_reference {
+            MandateReferenceId::ConnectorMandateId(connector_mandate_ref) => connector_mandate_ref
+                .get_connector_mandate_id()
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "connector_mandate_id",
+                    context: Default::default(),
+                })?,
+            MandateReferenceId::NetworkMandateId(_)
+            | MandateReferenceId::NetworkTokenWithNTI(_) => {
+                Err(IntegrationError::not_implemented(
+                    "Network mandate ID not supported for repeat payments in dlocal".to_string(),
+                ))?
+            }
+        };
+
+        let address = router_data.resource_common_data.get_billing_address()?;
+        let country = *address.get_country()?;
+        let name = address.get_full_name()?;
+
+        let email = router_data.request.get_email()?;
+
+        let amount = utils::convert_amount(
+            item.connector.amount_converter,
+            router_data.request.minor_amount,
+            router_data.request.currency,
+        )?;
+
+        let order_id = router_data
+            .resource_common_data
+            .connector_request_reference_id
+            .clone();
+
+        let should_capture = matches!(
+            router_data.request.capture_method,
+            Some(common_enums::CaptureMethod::Automatic)
+                | Some(common_enums::CaptureMethod::SequentialAutomatic)
+                | None
+        );
+
+        let stored_credential_type =
+            StoredCredentialType::from(router_data.request.mit_category.clone());
+
+        Ok(Self {
+            amount,
+            currency: router_data.request.currency,
+            country,
+            payment_method_id: PaymentMethodId::Card,
+            payment_method_flow: PaymentMethodFlow::Direct,
+            payer: Payer {
+                name,
+                email,
+                document: get_doc_from_currency(country.to_string()),
+            },
+            card: DlocalRepeatPaymentCard {
+                card_id: Secret::new(card_id),
+                capture: Some(should_capture.to_string()),
+                stored_credential_type,
+                stored_credential_usage: StoredCredentialUsage::Used,
+            },
+            order_id,
+            notification_url: router_data.request.webhook_url.clone(),
+            description: router_data.resource_common_data.description.clone(),
+        })
+    }
+}
+
+// RepeatPayment response - reuses DlocalPaymentsResponse (generic TryFrom covers this)
+pub type DlocalRepeatPaymentResponse = DlocalPaymentsResponse;
+
 // Auth Struct
 pub struct DlocalAuthType {
     pub(super) x_login: Secret<String>,
@@ -245,7 +435,7 @@ pub struct DlocalAuthType {
 }
 
 impl TryFrom<&ConnectorSpecificConfig> for DlocalAuthType {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(auth_type: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         if let ConnectorSpecificConfig::Dlocal {
             x_login,
@@ -260,7 +450,10 @@ impl TryFrom<&ConnectorSpecificConfig> for DlocalAuthType {
                 secret: secret.to_owned(),
             })
         } else {
-            Err(ConnectorError::FailedToObtainAuthType.into())
+            Err(IntegrationError::FailedToObtainAuthType {
+                context: Default::default(),
+            }
+            .into())
         }
     }
 }
@@ -298,6 +491,7 @@ pub struct DlocalPaymentsResponse {
     id: String,
     three_dsecure: Option<ThreeDSecureResData>,
     order_id: Option<String>,
+    redirect_url: Option<url::Url>,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<DlocalPaymentsResponse, Self>>
@@ -307,10 +501,12 @@ impl<F, T> TryFrom<ResponseRouterData<DlocalPaymentsResponse, Self>>
     fn try_from(
         item: ResponseRouterData<DlocalPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
+        // Check for redirect URL from both 3DS (card) and top-level (bank transfer/APM) responses
         let redirection_data = item
             .response
             .three_dsecure
             .and_then(|three_secure_data| three_secure_data.redirect_url)
+            .or(item.response.redirect_url)
             .map(|redirect_url| RedirectForm::from((redirect_url, Method::Get)));
 
         let response = PaymentsResponseData::TransactionResponse {
@@ -448,7 +644,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
     TryFrom<DlocalRouterData<RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>, T>>
     for DlocalRefundRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(
         item: DlocalRouterData<
             RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>,
@@ -538,9 +734,66 @@ pub struct DlocalErrorResponse {
     pub param: Option<String>,
 }
 
+/// Maps BankDebitData and country to the dLocal-specific payment_method_id.
+/// dLocal uses country-specific payment method codes for bank transfer / direct debit payments.
+/// For REDIRECT flow bank transfers, the payment_method_id depends on the country:
+///   - BR: "IO" (Bank Transfer)
+///   - AR: "IO" (Bank Transfer)
+///   - MX: "SE" (SPEI)
+///   - CL: "WP" (Webpay)
+///   - CO: "PC" (PSE)
+///   - PE: "BC" (BCP)
+///
+/// We use well-known codes per country from dLocal's payment methods API.
+fn get_bank_debit_payment_method_id(
+    bank_debit_data: &payment_method_data::BankDebitData,
+    country: common_enums::CountryAlpha2,
+) -> Result<(PaymentMethodId, Option<String>), error_stack::Report<IntegrationError>> {
+    match bank_debit_data {
+        payment_method_data::BankDebitData::SepaBankDebit { .. }
+        | payment_method_data::BankDebitData::SepaGuaranteedBankDebit { .. }
+        | payment_method_data::BankDebitData::AchBankDebit { .. } => {
+            let method_id = get_bank_transfer_method_id_for_country(country)?;
+            Ok((PaymentMethodId::Other(method_id), None))
+        }
+        payment_method_data::BankDebitData::BecsBankDebit { .. }
+        | payment_method_data::BankDebitData::BacsBankDebit { .. } => {
+            Err(IntegrationError::not_implemented(
+                crate::utils::get_unimplemented_payment_method_error_message("Dlocal"),
+            ))?
+        }
+    }
+}
+
+/// Returns a well-known bank transfer payment_method_id for the given country.
+fn get_bank_transfer_method_id_for_country(
+    country: common_enums::CountryAlpha2,
+) -> Result<String, error_stack::Report<IntegrationError>> {
+    match country {
+        common_enums::CountryAlpha2::BR => Ok("IO".to_string()), // Bank Transfer
+        common_enums::CountryAlpha2::AR => Ok("IO".to_string()), // Bank Transfer
+        common_enums::CountryAlpha2::MX => Ok("SE".to_string()), // SPEI
+        common_enums::CountryAlpha2::CL => Ok("WP".to_string()), // Webpay
+        common_enums::CountryAlpha2::CO => Ok("PC".to_string()), // PSE
+        common_enums::CountryAlpha2::PE => Ok("BC".to_string()), // BCP
+        _ => Err(IntegrationError::NotSupported {
+            message: format!("Bank debit is not supported for country: {country}"),
+            connector: "Dlocal",
+            context: Default::default(),
+        }
+        .into()),
+    }
+}
+
 fn get_doc_from_currency(country: String) -> Secret<String> {
     let doc = match country.as_str() {
-        "BR" => "91483309223",
+        "BR" => "91483309223",        // CPF (11 digits)
+        "MX" => "BADD110313HCMLNS09", // CURP (18 chars)
+        "AR" => "30682389",           // DNI (7-9 digits)
+        "CL" => "12345678",           // CI/RUT (8-9 chars)
+        "CO" => "1234567890",         // CC (6-11 digits)
+        "PE" => "12345678",           // DNI (8 digits)
+        "UY" => "12345678",           // CI (6-8 digits)
         "ZA" => "2001014800086",
         "BD" | "GT" | "HN" | "PK" | "SN" | "TH" => "1234567890001",
         "CR" | "SV" | "VN" => "123456789",

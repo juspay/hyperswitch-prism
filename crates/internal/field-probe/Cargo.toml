@@ -25,6 +25,7 @@ serde_json = { workspace = true }
 tonic = { workspace = true }
 rayon = "1.10"
 toml = "0.8"
+base64 = "0.21"
 
 [lints]
 workspace = true

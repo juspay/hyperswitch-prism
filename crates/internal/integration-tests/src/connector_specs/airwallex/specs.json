@@ -1,0 +1,13 @@
+{
+  "connector": "airwallex",
+  "supported_suites": [
+    "authorize",
+    "capture",
+    "create_order",
+    "get",
+    "refund",
+    "refund_sync",
+    "server_authentication_token",
+    "void"
+  ]
+}

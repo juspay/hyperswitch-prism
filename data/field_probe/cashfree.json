@@ -11,11 +11,27 @@
         "status": "not_supported",
         "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
       },
+      "AchBankTransfer": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
       "Affirm": {
         "status": "not_supported",
         "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
       },
       "Afterpay": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "Alfamart": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "AliPayRedirect": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "AmazonPayRedirect": {
         "status": "not_supported",
         "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
       },
@@ -27,7 +43,23 @@
         "status": "not_supported",
         "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
       },
+      "ApplePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
       "Bacs": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "BacsBankTransfer": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "BancontactCard": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "BcaBankTransfer": {
         "status": "not_supported",
         "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
       },
@@ -35,13 +67,85 @@
         "status": "not_supported",
         "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
       },
+      "Bizum": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
       "Blik": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "Bluecode": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "Boleto": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "BriVaBankTransfer": {
         "status": "not_supported",
         "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
       },
       "Card": {
         "status": "not_supported",
         "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "CashappQr": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "ClassicReward": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "EVoucher": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "Efecty": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "Eft": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "Eps": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "FamilyMart": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "Giropay": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "GooglePay": {
         "status": "not_supported",
@@ -51,7 +155,35 @@
         "status": "not_supported",
         "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
       },
+      "GooglePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
       "Ideal": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "Indomaret": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "InstantBankTransfer": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "Interac": {
         "status": "not_supported",
         "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
       },
@@ -59,7 +191,127 @@
         "status": "not_supported",
         "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
       },
+      "Lawson": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "LocalBankRedirect": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "LocalBankTransfer": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "MbWay": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "Mifinity": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "MiniStop": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "OpenBanking": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "OpenBankingUk": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "Oxxo": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "PagoEfectivo": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "PayEasy": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "PaySafeCard": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
       "PaypalRedirect": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "PaypalSdk": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "PermataBankTransfer": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "Pix": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "Przelewy24": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "Pse": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "RedCompra": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "RedPagos": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "RevolutPay": {
         "status": "not_supported",
         "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
       },
@@ -67,7 +319,35 @@
         "status": "not_supported",
         "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
       },
+      "Satispay": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "Seicomart": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
       "Sepa": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "SepaBankTransfer": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "SevenEleven": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "Sofort": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "Trustly": {
         "status": "not_supported",
         "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
       },
@@ -90,7 +370,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://sandbox.cashfree.com/pg/orders/sessions",
@@ -102,8 +382,80 @@
             "x-client-id": "probe_id",
             "x-client-secret": "probe_key"
           },
-          "body": "{\"payment_session_id\":\"probe_order_001\",\"payment_method\":{\"upi\":{\"channel\":\"collect\",\"upi_id\":\"test@upi\"}},\"payment_surcharge\":null}"
+          "body": "{\"payment_session_id\":\"connector_order_id\",\"payment_method\":{\"upi\":{\"channel\":\"collect\",\"upi_id\":\"test@upi\"}},\"payment_surcharge\":null}"
         }
+      },
+      "UpiIntent": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "upi_intent": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://sandbox.cashfree.com/pg/orders/sessions",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-version": "2022-09-01",
+            "x-client-id": "probe_id",
+            "x-client-secret": "probe_key"
+          },
+          "body": "{\"payment_session_id\":\"connector_order_id\",\"payment_method\":{\"upi\":{\"channel\":\"link\"}},\"payment_surcharge\":null}"
+        }
+      },
+      "UpiQr": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "upi_qr": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://sandbox.cashfree.com/pg/orders/sessions",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-version": "2022-09-01",
+            "x-client-id": "probe_id",
+            "x-client-secret": "probe_key"
+          },
+          "body": "{\"payment_session_id\":\"connector_order_id\",\"payment_method\":{\"upi\":{\"channel\":\"link\"}},\"payment_surcharge\":null}"
+        }
+      },
+      "WeChatPayQr": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      },
+      "Wero": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
       }
     },
     "capture": {
@@ -111,7 +463,7 @@
         "status": "not_implemented"
       }
     },
-    "create_access_token": {
+    "create_client_authentication_token": {
       "default": {
         "status": "not_implemented"
       }
@@ -127,7 +479,12 @@
         "error": "Stuck on field: billing_address — Missing required field: billing_address"
       }
     },
-    "create_session_token": {
+    "create_server_authentication_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_server_session_authentication_token": {
       "default": {
         "status": "not_implemented"
       }
@@ -142,12 +499,32 @@
         "status": "not_implemented"
       }
     },
+    "dispute_get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "dispute_submit_evidence": {
       "default": {
         "status": "not_implemented"
       }
     },
+    "eligibility": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "handle_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "incremental_authorization": {
       "default": {
         "status": "not_implemented"
       }
@@ -162,12 +539,33 @@
         "status": "not_implemented"
       }
     },
+    "proxy_authorize": {
+      "default": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "recurring_charge": {
       "default": {
         "status": "not_implemented"
       }
     },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "refund": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "refund_get": {
       "default": {
         "status": "not_implemented"
       }
@@ -182,7 +580,23 @@
         "status": "not_implemented"
       }
     },
+    "token_authorize": {
+      "default": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "tokenize": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "verify_redirect": {
       "default": {
         "status": "not_implemented"
       }

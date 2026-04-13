@@ -14,7 +14,7 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
     // Depend on published SDK to avoid Gradle circular dependency (root :jar -> :classes -> :compileKotlin).
     // CI and Makefile run publishToMavenLocal (or equivalent) before running smoke-test.
-    implementation("com.hyperswitch:payments-client:0.1.0")
+    implementation("io.hyperswitch:prism:0.0.4")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }
 
@@ -64,4 +64,19 @@ tasks.register<JavaExec>("runGrpc") {
 tasks.named<JavaExec>("run") {
     systemProperty("jna.library.path",
         file("../src/main/resources/native").absolutePath)
+}
+
+// Task to run the composite smoke test (direct SDK calls, no reflection)
+tasks.register<JavaExec>("runComposite") {
+    group = "application"
+    description = "Run the composite smoke test (typed exception contract validation)"
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("SmokeTestCompositeKt")
+
+    environment("FORCE_COLOR", "1")
+    jvmArgs("--enable-native-access=ALL-UNNAMED")
+    systemProperty("jna.library.path",
+        file("../src/main/resources/native").absolutePath)
+
+    args = project.properties["args"]?.toString()?.split(" ") ?: emptyList()
 }

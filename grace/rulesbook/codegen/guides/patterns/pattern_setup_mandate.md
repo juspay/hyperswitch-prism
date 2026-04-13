@@ -90,7 +90,7 @@ Analysis of 8 connectors reveals distinct implementation patterns:
 
 ```rust
 // Uses specialized endpoint for mandate setup
-fn get_url(&self, req: &RouterDataV2<SetupMandate, ...>) -> CustomResult<String, ConnectorError> {
+fn get_url(&self, req: &RouterDataV2<SetupMandate, ...>) -> CustomResult<String, IntegrationError> {
     Ok(format!("{}/v1/setup_intents", self.connector_base_url(req)))
 }
 ```
@@ -100,7 +100,7 @@ fn get_url(&self, req: &RouterDataV2<SetupMandate, ...>) -> CustomResult<String,
 
 ```rust
 // Uses regular payment endpoint with recurring flags
-fn get_url(&self, req: &RouterDataV2<SetupMandate, ...>) -> CustomResult<String, ConnectorError> {
+fn get_url(&self, req: &RouterDataV2<SetupMandate, ...>) -> CustomResult<String, IntegrationError> {
     Ok(format!("{}/v1/payments", self.connector_base_url(req)))
     // Request includes recurring/tokenization flags
 }
@@ -111,7 +111,7 @@ fn get_url(&self, req: &RouterDataV2<SetupMandate, ...>) -> CustomResult<String,
 
 ```rust
 // Creates payment profile under customer
-fn get_url(&self, req: &RouterDataV2<SetupMandate, ...>) -> CustomResult<String, ConnectorError> {
+fn get_url(&self, req: &RouterDataV2<SetupMandate, ...>) -> CustomResult<String, IntegrationError> {
     Ok(format!("{}/registrations/{}", base_url, registration_id))
 }
 ```
@@ -190,7 +190,7 @@ use domain_types::{
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData,
         RefundsData, RefundsResponseData, ResponseId, SetupMandateRequestData,
     },
-    errors::{self, ConnectorError},
+    errors::{self, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorAuthType, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -257,7 +257,7 @@ macros::create_all_prerequisites!(
         pub fn build_headers<F, FCD, Req, Res>(
             &self,
             req: &RouterDataV2<F, FCD, Req, Res>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let mut header = vec![(
                 headers::CONTENT_TYPE.to_string(),
                 "{content_type}".to_string().into(), // "application/json", "application/x-www-form-urlencoded"
@@ -295,9 +295,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
     fn get_auth_header(
         &self,
         auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
         let auth = transformers::{ConnectorName}AuthType::try_from(auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+            .change_context(errors::IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
 
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
@@ -312,7 +312,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: {ConnectorName}ErrorResponse = res.response
             .parse_struct("ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed { context: Default::default() })?;
 
         if let Some(i) = event_builder {
             i.set_error_response_body(&response);
@@ -349,14 +349,14 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
 
         fn get_url(
             &self,
             req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, errors::IntegrationError> {
             let base_url = self.connector_base_url_payments(req);
             // Choose appropriate pattern:
 
@@ -368,7 +368,7 @@ macros::macro_connector_implementation!(
 
             // OR Pattern 3: Customer profile endpoint (like ACI)
             // let registration_id = req.request.customer_id.clone()
-            //     .ok_or(ConnectorError::MissingRequiredField { field_name: "customer_id" })?;
+            //     .ok_or(IntegrationError::MissingRequiredField { field_name: "customer_id" , context: Default::default() })?;
             // Ok(format!("{base_url}/registrations/{registration_id}"))
         }
     }
@@ -401,7 +401,7 @@ use domain_types::{
         MandateReference, PaymentFlowData, PaymentsAuthorizeData,
         PaymentsResponseData, ResponseId, SetupMandateRequestData,
     },
-    errors::{self, ConnectorError},
+    errors::{self, IntegrationError},
     payment_method_data::{
         PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, Card,
     },
@@ -421,14 +421,14 @@ pub struct {ConnectorName}AuthType {
 }
 
 impl TryFrom<&ConnectorAuthType> for {ConnectorName}AuthType {
-    type Error = ConnectorError;
+    type Error = IntegrationError;
 
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
             ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
                 api_key: api_key.to_owned(),
             }),
-            _ => Err(ConnectorError::FailedToObtainAuthType),
+            _ => Err(IntegrationError::FailedToObtainAuthType { context: Default::default() }),
         }
     }
 }
@@ -591,7 +591,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
     TryFrom<{ConnectorName}RouterData<RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>, T>>
     for {ConnectorName}SetupMandateRequest<T>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: {ConnectorName}RouterData<RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>, T>,
@@ -608,7 +608,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
                     holder_name: router_data.request.customer_name.clone().map(Secret::new),
                 })
             },
-            _ => return Err(ConnectorError::NotImplemented("Payment method not supported".to_string()).into()),
+            _ => return Err(IntegrationError::NotImplemented("Payment method not supported".to_string(, Default::default())).into()),
         };
 
         Ok(Self {
@@ -627,7 +627,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
     TryFrom<{ConnectorName}RouterData<RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>, T>>
     for {ConnectorName}SetupMandateRequestAlternative<T>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: {ConnectorName}RouterData<RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>, T>,
@@ -647,7 +647,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
                     holder_name: router_data.request.customer_name.clone().map(Secret::new),
                 })
             },
-            _ => return Err(ConnectorError::NotImplemented("Payment method not supported".to_string()).into()),
+            _ => return Err(IntegrationError::NotImplemented("Payment method not supported".to_string(, Default::default())).into()),
         };
 
         // Build shopper reference from customer_id
@@ -663,7 +663,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
         let recurring_processing_model = Some({ConnectorName}RecurringModel::Subscription);
 
         let return_url = router_data.request.router_return_url.clone()
-            .ok_or(ConnectorError::MissingRequiredField { field_name: "return_url" })?;
+            .ok_or(IntegrationError::MissingRequiredField { field_name: "return_url" , context: Default::default() })?;
 
         Ok(Self {
             amount,
@@ -684,7 +684,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
     TryFrom<{ConnectorName}RouterData<RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>, T>>
     for {ConnectorName}SetupMandateSubscription<T>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: {ConnectorName}RouterData<RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>, T>,
@@ -707,7 +707,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
                     holder_name: router_data.request.customer_name.clone().map(Secret::new),
                 })
             },
-            _ => return Err(ConnectorError::NotImplemented("Payment method not supported".to_string()).into()),
+            _ => return Err(IntegrationError::NotImplemented("Payment method not supported".to_string(, Default::default())).into()),
         };
 
         // Build subscription data from mandate details
@@ -831,7 +831,7 @@ pub struct {ConnectorName}RouterData<T, U> {
 }
 
 impl<T, U> TryFrom<({AmountType}, T, U)> for {ConnectorName}RouterData<T, U> {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from((amount, router_data, connector): ({AmountType}, T, U)) -> Result<Self, Self::Error> {
         Ok(Self {
@@ -1045,7 +1045,7 @@ let subscription = router_data.request.setup_mandate_details.as_ref()
 
 ```rust
 // Stripe Setup Intents
-fn get_url(&self, req: &RouterDataV2<SetupMandate, ...>) -> CustomResult<String, ConnectorError> {
+fn get_url(&self, req: &RouterDataV2<SetupMandate, ...>) -> CustomResult<String, IntegrationError> {
     Ok(format!("{}/v1/setup_intents", self.connector_base_url(req)))
 }
 ```
@@ -1054,7 +1054,7 @@ fn get_url(&self, req: &RouterDataV2<SetupMandate, ...>) -> CustomResult<String,
 
 ```rust
 // Adyen, Cybersource, Noon - Use same endpoint as authorize
-fn get_url(&self, req: &RouterDataV2<SetupMandate, ...>) -> CustomResult<String, ConnectorError> {
+fn get_url(&self, req: &RouterDataV2<SetupMandate, ...>) -> CustomResult<String, IntegrationError> {
     Ok(format!("{}/v{}/payments",
         self.connector_base_url(req),
         API_VERSION
@@ -1066,9 +1066,9 @@ fn get_url(&self, req: &RouterDataV2<SetupMandate, ...>) -> CustomResult<String,
 
 ```rust
 // ACI, Authorizedotnet - Customer-specific endpoints
-fn get_url(&self, req: &RouterDataV2<SetupMandate, ...>) -> CustomResult<String, ConnectorError> {
+fn get_url(&self, req: &RouterDataV2<SetupMandate, ...>) -> CustomResult<String, IntegrationError> {
     let customer_id = req.request.customer_id.clone()
-        .ok_or(ConnectorError::MissingRequiredField { field_name: "customer_id" })?;
+        .ok_or(IntegrationError::MissingRequiredField { field_name: "customer_id" , context: Default::default() })?;
 
     Ok(format!("{}/v1/customers/{}/payment_methods",
         self.connector_base_url(req),
@@ -1134,7 +1134,7 @@ impl ConnectorCommon for {ConnectorName} {
     ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: {ConnectorName}ErrorResponse = res.response
             .parse_struct("ErrorResponse")
-            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+            .change_context(ConnectorError::ResponseDeserializationFailed { context: Default::default() })?;
 
         if let Some(i) = event_builder {
             i.set_error_response_body(&response);

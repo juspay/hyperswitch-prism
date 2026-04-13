@@ -1,0 +1,15 @@
+{
+  "suite": "recurring_charge",
+  "suite_type": "dependent",
+  "depends_on": [
+    "server_authentication_token",
+    "create_customer",
+    {
+      "suite": "setup_recurring",
+      "context_map": {
+        "connector_recurring_payment_id.connector_mandate_id.connector_mandate_id": "res.mandate_reference.connector_mandate_id.connector_mandate_id"
+      }
+    }
+  ],
+  "strict_dependencies": false
+}

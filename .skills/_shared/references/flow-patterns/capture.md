@@ -72,17 +72,17 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
 
         fn get_url(
             &self,
             req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
-        ) -> CustomResult<String, ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let transaction_id = match &req.request.connector_transaction_id {
                 Some(id) => id,
-                None => return Err(errors::ConnectorError::MissingConnectorTransactionID.into()),
+                None => return Err(errors::IntegrationError::MissingConnectorTransactionID.into()),
             };
             let base_url = self.connector_base_url_payments(req);
             // Adjust URL pattern to match connector API
@@ -112,7 +112,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
 Some APIs use separate endpoints for full vs partial captures:
 
 ```rust
-fn get_url(&self, req: &RouterDataV2<Capture, ...>) -> CustomResult<String, ConnectorError> {
+fn get_url(&self, req: &RouterDataV2<Capture, ...>) -> CustomResult<String, IntegrationError> {
     let transaction_id = req.request.get_connector_transaction_id()?;
     let base_url = self.connector_base_url_payments(req);
 
@@ -236,7 +236,7 @@ let status = if let Some(status_field) = &response.status {
 impl TryFrom<{ConnectorName}RouterData<RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>>>
     for {ConnectorName}CaptureRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: {ConnectorName}RouterData<RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>>,
@@ -248,7 +248,7 @@ impl TryFrom<{ConnectorName}RouterData<RouterDataV2<Capture, PaymentFlowData, Pa
             .request
             .connector_transaction_id
             .as_ref()
-            .ok_or_else(|| ConnectorError::MissingConnectorTransactionID)?;
+            .ok_or_else(|| IntegrationError::MissingConnectorTransactionID)?;
 
         Ok(Self {
             amount: item.amount, // Pre-converted by amount_converter
@@ -349,7 +349,7 @@ pub enum CaptureRequest {
 }
 
 impl TryFrom<CaptureRouterData> for CaptureRequest {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(item: CaptureRouterData) -> Result<Self, Self::Error> {
         if is_full_capture(&item.router_data.request) {

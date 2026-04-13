@@ -405,6 +405,22 @@ pub enum BankNames {
     Yoursafe,
     N26,
     NationaleNederlanden,
+    // Indian banks (Netbanking)
+    StateBank,
+    HdfcBank,
+    IciciBank,
+    AxisBank,
+    KotakMahindraBank,
+    PunjabNationalBank,
+    BankOfBaroda,
+    UnionBankOfIndia,
+    CanaraBank,
+    IndusIndBank,
+    YesBank,
+    IdbiBank,
+    FederalBank,
+    IndianOverseasBank,
+    CentralBankOfIndia,
 }
 
 /// Specifies the regulated name for a card network, primarily used for US debit card routing regulations.
@@ -1037,6 +1053,7 @@ pub enum PaymentMethodType {
     Walley,
     WeChatPay,
     Wero,
+    Netbanking,
     SevenEleven,
     Lawson,
     MiniStop,

@@ -25,27 +25,24 @@ npm install hyperswitch-prism
 {% code title="index.js" overflow="wrap" lineNumbers="true" %}
 ```javascript
 const { PaymentClient } = require('hyperswitch-prism');
-const { ConnectorConfig, ConnectorSpecificConfig, SdkOptions, Environment } = require('hyperswitch-prism').types;
 
 // Configure Stripe client
-const stripeConfig = ConnectorConfig.create({
-    options: SdkOptions.create({ environment: Environment.SANDBOX }),
-});
-stripeConfig.connectorConfig = ConnectorSpecificConfig.create({
-    stripe: { apiKey: { value: process.env.STRIPE_API_KEY } }
-});
+const stripeConfig = {
+    connectorConfig: {
+        stripe: { apiKey: { value: process.env.STRIPE_API_KEY } }
+    }
+};
 const stripeClient = new PaymentClient(stripeConfig);
 
 // Configure Adyen client
-const adyenConfig = ConnectorConfig.create({
-    options: SdkOptions.create({ environment: Environment.SANDBOX }),
-});
-adyenConfig.connectorConfig = ConnectorSpecificConfig.create({
-    adyen: {
-        apiKey: { value: process.env.ADYEN_API_KEY },
-        merchantAccount: process.env.ADYEN_MERCHANT_ACCOUNT
+const adyenConfig = {
+    connectorConfig: {
+        adyen: {
+            apiKey: { value: process.env.ADYEN_API_KEY },
+            merchantAccount: process.env.ADYEN_MERCHANT_ACCOUNT
+        }
     }
-});
+};
 const adyenClient = new PaymentClient(adyenConfig);
 ```
 {% endcode %}
@@ -67,18 +64,22 @@ from hyperswitch_prism import PaymentClient
 from hyperswitch_prism.generated import sdk_config_pb2
 
 # Configure Stripe client
-stripe_config = sdk_config_pb2.ConnectorConfig(
-    options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
-)
-stripe_config.connector_config.stripe.api_key.value = os.environ["STRIPE_API_KEY"]
+stripe_config = {
+    "connectorConfig": {
+        "stripe": {"apiKey": {"value": os.environ["STRIPE_API_KEY"]}}
+    }
+}
 stripe_client = PaymentClient(stripe_config)
 
 # Configure Adyen client
-adyen_config = sdk_config_pb2.ConnectorConfig(
-    options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
-)
-adyen_config.connector_config.adyen.api_key.value = os.environ["ADYEN_API_KEY"]
-adyen_config.connector_config.adyen.merchant_account = os.environ["ADYEN_MERCHANT_ACCOUNT"]
+adyen_config = {
+    "connectorConfig": {
+        "adyen": {
+            "apiKey": {"value": os.environ["ADYEN_API_KEY"]},
+            "merchantAccount": os.environ["ADYEN_MERCHANT_ACCOUNT"]
+        }
+    }
+}
 adyen_client = PaymentClient(adyen_config)
 ```
 {% endcode %}
@@ -90,8 +91,8 @@ adyen_client = PaymentClient(adyen_config)
 {% code title="pom.xml" overflow="wrap" %}
 ```xml
 <dependency>
-    <groupId>com.juspay.hyperswitch</groupId>
-    <artifactId>hyperswitch-prism</artifactId>
+    <groupId>io.hyperswitch</groupId>
+    <artifactId>prism</artifactId>
     <version>1.0.0</version>
 </dependency>
 ```
@@ -100,33 +101,20 @@ adyen_client = PaymentClient(adyen_config)
 {% code title="Main.java" overflow="wrap" lineNumbers="true" %}
 ```java
 import com.juspay.hyperswitch.prism.PaymentClient;
-import com.juspay.hyperswitch.prism.config.*;
 
 // Configure Stripe client
-ConnectorConfig stripeConfig = ConnectorConfig.builder()
-    .options(SdkOptions.builder()
-        .environment(Environment.SANDBOX)
-        .build())
-    .connectorSpecificConfig(ConnectorSpecificConfig.builder()
-        .stripe(StripeConfig.builder()
-            .apiKey(SecretString.of(System.getenv("STRIPE_API_KEY")))
-            .build())
-        .build())
-    .build();
+Map<String, Object> stripeConfig = new HashMap<>();
+Map<String, Object> stripeConnectorConfig = new HashMap<>();
+stripeConnectorConfig.put("apiKey", SecretString.of(System.getenv("STRIPE_API_KEY")));
+stripeConfig.put("connectorConfig", Map.of("stripe", stripeConnectorConfig));
 PaymentClient stripeClient = new PaymentClient(stripeConfig);
 
 // Configure Adyen client
-ConnectorConfig adyenConfig = ConnectorConfig.builder()
-    .options(SdkOptions.builder()
-        .environment(Environment.SANDBOX)
-        .build())
-    .connectorSpecificConfig(ConnectorSpecificConfig.builder()
-        .adyen(AdyenConfig.builder()
-            .apiKey(SecretString.of(System.getenv("ADYEN_API_KEY")))
-            .merchantAccount(System.getenv("ADYEN_MERCHANT_ACCOUNT"))
-            .build())
-        .build())
-    .build();
+Map<String, Object> adyenConfig = new HashMap<>();
+Map<String, Object> adyenConnectorConfig = new HashMap<>();
+adyenConnectorConfig.put("apiKey", SecretString.of(System.getenv("ADYEN_API_KEY")));
+adyenConnectorConfig.put("merchantAccount", System.getenv("ADYEN_MERCHANT_ACCOUNT"));
+adyenConfig.put("connectorConfig", Map.of("adyen", adyenConnectorConfig));
 PaymentClient adyenClient = new PaymentClient(adyenConfig);
 ```
 {% endcode %}
@@ -147,26 +135,26 @@ composer require hyperswitch-prism
 require_once 'vendor/autoload.php';
 
 use HyperswitchPrism\PaymentClient;
-use HyperswitchPrism\Config\ConnectorConfig;
-use HyperswitchPrism\Config\Environment;
 
 // Configure Stripe client
-$stripeConfig = ConnectorConfig::create([
-    'environment' => Environment::SANDBOX,
-    'stripe' => [
-        'api_key' => $_ENV['STRIPE_API_KEY']
+$stripeConfig = [
+    'connectorConfig' => [
+        'stripe' => [
+            'apiKey' => ['value' => $_ENV['STRIPE_API_KEY']]
+        ]
     ]
-]);
+];
 $stripeClient = new PaymentClient($stripeConfig);
 
 // Configure Adyen client
-$adyenConfig = ConnectorConfig::create([
-    'environment' => Environment::SANDBOX,
-    'adyen' => [
-        'api_key' => $_ENV['ADYEN_API_KEY'],
-        'merchant_account' => $_ENV['ADYEN_MERCHANT_ACCOUNT']
+$adyenConfig = [
+    'connectorConfig' => [
+        'adyen' => [
+            'apiKey' => ['value' => $_ENV['ADYEN_API_KEY']],
+            'merchantAccount' => $_ENV['ADYEN_MERCHANT_ACCOUNT']
+        ]
     ]
-]);
+];
 $adyenClient = new PaymentClient($adyenConfig);
 ```
 {% endcode %}
@@ -175,7 +163,7 @@ $adyenClient = new PaymentClient($adyenConfig);
 
 {% endtabs %}
 
-That would be all. The SDK handles native library loading automatically. Start building in the [Quick Start](./quick-start.md).
+That would be all. The SDK handles native library loading automatically. Start building in the [First Payment](./first-payment.md).
 
 ## Minimum version supported
 

@@ -424,9 +424,9 @@ impl<F, Req> TryFrom<ResponseRouterData<{ConnectorName}DisputeAcceptResponse, Se
 fn get_url(
     &self,
     req: &RouterDataV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>,
-) -> CustomResult<String, errors::ConnectorError> {
+) -> CustomResult<String, errors::IntegrationError> {
     let dispute_url = self.connector_base_url_disputes(req)
-        .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
+        .ok_or(errors::IntegrationError::FailedToObtainIntegrationUrl)?;
     Ok(format!("{dispute_url}/disputes/{}/accept",
         req.resource_common_data.connector_dispute_id))
 }
@@ -439,7 +439,7 @@ fn get_url(
 fn get_url(
     &self,
     req: &RouterDataV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>,
-) -> CustomResult<String, errors::ConnectorError> {
+) -> CustomResult<String, errors::IntegrationError> {
     let base_url = self.connector_base_url(req);
     Ok(format!("{}/v1/disputes/{}/accept",
         base_url,
@@ -454,9 +454,9 @@ fn get_url(
 fn get_url(
     &self,
     req: &RouterDataV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>,
-) -> CustomResult<String, errors::ConnectorError> {
+) -> CustomResult<String, errors::IntegrationError> {
     let dispute_url = self.connector_base_url_disputes(req)
-        .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
+        .ok_or(errors::IntegrationError::FailedToObtainIntegrationUrl)?;
     Ok(format!("{dispute_url}/services/DisputeService/v30/acceptDispute"))
 }
 ```
@@ -582,13 +582,13 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
             self.build_headers(req)
         }
         fn get_url(
             &self,
             req: &RouterDataV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, errors::IntegrationError> {
             let base_url = self.connector_base_url(req);
             Ok(format!("{}/disputes/{}/accept",
                 base_url,
@@ -865,15 +865,15 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
             self.build_headers(req)
         }
         fn get_url(
             &self,
             req: &RouterDataV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, errors::IntegrationError> {
             let dispute_url = self.connector_base_url_disputes(req)
-                .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
+                .ok_or(errors::IntegrationError::FailedToObtainIntegrationUrl)?;
             Ok(format!("{dispute_url}/ca/services/DisputeService/v30/acceptDispute"))
         }
     }

@@ -4,28 +4,22 @@ pub use ucs_interface_common::config::*;
 pub use ucs_interface_common::flow::*;
 pub use ucs_interface_common::metadata::*;
 
-use base64::{engine::general_purpose, Engine as _};
 use common_utils::{
-    config_patch::Patch,
-    consts::{self, Env, X_API_KEY, X_API_SECRET, X_AUTH, X_AUTH_KEY_MAP, X_KEY1, X_KEY2},
+    consts::{self, Env},
     errors::CustomResult,
     events::{Event, EventStage, FlowName, MaskedSerdeValue},
     lineage::LineageIds,
     superposition_config::{get_connector_urls, ConnectorUrls, SuperpositionConfig},
 };
 use domain_types::{
-    connector_types,
-    errors::{ApiError, ApplicationErrorResponse},
-    router_data::ConnectorSpecificConfig,
-    utils::ForeignTryFrom,
+    connector_types, errors::IntegrationError, router_data::ConnectorSpecificConfig,
 };
-use error_stack::{Report, ResultExt};
+use error_stack::Report;
 use http::request::Request;
 use hyperswitch_masking;
 use serde_json::Value;
 use std::{collections::HashMap, sync::Arc};
-use tonic::metadata;
-use ucs_env::{configs, configs::ConfigPatch, error::ResultExtGrpc};
+use ucs_env::{configs, error::ResultExtGrpc};
 
 use crate::request::RequestData;
 
@@ -80,15 +74,17 @@ pub fn get_resolved_connectors(
     connector: &connector_types::ConnectorEnum,
     connector_config: &ConnectorSpecificConfig,
     environment: Option<&str>,
-) -> Result<domain_types::types::Connectors, ApplicationErrorResponse> {
+) -> CustomResult<domain_types::types::Connectors, IntegrationError> {
+    use domain_types::errors::IntegrationErrorContext;
     match environment {
         Some(env) => {
             validate_environment(env).map_err(|e| {
-                ApplicationErrorResponse::BadRequest(ApiError {
-                    sub_code: "INVALID_ENVIRONMENT".to_string(),
-                    error_identifier: 400,
-                    error_message: e,
-                    error_object: None,
+                Report::new(IntegrationError::InvalidDataFormat {
+                    field_name: "x-environment",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(e),
+                        ..Default::default()
+                    },
                 })
             })?;
 
@@ -99,51 +95,32 @@ pub fn get_resolved_connectors(
             ) {
                 Some(urls) => {
                     tracing::info!("resolved URLs from superposition for environment: {}", env);
-                    let patched_connectors =
-                        config.connectors.patch_connector_urls(connector, &urls)?;
+                    let patched_connectors = config
+                        .connectors
+                        .patch_connector_urls(connector, &urls)
+                        .map_err(|e| {
+                            Report::new(IntegrationError::ConfigurationError {
+                                code: "URL_PATCHING_FAILED".to_string(),
+                                message: format!("URL patching failed: {e}"),
+                                context: IntegrationErrorContext::default(),
+                            })
+                        })?;
                     connectors_with_connector_config_overrides_on_connectors(
                         connector_config,
                         patched_connectors,
                     )
-                    .map_err(|e| {
-                        ApplicationErrorResponse::InternalServerError(ApiError {
-                            sub_code: "CONNECTOR_OVERRIDE_ERROR".to_string(),
-                            error_identifier: 500,
-                            error_message: format!("Failed to resolve connector overrides: {}", e),
-                            error_object: None,
-                        })
-                    })
                 }
                 None => {
                     tracing::info!(
                         "superposition resolution failed, using static config with overrides"
                     );
-                    connectors_with_connector_config_overrides(connector_config, config).map_err(
-                        |e| {
-                            ApplicationErrorResponse::InternalServerError(ApiError {
-                                sub_code: "CONNECTOR_OVERRIDE_ERROR".to_string(),
-                                error_identifier: 500,
-                                error_message: format!(
-                                    "Failed to resolve connector overrides: {}",
-                                    e
-                                ),
-                                error_object: None,
-                            })
-                        },
-                    )
+                    connectors_with_connector_config_overrides(connector_config, config)
                 }
             }
         }
         None => {
             tracing::info!("no x-environment header, using static config with overrides");
-            connectors_with_connector_config_overrides(connector_config, config).map_err(|e| {
-                ApplicationErrorResponse::InternalServerError(ApiError {
-                    sub_code: "CONNECTOR_OVERRIDE_ERROR".to_string(),
-                    error_identifier: 500,
-                    error_message: format!("Failed to resolve connector overrides: {}", e),
-                    error_object: None,
-                })
-            })
+            connectors_with_connector_config_overrides(connector_config, config)
         }
     }
 }
@@ -224,156 +201,6 @@ pub fn resolve_connector_urls(
     }
 }
 
-/// Extracts connector-specific auth from metadata headers.
-/// Uses the connector name to determine which variant to create.
-pub fn auth_from_metadata(
-    metadata: &metadata::MetadataMap,
-    connector: &connector_types::ConnectorEnum,
-) -> CustomResult<ConnectorSpecificConfig, ApplicationErrorResponse> {
-    let generic_auth = generic_auth_from_metadata(metadata)?;
-    ConnectorSpecificConfig::foreign_try_from((&generic_auth, connector)).map_err(|_| {
-        Report::new(ApplicationErrorResponse::BadRequest(ApiError {
-            sub_code: "AUTH_CONVERSION_FAILED".to_string(),
-            error_identifier: 400,
-            error_message: format!("Failed to convert legacy auth for connector: {}", connector),
-            error_object: None,
-        }))
-    })
-}
-
-/// Extracts generic auth type from metadata headers.
-/// This is the legacy format that uses key1, key2, etc.
-pub fn generic_auth_from_metadata(
-    metadata: &metadata::MetadataMap,
-) -> CustomResult<domain_types::router_data::ConnectorAuthType, ApplicationErrorResponse> {
-    use domain_types::router_data::ConnectorAuthType;
-
-    let auth = parse_metadata(metadata, X_AUTH)?;
-
-    #[allow(clippy::wildcard_in_or_patterns)]
-    match auth {
-        "header-key" => Ok(ConnectorAuthType::HeaderKey {
-            api_key: parse_metadata(metadata, X_API_KEY)?.to_string().into(),
-        }),
-        "body-key" => Ok(ConnectorAuthType::BodyKey {
-            api_key: parse_metadata(metadata, X_API_KEY)?.to_string().into(),
-            key1: parse_metadata(metadata, X_KEY1)?.to_string().into(),
-        }),
-        "signature-key" => Ok(ConnectorAuthType::SignatureKey {
-            api_key: parse_metadata(metadata, X_API_KEY)?.to_string().into(),
-            key1: parse_metadata(metadata, X_KEY1)?.to_string().into(),
-            api_secret: parse_metadata(metadata, X_API_SECRET)?.to_string().into(),
-        }),
-        "multi-auth-key" => Ok(ConnectorAuthType::MultiAuthKey {
-            api_key: parse_metadata(metadata, X_API_KEY)?.to_string().into(),
-            key1: parse_metadata(metadata, X_KEY1)?.to_string().into(),
-            key2: parse_metadata(metadata, X_KEY2)?.to_string().into(),
-            api_secret: parse_metadata(metadata, X_API_SECRET)?.to_string().into(),
-        }),
-        "no-key" => Ok(ConnectorAuthType::NoKey),
-        "temporary-auth" => Ok(ConnectorAuthType::TemporaryAuth),
-        "currency-auth-key" => {
-            let auth_key_map_str = parse_metadata(metadata, X_AUTH_KEY_MAP)?;
-            let auth_key_map: HashMap<
-                common_enums::enums::Currency,
-                common_utils::pii::SecretSerdeValue,
-            > = serde_json::from_str(auth_key_map_str).change_context(
-                ApplicationErrorResponse::BadRequest(ApiError {
-                    sub_code: "INVALID_AUTH_KEY_MAP".to_string(),
-                    error_identifier: 400,
-                    error_message: "Invalid auth-key-map format".to_string(),
-                    error_object: None,
-                }),
-            )?;
-            Ok(ConnectorAuthType::CurrencyAuthKey { auth_key_map })
-        }
-        "certificate-auth" | _ => Err(Report::new(ApplicationErrorResponse::BadRequest(
-            ApiError {
-                sub_code: "INVALID_AUTH_TYPE".to_string(),
-                error_identifier: 400,
-                error_message: format!("Invalid auth type: {auth}"),
-                error_object: None,
-            },
-        ))),
-    }
-}
-
-pub fn merge_config_with_override(
-    config_override: String,
-    config: configs::Config,
-) -> CustomResult<Arc<configs::Config>, ApplicationErrorResponse> {
-    match config_override.trim().is_empty() {
-        true => Ok(Arc::new(config)),
-        false => {
-            let mut override_patch: ConfigPatch = serde_json::from_str(config_override.trim())
-                .map_err(|e| {
-                    Report::new(ApplicationErrorResponse::BadRequest(ApiError {
-                        sub_code: "CANNOT_CONVERT_TO_JSON".into(),
-                        error_identifier: 400,
-                        error_message: format!("Cannot convert override config to JSON: {e}"),
-                        error_object: None,
-                    }))
-                })?;
-
-            if let Some(proxy_patch) = override_patch.proxy.as_mut() {
-                if let Some(cert_input) = proxy_patch
-                    .mitm_ca_cert
-                    .as_ref()
-                    .and_then(|value| value.as_ref())
-                {
-                    let cert_trimmed = cert_input.trim();
-
-                    let cert = if cert_trimmed.is_empty() {
-                        Err(Report::new(ApplicationErrorResponse::BadRequest(
-                            ApiError {
-                                sub_code: "INVALID_MITM_CA_CERT_BASE64".into(),
-                                error_identifier: 400,
-                                error_message: "proxy.mitm_ca_cert must be base64-encoded"
-                                    .to_string(),
-                                error_object: None,
-                            },
-                        )))
-                    } else {
-                        let sanitized: String = cert_trimmed.split_whitespace().collect();
-                        let decoded = general_purpose::STANDARD
-                            .decode(sanitized.as_bytes())
-                            .map_err(|e| {
-                                Report::new(ApplicationErrorResponse::BadRequest(ApiError {
-                                    sub_code: "INVALID_MITM_CA_CERT_BASE64".into(),
-                                    error_identifier: 400,
-                                    error_message: format!(
-                                        "Invalid base64 for proxy.mitm_ca_cert: {e}"
-                                    ),
-                                    error_object: None,
-                                }))
-                            })?;
-
-                        String::from_utf8(decoded).map_err(|e| {
-                            Report::new(ApplicationErrorResponse::BadRequest(ApiError {
-                                sub_code: "INVALID_MITM_CA_CERT_UTF8".into(),
-                                error_identifier: 400,
-                                error_message: format!(
-                                    "Decoded proxy.mitm_ca_cert is not valid UTF-8: {e}"
-                                ),
-                                error_object: None,
-                            }))
-                        })
-                    }?;
-
-                    proxy_patch.mitm_ca_cert = Some(Some(cert));
-                }
-            }
-
-            let mut merged_config = config;
-            merged_config.apply(override_patch);
-
-            tracing::info!("Config override applied successfully");
-
-            Ok(Arc::new(merged_config))
-        }
-    }
-}
-
 pub fn merge_configs(override_val: &Value, base_val: &Value) -> Value {
     match (base_val, override_val) {
         (Value::Object(base_map), Value::Object(override_map)) => {
@@ -392,7 +219,7 @@ pub fn merge_configs(override_val: &Value, base_val: &Value) -> Value {
 pub fn log_before_initialization<T>(
     request_data: &RequestData<T>,
     service_name: &str,
-) -> CustomResult<(), ApplicationErrorResponse>
+) -> CustomResult<(), IntegrationError>
 where
     T: serde::Serialize,
 {
@@ -601,6 +428,7 @@ macro_rules! implement_connector_operation {
             &self,
             request: $crate::request::RequestData<$request_type>,
         ) -> Result<tonic::Response<$response_type>, tonic::Status> {
+            #[allow(unused_imports)]
             use ucs_env::error::IntoGrpcStatus;
             tracing::info!(concat!($log_prefix, "_FLOW: initiated"));
             let config = request
@@ -646,7 +474,7 @@ macro_rules! implement_connector_operation {
                 &connector_config,
                 metadata_payload.environment.as_deref(),
             )
-            .map_err(|e| error_stack::Report::new(e).into_grpc_status())?;
+            .into_grpc_status()?;
 
             // Create common request data
             let common_flow_data = $common_flow_data_constructor((payload.clone(), connectors, &masked_metadata))
@@ -705,7 +533,6 @@ macro_rules! implement_connector_operation {
                 api_tag,
             )
             .await
-            .switch()
             .into_grpc_status()?;
 
             // Generate response

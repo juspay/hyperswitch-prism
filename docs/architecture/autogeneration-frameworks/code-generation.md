@@ -85,7 +85,7 @@ Your LLM generates code that follows Prism conventions without training on propr
 
 ```rust
 impl TryFrom<AuthorizeRequest> for AdyenPaymentRequest {
-    type Error = ConnectorError;
+    type Error = IntegrationError;
     
     fn try_from(req: AuthorizeRequest) -> Result<Self, Self::Error> {
         Ok(AdyenPaymentRequest {

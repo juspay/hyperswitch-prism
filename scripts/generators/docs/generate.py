@@ -206,12 +206,344 @@ for _category, pms in _PROBE_PM_BY_CATEGORY:
     _PROBE_PM_DISPLAY.update(dict(pms))
 
 
+# Service name prefixes for flow key derivation.
+# Most flows follow a standard convention:
+#   - PaymentService.* -> just snake_case RPC name (e.g., "Authorize" -> "authorize")
+#   - OtherService.* -> prefix + snake_case (e.g., "RefundService.Get" -> "refund_get")
+# 
+# EXCEPTIONS: Only add entries here when the auto-derived key doesn't match probe data
+_FLOW_KEY_OVERRIDES: dict[tuple[str, str], str] = {
+    # CustomerService.Create breaks the pattern (would be "customer_create")
+    ("CustomerService", "Create"): "create_customer",
+    # Eligibility is a short name that doesn't need prefix
+    ("PaymentMethodService", "Eligibility"): "eligibility",
+    # Tokenize is a short name that doesn't need prefix  
+    ("PaymentMethodService", "Tokenize"): "tokenize",
+    # EventService.HandleEvent should just be "handle_event" not "event_handle_event"
+    ("EventService", "HandleEvent"): "handle_event",
+    # VerifyRedirectResponse -> verify_redirect (truncated in probe data)
+    ("PaymentService", "VerifyRedirectResponse"): "verify_redirect",
+    # MerchantAuthenticationService flows (probe data doesn't use merchant_auth_ prefix)
+    ("MerchantAuthenticationService", "CreateServerAuthenticationToken"): "create_server_authentication_token",
+    ("MerchantAuthenticationService", "CreateServerSessionAuthenticationToken"): "create_server_session_authentication_token",
+    ("MerchantAuthenticationService", "CreateClientAuthenticationToken"): "create_client_authentication_token",
+    # PaymentMethodAuthenticationService flows (probe data doesn't use payment_method_auth_ prefix)
+    ("PaymentMethodAuthenticationService", "PreAuthenticate"): "pre_authenticate",
+    ("PaymentMethodAuthenticationService", "Authenticate"): "authenticate",
+    ("PaymentMethodAuthenticationService", "PostAuthenticate"): "post_authenticate",
+    # DisputeService flows (probe data uses dispute_ prefix)
+    ("DisputeService", "SubmitEvidence"): "dispute_submit_evidence",
+    ("DisputeService", "Get"): "dispute_get",
+    ("DisputeService", "Defend"): "dispute_defend",
+    ("DisputeService", "Accept"): "dispute_accept",
+    # RefundService.Get -> refund_get (probe data uses refund_ prefix)
+    ("RefundService", "Get"): "refund_get",
+    # RecurringPaymentService flows (probe data uses recurring_ prefix)
+    ("RecurringPaymentService", "Charge"): "recurring_charge",
+    ("RecurringPaymentService", "Revoke"): "recurring_revoke",
+}
+
+# Services that should NOT prefix their RPC names
+# (PaymentService is special - it's the "base" service)
+_NO_PREFIX_SERVICES = frozenset({
+    "PaymentService",
+})
+
+# Service prefix mappings (service name -> prefix for flow key)
+_SERVICE_PREFIXES: dict[str, str] = {
+    "RecurringPaymentService": "recurring",
+    "RefundService": "refund",
+    "CustomerService": "customer",  # Only used if not in _NO_PREFIX_SERVICES
+    "PaymentMethodService": "payment_method",
+    "MerchantAuthenticationService": "merchant_auth",
+    "PaymentMethodAuthenticationService": "payment_method_auth",
+    "DisputeService": "dispute",
+    "EventService": "event",
+    "PayoutService": "payout",
+}
+
+
+def _derive_flow_key(service_name: str, rpc_name: str) -> str | None:
+    """
+    Derive probe flow_key from gRPC service and RPC name.
+    
+    Returns None for services/RPCs that shouldn't be documented (admin, internal, etc.)
+    or if we can't determine a reasonable key.
+    """
+    # Check explicit overrides first
+    if (service_name, rpc_name) in _FLOW_KEY_OVERRIDES:
+        return _FLOW_KEY_OVERRIDES[(service_name, rpc_name)]
+    
+    # Skip internal/admin services
+    if service_name in {"HealthService", "AdminService", "DebugService"}:
+        return None
+    
+    # Skip composite services (they don't have separate probe entries)
+    if service_name.startswith("Composite"):
+        return None
+    
+    # Handle variant flows (Proxy*, Token*, etc.)
+    # Convert ProxyAuthorize -> proxy_authorize, TokenAuthorize -> token_authorize
+    if any(rpc_name.startswith(prefix) for prefix in ["Proxy", "Token"]):
+        return _to_snake(rpc_name)
+    
+    # Base service: just use snake_case RPC name
+    if service_name in _NO_PREFIX_SERVICES:
+        return _to_snake(rpc_name)
+    
+    # Other services: prefix + snake_case
+    prefix = _SERVICE_PREFIXES.get(service_name)
+    if prefix:
+        return f"{prefix}_{_to_snake(rpc_name)}"
+    
+    # Unknown service - generate a reasonable key but will warn
+    return _to_snake(rpc_name)
+
+
+def _get_category_for_service(service_name: str) -> str:
+    """Get category for a service name (ported from flow_metadata.rs)."""
+    categories = {
+        "PaymentService": "Payments",
+        "RecurringPaymentService": "Mandates",
+        "RefundService": "Refunds",
+        "CustomerService": "Customers",
+        "PaymentMethodService": "Payments",
+        "MerchantAuthenticationService": "Authentication",
+        "PaymentMethodAuthenticationService": "Authentication",
+        "DisputeService": "Disputes",
+        "EventService": "Events",
+    }
+    return categories.get(service_name, "Other")
+
+
+def _to_snake(name: str) -> str:
+    """Convert PascalCase to snake_case."""
+    import re
+    s = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1_\2", name)
+    s = re.sub(r"([a-z\d])([A-Z])", r"\1_\2", s)
+    return s.lower()
+
+
+def _build_proto_metadata(proto_dir: Path) -> tuple[list[dict], dict]:
+    """
+    Build flow_metadata and message_schemas from proto files via grpc_tools.protoc.
+    Returns (flow_metadata_list, message_schemas_dict).
+    """
+    import tempfile
+    import os
+    from grpc_tools import protoc
+    from google.protobuf.descriptor_pb2 import FileDescriptorSet, FieldDescriptorProto
+
+    grpc_include = os.path.join(os.path.dirname(protoc.__file__), "_proto")
+    protos = ["services.proto", "payment.proto", "payment_methods.proto",
+              "sdk_config.proto", "payouts.proto", "composite_payment.proto",
+              "composite_services.proto"]
+
+    with tempfile.NamedTemporaryFile(suffix=".desc", delete=False) as f:
+        desc_path = f.name
+
+    try:
+        args = [
+            "protoc",
+            f"--proto_path={proto_dir}",
+            f"--proto_path={grpc_include}",
+            f"--descriptor_set_out={desc_path}",
+            "--include_source_info",
+        ] + [str(proto_dir / p) for p in protos]
+
+        ret = protoc.main(args)
+        if ret != 0:
+            raise RuntimeError(f"protoc failed with exit code {ret}")
+
+        with open(desc_path, "rb") as f:
+            desc_set = FileDescriptorSet.FromString(f.read())
+    finally:
+        os.unlink(desc_path)
+
+    flow_metadata = _extract_flow_metadata(desc_set)
+    message_schemas = _extract_message_schemas(desc_set)
+    return flow_metadata, message_schemas
+
+
+def _extract_flow_metadata(desc_set) -> list[dict]:
+    """Extract flow metadata from FileDescriptorSet."""
+    metadata = []
+    unknown_services = set()  # Track unknown services for warnings
+    auto_derived = []  # Track auto-derived mappings for info
+
+    for file_desc in desc_set.file:
+        # Build source info lookup for doc comments
+        source_info = {}
+        if file_desc.source_code_info:
+            for location in file_desc.source_code_info.location:
+                path = tuple(location.path)
+                if location.leading_comments:
+                    source_info[path] = location.leading_comments.strip()
+
+        for svc_idx, service in enumerate(file_desc.service):
+            service_name = service.name
+
+            for method_idx, method in enumerate(service.method):
+                rpc_name = method.name
+
+                # Derive flow key automatically
+                flow_key = _derive_flow_key(service_name, rpc_name)
+                if flow_key is None:
+                    # Silently skip internal/variant flows
+                    continue
+                
+                # Track auto-derived keys for unknown services
+                if (service_name, rpc_name) not in _FLOW_KEY_OVERRIDES and \
+                   service_name not in _NO_PREFIX_SERVICES and \
+                   service_name not in _SERVICE_PREFIXES:
+                    unknown_services.add(service_name)
+                    auto_derived.append(f"{service_name}.{rpc_name} -> {flow_key}")
+
+                # Get doc comment from source info
+                # Path for method: [6 (service), svc_idx, 2 (method), method_idx]
+                path = (6, svc_idx, 2, method_idx)
+                description = source_info.get(path, "")
+                # Clean up description
+                description = " ".join(description.split())
+                if description and not description.endswith((".", "!", "?")):
+                    description += "."
+
+                # Extract request/response type names
+                req_type = method.input_type.split(".")[-1]
+                res_type = method.output_type.split(".")[-1]
+
+                metadata.append({
+                    "flow_key": flow_key,
+                    "service_rpc": f"{service_name}.{rpc_name}",
+                    "description": description,
+                    "service_name": service_name,
+                    "rpc_name": rpc_name,
+                    "category": _get_category_for_service(service_name),
+                    "grpc_request": req_type,
+                    "grpc_response": res_type,
+                })
+
+    # Info about auto-derived keys
+    if auto_derived and unknown_services:
+        print(
+            f"\nℹ️  INFO: Auto-derived flow keys for {len(auto_derived)} RPCs from unknown services:",
+            file=sys.stderr
+        )
+        for mapping in sorted(auto_derived)[:5]:
+            print(f"   - {mapping}", file=sys.stderr)
+        if len(auto_derived) > 5:
+            print(f"   ... and {len(auto_derived) - 5} more", file=sys.stderr)
+        print(
+            f"\n   Consider adding these services to _SERVICE_PREFIXES:\n   {sorted(unknown_services)}",
+            file=sys.stderr
+        )
+
+    return metadata
+
+
+# Proto scalar types that serialize as JSON scalars
+_SCALAR_TYPES = frozenset([
+    "string", "int32", "int64", "uint32", "uint64", "bool", "bytes",
+    "double", "float", "sint32", "sint64", "fixed32", "fixed64",
+    "sfixed32", "sfixed64", "SecretString", "CardNumberType", "NetworkTokenType",
+])
+
+
+def _extract_message_schemas(desc_set) -> dict:
+    """Extract message schemas from FileDescriptorSet with field comments."""
+    from google.protobuf.descriptor_pb2 import FieldDescriptorProto
+
+    schemas = {}
+
+    for file_desc in desc_set.file:
+        # Build source info lookup for field comments
+        source_info = {}
+        if file_desc.source_code_info:
+            for location in file_desc.source_code_info.location:
+                path = tuple(location.path)
+                if location.leading_comments:
+                    source_info[path] = location.leading_comments.strip()
+
+        def process_message(msg_type, msg_name: str, msg_index: int, parent_path: tuple, is_nested: bool = False) -> None:
+            """Process a single message type and its nested types."""
+            comments = {}
+            field_types = {}
+
+            # Path for this message
+            # Top-level: [4 (message_type), msg_index]
+            # Nested: [3 (nested_type), nested_index] within parent
+            if is_nested:
+                msg_path = parent_path + (3, msg_index)
+            else:
+                msg_path = parent_path + (4, msg_index)
+
+            for field_idx, field in enumerate(msg_type.field):
+                field_name = field.name  # snake_case from proto
+                camel_name = _to_camel(field_name)  # camelCase for JSON/proto3
+
+                # Get field comment from source info
+                # Path for field: [..., 2 (field), field_idx]
+                field_path = msg_path + (2, field_idx)
+                
+                # Build lookup for both leading and trailing comments
+                leading_comment = ""
+                trailing_comment = ""
+                for loc in file_desc.source_code_info.location:
+                    if tuple(loc.path) == field_path:
+                        if loc.leading_comments:
+                            leading_comment = loc.leading_comments.strip()
+                        if loc.trailing_comments:
+                            trailing_comment = loc.trailing_comments.strip()
+                
+                # Prefer trailing comment (field-specific) over leading comment (group header)
+                comment = trailing_comment or leading_comment
+                
+                if comment:
+                    # Clean up comment
+                    comment = " ".join(comment.split())
+                    if comment and not comment.endswith((".", "!", "?")):
+                        comment += "."
+                    # Store under both snake_case and camelCase for compatibility
+                    # Probe data uses snake_case, but proto JSON uses camelCase
+                    comments[field_name] = comment
+                    comments[camel_name] = comment
+
+                # Check if it's a message type (not scalar)
+                if field.type == FieldDescriptorProto.TYPE_MESSAGE:
+                    type_name = field.type_name.split(".")[-1]
+                    if type_name not in _SCALAR_TYPES:
+                        # Store field types under both naming conventions
+                        field_types[field_name] = type_name
+                        field_types[camel_name] = type_name
+
+            if comments or field_types:
+                schemas[msg_name] = {
+                    "comments": comments,
+                    "field_types": field_types,
+                }
+
+            # Process nested types
+            for nested_idx, nested in enumerate(msg_type.nested_type):
+                process_message(nested, nested.name, nested_idx, msg_path, is_nested=True)
+
+        for msg_idx, msg_type in enumerate(file_desc.message_type):
+            process_message(msg_type, msg_type.name, msg_idx, ())
+
+    return schemas
+
+
+def _to_camel(snake: str) -> str:
+    """Convert snake_case to camelCase."""
+    import re
+    return re.sub(r"_([a-z])", lambda m: m.group(1).upper(), snake)
+
+
 def load_probe_data(probe_path: Optional[Path]) -> dict[str, dict]:
     """
     Load probe JSON and index by connector name.
 
-    Expects the split format: data/field_probe/ directory with manifest.json
-    and per-connector {connector}.json files.
+    Discovers connectors from filesystem and derives flow_metadata/message_schemas
+    from proto files using grpc_tools.protoc at runtime.
 
     Returns {connector_name: connector_data} dict.
     """
@@ -221,40 +553,37 @@ def load_probe_data(probe_path: Optional[Path]) -> dict[str, dict]:
         return {}
 
     probe_dir = probe_path if probe_path.is_dir() else probe_path
-    manifest_path = probe_dir / "manifest.json"
 
-    if not manifest_path.exists():
-        print(f"Warning: manifest.json not found in {probe_dir}. Run field-probe first.", file=sys.stderr)
-        return {}
+    # Discover connectors from filesystem (no manifest needed)
+    connector_names = [f.stem for f in sorted(probe_dir.glob("*.json"))]
 
-    try:
-        with open(manifest_path, encoding="utf-8") as f:
-            manifest = json.load(f)
-        _FLOW_METADATA = manifest.get("flow_metadata", [])
-        _MESSAGE_SCHEMAS = manifest.get("message_schemas", {})
-        connector_names = manifest.get("connectors", [])
-        snippets.set_scenario_groups(manifest.get("scenario_groups", []))
-
-        # Load proto type map for wrapper-type detection (SecretString, CardNumberType, etc.)
-        proto_dir = probe_dir.parent.parent / "crates" / "types-traits" / "grpc-api-types" / "proto"
-        if proto_dir.exists():
+    # Build flow metadata and message schemas from proto files
+    proto_dir = probe_dir.parent.parent / "crates" / "types-traits" / "grpc-api-types" / "proto"
+    if proto_dir.exists():
+        try:
+            _FLOW_METADATA, _MESSAGE_SCHEMAS = _build_proto_metadata(proto_dir)
             snippets.load_proto_type_map(proto_dir)
+        except Exception as exc:
+            print(f"Warning: failed to build proto metadata: {exc}", file=sys.stderr)
+            _FLOW_METADATA = []
+            _MESSAGE_SCHEMAS = {}
+    else:
+        print(f"Warning: proto dir not found at {proto_dir}", file=sys.stderr)
+        _FLOW_METADATA = []
+        _MESSAGE_SCHEMAS = {}
 
-        _PROBE_DATA = {}
-        for conn_name in connector_names:
-            conn_file = probe_dir / f"{conn_name}.json"
-            if conn_file.exists():
-                try:
-                    with open(conn_file, encoding="utf-8") as f:
-                        conn_data = json.load(f)
-                    _PROBE_DATA[conn_name] = conn_data
-                except Exception as exc:
-                    print(f"Warning: failed to load {conn_file}: {exc}", file=sys.stderr)
+    # Load per-connector probe data
+    _PROBE_DATA = {}
+    for conn_name in connector_names:
+        conn_file = probe_dir / f"{conn_name}.json"
+        try:
+            with open(conn_file, encoding="utf-8") as f:
+                conn_data = json.load(f)
+            _PROBE_DATA[conn_name] = conn_data
+        except Exception as exc:
+            print(f"Warning: failed to load {conn_file}: {exc}", file=sys.stderr)
 
-        return _PROBE_DATA
-    except Exception as exc:
-        print(f"Warning: failed to load manifest: {exc}", file=sys.stderr)
-        return {}
+    return _PROBE_DATA
 
 
 def _probe_pm_support(probe_connector: dict, flow_key: str) -> Optional[dict[str, bool]]:
@@ -419,6 +748,7 @@ def _find_func_line(content: str, search: str) -> int:
 _SCENARIO_FUNC_SEARCH: dict[str, str] = {
     "python":     "async def process_{key}(",
     "javascript": "async function process{camel}(",
+    "typescript": "async function process{camel}(",
     "kotlin":     "fun process{camel}(",
     "rust":       "fn process_{key}(",
 }
@@ -427,6 +757,7 @@ _SCENARIO_FUNC_SEARCH: dict[str, str] = {
 _FLOW_FUNC_SEARCH: dict[str, str] = {
     "python":     "async def {key}(",
     "javascript": "async function {camel}(",
+    "typescript": "async function {camel}(",
     "kotlin":     "fun {camel}(",
     "rust":       "fn {key}(",
 }
@@ -456,8 +787,8 @@ def generate_scenario_files(
     examples_dir: Path,
 ) -> tuple[list[Path], dict[str, dict[str, int]], dict[str, dict[str, int]]]:
     """
-    Write one consolidated examples/{connector}/python/{connector}.py and
-    examples/{connector}/javascript/{connector}.js containing all scenarios
+    Write one consolidated examples/{connector}/{connector}.py and
+    examples/{connector}/{connector}.ts containing all scenarios
     plus individual flow functions.  Deletes stale per-scenario files.
 
     Returns (paths, scenario_lines, flow_lines) where:
@@ -488,39 +819,6 @@ def generate_scenario_files(
     # flow_lines[flow_key][sdk] = 1-based line number of flow function (py/js)
     flow_lines: dict[str, dict[str, int]] = {}
 
-    for sdk, ext, render_fn in [
-        ("python",     "py", snippets.render_consolidated_python),
-        ("javascript", "ts", snippets.render_consolidated_javascript),
-    ]:
-        out_dir  = examples_dir / connector_name / sdk
-        out_dir.mkdir(parents=True, exist_ok=True)
-        out_path = out_dir / f"{connector_name}.{ext}"
-        content  = render_fn(connector_name, scenarios_with_payloads, flow_metadata, _MESSAGE_SCHEMAS, flow_items)
-        out_path.write_text(content, encoding="utf-8")
-        written.append(out_path)
-
-        # Record line numbers for each scenario function
-        for scenario, _ in scenarios_with_payloads:
-            lineno = _find_func_line(content, _scenario_search(sdk, scenario.key))
-            if lineno:
-                scenario_lines.setdefault(scenario.key, {})[sdk] = lineno
-
-        # Record line numbers for each flow function (py/js only; kt/rs from generate_flow_files)
-        for flow_key, _, _ in flow_items:
-            lineno = _find_func_line(content, _flow_search(sdk, flow_key))
-            if lineno:
-                flow_lines.setdefault(flow_key, {})[sdk] = lineno
-
-        # Remove stale per-scenario and per-flow files
-        for scenario, _ in scenarios_with_payloads:
-            stale = out_dir / f"{scenario.key}.{ext}"
-            if stale.exists():
-                stale.unlink()
-        for flow_key, _, _ in flow_items:
-            stale = out_dir / f"{flow_key}.{ext}"
-            if stale.exists():
-                stale.unlink()
-
     return written, scenario_lines, flow_lines
 
 
@@ -538,8 +836,8 @@ def generate_flow_files(
     examples_dir: Path,
 ) -> tuple[list[Path], dict[str, dict[str, int]], dict[str, dict[str, int]]]:
     """
-    Write one consolidated examples/{connector}/kotlin/{connector}.kt and
-    examples/{connector}/rust/{connector}.rs containing all scenario and flow functions.
+    Write one consolidated examples/{connector}/{connector}.kt and
+    examples/{connector}/{connector}.rs containing all scenario and flow functions.
     Deletes stale per-flow files for all languages.
 
     Returns (list_of_written_paths, flow_line_numbers, scenario_line_numbers_kt_rs) where:
@@ -573,10 +871,12 @@ def generate_flow_files(
     all_flow_keys = set(probe_connector.get("flows", {}).keys())
 
     for sdk, ext, render_fn in [
-        ("kotlin", "kt", snippets.render_consolidated_kotlin),
-        ("rust",   "rs", snippets.render_consolidated_rust),
+        ("python",     "py", snippets.render_consolidated_python),
+        ("kotlin",     "kt", snippets.render_consolidated_kotlin),
+        ("rust",       "rs", snippets.render_consolidated_rust),
+        ("typescript", "ts", snippets.render_consolidated_javascript),
     ]:
-        out_dir  = examples_dir / connector_name / sdk
+        out_dir  = examples_dir / connector_name
         out_dir.mkdir(parents=True, exist_ok=True)
         out_path = out_dir / f"{connector_name}.{ext}"
         content  = render_fn(
@@ -797,25 +1097,25 @@ def generate_connector_doc(
                 )
             )
             if has_payload:
-                base_py = f"../../examples/{connector_name}/python/{connector_name}.py"
-                base_js = f"../../examples/{connector_name}/javascript/{connector_name}.js"
-                base_kt = f"../../examples/{connector_name}/kotlin/{connector_name}.kt"
-                base_rs = f"../../examples/{connector_name}/rust/{connector_name}.rs"
+                base_py = f"../../examples/{connector_name}/{connector_name}.py"
+                base_ts = f"../../examples/{connector_name}/{connector_name}.ts"
+                base_kt = f"../../examples/{connector_name}/{connector_name}.kt"
+                base_rs = f"../../examples/{connector_name}/{connector_name}.rs"
                 
                 # Get line numbers from flow_line_numbers
                 flow_lines = flow_line_numbers.get(f, {}) if flow_line_numbers else {}
                 ln_py = flow_lines.get("python", 0)
-                ln_js = flow_lines.get("javascript", 0)
+                ln_ts = flow_lines.get("typescript", 0)
                 ln_kt = flow_lines.get("kotlin", 0)
                 ln_rs = flow_lines.get("rust", 0)
                 
                 # Build links with line numbers when available
                 py_link = f"{base_py}#L{ln_py}" if ln_py else base_py
-                js_link = f"{base_js}#L{ln_js}" if ln_js else base_js
+                ts_link = f"{base_ts}#L{ln_ts}" if ln_ts else base_ts
                 kt_link = f"{base_kt}#L{ln_kt}" if ln_kt else base_kt
                 rs_link = f"{base_rs}#L{ln_rs}" if ln_rs else base_rs
                 
-                a(f"**Examples:** [Python]({py_link}) · [JavaScript]({js_link}) · [Kotlin]({kt_link}) · [Rust]({rs_link})")
+                a(f"**Examples:** [Python]({py_link}) · [TypeScript]({ts_link}) · [Kotlin]({kt_link}) · [Rust]({rs_link})")
                 a("")
 
     return "\n".join(out)
@@ -1042,6 +1342,10 @@ def _get_flow_status(flows: dict, flow_key: str) -> tuple[str, str]:
     Returns (status_mark, notes) tuple.
     """
     flow_data = flows.get(flow_key, {})
+    
+    # Handle case where flow exists in probe data but has no entries
+    if not flow_data:
+        return ("x", "")  # Not supported (no probe data for this flow)
 
     # For PM-aware flows, check if there's any supported PM
     if flow_key in _PM_AWARE_FLOWS:
@@ -1057,7 +1361,31 @@ def _get_flow_status(flows: dict, flow_key: str) -> tuple[str, str]:
             statuses = {flow_data[pm].get("status") for pm in pm_entries}
             if statuses == {"not_implemented"}:
                 return ("⚠", "")
+            if statuses == {"not_supported"}:
+                return ("x", "")
+            # Mixed or other statuses
+            if "supported" in statuses:
+                return ("✓", "")
+            if "error" in statuses:
+                return ("?", "Error")
             return ("x", "")
+        # No PM entries at all
+        return ("x", "")
+
+    # For flows with PM-specific entries (non-PM-aware flows that have PM data)
+    pm_entries = {pm: data for pm, data in flow_data.items() if pm != "default"}
+    if pm_entries:
+        # Aggregate status across all PMs
+        statuses = {data.get("status") for data in pm_entries.values()}
+        if "supported" in statuses:
+            return ("✓", "")
+        if statuses == {"not_implemented"}:
+            return ("⚠", "")
+        if statuses == {"not_supported"}:
+            return ("x", "")
+        if "error" in statuses:
+            return ("?", "Error")
+        return ("x", "")
 
     # For flows with only 'default' entry
     default_entry = flow_data.get("default", {})
@@ -1075,7 +1403,7 @@ def _get_flow_status(flows: dict, flow_key: str) -> tuple[str, str]:
     elif status == "not_implemented":
         return ("⚠", "")
     else:
-        return ("?", "")
+        return ("x", "")  # Default to not supported for unknown status
 
 
 def generate_all_connector_doc(probe_data: dict[str, dict], output_dir: Path) -> None:
@@ -1124,13 +1452,14 @@ def generate_all_connector_doc(probe_data: dict[str, dict], output_dir: Path) ->
     # Group flows by service
     services_order = [
         "PaymentService",
-        "RecurringPaymentService", 
+        "RecurringPaymentService",
         "RefundService",
         "CustomerService",
         "PaymentMethodService",
         "MerchantAuthenticationService",
         "PaymentMethodAuthenticationService",
         "DisputeService",
+        "EventService",
     ]
     
     # Build service -> flows mapping from flow_metadata loaded from probe.json
@@ -1152,14 +1481,6 @@ def generate_all_connector_doc(probe_data: dict[str, dict], output_dir: Path) ->
         flows_in_service = service_flows[service_name]
         
         for flow_key, rpc_name, description in flows_in_service:
-            # Check if any connector has data for this flow
-            has_data = any(
-                probe_data[c].get("flows", {}).get(flow_key)
-                for c in connectors_with_probe
-            )
-            if not has_data:
-                continue
-            
             if flow_key in _PM_AWARE_FLOWS:
                 pm_aware_flows_data.append((service_name, flow_key, rpc_name, description))
             else:
@@ -1265,6 +1586,7 @@ def generate_all_connector_doc(probe_data: dict[str, dict], output_dir: Path) ->
     a("| MerchantAuthenticationService | Generate access tokens and session credentials |")
     a("| PaymentMethodAuthenticationService | Execute 3D Secure authentication flows |")
     a("| DisputeService | Manage chargeback disputes |")
+    a("| EventService | Handle connector webhook events |")
     a("")
     
     # Write output

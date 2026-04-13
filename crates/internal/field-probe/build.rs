@@ -33,8 +33,6 @@ struct FlowInfo {
     transformer_fn: String,
     needs_oauth: bool,
     needs_feature_data: bool,
-    /// Whether this flow has a `connector_transaction_id` field that may need overriding.
-    needs_transaction_id: bool,
 }
 
 fn discover_flows_from_ffi() -> Vec<FlowInfo> {
@@ -68,6 +66,10 @@ fn discover_flows_from_ffi() -> Vec<FlowInfo> {
             if let (Some(fn_name), Some(request_type)) = (fn_name, request_type) {
                 // Skip authorize - it's handled specially with payment methods
                 if fn_name == "authorize_req_transformer" {
+                    continue;
+                }
+                // Skip req_handler and res_handler variants - they're handled by the base transformer
+                if fn_name.contains("_req_handler") || fn_name.contains("_res_handler") {
                     continue;
                 }
                 if let Some(flow) = parse_flow_info(&fn_name, &request_type) {
@@ -137,6 +139,8 @@ fn parse_flow_info(transformer_fn: &str, request_type: &str) -> Option<FlowInfo>
             | "create_order"
             | "setup_recurring"
             | "recurring_charge"
+            | "incremental_authorization"
+            | "refund_get"
             | "proxy_authorize"
             | "token_authorize"
             | "proxy_setup_recurring"
@@ -146,19 +150,14 @@ fn parse_flow_info(transformer_fn: &str, request_type: &str) -> Option<FlowInfo>
     // Some flows don't have a connector_feature_data field in their request type
     let needs_feature_data = !matches!(
         final_key.as_str(),
-        "create_access_token"
-            | "create_session_token"
+        "server_authentication_token"
+            | "server_session_authentication_token"
             | "dispute_accept"
             | "dispute_submit_evidence"
             | "dispute_defend"
             | "proxy_setup_recurring"
-    );
-
-    // Flows whose base request has a connector_transaction_id that some connectors
-    // need to be a numeric string (e.g. Zift/Placetopay parse it as i64/u64).
-    let needs_transaction_id = matches!(
-        final_key.as_str(),
-        "capture" | "void" | "get" | "refund" | "reverse"
+            | "refund_get"
+            | "recurring_revoke"
     );
 
     Some(FlowInfo {
@@ -169,7 +168,6 @@ fn parse_flow_info(transformer_fn: &str, request_type: &str) -> Option<FlowInfo>
         transformer_fn: transformer_fn.to_string(),
         needs_oauth,
         needs_feature_data,
-        needs_transaction_id,
     })
 }
 
@@ -214,7 +212,11 @@ fn generate_flow_runners(flows: &[FlowInfo]) {
     writeln!(f, "    use crate::registry::mock_connector_state;").unwrap();
     writeln!(f, "    use crate::requests::*;").unwrap();
     writeln!(f, "    use crate::types::*;").unwrap();
-    writeln!(f, "    use crate::patcher::smart_patch;").unwrap();
+    writeln!(
+        f,
+        "    use crate::patcher::{{smart_patch, apply_connector_flow_overrides}};"
+    )
+    .unwrap();
     writeln!(f).unwrap();
 
     // Generate probe functions
@@ -224,6 +226,16 @@ fn generate_flow_runners(flows: &[FlowInfo]) {
 
     // Generate authorize with PM
     generate_authorize_probe(&mut f);
+
+    // Generate handle_event probe (custom signature, not a req_transformer!)
+    generate_handle_event_probe(&mut f);
+
+    // Generate verify_redirect probe (bespoke, different return type)
+    generate_verify_redirect_probe(&mut f);
+
+    // Generate not_implemented probes
+    generate_not_implemented_probe(&mut f, "dispute_get", "DisputeService", "Get");
+    generate_not_implemented_probe(&mut f, "eligibility", "PaymentMethodService", "Eligibility");
 
     // Generate FLOW_DEFINITIONS
     generate_flow_definitions(&mut f, flows);
@@ -264,23 +276,8 @@ fn generate_probe_function(f: &mut fs::File, flow: &FlowInfo) {
     writeln!(f, "        metadata: &MaskedMetadata,").unwrap();
     writeln!(f, "    ) -> FlowResult {{").unwrap();
 
-    // Only use mut if we need to modify the request
-    let needs_mut = flow.needs_oauth || flow.needs_feature_data || flow.needs_transaction_id;
-    if needs_mut {
-        writeln!(f, "        let mut req = {}();", base_builder).unwrap();
-    } else {
-        writeln!(f, "        let req = {}();", base_builder).unwrap();
-    }
-
-    if flow.needs_transaction_id {
-        writeln!(
-            f,
-            "        if let Some(txn_id) = connector_transaction_id_override(connector) {{"
-        )
-        .unwrap();
-        writeln!(f, "            req.connector_transaction_id = txn_id;").unwrap();
-        writeln!(f, "        }}").unwrap();
-    }
+    // Always mut: connector_flow_overrides may pre-patch any flow
+    writeln!(f, "        let mut req = {}();", base_builder).unwrap();
 
     if flow.needs_oauth {
         writeln!(f, "        if is_oauth_connector(connector) {{").unwrap();
@@ -306,6 +303,12 @@ fn generate_probe_function(f: &mut fs::File, flow: &FlowInfo) {
         writeln!(f, "        }}").unwrap();
     }
 
+    writeln!(
+        f,
+        "        apply_connector_flow_overrides(&mut req, connector, \"{}\");",
+        flow.key
+    )
+    .unwrap();
     writeln!(f, "        run_probe(").unwrap();
     writeln!(f, "            \"{}\",", flow.key).unwrap();
     writeln!(f, "            req,").unwrap();
@@ -352,7 +355,11 @@ fn generate_authorize_probe(f: &mut fs::File) {
         "        let connector_meta = connector_feature_data_json(connector);"
     )
     .unwrap();
-    writeln!(f, "        let req = if is_oauth_connector(connector) {{").unwrap();
+    writeln!(
+        f,
+        "        let mut req = if is_oauth_connector(connector) {{"
+    )
+    .unwrap();
     writeln!(f, "            base_authorize_request_with_state(payment_method, connector_meta, mock_connector_state(Some(connector)))").unwrap();
     writeln!(f, "        }} else {{").unwrap();
     writeln!(
@@ -361,6 +368,11 @@ fn generate_authorize_probe(f: &mut fs::File) {
     )
     .unwrap();
     writeln!(f, "        }};").unwrap();
+    writeln!(
+        f,
+        "        apply_connector_flow_overrides(&mut req, connector, \"authorize\");"
+    )
+    .unwrap();
     writeln!(f, "        run_probe(").unwrap();
     writeln!(f, "            \"authorize\",").unwrap();
     writeln!(f, "            req,").unwrap();
@@ -381,6 +393,117 @@ fn generate_authorize_probe(f: &mut fs::File) {
     writeln!(f, "                smart_patch(req, \"authorize\", field);").unwrap();
     writeln!(f, "            }},").unwrap();
     writeln!(f, "        )").unwrap();
+    writeln!(f, "    }}").unwrap();
+    writeln!(f).unwrap();
+}
+
+fn generate_handle_event_probe(f: &mut fs::File) {
+    writeln!(f, "    /// Probe handle_event (EventService::HandleEvent).").unwrap();
+    writeln!(
+        f,
+        "    /// Uses a bespoke approach: handle_event_transformer has a different signature"
+    )
+    .unwrap();
+    writeln!(
+        f,
+        "    /// (returns EventServiceHandleResponse, not Option<Request>) so it cannot use run_probe."
+    )
+    .unwrap();
+    writeln!(f, "    pub fn probe_handle_event(").unwrap();
+    writeln!(f, "        connector: &ConnectorEnum,").unwrap();
+    writeln!(f, "        config: &Arc<ucs_env::configs::Config>,").unwrap();
+    writeln!(f, "        auth: ConnectorSpecificConfig,").unwrap();
+    writeln!(f, "        metadata: &MaskedMetadata,").unwrap();
+    writeln!(f, "    ) -> FlowResult {{").unwrap();
+    writeln!(f, "        let req = base_handle_event_request();").unwrap();
+    writeln!(
+        f,
+        "        match ffi::services::payments::handle_event_transformer(req, config, connector.clone(), auth, metadata) {{"
+    )
+    .unwrap();
+    writeln!(
+        f,
+        "            Ok(_) => FlowResult {{ status: \"supported\".to_string(), ..Default::default() }},"
+    )
+    .unwrap();
+    writeln!(f, "            Err(e) => {{").unwrap();
+    writeln!(f, "                let msg = e.error_message;").unwrap();
+    writeln!(f, "                if is_not_implemented(&msg) {{").unwrap();
+    writeln!(
+        f,
+        "                    FlowResult {{ status: \"not_implemented\".to_string(), ..Default::default() }}"
+    )
+    .unwrap();
+    writeln!(f, "                }} else {{").unwrap();
+    writeln!(
+        f,
+        "                    // Any non-NotImplemented error means the connector HAS a webhook handler"
+    )
+    .unwrap();
+    writeln!(
+        f,
+        "                    // but our fake body failed to parse — treat as supported."
+    )
+    .unwrap();
+    writeln!(
+        f,
+        "                    FlowResult {{ status: \"supported\".to_string(), ..Default::default() }}"
+    )
+    .unwrap();
+    writeln!(f, "                }}").unwrap();
+    writeln!(f, "            }}").unwrap();
+    writeln!(f, "        }}").unwrap();
+    writeln!(f, "    }}").unwrap();
+    writeln!(f).unwrap();
+}
+
+fn generate_verify_redirect_probe(f: &mut fs::File) {
+    writeln!(
+        f,
+        "    /// Probe verify_redirect (PaymentService::VerifyRedirectResponse)."
+    )
+    .unwrap();
+    writeln!(f, "    /// Bespoke: calls verify_redirect_response_transformer which has a different return type.").unwrap();
+    writeln!(f, "    pub fn probe_verify_redirect(").unwrap();
+    writeln!(f, "        connector: &ConnectorEnum,").unwrap();
+    writeln!(f, "        config: &Arc<ucs_env::configs::Config>,").unwrap();
+    writeln!(f, "        auth: ConnectorSpecificConfig,").unwrap();
+    writeln!(f, "        metadata: &MaskedMetadata,").unwrap();
+    writeln!(f, "    ) -> FlowResult {{").unwrap();
+    writeln!(f, "        let req = base_verify_redirect_request();").unwrap();
+    writeln!(f, "        match ffi::services::payments::verify_redirect_response_transformer(req, config, connector.clone(), auth, metadata) {{").unwrap();
+    writeln!(f, "            Ok(_) => FlowResult {{ status: \"supported\".to_string(), ..Default::default() }},").unwrap();
+    writeln!(f, "            Err(e) => {{").unwrap();
+    writeln!(f, "                let msg = e.error_message;").unwrap();
+    writeln!(f, "                if is_not_implemented(&msg) {{").unwrap();
+    writeln!(f, "                    FlowResult {{ status: \"not_implemented\".to_string(), ..Default::default() }}").unwrap();
+    writeln!(f, "                }} else {{").unwrap();
+    writeln!(f, "                    FlowResult {{ status: \"not_supported\".to_string(), error: Some(msg), ..Default::default() }}").unwrap();
+    writeln!(f, "                }}").unwrap();
+    writeln!(f, "            }}").unwrap();
+    writeln!(f, "        }}").unwrap();
+    writeln!(f, "    }}").unwrap();
+    writeln!(f).unwrap();
+}
+
+fn generate_not_implemented_probe(f: &mut fs::File, key: &str, _service: &str, _rpc: &str) {
+    writeln!(
+        f,
+        "    /// Probe {} — not yet implemented at the connector layer.",
+        key
+    )
+    .unwrap();
+    writeln!(f, "    pub fn probe_{}(", key).unwrap();
+    writeln!(f, "        _connector: &ConnectorEnum,").unwrap();
+    writeln!(f, "        _config: &Arc<ucs_env::configs::Config>,").unwrap();
+    writeln!(f, "        _auth: ConnectorSpecificConfig,").unwrap();
+    writeln!(f, "        _metadata: &MaskedMetadata,").unwrap();
+    writeln!(f, "    ) -> FlowResult {{").unwrap();
+    writeln!(
+        f,
+        "        FlowResult {{ status: \"not_implemented\".to_string(), ..Default::default() }}"
+    )
+    .unwrap();
     writeln!(f, "    }}").unwrap();
     writeln!(f).unwrap();
 }
@@ -417,6 +540,66 @@ fn generate_flow_definitions(f: &mut fs::File, flows: &[FlowInfo]) {
     )
     .unwrap();
     writeln!(f, "            has_payment_methods: true,").unwrap();
+    writeln!(f, "        }},").unwrap();
+
+    // handle_event is special — standalone function, not a req_transformer! macro
+    writeln!(f, "        FlowDefinition {{").unwrap();
+    writeln!(f, "            key: \"handle_event\",").unwrap();
+    writeln!(f, "            service: \"EventService\",").unwrap();
+    writeln!(f, "            rpc: \"HandleEvent\",").unwrap();
+    writeln!(
+        f,
+        "            request_type: \"EventServiceHandleRequest\","
+    )
+    .unwrap();
+    writeln!(
+        f,
+        "            transformer_fn: \"handle_event_transformer\","
+    )
+    .unwrap();
+    writeln!(f, "            has_payment_methods: false,").unwrap();
+    writeln!(f, "        }},").unwrap();
+
+    // verify_redirect
+    writeln!(f, "        FlowDefinition {{").unwrap();
+    writeln!(f, "            key: \"verify_redirect\",").unwrap();
+    writeln!(f, "            service: \"PaymentService\",").unwrap();
+    writeln!(f, "            rpc: \"VerifyRedirectResponse\",").unwrap();
+    writeln!(
+        f,
+        "            request_type: \"PaymentServiceVerifyRedirectResponseRequest\","
+    )
+    .unwrap();
+    writeln!(
+        f,
+        "            transformer_fn: \"verify_redirect_transformer\","
+    )
+    .unwrap();
+    writeln!(f, "            has_payment_methods: false,").unwrap();
+    writeln!(f, "        }},").unwrap();
+
+    // dispute_get
+    writeln!(f, "        FlowDefinition {{").unwrap();
+    writeln!(f, "            key: \"dispute_get\",").unwrap();
+    writeln!(f, "            service: \"DisputeService\",").unwrap();
+    writeln!(f, "            rpc: \"Get\",").unwrap();
+    writeln!(f, "            request_type: \"DisputeServiceGetRequest\",").unwrap();
+    writeln!(f, "            transformer_fn: \"none\",").unwrap();
+    writeln!(f, "            has_payment_methods: false,").unwrap();
+    writeln!(f, "        }},").unwrap();
+
+    // eligibility
+    writeln!(f, "        FlowDefinition {{").unwrap();
+    writeln!(f, "            key: \"eligibility\",").unwrap();
+    writeln!(f, "            service: \"PaymentMethodService\",").unwrap();
+    writeln!(f, "            rpc: \"Eligibility\",").unwrap();
+    writeln!(
+        f,
+        "            request_type: \"PayoutMethodEligibilityRequest\","
+    )
+    .unwrap();
+    writeln!(f, "            transformer_fn: \"none\",").unwrap();
+    writeln!(f, "            has_payment_methods: false,").unwrap();
     writeln!(f, "        }},").unwrap();
 
     for flow in flows {
@@ -458,6 +641,17 @@ fn generate_dispatcher(f: &mut fs::File, flows: &[FlowInfo]) {
         )
         .unwrap();
     }
+
+    // handle_event uses a bespoke probe, not the standard req_transformer path
+    writeln!(
+        f,
+        "            \"handle_event\" => Some(probe_handle_event(connector, config, auth, metadata)),"
+    )
+    .unwrap();
+
+    writeln!(f, "            \"verify_redirect\" => Some(probe_verify_redirect(connector, config, auth, metadata)),").unwrap();
+    writeln!(f, "            \"dispute_get\" => Some(probe_dispute_get(connector, config, auth, metadata)),").unwrap();
+    writeln!(f, "            \"eligibility\" => Some(probe_eligibility(connector, config, auth, metadata)),").unwrap();
 
     writeln!(f, "            _ => None,").unwrap();
     writeln!(f, "        }}").unwrap();

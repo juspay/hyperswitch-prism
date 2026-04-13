@@ -3,6 +3,9 @@ use std::collections::HashMap;
 use base64::{engine::general_purpose::STANDARD, Engine};
 use common_enums::{self, AttemptStatus, CardNetwork};
 use common_utils::{ext_traits::ByteSliceExt, pii::Email, request::Method, types::MinorUnit};
+use domain_types::errors::{
+    ConnectorError, IntegrationError, IntegrationErrorContext, WebhookError,
+};
 use domain_types::{
     connector_flow::{Authorize, Capture, CreateOrder, RSync, Refund},
     connector_types::{
@@ -10,8 +13,7 @@ use domain_types::{
         PaymentsCaptureData, PaymentsResponseData, RefundFlowData, RefundSyncData, RefundsData,
         RefundsResponseData, ResponseId,
     },
-    errors,
-    payment_method_data::{Card, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
+    payment_method_data::{self, Card, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
@@ -48,7 +50,7 @@ pub enum CardBrand {
 }
 
 #[derive(Debug, PartialEq)]
-pub enum ConnectorError {
+pub enum RazorpayConnectorError {
     ParsingFailed,
     NotImplemented,
     FailedToObtainAuthType,
@@ -188,7 +190,7 @@ pub struct RazorpayRouterData<T> {
 }
 
 impl<T> TryFrom<(MinorUnit, T)> for RazorpayRouterData<T> {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from((amount, item): (MinorUnit, T)) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
@@ -227,7 +229,7 @@ impl RazorpayAuthType {
 }
 
 impl TryFrom<&ConnectorSpecificConfig> for RazorpayAuthType {
-    type Error = errors::ConnectorError;
+    type Error = IntegrationError;
     fn try_from(auth_type: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         match auth_type {
             ConnectorSpecificConfig::Razorpay {
@@ -241,7 +243,9 @@ impl TryFrom<&ConnectorSpecificConfig> for RazorpayAuthType {
                     api_secret: secret.to_owned(),
                 }),
             },
-            _ => Err(errors::ConnectorError::FailedToObtainAuthType),
+            _ => Err(IntegrationError::FailedToObtainAuthType {
+                context: Default::default(),
+            }),
         }
     }
 }
@@ -249,7 +253,7 @@ impl TryFrom<&ConnectorSpecificConfig> for RazorpayAuthType {
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<(&Card<T>, Option<Secret<String>>)> for RazorpayPaymentMethod<T>
 {
-    type Error = ConnectorError;
+    type Error = IntegrationError;
     fn try_from(
         (card, card_holder_name): (&Card<T>, Option<Secret<String>>),
     ) -> Result<Self, Self::Error> {
@@ -271,7 +275,7 @@ fn extract_payment_method_and_data<
 >(
     payment_method_data: &PaymentMethodData<T>,
     customer_name: Option<String>,
-) -> Result<(PaymentMethodType, PaymentMethodSpecificData<T>), errors::ConnectorError> {
+) -> Result<(PaymentMethodType, PaymentMethodSpecificData<T>), IntegrationError> {
     match payment_method_data {
         PaymentMethodData::Card(card_data) => {
             let card_holder_name = customer_name.clone();
@@ -299,12 +303,12 @@ fn extract_payment_method_and_data<
         | PaymentMethodData::Upi(_)
         | PaymentMethodData::Voucher(_)
         | PaymentMethodData::GiftCard(_)
-        | PaymentMethodData::CardToken(_)
+        | PaymentMethodData::PaymentMethodToken(_)
         | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
         | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
         | PaymentMethodData::NetworkToken(_)
         | PaymentMethodData::MobilePayment(_)
-        | PaymentMethodData::OpenBanking(_) => Err(errors::ConnectorError::NotImplemented(
+        | PaymentMethodData::OpenBanking(_) => Err(IntegrationError::not_implemented(
             "Only Card payment method is supported for Razorpay".to_string(),
         )),
     }
@@ -323,7 +327,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         &Card<T>,
     )> for RazorpayPaymentRequest<T>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         value: (
@@ -351,8 +355,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let contact = billing
             .and_then(|billing| billing.phone.as_ref())
             .and_then(|phone| phone.number.clone())
-            .ok_or(errors::ConnectorError::MissingRequiredField {
+            .ok_or(IntegrationError::MissingRequiredField {
                 field_name: "contact",
+                context: Default::default(),
             })?;
 
         let billing_email = item
@@ -363,17 +368,19 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let email = billing_email
             .or(item.router_data.request.email.clone())
-            .ok_or(errors::ConnectorError::MissingRequiredField {
+            .ok_or(IntegrationError::MissingRequiredField {
                 field_name: "email",
+                context: Default::default(),
             })?;
 
         let order_id = item
             .router_data
             .resource_common_data
-            .reference_id
+            .connector_order_id
             .clone()
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "order_id",
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "connector_order_id",
+                context: Default::default(),
             })?;
 
         let (method, card) = extract_payment_method_and_data(
@@ -456,7 +463,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for RazorpayPaymentRequest<T>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: &RazorpayRouterData<
@@ -470,10 +477,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         match &item.router_data.request.payment_method_data {
             PaymentMethodData::Card(card) => Self::try_from((item, card)),
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "Only card payments are supported".into(),
-            )
-            .into()),
+            _ => Err(IntegrationError::not_implemented("Only card payments are supported").into()),
         }
     }
 }
@@ -554,7 +558,7 @@ pub struct RazorpayRefundRequest {
 }
 
 impl ForeignTryFrom<RazorpayRefundStatus> for common_enums::RefundStatus {
-    type Error = errors::ConnectorError;
+    type Error = IntegrationError;
     fn foreign_try_from(item: RazorpayRefundStatus) -> Result<Self, Self::Error> {
         match item {
             RazorpayRefundStatus::Failed => Ok(Self::Failure),
@@ -571,7 +575,7 @@ impl
         >,
     > for RazorpayRefundRequest
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(
         item: &RazorpayRouterData<
             &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
@@ -679,7 +683,7 @@ fn get_psync_razorpay_payment_status(
 impl ForeignTryFrom<(RazorpayRefundResponse, Self, u16)>
     for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
-    type Error = errors::ConnectorError;
+    type Error = IntegrationError;
 
     fn foreign_try_from(
         (response, data, http_code): (RazorpayRefundResponse, Self, u16),
@@ -706,7 +710,7 @@ impl ForeignTryFrom<(RazorpayRefundResponse, Self, u16)>
 impl ForeignTryFrom<(RazorpayRefundResponse, Self, u16)>
     for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = errors::ConnectorError;
+    type Error = IntegrationError;
 
     fn foreign_try_from(
         (response, data, http_code): (RazorpayRefundResponse, Self, u16),
@@ -740,7 +744,7 @@ impl<F, Req>
         Option<common_enums::PaymentMethodType>,
     )> for RouterDataV2<F, PaymentFlowData, Req, PaymentsResponseData>
 {
-    type Error = errors::ConnectorError;
+    type Error = IntegrationError;
 
     fn foreign_try_from(
         (response, data, _http_code, _capture_method, _is_multiple_capture_psync_flow, _pmt): (
@@ -763,8 +767,9 @@ impl<F, Req>
                     .as_ref()
                     .and_then(|next_actions| next_actions.first())
                     .map(|action| action.url.clone())
-                    .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
+                    .ok_or(IntegrationError::MissingRequiredField {
                         field_name: "next.url",
+                        context: Default::default(),
                     })?;
 
                 let form_fields = HashMap::new();
@@ -809,8 +814,8 @@ impl<F, Req>
                         domain_types::router_data::ConnectorResponseData::
                             with_additional_payment_method_data(
                                 domain_types::router_data::AdditionalPaymentMethodConnectorResponse::Upi {
-                                    upi_mode: Some(domain_types::payment_method_data::UpiSource::UpiCc),
-                                },
+                                    upi_mode: Some(payment_method_data::UpiSource::UpiCc)
+},
                             )
                     });
 
@@ -924,7 +929,7 @@ impl
         >,
     > for RazorpayOrderRequest
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: &RazorpayRouterData<
@@ -1026,18 +1031,22 @@ impl ForeignTryFrom<(RazorpayOrderResponse, Self, u16, bool)>
         PaymentCreateOrderResponse,
     >
 {
-    type Error = errors::ConnectorError;
+    type Error = IntegrationError;
 
     fn foreign_try_from(
         (response, data, _status_code, _): (RazorpayOrderResponse, Self, u16, bool),
     ) -> Result<Self, Self::Error> {
         let order_response = PaymentCreateOrderResponse {
-            order_id: response.id,
-            session_token: None,
+            connector_order_id: response.id.clone(),
+            session_data: None,
         };
 
         Ok(Self {
             response: Ok(order_response),
+            resource_common_data: PaymentFlowData {
+                connector_order_id: Some(response.id),
+                ..data.resource_common_data
+            },
             ..data
         })
     }
@@ -1161,31 +1170,31 @@ pub struct RazorpayWebhookCard {
 
 pub fn get_webhook_object_from_body(
     body: Vec<u8>,
-) -> Result<Payload, error_stack::Report<errors::ConnectorError>> {
+) -> Result<Payload, error_stack::Report<WebhookError>> {
     let webhook: RazorpayWebhook = body
         .parse_struct("RazorpayWebhook")
-        .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        .change_context(WebhookError::WebhookBodyDecodingFailed)?;
     Ok(webhook.payload)
 }
 
 pub(crate) fn get_razorpay_payment_webhook_status(
     entity: RazorpayEntity,
     status: RazorpayPaymentStatus,
-) -> Result<AttemptStatus, errors::ConnectorError> {
+) -> Result<AttemptStatus, WebhookError> {
     match entity {
         RazorpayEntity::Payment => match status {
             RazorpayPaymentStatus::Authorized => Ok(AttemptStatus::Authorized),
             RazorpayPaymentStatus::Captured => Ok(AttemptStatus::Charged),
             RazorpayPaymentStatus::Failed => Ok(AttemptStatus::AuthorizationFailed),
         },
-        RazorpayEntity::Refund => Err(errors::ConnectorError::RequestEncodingFailed),
+        RazorpayEntity::Refund => Err(WebhookError::WebhookProcessingFailed),
     }
 }
 
 pub(crate) fn get_razorpay_refund_webhook_status(
     entity: RazorpayEntity,
     status: RazorpayRefundStatus,
-) -> Result<common_enums::RefundStatus, errors::ConnectorError> {
+) -> Result<common_enums::RefundStatus, WebhookError> {
     match entity {
         RazorpayEntity::Refund => match status {
             RazorpayRefundStatus::Processed => Ok(common_enums::RefundStatus::Success),
@@ -1194,7 +1203,7 @@ pub(crate) fn get_razorpay_refund_webhook_status(
             }
             RazorpayRefundStatus::Failed => Ok(common_enums::RefundStatus::Failure),
         },
-        RazorpayEntity::Payment => Err(errors::ConnectorError::RequestEncodingFailed),
+        RazorpayEntity::Payment => Err(WebhookError::WebhookProcessingFailed),
     }
 }
 
@@ -1246,7 +1255,7 @@ impl
         >,
     > for RazorpayCaptureRequest
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: &RazorpayRouterData<
@@ -1265,7 +1274,7 @@ impl
 impl<F, Req> ForeignTryFrom<(RazorpayCaptureResponse, Self, u16)>
     for RouterDataV2<F, PaymentFlowData, Req, PaymentsResponseData>
 {
-    type Error = errors::ConnectorError;
+    type Error = IntegrationError;
     fn foreign_try_from(
         (response, data, http_code): (RazorpayCaptureResponse, Self, u16),
     ) -> Result<Self, Self::Error> {
@@ -1388,7 +1397,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for RazorpayWebCollectRequest
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: &RazorpayRouterData<
@@ -1409,8 +1418,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 let vpa = collect_data
                     .vpa_id
                     .as_ref()
-                    .ok_or(errors::ConnectorError::MissingRequiredField {
+                    .ok_or(IntegrationError::MissingRequiredField {
                         field_name: "vpa_id",
+                        context: Default::default(),
                     })?
                     .peek()
                     .to_string();
@@ -1421,14 +1431,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             _ => (None, None), // Default fallback
         };
 
-        // Get order_id from the CreateOrder response (stored in reference_id)
+        // Get order_id from the CreateOrder response (stored in connector_order_id)
         let order_id = item
             .router_data
             .resource_common_data
-            .reference_id
+            .connector_order_id
             .as_ref()
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "order_id (reference_id)",
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "connector_order_id",
+                context: Default::default(),
             })?
             .clone();
 
@@ -1529,6 +1540,225 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
+// ============ Netbanking Request ============
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum RazorpayBankCode {
+    Sbin,
+    Hdfc,
+    Icic,
+    Utib,
+    Kkbk,
+    Punb,
+    Barb,
+    Ubin,
+    Cnrb,
+    Indb,
+    Yesb,
+    Ibkl,
+    Fdrl,
+    Ioba,
+    Cbin,
+}
+
+fn map_bank_name_to_razorpay_code(
+    bank: &common_enums::BankNames,
+) -> Result<RazorpayBankCode, error_stack::Report<IntegrationError>> {
+    match bank {
+        common_enums::BankNames::StateBank => Ok(RazorpayBankCode::Sbin),
+        common_enums::BankNames::HdfcBank => Ok(RazorpayBankCode::Hdfc),
+        common_enums::BankNames::IciciBank => Ok(RazorpayBankCode::Icic),
+        common_enums::BankNames::AxisBank => Ok(RazorpayBankCode::Utib),
+        common_enums::BankNames::KotakMahindraBank => Ok(RazorpayBankCode::Kkbk),
+        common_enums::BankNames::PunjabNationalBank => Ok(RazorpayBankCode::Punb),
+        common_enums::BankNames::BankOfBaroda => Ok(RazorpayBankCode::Barb),
+        common_enums::BankNames::UnionBankOfIndia => Ok(RazorpayBankCode::Ubin),
+        common_enums::BankNames::CanaraBank => Ok(RazorpayBankCode::Cnrb),
+        common_enums::BankNames::IndusIndBank => Ok(RazorpayBankCode::Indb),
+        common_enums::BankNames::YesBank => Ok(RazorpayBankCode::Yesb),
+        common_enums::BankNames::IdbiBank => Ok(RazorpayBankCode::Ibkl),
+        common_enums::BankNames::FederalBank => Ok(RazorpayBankCode::Fdrl),
+        common_enums::BankNames::IndianOverseasBank => Ok(RazorpayBankCode::Ioba),
+        common_enums::BankNames::CentralBankOfIndia => Ok(RazorpayBankCode::Cbin),
+        _ => Err(IntegrationError::NotSupported {
+            message: format!("Bank {:?} is not supported for Razorpay netbanking", bank),
+            connector: "razorpay",
+            context: IntegrationErrorContext {
+                suggested_action: Some(
+                    "Use one of the supported Indian banks listed in Razorpay's netbanking \
+                     documentation. See `RazorpayBankCode` enum for the full supported list."
+                        .to_owned(),
+                ),
+                doc_url: Some(
+                    "https://razorpay.com/docs/payments/payment-methods/netbanking/#supported-banks"
+                        .to_owned(),
+                ),
+                additional_context: Some(format!(
+                    "Razorpay netbanking accepts a fixed set of Indian bank codes; '{:?}' is \
+                     outside that set.",
+                    bank
+                )),
+            },
+        }
+        .into()),
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct RazorpayNetbankingRequest {
+    pub amount: MinorUnit,
+    pub currency: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email: Option<Email>,
+    pub order_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub contact: Option<Secret<String>>,
+    pub method: PaymentMethodType,
+    pub bank: RazorpayBankCode,
+    pub callback_url: String,
+    pub ip: Secret<String>,
+    pub referer: String,
+    pub user_agent: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub notes: Option<HashMap<String, String>>,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        &RazorpayRouterData<
+            &RouterDataV2<
+                Authorize,
+                PaymentFlowData,
+                PaymentsAuthorizeData<T>,
+                PaymentsResponseData,
+            >,
+        >,
+    > for RazorpayNetbankingRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: &RazorpayRouterData<
+            &RouterDataV2<
+                Authorize,
+                PaymentFlowData,
+                PaymentsAuthorizeData<T>,
+                PaymentsResponseData,
+            >,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let bank_code = match &item.router_data.request.payment_method_data {
+            PaymentMethodData::BankRedirect(
+                payment_method_data::BankRedirectData::Netbanking { issuer },
+            ) => map_bank_name_to_razorpay_code(issuer)?,
+            _ => {
+                return Err(IntegrationError::MissingRequiredField {
+                    field_name: "netbanking payment_method_data",
+                    context: IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Populate `PaymentMethodData::BankRedirect(Netbanking { issuer })` \
+                             with a supported Razorpay bank."
+                                .to_owned(),
+                        ),
+                        doc_url: Some(
+                            "https://razorpay.com/docs/api/payments/netbanking/#create-a-netbanking-payment"
+                                .to_owned(),
+                        ),
+                        additional_context: Some(
+                            "Razorpay netbanking requires a bank issuer to route the customer to \
+                             the correct bank login page."
+                                .to_owned(),
+                        ),
+                    },
+                }
+                .into())
+            }
+        };
+
+        let order_id = item
+            .router_data
+            .resource_common_data
+            .reference_id
+            .as_ref()
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "order_id (reference_id)",
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Call `PaymentService.CreateOrder` first and pass the returned order id \
+                         as `merchant_order_id` (which becomes `reference_id` internally) on the \
+                         Authorize request."
+                            .to_owned(),
+                    ),
+                    doc_url: Some(
+                        "https://razorpay.com/docs/api/orders/#create-an-order".to_owned(),
+                    ),
+                    additional_context: Some(
+                        "Razorpay requires a pre-created `order_id` in the payment create \
+                         request; it cannot be omitted."
+                            .to_owned(),
+                    ),
+                },
+            })?
+            .clone();
+
+        let metadata_map = item
+            .router_data
+            .request
+            .metadata
+            .as_ref()
+            .and_then(|metadata| metadata.peek().as_object())
+            .map(|obj| {
+                obj.iter()
+                    .map(|(k, v)| (k.clone(), json_value_to_string(v)))
+                    .collect::<HashMap<String, String>>()
+            });
+
+        Ok(Self {
+            currency: item.router_data.request.currency.to_string(),
+            amount: item.amount,
+            email: item
+                .router_data
+                .resource_common_data
+                .get_billing_email()
+                .ok(),
+            order_id: order_id.to_string(),
+            contact: item
+                .router_data
+                .resource_common_data
+                .get_billing_phone_number()
+                .ok(),
+            method: PaymentMethodType::Netbanking,
+            bank: bank_code,
+            callback_url: item.router_data.request.get_router_return_url()?,
+            ip: item
+                .router_data
+                .request
+                .get_ip_address_as_optional()
+                .map(|ip| Secret::new(ip.expose()))
+                .unwrap_or_else(|| Secret::new("127.0.0.1".to_string())),
+            referer: item
+                .router_data
+                .request
+                .browser_info
+                .as_ref()
+                .and_then(|info| info.get_referer().ok())
+                .unwrap_or_else(|| "https://example.com".to_string()),
+            user_agent: item
+                .router_data
+                .request
+                .browser_info
+                .as_ref()
+                .and_then(|info| info.get_user_agent().ok())
+                .unwrap_or_else(|| "Mozilla/5.0".to_string()),
+            description: None,
+            notes: metadata_map,
+        })
+    }
+}
+
 // ============ UPI Response Types ============
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -1564,7 +1794,7 @@ impl<F, Req>
         Vec<u8>, // raw_response
     )> for RouterDataV2<F, PaymentFlowData, Req, PaymentsResponseData>
 {
-    type Error = errors::ConnectorError;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn foreign_try_from(
         (upi_response, data, _status_code, _raw_response): (
@@ -1602,13 +1832,20 @@ impl<F, Req>
                     Some(payment_id) => (ResponseId::ConnectorTransactionId(payment_id), None),
                     None => {
                         // Payment ID is null, this is likely an error
-                        return Err(errors::ConnectorError::ResponseHandlingFailed);
+                        return Err(error_stack::report!(
+                            crate::utils::response_handling_fail_for_connector(
+                                _status_code,
+                                "razorpay"
+                            )
+                        ));
                     }
                 }
             }
             RazorpayUpiPaymentsResponse::Error { error: _ } => {
                 // Handle error case - this should probably return an error instead
-                return Err(errors::ConnectorError::ResponseHandlingFailed);
+                return Err(error_stack::report!(
+                    crate::utils::response_handling_fail_for_connector(_status_code, "razorpay")
+                ));
             }
         };
 
