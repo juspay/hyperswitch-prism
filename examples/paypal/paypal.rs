@@ -89,6 +89,7 @@ pub fn build_create_order_request() -> PaymentServiceCreateOrderRequest {
             "token_type": "Bearer",  // Token type (e.g., "Bearer", "Basic").
         },
     },
+    "order_details": []  // Line-item details for the order.
     })).unwrap_or_default()
 }
 

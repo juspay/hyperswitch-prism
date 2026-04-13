@@ -1,10 +1,10 @@
 use crate::connectors::revolut::RevolutRouterData;
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, Refund},
+    connector_flow::{Authorize, Capture, CreateOrder, PSync, Refund},
     connector_types::{
-        PaymentFlowData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        ResponseId, WebhookDetailsResponse,
+        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentsAuthorizeData,
+        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, ResponseId, WebhookDetailsResponse,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
@@ -663,6 +663,127 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             }),
             resource_common_data: PaymentFlowData {
                 status,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
+    }
+}
+
+// ============================================================================
+// CreateOrder Flow - Request/Response Types
+// ============================================================================
+
+/// CreateOrder-specific request type (separate from Authorize for macro compatibility)
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Serialize)]
+pub struct RevolutCreateOrderRequest {
+    pub amount: MinorUnit,
+    pub currency: common_enums::Currency,
+    pub description: Option<String>,
+    pub metadata: Option<Secret<serde_json::Value>>,
+}
+
+/// CreateOrder-specific response type (reuses same Revolut order response shape)
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct RevolutCreateOrderResponse {
+    pub id: String,
+    pub token: Secret<String>,
+    pub r#type: RevolutOrderType,
+    pub state: RevolutOrderState,
+    #[serde(with = "custom_serde::iso8601")]
+    pub created_at: PrimitiveDateTime,
+    #[serde(with = "custom_serde::iso8601")]
+    pub updated_at: PrimitiveDateTime,
+    pub description: Option<String>,
+    pub capture_mode: Option<RevolutCaptureMode>,
+    pub amount: MinorUnit,
+    pub outstanding_amount: Option<MinorUnit>,
+    pub currency: common_enums::Currency,
+    pub checkout_url: Option<String>,
+    pub merchant_order_data: Option<RevolutMerchantOrderData>,
+    pub metadata: Option<Secret<serde_json::Value>>,
+}
+
+// ============================================================================
+// CreateOrder Flow - Request Transformation
+// ============================================================================
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        RevolutRouterData<
+            RouterDataV2<
+                CreateOrder,
+                PaymentFlowData,
+                PaymentCreateOrderData,
+                PaymentCreateOrderResponse,
+            >,
+            T,
+        >,
+    > for RevolutCreateOrderRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: RevolutRouterData<
+            RouterDataV2<
+                CreateOrder,
+                PaymentFlowData,
+                PaymentCreateOrderData,
+                PaymentCreateOrderResponse,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+
+        Ok(Self {
+            amount: router_data.request.amount,
+            currency: router_data.request.currency,
+            description: router_data.resource_common_data.description.clone(),
+            metadata: router_data.request.metadata.clone(),
+        })
+    }
+}
+
+// ============================================================================
+// CreateOrder Flow - Response Transformation
+// ============================================================================
+
+impl TryFrom<ResponseRouterData<RevolutCreateOrderResponse, Self>>
+    for RouterDataV2<
+        CreateOrder,
+        PaymentFlowData,
+        PaymentCreateOrderData,
+        PaymentCreateOrderResponse,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<RevolutCreateOrderResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response;
+
+        let status = match response.state {
+            RevolutOrderState::Pending => AttemptStatus::Pending,
+            RevolutOrderState::Processing => AttemptStatus::Pending,
+            RevolutOrderState::Authorised => AttemptStatus::Authorized,
+            RevolutOrderState::Completed => AttemptStatus::Charged,
+            RevolutOrderState::Cancelled => AttemptStatus::Voided,
+            RevolutOrderState::Failed => AttemptStatus::Failure,
+        };
+
+        Ok(Self {
+            response: Ok(PaymentCreateOrderResponse {
+                connector_order_id: response.id.clone(),
+                merchant_order_id: item.router_data.request.merchant_order_id.clone(),
+                session_data: None,
+            }),
+            resource_common_data: PaymentFlowData {
+                status,
+                reference_id: Some(response.id),
                 ..item.router_data.resource_common_data
             },
             ..item.router_data

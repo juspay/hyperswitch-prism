@@ -55,7 +55,8 @@ use interfaces::{
 use serde::Serialize;
 use transformers as revolut;
 use transformers::{
-    RevolutCaptureRequest, RevolutOrderCreateRequest, RevolutOrderCreateResponse,
+    RevolutCaptureRequest, RevolutCreateOrderRequest, RevolutCreateOrderResponse,
+    RevolutOrderCreateRequest, RevolutOrderCreateResponse,
     RevolutOrderCreateResponse as RevolutPSyncResponse,
     RevolutOrderCreateResponse as RevolutCaptureResponse, RevolutRefundRequest,
     RevolutRefundResponse, RevolutRefundResponse as RevolutRSyncResponse,
@@ -392,15 +393,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        CreateOrder,
-        PaymentFlowData,
-        PaymentCreateOrderData,
-        PaymentCreateOrderResponse,
-    > for Revolut<T>
-{
-}
+// CreateOrder flow implementation removed - using macro below
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
@@ -550,7 +543,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Revolut<T>
 {
     fn should_do_order_create(&self) -> bool {
-        false
+        true
     }
 }
 
@@ -652,6 +645,12 @@ macros::create_all_prerequisites!(
     generic_type: T,
     api: [
         (
+            flow: CreateOrder,
+            request_body: RevolutCreateOrderRequest,
+            response_body: RevolutCreateOrderResponse,
+            router_data: RouterDataV2<CreateOrder, PaymentFlowData, PaymentCreateOrderData, PaymentCreateOrderResponse>,
+        ),
+        (
             flow: Authorize,
             request_body: RevolutOrderCreateRequest,
             response_body: RevolutOrderCreateResponse,
@@ -706,6 +705,35 @@ macros::create_all_prerequisites!(
             req: &RouterDataV2<F, PaymentFlowData, Req, Res>,
         ) -> String {
             req.resource_common_data.connectors.revolut.base_url.to_string()
+        }
+    }
+);
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Revolut,
+    curl_request: Json(RevolutCreateOrderRequest),
+    curl_response: RevolutCreateOrderResponse,
+    flow_name: CreateOrder,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentCreateOrderData,
+    flow_response: PaymentCreateOrderResponse,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<CreateOrder, PaymentFlowData, PaymentCreateOrderData, PaymentCreateOrderResponse>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<CreateOrder, PaymentFlowData, PaymentCreateOrderData, PaymentCreateOrderResponse>,
+        ) -> CustomResult<String, IntegrationError> {
+            let base_url = self.connector_base_url(req);
+            Ok(format!("{base_url}/api/orders"))
         }
     }
 );

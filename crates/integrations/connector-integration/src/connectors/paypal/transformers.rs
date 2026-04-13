@@ -929,6 +929,7 @@ impl TryFrom<PaypalOrderCreateResponse> for PaymentCreateOrderResponse {
     fn try_from(response: PaypalOrderCreateResponse) -> Result<Self, Self::Error> {
         Ok(Self {
             connector_order_id: response.id,
+            merchant_order_id: None,
             session_data: None,
         })
     }

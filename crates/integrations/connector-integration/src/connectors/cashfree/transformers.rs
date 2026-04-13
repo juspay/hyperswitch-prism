@@ -517,6 +517,7 @@ impl TryFrom<CashfreeOrderCreateResponse> for PaymentCreateOrderResponse {
     fn try_from(response: CashfreeOrderCreateResponse) -> Result<Self, Self::Error> {
         Ok(Self {
             connector_order_id: response.payment_session_id,
+            merchant_order_id: None,
             session_data: None,
         })
     }

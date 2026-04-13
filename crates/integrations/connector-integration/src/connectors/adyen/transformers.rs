@@ -7559,6 +7559,7 @@ impl TryFrom<AdyenOrderCreateResponse> for PaymentCreateOrderResponse {
         // Use psp_reference as the order_id (this is Adyen's unique reference for the order)
         Ok(Self {
             connector_order_id: response.psp_reference,
+            merchant_order_id: None,
             session_data: None,
         })
     }
