@@ -1,6 +1,6 @@
 use crate::macros::{req_transformer, res_transformer};
 use external_services;
-use grpc_api_types::payments::ConnectorResponseTransformationError;
+use grpc_api_types::payments::ConnectorError;
 use grpc_api_types::payments::{
     CustomerServiceCreateRequest, CustomerServiceCreateResponse, DisputeServiceAcceptRequest,
     DisputeServiceAcceptResponse, DisputeServiceDefendRequest, DisputeServiceDefendResponse,
@@ -21,33 +21,39 @@ use grpc_api_types::payments::{
     PaymentMethodServiceTokenizeResponse, PaymentServiceAuthorizeRequest,
     PaymentServiceAuthorizeResponse, PaymentServiceCaptureRequest, PaymentServiceCaptureResponse,
     PaymentServiceCreateOrderRequest, PaymentServiceCreateOrderResponse, PaymentServiceGetRequest,
-    PaymentServiceGetResponse, PaymentServiceProxyAuthorizeRequest,
+    PaymentServiceGetResponse, PaymentServiceIncrementalAuthorizationRequest,
+    PaymentServiceIncrementalAuthorizationResponse, PaymentServiceProxyAuthorizeRequest,
     PaymentServiceProxySetupRecurringRequest, PaymentServiceRefundRequest,
     PaymentServiceReverseRequest, PaymentServiceReverseResponse,
     PaymentServiceSetupRecurringRequest, PaymentServiceSetupRecurringResponse,
     PaymentServiceTokenAuthorizeRequest, PaymentServiceTokenSetupRecurringRequest,
+    PaymentServiceVerifyRedirectResponseRequest, PaymentServiceVerifyRedirectResponseResponse,
     PaymentServiceVoidRequest, PaymentServiceVoidResponse, RecurringPaymentServiceChargeRequest,
-    RecurringPaymentServiceChargeResponse, RefundResponse,
+    RecurringPaymentServiceChargeResponse, RecurringPaymentServiceRevokeRequest,
+    RecurringPaymentServiceRevokeResponse, RefundResponse, RefundServiceGetRequest,
 };
 
 use domain_types::{
     connector_flow::{
         Accept, Authenticate, Authorize, Capture, ClientAuthenticationToken,
-        CreateConnectorCustomer, CreateOrder, DefendDispute, PSync, PaymentMethodToken,
-        PostAuthenticate, PreAuthenticate, Refund, RepeatPayment, ServerAuthenticationToken,
-        ServerSessionAuthenticationToken, SetupMandate, SubmitEvidence, Void, VoidPC,
+        CreateConnectorCustomer, CreateOrder, DefendDispute, IncrementalAuthorization,
+        MandateRevoke, PSync, PaymentMethodToken, PostAuthenticate, PreAuthenticate, RSync, Refund,
+        RepeatPayment, ServerAuthenticationToken, ServerSessionAuthenticationToken, SetupMandate,
+        SubmitEvidence, Void, VoidPC,
     },
     connector_types::{
         AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
         ConnectorCustomerResponse, ConnectorWebhookSecrets, DisputeDefendData, DisputeFlowData,
-        DisputeResponseData, PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData,
+        DisputeResponseData, MandateRevokeRequestData, MandateRevokeResponseData,
+        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData,
         PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
         PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
-        PaymentsCaptureData, PaymentsPostAuthenticateData, PaymentsPreAuthenticateData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundsData, RefundsResponseData,
-        RepeatPaymentData, RequestDetails, ServerAuthenticationTokenRequestData,
-        ServerAuthenticationTokenResponseData, ServerSessionAuthenticationTokenRequestData,
-        ServerSessionAuthenticationTokenResponseData, SetupMandateRequestData, SubmitEvidenceData,
+        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
+        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData, RequestDetails,
+        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
+        ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
+        SetupMandateRequestData, SubmitEvidenceData,
     },
 };
 
@@ -505,34 +511,28 @@ pub fn handle_event_transformer(
     connector: domain_types::connector_types::ConnectorEnum,
     connector_config: domain_types::router_data::ConnectorSpecificConfig,
     _metadata: &common_utils::metadata::MaskedMetadata,
-) -> Result<EventServiceHandleResponse, ConnectorResponseTransformationError> {
+) -> Result<EventServiceHandleResponse, ConnectorError> {
     use domain_types::utils::ForeignTryFrom as _;
 
+    let request_details = payload.request_details.ok_or_else(|| ConnectorError {
+        error_message: "Missing required field: request_details".to_string(),
+        error_code: "MISSING_REQUIRED_FIELD".to_string(),
+        http_status_code: None,
+    })?;
     let request_details =
-        payload
-            .request_details
-            .ok_or_else(|| ConnectorResponseTransformationError {
-                error_message: "Missing required field: request_details".to_string(),
-                error_code: "MISSING_REQUIRED_FIELD".to_string(),
-                http_status_code: None,
-            })?;
-    let request_details = RequestDetails::foreign_try_from(request_details).map_err(|e| {
-        ConnectorResponseTransformationError {
+        RequestDetails::foreign_try_from(request_details).map_err(|e| ConnectorError {
             error_message: format!("ForeignTryFrom failed: {e}"),
             error_code: "CONVERSION_FAILED".to_string(),
             http_status_code: None,
-        }
-    })?;
+        })?;
 
     let webhook_secrets = payload
         .webhook_secrets
         .map(|ws| {
-            ConnectorWebhookSecrets::foreign_try_from(ws).map_err(|e| {
-                ConnectorResponseTransformationError {
-                    error_message: format!("ForeignTryFrom failed: {e}"),
-                    error_code: "CONVERSION_FAILED".to_string(),
-                    http_status_code: None,
-                }
+            ConnectorWebhookSecrets::foreign_try_from(ws).map_err(|e| ConnectorError {
+                error_message: format!("ForeignTryFrom failed: {e}"),
+                error_code: "CONVERSION_FAILED".to_string(),
+                http_status_code: None,
             })
         })
         .transpose()?;
@@ -560,11 +560,184 @@ pub fn handle_event_transformer(
     )
     .map_err(
         |e: error_stack::Report<domain_types::errors::WebhookError>| {
-            let app_error: domain_types::errors::ApplicationErrorResponse =
-                common_utils::errors::ErrorSwitch::switch(e.current_context());
-            ucs_env::error::ErrorSwitch::switch(&app_error)
+            let ctx = e.current_context();
+            ConnectorError {
+                error_message: ctx.to_string(),
+                error_code: ctx.as_ref().to_string(),
+                http_status_code: None,
+            }
         },
     )
+}
+
+// incremental_authorization
+req_transformer!(
+    fn_name: incremental_authorization_req_transformer,
+    request_type: PaymentServiceIncrementalAuthorizationRequest,
+    flow_marker: IncrementalAuthorization,
+    resource_common_data_type: PaymentFlowData,
+    request_data_type: PaymentsIncrementalAuthorizationData,
+    response_data_type: PaymentsResponseData,
+);
+
+// incremental_authorization response transformer
+res_transformer!(
+    fn_name: incremental_authorization_res_transformer,
+    request_type: PaymentServiceIncrementalAuthorizationRequest,
+    response_type: PaymentServiceIncrementalAuthorizationResponse,
+    flow_marker: IncrementalAuthorization,
+    resource_common_data_type: PaymentFlowData,
+    request_data_type: PaymentsIncrementalAuthorizationData,
+    response_data_type: PaymentsResponseData,
+    generate_response_fn: generate_payment_incremental_authorization_response,
+);
+
+// refund_get (RefundService.Get) - rsync
+req_transformer!(
+    fn_name: refund_get_req_transformer,
+    request_type: RefundServiceGetRequest,
+    flow_marker: RSync,
+    resource_common_data_type: RefundFlowData,
+    request_data_type: RefundSyncData,
+    response_data_type: RefundsResponseData,
+);
+
+// refund_get response transformer
+res_transformer!(
+    fn_name: refund_get_res_transformer,
+    request_type: RefundServiceGetRequest,
+    response_type: RefundResponse,
+    flow_marker: RSync,
+    resource_common_data_type: RefundFlowData,
+    request_data_type: RefundSyncData,
+    response_data_type: RefundsResponseData,
+    generate_response_fn: generate_refund_sync_response,
+);
+
+// create_sdk_session_token (MerchantAuthenticationService.CreateSdkSessionToken)
+req_transformer!(
+    fn_name: create_client_authentication_token_req_handler,
+    request_type: MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
+    flow_marker: ClientAuthenticationToken,
+    resource_common_data_type: PaymentFlowData,
+    request_data_type: ClientAuthenticationTokenRequestData,
+    response_data_type: PaymentsResponseData,
+);
+
+// create_sdk_session_token response transformer
+res_transformer!(
+    fn_name: create_client_authentication_token_res_handler,
+    request_type: MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
+    response_type: MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse,
+    flow_marker: ClientAuthenticationToken,
+    resource_common_data_type: PaymentFlowData,
+    request_data_type: ClientAuthenticationTokenRequestData,
+    response_data_type: PaymentsResponseData,
+    generate_response_fn: generate_payment_sdk_session_token_response,
+);
+
+// recurring_revoke (RecurringPaymentService.Revoke)
+req_transformer!(
+    fn_name: recurring_revoke_req_transformer,
+    request_type: RecurringPaymentServiceRevokeRequest,
+    flow_marker: MandateRevoke,
+    resource_common_data_type: PaymentFlowData,
+    request_data_type: MandateRevokeRequestData,
+    response_data_type: MandateRevokeResponseData,
+);
+
+// recurring_revoke response transformer
+res_transformer!(
+    fn_name: recurring_revoke_res_transformer,
+    request_type: RecurringPaymentServiceRevokeRequest,
+    response_type: RecurringPaymentServiceRevokeResponse,
+    flow_marker: MandateRevoke,
+    resource_common_data_type: PaymentFlowData,
+    request_data_type: MandateRevokeRequestData,
+    response_data_type: MandateRevokeResponseData,
+    generate_response_fn: generate_mandate_revoke_response,
+);
+
+/// verify_redirect_response — synchronous verification of redirect response (no outgoing HTTP call).
+///
+/// Calls `decode_redirect_response_body`, `verify_redirect_response_source`, and
+/// `process_redirect_response` on the connector, mirroring what the gRPC server does.
+pub fn verify_redirect_response_transformer(
+    payload: PaymentServiceVerifyRedirectResponseRequest,
+    _config: &std::sync::Arc<ucs_env::configs::Config>,
+    connector: domain_types::connector_types::ConnectorEnum,
+    _connector_config: domain_types::router_data::ConnectorSpecificConfig,
+    _metadata: &common_utils::metadata::MaskedMetadata,
+) -> Result<PaymentServiceVerifyRedirectResponseResponse, ConnectorError> {
+    use domain_types::utils::ForeignTryFrom as _;
+    use interfaces::verification::ConnectorSourceVerificationSecrets;
+
+    let request_details_proto = payload.request_details.ok_or_else(|| ConnectorError {
+        error_message: "Missing required field: request_details".to_string(),
+        error_code: "MISSING_REQUIRED_FIELD".to_string(),
+        http_status_code: None,
+    })?;
+
+    let request_details =
+        RequestDetails::foreign_try_from(request_details_proto).map_err(|e| ConnectorError {
+            error_message: format!("ForeignTryFrom failed: {e}"),
+            error_code: "CONVERSION_FAILED".to_string(),
+            http_status_code: None,
+        })?;
+
+    let secrets = payload
+        .redirect_response_secrets
+        .map(|s| {
+            domain_types::connector_types::ConnectorRedirectResponseSecrets::foreign_try_from(s)
+                .map_err(|e| ConnectorError {
+                    error_message: format!("ForeignTryFrom failed: {e}"),
+                    error_code: "CONVERSION_FAILED".to_string(),
+                    http_status_code: None,
+                })
+        })
+        .transpose()?
+        .map(ConnectorSourceVerificationSecrets::RedirectResponseSecret);
+
+    let connector_data: connector_integration::types::ConnectorData<
+        domain_types::payment_method_data::DefaultPCIHolder,
+    > = connector_integration::types::ConnectorData::get_connector_by_name(&connector);
+
+    let decoded_body = connector_data
+        .connector
+        .decode_redirect_response_body(&request_details, secrets.clone())
+        .unwrap_or_else(|_| request_details.body.clone());
+
+    let updated_request_details = RequestDetails {
+        method: request_details.method,
+        uri: request_details.uri,
+        headers: request_details.headers,
+        query_params: request_details.query_params,
+        body: decoded_body,
+    };
+
+    let source_verified = connector_data
+        .connector
+        .verify_redirect_response_source(&updated_request_details, secrets)
+        .unwrap_or(false);
+
+    let redirect_details = connector_data
+        .connector
+        .process_redirect_response(&updated_request_details)
+        .map_err(|e| ConnectorError {
+            error_message: format!("{e}"),
+            error_code: "PROCESS_REDIRECT_ERROR".to_string(),
+            http_status_code: None,
+        })?;
+
+    PaymentServiceVerifyRedirectResponseResponse::foreign_try_from((
+        source_verified,
+        redirect_details,
+    ))
+    .map_err(|e| ConnectorError {
+        error_message: format!("ForeignTryFrom failed: {e}"),
+        error_code: "CONVERSION_FAILED".to_string(),
+        http_status_code: None,
+    })
 }
 
 // token_authorize

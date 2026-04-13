@@ -73,7 +73,7 @@ impl<T: PaymentMethodDataTypes>
     TryFrom<ResponseRouterData<{{CONNECTOR_NAME_PASCAL}}PaymentsResponse, RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<{{CONNECTOR_NAME_PASCAL}}PaymentsResponse, RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>>,

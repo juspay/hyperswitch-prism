@@ -1,0 +1,60 @@
+{
+  "create_session_basic": {
+    "grpc_req": {
+      "merchant_session_id": "auto_generate",
+      "amount": {
+        "minor_amount": 10000,
+        "currency": "USD"
+      },
+      "test_mode": true
+    },
+    "assert": {
+      "session_token": {
+        "must_exist": true
+      },
+      "error": {
+        "must_not_exist": true
+      }
+    },
+    "is_default": true,
+    "display_name": "Create Session Token | Create Session Basic"
+  },
+  "create_session_with_metadata": {
+    "grpc_req": {
+      "merchant_session_id": "auto_generate",
+      "amount": {
+        "minor_amount": 15000,
+        "currency": "USD"
+      },
+      "metadata": {
+        "value": "{\"session_type\":\"checkout\",\"device\":\"mobile\"}"
+      },
+      "test_mode": true
+    },
+    "assert": {
+      "session_token": {
+        "must_exist": true
+      },
+      "error": {
+        "must_not_exist": true
+      }
+    },
+    "display_name": "Create Session Token | Create Session With Metadata"
+  },
+  "create_session_fail_invalid_currency": {
+    "grpc_req": {
+      "merchant_session_id": "auto_generate",
+      "amount": {
+        "minor_amount": 10000,
+        "currency": "XXX"
+      },
+      "test_mode": true
+    },
+    "assert": {
+      "error": {
+        "must_exist": true
+      }
+    },
+    "display_name": "Create Session Token | Create Session Fail Invalid Currency"
+  }
+}

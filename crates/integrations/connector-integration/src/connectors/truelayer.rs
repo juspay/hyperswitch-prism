@@ -79,7 +79,7 @@ impl AccessTokenProvider for RefundFlowData {
 
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 
-use domain_types::errors::ConnectorResponseTransformationError;
+use domain_types::errors::ConnectorError;
 use domain_types::errors::{IntegrationError, WebhookError};
 use error_stack::ResultExt;
 
@@ -445,7 +445,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: truelayer::TruelayerErrorResponse = res
             .response
             .parse_struct("TruelayerErrorResponse")
@@ -511,7 +511,7 @@ macros::macro_connector_implementation!(
             &self,
             res: Response,
             event_builder: Option<&mut events::Event>,
-        ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
             self.build_error_response(res, event_builder)
         }
     }
@@ -553,7 +553,7 @@ macros::macro_connector_implementation!(
             &self,
             res: Response,
             event_builder: Option<&mut events::Event>,
-        ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
             let response: truelayer::TruelayerAccessTokenErrorResponse = res
                 .response
                 .parse_struct("TruelayerAccessTokenErrorResponse")
@@ -622,7 +622,7 @@ macros::macro_connector_implementation!(
             &self,
             res: Response,
             event_builder: Option<&mut events::Event>,
-        ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
             self.build_error_response(res, event_builder)
         }
     }
@@ -674,7 +674,7 @@ macros::macro_connector_implementation!(
             &self,
             res: Response,
             event_builder: Option<&mut events::Event>,
-        ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
             self.build_error_response(res, event_builder)
         }
     }
@@ -735,7 +735,7 @@ macros::macro_connector_implementation!(
             &self,
             res: Response,
             event_builder: Option<&mut events::Event>,
-        ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
             self.build_error_response(res, event_builder)
         }
     }
@@ -956,7 +956,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             VerifyWebhookSourceRequestData,
             VerifyWebhookSourceResponseData,
         >,
-        ConnectorResponseTransformationError,
+        ConnectorError,
     > {
         let response: truelayer::Jwks =
             res.response.parse_struct("truelayer Jwks").change_context(
@@ -983,7 +983,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 }

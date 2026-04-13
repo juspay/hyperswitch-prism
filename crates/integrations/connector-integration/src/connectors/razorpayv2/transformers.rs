@@ -23,7 +23,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::connectors::razorpay::transformers::ForeignTryFrom;
-use domain_types::errors::ConnectorResponseTransformationError;
+use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
 
 // ============ Authentication Types ============
@@ -491,7 +491,7 @@ impl
         Vec<u8>, // raw_response
     )> for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
-    type Error = ConnectorResponseTransformationError;
+    type Error = ConnectorError;
 
     fn foreign_try_from(
         (response, data, _status_code, _raw_response): (
@@ -534,7 +534,7 @@ impl
         Vec<u8>, // raw_response
     )> for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = ConnectorResponseTransformationError;
+    type Error = ConnectorError;
 
     fn foreign_try_from(
         (response, data, _status_code, _raw_response): (
@@ -577,7 +577,7 @@ impl
         Vec<u8>, // raw_response
     )> for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = ConnectorResponseTransformationError;
+    type Error = ConnectorError;
 
     fn foreign_try_from(
         (sync_response, data, _status_code, _raw_response): (
@@ -652,7 +652,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     )>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = ConnectorResponseTransformationError;
+    type Error = ConnectorError;
 
     fn foreign_try_from(
         (upi_response, data, _status_code, _raw_response): (
@@ -697,7 +697,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             connector_metadata: None,
             mandate_reference: None,
             network_txn_id: None,
-            connector_response_reference_id: data.resource_common_data.reference_id.clone(),
+            connector_response_reference_id: data.resource_common_data.connector_order_id.clone(),
             incremental_authorization_allowed: None,
             status_code: _status_code,
         };
@@ -722,7 +722,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     )>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = ConnectorResponseTransformationError;
+    type Error = ConnectorError;
 
     fn foreign_try_from(
         (response, data, _status_code, __raw_response): (
@@ -738,7 +738,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             connector_metadata: None,
             mandate_reference: None,
             network_txn_id: None,
-            connector_response_reference_id: data.resource_common_data.reference_id.clone(),
+            connector_response_reference_id: data.resource_common_data.connector_order_id.clone(),
             incremental_authorization_allowed: None,
             status_code: _status_code,
         };

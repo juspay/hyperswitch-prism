@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use super::PproRouterData;
 use crate::types::ResponseRouterData;
-use domain_types::errors::{ConnectorResponseTransformationError, IntegrationError, WebhookError};
+use domain_types::errors::{ConnectorError, IntegrationError, WebhookError};
 use domain_types::{
     connector_flow::{Capture, Refund, RepeatPayment, SetupMandate, Void},
     connector_types::{
@@ -602,7 +602,7 @@ pub enum PproWebhookData {
 impl<F, Req> TryFrom<ResponseRouterData<PproPaymentsResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, Req, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<PproPaymentsResponse, Self>) -> Result<Self, Self::Error> {
         let status = common_enums::AttemptStatus::from(item.response.status);
 
@@ -717,7 +717,7 @@ impl<F, Req> TryFrom<ResponseRouterData<PproPaymentsResponse, Self>>
 impl<F, Req, T> TryFrom<ResponseRouterData<PproRefundResponse, Self>>
     for RouterDataV2<F, Req, T, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<PproRefundResponse, Self>) -> Result<Self, Self::Error> {
         let refund_status = match item.response.status {
             PproRefundStatus::RefundSettled | PproRefundStatus::Refunded => {
@@ -1112,7 +1112,7 @@ pub fn get_ppro_bank_code(bank_name: common_enums::BankNames) -> Option<String> 
 impl<F, Req> TryFrom<ResponseRouterData<PproAgreementResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, Req, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<PproAgreementResponse, Self>,
     ) -> Result<Self, Self::Error> {

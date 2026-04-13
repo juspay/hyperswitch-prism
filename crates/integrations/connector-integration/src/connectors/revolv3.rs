@@ -5,7 +5,7 @@ use std::fmt::Debug;
 use crate::{types::ResponseRouterData, with_error_response_body};
 use common_enums::CurrencyUnit;
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt, types::FloatMajorUnit};
-use domain_types::errors::ConnectorResponseTransformationError;
+use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
 use domain_types::{
     connector_flow,
@@ -75,7 +75,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: revolv3::Revolv3ErrorResponse = res
             .response
             .parse_struct("Revolv3ErrorResponse")

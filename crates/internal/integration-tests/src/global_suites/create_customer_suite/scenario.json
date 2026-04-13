@@ -1,0 +1,99 @@
+{
+  "create_customer": {
+    "grpc_req": {
+      "merchant_customer_id": "cust_auto_generate",
+      "customer_name": "auto_generate",
+      "email": {
+        "value": "auto_generate"
+      },
+      "phone_number": "auto_generate",
+      "address": {
+        "shipping_address": {
+          "first_name": {
+            "value": "auto_generate"
+          },
+          "last_name": {
+            "value": "auto_generate"
+          },
+          "line1": {
+            "value": "auto_generate"
+          },
+          "line2": {
+            "value": "auto_generate"
+          },
+          "line3": {
+            "value": "auto_generate"
+          },
+          "city": {
+            "value": "auto_generate"
+          },
+          "state": {
+            "value": "CA"
+          },
+          "zip_code": {
+            "value": "auto_generate"
+          },
+          "country_alpha2_code": "US",
+          "email": {
+            "value": "auto_generate"
+          },
+          "phone_number": {
+            "value": "auto_generate"
+          },
+          "phone_country_code": "+91"
+        },
+        "billing_address": {
+          "first_name": {
+            "value": "auto_generate"
+          },
+          "last_name": {
+            "value": "auto_generate"
+          },
+          "line1": {
+            "value": "auto_generate"
+          },
+          "line2": {
+            "value": "auto_generate"
+          },
+          "line3": {
+            "value": "auto_generate"
+          },
+          "city": {
+            "value": "auto_generate"
+          },
+          "state": {
+            "value": "CA"
+          },
+          "zip_code": {
+            "value": "auto_generate"
+          },
+          "country_alpha2_code": "US",
+          "email": {
+            "value": "auto_generate"
+          },
+          "phone_number": {
+            "value": "auto_generate"
+          },
+          "phone_country_code": "+91"
+        }
+      },
+      "test_mode": true
+    },
+    "assert": {
+      "connector_customer_id": {
+        "must_exist": true
+      },
+      "error": {
+        "must_not_exist": true
+      },
+      "status_code": {
+        "one_of": [
+          200,
+          201
+        ]
+      }
+    },
+    "is_default": true,
+    "display_name": "Create Customer"
+  }
+}

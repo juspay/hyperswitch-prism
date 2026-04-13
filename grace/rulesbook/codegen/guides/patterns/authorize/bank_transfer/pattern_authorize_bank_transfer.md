@@ -558,11 +558,11 @@ impl ConnectorIntegration<Authorize, PaymentFlowData, PaymentsAuthorizeData, Pay
         data: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData>,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData>, ConnectorResponseTransformationError> {
+    ) -> CustomResult<RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData>, ConnectorError> {
         let response: MyConnectorPaymentsResponse = res
             .response
             .parse_struct("MyConnectorPaymentsResponse")
-            .change_context(ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })?;
+            .change_context(ConnectorError::ResponseDeserializationFailed { context: Default::default() })?;
 
         event_builder.map(|i| i.set_response_body(&response));
         RouterDataV2::try_from(ResponseRouterData {
@@ -666,11 +666,11 @@ impl ConnectorIntegration<Authorize, PaymentFlowData, PaymentsAuthorizeData, Pay
         data: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData>,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData>, ConnectorResponseTransformationError> {
+    ) -> CustomResult<RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData>, ConnectorError> {
         let response: MyConnectorPaymentsResponse = res
             .response
             .parse_struct("MyConnectorPaymentsResponse")
-            .change_context(ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })?;
+            .change_context(ConnectorError::ResponseDeserializationFailed { context: Default::default() })?;
 
         event_builder.map(|i| i.set_response_body(&response));
 
@@ -685,11 +685,11 @@ impl ConnectorIntegration<Authorize, PaymentFlowData, PaymentsAuthorizeData, Pay
         &self,
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: MyConnectorErrorResponse = res
             .response
             .parse_struct("MyConnectorErrorResponse")
-            .change_context(ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })?;
+            .change_context(ConnectorError::ResponseDeserializationFailed { context: Default::default() })?;
 
         event_builder.map(|i| i.set_error_response_body(&response));
 
@@ -883,11 +883,11 @@ impl ConnectorIntegration<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResp
         data: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>, ConnectorResponseTransformationError> {
+    ) -> CustomResult<RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>, ConnectorError> {
         let response: MyConnectorSyncResponse = res
             .response
             .parse_struct("MyConnectorSyncResponse")
-            .change_context(ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })?;
+            .change_context(ConnectorError::ResponseDeserializationFailed { context: Default::default() })?;
 
         event_builder.map(|i| i.set_response_body(&response));
 

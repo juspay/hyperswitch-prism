@@ -716,7 +716,7 @@ pub enum {ConnectorName}PaymentMethod<T: PaymentMethodDataTypes + ...> {
 
 ```rust
 impl<T: PaymentMethodDataTypes + ...> TryFrom<...> for RouterDataV2<Authorize, ...> {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<...>) -> Result<Self, Self::Error> {
         let response = item.response;

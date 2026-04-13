@@ -41,7 +41,7 @@ use common_utils::{
 };
 
 use crate::{types::ResponseRouterData, with_error_response_body};
-use domain_types::errors::ConnectorResponseTransformationError;
+use domain_types::errors::ConnectorError;
 use domain_types::errors::{IntegrationError, WebhookError};
 use error_stack::{report, ResultExt};
 use hyperswitch_masking::{Maskable, PeekInterface};
@@ -588,7 +588,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: revolut::RevolutErrorResponse = res
             .response
             .parse_struct("RevolutErrorResponse")
@@ -792,7 +792,7 @@ macros::macro_connector_implementation!(
 
             headers.push((
                 "Revolut-Api-Version".to_string(),
-                "2025-10-16".to_string().into(),
+                "2024-09-01".to_string().into(),
             ));
             Ok(headers)
         }

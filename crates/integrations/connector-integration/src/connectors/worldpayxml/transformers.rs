@@ -22,7 +22,7 @@ use super::{
     WorldpayxmlRouterData,
 };
 use crate::types::ResponseRouterData;
-use domain_types::errors::ConnectorResponseTransformationError;
+use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
 
 const API_VERSION: &str = "1.4";
@@ -558,10 +558,10 @@ fn map_worldpayxml_refund_status(last_event: &WorldpayxmlLastEvent) -> RefundSta
 fn parse_last_event(
     event_str: &str,
     http_code: u16,
-) -> Result<WorldpayxmlLastEvent, Report<ConnectorResponseTransformationError>> {
+) -> Result<WorldpayxmlLastEvent, Report<ConnectorError>> {
     serde_json::from_str(&format!("\"{}\"", event_str)).map_err(|_| {
         Report::new(
-            ConnectorResponseTransformationError::response_deserialization_failed_with_context(
+            ConnectorError::response_deserialization_failed_with_context(
                 http_code,
                 Some("invalid last_event".to_string()),
             ),
@@ -574,7 +574,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<ResponseRouterData<responses::WorldpayxmlAuthorizeResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = Report<ConnectorResponseTransformationError>;
+    type Error = Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<responses::WorldpayxmlAuthorizeResponse, Self>,
@@ -677,7 +677,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl TryFrom<ResponseRouterData<responses::WorldpayxmlCaptureResponse, Self>>
     for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
-    type Error = Report<ConnectorResponseTransformationError>;
+    type Error = Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<responses::WorldpayxmlCaptureResponse, Self>,
@@ -744,7 +744,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlCaptureResponse, Self>>
 impl TryFrom<ResponseRouterData<responses::WorldpayxmlVoidResponse, Self>>
     for RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
 {
-    type Error = Report<ConnectorResponseTransformationError>;
+    type Error = Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<responses::WorldpayxmlVoidResponse, Self>,
@@ -811,7 +811,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlVoidResponse, Self>>
 impl TryFrom<ResponseRouterData<responses::WorldpayxmlTransactionResponse, Self>>
     for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = Report<ConnectorResponseTransformationError>;
+    type Error = Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<responses::WorldpayxmlTransactionResponse, Self>,
@@ -1007,7 +1007,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlTransactionResponse, Self>
 impl TryFrom<ResponseRouterData<responses::WorldpayxmlRefundResponse, Self>>
     for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = Report<ConnectorResponseTransformationError>;
+    type Error = Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<responses::WorldpayxmlRefundResponse, Self>,
@@ -1061,7 +1061,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlRefundResponse, Self>>
 impl TryFrom<ResponseRouterData<responses::WorldpayxmlRsyncResponse, Self>>
     for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
-    type Error = Report<ConnectorResponseTransformationError>;
+    type Error = Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<responses::WorldpayxmlRsyncResponse, Self>,

@@ -158,8 +158,8 @@ use domain_types::errors::IntegrationError;
 // Common variants:
 IntegrationError::FailedToObtainIntegrationUrl
 IntegrationError::RequestEncodingFailed
-ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() }
-ConnectorResponseTransformationError::ResponseHandlingFailed
+ConnectorError::ResponseDeserializationFailed { context: Default::default() }
+ConnectorError::ResponseHandlingFailed
 IntegrationError::FailedToObtainAuthType { context: Default::default() }
 IntegrationError::MissingRequiredField { field_name: &'static str , context: Default::default() }
 IntegrationError::NotImplemented("description".to_string(, Default::default()))

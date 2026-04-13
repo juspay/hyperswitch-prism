@@ -28,7 +28,7 @@ use grpc_api_types::payments::{
 };
 use interfaces::connector_integration_v2::BoxedConnectorIntegrationV2;
 use tracing::info;
-use ucs_env::error::{IntoGrpcStatus, ReportSwitchExt, ResultExtGrpc};
+use ucs_env::error::{IntoGrpcStatus, ResultExtGrpc};
 
 // Helper trait for dispute operations
 trait DisputeOperationsInternal {
@@ -174,8 +174,7 @@ impl DisputeService for Disputes {
                         ),
                     )
                     .await
-                    .switch()
-                    .map_err(|e| e.into_grpc_status())?;
+                    .into_grpc_status()?;
 
                     let dispute_response = generate_submit_evidence_response(response)
                         .map_err(|e| e.into_grpc_status())?;
@@ -393,8 +392,7 @@ impl DisputeService for Disputes {
                         ),
                     )
                     .await
-                    .switch()
-                    .map_err(|e| e.into_grpc_status())?;
+                    .into_grpc_status()?;
 
                     let dispute_response = generate_accept_dispute_response(response)
                         .map_err(|e| e.into_grpc_status())?;

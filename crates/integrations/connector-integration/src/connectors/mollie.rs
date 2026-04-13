@@ -55,7 +55,7 @@ pub(crate) mod headers {
 }
 
 use super::macros;
-use domain_types::errors::ConnectorResponseTransformationError;
+use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
 
 macros::create_all_prerequisites!(
@@ -742,7 +742,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: mollie::MollieErrorResponse = res
             .response
             .parse_struct("MollieErrorResponse")

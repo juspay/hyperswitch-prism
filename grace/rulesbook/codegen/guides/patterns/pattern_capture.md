@@ -634,7 +634,7 @@ impl TryFrom<{ConnectorName}RouterData<RouterDataV2<Capture, PaymentFlowData, Pa
 impl TryFrom<ResponseRouterData<{ConnectorName}CaptureResponse, RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>>>
     for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<{ConnectorName}CaptureResponse, RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>>,
@@ -751,7 +751,7 @@ Some connectors return minimal capture responses with only ID and timestamp. In 
 impl TryFrom<ResponseRouterData<{ConnectorName}CaptureResponse, RouterDataV2<Capture, ...>>>
     for RouterDataV2<Capture, ...>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<...>) -> Result<Self, Self::Error> {
         let response = &item.response;
@@ -2159,7 +2159,7 @@ Handle different response structures based on the configuration used for the req
 impl TryFrom<ResponseRouterData<Value, RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>>> 
     for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData> 
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     
     fn try_from(
         item: ResponseRouterData<Value, RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>>
@@ -2206,7 +2206,7 @@ impl TryFrom<ResponseRouterData<Value, RouterDataV2<Capture, PaymentFlowData, Pa
 fn parse_settlement_response(response: &Value) -> Result<(AttemptStatus, String, Option<String>), IntegrationError> {
     let outcome = response.get("outcome")
         .and_then(|v| v.as_str())
-        .ok_or(ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })?;
+        .ok_or(ConnectorError::ResponseDeserializationFailed { context: Default::default() })?;
     
     let status = match outcome {
         "sentForSettlement" => AttemptStatus::Charged,
@@ -2230,7 +2230,7 @@ fn parse_settlement_response(response: &Value) -> Result<(AttemptStatus, String,
 fn parse_partial_settlement_response(response: &Value) -> Result<(AttemptStatus, String, Option<String>), IntegrationError> {
     let outcome = response.get("outcome")
         .and_then(|v| v.as_str())
-        .ok_or(ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })?;
+        .ok_or(ConnectorError::ResponseDeserializationFailed { context: Default::default() })?;
     
     let status = match outcome {
         "sentForSettlement" => AttemptStatus::PartialCharged,
@@ -2251,7 +2251,7 @@ fn parse_partial_settlement_response(response: &Value) -> Result<(AttemptStatus,
 fn parse_immediate_capture_response(response: &Value) -> Result<(AttemptStatus, String, Option<String>), IntegrationError> {
     let status_str = response.get("status")
         .and_then(|v| v.as_str())
-        .ok_or(ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })?;
+        .ok_or(ConnectorError::ResponseDeserializationFailed { context: Default::default() })?;
     
     let status = match status_str {
         "captured" | "success" => AttemptStatus::Charged,
@@ -2274,7 +2274,7 @@ fn parse_immediate_capture_response(response: &Value) -> Result<(AttemptStatus, 
 fn parse_batch_capture_response(response: &Value) -> Result<(AttemptStatus, String, Option<String>), IntegrationError> {
     let batch_status = response.get("batchStatus")
         .and_then(|v| v.as_str())
-        .ok_or(ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })?;
+        .ok_or(ConnectorError::ResponseDeserializationFailed { context: Default::default() })?;
     
     let status = match batch_status {
         "processed" => AttemptStatus::Charged,

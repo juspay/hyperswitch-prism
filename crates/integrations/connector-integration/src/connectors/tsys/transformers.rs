@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 use crate::types::ResponseRouterData;
 
 use super::TsysRouterData;
-use domain_types::errors::{ConnectorResponseTransformationError, IntegrationError};
+use domain_types::errors::{ConnectorError, IntegrationError};
 
 // ============================================================================
 // Card Data Source Enum
@@ -380,7 +380,7 @@ fn get_payments_response(connector_response: TsysResponse, http_code: u16) -> Pa
 impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<TsysAuthorizeResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<TsysAuthorizeResponse, Self>,
@@ -467,7 +467,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<TsysAuthorizeResponse
 impl TryFrom<ResponseRouterData<TsysCaptureResponse, Self>>
     for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<TsysCaptureResponse, Self>) -> Result<Self, Self::Error> {
         let TsysCaptureResponse(response_data) = item.response;
@@ -526,7 +526,7 @@ impl TryFrom<ResponseRouterData<TsysCaptureResponse, Self>>
 impl TryFrom<ResponseRouterData<TsysVoidResponse, Self>>
     for RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<TsysVoidResponse, Self>) -> Result<Self, Self::Error> {
         let TsysVoidResponse(response_data) = item.response;
@@ -725,7 +725,7 @@ fn get_payments_sync_response(
 impl TryFrom<ResponseRouterData<TsysPSyncResponse, Self>>
     for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<TsysPSyncResponse, Self>) -> Result<Self, Self::Error> {
         let TsysPSyncResponse(TsysSyncResponse {
@@ -959,7 +959,7 @@ pub struct RefundResponse {
 impl TryFrom<ResponseRouterData<RefundResponse, Self>>
     for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<RefundResponse, Self>) -> Result<Self, Self::Error> {
         let response = match item.response.return_response {
@@ -1023,7 +1023,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl TryFrom<ResponseRouterData<TsysRSyncResponse, Self>>
     for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<TsysRSyncResponse, Self>) -> Result<Self, Self::Error> {
         let TsysRSyncResponse(TsysSyncResponse {

@@ -53,8 +53,7 @@ pub type NmiPreAuthenticateResponse = NmiVaultResponse;
 
 use super::macros;
 use crate::{
-    types::ResponseRouterData, with_error_response_body, ConnectorResponseTransformationError,
-    IntegrationError,
+    types::ResponseRouterData, with_error_response_body, ConnectorError, IntegrationError,
 };
 
 pub(crate) mod headers {
@@ -343,7 +342,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         // Parse URL-encoded error response
         let response: StandardResponse = serde_urlencoded::from_bytes(&res.response)
             .change_context(

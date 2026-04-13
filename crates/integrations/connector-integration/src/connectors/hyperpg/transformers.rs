@@ -1,7 +1,7 @@
 use crate::{connectors::hyperpg::HyperpgRouterData, types::ResponseRouterData};
 use common_enums::{AttemptStatus, RefundStatus};
 use common_utils::{request::Method, AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector};
-use domain_types::errors::{ConnectorResponseTransformationError, IntegrationError};
+use domain_types::errors::{ConnectorError, IntegrationError};
 use domain_types::router_response_types::RedirectForm;
 use domain_types::{
     connector_flow::{Authorize, PSync, RSync, Refund},
@@ -377,7 +377,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<ResponseRouterData<HyperpgAuthorizeResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<HyperpgAuthorizeResponse, Self>,
@@ -424,7 +424,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
 impl TryFrom<ResponseRouterData<HyperpgSyncResponse, Self>>
     for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<HyperpgSyncResponse, Self>) -> Result<Self, Self::Error> {
         let response = &item.response;
@@ -455,7 +455,7 @@ impl TryFrom<ResponseRouterData<HyperpgSyncResponse, Self>>
 impl TryFrom<ResponseRouterData<HyperpgRefundResponse, Self>>
     for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<HyperpgRefundResponse, Self>,
@@ -484,7 +484,7 @@ impl TryFrom<ResponseRouterData<HyperpgRefundResponse, Self>>
 impl TryFrom<ResponseRouterData<HyperpgRefundSyncResponse, Self>>
     for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<HyperpgRefundSyncResponse, Self>,

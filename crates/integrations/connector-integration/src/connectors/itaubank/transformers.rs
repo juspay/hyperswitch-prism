@@ -1,7 +1,7 @@
 use domain_types::{
     connector_flow::*,
     connector_types::*,
-    errors::{ConnectorResponseTransformationError, IntegrationError},
+    errors::{ConnectorError, IntegrationError},
     payouts::payout_method_data::{Bank, PayoutMethodData, PixBankTransfer},
     payouts::payouts_types::*,
     router_data::ConnectorSpecificConfig,
@@ -278,16 +278,14 @@ impl ItaubankTransferResponse {
 impl TryFrom<ResponseRouterData<ItaubankErrorResponse, Self>>
     for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         _item: ResponseRouterData<ItaubankErrorResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        Err(
-            ConnectorResponseTransformationError::ResponseHandlingFailed {
-                context: Default::default(),
-            }
-            .into(),
-        )
+        Err(ConnectorError::ResponseHandlingFailed {
+            context: Default::default(),
+        }
+        .into())
     }
 }

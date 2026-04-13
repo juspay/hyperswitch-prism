@@ -42,13 +42,14 @@ use interfaces::{
 use serde::Serialize;
 use transformers::{
     self as bluesnap, BluesnapAuthorizeRequest, BluesnapAuthorizeResponse, BluesnapCaptureRequest,
-    BluesnapCaptureResponse, BluesnapPSyncResponse, BluesnapRefundRequest, BluesnapRefundResponse,
+    BluesnapCaptureResponse, BluesnapClientAuthRequest, BluesnapClientAuthResponse,
+    BluesnapPSyncResponse, BluesnapRefundRequest, BluesnapRefundResponse,
     BluesnapRefundSyncResponse, BluesnapVoidRequest, BluesnapVoidResponse,
 };
 
 use super::macros;
 use crate::{types::ResponseRouterData, with_error_response_body};
-use domain_types::errors::ConnectorResponseTransformationError;
+use domain_types::errors::ConnectorError;
 use domain_types::errors::{IntegrationError, WebhookError};
 
 pub(crate) mod headers {
@@ -427,6 +428,12 @@ macros::create_all_prerequisites!(
             request_body: BluesnapVoidRequest,
             response_body: BluesnapVoidResponse,
             router_data: RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+        ),
+        (
+            flow: ClientAuthenticationToken,
+            request_body: BluesnapClientAuthRequest,
+            response_body: BluesnapClientAuthResponse,
+            router_data: RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
         )
     ],
     amount_converters: [],
@@ -674,6 +681,135 @@ macros::macro_connector_implementation!(
     }
 );
 
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    ConnectorIntegrationV2<
+        ClientAuthenticationToken,
+        PaymentFlowData,
+        ClientAuthenticationTokenRequestData,
+        PaymentsResponseData,
+    > for Bluesnap<T>
+{
+    fn get_http_method(&self) -> common_utils::request::Method {
+        common_utils::request::Method::Post
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_headers(
+        &self,
+        req: &RouterDataV2<
+            ClientAuthenticationToken,
+            PaymentFlowData,
+            ClientAuthenticationTokenRequestData,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+        self.build_headers(req)
+    }
+
+    fn get_url(
+        &self,
+        req: &RouterDataV2<
+            ClientAuthenticationToken,
+            PaymentFlowData,
+            ClientAuthenticationTokenRequestData,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        let base_url = self.connector_base_url_payments(req);
+        Ok(format!("{}/services/2/payment-fields-tokens", base_url))
+    }
+
+    fn handle_response_v2(
+        &self,
+        data: &RouterDataV2<
+            ClientAuthenticationToken,
+            PaymentFlowData,
+            ClientAuthenticationTokenRequestData,
+            PaymentsResponseData,
+        >,
+        _event_builder: Option<&mut events::Event>,
+        res: Response,
+    ) -> CustomResult<
+        RouterDataV2<
+            ClientAuthenticationToken,
+            PaymentFlowData,
+            ClientAuthenticationTokenRequestData,
+            PaymentsResponseData,
+        >,
+        ConnectorError,
+    > {
+        // Bluesnap returns the pfToken in the Location header, not in the body.
+        // Location header format: https://sandbox.bluesnap.com/services/2/payment-fields-tokens/<pfToken>
+        let location = res
+            .headers
+            .as_ref()
+            .and_then(|h| h.get("location"))
+            .and_then(|v| v.to_str().ok())
+            .ok_or(ConnectorError::ResponseDeserializationFailed {
+                context: domain_types::errors::ResponseTransformationErrorContext {
+                    http_status_code: Some(res.status_code),
+                    additional_context: Some(
+                        "Bluesnap POST /services/2/payment-fields-tokens did not return a \
+                         Location header containing the pfToken URL."
+                            .to_owned(),
+                    ),
+                },
+            })?;
+
+        let pf_token =
+            location
+                .rsplit('/')
+                .next()
+                .ok_or(ConnectorError::ResponseDeserializationFailed {
+                    context: domain_types::errors::ResponseTransformationErrorContext {
+                        http_status_code: Some(res.status_code),
+                        additional_context: Some(format!(
+                            "Failed to extract pfToken from Bluesnap Location header: \
+                             expected URL ending with '/<pfToken>', got '{location}'."
+                        )),
+                    },
+                })?;
+
+        let response = BluesnapClientAuthResponse {
+            pf_token: Some(hyperswitch_masking::Secret::new(pf_token.to_string())),
+        };
+
+        let response_router_data = ResponseRouterData {
+            response,
+            router_data: data.clone(),
+            http_code: res.status_code,
+        };
+
+        RouterDataV2::<
+            ClientAuthenticationToken,
+            PaymentFlowData,
+            ClientAuthenticationTokenRequestData,
+            PaymentsResponseData,
+        >::try_from(response_router_data)
+        .change_context(ConnectorError::ResponseHandlingFailed {
+            context: domain_types::errors::ResponseTransformationErrorContext {
+                http_status_code: Some(res.status_code),
+                additional_context: Some(
+                    "Failed to convert Bluesnap ClientAuthenticationToken response \
+                     into RouterDataV2."
+                        .to_owned(),
+                ),
+            },
+        })
+    }
+
+    fn get_error_response_v2(
+        &self,
+        res: Response,
+        event_builder: Option<&mut events::Event>,
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
 // ===== STUB IMPLEMENTATIONS FOR UNSUPPORTED FLOWS =====
 
 // Payment Void Post Capture
@@ -737,16 +873,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentFlowData,
         ServerSessionAuthenticationTokenRequestData,
         ServerSessionAuthenticationTokenResponseData,
-    > for Bluesnap<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        ClientAuthenticationToken,
-        PaymentFlowData,
-        ClientAuthenticationTokenRequestData,
-        PaymentsResponseData,
     > for Bluesnap<T>
 {
 }
@@ -885,7 +1011,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: bluesnap::BluesnapErrorResponse = res
             .response
             .parse_struct("BluesnapErrorResponse")

@@ -25,6 +25,20 @@ pub struct RedsysPaymentRequest {
     pub ds_merchant_pan: cards::CardNumber,
     pub ds_merchant_terminal: Secret<String>,
     pub ds_merchant_transactiontype: RedsysTransactionType,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ds_merchant_excep_sca: Option<RedsysStrongCustomerAuthenticationException>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ds_merchant_directpayment: Option<bool>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum RedsysStrongCustomerAuthenticationException {
+    Lwv,
+    Tra,
+    Cor,
+    Mit,
+    Atd,
 }
 
 #[derive(Debug)]

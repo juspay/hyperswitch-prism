@@ -12,7 +12,7 @@ use domain_types::{
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
         ResponseId, SetupMandateRequestData,
     },
-    errors::{ConnectorResponseTransformationError, IntegrationError},
+    errors::{ConnectorError, IntegrationError},
     payment_method_data::{
         BankDebitData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData,
     },
@@ -1581,7 +1581,7 @@ pub struct Balances {
 fn get_connector_meta(
     capture_method: common_enums::CaptureMethod,
     http_status: u16,
-) -> CustomResult<serde_json::Value, ConnectorResponseTransformationError> {
+) -> CustomResult<serde_json::Value, ConnectorError> {
     match capture_method {
         common_enums::CaptureMethod::Automatic
         | common_enums::CaptureMethod::SequentialAutomatic => Ok(serde_json::json!(CheckoutMeta {
@@ -1602,7 +1602,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     TryFrom<ResponseRouterData<PaymentsResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<PaymentsResponse, Self>) -> Result<Self, Self::Error> {
         let status = get_attempt_status_cap((
             item.response.status,
@@ -1715,7 +1715,7 @@ impl<
     > TryFrom<ResponseRouterData<PaymentsResponse, Self>>
     for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<PaymentsResponse, Self>) -> Result<Self, Self::Error> {
         let status = get_attempt_status_cap((
             item.response.status,
@@ -1836,7 +1836,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         PaymentsResponseData,
     >
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<PaymentsResponse, Self>) -> Result<Self, Self::Error> {
         let connector_meta = get_connector_meta(
             item.router_data.request.capture_method.unwrap_or_default(),
@@ -1922,7 +1922,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl<F> TryFrom<ResponseRouterData<PaymentsResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<PaymentsResponse, Self>) -> Result<Self, Self::Error> {
         let redirection_data = item
             .response
@@ -1946,13 +1946,11 @@ impl<F> TryFrom<ResponseRouterData<PaymentsResponse, Self>>
                 );
             }
             None => {
-                return Err(
-                    ConnectorResponseTransformationError::response_handling_failed_with_context(
-                        item.http_code,
-                        Some("Checkout PSync: capture_method absent on payment intent".to_string()),
-                    )
-                    .into(),
-                );
+                return Err(ConnectorError::response_handling_failed_with_context(
+                    item.http_code,
+                    Some("Checkout PSync: capture_method absent on payment intent".to_string()),
+                )
+                .into());
             }
         };
 
@@ -2025,7 +2023,7 @@ impl<F> TryFrom<ResponseRouterData<PaymentsResponse, Self>>
 impl<F> TryFrom<ResponseRouterData<PaymentsResponseEnum, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<PaymentsResponseEnum, Self>) -> Result<Self, Self::Error> {
         let capture_sync_response_list = match item.response {
             PaymentsResponseEnum::PaymentResponse(payments_response) => {
@@ -2068,7 +2066,7 @@ fn http_code_to_attempt_status_for_void_flow(http_code: u16) -> common_enums::At
 impl<F> TryFrom<ResponseRouterData<PaymentVoidResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<PaymentVoidResponse, Self>) -> Result<Self, Self::Error> {
         let response = &item.response;
@@ -2175,7 +2173,7 @@ pub struct PaymentCaptureResponse {
 impl<F> TryFrom<ResponseRouterData<PaymentCaptureResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<PaymentCaptureResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -2272,7 +2270,7 @@ fn http_code_to_refund_status(http_code: u16) -> common_enums::RefundStatus {
 impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
     for RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<RefundResponse, Self>) -> Result<Self, Self::Error> {
         let refund_status = http_code_to_refund_status(item.http_code);
         Ok(Self {
@@ -2392,7 +2390,7 @@ pub type RSyncResponse = Vec<ActionResponse>;
 impl<F> TryFrom<ResponseRouterData<RSyncResponse, Self>>
     for RouterDataV2<F, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<RSyncResponse, Self>) -> Result<Self, Self::Error> {
         let refund_action_id = item.router_data.request.connector_refund_id.clone();
         let action_response = item

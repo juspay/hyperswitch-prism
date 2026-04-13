@@ -51,8 +51,7 @@ use self::transformers::{
 };
 use super::macros;
 use crate::{types::ResponseRouterData, with_response_body};
-use domain_types::errors::ConnectorResponseTransformationError;
-use domain_types::errors::IntegrationError;
+use domain_types::errors::{ConnectorError, IntegrationError};
 
 // Trait implementations with generic type parameters
 
@@ -497,7 +496,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         &self,
         res: Response,
         _event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         // Parse PhonePe error response (unified for both sync and payments)
         let (error_message, error_code, attempt_status) = if let Ok(error_response) =
             res.response
@@ -795,13 +794,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             TriggerOtpForWalletData,
             TriggerOtpForWalletResponseData,
         >,
-        ConnectorResponseTransformationError,
+        ConnectorError,
     > {
         let response: PhonepeTriggerOtpResponse = res
             .response
             .parse_struct("PhonepeTriggerOtpResponse")
             .change_context(
-                ConnectorResponseTransformationError::ResponseDeserializationFailed {
+                ConnectorError::ResponseDeserializationFailed {
                     context: Default::default(),
                 },
             )?;
@@ -814,7 +813,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             http_code: res.status_code,
         })
         .change_context(
-            ConnectorResponseTransformationError::ResponseHandlingFailed {
+            ConnectorError::ResponseHandlingFailed {
                 context: Default::default(),
             },
         )?;
@@ -826,7 +825,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 }
@@ -916,13 +915,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             VerifyOtpForWalletData,
             VerifyOtpForWalletResponseData,
         >,
-        ConnectorResponseTransformationError,
+        ConnectorError,
     > {
         let response: PhonepeVerifyOtpResponse = res
             .response
             .parse_struct("PhonepeVerifyOtpResponse")
             .change_context(
-                ConnectorResponseTransformationError::ResponseDeserializationFailed {
+                ConnectorError::ResponseDeserializationFailed {
                     context: Default::default(),
                 },
             )?;
@@ -935,7 +934,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             http_code: res.status_code,
         })
         .change_context(
-            ConnectorResponseTransformationError::ResponseHandlingFailed {
+            ConnectorError::ResponseHandlingFailed {
                 context: Default::default(),
             },
         )?;
@@ -947,7 +946,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 }

@@ -89,6 +89,10 @@ class PaymentClient(_ConnectorClientBase):
         """PaymentService.Get — Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking."""
         return self._execute_flow("get", request, _pb2.PaymentServiceGetResponse, options)
 
+    def incremental_authorization(self, request, options=None):
+        """PaymentService.IncrementalAuthorization — Increase the authorized amount for an existing payment. Enables you to capture additional funds when the transaction amount changes after initial authorization."""
+        return self._execute_flow("incremental_authorization", request, _pb2.PaymentServiceIncrementalAuthorizationResponse, options)
+
     def proxy_authorize(self, request, options=None):
         """PaymentService.ProxyAuthorize — Authorize using vault-aliased card data. Proxy substitutes before connector."""
         return self._execute_flow("proxy_authorize", request, _pb2.PaymentServiceAuthorizeResponse, options)
@@ -120,6 +124,10 @@ class PaymentClient(_ConnectorClientBase):
     def void(self, request, options=None):
         """PaymentService.Void — Cancel an authorized payment that has not been captured. Releases held funds back to the customer's payment method when a transaction cannot be completed."""
         return self._execute_flow("void", request, _pb2.PaymentServiceVoidResponse, options)
+
+    def verify_redirect_response(self, request, options=None):
+        """PaymentService.VerifyRedirectResponse — Verify and process redirect responses from 3D Secure or other external flows. Validates authentication results and updates payment state accordingly."""
+        return self._execute_direct("verify_redirect_response", request, _pb2.PaymentServiceVerifyRedirectResponseResponse, options)
 
 class PayoutClient(_ConnectorClientBase):
     """PayoutService flows"""
@@ -162,3 +170,14 @@ class RecurringPaymentClient(_ConnectorClientBase):
     def charge(self, request, options=None):
         """RecurringPaymentService.Charge — Charge using an existing stored recurring payment instruction. Processes repeat payments for subscriptions or recurring billing without collecting payment details."""
         return self._execute_flow("charge", request, _pb2.RecurringPaymentServiceChargeResponse, options)
+
+    def recurring_revoke(self, request, options=None):
+        """RecurringPaymentService.Revoke — Cancel an existing recurring payment mandate. Stops future automatic charges on customer's stored consent for subscription cancellations."""
+        return self._execute_flow("recurring_revoke", request, _pb2.RecurringPaymentServiceRevokeResponse, options)
+
+class RefundClient(_ConnectorClientBase):
+    """RefundService flows"""
+
+    def refund_get(self, request, options=None):
+        """RefundService.Get — Retrieve refund status from the payment processor. Tracks refund progress through processor settlement for accurate customer communication."""
+        return self._execute_flow("refund_get", request, _pb2.RefundResponse, options)

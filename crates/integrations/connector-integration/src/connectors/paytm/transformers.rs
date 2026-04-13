@@ -17,7 +17,7 @@ use domain_types::{
         PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData, ResponseId,
         ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
     },
-    errors::{ConnectorResponseTransformationError, IntegrationError},
+    errors::{ConnectorError, IntegrationError},
     payment_method_data::{PaymentMethodData, UpiData},
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
@@ -353,7 +353,7 @@ impl TryFrom<ResponseRouterData<PaytmInitiateTxnResponse, Self>>
         ServerSessionAuthenticationTokenResponseData,
     >
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<PaytmInitiateTxnResponse, Self>,
@@ -536,7 +536,7 @@ impl<
     > TryFrom<ResponseRouterData<PaytmProcessTxnResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<PaytmProcessTxnResponse, Self>,
@@ -716,7 +716,7 @@ impl<
 impl TryFrom<ResponseRouterData<PaytmTransactionStatusResponse, Self>>
     for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<PaytmTransactionStatusResponse, Self>,

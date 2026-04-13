@@ -422,12 +422,12 @@ fn build_threeds_form(
     let creq = ds_emv3ds
         .creq
         .clone()
-        .ok_or(errors::ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })?;
+        .ok_or(errors::ConnectorError::ResponseDeserializationFailed { context: Default::default() })?;
 
     let endpoint = ds_emv3ds
         .acs_u_r_l
         .clone()
-        .ok_or(errors::ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })?;
+        .ok_or(errors::ConnectorError::ResponseDeserializationFailed { context: Default::default() })?;
 
     let mut form_fields = std::collections::HashMap::new();
     form_fields.insert("creq".to_string(), creq);
@@ -611,7 +611,7 @@ fn map_connector_status(
         "pending" | "PENDING" => Ok(AttemptStatus::Pending),
         "declined" | "failure" => Ok(AttemptStatus::Failure),
         "requires_action" => Ok(AttemptStatus::AuthenticationPending),
-        _ => Err(ConnectorResponseTransformationError::ResponseHandlingFailed),
+        _ => Err(ConnectorError::ResponseHandlingFailed),
     }
 }
 ```
@@ -623,7 +623,7 @@ fn map_connector_status(
 impl TryFrom<ResponseRouterData<ConnectorAuthorizeResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<ConnectorAuthorizeResponse, Self>) -> Result<Self, Self::Error> {
         let response = item.response;
@@ -805,7 +805,7 @@ impl<T: PaymentMethodDataTypes> ConnectorIntegrationV2<
         data: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         event_builder: Option<&mut events::Event>,
         res: Response,
-    ) -> CustomResult<RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>, ConnectorResponseTransformationError> {
+    ) -> CustomResult<RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>, ConnectorError> {
         // Custom response handling
     }
 }

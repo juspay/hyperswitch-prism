@@ -25,7 +25,7 @@ use domain_types::{
         SecretInfoToInitiateSdk, ServerAuthenticationTokenRequestData,
         ServerAuthenticationTokenResponseData, ThirdPartySdkSessionResponse,
     },
-    errors::{ConnectorResponseTransformationError, IntegrationError, WebhookError},
+    errors::{ConnectorError, IntegrationError, WebhookError},
     payment_method_data::{
         BankRedirectData, BankTransferData, Card, PaymentMethodData, PaymentMethodDataTypes,
         RawCardNumber,
@@ -185,7 +185,8 @@ impl TryFrom<&BankRedirectData> for TrustpayPaymentMethod {
             | BankRedirectData::OnlineBankingFpx { .. }
             | BankRedirectData::OnlineBankingThailand { .. }
             | BankRedirectData::LocalBankRedirect {}
-            | BankRedirectData::OpenBanking {} => Err(IntegrationError::not_implemented(
+            | BankRedirectData::OpenBanking {}
+            | BankRedirectData::Netbanking { .. } => Err(IntegrationError::not_implemented(
                 utils::get_unimplemented_payment_method_error_message("trustpay"),
             )
             .into()),
@@ -432,7 +433,7 @@ fn get_pending_status_based_on_redirect_url(redirect_url: Option<Url>) -> enums:
 fn get_transaction_status(
     payment_status: Option<String>,
     redirect_url: Option<Url>,
-) -> CustomResult<(enums::AttemptStatus, Option<String>), ConnectorResponseTransformationError> {
+) -> CustomResult<(enums::AttemptStatus, Option<String>), ConnectorError> {
     // We don't get payment_status only in case, when the user doesn't complete the authentication step.
     // If we receive status, then return the proper status based on the connector response
     if let Some(payment_status) = payment_status {
@@ -538,7 +539,7 @@ pub enum TrustpayPaymentsResponse {
 impl<F, T> TryFrom<ResponseRouterData<TrustpayPaymentsResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, T, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<TrustpayPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -567,7 +568,7 @@ fn handle_cards_response(
         Option<ErrorResponse>,
         PaymentsResponseData,
     ),
-    ConnectorResponseTransformationError,
+    ConnectorError,
 > {
     let (status, message) = get_transaction_status(
         response.payment_status.to_owned(),
@@ -621,7 +622,7 @@ fn handle_bank_redirects_response(
         Option<ErrorResponse>,
         PaymentsResponseData,
     ),
-    ConnectorResponseTransformationError,
+    ConnectorError,
 > {
     let status = enums::AttemptStatus::AuthenticationPending;
     let error = None;
@@ -651,7 +652,7 @@ fn handle_bank_redirects_error_response(
         Option<ErrorResponse>,
         PaymentsResponseData,
     ),
-    ConnectorResponseTransformationError,
+    ConnectorError,
 > {
     let status = if matches!(response.payment_result_info.result_code, 1132014 | 1132005) {
         previous_attempt_status
@@ -695,7 +696,7 @@ fn handle_bank_redirects_sync_response(
         Option<ErrorResponse>,
         PaymentsResponseData,
     ),
-    ConnectorResponseTransformationError,
+    ConnectorError,
 > {
     let status = enums::AttemptStatus::from(response.payment_information.status);
     let error = if domain_types::utils::is_payment_failure(status) {
@@ -759,7 +760,7 @@ pub fn handle_webhook_response(
         Option<ErrorResponse>,
         PaymentsResponseData,
     ),
-    ConnectorResponseTransformationError,
+    ConnectorError,
 > {
     let status = enums::AttemptStatus::try_from(payment_information.status)?;
     let error = if domain_types::utils::is_payment_failure(status) {
@@ -870,7 +871,7 @@ pub fn get_trustpay_response(
         Option<ErrorResponse>,
         PaymentsResponseData,
     ),
-    ConnectorResponseTransformationError,
+    ConnectorError,
 > {
     match response {
         TrustpayPaymentsResponse::CardsPayments(response) => {
@@ -942,30 +943,24 @@ pub enum WebhookStatus {
 }
 
 impl TryFrom<WebhookStatus> for enums::AttemptStatus {
-    type Error = ConnectorResponseTransformationError;
+    type Error = ConnectorError;
     fn try_from(item: WebhookStatus) -> Result<Self, Self::Error> {
         match item {
             WebhookStatus::Paid => Ok(Self::Charged),
             WebhookStatus::Rejected => Ok(Self::AuthorizationFailed),
-            _ => Err(
-                ConnectorResponseTransformationError::unexpected_response_error_http_status_unknown(
-                ),
-            ),
+            _ => Err(ConnectorError::unexpected_response_error_http_status_unknown()),
         }
     }
 }
 
 impl TryFrom<WebhookStatus> for enums::RefundStatus {
-    type Error = ConnectorResponseTransformationError;
+    type Error = ConnectorError;
     fn try_from(item: WebhookStatus) -> Result<Self, Self::Error> {
         match item {
             WebhookStatus::Paid => Ok(Self::Success),
             WebhookStatus::Refunded => Ok(Self::Success),
             WebhookStatus::Rejected => Ok(Self::Failure),
-            _ => Err(
-                ConnectorResponseTransformationError::unexpected_response_error_http_status_unknown(
-                ),
-            ),
+            _ => Err(ConnectorError::unexpected_response_error_http_status_unknown()),
         }
     }
 }
@@ -1084,7 +1079,7 @@ impl TryFrom<ResponseRouterData<TrustpayAuthUpdateResponse, Self>>
         ServerAuthenticationTokenResponseData,
     >
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<TrustpayAuthUpdateResponse, Self>,
@@ -1708,7 +1703,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
-            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(IntegrationError::not_implemented(
@@ -1842,7 +1837,7 @@ pub struct BankRedirectRefundResponse {
 impl<F, T> TryFrom<ResponseRouterData<RefundResponse, Self>>
     for RouterDataV2<F, RefundFlowData, T, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<RefundResponse, Self>) -> Result<Self, Self::Error> {
         let (error, response) = match item.response {
             RefundResponse::CardsRefund(response) => {
@@ -1871,8 +1866,7 @@ impl<F, T> TryFrom<ResponseRouterData<RefundResponse, Self>>
 fn handle_cards_refund_response(
     response: CardsRefundResponse,
     status_code: u16,
-) -> CustomResult<(Option<ErrorResponse>, RefundsResponseData), ConnectorResponseTransformationError>
-{
+) -> CustomResult<(Option<ErrorResponse>, RefundsResponseData), ConnectorError> {
     let (refund_status, message) = get_refund_status(&response.payment_status);
     let error = match message {
         Some(message) => Some(ErrorResponse {
@@ -1899,8 +1893,7 @@ fn handle_cards_refund_response(
 pub fn handle_webhooks_refund_response(
     response: WebhookPaymentInformation,
     status_code: u16,
-) -> CustomResult<(Option<ErrorResponse>, RefundsResponseData), ConnectorResponseTransformationError>
-{
+) -> CustomResult<(Option<ErrorResponse>, RefundsResponseData), ConnectorError> {
     let refund_status = enums::RefundStatus::try_from(response.status)?;
     let error = match utils::is_refund_failure(refund_status) {
         true => {
@@ -1932,7 +1925,7 @@ pub fn handle_webhooks_refund_response(
             Some(id) => id,
             None => {
                 return Err(report!(
-                    ConnectorResponseTransformationError::response_handling_failed_with_context(
+                    ConnectorError::response_handling_failed_with_context(
                         status_code,
                         Some("missing connector refund id".to_string()),
                     )
@@ -2226,7 +2219,7 @@ impl TryFrom<ResponseRouterData<TrustpayCreateIntentResponse, Self>>
         PaymentCreateOrderResponse,
     >
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<TrustpayCreateIntentResponse, Self>,
@@ -2241,7 +2234,7 @@ impl TryFrom<ResponseRouterData<TrustpayCreateIntentResponse, Self>>
             Some(pmt) => pmt,
             None => {
                 return Err(report!(
-                    ConnectorResponseTransformationError::response_handling_failed_with_context(
+                    ConnectorError::response_handling_failed_with_context(
                         http_code,
                         Some("missing payment_method_type".to_string()),
                     )
@@ -2271,7 +2264,7 @@ impl TryFrom<ResponseRouterData<TrustpayCreateIntentResponse, Self>>
                 .attach(e)),
             },
             _ => Err(report!(
-                ConnectorResponseTransformationError::response_handling_failed_with_context(
+                ConnectorError::response_handling_failed_with_context(
                     http_code,
                     Some("invalid wallet configuration for create intent response".to_string()),
                 )
@@ -2344,7 +2337,7 @@ pub(crate) fn get_apple_pay_session(
             ..item.router_data.resource_common_data.clone()
         },
         response: Ok(PaymentCreateOrderResponse {
-            order_id: instance_id,
+            connector_order_id: instance_id,
             session_data: Some(session_token),
         }),
         ..item.router_data.clone()
@@ -2399,7 +2392,7 @@ pub(crate) fn get_google_pay_session(
             ..item.router_data.resource_common_data.clone()
         },
         response: Ok(PaymentCreateOrderResponse {
-            order_id: instance_id,
+            connector_order_id: instance_id,
             session_data: Some(session_token),
         }),
         ..item.router_data.clone()

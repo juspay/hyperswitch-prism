@@ -152,6 +152,14 @@ export class PaymentClient extends _ConnectorClientBase {
     return this._executeFlow('get', requestMsg, options, 'PaymentServiceGetRequest', 'PaymentServiceGetResponse') as Promise<types.PaymentServiceGetResponse>;
   }
 
+  /** PaymentService.IncrementalAuthorization — Increase the authorized amount for an existing payment. Enables you to capture additional funds when the transaction amount changes after initial authorization. */
+  async incrementalAuthorization(
+    requestMsg: types.IPaymentServiceIncrementalAuthorizationRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.PaymentServiceIncrementalAuthorizationResponse> {
+    return this._executeFlow('incremental_authorization', requestMsg, options, 'PaymentServiceIncrementalAuthorizationRequest', 'PaymentServiceIncrementalAuthorizationResponse') as Promise<types.PaymentServiceIncrementalAuthorizationResponse>;
+  }
+
   /** PaymentService.ProxyAuthorize — Authorize using vault-aliased card data. Proxy substitutes before connector. */
   async proxyAuthorize(
     requestMsg: types.IPaymentServiceProxyAuthorizeRequest,
@@ -214,6 +222,14 @@ export class PaymentClient extends _ConnectorClientBase {
     options?: types.IRequestConfig | null
   ): Promise<types.PaymentServiceVoidResponse> {
     return this._executeFlow('void', requestMsg, options, 'PaymentServiceVoidRequest', 'PaymentServiceVoidResponse') as Promise<types.PaymentServiceVoidResponse>;
+  }
+
+  /** PaymentService.VerifyRedirectResponse — Verify and process redirect responses from 3D Secure or other external flows. Validates authentication results and updates payment state accordingly. */
+  async verifyRedirectResponse(
+    requestMsg: types.IPaymentServiceVerifyRedirectResponseRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.PaymentServiceVerifyRedirectResponseResponse> {
+    return this._executeDirect('verify_redirect_response', requestMsg, options, 'PaymentServiceVerifyRedirectResponseRequest', 'PaymentServiceVerifyRedirectResponseResponse') as Promise<types.PaymentServiceVerifyRedirectResponseResponse>;
   }
 
 }
@@ -292,6 +308,25 @@ export class RecurringPaymentClient extends _ConnectorClientBase {
     options?: types.IRequestConfig | null
   ): Promise<types.RecurringPaymentServiceChargeResponse> {
     return this._executeFlow('charge', requestMsg, options, 'RecurringPaymentServiceChargeRequest', 'RecurringPaymentServiceChargeResponse') as Promise<types.RecurringPaymentServiceChargeResponse>;
+  }
+
+  /** RecurringPaymentService.Revoke — Cancel an existing recurring payment mandate. Stops future automatic charges on customer's stored consent for subscription cancellations. */
+  async recurringRevoke(
+    requestMsg: types.IRecurringPaymentServiceRevokeRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.RecurringPaymentServiceRevokeResponse> {
+    return this._executeFlow('recurring_revoke', requestMsg, options, 'RecurringPaymentServiceRevokeRequest', 'RecurringPaymentServiceRevokeResponse') as Promise<types.RecurringPaymentServiceRevokeResponse>;
+  }
+
+}
+
+export class RefundClient extends _ConnectorClientBase {
+  /** RefundService.Get — Retrieve refund status from the payment processor. Tracks refund progress through processor settlement for accurate customer communication. */
+  async refundGet(
+    requestMsg: types.IRefundServiceGetRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.RefundResponse> {
+    return this._executeFlow('refund_get', requestMsg, options, 'RefundServiceGetRequest', 'RefundResponse') as Promise<types.RefundResponse>;
   }
 
 }

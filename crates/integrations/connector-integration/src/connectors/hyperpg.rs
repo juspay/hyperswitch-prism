@@ -57,7 +57,7 @@ use transformers::{
 use super::macros;
 use crate::types::ResponseRouterData;
 use crate::with_error_response_body;
-use domain_types::errors::ConnectorResponseTransformationError;
+use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
 
 pub(crate) mod headers {
@@ -306,7 +306,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: hyperpg::HyperpgErrorResponse = res
             .response
             .parse_struct("HyperpgErrorResponse")

@@ -2,11 +2,13 @@ use base64::{engine::general_purpose::STANDARD, Engine};
 use common_enums::AttemptStatus;
 use common_utils::errors::CustomResult;
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund},
+    connector_flow::{Authorize, Capture, ClientAuthenticationToken, PSync, RSync, Refund},
     connector_types::{
-        PaymentFlowData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        ResponseId,
+        BluesnapClientAuthenticationResponse as BluesnapClientAuthenticationResponseDomain,
+        ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
+        ConnectorSpecificClientAuthenticationResponse, PaymentFlowData, PaymentsAuthorizeData,
+        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
     payment_method_data::{BankDebitData, PaymentMethodData, PaymentMethodDataTypes},
     router_data::ConnectorSpecificConfig,
@@ -14,11 +16,13 @@ use domain_types::{
 };
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use super::{requests, responses};
 use crate::types::ResponseRouterData;
-use domain_types::errors::{ConnectorResponseTransformationError, IntegrationError, WebhookError};
+use domain_types::errors::{
+    ConnectorError, IntegrationError, ResponseTransformationErrorContext, WebhookError,
+};
 
 // Wallet type constants
 const WALLET_TYPE_APPLE_PAY: &str = "APPLE_PAY";
@@ -488,6 +492,61 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     "Only ACH and SEPA Bank Debit are supported".to_string(),
                 ))?,
             },
+            PaymentMethodData::PaymentMethodToken(token_data) => {
+                let token = token_data.token.clone();
+
+                let card_transaction_type = match router_data.request.capture_method {
+                    Some(common_enums::CaptureMethod::Manual) => BluesnapTxnType::AuthOnly,
+                    _ => BluesnapTxnType::AuthCapture,
+                };
+
+                let card_holder_info =
+                    billing_address
+                        .and_then(|addr| addr.address.as_ref())
+                        .and_then(|details| {
+                            router_data.request.email.clone().and_then(|email| {
+                                get_card_holder_info(details, email).ok().flatten()
+                            })
+                        });
+
+                let transaction_meta_data =
+                    router_data
+                        .request
+                        .metadata
+                        .as_ref()
+                        .map(|metadata| BluesnapMetadata {
+                            meta_data: convert_metadata_to_request_metadata(
+                                metadata.clone().expose(),
+                            ),
+                        });
+
+                let amount = super::BluesnapAmountConvertor::convert(
+                    router_data.request.minor_amount,
+                    router_data.request.currency,
+                )?;
+
+                Ok(Self::CardToken(BluesnapCompletePaymentsRequest {
+                    amount,
+                    currency: router_data.request.currency.to_string(),
+                    card_transaction_type,
+                    pf_token: token,
+                    three_d_secure: None,
+                    transaction_fraud_info: Some(TransactionFraudInfo {
+                        fraud_session_id: router_data
+                            .resource_common_data
+                            .connector_request_reference_id
+                            .clone(),
+                    }),
+                    card_holder_info,
+                    merchant_transaction_id: Some(
+                        router_data
+                            .resource_common_data
+                            .connector_request_reference_id
+                            .clone(),
+                    ),
+                    transaction_meta_data,
+                }))
+            }
             _ => Err(IntegrationError::not_implemented(
                 "Selected payment method is not supported".to_string(),
             ))?,
@@ -606,7 +665,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<BluesnapAuthorizeResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<BluesnapAuthorizeResponse, Self>,
@@ -649,7 +708,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<BluesnapAuthorizeResp
 impl TryFrom<ResponseRouterData<BluesnapCaptureResponse, Self>>
     for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<BluesnapCaptureResponse, Self>,
@@ -689,7 +748,7 @@ impl TryFrom<ResponseRouterData<BluesnapVoidResponse, Self>>
         PaymentsResponseData,
     >
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<BluesnapVoidResponse, Self>) -> Result<Self, Self::Error> {
         let status = get_attempt_status_from_bluesnap_status(
@@ -722,7 +781,7 @@ impl TryFrom<ResponseRouterData<BluesnapVoidResponse, Self>>
 impl TryFrom<ResponseRouterData<BluesnapPSyncResponse, Self>>
     for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<BluesnapPSyncResponse, Self>,
@@ -757,7 +816,7 @@ impl TryFrom<ResponseRouterData<BluesnapPSyncResponse, Self>>
 impl TryFrom<ResponseRouterData<BluesnapRefundResponse, Self>>
     for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<BluesnapRefundResponse, Self>,
@@ -816,7 +875,7 @@ pub fn map_webhook_event_to_incoming_webhook_event(
 impl TryFrom<ResponseRouterData<BluesnapRefundSyncResponse, Self>>
     for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<BluesnapRefundSyncResponse, Self>,
@@ -833,6 +892,98 @@ impl TryFrom<ResponseRouterData<BluesnapRefundSyncResponse, Self>>
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.transaction_id.clone(),
                 refund_status,
+                status_code: item.http_code,
+            }),
+            ..item.router_data
+        })
+    }
+}
+
+// ---- ClientAuthenticationToken flow types ----
+
+/// Bluesnap Hosted Payment Fields token request.
+/// The POST /services/2/payment-fields-tokens endpoint does not require a JSON body;
+/// it returns a pfToken in the Location header of the response.
+/// However, to use the macro framework we define an empty request body.
+#[derive(Debug, Serialize)]
+pub struct BluesnapClientAuthRequest {}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        super::BluesnapRouterData<
+            RouterDataV2<
+                ClientAuthenticationToken,
+                PaymentFlowData,
+                ClientAuthenticationTokenRequestData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for BluesnapClientAuthRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        _item: super::BluesnapRouterData<
+            RouterDataV2<
+                ClientAuthenticationToken,
+                PaymentFlowData,
+                ClientAuthenticationTokenRequestData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {})
+    }
+}
+
+/// Bluesnap Hosted Payment Fields token response.
+/// The pfToken is extracted from the Location header (last path segment)
+/// or from the JSON response body if present.
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapClientAuthResponse {
+    pub pf_token: Option<Secret<String>>,
+}
+
+impl TryFrom<ResponseRouterData<BluesnapClientAuthResponse, Self>>
+    for RouterDataV2<
+        ClientAuthenticationToken,
+        PaymentFlowData,
+        ClientAuthenticationTokenRequestData,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<BluesnapClientAuthResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response;
+
+        // Extract the pfToken from the response
+        let pf_token = response
+            .pf_token
+            .ok_or(ConnectorError::ResponseDeserializationFailed {
+                context: ResponseTransformationErrorContext {
+                    http_status_code: Some(item.http_code),
+                    additional_context: Some(
+                        "Bluesnap ClientAuthenticationToken response did not contain a pfToken. \
+                         The token is expected in the HTTP Location header of the POST \
+                         /services/2/payment-fields-tokens response."
+                            .to_owned(),
+                    ),
+                },
+            })?;
+
+        let session_data = ClientAuthenticationTokenData::ConnectorSpecific(Box::new(
+            ConnectorSpecificClientAuthenticationResponse::Bluesnap(
+                BluesnapClientAuthenticationResponseDomain { pf_token },
+            ),
+        ));
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::ClientAuthenticationTokenResponse {
+                session_data,
                 status_code: item.http_code,
             }),
             ..item.router_data

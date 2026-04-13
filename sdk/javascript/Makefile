@@ -1,5 +1,6 @@
 .PHONY: install-deps install-codegen-deps generate-bindings generate-proto generate-grpc-bindings \
-        generate-all build-ts pack-archive install test-package test-composite test-grpc test-grpc-no-server dist clean
+        generate-all build-ts pack-archive install test-package test-composite test-grpc test-grpc-no-server dist publish clean \
+        publish-check-auth publish-check-version publish-check-dry-run publish-check
 
 # SDK-specific paths (define BEFORE including common.mk)
 MAKEFILE_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
@@ -14,7 +15,8 @@ include $(SDK_ROOT)/../common.mk
 # SDK-specific paths continued
 GENERATED_OUT    := $(SDK_ROOT)/src/payments/generated
 PACKAGE_DIR      := $(ARTIFACTS_DIR)/sdk-javascript
-JS_TARBALL       := $(PACKAGE_DIR)/hyperswitch-prism-0.0.1.tgz
+PACKAGE_VERSION  := $(shell node -p "require('$(SDK_ROOT)/package.json').version")
+JS_TARBALL       := $(PACKAGE_DIR)/hyperswitch-prism-$(PACKAGE_VERSION).tgz
 
 # ---------------------------------------------------------------------------
 # install-deps
@@ -102,31 +104,13 @@ generate-all: generate-proto generate-bindings generate-flows
 # ---------------------------------------------------------------------------
 # generate-flows
 # Generates flow methods (authorize, capture, etc.) by running the SDK
-# codegen script. Assumes descriptor is already generated.
+# codegen script.
 # Depends on install-codegen-deps so jinja2 etc. are available (CI and local).
 # ---------------------------------------------------------------------------
-generate-flows: install-codegen-deps generate-descriptor
+generate-flows: install-codegen-deps
 	@echo "Generating JavaScript flow methods..."
 	@python3 $(REPO_ROOT)/scripts/generators/code/generate.py --lang javascript
 	@echo "JavaScript flow methods generated."
-
-# ---------------------------------------------------------------------------
-# generate-descriptor
-# Generates the proto descriptor file used by all SDK codegen scripts.
-# ---------------------------------------------------------------------------
-generate-descriptor:
-	@echo "Generating proto descriptor..."
-	@mkdir -p $(REPO_ROOT)/scripts/generators/code
-	@protoc \
-		--proto_path=$(REPO_ROOT)/crates/types-traits/grpc-api-types/proto \
-		--descriptor_set_out=$(REPO_ROOT)/scripts/generators/code/services.desc \
-		--include_source_info \
-		$(REPO_ROOT)/crates/types-traits/grpc-api-types/proto/services.proto \
-		$(REPO_ROOT)/crates/types-traits/grpc-api-types/proto/payment.proto \
-		$(REPO_ROOT)/crates/types-traits/grpc-api-types/proto/payouts.proto \
-		$(REPO_ROOT)/crates/types-traits/grpc-api-types/proto/payment_methods.proto \
-		$(REPO_ROOT)/crates/types-traits/grpc-api-types/proto/sdk_config.proto
-	@echo "Descriptor written to scripts/generators/code/services.desc"
 
 # ---------------------------------------------------------------------------
 # build-ts
@@ -159,6 +143,7 @@ install: install-deps generate-all build-ts
 # ---------------------------------------------------------------------------
 # test-package
 # End-to-end test: build FFI → pack → install in temp dir → run smoke test.
+# Also runs composite flow tests.
 # ---------------------------------------------------------------------------
 test-package: build-ffi-lib generate-all build-ts pack-archive
 	@echo "Testing in isolation..."
@@ -169,13 +154,29 @@ test-package: build-ffi-lib generate-all build-ts pack-archive
 		npm install $(JS_TARBALL) typescript @types/node --silent
 	@cp $(SDK_ROOT)/smoke-test/test_smoke.ts /tmp/test-hyperswitch-js/
 	@cp $(SDK_ROOT)/smoke-test/tsconfig.json      /tmp/test-hyperswitch-js/
+	@cp $(REPO_ROOT)/sdk/generated/flows.json /tmp/test-hyperswitch-js/
 	@if [ -f $(REPO_ROOT)/creds.json ]; then \
 		cp $(REPO_ROOT)/creds.json /tmp/test-hyperswitch-js/; \
 	fi
-	@cd /tmp/test-hyperswitch-js && npx tsc && \
-		NODE_PATH=/tmp/test-hyperswitch-js/node_modules node test_smoke.js \
+	@cd /tmp/test-hyperswitch-js && \
+		NODE_PATH=/tmp/test-hyperswitch-js/node_modules npx tsx test_smoke.ts \
 		--connectors $(CONNECTORS) --examples-dir $(REPO_ROOT)/examples
 	@rm -rf /tmp/test-hyperswitch-js
+	@echo "Testing composite flows in isolation..."
+	@rm -rf /tmp/test-hyperswitch-js-composite
+	@mkdir -p /tmp/test-hyperswitch-js-composite
+	@test -f $(JS_TARBALL) || (echo "Error: Tarball not found: $(JS_TARBALL)" && exit 1)
+	@cd /tmp/test-hyperswitch-js-composite && npm init -y --silent && \
+		npm install $(JS_TARBALL) typescript @types/node --silent
+	@cp $(SDK_ROOT)/smoke-test/test_smoke_composite.ts /tmp/test-hyperswitch-js-composite/
+	@cp $(SDK_ROOT)/smoke-test/tsconfig.json      /tmp/test-hyperswitch-js-composite/
+	@if [ -f $(REPO_ROOT)/creds.json ]; then \
+		cp $(REPO_ROOT)/creds.json /tmp/test-hyperswitch-js-composite/; \
+	fi
+	@cd /tmp/test-hyperswitch-js-composite && npx tsc && \
+		NODE_PATH=/tmp/test-hyperswitch-js-composite/node_modules node test_smoke_composite.js \
+		--connectors $(CONNECTORS) --examples-dir $(REPO_ROOT)/examples
+	@rm -rf /tmp/test-hyperswitch-js-composite
 
 # ---------------------------------------------------------------------------
 # test-composite
@@ -199,12 +200,39 @@ test-composite: build-ffi-lib generate-all build-ts pack-archive
 	@rm -rf /tmp/test-hyperswitch-js-composite
 
 # ---------------------------------------------------------------------------
+# test-package-mock
+# Same as test-package but runs in MOCK mode (no real HTTP calls).
+# Uses generated harnesses instead of examples and verifies req_transformer only.
+# ---------------------------------------------------------------------------
+test-package-mock: build-ffi-lib generate-all build-ts pack-archive
+	@echo "Testing in MOCK mode (HTTP intercepted)..."
+	@rm -rf /tmp/test-hyperswitch-js-mock
+	@mkdir -p /tmp/test-hyperswitch-js-mock
+	@test -f $(JS_TARBALL) || (echo "Error: Tarball not found: $(JS_TARBALL)" && exit 1)
+	@cd /tmp/test-hyperswitch-js-mock && npm init -y --silent && \
+		npm install $(JS_TARBALL) typescript @types/node --silent
+	@cp $(SDK_ROOT)/smoke-test/test_smoke.ts /tmp/test-hyperswitch-js-mock/
+	@cp $(SDK_ROOT)/smoke-test/tsconfig.json /tmp/test-hyperswitch-js-mock/
+	@cp $(REPO_ROOT)/sdk/generated/flows.json /tmp/test-hyperswitch-js-mock/
+	@if [ -f $(REPO_ROOT)/creds_dummy.json ]; then \
+		cp $(REPO_ROOT)/creds_dummy.json /tmp/test-hyperswitch-js-mock/creds.json; \
+	fi
+	@# Copy harness to the location test_smoke.ts expects in mock mode
+	@mkdir -p /tmp/test-hyperswitch-js-mock/smoke-test/generated/$(CONNECTORS)
+	@cp $(SDK_ROOT)/smoke-test/generated/$(CONNECTORS)/$(CONNECTORS).ts /tmp/test-hyperswitch-js-mock/smoke-test/generated/$(CONNECTORS)/
+	@cd /tmp/test-hyperswitch-js-mock && \
+		NODE_PATH=/tmp/test-hyperswitch-js-mock/node_modules npx tsx test_smoke.ts \
+		--connectors $(CONNECTORS) --creds-file creds.json --mock --examples-dir ./smoke-test/generated
+	@rm -rf /tmp/test-hyperswitch-js-mock
+	@echo "Package mock test passed."
+
+# ---------------------------------------------------------------------------
 # test-grpc
 # End-to-end gRPC smoke test: builds both FFI libraries, packs the tarball,
 # installs it in an isolated temp project, then runs test_smoke_grpc.ts.
 # ---------------------------------------------------------------------------
 GRPC_PROFILE    ?= release-fast
-GRPC_SERVER_BIN := $(REPO_ROOT)/target/$(GRPC_PROFILE)/grpc-server
+GRPC_SERVER_BIN := $(REPO_ROOT)/target/$(PLATFORM)/$(GRPC_PROFILE)/grpc-server
 
 # Run gRPC test assuming server is already running (used by top-level test-grpc)
 test-grpc-no-server: build-ffi-lib build-grpc-ffi-lib generate-all generate-grpc-bindings build-ts pack-archive
@@ -216,19 +244,20 @@ test-grpc-no-server: build-ffi-lib build-grpc-ffi-lib generate-all generate-grpc
 		npm install $(JS_TARBALL) typescript @types/node --silent
 	@cp $(SDK_ROOT)/smoke-test/test_smoke_grpc.ts /tmp/test-hyperswitch-js-grpc/
 	@cp $(SDK_ROOT)/smoke-test/tsconfig.json      /tmp/test-hyperswitch-js-grpc/
+	@cp $(REPO_ROOT)/sdk/generated/flows.json /tmp/test-hyperswitch-js-grpc/
 	@if [ -f $(REPO_ROOT)/creds.json ]; then \
 		cp $(REPO_ROOT)/creds.json /tmp/test-hyperswitch-js-grpc/; \
 	else \
 		echo "  Note: no creds.json found, test will use placeholder credentials"; \
 	fi
-	@cd /tmp/test-hyperswitch-js-grpc && npx tsc && \
-		NODE_PATH=/tmp/test-hyperswitch-js-grpc/node_modules FORCE_COLOR=1 node test_smoke_grpc.js \
+	@cd /tmp/test-hyperswitch-js-grpc && \
+		NODE_PATH=/tmp/test-hyperswitch-js-grpc/node_modules FORCE_COLOR=1 npx tsx test_smoke_grpc.ts \
 		--connectors $(CONNECTORS) --examples-dir $(REPO_ROOT)/examples
 	@rm -rf /tmp/test-hyperswitch-js-grpc
 
 test-grpc: build-ffi-lib build-grpc-ffi-lib generate-all generate-grpc-bindings build-ts pack-archive
 	@echo "Building grpc-server ($(GRPC_PROFILE))..."
-	@cd $(REPO_ROOT) && cargo build -p grpc-server --profile $(GRPC_PROFILE) 2>&1
+	@cd $(REPO_ROOT) && cargo build -p grpc-server --profile $(GRPC_PROFILE) --target $(PLATFORM) 2>&1
 	@echo "Starting gRPC server..."
 	@pkill -KILL -f grpc-server 2>/dev/null || true
 	@sleep 1
@@ -241,6 +270,7 @@ test-grpc: build-ffi-lib build-grpc-ffi-lib generate-all generate-grpc-bindings 
 		npm install $(JS_TARBALL) typescript @types/node --silent
 	@cp $(SDK_ROOT)/smoke-test/test_smoke_grpc.ts /tmp/test-hyperswitch-js-grpc/
 	@cp $(SDK_ROOT)/smoke-test/tsconfig.json      /tmp/test-hyperswitch-js-grpc/
+	@cp $(REPO_ROOT)/sdk/generated/flows.json /tmp/test-hyperswitch-js-grpc/
 	@if [ -f $(REPO_ROOT)/creds.json ]; then \
 		cp $(REPO_ROOT)/creds.json /tmp/test-hyperswitch-js-grpc/; \
 	else \
@@ -253,6 +283,70 @@ test-grpc: build-ffi-lib build-grpc-ffi-lib generate-all generate-grpc-bindings 
 		pkill -f grpc-server 2>/dev/null || true; \
 		rm -rf /tmp/test-hyperswitch-js-grpc; \
 		exit $$EXIT
+
+# ---------------------------------------------------------------------------
+# publish
+# Publishes the package to npm registry.
+# Requires NPM_TOKEN to be set or logged in via npm login.
+# ---------------------------------------------------------------------------
+publish: build-ts
+	@if [ -z "$(NPM_TOKEN)" ]; then \
+		echo "Error: NPM_TOKEN is not set"; \
+		echo "Set it with: export NPM_TOKEN=npm_xxxxx"; \
+		exit 1; \
+	fi
+	@echo "Configuring npm with authentication token..."
+	@npm config set //registry.npmjs.org/:_authToken=$(NPM_TOKEN)
+	@echo "Publishing hyperswitch-prism to npm..."
+	@npm publish --access public
+	@echo "Published hyperswitch-prism to npm registry."
+
+# ---------------------------------------------------------------------------
+# Pre-publish checks
+# ---------------------------------------------------------------------------
+
+# publish-check-auth
+# Verifies that NPM_TOKEN environment variable is set or npm whoami succeeds.
+publish-check-auth:
+	@if [ -n "$(NPM_TOKEN)" ]; then \
+		echo "NPM_TOKEN is set."; \
+	elif npm whoami >/dev/null 2>&1; then \
+		echo "npm authenticated as: $$(npm whoami)"; \
+	else \
+		echo "Error: Neither NPM_TOKEN nor npm authentication is configured"; \
+		echo "Set NPM_TOKEN or run 'npm login' first."; \
+		exit 1; \
+	fi
+
+# publish-check-version
+# Checks if $(PACKAGE_VERSION) already exists on npm registry.
+# Exits with error if version already exists (prevents accidental republish).
+publish-check-version:
+	@echo "Checking if hyperswitch-prism $(PACKAGE_VERSION) exists on npm..."
+	@if npm view hyperswitch-prism@$(PACKAGE_VERSION) version >/dev/null 2>&1; then \
+		echo "Error: Version $(PACKAGE_VERSION) already exists on npm"; \
+		echo "Increment the version in package.json before publishing."; \
+		exit 1; \
+	fi
+	@echo "Version $(PACKAGE_VERSION) does not exist on npm - OK to publish."
+
+# publish-check-dry-run
+# Simulates publish without actually publishing.
+# Uses npm publish --dry-run and npm pack to verify package contents.
+publish-check-dry-run: build-ts
+	@echo "Running npm publish dry-run..."
+	@npm publish --dry-run --access public
+	@echo "Creating local tarball..."
+	@npm pack --pack-destination /tmp
+	@echo "Tarball contents:"
+	@tar -tzf /tmp/hyperswitch-prism-$(PACKAGE_VERSION).tgz | head -20
+	@rm -f /tmp/hyperswitch-prism-$(PACKAGE_VERSION).tgz
+	@echo "Dry-run validation passed."
+
+# publish-check
+# Runs all pre-publish checks in sequence.
+publish-check: publish-check-auth publish-check-version publish-check-dry-run
+	@echo "All JavaScript pre-publish checks passed."
 
 clean:
 	@rm -rf $(GENERATED_OUT) node_modules

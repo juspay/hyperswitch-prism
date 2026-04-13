@@ -395,7 +395,7 @@ impl<T: PaymentMethodDataTypes + ...> TryFrom<{ConnectorName}RouterData<RouterDa
 impl<T: PaymentMethodDataTypes + ...> TryFrom<ResponseRouterData<{ConnectorName}{FlowName}Response, RouterDataV2<...>>>
     for RouterDataV2<{FlowName}, ...>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<...>) -> Result<Self, Self::Error> {
         // Map response to RouterDataV2
@@ -649,7 +649,7 @@ Files to analyze:
    **ERROR HANDLING QUALITY CHECKS:**
    - ✅ Specific NotSupported errors with exact feature/method names
    - ✅ NO generic error messages - all errors are descriptive
-   - ✅ Proper IntegrationError/ConnectorResponseTransformationError types used throughout
+   - ✅ Proper IntegrationError/ConnectorError types used throughout
    - ✅ Error types match the situation (NotSupported, InvalidData, etc.)
 
    **VALIDATION QUALITY CHECKS:**
@@ -1009,7 +1009,7 @@ Score: 100 - 40 - 15 - 5 = 40 (Poor ❌ - BLOCK)
 - **Syntax Error Fixes**: Follow Rust syntax rules exactly
 
 ### ERROR TYPE USAGE (CRITICAL)
-- **Error types are split by phase**: request phase uses `IntegrationError`, response phase uses `ConnectorResponseTransformationError`
+- **Error types are split by phase**: request phase uses `IntegrationError`, response phase uses `ConnectorError`
 - **ALWAYS use specific NotSupported errors** for unsupported payment methods:
   ```rust
   // CORRECT - Specific error message (request phase)
@@ -1031,8 +1031,8 @@ Score: 100 - 40 - 15 - 5 = 40 (Poor ❌ - BLOCK)
 - **Match error types to the situation**:
   - `IntegrationError::NotSupported` for unsupported features/methods (request phase)
   - `IntegrationError::MissingRequiredField` for missing required fields (request phase)
-  - `ConnectorResponseTransformationError::ResponseDeserializationFailed` for parsing errors (response phase)
-  - `ConnectorResponseTransformationError::InvalidData` for response data validation failures
+  - `ConnectorError::ResponseDeserializationFailed` for parsing errors (response phase)
+  - `ConnectorError::InvalidData` for response data validation failures
 
 ### UCS COMPLIANCE VALIDATION
 - **RouterDataV2**: NEVER use RouterData, always RouterDataV2

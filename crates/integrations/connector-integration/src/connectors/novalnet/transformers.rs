@@ -16,7 +16,7 @@ use domain_types::{
         RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
         WebhookDetailsResponse,
     },
-    errors::{ConnectorResponseTransformationError, IntegrationError},
+    errors::{ConnectorError, IntegrationError},
     payment_method_data::{
         BankDebitData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
         WalletData as WalletDataPaymentMethod,
@@ -723,7 +723,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     TryFrom<ResponseRouterData<NovalnetPaymentsResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<NovalnetPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -827,7 +827,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         PaymentsResponseData,
     >
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<NovalnetPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -927,7 +927,7 @@ impl<
     > TryFrom<ResponseRouterData<NovalnetPaymentsResponse, Self>>
     for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<NovalnetPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -1320,7 +1320,7 @@ pub struct NovalnetRefundResponse {
 impl<F> TryFrom<ResponseRouterData<NovalnetRefundResponse, Self>>
     for RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<NovalnetRefundResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -1460,7 +1460,7 @@ impl NovalnetSyncResponseTransactionData {
 impl<F> TryFrom<ResponseRouterData<NovalnetPSyncResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<NovalnetPSyncResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -1569,7 +1569,7 @@ pub struct NovalnetCaptureResponse {
 impl<F> TryFrom<ResponseRouterData<NovalnetCaptureResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<NovalnetCaptureResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -1674,7 +1674,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl<F> TryFrom<ResponseRouterData<NovalnetRefundSyncResponse, Self>>
     for RouterDataV2<F, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<NovalnetRefundSyncResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -1772,7 +1772,7 @@ pub struct NovalnetCancelResponse {
 impl<F> TryFrom<ResponseRouterData<NovalnetCancelResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<NovalnetCancelResponse, Self>,

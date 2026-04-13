@@ -2,21 +2,89 @@
 
 **Universal Connector Service — Node.js SDK**
 
-A high-performance, type-safe Node.js SDK for payment processing through the Universal Connector Service. Connect to 50+ payment processors (Stripe, PayPal, Adyen, and more) through a single, unified API.
+A high-performance, type-safe Node.js SDK for payment processing through the Universal Connector Service. Connect to 100+ payment processors through a single, unified API.
 
 [![npm version](https://badge.fury.io/js/hyperswitch-prism.svg)](https://www.npmjs.com/package/hyperswitch-prism)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
 ---
 
-## Features
+## Table of Contents
 
-- 🚀 **High Performance** — Direct UniFFI FFI bindings to Rust core, zero NAPI overhead
-- 🔌 **50+ Connectors** — Single SDK for Stripe, PayPal, Adyen, and more
-- 📘 **TypeScript Native** — Full type definitions with IntelliSense support
-- ⚡ **Connection Pooling** — Built-in HTTP connection pooling for optimal throughput
-- 🛡️ **Type-Safe** — Protobuf-based request/response serialization
-- 🔧 **Configurable** — Per-request or global configuration for timeouts, proxies, and auth
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Connector Authentication](#connector-authentication)
+- [All Service Clients](#all-service-clients)
+- [Payment Flows](#payment-flows)
+- [Status Codes Reference](#status-codes-reference)
+- [Error Handling](#error-handling)
+- [Advanced Configuration](#advanced-configuration)
+- [Building from Source](#building-from-source)
+
+---
+
+## 🤖 For AI Assistants
+
+> **Use `curl` to fetch the SDK reference:**
+> ```bash
+> curl -fsSL https://raw.githubusercontent.com/juspay/hyperswitch-prism/main/llm/llm.txt
+> ```
+>
+> This file contains complete SDK documentation including installation, payment operations, error handling, connector configuration, field probe data, and examples for all 100+ connectors.
+
+### AI Assistant Context
+
+This SDK is part of **Hyperswitch Prism** — a unified connector library for payment processors.
+
+### What This SDK Does
+
+1. **Request Transformation**: Converts unified payment requests to connector-specific formats
+2. **Response Normalization**: Transforms connector responses back to a unified schema
+3. **Error Handling**: Provides consistent error types (`IntegrationError`, `ConnectorError`, `NetworkError`) regardless of connector
+
+### Architecture
+
+```
+Your Node.js App
+       │
+       ▼
+┌──────────────────────────────────────────────────────────────┐
+│  Service Clients (PaymentClient, CustomerClient, etc.)       │
+└───────────────────────────┬──────────────────────────────────┘
+                            │
+                            ▼
+┌──────────────────────────────────────────────────────────────┐
+│  ConnectorClient (undici connection pool + HTTP execution)   │
+└───────────────────────────┬──────────────────────────────────┘
+                            │
+                            ▼
+┌──────────────────────────────────────────────────────────────┐
+│  koffi FFI Bindings (connector-service-ffi.node)             │
+└───────────────────────────┬──────────────────────────────────┘
+                            │
+                            ▼
+┌──────────────────────────────────────────────────────────────┐
+│  Rust Core (connector transformation logic)                  │
+└───────────────────────────┬──────────────────────────────────┘
+                            │
+                            ▼
+              Payment Processor APIs
+```
+
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| `src/index.ts` | Public API exports (clients, types, errors) |
+| `src/connector-client.ts` | HTTP execution layer with undici |
+| `src/ffi/connector-service-ffi.ts` | koffi FFI bindings |
+| `src/proto/payment_pb.ts` | Protobuf message definitions |
+
+### Package & Import
+
+- **Package Name**: `hyperswitch-prism`
+- **Installation**: `npm install hyperswitch-prism`
+- **Import**: `import { PaymentClient, types } from 'hyperswitch-prism'`
 
 ---
 
@@ -28,58 +96,28 @@ npm install hyperswitch-prism
 
 **Requirements:**
 - Node.js 18+ (LTS recommended)
-- Rust toolchain (for building native bindings from source)
-
-**Platform Support:**
-- ✅ macOS (x64, arm64)
-- ✅ Linux (x64, arm64)
-- ✅ Windows (x64)
+- macOS (x64, arm64), Linux (x64, arm64), or Windows (x64)
 
 ---
 
 ## Quick Start
 
-### 1. Configure the Client
-
 ```typescript
 import { PaymentClient, types } from 'hyperswitch-prism';
 
-const { ConnectorConfig, RequestConfig, Environment, Connector } = types;
-
-// Configure connector identity and authentication
-const config = ConnectorConfig.create({
-  connector: Connector.STRIPE,
-  auth: {
-    stripe: {
-      apiKey: { value: 'sk_test_your_stripe_key' }
-    }
-  },
-  environment: Environment.SANDBOX,
-});
-
-// Optional: Request defaults for timeouts
-const defaults = RequestConfig.create({
-  http: {
-    totalTimeoutMs: 30000,
-    connectTimeoutMs: 10000,
+const config: types.ConnectorConfig = {
+  connectorConfig: {
+    // Configure your connector credentials here
+    // See connector documentation for specific auth patterns
   }
-});
-```
+};
 
-### 2. Process a Payment
+const client = new PaymentClient(config);
 
-```typescript
-const client = new PaymentClient(config, defaults);
-
-const { PaymentServiceAuthorizeRequest, Currency, CaptureMethod } = types;
-
-const request = PaymentServiceAuthorizeRequest.create({
-  merchantTransactionId: 'txn_order_001',
-  amount: {
-    minorAmount: 1000,  // $10.00
-    currency: Currency.USD,
-  },
-  captureMethod: CaptureMethod.AUTOMATIC,
+const response = await client.authorize({
+  merchantTransactionId: 'txn_001',
+  amount: { minorAmount: 1000, currency: types.Currency.USD },
+  captureMethod: types.CaptureMethod.AUTOMATIC,
   paymentMethod: {
     card: {
       cardNumber: { value: '4111111111111111' },
@@ -89,75 +127,313 @@ const request = PaymentServiceAuthorizeRequest.create({
       cardHolderName: { value: 'John Doe' },
     }
   },
-  customer: {
-    email: { value: 'customer@example.com' },
-    name: 'John Doe',
-  },
+  address: { billingAddress: {} },
+  authType: types.AuthenticationType.NO_THREE_DS,
+  returnUrl: 'https://example.com/return',
+  orderDetails: [],
   testMode: true,
 });
 
-const response = await client.authorize(request);
 console.log('Status:', response.status);
 console.log('Transaction ID:', response.connectorTransactionId);
 ```
 
 ---
 
-## Service Clients
+## Connector Authentication
 
-The SDK provides specialized clients for different service domains:
+Each connector uses a different authentication scheme. All configs are set inside `connectorConfig` as a single key matching the connector name.
 
-| Client | Purpose | Key Methods |
-|--------|---------|-------------|
-| `PaymentClient` | Core payment operations | `authorize()`, `capture()`, `refund()`, `void()` |
-| `CustomerClient` | Customer management | `create()` |
-| `PaymentMethodClient` | Secure tokenization | `tokenize()` |
-| `MerchantAuthenticationClient` | Auth token management | `createServerAuthenticationToken()`, `createServerSessionAuthenticationToken()`, `createClientAuthenticationToken()` |
-| `EventClient` | Webhook processing | `handleEvent()` |
-| `RecurringPaymentClient` | Subscription billing | `charge()` |
-| `PaymentMethodAuthenticationClient` | 3DS authentication | `preAuthenticate()`, `authenticate()`, `postAuthenticate()` |
+See the SDK reference for complete connector authentication patterns:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/juspay/hyperswitch-prism/main/llm/llm.txt
+```
+
+Common authentication patterns include:
+
+```typescript
+// Single API Key
+{ connectorConfig: { [connectorName]: { apiKey: { value: '...' } } } }
+
+// API Key + Merchant Account
+{ connectorConfig: { [connectorName]: { apiKey: { value: '...' }, merchantAccount: { value: '...' } } } }
+
+// Client ID + Secret (OAuth-style)
+{ connectorConfig: { [connectorName]: { clientId: { value: '...' }, clientSecret: { value: '...' } } } }
+
+// Username + Password
+{ connectorConfig: { [connectorName]: { username: { value: '...' }, password: { value: '...' } } } }
+```
 
 ---
 
-## Authentication Examples
-
-### Stripe (HeaderKey)
+## All Service Clients
 
 ```typescript
-const config = ConnectorConfig.create({
-  connector: Connector.STRIPE,
-  auth: {
-    stripe: {
-      apiKey: { value: 'sk_test_xxx' }
+import {
+  PaymentClient,
+  CustomerClient,
+  PaymentMethodClient,
+  MerchantAuthenticationClient,
+  PaymentMethodAuthenticationClient,
+  RecurringPaymentClient,
+  RefundClient,
+  DisputeClient,
+  PayoutClient,
+  EventClient,
+  GrpcPaymentClient,
+  GrpcCustomerClient,
+  types,
+  IntegrationError,
+  ConnectorError,
+  NetworkError,
+} from 'hyperswitch-prism';
+```
+
+| Client | Methods |
+|--------|---------|
+| `PaymentClient` | `authorize()`, `capture()`, `refund()`, `void()`, `createOrder()`, `get()`, `sync()`, `incrementalAuthorization()` |
+| `RefundClient` | `get()`, `createRefund()`, `updateRefund()` |
+| `CustomerClient` | `create()` |
+| `PaymentMethodClient` | `tokenize()` |
+| `MerchantAuthenticationClient` | `createServerAuthenticationToken()`, `createClientAuthenticationToken()`, `createServerSessionAuthenticationToken()` |
+| `PaymentMethodAuthenticationClient` | `preAuthenticate()`, `authenticate()`, `postAuthenticate()` |
+| `RecurringPaymentClient` | `setup()`, `charge()`, `revoke()` |
+| `DisputeClient` | `accept()`, `defend()`, `submitEvidence()`, `get()` |
+| `PayoutClient` | Payout operations |
+| `EventClient` | `handleEvent()` (webhook processing) |
+
+---
+
+## Payment Flows
+
+### Authorize with Auto Capture
+
+```typescript
+const client = new PaymentClient(config);
+
+const response = await client.authorize({
+  merchantTransactionId: 'txn_001',
+  amount: { minorAmount: 1000, currency: types.Currency.USD },
+  captureMethod: types.CaptureMethod.AUTOMATIC,
+  paymentMethod: {
+    card: {
+      cardNumber: { value: '4111111111111111' },
+      cardExpMonth: { value: '12' },
+      cardExpYear: { value: '2027' },
+      cardCvc: { value: '123' },
+      cardHolderName: { value: 'John Doe' },
     }
   },
-  environment: Environment.SANDBOX,
+  address: { billingAddress: {} },
+  authType: types.AuthenticationType.NO_THREE_DS,
+  returnUrl: 'https://example.com/return',
+  orderDetails: [],
+  testMode: true,
+});
+// response.status === 8 (CHARGED) on success
+```
+
+### Authorize + Manual Capture
+
+```typescript
+// Step 1: Authorize only
+const authResponse = await client.authorize({
+  // ...
+  captureMethod: types.CaptureMethod.MANUAL,
+});
+// authResponse.status === 6 (AUTHORIZED)
+
+// Step 2: Capture later
+const captureResponse = await client.capture({
+  merchantCaptureId: 'cap_001',
+  connectorTransactionId: authResponse.connectorTransactionId!,
+  amountToCapture: { minorAmount: 1000, currency: types.Currency.USD },
+  testMode: true,
+});
+// captureResponse.status === 8 (CHARGED) or 20 (PENDING) — both are success
+```
+
+### Refund
+
+```typescript
+const refundResponse = await client.refund({
+  merchantRefundId: 'ref_001',
+  connectorTransactionId: authResponse.connectorTransactionId!,
+  refundAmount: { minorAmount: 500, currency: types.Currency.USD },
+  paymentAmount: 1000,
+  reason: 'RETURN',
+  testMode: true,
+});
+// refundResponse.status === 4 (REFUND_SUCCESS) or 3 (REFUND_PENDING) — both are success
+```
+
+### Void (Cancel Authorization)
+
+```typescript
+const voidResponse = await client.void({
+  merchantVoidId: 'void_001',
+  connectorTransactionId: authResponse.connectorTransactionId!,
+  cancellationReason: 'Customer cancelled',
+  testMode: true,
+});
+// voidResponse.status === 11 (VOIDED)
+```
+
+---
+
+## Status Codes Reference
+
+### PaymentStatus
+
+The `response.status` field is always a **number**, not a string:
+
+```typescript
+// ❌ Always false — response.status is a number
+if (response.status === 'CHARGED') { ... }
+
+// ✅ Correct — compare against the numeric enum constant
+if (response.status === types.PaymentStatus.CHARGED) { ... }
+```
+
+**Important: a `FAILURE` status is returned in the response body — it does NOT throw an exception.** Always check `response.status` explicitly.
+
+> **`PaymentStatus` and `RefundStatus` are two separate enums with overlapping integer values.** Use `types.PaymentStatus` for authorize/capture/void responses and `types.RefundStatus` for refund responses.
+
+| Name | Value | Meaning |
+|------|-------|---------|
+| `PAYMENT_STATUS_UNSPECIFIED` | 0 | Unknown |
+| `STARTED` | 1 | Payment initiated |
+| `AUTHENTICATION_PENDING` | 4 | Awaiting 3DS redirect |
+| `AUTHENTICATION_SUCCESSFUL` | 5 | 3DS passed |
+| `AUTHENTICATION_FAILED` | 2 | 3DS failed |
+| `AUTHORIZED` | 6 | Auth succeeded, not yet captured |
+| `AUTHORIZATION_FAILED` | 7 | Auth declined |
+| `CHARGED` | 8 | Captured / auto-captured successfully |
+| `PARTIAL_CHARGED` | 17 | Partially captured |
+| `CAPTURE_INITIATED` | 13 | Async capture in progress |
+| `CAPTURE_FAILED` | 14 | Capture failed |
+| `VOIDED` | 11 | Authorization voided/cancelled |
+| `VOID_INITIATED` | 12 | Async void in progress |
+| `VOID_FAILED` | 15 | Void failed |
+| `PENDING` | 20 | Processing / async |
+| `FAILURE` | 21 | Soft decline — check `response.error` |
+| `ROUTER_DECLINED` | 3 | Declined by routing layer |
+| `EXPIRED` | 26 | Payment expired |
+| `PARTIALLY_AUTHORIZED` | 25 | Partial authorization |
+| `UNRESOLVED` | 19 | Requires manual review |
+
+**Checking status safely:**
+
+```typescript
+const response = await client.authorize(request);
+
+if (response.status === types.PaymentStatus.FAILURE) {
+  console.error('Declined:', response.error?.message, response.error?.code);
+} else if (response.status === types.PaymentStatus.CHARGED ||
+           response.status === types.PaymentStatus.AUTHORIZED) {
+  console.log('Success:', response.connectorTransactionId);
+} else if (response.status === types.PaymentStatus.AUTHENTICATION_PENDING) {
+  console.log('Redirect to:', response.redirectionData);
+}
+```
+
+### RefundStatus
+
+| Name | Value | Meaning |
+|------|-------|---------|
+| `REFUND_STATUS_UNSPECIFIED` | 0 | Unknown |
+| `REFUND_FAILURE` | 1 | Refund failed |
+| `REFUND_MANUAL_REVIEW` | 2 | Pending manual review |
+| `REFUND_PENDING` | 3 | Processing |
+| `REFUND_SUCCESS` | 4 | Completed |
+| `REFUND_TRANSACTION_FAILURE` | 5 | Transaction-level failure |
+
+> `REFUND_PENDING` is a normal success state for many connectors. Treat both `REFUND_PENDING` and `REFUND_SUCCESS` as successful outcomes.
+
+---
+
+## Error Handling
+
+The SDK raises exceptions **only for hard failures** (network errors, invalid configuration, serialization errors). Soft payment declines come back as an in-band `status: FAILURE` in the response body.
+
+```typescript
+import { IntegrationError, ConnectorError, NetworkError, types } from 'hyperswitch-prism';
+
+try {
+  const response = await client.authorize(request);
+
+  if (response.status === types.PaymentStatus.FAILURE) {
+    console.error('Payment declined:', response.error?.message);
+    return;
+  }
+
+} catch (error) {
+  if (error instanceof IntegrationError) {
+    // Request-phase error: bad config, missing required field, serialization failure
+    console.error('Integration error:', error.errorCode, error.message);
+
+  } else if (error instanceof ConnectorError) {
+    // Response-phase error: connector returned unexpected format, transform failed
+    console.error('Connector error:', error.errorCode, error.message);
+
+  } else if (error instanceof NetworkError) {
+    // Network-level: timeout, connection refused, DNS failure
+    console.error('Network error:', error.message);
+  }
+}
+```
+
+### `response.error` is a Protobuf Object — Not JSON-Serializable
+
+```typescript
+// ❌ Throws or produces empty object
+res.json({ error: response.error });
+JSON.stringify(response.error);
+
+// ✅ Extract the primitive fields you need
+res.json({
+  error: {
+    message: response.error?.message,
+    code: response.error?.code,
+    reason: response.error?.reason,
+  }
 });
 ```
 
-### PayPal (SignatureKey)
+### Common Error Codes
 
-```typescript
-const config = ConnectorConfig.create({
-  connector: Connector.PAYPAL,
-  auth: {
-    paypal: {
-      clientId: { value: 'client_id' },
-      clientSecret: { value: 'client_secret' }
-    }
-  },
-  environment: Environment.SANDBOX,
-});
-```
+| Code | Type | Cause | Fix |
+|------|------|-------|-----|
+| `MISSING_REQUIRED_FIELD: browser_info` | `IntegrationError` | Connector requires `browserInfo` | Add `browserInfo` to request |
+| `INVALID_CONFIGURATION` | `IntegrationError` | Wrong credentials or missing required config field | Check connector config fields |
+| `CLIENT_INITIALIZATION` | `IntegrationError` | SDK failed to initialize native library | Check platform compatibility |
+| `CONNECT_TIMEOUT` | `NetworkError` | Could not reach connector | Check network / proxy config |
+| `RESPONSE_TIMEOUT` | `NetworkError` | Connector took too long | Increase `totalTimeoutMs` |
+| `TOTAL_TIMEOUT` | `NetworkError` | Request exceeded total timeout | Increase `totalTimeoutMs` |
 
 ---
 
 ## Advanced Configuration
 
-### Proxy Settings
+### Timeouts
 
 ```typescript
-const defaults = RequestConfig.create({
+const client = new PaymentClient(config, {
+  http: {
+    totalTimeoutMs: 30000,
+    connectTimeoutMs: 10000,
+    responseTimeoutMs: 25000,
+    keepAliveTimeoutMs: 60000,
+  }
+});
+```
+
+### Proxy
+
+```typescript
+const client = new PaymentClient(config, {
   http: {
     proxy: {
       httpsUrl: 'https://proxy.company.com:8443',
@@ -171,137 +447,31 @@ const defaults = RequestConfig.create({
 
 ```typescript
 const response = await client.authorize(request, {
-  http: {
-    totalTimeoutMs: 60000,  // Override for this request only
-  }
+  http: { totalTimeoutMs: 60000 }
 });
 ```
 
 ### Connection Pooling
 
-Each client instance maintains its own connection pool. For best performance:
+Create the client once and reuse it:
 
 ```typescript
-// ✅ Create client once, reuse for multiple requests
-const client = new PaymentClient(config, defaults);
-
+// Good: create once, reuse
+const client = new PaymentClient(config);
 for (const payment of payments) {
   await client.authorize(payment);
 }
 ```
 
----
-
-## Error Handling
+### CA Certificate Pinning
 
 ```typescript
-import { IntegrationError, ConnectorResponseTransformationError } from 'hyperswitch-prism';
-
-try {
-  const response = await client.authorize(request);
-} catch (error) {
-  if (error instanceof IntegrationError) {
-    // Request-phase error (auth, URL construction, serialization, etc.)
-    console.error('Code:', error.errorCode);
-    console.error('Status:', error.statusCode);
-    console.error('Message:', error.message);
-  } else if (error instanceof ConnectorResponseTransformationError) {
-    // Response-phase error (deserialization, transformation, etc.)
-    console.error('Code:', error.errorCode);
-    console.error('Status:', error.statusCode);
-    console.error('Message:', error.message);
+const client = new PaymentClient(config, {
+  http: {
+    caCert: fs.readFileSync('ca.pem', 'utf8')
   }
-}
-```
-
-### Error Codes
-
-| Code | Description |
-|------|-------------|
-| `CONNECT_TIMEOUT` | Failed to establish connection |
-| `RESPONSE_TIMEOUT` | No response received from gateway |
-| `TOTAL_TIMEOUT` | Overall request timeout exceeded |
-| `NETWORK_FAILURE` | General network error |
-| `INVALID_CONFIGURATION` | Configuration error |
-| `CLIENT_INITIALIZATION` | SDK initialization failed |
-
----
-
-## Complete Example: PayPal with Access Token
-
-```typescript
-import {
-  PaymentClient,
-  MerchantAuthenticationClient,
-  types
-} from 'hyperswitch-prism';
-
-const { ConnectorConfig, Environment, Connector, Currency,
-        CaptureMethod, SecretString, AccessToken, ConnectorState } = types;
-
-const config = ConnectorConfig.create({
-  connector: Connector.PAYPAL,
-  auth: {
-    paypal: {
-      clientId: { value: 'YOUR_CLIENT_ID' },
-      clientSecret: { value: 'YOUR_CLIENT_SECRET' }
-    }
-  },
-  environment: Environment.SANDBOX,
 });
-
-// Step 1: Get access token
-const authClient = new MerchantAuthenticationClient(config);
-const tokenResponse = await authClient.createServerAuthenticationToken({
-  merchantAccessTokenId: 'token_001',
-  connector: Connector.PAYPAL,
-  testMode: true,
-});
-
-// Step 2: Authorize with access token
-const paymentClient = new PaymentClient(config);
-const paymentResponse = await paymentClient.authorize({
-  merchantTransactionId: 'txn_001',
-  amount: {
-    minorAmount: 1000,
-    currency: Currency.USD,
-  },
-  captureMethod: CaptureMethod.AUTOMATIC,
-  paymentMethod: {
-    card: {
-      cardNumber: { value: '4111111111111111' },
-      cardExpMonth: { value: '12' },
-      cardExpYear: { value: '2027' },
-      cardCvc: { value: '123' },
-    }
-  },
-  state: ConnectorState.create({
-    accessToken: AccessToken.create({
-      token: SecretString.create({ value: tokenResponse.accessToken.value }),
-      tokenType: 'Bearer',
-      expiresInSeconds: tokenResponse.expiresInSeconds,
-    }),
-  }),
-  testMode: true,
-});
-
-console.log('Payment status:', paymentResponse.status);
 ```
-
----
-
-## Architecture
-
-```
-Your App → Service Client → ConnectorClient → UniFFI FFI → Rust Core → Connector API
-                ↓
-         Connection Pool (undici)
-```
-
-The SDK uses:
-- **koffi** — FFI bindings to Rust
-- **protobufjs** — Protocol buffer serialization
-- **undici** — High-performance HTTP client with connection pooling
 
 ---
 
@@ -309,8 +479,8 @@ The SDK uses:
 
 ```bash
 # Clone the repository
-git clone https://github.com/juspay/connector-service.git
-cd connector-service/sdk/javascript
+git clone https://github.com/juspay/hyperswitch-prism.git
+cd hyperswitch-prism/sdk/javascript
 
 # Build native library, generate bindings, and pack
 make pack

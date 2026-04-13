@@ -49,7 +49,7 @@ use transformers as razorpayv2;
 
 use super::macros;
 use crate::connectors::razorpay::transformers::ForeignTryFrom;
-use domain_types::errors::ConnectorResponseTransformationError;
+use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
 
 pub(crate) mod headers {
@@ -116,8 +116,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<domain_types::router_data::ErrorResponse, ConnectorResponseTransformationError>
-    {
+    ) -> CustomResult<domain_types::router_data::ErrorResponse, ConnectorError> {
         let response: razorpayv2::RazorpayV2ErrorResponse = res
             .response
             .parse_struct("RazorpayV2ErrorResponse")
@@ -252,7 +251,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentCreateOrderData,
             PaymentCreateOrderResponse,
         >,
-        ConnectorResponseTransformationError,
+        ConnectorError,
     > {
         let response: razorpayv2::RazorpayV2CreateOrderResponse = res
             .response
@@ -268,12 +267,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         }
 
         let order_response = PaymentCreateOrderResponse {
-            order_id: response.id,
+            connector_order_id: response.id.clone(),
             session_data: None,
         };
 
         Ok(RouterDataV2 {
             response: Ok(order_response),
+            resource_common_data: PaymentFlowData {
+                connector_order_id: Some(response.id),
+                ..data.resource_common_data.clone()
+            },
             ..data.clone()
         })
     }
@@ -282,8 +285,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<domain_types::router_data::ErrorResponse, ConnectorResponseTransformationError>
-    {
+    ) -> CustomResult<domain_types::router_data::ErrorResponse, ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 
@@ -291,8 +293,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<domain_types::router_data::ErrorResponse, ConnectorResponseTransformationError>
-    {
+    ) -> CustomResult<domain_types::router_data::ErrorResponse, ConnectorError> {
         let response: razorpayv2::RazorpayV2ErrorResponse = res
             .response
             .parse_struct("RazorpayV2ErrorResponse")
@@ -388,10 +389,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> CustomResult<Option<RequestContent>, IntegrationError> {
         let order_id = req
             .resource_common_data
-            .reference_id
+            .connector_order_id
             .as_ref()
             .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "merchant_order_id",
+                field_name: "connector_order_id",
                 context: Default::default(),
             })?
             .clone();
@@ -428,7 +429,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         res: Response,
     ) -> CustomResult<
         RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
-        ConnectorResponseTransformationError,
+        ConnectorError,
     > {
         // Try to parse as UPI response first
         let upi_response_result = res
@@ -493,8 +494,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<domain_types::router_data::ErrorResponse, ConnectorResponseTransformationError>
-    {
+    ) -> CustomResult<domain_types::router_data::ErrorResponse, ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 
@@ -502,8 +502,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<domain_types::router_data::ErrorResponse, ConnectorResponseTransformationError>
-    {
+    ) -> CustomResult<domain_types::router_data::ErrorResponse, ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 }
@@ -725,10 +724,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> CustomResult<String, IntegrationError> {
         let base_url = &req.resource_common_data.connectors.razorpayv2.base_url;
 
-        // Check if request_ref_id is provided to determine URL pattern
-        match &req.resource_common_data.reference_id {
+        // Check if connector_order_id is provided to determine URL pattern
+        match &req.resource_common_data.connector_order_id {
             Some(ref_id) => {
-                // Use orders endpoint when request_ref_id is provided
+                // Use orders endpoint when connector_order_id is provided
                 Ok(format!("{base_url}v1/orders/{ref_id}/payments"))
             }
             None => {
@@ -765,7 +764,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         res: Response,
     ) -> CustomResult<
         RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
-        ConnectorResponseTransformationError,
+        ConnectorError,
     > {
         // Parse the response using the enum that handles both collection and direct payment responses
         let sync_response: razorpayv2::RazorpayV2SyncResponse = res
@@ -798,8 +797,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<domain_types::router_data::ErrorResponse, ConnectorResponseTransformationError>
-    {
+    ) -> CustomResult<domain_types::router_data::ErrorResponse, ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 
@@ -807,8 +805,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<domain_types::router_data::ErrorResponse, ConnectorResponseTransformationError>
-    {
+    ) -> CustomResult<domain_types::router_data::ErrorResponse, ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 }
@@ -875,7 +872,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         res: Response,
     ) -> CustomResult<
         RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
-        ConnectorResponseTransformationError,
+        ConnectorError,
     > {
         let response: razorpayv2::RazorpayV2RefundResponse = res
             .response
@@ -906,8 +903,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<domain_types::router_data::ErrorResponse, ConnectorResponseTransformationError>
-    {
+    ) -> CustomResult<domain_types::router_data::ErrorResponse, ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 
@@ -915,8 +911,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<domain_types::router_data::ErrorResponse, ConnectorResponseTransformationError>
-    {
+    ) -> CustomResult<domain_types::router_data::ErrorResponse, ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 }
@@ -978,7 +973,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         res: Response,
     ) -> CustomResult<
         RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
-        ConnectorResponseTransformationError,
+        ConnectorError,
     > {
         let response: razorpayv2::RazorpayV2RefundResponse = res
             .response
@@ -1009,8 +1004,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<domain_types::router_data::ErrorResponse, ConnectorResponseTransformationError>
-    {
+    ) -> CustomResult<domain_types::router_data::ErrorResponse, ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 
@@ -1018,8 +1012,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<domain_types::router_data::ErrorResponse, ConnectorResponseTransformationError>
-    {
+    ) -> CustomResult<domain_types::router_data::ErrorResponse, ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 }

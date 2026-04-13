@@ -53,7 +53,7 @@ use transformers::{
 
 use super::macros;
 use crate::types::ResponseRouterData;
-use domain_types::errors::ConnectorResponseTransformationError;
+use domain_types::errors::ConnectorError;
 
 // Trait implementations with generic type parameters
 
@@ -320,7 +320,7 @@ macros::macro_connector_implementation!(
             &self,
             res: Response,
             _event_builder: Option<&mut events::Event>,
-        ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
             // PayU sync may return error responses in different formats
             let response: PayuSyncResponse = res
                 .response
@@ -397,7 +397,7 @@ macros::macro_connector_implementation!(
             &self,
             res: Response,
             _event_builder: Option<&mut events::Event>,
-        ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
             // PayU returns error responses in the same JSON format as success responses
             // We need to parse the response and check for error fields
             let response: PayuPaymentResponse = res

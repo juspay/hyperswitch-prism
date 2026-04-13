@@ -48,7 +48,7 @@ use transformers::*;
 
 use super::macros;
 use crate::{types::ResponseRouterData, with_error_response_body};
-use domain_types::errors::ConnectorResponseTransformationError;
+use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
 
 pub(crate) mod headers {
@@ -90,7 +90,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: PayboxErrorResponse = res
             .response
             .parse_struct("PayboxErrorResponse")
@@ -176,7 +176,7 @@ macros::create_all_prerequisites!(
             _req: &RouterDataV2<F, FCD, Req, Res>,
             bytes: bytes::Bytes,
             status_code: u16,
-        ) -> CustomResult<bytes::Bytes, ConnectorResponseTransformationError> {
+        ) -> CustomResult<bytes::Bytes, ConnectorError> {
             // Paybox can return responses in two formats:
             // 1. JSON-wrapped: {"response": "URLENCODED_DATA"}
             // 2. Direct URL-encoded: URLENCODED_DATA

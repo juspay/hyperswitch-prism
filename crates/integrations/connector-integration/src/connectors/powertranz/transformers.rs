@@ -1,6 +1,6 @@
 use common_enums::enums;
 use common_utils::types::FloatMajorUnit;
-use domain_types::errors::{ConnectorResponseTransformationError, IntegrationError};
+use domain_types::errors::{ConnectorError, IntegrationError};
 use domain_types::{
     connector_types::{
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
@@ -511,7 +511,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl<T: PaymentMethodDataTypes, F> TryFrom<ResponseRouterData<PowertranzPaymentsResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<PowertranzPaymentsResponse, Self>,
@@ -552,7 +552,7 @@ impl<T: PaymentMethodDataTypes, F> TryFrom<ResponseRouterData<PowertranzPayments
 impl<F> TryFrom<ResponseRouterData<PowertranzPaymentsSyncResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<PowertranzPaymentsSyncResponse, Self>,
@@ -593,7 +593,7 @@ impl<F> TryFrom<ResponseRouterData<PowertranzPaymentsSyncResponse, Self>>
 impl<F> TryFrom<ResponseRouterData<PowertranzCaptureResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<PowertranzCaptureResponse, Self>,
@@ -634,7 +634,7 @@ impl<F> TryFrom<ResponseRouterData<PowertranzCaptureResponse, Self>>
 impl<F> TryFrom<ResponseRouterData<PowertranzVoidResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<PowertranzVoidResponse, Self>,
@@ -675,7 +675,7 @@ impl<F> TryFrom<ResponseRouterData<PowertranzVoidResponse, Self>>
 impl<F> TryFrom<ResponseRouterData<PowertranzRefundResponse, Self>>
     for RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<PowertranzRefundResponse, Self>,
@@ -709,7 +709,7 @@ impl<F> TryFrom<ResponseRouterData<PowertranzRefundResponse, Self>>
 impl<F> TryFrom<ResponseRouterData<PowertranzRSyncResponse, Self>>
     for RouterDataV2<F, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<PowertranzRSyncResponse, Self>,

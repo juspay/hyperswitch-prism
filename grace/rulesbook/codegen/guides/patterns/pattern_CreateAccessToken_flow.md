@@ -215,7 +215,7 @@ pub struct VoltAuthUpdateResponse {
 impl<F, T> TryFrom<ResponseRouterData<VoltAuthUpdateResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, T, AccessTokenResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<VoltAuthUpdateResponse, Self>,
@@ -366,7 +366,7 @@ pub struct ConnectorTokenErrorResponse {
 impl<F, T> TryFrom<ResponseRouterData<ConnectorTokenErrorResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, T, AccessTokenResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<ConnectorTokenErrorResponse, Self>,

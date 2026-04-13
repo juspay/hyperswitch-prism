@@ -197,11 +197,11 @@ fn handle_response(
     data: &RouterDataV2<...>,
     event_builder: Option<&mut ConnectorEvent>,
     res: Response,
-) -> CustomResult<RouterDataV2<...>, ConnectorResponseTransformationError> {
+) -> CustomResult<RouterDataV2<...>, ConnectorError> {
     let response: ConnectorIncrementalAuthResponse = res
         .response
         .parse_struct("IncrementalAuthResponse")
-        .change_context(ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })?;
+        .change_context(ConnectorError::ResponseDeserializationFailed { context: Default::default() })?;
 
     event_builder.map(|event| event.set_response_body(&response));
 
@@ -231,11 +231,11 @@ fn get_error_response(
     &self,
     res: Response,
     event_builder: Option<&mut ConnectorEvent>,
-) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+) -> CustomResult<ErrorResponse, ConnectorError> {
     let response = res
         .response
         .parse_struct("ErrorResponse")
-        .change_context(ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })?;
+        .change_context(ConnectorError::ResponseDeserializationFailed { context: Default::default() })?;
 
     event_builder.map(|event| event.set_error_response_body(&response));
 

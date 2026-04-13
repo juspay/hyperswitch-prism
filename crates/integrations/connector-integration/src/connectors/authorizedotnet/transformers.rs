@@ -10,7 +10,7 @@ use domain_types::{
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
         RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
-    errors::{ConnectorResponseTransformationError, IntegrationError, WebhookError},
+    errors::{ConnectorError, IntegrationError, WebhookError},
     payment_method_data::{
         BankDebitData, DefaultPCIHolder, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
         VaultTokenHolder,
@@ -33,7 +33,7 @@ use serde_with::skip_serializing_none;
 use super::AuthorizedotnetRouterData;
 
 type Error = error_stack::Report<IntegrationError>;
-type ResponseError = error_stack::Report<ConnectorResponseTransformationError>;
+type ResponseError = error_stack::Report<ConnectorError>;
 
 // Constants
 const MAX_ID_LENGTH: usize = 20;
@@ -1762,7 +1762,7 @@ impl<
     > TryFrom<ResponseRouterData<AuthorizedotnetAuthorizeResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         value: ResponseRouterData<AuthorizedotnetAuthorizeResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -1804,7 +1804,7 @@ impl<
 impl<F> TryFrom<ResponseRouterData<AuthorizedotnetCaptureResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         value: ResponseRouterData<AuthorizedotnetCaptureResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -1846,7 +1846,7 @@ impl<F> TryFrom<ResponseRouterData<AuthorizedotnetCaptureResponse, Self>>
 impl<F> TryFrom<ResponseRouterData<AuthorizedotnetVoidResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         value: ResponseRouterData<AuthorizedotnetVoidResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -1890,7 +1890,7 @@ impl<
     > TryFrom<ResponseRouterData<AuthorizedotnetRepeatPaymentResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         value: ResponseRouterData<AuthorizedotnetRepeatPaymentResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -2007,7 +2007,7 @@ impl<
 impl TryFrom<ResponseRouterData<AuthorizedotnetRefundResponse, Self>>
     for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         value: ResponseRouterData<AuthorizedotnetRefundResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -2060,7 +2060,7 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetRefundResponse, Self>>
 impl<F> TryFrom<ResponseRouterData<AuthorizedotnetPSyncResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         value: ResponseRouterData<AuthorizedotnetPSyncResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -2618,7 +2618,7 @@ impl From<RSyncStatus> for RefundStatus {
 impl TryFrom<ResponseRouterData<AuthorizedotnetRSyncResponse, Self>>
     for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         value: ResponseRouterData<AuthorizedotnetRSyncResponse, Self>,
@@ -2811,10 +2811,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         PaymentsResponseData,
     >
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         value: ResponseRouterData<AuthorizedotnetSetupMandateResponse, Self>,
-    ) -> Result<Self, error_stack::Report<ConnectorResponseTransformationError>> {
+    ) -> Result<Self, error_stack::Report<ConnectorError>> {
         let ResponseRouterData {
             response,
             router_data,
@@ -2827,7 +2827,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector_customer
             .as_ref()
             .ok_or_else(|| {
-                error_stack::report!(ConnectorResponseTransformationError::ResponseHandlingFailed {
+                error_stack::report!(ConnectorError::ResponseHandlingFailed {
                     context: domain_types::errors::ResponseTransformationErrorContext {
                         http_status_code: Some(http_code),
                         additional_context: Some("connector_customer_id required to build mandate reference for authorizedotnet".to_string()),

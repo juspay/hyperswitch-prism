@@ -12,7 +12,7 @@ use std::{
 };
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 
-use domain_types::errors::ConnectorResponseTransformationError;
+use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
 use domain_types::{
     connector_flow::{
@@ -418,7 +418,7 @@ macros::create_all_prerequisites!(
             _req: &RouterDataV2<F, FCD, Req, Res>,
             bytes: bytes::Bytes,
             status_code: u16,
-        ) -> CustomResult<bytes::Bytes, ConnectorResponseTransformationError> {
+        ) -> CustomResult<bytes::Bytes, ConnectorError> {
             let url_encoded_response: Value = serde_urlencoded::from_bytes(&bytes)
                     .change_context(crate::utils::response_deserialization_fail(status_code, "zift: response body did not match the expected format; confirm API version and connector documentation."))
                     .attach_printable("Failed to parse URL-encoded response from Zift")
@@ -487,7 +487,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: ZiftErrorResponse = serde_urlencoded::from_bytes(&res.response)
             .change_context(
                 crate::utils::response_deserialization_fail(

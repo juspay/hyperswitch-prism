@@ -24,12 +24,15 @@ export interface HttpResponse {
   latencyMs: number; // Flat field for cross-language parity
 }
 
+/** Optional mock intercept — set by smoke test in mock mode only. */
+export let _intercept: ((req: HttpRequest) => Promise<HttpResponse>) | null = null;
+
 /** Network error codes from proto (single source of truth). */
 export const NetworkErrorCode = types.NetworkErrorCode;
 
 /**
  * Network error for HTTP transport failures (timeouts, connection errors, config).
- * Uses proto-generated NetworkErrorCode for cross-SDK parity with IntegrationError/ConnectorResponseTransformationError.
+ * Uses proto-generated NetworkErrorCode for cross-SDK parity with IntegrationError/ConnectorError.
  */
 export class NetworkError extends Error {
   constructor(
@@ -44,7 +47,7 @@ export class NetworkError extends Error {
   }
 
   /**
-   * String error code for parity with IntegrationError/ConnectorResponseTransformationError (e.g. "CONNECT_TIMEOUT").
+   * String error code for parity with IntegrationError/ConnectorError (e.g. "CONNECT_TIMEOUT").
    * Use for logging, display, and simple comparisons.
    */
   get errorCode(): string {
@@ -63,6 +66,22 @@ export function resolveProxyUrl(url: string, proxy?: types.IProxyOptions | null)
 }
 
 /**
+ * Generate a cache key from proxy configuration for HTTP client caching.
+ * Returns empty string when no proxy is configured.
+ */
+export function generateProxyCacheKey(proxy?: types.IProxyOptions | null): string {
+  if (!proxy) return "";
+
+  const httpUrl = proxy.httpUrl || "";
+  const httpsUrl = proxy.httpsUrl || "";
+  const bypassUrls = Array.isArray(proxy.bypassUrls)
+    ? [...proxy.bypassUrls].sort().join(",")
+    : "";
+
+  return `${httpUrl}|${httpsUrl}|${bypassUrls}`;
+}
+
+/**
  * Creates a high-performance dispatcher with specialized fintech timeouts.
  * (The instance-level connection pool)
  */
@@ -76,11 +95,12 @@ export function createDispatcher(config: types.IHttpConfig): Dispatcher {
     }
   }
 
-  const dispatcherOptions: any = {
-    connect: {
-      timeout: config.connectTimeoutMs ?? Defaults.CONNECT_TIMEOUT_MS,
-      ca,
-    },
+  const connectOptions: any = {
+    timeout: config.connectTimeoutMs ?? Defaults.CONNECT_TIMEOUT_MS,
+    ca,
+  };
+
+  const commonOptions: any = {
     headersTimeout: config.responseTimeoutMs ?? Defaults.RESPONSE_TIMEOUT_MS,
     bodyTimeout: config.responseTimeoutMs ?? Defaults.RESPONSE_TIMEOUT_MS,
     keepAliveTimeout: config.keepAliveTimeoutMs ?? Defaults.KEEP_ALIVE_TIMEOUT_MS,
@@ -88,9 +108,20 @@ export function createDispatcher(config: types.IHttpConfig): Dispatcher {
 
   const proxyUrl = config.proxy?.httpsUrl || config.proxy?.httpUrl;
   try {
-    return proxyUrl
-      ? new ProxyAgent({ uri: proxyUrl, ...dispatcherOptions })
-      : new Agent(dispatcherOptions);
+    if (proxyUrl) {
+      // For a CONNECT proxy:
+      //   - `connect`     governs TLS to the proxy itself (HTTP proxy → no TLS needed)
+      //   - `requestTls`  governs TLS for the tunneled origin connection (the CONNECT tunnel)
+      //                   This is where the custom CA must live so Node trusts the
+      //                   mitmproxy-issued leaf certificate for api.stripe.com, etc.
+      return new ProxyAgent({
+        uri: proxyUrl,
+        ...commonOptions,
+        connect: { timeout: config.connectTimeoutMs ?? Defaults.CONNECT_TIMEOUT_MS },
+        requestTls: { ca },
+      });
+    }
+    return new Agent({ ...commonOptions, connect: connectOptions });
   } catch (error: any) {
     const code = proxyUrl ? types.NetworkErrorCode.INVALID_PROXY_CONFIGURATION : types.NetworkErrorCode.CLIENT_INITIALIZATION_FAILURE;
     throw new NetworkError(`Internal HTTP setup failed: ${error.message}`, code, 500);
@@ -105,6 +136,11 @@ export async function execute(
   options: types.IHttpConfig = {},
   dispatcher?: Dispatcher // Pass the instance-owned pool here
 ): Promise<HttpResponse> {
+  // Check for mock intercept (used in smoke test mock mode)
+  if (_intercept) {
+    return _intercept(request);
+  }
+
   const { url, method, headers, body } = request;
 
   try {

@@ -14,7 +14,7 @@ use domain_types::{
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
         RefundsResponseData, ResponseId,
     },
-    errors::{ConnectorResponseTransformationError, IntegrationError},
+    errors::{ConnectorError, IntegrationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -281,10 +281,9 @@ fn is_auto_capture_request<
 
 fn is_auto_capture_psync_response(
     data: &PaymentsSyncData,
-) -> Result<bool, error_stack::Report<ConnectorResponseTransformationError>> {
-    is_auto_capture_psync(data).change_context(
-        ConnectorResponseTransformationError::response_handling_failed_http_status_unknown(),
-    )
+) -> Result<bool, error_stack::Report<ConnectorError>> {
+    is_auto_capture_psync(data)
+        .change_context(ConnectorError::response_handling_failed_http_status_unknown())
 }
 
 fn map_payment_response_to_attempt_status(
@@ -451,7 +450,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
     TryFrom<ResponseRouterData<XenditPaymentResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<XenditPaymentResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -551,7 +550,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
 impl<F> TryFrom<ResponseRouterData<XenditResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<XenditResponse, Self>) -> Result<Self, Self::Error> {
         let ResponseRouterData {
             response,
@@ -678,7 +677,7 @@ pub struct XenditPaymentsCaptureRequest {
 impl<F> TryFrom<ResponseRouterData<XenditCaptureResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<XenditCaptureResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -786,7 +785,7 @@ pub enum RefundStatus {
 impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
     for RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<RefundResponse, Self>) -> Result<Self, Self::Error> {
         let ResponseRouterData {
             response,
@@ -836,7 +835,7 @@ impl From<RefundStatus> for common_enums::RefundStatus {
 impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
     for RouterDataV2<F, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<RefundResponse, Self>) -> Result<Self, Self::Error> {
         let ResponseRouterData {
             response,

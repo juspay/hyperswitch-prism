@@ -18,7 +18,7 @@ export type {
   GrpcRecurringPaymentClient,
 } from "./payments/grpc_client";
 // Export error classes
-export { IntegrationError, ConnectorResponseTransformationError } from './payments/connector_client';
+export { IntegrationError, ConnectorError } from './payments/connector_client';
 
 // ---------------------------------------------------------------------------
 // Domain namespaces — runtime values

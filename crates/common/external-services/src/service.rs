@@ -17,7 +17,7 @@ use domain_types::{
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::Proxy,
-    ConnectorResponseTransformationError,
+    ConnectorError,
 };
 #[cfg(feature = "injector-client")]
 use domain_types::{
@@ -132,7 +132,7 @@ pub type Headers = std::collections::HashSet<(String, Maskable<String>)>;
 /// Handles the connector response, processing both successful and error responses
 #[allow(clippy::too_many_arguments)]
 pub fn handle_connector_response<F, ResourceCommonData, Req, Resp>(
-    response: CustomResult<Result<Response, Response>, ConnectorResponseTransformationError>,
+    response: CustomResult<Result<Response, Response>, ConnectorError>,
     mut updated_router_data: RouterDataV2<F, ResourceCommonData, Req, Resp>,
     connector: &BoxedConnectorIntegrationV2<'static, F, ResourceCommonData, Req, Resp>,
     mut event: Option<&mut Event>,
@@ -140,10 +140,7 @@ pub fn handle_connector_response<F, ResourceCommonData, Req, Resp>(
     method: Method,
     url: String,
     event_params: Option<&EventProcessingParams<'_>>,
-) -> CustomResult<
-    RouterDataV2<F, ResourceCommonData, Req, Resp>,
-    ConnectorResponseTransformationError,
->
+) -> CustomResult<RouterDataV2<F, ResourceCommonData, Req, Resp>, ConnectorError>
 where
     F: Clone + 'static,
     Req: Clone + 'static + std::fmt::Debug,
@@ -215,20 +212,21 @@ where
                             .set_connector_response_headers(body.headers.clone());
                     }
 
-                    let error = match body.status_code {
+                    let error_response = match body.status_code {
                         500..=511 => connector.get_5xx_error_response(body.clone(), event)?,
                         _ => connector.get_error_response_v2(body.clone(), event)?,
                     };
                     tracing::Span::current().record(
                         "response.error_message",
-                        tracing::field::display(&error.message),
+                        tracing::field::display(&error_response.message),
                     );
                     tracing::Span::current().record(
                         "response.status_code",
-                        tracing::field::display(error.status_code),
+                        tracing::field::display(error_response.status_code),
                     );
-                    updated_router_data.response = Err(error);
-                    updated_router_data
+                    Err(error_stack::report!(
+                        ConnectorError::ConnectorErrorResponse(error_response)
+                    ))?
                 }
             };
             Ok(response)
@@ -557,7 +555,7 @@ where
                         let response_bytes = serde_json::to_vec(&injector_response.response)
                             .map_err(|_| {
                                 ConnectorFlowError::from(
-                                    ConnectorResponseTransformationError::response_handling_failed_http_status_unknown(),
+                                    ConnectorError::response_handling_failed_http_status_unknown(),
                                 )
                             })?;
 
@@ -646,7 +644,7 @@ where
 
                     let result = handle_connector_response(
                         response.change_context(
-                            ConnectorResponseTransformationError::response_handling_failed_http_status_unknown(),
+                            ConnectorError::response_handling_failed_http_status_unknown(),
                         ),
                         updated_router_data,
                         &connector,
@@ -672,7 +670,7 @@ where
                 .check_integrity(&data.request.clone(), None)
                 .map_err(|err| {
                     report_connector_response_to_flow(error_stack::report!(
-                        ConnectorResponseTransformationError::IntegrityCheckFailed {
+                        ConnectorError::IntegrityCheckFailed {
                             context: ResponseTransformationErrorContext {
                                 http_status_code: None,
                                 additional_context: None,

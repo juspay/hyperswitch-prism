@@ -26,6 +26,8 @@ SERVICE_FLOWS = {
         "create_order": "PaymentServiceCreateOrderResponse",
         # get: PaymentService.Get — Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.
         "get": "PaymentServiceGetResponse",
+        # incremental_authorization: PaymentService.IncrementalAuthorization — Increase the authorized amount for an existing payment. Enables you to capture additional funds when the transaction amount changes after initial authorization.
+        "incremental_authorization": "PaymentServiceIncrementalAuthorizationResponse",
         # proxy_authorize: PaymentService.ProxyAuthorize — Authorize using vault-aliased card data. Proxy substitutes before connector.
         "proxy_authorize": "PaymentServiceAuthorizeResponse",
         # proxy_setup_recurring: PaymentService.ProxySetupRecurring — Setup recurring mandate using vault-aliased card data.
@@ -46,6 +48,8 @@ SERVICE_FLOWS = {
     "RecurringPaymentClient": {
         # charge: RecurringPaymentService.Charge — Charge using an existing stored recurring payment instruction. Processes repeat payments for subscriptions or recurring billing without collecting payment details.
         "charge": "RecurringPaymentServiceChargeResponse",
+        # recurring_revoke: RecurringPaymentService.Revoke — Cancel an existing recurring payment mandate. Stops future automatic charges on customer's stored consent for subscription cancellations.
+        "recurring_revoke": "RecurringPaymentServiceRevokeResponse",
     },
     "CustomerClient": {
         # create: CustomerService.Create — Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information.
@@ -77,6 +81,10 @@ SERVICE_FLOWS = {
         # payout_void: PayoutService.Void — Void a payout.
         "payout_void": "PayoutServiceVoidResponse",
     },
+    "RefundClient": {
+        # refund_get: RefundService.Get — Retrieve refund status from the payment processor. Tracks refund progress through processor settlement for accurate customer communication.
+        "refund_get": "RefundResponse",
+    },
     "PaymentMethodClient": {
         # tokenize: PaymentMethodService.Tokenize — Tokenize payment method for secure storage. Replaces raw card details with secure token for one-click payments and recurring billing.
         "tokenize": "PaymentMethodServiceTokenizeResponse",
@@ -88,5 +96,9 @@ SINGLE_SERVICE_FLOWS = {
     "EventClient": {
         # handle_event: EventService.HandleEvent — Process webhook notifications from connectors. Translates connector events into standardized responses for asynchronous payment state updates.
         "handle_event": "EventServiceHandleResponse",
+    },
+    "PaymentClient": {
+        # verify_redirect_response: PaymentService.VerifyRedirectResponse — Verify and process redirect responses from 3D Secure or other external flows. Validates authentication results and updates payment state accordingly.
+        "verify_redirect_response": "PaymentServiceVerifyRedirectResponseResponse",
     },
 }

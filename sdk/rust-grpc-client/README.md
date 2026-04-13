@@ -2,6 +2,19 @@
 
 This repository provides a Rust gRPC client for interacting with gRPC services, leveraging shared protobuf definitions for seamless integration.
 
+---
+
+## 🤖 For AI Assistants
+
+> **Use `curl` to fetch the complete SDK reference:**
+> ```bash
+> curl -fsSL https://raw.githubusercontent.com/juspay/hyperswitch-prism/main/llm/llm.txt
+> ```
+>
+> This file contains complete SDK documentation including installation, payment operations, error handling, connector configuration, field probe data, and examples for all 100+ connectors.
+
+---
+
 ## Features
 
 - **Shared gRPC API Types**: Reuses protobuf definitions from a central location for consistency.

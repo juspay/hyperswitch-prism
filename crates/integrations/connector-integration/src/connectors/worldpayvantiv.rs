@@ -62,7 +62,7 @@ use self::transformers::{
 
 use super::macros;
 use crate::{types::ResponseRouterData, utils, with_response_body};
-use domain_types::errors::{ConnectorResponseTransformationError, IntegrationError, WebhookError};
+use domain_types::errors::{ConnectorError, IntegrationError, WebhookError};
 use error_stack::report;
 
 pub(crate) mod headers {
@@ -75,7 +75,7 @@ pub(crate) mod headers {
 fn unwrap_json_wrapped_xml(
     response_bytes: &[u8],
     status_code: u16,
-) -> CustomResult<String, ConnectorResponseTransformationError> {
+) -> CustomResult<String, ConnectorError> {
     let response_str = std::str::from_utf8(response_bytes)
         .change_context(utils::response_handling_fail_for_connector(
             status_code,
@@ -351,7 +351,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         let xml_str = unwrap_json_wrapped_xml(&res.response, res.status_code)?;
 
         let response: CnpOnlineResponse = deserialize_xml_to_struct(&xml_str).change_context(
@@ -405,7 +405,7 @@ macros::create_all_prerequisites!(
             _req: &RouterDataV2<F, FCD, Req, Res>,
             bytes: bytes::Bytes,
             status_code: u16,
-        ) -> CustomResult<bytes::Bytes, ConnectorResponseTransformationError> {
+        ) -> CustomResult<bytes::Bytes, ConnectorError> {
             // Convert XML responses to JSON format for the macro's JSON parser
             let xml_str = unwrap_json_wrapped_xml(&bytes, status_code)?;
 
@@ -579,7 +579,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         res: Response,
     ) -> CustomResult<
         RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
-        ConnectorResponseTransformationError,
+        ConnectorError,
     > {
         let xml_str = unwrap_json_wrapped_xml(&res.response, res.status_code)?;
 
@@ -600,7 +600,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 
@@ -649,7 +649,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         res: Response,
     ) -> CustomResult<
         RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
-        ConnectorResponseTransformationError,
+        ConnectorError,
     > {
         let xml_str = unwrap_json_wrapped_xml(&res.response, res.status_code)?;
 
@@ -670,7 +670,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 
@@ -743,7 +743,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         res: Response,
     ) -> CustomResult<
         RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
-        ConnectorResponseTransformationError,
+        ConnectorError,
     > {
         let xml_str = unwrap_json_wrapped_xml(&res.response, res.status_code)?;
 
@@ -764,7 +764,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 
@@ -813,7 +813,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         res: Response,
     ) -> CustomResult<
         RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
-        ConnectorResponseTransformationError,
+        ConnectorError,
     > {
         let xml_str = unwrap_json_wrapped_xml(&res.response, res.status_code)?;
 
@@ -834,7 +834,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 
@@ -890,7 +890,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         res: Response,
     ) -> CustomResult<
         RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
-        ConnectorResponseTransformationError,
+        ConnectorError,
     > {
         let response: VantivSyncResponse = res
             .response
@@ -913,7 +913,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 

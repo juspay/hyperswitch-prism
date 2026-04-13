@@ -58,7 +58,7 @@ _PROTO_REPEATED_FIELDS: dict[str, set[str]] = {}
 # Set of message type names that are "scalar wrappers" (single `value` field).
 # These are stored as plain scalars in probe data but must be sent as
 # {"value": ...} dicts in ParseDict calls.
-_PROTO_WRAPPER_TYPES: frozenset[str] = frozenset()
+_PROTO_WRAPPER_TYPES: set[str] = set()
 
 # Proto messages that wrap a single oneof field.  In prost + serde, the outer
 # struct has one field with the same name as the oneof (snake_case), so when
@@ -76,7 +76,7 @@ def load_proto_type_map(proto_dir: Path) -> None:
     type_map: dict[str, dict[str, str]] = {}
     repeated_map: dict[str, set[str]] = {}
     _FIELD_RE = re.compile(
-        r"^\s*(repeated\s+)?(?:optional\s+)?(\w+)\s+(\w+)\s*=\s*\d+"
+        r"^\s*(repeated\s+)?(?:optional\s+)?([\w<>,\s]+?)\s+(\w+)\s*=\s*\d+"
     )
     _SKIP_KEYWORDS = frozenset(
         ["message", "enum", "oneof", "reserved", "option", "extensions",
@@ -108,6 +108,10 @@ def load_proto_type_map(proto_dir: Path) -> None:
                 i += 1
             body = text[body_start : i - 1]
 
+            # Normalize multi-line field definitions (e.g. "optional FutureUsage f =\n    19;")
+            # by joining the field number onto the same line as the type/name.
+            body = re.sub(r"=\s*\n\s*(\d+)", r"= \1", body)
+
             # Extract only top-level lines (not inside nested { })
             fields: dict[str, str] = {}
             repeated_fields: set[str] = set()
@@ -126,12 +130,16 @@ def load_proto_type_map(proto_dir: Path) -> None:
 
             type_map[msg_name] = fields
             repeated_map[msg_name] = repeated_fields
-            pos = pos + m.start() + 1  # advance past this message keyword
+            pos = i  # advance past the entire message body
 
-    _PROTO_FIELD_TYPES = type_map
-    _PROTO_REPEATED_FIELDS = repeated_map
+    # Clear and update the global dicts in-place so existing references see the changes
+    _PROTO_FIELD_TYPES.clear()
+    _PROTO_FIELD_TYPES.update(type_map)
+    _PROTO_REPEATED_FIELDS.clear()
+    _PROTO_REPEATED_FIELDS.update(repeated_map)
     # Wrapper types: messages whose only field is named "value"
-    _PROTO_WRAPPER_TYPES = frozenset(
+    _PROTO_WRAPPER_TYPES.clear()
+    _PROTO_WRAPPER_TYPES.update(
         name for name, fields in type_map.items()
         if set(fields.keys()) == {"value"}
     )
@@ -593,9 +601,16 @@ def _annotate_inline_lines(
 
         if isinstance(val, dict):
             if not child_msg:
-                # Unknown field — likely a oneof group name (e.g. mandate_id_type).
-                # Flatten by processing inner fields at the current message level.
-                lines.extend(_annotate_inline_lines(val, msg_name, db, indent, cmt, camel_keys, ts_mode=ts_mode))
+                # Unknown field — check if it's a wrapper-style dict (single "value" key)
+                # If so, preserve the outer key; otherwise flatten as oneof group
+                if len(val) == 1 and "value" in val:
+                    # Wrapper-style field - preserve the key with inner value
+                    lines.append(f'{pad}"{out_key}": {{{cmt_part}')
+                    lines.append(f'{pad}    "value": {_json_scalar(val["value"], js=camel_keys)}{trailing}')
+                    lines.append(f"{pad}}}")
+                else:
+                    # Likely a oneof group name (e.g. mandate_id_type) - flatten
+                    lines.extend(_annotate_inline_lines(val, msg_name, db, indent, cmt, camel_keys, ts_mode=ts_mode))
             else:
                 lines.append(f'{pad}"{out_key}": {{{cmt_part}')
                 lines.extend(_annotate_inline_lines(val, child_msg, db, indent + 1, cmt, camel_keys, ts_mode=ts_mode))
@@ -717,7 +732,7 @@ def _conn_display(connector_name: str) -> str:
 
 def _config_python(connector_name: str) -> str:
     return f"""\
-from payments.generated import sdk_config_pb2, payment_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -960,7 +975,7 @@ def render_scenario_python(
 import asyncio
 from google.protobuf.json_format import ParseDict
 {client_imports}
-from payments.generated import sdk_config_pb2, payment_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -1554,14 +1569,15 @@ def _kt_builder_fn(flow_key: str, proto_req: dict, grpc_req: str, message_schema
 
 def render_consolidated_python(
     connector_name: str,
-    scenarios_with_payloads: list[tuple["ScenarioSpec", dict[str, dict]]],
+    flow_items: "list[tuple[str, dict, str]]",
     flow_metadata: dict[str, dict],
     message_schemas: dict,
-    flow_items: "list[tuple[str, dict, str]] | None" = None,
+    scenarios_with_payloads: "list[tuple[ScenarioSpec, dict[str, dict]]] | None" = None,
 ) -> str:
-    """Return one Python file containing all scenario functions (and flow functions) for a connector."""
+    """Return one Python file containing all flow functions (and scenario functions) for a connector."""
     db        = _SchemaDB(message_schemas)
     conn_enum = _conn_enum(connector_name)
+    scenarios_with_payloads = scenarios_with_payloads or []
 
     # Merged imports — collect every service needed across scenarios AND flows
     all_service_names: list[str] = []
@@ -1749,7 +1765,7 @@ def render_consolidated_python(
     builders_text  = "\n\n".join(builder_fns)
     builders_section = f"\n\n{builders_text}\n" if builder_fns else ""
     functions_text = "\n\n".join(func_blocks)
-    first_scenario = func_names[0][8:] if func_names[0].startswith("process_") else func_names[0] if func_names else "checkout_autocapture"
+    first_scenario = func_names[0][8:] if func_names and func_names[0].startswith("process_") else func_names[0] if func_names else "checkout_autocapture"
 
     return f"""\
 # This file is auto-generated. Do not edit manually.
@@ -1763,7 +1779,7 @@ import asyncio
 import sys
 from google.protobuf.json_format import ParseDict
 {client_imports}
-from payments.generated import sdk_config_pb2, payment_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -1788,14 +1804,15 @@ if __name__ == "__main__":
 
 def render_consolidated_javascript(
     connector_name: str,
-    scenarios_with_payloads: list[tuple["ScenarioSpec", dict[str, dict]]],
+    flow_items: "list[tuple[str, dict, str]]",
     flow_metadata: dict[str, dict],
     message_schemas: dict,
-    flow_items: "list[tuple[str, dict, str]] | None" = None,
+    scenarios_with_payloads: "list[tuple[ScenarioSpec, dict[str, dict]]] | None" = None,
 ) -> str:
-    """Return one JavaScript file containing all scenario functions (and flow functions) for a connector."""
+    """Return one JavaScript/TypeScript file containing all flow functions (and scenario functions) for a connector."""
     db        = _SchemaDB(message_schemas)
     conn_enum = _conn_enum(connector_name)
+    scenarios_with_payloads = scenarios_with_payloads or []
 
     # Merged imports — scenarios + flows
     all_service_names: list[str] = []
@@ -1810,6 +1827,28 @@ def render_consolidated_javascript(
             all_service_names.append(svc)
 
     client_imports = ", ".join(_client_class(svc) for svc in all_service_names)
+
+    # Collect enum types used in payload fields (for Currency.USD, CaptureMethod.MANUAL, etc.)
+    ts_enum_types: set[str] = set()
+    for scenario, flow_payloads in scenarios_with_payloads:
+        for fk in scenario.flows:
+            payload = dict(flow_payloads.get(fk, {}))
+            if fk == "authorize":
+                if scenario.key in ("checkout_card", "void_payment", "get_payment"):
+                    payload["capture_method"] = "MANUAL"
+                elif scenario.key == "refund":
+                    payload["capture_method"] = "AUTOMATIC"
+            grpc_req = flow_metadata.get(fk, {}).get("grpc_request", "")
+            ts_enum_types.update(_collect_ts_enum_types(payload, grpc_req, db))
+    for flow_key, proto_req, _ in (flow_items or []):
+        grpc_req = flow_metadata.get(flow_key, {}).get("grpc_request", "")
+        ts_enum_types.update(_collect_ts_enum_types(proto_req, grpc_req, db))
+    
+    # Build enum imports string
+    enum_imports = ", ".join(sorted(ts_enum_types)) if ts_enum_types else ""
+    types_imports = "ConnectorConfig, ConnectorSpecificConfig, SdkOptions, Environment"
+    if enum_imports:
+        types_imports += f", {enum_imports}"
 
     # Build one function block per scenario
     func_blocks:   list[str] = []
@@ -1969,7 +2008,7 @@ def render_consolidated_javascript(
         func_blocks.append(
             f"// {scenario.title}\n"
             f"// {scenario.description}\n"
-            f"export async function {func_name}(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): {scenario_return_type} {{\n"
+            f"async function {func_name}(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): {scenario_return_type} {{\n"
             f"{body}\n"
             f"}}"
         )
@@ -2025,17 +2064,17 @@ def render_consolidated_javascript(
             return_type = "Promise<any>"
         func_blocks.append(
             f"// Flow: {svc}.{rpc_name}{pm_part}\n"
-            f"export async function {func_name}(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): {return_type} {{\n"
+            f"async function {func_name}(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): {return_type} {{\n"
             f"{body}\n"
             f"}}"
         )
 
-    # Also export _build*Request helpers so the gRPC smoke test can call them directly.
-    builder_export_names = [
+    # Export both process* functions and _build*Request helpers
+    export_items = func_names_js + [
         "_build" + "".join(w.title() for w in fk.split("_")) + "Request"
         for fk in sorted(js_has_builder)
     ]
-    exports          = ", ".join(func_names_js + builder_export_names)
+    exports = ", ".join(export_items)
     js_builders_text = "\n\n".join(js_builder_fns)
     js_builders_section = f"\n\n{js_builders_text}\n" if js_builder_fns else ""
     funcs_text       = "\n\n".join(func_blocks)
@@ -2049,8 +2088,8 @@ def render_consolidated_javascript(
 // {connector_name.title()} — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx {connector_name}.ts {first_scenario}
 
-import {{ {client_imports} }} from 'hyperswitch-prism';
-import {{ ConnectorConfig, ConnectorSpecificConfig, SdkOptions, Environment }} from 'hyperswitch-prism/types';
+import {{ {client_imports}, types }} from 'hyperswitch-prism';
+const {{ {types_imports} }} = types;
 
 const _defaultConfig: ConnectorConfig = {{
     options: {{
@@ -2067,7 +2106,10 @@ const _defaultConfig: ConnectorConfig = {{
 {funcs_text}
 
 
-export {{ {exports} }};
+// Export all process* functions for the smoke test
+export {{
+    {exports}
+}};
 
 // CLI runner
 if (require.main === module) {{
@@ -2159,10 +2201,10 @@ def render_scenario_section(
     # Link to example files with line numbers if available
     scenario_key = scenario.key
     camel_scenario = "".join(w.capitalize() for w in scenario_key.split("_"))
-    base_py = f"../../examples/{connector_name}/python/{connector_name}.py"
-    base_js = f"../../examples/{connector_name}/javascript/{connector_name}.js"
-    base_kt = f"../../examples/{connector_name}/kotlin/{connector_name}.kt"
-    base_rs = f"../../examples/{connector_name}/rust/{connector_name}.rs"
+    base_py = f"../../examples/{connector_name}/{connector_name}.py"
+    base_js = f"../../examples/{connector_name}/{connector_name}.js"
+    base_kt = f"../../examples/{connector_name}/{connector_name}.kt"
+    base_rs = f"../../examples/{connector_name}/{connector_name}.rs"
     
     # Get line numbers from the generated files
     ln_py = line_numbers.get("python", 0) if line_numbers else 0
@@ -2311,14 +2353,15 @@ async function {func_name}(merchantTransactionId: string): Promise<{return_type}
 
 # Per-flow status block for flows that don't have a PaymentStatus status field.
 _KT_FLOW_STATUS_BLOCK: dict[str, str] = {
-    "tokenize":                  '    println("Token: ${response.paymentMethodToken}")',
-    "create_customer":           '    println("Customer: ${response.connectorCustomerId}")',
-    "dispute_accept":            '    println("Dispute status: ${response.disputeStatus.name}")',
-    "dispute_defend":            '    println("Dispute status: ${response.disputeStatus.name}")',
-    "dispute_submit_evidence":   '    println("Dispute status: ${response.disputeStatus.name}")',
-    "create_access_token":       '    println("Access token obtained (statusCode=${response.statusCode})")',
-    "create_session_token":      '    println("Session token obtained (statusCode=${response.statusCode})")',
-    "create_order":              '    println("Order: ${response.connectorOrderId}")',
+    "tokenize":                             '    println("Token: ${response.paymentMethodToken}")',
+    "create_customer":                      '    println("Customer: ${response.connectorCustomerId}")',
+    "dispute_accept":                       '    println("Dispute status: ${response.disputeStatus.name}")',
+    "dispute_defend":                       '    println("Dispute status: ${response.disputeStatus.name}")',
+    "dispute_submit_evidence":              '    println("Dispute status: ${response.disputeStatus.name}")',
+    "create_access_token":                  '    println("Access token obtained (statusCode=${response.statusCode})")',
+    "create_session_token":                 '    println("Session token obtained (statusCode=${response.statusCode})")',
+    "create_client_authentication_token":   '    println("StatusCode: ${response.statusCode}")',
+    "create_order":                         '    println("Order: ${response.connectorOrderId}")',
 }
 
 
@@ -2452,6 +2495,18 @@ def _kotlin_collect_enum_types(obj: dict, msg_name: str, db: "_SchemaDB") -> set
     return types
 
 
+def _to_snake(name: str) -> str:
+    """Convert camelCase to snake_case for proto field name lookups."""
+    result = []
+    for i, char in enumerate(name):
+        if char.isupper() and i > 0:
+            result.append('_')
+            result.append(char.lower())
+        else:
+            result.append(char.lower())
+    return ''.join(result)
+
+
 def _kotlin_payload_lines(
     obj: dict,
     msg_name: str,
@@ -2473,6 +2528,10 @@ def _kotlin_payload_lines(
         camel     = _to_camel(key)
         comment   = db.get_comment(msg_name, key)
         child_msg = db.get_type(msg_name, key)
+        # If lookup fails and key is camelCase, try snake_case fallback for proto schemas
+        if not child_msg:
+            snake_key = _to_snake(key)
+            child_msg = db.get_type(msg_name, snake_key)
         cmt_part  = f"  // {comment}" if comment else ""
 
         if key in variable_fields:
@@ -2488,10 +2547,25 @@ def _kotlin_payload_lines(
             continue
 
         if isinstance(val, dict):
-            if not child_msg:
+            # Check if this is a map type
+            is_map = child_msg and child_msg.startswith("map<")
+            
+            # Also check from _PROTO_FIELD_TYPES (handles cases where message_schemas 
+            # returns synthetic entry type name instead of map<>)
+            proto_type = _PROTO_FIELD_TYPES.get(msg_name, {}).get(key, "")
+            if proto_type.startswith("map<"):
+                is_map = True
+            
+            if not child_msg and not is_map:
                 # Unknown field — likely a oneof group name (e.g. mandate_id_type).
                 # Flatten by processing inner fields at the current message level.
                 lines.extend(_kotlin_payload_lines(val, msg_name, message_schemas, indent, variable_fields, variable_field_values))
+            elif is_map:
+                # Map type — use putAll() with mapOf() for Kotlin protobuf builders
+                map_entries = []
+                for k, v in val.items():
+                    map_entries.append(f'{json.dumps(k)} to {json.dumps(v)}')
+                lines.append(f"{pad}putAll{camel.capitalize()}(mapOf({', '.join(map_entries)})){cmt_part}")
             else:
                 lines.append(f"{pad}{camel}Builder.apply {{{cmt_part}")
                 lines.extend(_kotlin_payload_lines(val, child_msg, message_schemas, indent + 1, variable_fields, variable_field_values))
@@ -3325,8 +3399,8 @@ def render_consolidated_rust(
             status_block = '    Ok(format!("customer_id: {}", response.connector_customer_id))'
         elif flow_key in ("dispute_accept", "dispute_defend", "dispute_submit_evidence"):
             status_block = '    Ok(format!("dispute_status: {:?}", response.dispute_status()))'
-        elif flow_key in ("create_access_token", "create_session_token"):
-            status_block = '    Ok(format!("Session token obtained (statusCode={})", response.status_code))'
+        elif flow_key in ("create_access_token", "create_session_token", "create_client_authentication_token"):
+            status_block = '    Ok(format!("status: {:?}", response.status_code))'
         else:
             status_block = '    Ok(format!("status: {:?}", response.status()))'
 
@@ -3443,7 +3517,7 @@ def render_llms_txt_entry(
         if any(v.get("status") == "supported" for v in fdata.values())
     ]
     scenario_keys = [s.key for s in scenarios]
-    example_paths = [f"examples/{connector_name}/python/{connector_name}.py"] if scenario_keys else []
+    example_paths = [f"examples/{connector_name}/{connector_name}.py"] if scenario_keys else []
 
     lines = [
         f"## {display_name}",

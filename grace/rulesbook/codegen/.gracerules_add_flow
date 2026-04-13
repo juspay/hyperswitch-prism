@@ -538,7 +538,7 @@ impl<T: PaymentMethodDataTypes + ...> TryFrom<{ConnectorName}RouterData<RouterDa
 impl<T: PaymentMethodDataTypes + ...> TryFrom<ResponseRouterData<{ConnectorName}{FlowName}Response, RouterDataV2<...>>>
     for RouterDataV2<{FlowName}, ...>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<...>) -> Result<Self, Self::Error> {
         // Map response to RouterDataV2

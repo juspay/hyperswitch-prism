@@ -1,0 +1,259 @@
+{
+  "authorize": {
+    "no3ds_auto_capture_google_pay_encrypted": {
+      "grpc_req": {
+        "connector_feature_data": {
+          "value": "{\"merchant_account_id\":\"juspay\",\"merchant_config_currency\":\"USD\"}"
+        }
+      }
+    },
+    "no3ds_auto_capture_credit_card": {
+      "grpc_req": {
+        "connector_feature_data": {
+          "value": "{\"merchant_account_id\":\"juspay\",\"merchant_config_currency\":\"USD\"}"
+        }
+      }
+    },
+    "no3ds_auto_capture_debit_card": {
+      "grpc_req": {
+        "connector_feature_data": {
+          "value": "{\"merchant_account_id\":\"juspay\",\"merchant_config_currency\":\"USD\"}"
+        }
+      }
+    },
+    "no3ds_manual_capture_credit_card": {
+      "grpc_req": {
+        "connector_feature_data": {
+          "value": "{\"merchant_account_id\":\"juspay\",\"merchant_config_currency\":\"USD\"}"
+        }
+      }
+    },
+    "no3ds_manual_capture_debit_card": {
+      "grpc_req": {
+        "connector_feature_data": {
+          "value": "{\"merchant_account_id\":\"juspay\",\"merchant_config_currency\":\"USD\"}"
+        }
+      }
+    },
+    "threeds_manual_capture_credit_card": {
+      "grpc_req": {
+        "connector_feature_data": {
+          "value": "{\"merchant_account_id\":\"juspay\",\"merchant_config_currency\":\"USD\"}"
+        }
+      }
+    },
+    "no3ds_auto_capture_ideal": {
+      "grpc_req": {
+        "connector_feature_data": {
+          "value": "{\"merchant_account_id\":\"juspay\",\"merchant_config_currency\":\"USD\"}"
+        }
+      }
+    },
+    "no3ds_auto_capture_giropay": {
+      "grpc_req": {
+        "connector_feature_data": {
+          "value": "{\"merchant_account_id\":\"juspay\",\"merchant_config_currency\":\"USD\"}"
+        }
+      }
+    },
+    "no3ds_auto_capture_bancontact": {
+      "grpc_req": {
+        "connector_feature_data": {
+          "value": "{\"merchant_account_id\":\"juspay\",\"merchant_config_currency\":\"USD\"}"
+        }
+      }
+    },
+    "no3ds_auto_capture_klarna": {
+      "grpc_req": {
+        "connector_feature_data": {
+          "value": "{\"merchant_account_id\":\"juspay\",\"merchant_config_currency\":\"USD\"}"
+        }
+      }
+    },
+    "no3ds_auto_capture_affirm": {
+      "grpc_req": {
+        "connector_feature_data": {
+          "value": "{\"merchant_account_id\":\"juspay\",\"merchant_config_currency\":\"USD\"}"
+        }
+      }
+    },
+    "no3ds_auto_capture_afterpay_clearpay": {
+      "grpc_req": {
+        "connector_feature_data": {
+          "value": "{\"merchant_account_id\":\"juspay\",\"merchant_config_currency\":\"USD\"}"
+        }
+      }
+    },
+    "no3ds_fail_payment": {
+      "grpc_req": {
+        "connector_feature_data": {
+          "value": "{\"merchant_account_id\":\"juspay\",\"merchant_config_currency\":\"USD\"}"
+        }
+      }
+    },
+    "no3ds_auto_capture_przelewy24": {
+      "grpc_req": {
+        "connector_feature_data": {
+          "value": "{\"merchant_account_id\":\"juspay\",\"merchant_config_currency\":\"USD\"}"
+        }
+      }
+    },
+    "no3ds_auto_capture_alipay": {
+      "grpc_req": {
+        "connector_feature_data": {
+          "value": "{\"merchant_account_id\":\"juspay\",\"merchant_config_currency\":\"USD\"}"
+        }
+      }
+    },
+    "no3ds_auto_capture_eps": {
+      "grpc_req": {
+        "connector_feature_data": {
+          "value": "{\"merchant_account_id\":\"juspay\",\"merchant_config_currency\":\"USD\"}"
+        }
+      }
+    },
+    "no3ds_auto_capture_sepa_bank_transfer": {
+      "grpc_req": {
+        "connector_feature_data": {
+          "value": "{\"merchant_account_id\":\"juspay\",\"merchant_config_currency\":\"USD\"}"
+        }
+      }
+    },
+    "no3ds_auto_capture_ach_bank_transfer": {
+      "grpc_req": {
+        "connector_feature_data": {
+          "value": "{\"merchant_account_id\":\"juspay\",\"merchant_config_currency\":\"USD\"}"
+        }
+      }
+    },
+    "no3ds_auto_capture_bacs_bank_transfer": {
+      "grpc_req": {
+        "connector_feature_data": {
+          "value": "{\"merchant_account_id\":\"juspay\",\"merchant_config_currency\":\"USD\"}"
+        }
+      }
+    }
+  },
+  "capture": {
+    "capture_full_amount": {
+      "grpc_req": {
+        "connector_feature_data": {
+          "value": "{\"merchant_account_id\":\"juspay\",\"merchant_config_currency\":\"USD\"}"
+        }
+      }
+    },
+    "capture_partial_amount": {
+      "grpc_req": {
+        "connector_feature_data": {
+          "value": "{\"merchant_account_id\":\"juspay\",\"merchant_config_currency\":\"USD\"}"
+        }
+      }
+    },
+    "capture_with_merchant_order_id": {
+      "grpc_req": {
+        "connector_feature_data": {
+          "value": "{\"merchant_account_id\":\"juspay\",\"merchant_config_currency\":\"USD\"}"
+        }
+      }
+    }
+  },
+  "void": {
+    "void_authorized_payment": {
+      "grpc_req": {
+        "connector_feature_data": {
+          "value": "{\"merchant_account_id\":\"juspay\",\"merchant_config_currency\":\"USD\"}"
+        }
+      },
+      "assert": {
+        "connector_transaction_id": null
+      }
+    },
+    "void_without_cancellation_reason": {
+      "grpc_req": {
+        "connector_feature_data": {
+          "value": "{\"merchant_account_id\":\"juspay\",\"merchant_config_currency\":\"USD\"}"
+        }
+      },
+      "assert": {
+        "connector_transaction_id": null
+      }
+    },
+    "void_with_amount": {
+      "grpc_req": {
+        "connector_feature_data": {
+          "value": "{\"merchant_account_id\":\"juspay\",\"merchant_config_currency\":\"USD\"}"
+        }
+      },
+      "assert": {
+        "connector_transaction_id": null
+      }
+    }
+  },
+  "refund": {
+    "refund_full_amount": {
+      "grpc_req": {
+        "connector_feature_data": {
+          "value": "{\"merchant_account_id\":\"juspay\",\"merchant_config_currency\":\"USD\"}"
+        },
+        "merchant_account_id": "juspay"
+      },
+      "assert": {
+        "connector_refund_id": null
+      }
+    },
+    "refund_partial_amount": {
+      "grpc_req": {
+        "connector_feature_data": {
+          "value": "{\"merchant_account_id\":\"juspay\",\"merchant_config_currency\":\"USD\"}"
+        },
+        "merchant_account_id": "juspay"
+      },
+      "assert": {
+        "connector_refund_id": null
+      }
+    },
+    "refund_with_reason": {
+      "grpc_req": {
+        "connector_feature_data": {
+          "value": "{\"merchant_account_id\":\"juspay\",\"merchant_config_currency\":\"USD\"}"
+        },
+        "merchant_account_id": "juspay"
+      },
+      "assert": {
+        "connector_refund_id": null
+      }
+    }
+  },
+  "refund_sync": {
+    "refund_sync": {
+      "grpc_req": {
+        "connector_feature_data": {
+          "value": "{\"merchant_account_id\":\"juspay\",\"merchant_config_currency\":\"USD\"}"
+        }
+      }
+    },
+    "refund_sync_with_reason": {
+      "grpc_req": {
+        "connector_feature_data": {
+          "value": "{\"merchant_account_id\":\"juspay\",\"merchant_config_currency\":\"USD\"}"
+        }
+      }
+    }
+  },
+  "get": {
+    "sync_payment": {
+      "grpc_req": {
+        "connector_feature_data": {
+          "value": "{\"merchant_account_id\":\"juspay\",\"merchant_config_currency\":\"USD\"}"
+        }
+      }
+    },
+    "sync_payment_with_handle_response": {
+      "grpc_req": {
+        "connector_feature_data": {
+          "value": "{\"merchant_account_id\":\"juspay\",\"merchant_config_currency\":\"USD\"}"
+        }
+      }
+    }
+  }
+}

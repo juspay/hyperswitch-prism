@@ -588,7 +588,7 @@ fn map_status(
 impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<AuthipayPaymentsResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<AuthipayPaymentsResponse, Self>,
@@ -639,7 +639,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<AuthipayPaymentsRespo
 impl TryFrom<ResponseRouterData<AuthipayPaymentsResponse, Self>>
     for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<AuthipayPaymentsResponse, Self>,
@@ -690,7 +690,7 @@ impl TryFrom<ResponseRouterData<AuthipayPaymentsResponse, Self>>
 impl TryFrom<ResponseRouterData<AuthipayPaymentsResponse, Self>>
     for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<AuthipayPaymentsResponse, Self>,
@@ -891,7 +891,7 @@ fn map_refund_status(
 impl TryFrom<ResponseRouterData<AuthipayPaymentsResponse, Self>>
     for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<AuthipayPaymentsResponse, Self>,
@@ -921,7 +921,7 @@ impl TryFrom<ResponseRouterData<AuthipayPaymentsResponse, Self>>
 impl TryFrom<ResponseRouterData<AuthipayPaymentsResponse, Self>>
     for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<AuthipayPaymentsResponse, Self>,
@@ -1020,7 +1020,7 @@ fn map_void_status(
 impl TryFrom<ResponseRouterData<AuthipayPaymentsResponse, Self>>
     for RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<AuthipayPaymentsResponse, Self>,
@@ -1073,7 +1073,7 @@ pub type AuthipayRefundSyncResponse = AuthipayPaymentsResponse;
 // These delegate to the existing TryFrom<&RouterDataV2> implementations
 
 use crate::connectors::authipay::AuthipayRouterData;
-use domain_types::errors::{ConnectorResponseTransformationError, IntegrationError};
+use domain_types::errors::{ConnectorError, IntegrationError};
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<

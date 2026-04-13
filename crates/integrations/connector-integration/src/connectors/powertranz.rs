@@ -386,7 +386,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 macros::create_amount_converter_wrapper!(connector_name: Powertranz, amount_type: FloatMajorUnit);
 
 use super::macros;
-use domain_types::errors::ConnectorResponseTransformationError;
+use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
 macros::create_all_prerequisites!(
     connector_name: Powertranz,
@@ -511,7 +511,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         // Try to parse as payment/refund response first (has iso_response_code)
         let error_response = if let Ok(payment_response) = res
             .response

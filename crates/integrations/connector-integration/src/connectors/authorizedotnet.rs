@@ -28,7 +28,7 @@ use domain_types::{
         ServerSessionAuthenticationTokenResponseData, SetupMandateRequestData, SubmitEvidenceData,
         WebhookDetailsResponse,
     },
-    errors::{ConnectorResponseTransformationError, IntegrationError, WebhookError},
+    errors::{ConnectorError, IntegrationError, WebhookError},
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -439,7 +439,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: transformers::ResponseMessages =
             res.response.parse_struct("ResponseMessages").map_err(|_| {
                 crate::utils::response_deserialization_fail(
@@ -544,7 +544,7 @@ macros::create_all_prerequisites!(
             _req: &RouterDataV2<F, FCD, Req, Res>,
             bytes: bytes::Bytes,
             _status_code: u16,
-        ) -> CustomResult<bytes::Bytes, ConnectorResponseTransformationError> {
+        ) -> CustomResult<bytes::Bytes, ConnectorError> {
             // Check if the bytes begin with UTF-8 BOM (EF BB BF)
             let encoding = encoding_rs::UTF_8;
             let intermediate_response_bytes = encoding.decode_with_bom_removal(&bytes);

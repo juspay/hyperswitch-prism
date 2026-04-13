@@ -508,7 +508,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: fiservcommercehub::FiservcommercehubErrorResponse = res
             .response
             .parse_struct("FiservcommercehubErrorResponse")

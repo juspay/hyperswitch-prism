@@ -33,7 +33,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::{connectors::truelayer::TruelayerRouterData, types::ResponseRouterData, utils};
-use domain_types::errors::ConnectorResponseTransformationError;
+use domain_types::errors::ConnectorError;
 use domain_types::errors::{IntegrationError, WebhookError};
 const GRANT_TYPE: &str = "client_credentials";
 const SCOPE: &str = "payments";
@@ -153,7 +153,7 @@ pub struct TruelayerServerAuthenticationTokenResponseData {
 impl<F, T> TryFrom<ResponseRouterData<TruelayerServerAuthenticationTokenResponseData, Self>>
     for RouterDataV2<F, PaymentFlowData, T, ServerAuthenticationTokenResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<TruelayerServerAuthenticationTokenResponseData, Self>,
     ) -> Result<Self, Self::Error> {
@@ -332,7 +332,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         match &item.router_data.request.payment_method_data {
-            PaymentMethodData::BankRedirect(BankRedirectData::OpenBankingUk { .. }) => {
+            PaymentMethodData::BankRedirect(BankRedirectData::OpenBanking { .. }) => {
                 let currency = item.router_data.request.currency;
                 let amount_in_minor = item.router_data.request.amount;
 
@@ -437,7 +437,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl<F, T> TryFrom<ResponseRouterData<TruelayerPaymentsResponseData, Self>>
     for RouterDataV2<F, PaymentFlowData, T, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<TruelayerPaymentsResponseData, Self>,
     ) -> Result<Self, Self::Error> {
@@ -535,7 +535,7 @@ pub struct TruelayerPSyncResponse {
 impl<F, T> TryFrom<ResponseRouterData<TruelayerPSyncResponseData, Self>>
     for RouterDataV2<F, PaymentFlowData, T, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<TruelayerPSyncResponseData, Self>,
     ) -> Result<Self, Self::Error> {
@@ -735,7 +735,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl TryFrom<ResponseRouterData<TruelayerRefundResponse, Self>>
     for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<TruelayerRefundResponse, Self>,
@@ -782,7 +782,7 @@ pub struct TruelayerRsyncResponseData {
 impl TryFrom<ResponseRouterData<TruelayerRsyncResponse, Self>>
     for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<TruelayerRsyncResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -875,7 +875,7 @@ pub struct TruelayerVoidResponseData {
 impl TryFrom<ResponseRouterData<TruelayerVoidResponseData, Self>>
     for RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<TruelayerVoidResponseData, Self>,

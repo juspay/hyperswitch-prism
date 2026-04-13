@@ -18,7 +18,7 @@ Use this config for all flows in this connector. Replace `YOUR_API_KEY` with you
 <details><summary>Python</summary>
 
 ```python
-from payments.generated import sdk_config_pb2, payment_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -97,6 +97,7 @@ let config = ConnectorConfig {
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
+| [EventService.HandleEvent](#eventservicehandleevent) | Events | `EventServiceHandleRequest` |
 
 ### Payments
 
@@ -109,4 +110,4 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/calida/python/calida.py) · [JavaScript](../../examples/calida/javascript/calida.js) · [Kotlin](../../examples/calida/kotlin/calida.kt#L36) · [Rust](../../examples/calida/rust/calida.rs#L38)
+**Examples:** [Python](../../examples/calida/calida.py#L45) · [TypeScript](../../examples/calida/calida.ts#L41) · [Kotlin](../../examples/calida/calida.kt#L38) · [Rust](../../examples/calida/calida.rs#L44)

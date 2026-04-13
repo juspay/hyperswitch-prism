@@ -51,7 +51,7 @@ use transformers::{
 
 use super::macros;
 use crate::{types::ResponseRouterData, with_error_response_body};
-use domain_types::errors::ConnectorResponseTransformationError;
+use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
 
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
@@ -330,7 +330,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: PaysafeErrorResponse = res
             .response
             .parse_struct("PaysafeErrorResponse")
@@ -407,7 +407,12 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>,
         ) -> CustomResult<String, IntegrationError> {
-            Ok(format!("{}v1/paymenthandles", self.connector_base_url_payments(req)))
+            // Google Pay requires singleusepaymenthandles endpoint per Paysafe docs
+            let endpoint = match req.resource_common_data.payment_method {
+                PaymentMethod::Wallet => "v1/singleusepaymenthandles",
+                _ => "v1/paymenthandles",
+            };
+            Ok(format!("{}{}", self.connector_base_url_payments(req), endpoint))
         }
     }
 );

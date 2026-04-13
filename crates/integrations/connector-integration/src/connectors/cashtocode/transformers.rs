@@ -4,7 +4,7 @@ use common_utils::{ext_traits::ValueExt, id_type, request::Method, types::FloatM
 use domain_types::{
     connector_flow::Authorize,
     connector_types::{PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, ResponseId},
-    errors::{ConnectorResponseTransformationError, IntegrationError},
+    errors::{ConnectorError, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -252,7 +252,7 @@ fn get_redirect_form_data(
     payment_method_type: common_enums::PaymentMethodType,
     response_data: CashtocodePaymentsResponseData,
     http_code: u16,
-) -> Result<RedirectForm, Report<ConnectorResponseTransformationError>> {
+) -> Result<RedirectForm, Report<ConnectorError>> {
     match payment_method_type {
         common_enums::PaymentMethodType::ClassicReward => Ok(RedirectForm::Form {
             //redirect form is manually constructed because the connector for this pm type expects query params in the url
@@ -266,7 +266,7 @@ fn get_redirect_form_data(
             Method::Get,
         ))),
         _ => Err(Report::new(
-            ConnectorResponseTransformationError::unexpected_response_error_with_context(
+            ConnectorError::unexpected_response_error_with_context(
                 http_code,
                 Some(utils::get_unimplemented_payment_method_error_message(
                     "CashToCode",
@@ -282,7 +282,7 @@ impl<
     > TryFrom<ResponseRouterData<CashtocodePaymentsResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = Report<ConnectorResponseTransformationError>;
+    type Error = Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<CashtocodePaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -309,14 +309,10 @@ impl<
             CashtocodePaymentsResponse::CashtoCodeData(response_data) => {
                 let payment_method_type =
                     router_data.request.payment_method_type.ok_or_else(|| {
-                        Report::new(
-                            ConnectorResponseTransformationError::response_handling_failed_with_context(
-                                http_code,
-                                Some(
-                                    "authorize: payment_method_type missing on request".to_string(),
-                                ),
-                            ),
-                        )
+                        Report::new(ConnectorError::response_handling_failed_with_context(
+                            http_code,
+                            Some("authorize: payment_method_type missing on request".to_string()),
+                        ))
                     })?;
                 let redirection_data =
                     get_redirect_form_data(payment_method_type, response_data, http_code)?;

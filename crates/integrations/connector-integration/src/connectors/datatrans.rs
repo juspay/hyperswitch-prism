@@ -39,7 +39,8 @@ use interfaces::{
 };
 use serde::Serialize;
 use transformers::{
-    self as datatrans, DatatransCaptureRequest, DatatransCaptureResponse, DatatransPaymentsRequest,
+    self as datatrans, DatatransCaptureRequest, DatatransCaptureResponse,
+    DatatransClientAuthRequest, DatatransClientAuthResponse, DatatransPaymentsRequest,
     DatatransPaymentsResponse, DatatransRefundRequest, DatatransRefundResponse,
     DatatransRefundSyncResponse, DatatransSyncResponse, DatatransVoidRequest,
     DatatransVoidResponse,
@@ -47,7 +48,7 @@ use transformers::{
 
 use super::macros;
 use crate::{types::ResponseRouterData, with_error_response_body};
-use domain_types::errors::ConnectorResponseTransformationError;
+use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
 
 pub(crate) mod headers {
@@ -259,6 +260,12 @@ macros::create_all_prerequisites!(
             flow: RSync,
             response_body: DatatransRefundSyncResponse,
             router_data: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        ),
+        (
+            flow: ClientAuthenticationToken,
+            request_body: DatatransClientAuthRequest,
+            response_body: DatatransClientAuthResponse,
+            router_data: RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
         )
     ],
     amount_converters: [],
@@ -360,16 +367,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentFlowData,
         ServerSessionAuthenticationTokenRequestData,
         ServerSessionAuthenticationTokenResponseData,
-    > for Datatrans<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        ClientAuthenticationToken,
-        PaymentFlowData,
-        ClientAuthenticationTokenRequestData,
-        PaymentsResponseData,
     > for Datatrans<T>
 {
 }
@@ -518,7 +515,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: datatrans::DatatransErrorResponse = if res.response.is_empty() {
             datatrans::DatatransErrorResponse::default()
         } else {
@@ -721,6 +718,34 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<String, IntegrationError> {
             let refund_transaction_id = req.request.connector_refund_id.clone();
             Ok(format!("{}/v1/transactions/{}", self.connector_base_url_refunds(req), refund_transaction_id))
+        }
+    }
+);
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Datatrans,
+    curl_request: Json(DatatransClientAuthRequest),
+    curl_response: DatatransClientAuthResponse,
+    flow_name: ClientAuthenticationToken,
+    resource_common_data: PaymentFlowData,
+    flow_request: ClientAuthenticationTokenRequestData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}/v1/transactions/secureFields", self.connector_base_url_payments(req)))
         }
     }
 );

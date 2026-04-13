@@ -10,7 +10,7 @@ use domain_types::{
     connector_types::{
         PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData, ResponseId,
     },
-    errors::{ConnectorResponseTransformationError, IntegrationError},
+    errors::{ConnectorError, IntegrationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, WalletData},
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -301,7 +301,7 @@ impl<F, T> TryFrom<ResponseRouterData<CalidaPaymentsResponse, Self>>
 where
     T: Clone,
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<CalidaPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -335,7 +335,7 @@ where
 impl<F> TryFrom<ResponseRouterData<CalidaSyncResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<CalidaSyncResponse, Self>) -> Result<Self, Self::Error> {
         let ResponseRouterData {
             response,

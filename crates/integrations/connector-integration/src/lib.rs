@@ -7,4 +7,4 @@ pub mod utils;
 pub mod webhook_utils;
 
 pub use domain_types::errors;
-pub use domain_types::{ConnectorResponseTransformationError, IntegrationError};
+pub use domain_types::{ConnectorError, IntegrationError};

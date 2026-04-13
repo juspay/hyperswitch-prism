@@ -203,7 +203,7 @@ WalletData::Mifinity(data) => {
 impl TryFrom<ResponseRouterData<ConnectorWalletResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<...>) -> Result<Self, Self::Error> {
         let status = map_wallet_status(&item.response.status)?;
@@ -242,7 +242,7 @@ Ok(Self {
     response: Ok(PaymentsResponseData::TransactionResponse {
         resource_id: ResponseId::ConnectorTransactionId(item.response.id),
         redirection_data: Some(Box::new(RedirectForm::from((
-            link.ok_or(ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })?,
+            link.ok_or(ConnectorError::ResponseDeserializationFailed { context: Default::default() })?,
             Method::Get,
         )))),
         mandate_reference: None,

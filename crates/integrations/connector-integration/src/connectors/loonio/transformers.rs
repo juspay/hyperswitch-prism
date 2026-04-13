@@ -2,7 +2,7 @@ use super::LoonioRouterData;
 use crate::types::ResponseRouterData;
 use common_enums::AttemptStatus;
 use common_utils::{id_type::CustomerId, pii::Email, types::FloatMajorUnit, Method};
-use domain_types::errors::{ConnectorResponseTransformationError, IntegrationError};
+use domain_types::errors::{ConnectorError, IntegrationError};
 use domain_types::{
     connector_flow::{Authorize, PSync},
     connector_types::{
@@ -240,7 +240,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
-            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::OpenBanking(_)
@@ -260,7 +260,7 @@ pub struct LoonioAuthorizeResponse {
 impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<LoonioAuthorizeResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<LoonioAuthorizeResponse, Self>,
@@ -360,7 +360,7 @@ pub struct LoonioTransactionSyncResponse {
 impl TryFrom<ResponseRouterData<LoonioPaymentResponseData, Self>>
     for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<LoonioPaymentResponseData, Self>,

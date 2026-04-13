@@ -7,7 +7,7 @@ use connector_integration::types::ConnectorData;
 use domain_types::{
     connector_flow::VerifyWebhookSource,
     connector_types::VerifyWebhookSourceFlowData,
-    errors::ApplicationErrorResponse,
+    errors::IntegrationError,
     payment_method_data::DefaultPCIHolder,
     router_data::ConnectorSpecificConfig,
     router_data::ErrorResponse,
@@ -79,7 +79,7 @@ impl EventService for EventServiceImpl {
                         .request_details
                         .map(domain_types::connector_types::RequestDetails::foreign_try_from)
                         .transpose()
-                        .map_err(|e: error_stack::Report<ApplicationErrorResponse>| {
+                        .map_err(|e: error_stack::Report<IntegrationError>| {
                             e.into_grpc_status()
                         })?
                         .ok_or_else(|| {
@@ -92,7 +92,7 @@ impl EventService for EventServiceImpl {
                             domain_types::connector_types::ConnectorWebhookSecrets::foreign_try_from(
                                 details,
                             )
-                            .map_err(|e: error_stack::Report<ApplicationErrorResponse>| {
+                            .map_err(|e: error_stack::Report<IntegrationError>| {
                                 e.into_grpc_status()
                             })
                         })
@@ -147,11 +147,6 @@ impl EventService for EventServiceImpl {
                         Some(connector_config.clone()),
                         source_verified,
                     )
-                    .map_err(|e| {
-                        let app: ApplicationErrorResponse =
-                            common_utils::errors::ErrorSwitch::switch(e.current_context());
-                        e.change_context(app)
-                    })
                     .into_grpc_status()?;
 
                     Ok(tonic::Response::new(response))

@@ -9,7 +9,7 @@ use domain_types::{
         RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
         SetupMandateRequestData,
     },
-    errors::{ConnectorResponseTransformationError, IntegrationError},
+    errors::{ConnectorError, IntegrationError},
     payment_method_data::{
         Card, CardDetailsForNetworkTransactionId, PaymentMethodData, PaymentMethodDataTypes,
         RawCardNumber,
@@ -444,8 +444,7 @@ impl Revolv3SaleResponse {
     pub fn get_transaction_response(
         &self,
         status_code: u16,
-    ) -> Result<DerivedPaymentResponse, error_stack::Report<ConnectorResponseTransformationError>>
-    {
+    ) -> Result<DerivedPaymentResponse, error_stack::Report<ConnectorError>> {
         let status = AttemptStatus::from(&self.invoice_status);
         let response = if domain_types::utils::is_payment_failure(status) {
             Err(domain_types::router_data::ErrorResponse {
@@ -495,8 +494,7 @@ impl Revolv3AuthorizeResponse {
         &self,
         status_code: u16,
         is_setup_mandate: bool,
-    ) -> Result<DerivedPaymentResponse, error_stack::Report<ConnectorResponseTransformationError>>
-    {
+    ) -> Result<DerivedPaymentResponse, error_stack::Report<ConnectorError>> {
         let mandate_reference = self.payment_method.as_ref().and_then(|pm| {
             pm.payment_method_id.map(|connector_mandate_id| {
                 domain_types::connector_types::MandateReference {
@@ -578,7 +576,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     TryFrom<ResponseRouterData<Revolv3PaymentsResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<Revolv3PaymentsResponse, Self>,
@@ -646,7 +644,7 @@ fn get_latest_attempt(
 impl TryFrom<ResponseRouterData<Revolv3PaymentSyncResponse, Self>>
     for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<Revolv3PaymentSyncResponse, Self>,
@@ -786,7 +784,7 @@ impl From<&RefundInvoiceStatus> for RefundStatus {
 impl TryFrom<ResponseRouterData<Revolv3RefundResponse, Self>>
     for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<Revolv3RefundResponse, Self>,
@@ -842,7 +840,7 @@ pub struct Revolv3RefundSyncResponse {
 impl TryFrom<ResponseRouterData<Revolv3RefundSyncResponse, Self>>
     for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<Revolv3RefundSyncResponse, Self>,
@@ -931,7 +929,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl<F> TryFrom<ResponseRouterData<Revolv3SaleResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(value: ResponseRouterData<Revolv3SaleResponse, Self>) -> Result<Self, Self::Error> {
         let derived_response = value.response.get_transaction_response(value.http_code)?;
@@ -1008,7 +1006,7 @@ pub struct Revolv3AuthReversalResponse {
 impl TryFrom<ResponseRouterData<Revolv3AuthReversalResponse, Self>>
     for RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<Revolv3AuthReversalResponse, Self>,
@@ -1181,7 +1179,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     TryFrom<ResponseRouterData<Revolv3RepeatPaymentResponse, Self>>
     for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<Revolv3RepeatPaymentResponse, Self>,
@@ -1318,7 +1316,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         PaymentsResponseData,
     >
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<Revolv3AuthorizeResponse, Self>,

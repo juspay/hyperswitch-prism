@@ -1,0 +1,12 @@
+{
+  "connector": "bluesnap",
+  "supported_suites": [
+    "authorize",
+    "capture",
+    "void",
+    "refund",
+    "refund_sync",
+    "get",
+    "client_authentication_token"
+  ]
+}

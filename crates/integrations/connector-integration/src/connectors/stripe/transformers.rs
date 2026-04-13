@@ -24,7 +24,7 @@ use domain_types::{
         ResponseId, SetupMandateRequestData,
         StripeClientAuthenticationResponse as StripeClientAuthenticationResponseDomain,
     },
-    errors::{ConnectorResponseTransformationError, IntegrationError},
+    errors::{ConnectorError, IntegrationError},
     mandates::AcceptanceType,
     payment_method_data::{
         self, AchTransfer, BankRedirectData, BankTransferInstructions, BankTransferNextStepsData,
@@ -921,10 +921,13 @@ impl TryFrom<common_enums::PaymentMethodType> for StripePaymentMethodType {
             | common_enums::PaymentMethodType::NetworkToken
             | common_enums::PaymentMethodType::Mifinity
             | common_enums::PaymentMethodType::Satispay
-            | common_enums::PaymentMethodType::Wero => Err(IntegrationError::not_implemented(
-                get_unimplemented_payment_method_error_message("stripe"),
-            )
-            .into()),
+            | common_enums::PaymentMethodType::Wero
+            | common_enums::PaymentMethodType::Netbanking => {
+                Err(IntegrationError::not_implemented(
+                    get_unimplemented_payment_method_error_message("stripe"),
+                )
+                .into())
+            }
         }
     }
 }
@@ -1164,7 +1167,8 @@ impl TryFrom<&BankRedirectData> for StripePaymentMethodType {
             | BankRedirectData::OpenBankingUk { .. }
             | BankRedirectData::Trustly { .. }
             | BankRedirectData::LocalBankRedirect {}
-            | BankRedirectData::OpenBanking {} => Err(IntegrationError::not_implemented(
+            | BankRedirectData::OpenBanking {}
+            | BankRedirectData::Netbanking { .. } => Err(IntegrationError::not_implemented(
                 get_unimplemented_payment_method_error_message("stripe"),
             )),
         }
@@ -1287,7 +1291,6 @@ fn get_bank_debit_data(
 
 pub struct PaymentRequestDetails {
     pub auth_type: common_enums::AuthenticationType,
-    pub payment_method_token: Option<domain_types::router_data::PaymentMethodToken>,
     pub is_customer_initiated_mandate_payment: Option<bool>,
     pub billing_address: StripeBillingAddress,
     pub request_incremental_authorization: bool,
@@ -1354,10 +1357,7 @@ fn create_stripe_payment_method<
         }
         PaymentMethodData::Wallet(wallet_data) => {
             let pm_type = get_stripe_payment_method_type_from_wallet_data(wallet_data)?;
-            let wallet_specific_data = StripePaymentMethodData::try_from((
-                wallet_data,
-                payment_request_details.payment_method_token,
-            ))?;
+            let wallet_specific_data = StripePaymentMethodData::try_from(wallet_data)?;
             Ok((
                 wallet_specific_data,
                 pm_type,
@@ -1513,7 +1513,7 @@ fn create_stripe_payment_method<
         | PaymentMethodData::MobilePayment(_)
         | PaymentMethodData::MandatePayment
         | PaymentMethodData::OpenBanking(_)
-        | PaymentMethodData::CardToken(_)
+        | PaymentMethodData::PaymentMethodToken(_)
         | PaymentMethodData::NetworkToken(_)
         | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
         | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => Err(
@@ -1596,19 +1596,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    TryFrom<(
-        &WalletData,
-        Option<domain_types::router_data::PaymentMethodToken>,
-    )> for StripePaymentMethodData<T>
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> TryFrom<&WalletData>
+    for StripePaymentMethodData<T>
 {
     type Error = error_stack::Report<IntegrationError>;
-    fn try_from(
-        (wallet_data, _payment_method_token): (
-            &WalletData,
-            Option<domain_types::router_data::PaymentMethodToken>,
-        ),
-    ) -> Result<Self, Self::Error> {
+    fn try_from(wallet_data: &WalletData) -> Result<Self, Self::Error> {
         match wallet_data {
             WalletData::ApplePay(applepay_data) => match applepay_data
                 .payment_data
@@ -1770,7 +1762,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | BankRedirectData::Sofort { .. }
             | BankRedirectData::Trustly { .. }
             | BankRedirectData::LocalBankRedirect {}
-            | BankRedirectData::OpenBanking {} => Err(IntegrationError::not_implemented(
+            | BankRedirectData::OpenBanking {}
+            | BankRedirectData::Netbanking { .. } => Err(IntegrationError::not_implemented(
                 get_unimplemented_payment_method_error_message("stripe"),
             )
             .into()),
@@ -1844,15 +1837,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let (transfer_account_id, charge_type, application_fees) = (None, None, None);
 
-        let payment_method_token = match &item.request.split_payments {
-            Some(domain_types::connector_types::SplitPaymentsRequest::StripeSplitPayment(_)) => {
-                match item.resource_common_data.payment_method_token.clone() {
-                    Some(domain_types::router_data::PaymentMethodToken::Token(secret)) => {
-                        Some(secret)
-                    }
-                    _ => None,
-                }
-            }
+        let payment_method_token = match &item.request.payment_method_data {
+            PaymentMethodData::PaymentMethodToken(t) => Some(t.token.clone()),
             _ => None,
         };
 
@@ -1901,7 +1887,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let payment_method_options = None;
 
         let (
-            mut payment_data,
+            payment_data,
             payment_method,
             billing_address,
             payment_method_types,
@@ -1927,10 +1913,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     &item.request.payment_method_data,
                     PaymentRequestDetails {
                         auth_type: item.resource_common_data.auth_type,
-                        payment_method_token: item
-                            .resource_common_data
-                            .payment_method_token
-                            .clone(),
                         is_customer_initiated_mandate_payment: Some(
                             PaymentsAuthorizeData::is_customer_initiated_mandate_payment(
                                 &item.request,
@@ -1973,34 +1955,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 payment_method_type,
                 setup_future_usage,
             )
-        };
-
-        if payment_method_token.is_none() {
-            payment_data = match item.request.payment_method_data {
-                PaymentMethodData::Wallet(WalletData::ApplePay(_)) => {
-                    let payment_method_token = item
-                        .resource_common_data
-                        .payment_method_token
-                        .to_owned()
-                        .get_required_value("payment_token")
-                        .change_context(IntegrationError::InvalidWalletToken {
-                            wallet_name: "Apple Pay".to_string(),
-                            context: Default::default(),
-                        })?;
-
-                    let domain_types::router_data::PaymentMethodToken::Token(payment_method_token) =
-                        payment_method_token;
-                    Some(StripePaymentMethodData::Wallet(
-                        StripeWallet::ApplepayPayment(ApplepayPayment {
-                            token: payment_method_token,
-                            payment_method_types: StripePaymentMethodType::Card,
-                        }),
-                    ))
-                }
-                _ => payment_data,
-            }
-        } else {
-            payment_data = None
         };
 
         let setup_mandate_details = item
@@ -2680,7 +2634,7 @@ impl<F, T> TryFrom<ResponseRouterData<PaymentIntentResponse, Self>>
 where
     T: SplitPaymentData + GetRequestIncrementalAuthorization,
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<PaymentIntentResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -2818,7 +2772,7 @@ pub fn get_connector_metadata(
     next_action: Option<&StripeNextActionResponse>,
     amount: MinorUnit,
     http_status: u16,
-) -> CustomResult<Option<Value>, ConnectorResponseTransformationError> {
+) -> CustomResult<Option<Value>, ConnectorError> {
     let next_action_response = next_action
         .and_then(|next_action_response| match next_action_response {
             StripeNextActionResponse::DisplayBankTransferInstructions(response) => {
@@ -2969,7 +2923,7 @@ pub fn get_payment_method_id(
 impl<F> TryFrom<ResponseRouterData<PaymentIntentSyncResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<PaymentIntentSyncResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -3105,7 +3059,7 @@ fn extract_payment_method_connector_response_from_latest_attempt(
 impl<F, T> TryFrom<ResponseRouterData<SetupMandateResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, T, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<SetupMandateResponse, Self>) -> Result<Self, Self::Error> {
         let redirect_data = item.response.next_action.clone();
         let redirection_data = redirect_data
@@ -4028,7 +3982,7 @@ pub enum PaymentSyncResponse {
 impl<F> TryFrom<ResponseRouterData<PaymentSyncResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<PaymentSyncResponse, Self>) -> Result<Self, Self::Error> {
         // Untagged serde already disambiguates PI vs setup intent; prev code of routing on connector_transaction_id could fail sync when the txn id is missing or not a ConnectorTransactionId.
         match item.response {
@@ -4057,7 +4011,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<ResponseRouterData<PaymentsAuthorizeResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<PaymentsAuthorizeResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -4104,7 +4058,7 @@ pub struct PaymentsCaptureResponse(PaymentIntentResponse);
 impl TryFrom<ResponseRouterData<PaymentsCaptureResponse, Self>>
     for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<PaymentsCaptureResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -4156,7 +4110,7 @@ pub struct PaymentsVoidResponse(PaymentIntentResponse);
 impl TryFrom<ResponseRouterData<PaymentsVoidResponse, Self>>
     for RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<PaymentsVoidResponse, Self>) -> Result<Self, Self::Error> {
         Self::try_from(ResponseRouterData {
             response: item.response.0,
@@ -4215,7 +4169,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<F> TryFrom<ResponseRouterData<PaymentIntentResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<PaymentIntentResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -4342,7 +4296,7 @@ impl<F> TryFrom<&RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseDat
 impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
     for RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<RefundResponse, Self>) -> Result<Self, Self::Error> {
         let refund_status = common_enums::RefundStatus::from(item.response.status);
         let response = if is_refund_failure(refund_status) {
@@ -4403,7 +4357,7 @@ impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
 impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
     for RouterDataV2<F, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<RefundResponse, Self>) -> Result<Self, Self::Error> {
         let refund_status = common_enums::RefundStatus::from(item.response.status);
         let response = if is_refund_failure(refund_status) {
@@ -4558,7 +4512,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentMethodData::BankRedirect(ref bank_redirect_data) => {
                 Ok(Self::try_from(bank_redirect_data)?)
             }
-            PaymentMethodData::Wallet(ref wallet_data) => Ok(Self::try_from((wallet_data, None))?),
+            PaymentMethodData::Wallet(ref wallet_data) => Ok(Self::try_from(wallet_data)?),
             PaymentMethodData::BankDebit(bank_debit_data) => {
                 let (_pm_type, bank_data) = get_bank_debit_data(bank_debit_data)?;
 
@@ -4641,7 +4595,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::OpenBanking(_)
-            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
@@ -4700,7 +4654,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<F, T> TryFrom<ResponseRouterData<CreateConnectorCustomerResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, T, ConnectorCustomerResponse>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<CreateConnectorCustomerResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -4847,7 +4801,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize + Ser
     TryFrom<ResponseRouterData<PaymentsAuthorizeResponse, Self>>
     for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<PaymentsAuthorizeResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -4913,15 +4867,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 None => (None, None, None),
             };
 
-        let payment_method_token = match &item.request.split_payments {
-            Some(domain_types::connector_types::SplitPaymentsRequest::StripeSplitPayment(_)) => {
-                match item.resource_common_data.payment_method_token.clone() {
-                    Some(domain_types::router_data::PaymentMethodToken::Token(secret)) => {
-                        Some(secret)
-                    }
-                    _ => None,
-                }
-            }
+        let payment_method_token = match &item.request.payment_method_data {
+            PaymentMethodData::PaymentMethodToken(t) => Some(t.token.clone()),
             _ => None,
         };
 
@@ -4968,7 +4915,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let mut payment_method_options = None;
 
         let (
-            mut payment_data,
+            payment_data,
             payment_method,
             billing_address,
             payment_method_types,
@@ -5035,7 +4982,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         | PaymentMethodData::Voucher(_)
                         | PaymentMethodData::GiftCard(_)
                         | PaymentMethodData::OpenBanking(_)
-                        | PaymentMethodData::CardToken(_)
+                        | PaymentMethodData::PaymentMethodToken(_)
                         | PaymentMethodData::NetworkToken(_)
                         | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
                         | PaymentMethodData::Card(_) => Err(IntegrationError::NotSupported {
@@ -5059,10 +5006,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                 &item.request.payment_method_data,
                                 PaymentRequestDetails {
                                     auth_type: item.resource_common_data.auth_type,
-                                    payment_method_token: item
-                                        .resource_common_data
-                                        .payment_method_token
-                                        .clone(),
                                     is_customer_initiated_mandate_payment: Some(false),
                                     billing_address: billing_address.ok_or(
                                         IntegrationError::MissingRequiredField {
@@ -5091,10 +5034,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     }
                 }
             };
-
-        if payment_method_token.is_some() {
-            payment_data = None
-        };
 
         let meta_data = get_transaction_metadata(item.request.metadata.clone(), order_id);
 
@@ -5305,11 +5244,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     &item.router_data.request.payment_method_data,
                     PaymentRequestDetails {
                         auth_type: item.router_data.resource_common_data.auth_type,
-                        payment_method_token: item
-                            .router_data
-                            .resource_common_data
-                            .payment_method_token
-                            .clone(),
                         is_customer_initiated_mandate_payment: None,
                         billing_address: StripeBillingAddress::default(),
                         request_incremental_authorization: false,
@@ -5330,7 +5264,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<F, T> TryFrom<ResponseRouterData<StripeTokenResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, T, PaymentMethodTokenResponse>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<StripeTokenResponse, Self>) -> Result<Self, Self::Error> {
         let token = item.response.id.clone().expose();
         Ok(Self {
@@ -5418,17 +5352,18 @@ impl TryFrom<ResponseRouterData<StripeClientAuthResponse, Self>>
         PaymentsResponseData,
     >
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<StripeClientAuthResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let response = item.response.0;
 
-        let client_secret = response.client_secret.ok_or(
-            ConnectorResponseTransformationError::ResponseDeserializationFailed {
-                context: Default::default(),
-            },
-        )?;
+        let client_secret =
+            response
+                .client_secret
+                .ok_or(ConnectorError::ResponseDeserializationFailed {
+                    context: Default::default(),
+                })?;
 
         let session_data = ClientAuthenticationTokenData::ConnectorSpecific(Box::new(
             ConnectorSpecificClientAuthenticationResponse::Stripe(

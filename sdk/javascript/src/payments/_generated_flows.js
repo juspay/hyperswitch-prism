@@ -39,6 +39,9 @@ const FLOWS = {
   // get: PaymentService.Get — Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.
   get                                        : { request: "PaymentServiceGetRequest", response: "PaymentServiceGetResponse" },
 
+  // incremental_authorization: PaymentService.IncrementalAuthorization — Increase the authorized amount for an existing payment. Enables you to capture additional funds when the transaction amount changes after initial authorization.
+  incremental_authorization                  : { request: "PaymentServiceIncrementalAuthorizationRequest", response: "PaymentServiceIncrementalAuthorizationResponse" },
+
   // payout_create: PayoutService.Create — Creates a payout.
   payout_create                              : { request: "PayoutServiceCreateRequest", response: "PayoutServiceCreateResponse" },
 
@@ -75,8 +78,14 @@ const FLOWS = {
   // proxy_setup_recurring: PaymentService.ProxySetupRecurring — Setup recurring mandate using vault-aliased card data.
   proxy_setup_recurring                      : { request: "PaymentServiceProxySetupRecurringRequest", response: "PaymentServiceSetupRecurringResponse" },
 
+  // recurring_revoke: RecurringPaymentService.Revoke — Cancel an existing recurring payment mandate. Stops future automatic charges on customer's stored consent for subscription cancellations.
+  recurring_revoke                           : { request: "RecurringPaymentServiceRevokeRequest", response: "RecurringPaymentServiceRevokeResponse" },
+
   // refund: PaymentService.Refund — Process a partial or full refund for a captured payment. Returns funds to the customer when goods are returned or services are cancelled.
   refund                                     : { request: "PaymentServiceRefundRequest", response: "RefundResponse" },
+
+  // refund_get: RefundService.Get — Retrieve refund status from the payment processor. Tracks refund progress through processor settlement for accurate customer communication.
+  refund_get                                 : { request: "RefundServiceGetRequest", response: "RefundResponse" },
 
   // reverse: PaymentService.Reverse — Reverse a captured payment in full. Initiates a complete refund when you need to cancel a settled transaction rather than just an authorization.
   reverse                                    : { request: "PaymentServiceReverseRequest", response: "PaymentServiceReverseResponse" },
@@ -104,7 +113,10 @@ const FLOWS = {
 // Single-step flows: no HTTP round-trip.
 const SINGLE_FLOWS = {
   // handle_event: EventService.HandleEvent — Process webhook notifications from connectors. Translates connector events into standardized responses for asynchronous payment state updates.
-  handle_event : { request: "EventServiceHandleRequest", response: "EventServiceHandleResponse" },
+  handle_event             : { request: "EventServiceHandleRequest", response: "EventServiceHandleResponse" },
+
+  // verify_redirect_response: PaymentService.VerifyRedirectResponse — Verify and process redirect responses from 3D Secure or other external flows. Validates authentication results and updates payment state accordingly.
+  verify_redirect_response : { request: "PaymentServiceVerifyRedirectResponseRequest", response: "PaymentServiceVerifyRedirectResponseResponse" },
 
 };
 

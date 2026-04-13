@@ -31,11 +31,11 @@ pub enum NextActionData {
 
 use super::constants;
 use crate::{connectors::phonepe::PhonepeRouterData, types::ResponseRouterData};
-use domain_types::errors::ConnectorResponseTransformationError;
+use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
 
 type Error = error_stack::Report<IntegrationError>;
-type ResponseError = error_stack::Report<ConnectorResponseTransformationError>;
+type ResponseError = error_stack::Report<ConnectorError>;
 
 // ===== AMOUNT CONVERSION =====
 // Using macro-generated PhonepeRouterData from crate::connectors::phonepe

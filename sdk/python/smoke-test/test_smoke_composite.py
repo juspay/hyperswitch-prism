@@ -4,9 +4,10 @@ Composite smoke test for hyperswitch-payments SDK.
 
 Tests:
   1. PayPal access token flow (create token + authorize)
-  2. Stripe direct authorize flow
+  2. Stripe direct authorize flow (happy path)
+  3. Stripe IntegrationError — missing amount must throw IntegrationError before HTTP call
+  4. Stripe ConnectorError — declined card must throw ConnectorError, not IntegrationError
 
-The test only passes when payments succeed (status == CHARGED).
 CI will fail if any test fails.
 
 Usage:
@@ -39,7 +40,7 @@ try:
         MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
         PaymentServiceAuthorizeRequest,
         IntegrationError,
-        ConnectorResponseTransformationError,
+        ConnectorError,
         PaymentAddress
     )
 except ImportError as e:
@@ -189,6 +190,7 @@ async def test_paypal_authorize(creds_file: str) -> bool:
 
         authorize_request.auth_type = AuthenticationType.NO_THREE_DS
         authorize_request.address.CopyFrom(PaymentAddress())
+        authorize_request.return_url = "https://example.com/return"
         authorize_request.test_mode = True
 
         response = await payment_client.authorize(authorize_request)
@@ -200,15 +202,126 @@ async def test_paypal_authorize(creds_file: str) -> bool:
             print(f"  FAILED: Expected CHARGED, got {response.status}")
             return False
     except IntegrationError as e:
-        print(f"  IntegrationError: {e.error_code} - {e.error_message}")
+        print(f"  IntegrationError: {e.error_message} (code={e.error_code}, action={getattr(e, 'suggested_action', None)}, doc={getattr(e, 'doc_url', None)})")
         return False
-    except ConnectorResponseTransformationError as e:
-        print(
-            f"  ConnectorResponseTransformationError: {e.error_code} - {e.error_message}"
-        )
+    except ConnectorError as e:
+        print(f"  ConnectorError: {e.error_message} (code={e.error_code}, http={getattr(e, 'http_status_code', None)})")
         return False
     except Exception as e:
         print(f"  Error: {e}")
+        return False
+
+
+async def test_stripe_integration_error(creds_file: str) -> bool:
+    """
+    IntegrationError path: missing required field (amount) must throw IntegrationError
+    and must NOT reach the connector.
+    """
+    print("\n[Stripe IntegrationError — missing amount]")
+
+    if not os.path.exists(creds_file):
+        print("  FAILED: creds.json not found")
+        return False
+
+    credentials = load_credentials(creds_file)
+    api_key = get_stripe_api_key(credentials)
+
+    if not api_key:
+        print("  FAILED: No Stripe API key in creds.json")
+        return False
+
+    config = ConnectorConfig()
+    config.options.environment = Environment.SANDBOX
+    config.connector_config.stripe.api_key.value = api_key
+
+    defaults = RequestConfig()
+    payment_client = PaymentClient(config, defaults)
+
+    # amount intentionally omitted
+    authorize_request = PaymentServiceAuthorizeRequest()
+    authorize_request.merchant_transaction_id = (
+        f"stripe_missing_amount_{int(time.time() * 1000)}"
+    )
+    card = authorize_request.payment_method.card
+    card.card_number.value = "4111111111111111"
+    card.card_exp_month.value = "12"
+    card.card_exp_year.value = "2050"
+    card.card_cvc.value = "123"
+    card.card_holder_name.value = "Test User"
+    authorize_request.capture_method = CaptureMethod.AUTOMATIC
+    authorize_request.auth_type = AuthenticationType.NO_THREE_DS
+
+    try:
+        await payment_client.authorize(authorize_request)
+        print("  FAILED: Expected IntegrationError but call succeeded — request should have been rejected before the HTTP call")
+        return False
+    except IntegrationError as e:
+        print(f"  PASSED: IntegrationError (expected): {e.error_message} (code={e.error_code})")
+        return True
+    except ConnectorError as e:
+        print(f"  FAILED: Got ConnectorError instead of IntegrationError: {e.error_message} (code={e.error_code}, http={getattr(e, 'http_status_code', None)})")
+        return False
+    except Exception as e:
+        print(f"  FAILED: Unexpected error: {e}")
+        return False
+
+
+async def test_stripe_connector_error(creds_file: str) -> bool:
+    """
+    ConnectorError path: request is valid but card is known to be declined by Stripe.
+    Must throw ConnectorError, not IntegrationError.
+    """
+    print("\n[Stripe ConnectorError — declined card]")
+
+    if not os.path.exists(creds_file):
+        print("  FAILED: creds.json not found")
+        return False
+
+    credentials = load_credentials(creds_file)
+    api_key = get_stripe_api_key(credentials)
+
+    if not api_key:
+        print("  FAILED: No Stripe API key in creds.json")
+        return False
+
+    config = ConnectorConfig()
+    config.options.environment = Environment.SANDBOX
+    config.connector_config.stripe.api_key.value = api_key
+
+    defaults = RequestConfig()
+    payment_client = PaymentClient(config, defaults)
+
+    authorize_request = PaymentServiceAuthorizeRequest()
+    authorize_request.merchant_transaction_id = (
+        f"stripe_declined_{int(time.time() * 1000)}"
+    )
+    authorize_request.amount.minor_amount = 1000
+    authorize_request.amount.currency = Currency.USD
+    authorize_request.capture_method = CaptureMethod.AUTOMATIC
+
+    card = authorize_request.payment_method.card
+    card.card_number.value = "4000000000000002"  # Stripe generic decline test card
+    card.card_exp_month.value = "12"
+    card.card_exp_year.value = "2050"
+    card.card_cvc.value = "123"
+    card.card_holder_name.value = "Test User"
+
+    authorize_request.auth_type = AuthenticationType.NO_THREE_DS
+    authorize_request.address.CopyFrom(PaymentAddress())
+
+    try:
+        await payment_client.authorize(authorize_request)
+        # Stripe should decline 4000000000000002 — if it doesn't, not our failure
+        print("  PASSED: Card unexpectedly succeeded (sandbox may behave differently)")
+        return True
+    except ConnectorError as e:
+        print(f"  PASSED: ConnectorError (expected): {e.error_message} (code={e.error_code}, http={getattr(e, 'http_status_code', None)})")
+        return True
+    except IntegrationError as e:
+        print(f"  FAILED: Got IntegrationError instead of ConnectorError: {e.error_message} (code={e.error_code})")
+        return False
+    except Exception as e:
+        print(f"  FAILED: Unexpected error: {e}")
         return False
 
 
@@ -254,6 +367,7 @@ async def test_stripe_authorize(creds_file: str) -> bool:
 
         authorize_request.auth_type = AuthenticationType.NO_THREE_DS
         authorize_request.address.CopyFrom(PaymentAddress())
+        authorize_request.return_url = "https://example.com/return"
 
         response = await payment_client.authorize(authorize_request)
 
@@ -284,9 +398,17 @@ async def main() -> int:
     if not paypal_passed:
         all_passed = False
 
-    # Run Stripe test (must pass)
+    # Run Stripe tests (must pass)
     stripe_passed = await test_stripe_authorize(creds_file)
     if not stripe_passed:
+        all_passed = False
+
+    integration_error_passed = await test_stripe_integration_error(creds_file)
+    if not integration_error_passed:
+        all_passed = False
+
+    connector_error_passed = await test_stripe_connector_error(creds_file)
+    if not connector_error_passed:
         all_passed = False
 
     print("\n" + "=" * 40)

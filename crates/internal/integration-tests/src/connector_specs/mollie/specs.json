@@ -1,0 +1,12 @@
+{
+  "connector": "mollie",
+  "supported_suites": [
+    "authorize",
+    "capture",
+    "get",
+    "refund",
+    "refund_sync",
+    "tokenize_payment_method",
+    "void"
+  ]
+}

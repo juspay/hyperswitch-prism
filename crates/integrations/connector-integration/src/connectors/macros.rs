@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use common_enums::DynamicContentType;
 use common_utils::{errors::CustomResult, ext_traits::BytesExt};
 use domain_types::{
-    errors::{ConnectorResponseTransformationError, IntegrationError},
+    errors::{ConnectorError, IntegrationError},
     router_data_v2::RouterDataV2,
 };
 use error_stack::ResultExt;
@@ -123,7 +123,7 @@ pub trait BridgeRequestResponse: Send + Sync {
         &self,
         bytes: bytes::Bytes,
         status_code: u16,
-    ) -> CustomResult<Self::ResponseBody, ConnectorResponseTransformationError>
+    ) -> CustomResult<Self::ResponseBody, ConnectorError>
     where
         Self::ResponseBody: for<'a> serde::Deserialize<'a>,
     {
@@ -146,11 +146,11 @@ pub trait BridgeRequestResponse: Send + Sync {
         &self,
         response: ResponseRouterDataType<Self::ConnectorInputData, Self::ResponseBody>,
         status_code: u16,
-    ) -> CustomResult<RouterDataType<Self::ConnectorInputData>, ConnectorResponseTransformationError>
+    ) -> CustomResult<RouterDataType<Self::ConnectorInputData>, ConnectorError>
     where
         RouterDataType<Self::ConnectorInputData>: TryFrom<
             ResponseRouterDataType<Self::ConnectorInputData, Self::ResponseBody>,
-            Error = error_stack::Report<ConnectorResponseTransformationError>,
+            Error = error_stack::Report<ConnectorError>,
         >,
     {
         RouterDataType::<Self::ConnectorInputData>::try_from(response).change_context(
@@ -319,7 +319,7 @@ macro_rules! expand_fn_handle_response {
             res: Response,
         ) -> CustomResult<
             RouterDataV2<$flow, $resource_common_data, $request, $response>,
-            macro_types::ConnectorResponseTransformationError,
+            macro_types::ConnectorError,
         > {
             use error_stack::ResultExt;
             paste::paste! {let bridge = self.[< $flow:snake >];}
@@ -353,7 +353,7 @@ macro_rules! expand_fn_handle_response {
             res: Response,
         ) -> CustomResult<
             RouterDataV2<$flow, $resource_common_data, $request, $response>,
-            macro_types::ConnectorResponseTransformationError,
+            macro_types::ConnectorError,
         > {
             paste::paste! {let bridge = self.[< $flow:snake >];}
             let response_body = bridge.response(res.response, res.status_code)?;
@@ -410,7 +410,7 @@ macro_rules! expand_default_functions {
             &self,
             res: Response,
             event_builder: Option<&mut events::Event>,
-        ) -> CustomResult<ErrorResponse, macro_types::ConnectorResponseTransformationError> {
+        ) -> CustomResult<ErrorResponse, macro_types::ConnectorError> {
             self.build_error_response(res, event_builder)
         }
     };
@@ -866,7 +866,7 @@ macro_rules! impl_templating_mixed {
                     &self,
                     bytes: bytes::Bytes,
                     status_code: u16,
-                ) -> CustomResult<Self::ResponseBody, domain_types::errors::ConnectorResponseTransformationError> {
+                ) -> CustomResult<Self::ResponseBody, domain_types::errors::ConnectorError> {
                     use common_utils::ext_traits::XmlExt;
                     use error_stack::ResultExt;
 
@@ -917,7 +917,7 @@ macro_rules! impl_templating_mixed {
                     &self,
                     bytes: bytes::Bytes,
                     status_code: u16,
-                ) -> CustomResult<Self::ResponseBody, domain_types::errors::ConnectorResponseTransformationError> {
+                ) -> CustomResult<Self::ResponseBody, domain_types::errors::ConnectorError> {
                     use common_utils::ext_traits::XmlExt;
                     use error_stack::ResultExt;
 
@@ -1179,7 +1179,7 @@ macro_rules! expand_imports {
             // };
             pub(super) use common_utils::{errors::CustomResult, events, request::RequestContent};
             pub(super) use domain_types::{
-                errors::{ConnectorResponseTransformationError, IntegrationError},
+                errors::{ConnectorError, IntegrationError},
                 router_data::ErrorResponse,
                 router_data_v2::RouterDataV2,
                 router_response_types::Response,

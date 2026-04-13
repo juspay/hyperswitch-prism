@@ -103,7 +103,7 @@ impl TryFrom<AuthorizeRequest> for AdyenPaymentRequest {
 
 ```rust
 impl TryFrom<AdyenPaymentResponse> for AuthorizeResponse {
-    type Error = ConnectorResponseTransformationError;
+    type Error = ConnectorError;
     
     fn try_from(resp: AdyenPaymentResponse) -> Result<Self, Self::Error> {
         Ok(AuthorizeResponse {

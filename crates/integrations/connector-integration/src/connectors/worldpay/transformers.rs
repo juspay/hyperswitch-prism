@@ -10,7 +10,7 @@ use domain_types::{
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
         ResponseId,
     },
-    errors::{ConnectorResponseTransformationError, IntegrationError},
+    errors::{ConnectorError, IntegrationError},
     payment_method_data::{
         PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
         WalletData as WalletDataPaymentMethod,
@@ -219,7 +219,7 @@ fn fetch_payment_instrument<
         | PaymentMethodData::CardRedirect(_)
         | PaymentMethodData::GiftCard(_)
         | PaymentMethodData::OpenBanking(_)
-        | PaymentMethodData::CardToken(_)
+        | PaymentMethodData::PaymentMethodToken(_)
         | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
         | PaymentMethodData::NetworkToken(_) => Err(IntegrationError::not_implemented(
             utils::get_unimplemented_payment_method_error_message("worldpay"),
@@ -712,7 +712,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     TryFrom<ResponseRouterData<WorldpayPaymentsResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<WorldpayPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -734,7 +734,7 @@ impl<
         PaymentsResponseData,
     >
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<WorldpayPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -752,7 +752,7 @@ impl<F, T>
         MinorUnit,
     )> for RouterDataV2<F, PaymentFlowData, T, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn foreign_try_from(
         item: (
             ResponseRouterData<WorldpayPaymentsResponse, Self>,
@@ -986,7 +986,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl TryFrom<ResponseRouterData<WorldpayPaymentsResponse, Self>>
     for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<WorldpayPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -1055,7 +1055,7 @@ impl TryFrom<WorldpayWebhookEventType> for WorldpayEventResponse {
 impl<F> TryFrom<ResponseRouterData<WorldpayEventResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<WorldpayEventResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -1113,7 +1113,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
 impl<F> TryFrom<ResponseRouterData<WorldpayPaymentsResponse, Self>>
     for RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<WorldpayPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -1138,7 +1138,7 @@ impl<F> TryFrom<ResponseRouterData<WorldpayPaymentsResponse, Self>>
 impl<F> TryFrom<ResponseRouterData<WorldpayEventResponse, Self>>
     for RouterDataV2<F, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<WorldpayEventResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -1187,7 +1187,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl TryFrom<ResponseRouterData<WorldpayPaymentsResponse, Self>>
     for RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<WorldpayPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -1219,7 +1219,7 @@ impl TryFrom<ResponseRouterData<WorldpayPaymentsResponse, Self>>
 }
 
 impl ForeignTryFrom<(WorldpayPaymentsResponse, Option<String>, u16)> for ResponseIdStr {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn foreign_try_from(
         item: (WorldpayPaymentsResponse, Option<String>, u16),
     ) -> Result<Self, Self::Error> {
@@ -1228,7 +1228,7 @@ impl ForeignTryFrom<(WorldpayPaymentsResponse, Option<String>, u16)> for Respons
 }
 
 impl ForeignTryFrom<(WorldpayPaymentsResponse, Option<String>, u16)> for ResponseId {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn foreign_try_from(
         item: (WorldpayPaymentsResponse, Option<String>, u16),
     ) -> Result<Self, Self::Error> {
@@ -1345,7 +1345,7 @@ impl<T> TryFrom<ResponseRouterData<WorldpayPaymentsResponse, Self>>
 where
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<WorldpayPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -1383,7 +1383,7 @@ impl<T> TryFrom<ResponseRouterData<WorldpayPaymentsResponse, Self>>
 where
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<WorldpayPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -1411,10 +1411,7 @@ where
 
 fn extract_redirection_data(
     response: &WorldpayPaymentsResponse,
-) -> Result<
-    (Option<RedirectForm>, Option<String>),
-    error_stack::Report<ConnectorResponseTransformationError>,
-> {
+) -> Result<(Option<RedirectForm>, Option<String>), error_stack::Report<ConnectorError>> {
     match &response.other_fields {
         Some(WorldpayPaymentResponseFields::ThreeDsChallenged(challenged)) => {
             let redirect_form = RedirectForm::Form {

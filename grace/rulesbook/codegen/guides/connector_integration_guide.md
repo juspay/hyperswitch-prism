@@ -148,7 +148,7 @@ impl ConnectorCommon for ConnectorName {
         &self,
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         // UCS-specific error handling
     }
 }

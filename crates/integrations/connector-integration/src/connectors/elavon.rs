@@ -48,7 +48,7 @@ use super::macros;
 use crate::{
     types::ResponseRouterData, utils::preprocess_xml_response_bytes, with_error_response_body,
 };
-use domain_types::errors::ConnectorResponseTransformationError;
+use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
 
 pub(crate) mod headers {
@@ -225,7 +225,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         match res
             .response
             .parse_struct::<ElavonPaymentsResponse>("ElavonPaymentsResponse")
@@ -333,7 +333,7 @@ macros::create_all_prerequisites!(
             _req: &RouterDataV2<F, FCD, Req, Res>,
             response_bytes: Bytes,
             status_code: u16,
-        ) -> Result<Bytes, ConnectorResponseTransformationError> {
+        ) -> Result<Bytes, ConnectorError> {
             // Use the utility function to preprocess XML response bytes
             preprocess_xml_response_bytes(response_bytes, status_code)
         }

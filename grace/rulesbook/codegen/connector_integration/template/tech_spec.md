@@ -66,7 +66,7 @@ impl ConnectorCommon for {{connector_name}} {
         &self,
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         // UCS-specific error handling
     }
 }
@@ -114,7 +114,7 @@ impl ConnectorIntegrationV2<Flow, Request, Response> for {{connector_name}} {
         data: &RouterDataV2<Flow, Request, Response>,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<RouterDataV2<Flow, Request, Response>, errors::ConnectorResponseTransformationError> {
+    ) -> CustomResult<RouterDataV2<Flow, Request, Response>, errors::ConnectorError> {
         // UCS response handling
     }
     
@@ -122,7 +122,7 @@ impl ConnectorIntegrationV2<Flow, Request, Response> for {{connector_name}} {
         &self,
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         // UCS error handling
     }
 }
@@ -390,7 +390,7 @@ impl ConnectorCommon for {{connector_name}} {
         &self,
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         // Parse connector error response
         // Map to UCS ErrorResponse
         // Include all required fields

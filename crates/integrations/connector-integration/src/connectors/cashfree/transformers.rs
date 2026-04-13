@@ -5,7 +5,7 @@ use domain_types::{
         PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentsAuthorizeData,
         PaymentsResponseData, ResponseId,
     },
-    errors::{ConnectorResponseTransformationError, IntegrationError},
+    errors::{ConnectorError, IntegrationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
@@ -488,10 +488,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        // Extract payment_session_id from reference_id (set by CreateOrder response)
-        let payment_session_id = item.resource_common_data.reference_id.clone().ok_or(
+        // Extract payment_session_id from connector_order_id (set by CreateOrder response)
+        let payment_session_id = item.resource_common_data.connector_order_id.clone().ok_or(
             IntegrationError::MissingRequiredField {
-                field_name: "merchant_order_id",
+                field_name: "connector_order_id",
                 context: Default::default(),
             },
         )?;
@@ -512,11 +512,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 // ============================================================================
 
 impl TryFrom<CashfreeOrderCreateResponse> for PaymentCreateOrderResponse {
-    type Error = Report<ConnectorResponseTransformationError>;
+    type Error = Report<ConnectorError>;
 
     fn try_from(response: CashfreeOrderCreateResponse) -> Result<Self, Self::Error> {
         Ok(Self {
-            order_id: response.payment_session_id,
+            connector_order_id: response.payment_session_id,
             session_data: None,
         })
     }
@@ -531,7 +531,7 @@ impl TryFrom<ResponseRouterData<CashfreeOrderCreateResponse, Self>>
         PaymentCreateOrderResponse,
     >
 {
-    type Error = Report<ConnectorResponseTransformationError>;
+    type Error = Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<CashfreeOrderCreateResponse, Self>,
@@ -540,15 +540,16 @@ impl TryFrom<ResponseRouterData<CashfreeOrderCreateResponse, Self>>
         let order_response = PaymentCreateOrderResponse::try_from(response)?;
 
         // Extract order_id before moving order_response
-        let order_id = order_response.order_id.clone();
+        let order_id = order_response.connector_order_id.clone();
 
         Ok(Self {
             response: Ok(order_response),
             resource_common_data: PaymentFlowData {
                 // Update status to indicate successful order creation
                 status: common_enums::AttemptStatus::Pending,
-                // Set reference_id to the payment_session_id for use in authorize flow
-                reference_id: Some(order_id),
+                // Set connector_order_id to the payment_session_id for use in authorize flow
+                reference_id: Some(order_id.clone()),
+                connector_order_id: Some(order_id),
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
@@ -560,7 +561,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     TryFrom<ResponseRouterData<CashfreePaymentResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = Report<ConnectorResponseTransformationError>;
+    type Error = Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<CashfreePaymentResponse, Self>,
@@ -570,19 +571,19 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let (status, redirection_data) = match response.channel.as_str() {
             "link" => {
                 // Intent flow - extract deep link from payload._default
-                let deep_link = response.data.payload.map(|p| p.default_link).ok_or_else(
-                        || {
-                            Report::new(
-                                ConnectorResponseTransformationError::response_handling_failed_with_context(
-                                    item.http_code,
-                                    Some(
-                                        "link channel: missing payload.default_link (UPI intent)"
-                                            .to_string(),
-                                    ),
-                                ),
-                            )
-                        },
-                    )?;
+                let deep_link = response
+                    .data
+                    .payload
+                    .map(|p| p.default_link)
+                    .ok_or_else(|| {
+                        Report::new(ConnectorError::response_handling_failed_with_context(
+                            item.http_code,
+                            Some(
+                                "link channel: missing payload.default_link (UPI intent)"
+                                    .to_string(),
+                            ),
+                        ))
+                    })?;
 
                 // Trim deep link at "?" as per Haskell: truncateIntentLink "?" link
                 let trimmed_link = if let Some(pos) = deep_link.find('?') {

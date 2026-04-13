@@ -8,7 +8,7 @@ use domain_types::{
         PaymentsCaptureData, PaymentsResponseData, RefundFlowData, RefundSyncData, RefundsData,
         RefundsResponseData, ResponseId,
     },
-    errors::{ConnectorResponseTransformationError, IntegrationError},
+    errors::{ConnectorError, IntegrationError},
     payment_method_data::{
         ApplePayWalletData, BankRedirectData, Card, PaymentMethodData, PaymentMethodDataTypes,
         RawCardNumber, WalletData,
@@ -367,7 +367,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
     TryFrom<ResponseRouterData<NexinetsPreAuthOrDebitResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<NexinetsPreAuthOrDebitResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -517,7 +517,7 @@ pub struct NexinetsPaymentResponse {
 impl<F, T> TryFrom<ResponseRouterData<NexinetsPaymentResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, T, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<NexinetsPaymentResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -629,7 +629,7 @@ impl From<RefundStatus> for enums::RefundStatus {
 impl<F> TryFrom<ResponseRouterData<NexinetsRefundResponse, Self>>
     for RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<NexinetsRefundResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -647,7 +647,7 @@ impl<F> TryFrom<ResponseRouterData<NexinetsRefundResponse, Self>>
 impl<F> TryFrom<ResponseRouterData<NexinetsRefundResponse, Self>>
     for RouterDataV2<F, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<NexinetsRefundResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -720,7 +720,8 @@ fn get_payment_details_and_product<
             | BankRedirectData::OnlineBankingFpx { .. }
             | BankRedirectData::OnlineBankingThailand { .. }
             | BankRedirectData::LocalBankRedirect {}
-            | BankRedirectData::OpenBanking {} => Err(IntegrationError::not_implemented(
+            | BankRedirectData::OpenBanking {}
+            | BankRedirectData::Netbanking { .. } => Err(IntegrationError::not_implemented(
                 utils::get_unimplemented_payment_method_error_message("nexinets"),
             ))?,
         },
@@ -737,7 +738,7 @@ fn get_payment_details_and_product<
         | PaymentMethodData::Voucher(_)
         | PaymentMethodData::GiftCard(_)
         | PaymentMethodData::OpenBanking(_)
-        | PaymentMethodData::CardToken(_)
+        | PaymentMethodData::PaymentMethodToken(_)
         | PaymentMethodData::NetworkToken(_)
         | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
         | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {

@@ -96,7 +96,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: Result<ItaubankErrorResponse, _> =
             res.response.parse_struct("ItaubankErrorResponse");
 
@@ -241,7 +241,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ServerAuthenticationTokenRequestData,
             ServerAuthenticationTokenResponseData,
         >,
-        errors::ConnectorResponseTransformationError,
+        errors::ConnectorError,
     > {
         let response: Result<ItaubankAccessTokenResponse, _> =
             res.response.parse_struct("ItaubankAccessTokenResponse");
@@ -266,12 +266,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     res.status_code,
                     res.response
                 );
-                Err(
-                    errors::ConnectorResponseTransformationError::ResponseDeserializationFailed {
-                        context: Default::default(),
-                    }
-                    .into(),
-                )
+                Err(errors::ConnectorError::ResponseDeserializationFailed {
+                    context: Default::default(),
+                }
+                .into())
             }
         }
     }
@@ -280,7 +278,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 }
@@ -380,7 +378,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         res: Response,
     ) -> CustomResult<
         RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>,
-        errors::ConnectorResponseTransformationError,
+        errors::ConnectorError,
     > {
         let response: Result<ItaubankTransferResponse, _> =
             res.response.parse_struct("ItaubankTransferResponse");
@@ -404,12 +402,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     res.status_code,
                     res.response
                 );
-                Err(
-                    errors::ConnectorResponseTransformationError::ResponseDeserializationFailed {
-                        context: Default::default(),
-                    }
-                    .into(),
-                )
+                Err(errors::ConnectorError::ResponseDeserializationFailed {
+                    context: Default::default(),
+                }
+                .into())
             }
         }
     }
@@ -418,7 +414,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 }

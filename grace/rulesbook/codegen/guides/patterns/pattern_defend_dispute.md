@@ -391,7 +391,7 @@ pub struct DefendDisputeErrorResponse {
 impl TryFrom<ResponseRouterData<{ConnectorName}DefendDisputeResponse, RouterDataV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>>>
     for RouterDataV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<{ConnectorName}DefendDisputeResponse, RouterDataV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>>,
@@ -568,7 +568,7 @@ impl TryFrom<{ConnectorName}RouterData<RouterDataV2<...>, T>>
 impl TryFrom<ResponseRouterData<{ConnectorName}DefendDisputeResponse, RouterDataV2<...>>>
     for RouterDataV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<...>) -> Result<Self, Self::Error> {
         let response = &item.response;
@@ -597,7 +597,7 @@ impl TryFrom<ResponseRouterData<{ConnectorName}DefendDisputeResponse, RouterData
 impl<F, Req> TryFrom<ResponseRouterData<{ConnectorName}DefendDisputeResponse, Self>>
     for RouterDataV2<F, DisputeFlowData, Req, DisputeResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         value: ResponseRouterData<{ConnectorName}DefendDisputeResponse, Self>,
@@ -675,13 +675,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: {ConnectorName}ErrorResponse = if res.response.is_empty() {
             {ConnectorName}ErrorResponse::default()
         } else {
             res.response
                 .parse_struct("ErrorResponse")
-                .change_context(errors::ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })?
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed { context: Default::default() })?
         };
 
         if let Some(i) = event_builder {

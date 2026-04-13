@@ -14,7 +14,7 @@ use domain_types::{
         PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundsData,
         RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
-    errors::{ConnectorResponseTransformationError, IntegrationError, IntegrationErrorContext},
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -284,17 +284,12 @@ pub struct ZiftAuthPaymentsResponse {
 }
 
 impl ZiftAuthPaymentsResponse {
-    pub fn get_transaction_id(
-        &self,
-        http_code: u16,
-    ) -> CustomResult<String, ConnectorResponseTransformationError> {
+    pub fn get_transaction_id(&self, http_code: u16) -> CustomResult<String, ConnectorError> {
         self.transaction_id.clone().ok_or_else(|| {
-            Report::new(
-                ConnectorResponseTransformationError::response_handling_failed_with_context(
-                    http_code,
-                    Some("missing transaction_id in connector response".to_string()),
-                ),
-            )
+            Report::new(ConnectorError::response_handling_failed_with_context(
+                http_code,
+                Some("missing transaction_id in connector response".to_string()),
+            ))
         })
     }
 }
@@ -327,17 +322,12 @@ pub struct ZiftRefundResponse {
 }
 
 impl ZiftRefundResponse {
-    pub fn get_transaction_id(
-        &self,
-        http_code: u16,
-    ) -> CustomResult<String, ConnectorResponseTransformationError> {
+    pub fn get_transaction_id(&self, http_code: u16) -> CustomResult<String, ConnectorError> {
         self.transaction_id.clone().ok_or_else(|| {
-            Report::new(
-                ConnectorResponseTransformationError::response_handling_failed_with_context(
-                    http_code,
-                    Some("missing transaction_id in connector response".to_string()),
-                ),
-            )
+            Report::new(ConnectorError::response_handling_failed_with_context(
+                http_code,
+                Some("missing transaction_id in connector response".to_string()),
+            ))
         })
     }
 }
@@ -617,7 +607,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<ZiftAuthPaymentsResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = Report<ConnectorResponseTransformationError>;
+    type Error = Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<ZiftAuthPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -781,7 +771,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<ZiftAuthPaymentsResponse, Self>>
     for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
 {
-    type Error = Report<ConnectorResponseTransformationError>;
+    type Error = Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<ZiftAuthPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -842,7 +832,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<ZiftAuthPaymentsRespo
 impl TryFrom<ResponseRouterData<ZiftSyncResponse, Self>>
     for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = Report<ConnectorResponseTransformationError>;
+    type Error = Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<ZiftSyncResponse, Self>) -> Result<Self, Self::Error> {
         let attempt_status = match item.response.transaction_type {
             // Sale transactions
@@ -986,7 +976,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<F> TryFrom<ResponseRouterData<ZiftCaptureResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
-    type Error = Report<ConnectorResponseTransformationError>;
+    type Error = Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<ZiftCaptureResponse, Self>) -> Result<Self, Self::Error> {
         let capture_response = &item.response;
 
@@ -1115,10 +1105,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     >
 {
-    type Error = Report<ConnectorResponseTransformationError>;
+    type Error = Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<ZiftAuthPaymentsResponse, Self>,
-    ) -> Result<Self, Report<ConnectorResponseTransformationError>> {
+    ) -> Result<Self, Report<ConnectorError>> {
         let status = if item.response.response_code.is_approved() {
             common_enums::AttemptStatus::Charged
         } else if item.response.response_code.is_pending() {
@@ -1206,7 +1196,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<F> TryFrom<ResponseRouterData<ZiftVoidResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
 {
-    type Error = Report<ConnectorResponseTransformationError>;
+    type Error = Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<ZiftVoidResponse, Self>) -> Result<Self, Self::Error> {
         let void_response = &item.response;
@@ -1287,7 +1277,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<F> TryFrom<ResponseRouterData<ZiftRefundResponse, Self>>
     for RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = Report<ConnectorResponseTransformationError>;
+    type Error = Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<ZiftRefundResponse, Self>) -> Result<Self, Self::Error> {
         let refund_response = &item.response;
@@ -1307,14 +1297,10 @@ impl<F> TryFrom<ResponseRouterData<ZiftRefundResponse, Self>>
                     .clone()
                     .or(item.response.transaction_code.clone())
                     .ok_or_else(|| {
-                        Report::new(
-                            ConnectorResponseTransformationError::response_handling_failed_with_context(
-                                item.http_code,
-                                Some(
-                                    "missing connector refund id in connector response".to_string(),
-                                ),
-                            ),
-                        )
+                        Report::new(ConnectorError::response_handling_failed_with_context(
+                            item.http_code,
+                            Some("missing connector refund id in connector response".to_string()),
+                        ))
                     })?,
                 refund_status,
                 status_code: item.http_code,

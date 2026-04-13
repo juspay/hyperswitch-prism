@@ -231,6 +231,7 @@ pub enum BluesnapAuthorizeRequest {
     Card(BluesnapPaymentsRequest),
     Ach(BluesnapAchAuthorizeRequest),
     Sepa(BluesnapSepaAuthorizeRequest),
+    CardToken(BluesnapCompletePaymentsRequest),
 }
 
 // ===== 3DS AUTHENTICATION STRUCTURES =====

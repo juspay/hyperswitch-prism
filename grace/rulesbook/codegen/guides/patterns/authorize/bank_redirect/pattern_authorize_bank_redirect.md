@@ -491,7 +491,7 @@ pub enum BankRedirectStatus {
 impl<F, T> TryFrom<ResponseRouterData<BankRedirectResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, T, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<BankRedirectResponse, Self>,
@@ -709,7 +709,7 @@ pub struct ConnectorAuthUpdateResponse {
 impl<F, T> TryFrom<ResponseRouterData<ConnectorAuthUpdateResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, T, AccessTokenResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<ConnectorAuthUpdateResponse, Self>,

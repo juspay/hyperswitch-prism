@@ -13,7 +13,7 @@ use domain_types::{
         PaymentsCaptureData, PaymentsResponseData, RefundFlowData, RefundSyncData, RefundsData,
         RefundsResponseData, ResponseId, SetupMandateRequestData,
     },
-    errors::{ConnectorResponseTransformationError, IntegrationError},
+    errors::{ConnectorError, IntegrationError},
     payment_method_data::{BankDebitData, PaymentMethodData, PaymentMethodDataTypes},
     router_data::{
         AdditionalPaymentMethodConnectorResponse, ConnectorResponseData, ConnectorSpecificConfig,
@@ -41,7 +41,7 @@ pub use super::responses::{
 };
 
 type Error = error_stack::Report<IntegrationError>;
-type ResponseError = error_stack::Report<ConnectorResponseTransformationError>;
+type ResponseError = error_stack::Report<ConnectorError>;
 
 // Constants
 const PAYMENT_METHOD_TYPE_CARD: &str = "card";

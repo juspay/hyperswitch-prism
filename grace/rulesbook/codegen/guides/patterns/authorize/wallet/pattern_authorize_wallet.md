@@ -302,7 +302,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl<T> TryFrom<ResponseRouterData<ConnectorAuthResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<...>) -> Result<Self, Self::Error> {
         let status = get_order_status(item.response.status, item.response.intent);
@@ -316,7 +316,7 @@ impl<T> TryFrom<ResponseRouterData<ConnectorAuthResponse, Self>>
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data: Some(Box::new(RedirectForm::from((
-                    link.ok_or(ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })?,
+                    link.ok_or(ConnectorError::ResponseDeserializationFailed { context: Default::default() })?,
                     Method::Get,
                 )))),
                 mandate_reference: None,
@@ -387,7 +387,7 @@ WalletData::PaypalSdk(_) => {
 impl<F, T> TryFrom<ResponseRouterData<WalletPaymentsResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<...>) -> Result<Self, Self::Error> {
         let payload = item.response.payload.first();
@@ -685,7 +685,7 @@ pub struct ConnectorWalletResponse {
 impl<T> TryFrom<ResponseRouterData<ConnectorWalletResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<...>) -> Result<Self, Self::Error> {
         let status = map_wallet_status(&item.response.status)?;
@@ -717,7 +717,7 @@ fn map_wallet_status(status: &str) -> Result<AttemptStatus, IntegrationError> {
         "succeeded" | "completed" => Ok(AttemptStatus::Charged),
         "pending" => Ok(AttemptStatus::Pending),
         "failed" => Ok(AttemptStatus::Failure),
-        _ => Err(ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })
+        _ => Err(ConnectorError::ResponseDeserializationFailed { context: Default::default() })
     }
 }
 ```

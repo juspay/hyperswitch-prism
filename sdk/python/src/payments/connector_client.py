@@ -13,23 +13,25 @@ To add a new flow: implement a req_transformer in services/payments.rs and run `
 
 Error Handling:
   FFI transformers return raw bytes that may represent either a success proto or an
-  error proto (IntegrationError for req_transformer, ConnectorResponseTransformationError for res_transformer).
-  On error, the decoded proto (IntegrationError or ConnectorResponseTransformationError) is raised directly.
+  error proto (IntegrationError for req_transformer, ConnectorError for res_transformer).
+  On error, the decoded proto (IntegrationError or ConnectorError) is raised directly.
   Callers can catch the specific error type:
 
       try:
           response = await client.authorize(request)
       except IntegrationError as e:
           print(e.error_code, e.error_message)
-      except ConnectorResponseTransformationError as e:
+      except ConnectorError as e:
           print(e.error_code, e.error_message)
 """
 
-from typing import Optional, Any
+from typing import Optional, Any, Dict
+import asyncio
+import httpx
 
 from .generated import connector_service_ffi as _ffi
 from ._generated_flows import SERVICE_FLOWS
-from .http_client import execute, HttpRequest, create_client, merge_http_config, DEFAULT_HTTP_CONFIG
+from .http_client import execute, HttpRequest, create_client, merge_http_config, DEFAULT_HTTP_CONFIG, generate_proxy_cache_key
 from .generated.sdk_config_pb2 import (
     ConnectorConfig,
     RequestConfig,
@@ -38,7 +40,7 @@ from .generated.sdk_config_pb2 import (
     FfiConnectorHttpResponse,
     HttpConfig,
     IntegrationError as IntegrationErrorProto,
-    ConnectorResponseTransformationError as ConnectorResponseTransformationErrorProto,
+    ConnectorError as ConnectorErrorProto,
     FfiResult,
 )
 
@@ -58,13 +60,13 @@ class IntegrationError(Exception):
         return getattr(self._proto, name)
 
 
-class ConnectorResponseTransformationError(Exception):
+class ConnectorError(Exception):
     """Exception raised when res_transformer fails (response transformation error).
 
-    Wraps ConnectorResponseTransformationError proto and provides transparent access to proto fields.
+    Wraps ConnectorError proto and provides transparent access to proto fields.
     """
 
-    def __init__(self, proto: ConnectorResponseTransformationErrorProto):
+    def __init__(self, proto: ConnectorErrorProto):
         super().__init__(proto.error_message)
         self._proto = proto
 
@@ -86,7 +88,7 @@ def check_req(result_bytes: bytes) -> Any:
 
     Raises:
         IntegrationError: If the result type is INTEGRATION_ERROR.
-        ConnectorResponseTransformationError: If the result type is CONNECTOR_RESPONSE_TRANSFORMATION_ERROR.
+        ConnectorError: If the result type is CONNECTOR_ERROR.
         ValueError: If the result type is unknown or invalid.
     """
     result = FfiResult()
@@ -100,8 +102,8 @@ def check_req(result_bytes: bytes) -> Any:
         return result.http_request
     elif result_type == FfiResult.INTEGRATION_ERROR:
         raise IntegrationError(result.integration_error)
-    elif result_type == FfiResult.CONNECTOR_RESPONSE_TRANSFORMATION_ERROR:
-        raise ConnectorResponseTransformationError(result.connector_response_transformation_error)
+    elif result_type == FfiResult.CONNECTOR_ERROR:
+        raise ConnectorError(result.connector_error)
     else:
         raise ValueError(f"Unknown result type: {result_type}")
 
@@ -117,7 +119,7 @@ def check_res(result_bytes: bytes) -> Any:
         FfiConnectorHttpResponse on success (HTTP_RESPONSE type).
 
     Raises:
-        ConnectorResponseTransformationError: If the result type is CONNECTOR_RESPONSE_TRANSFORMATION_ERROR.
+        ConnectorError: If the result type is CONNECTOR_ERROR.
         IntegrationError: If the result type is INTEGRATION_ERROR.
         ValueError: If the result type is unknown or invalid.
     """
@@ -130,8 +132,8 @@ def check_res(result_bytes: bytes) -> Any:
     if result_type == FfiResult.HTTP_RESPONSE:
         # Return the typed HTTP response directly
         return result.http_response
-    elif result_type == FfiResult.CONNECTOR_RESPONSE_TRANSFORMATION_ERROR:
-        raise ConnectorResponseTransformationError(result.connector_response_transformation_error)
+    elif result_type == FfiResult.CONNECTOR_ERROR:
+        raise ConnectorError(result.connector_error)
     elif result_type == FfiResult.INTEGRATION_ERROR:
         raise IntegrationError(result.integration_error)
     else:
@@ -158,8 +160,9 @@ class _ConnectorClientBase:
         self.defaults = defaults or RequestConfig()
         # Client default: proto defaults + optional client config (merged at init, stored)
         client_http = self.defaults.http if self.defaults.HasField("http") else None
-        self._default_http = merge_http_config(DEFAULT_HTTP_CONFIG, client_http)
-        self.client = create_client(self._default_http)
+        self._base_http_config = merge_http_config(DEFAULT_HTTP_CONFIG, client_http)
+        self._client_cache: Dict[str, httpx.AsyncClient] = {}
+        self._cache_lock = asyncio.Lock()
 
     def _resolve_config(
         self, options: Optional[RequestConfig] = None
@@ -169,7 +172,7 @@ class _ConnectorClientBase:
         """
         environment = self.config.options.environment
         override_http = options.http if (options and options.HasField("http")) else None
-        http_config = merge_http_config(self._default_http, override_http)
+        http_config = merge_http_config(self._base_http_config, override_http)
 
         # Resolve FFI Context
         ffi = FfiOptions(
@@ -178,6 +181,27 @@ class _ConnectorClientBase:
         )
 
         return ffi, http_config
+
+    async def _get_or_create_client(self, http_config: HttpConfig) -> httpx.AsyncClient:
+        """
+        Get or create a cached HTTP client based on the effective proxy configuration.
+        """
+        proxy_options = http_config.proxy if http_config.HasField("proxy") else None
+        cache_key = generate_proxy_cache_key(proxy_options)
+
+        # Fast path - check without lock
+        if cache_key in self._client_cache:
+            return self._client_cache[cache_key]
+
+        # Slow path - create with lock
+        async with self._cache_lock:
+            # Double-check in case another coroutine created it
+            if cache_key in self._client_cache:
+                return self._client_cache[cache_key]
+
+            new_client = create_client(http_config)
+            self._client_cache[cache_key] = new_client
+            return new_client
 
 
     async def _execute_flow(
@@ -190,7 +214,7 @@ class _ConnectorClientBase:
         """
         Execute a full payment flow round-trip asynchronously.
 
-        Errors from the FFI layer are raised as IntegrationError or ConnectorResponseTransformationError directly.
+        Errors from the FFI layer are raised as IntegrationError or ConnectorError directly.
 
         Args:
             flow: Flow name matching the FFI transformer prefix (e.g. "authorize").
@@ -203,7 +227,7 @@ class _ConnectorClientBase:
 
         Raises:
             IntegrationError: On req_transformer failures.
-            ConnectorResponseTransformationError: On res_transformer failures.
+            ConnectorError: On res_transformer failures.
         """
         req_transformer = getattr(_ffi, f"{flow}_req_transformer")
         res_transformer = getattr(_ffi, f"{flow}_res_transformer")
@@ -226,13 +250,16 @@ class _ConnectorClientBase:
             body=connector_req.body if connector_req.HasField("body") else None,
         )
 
-        # 3. Execute (http_config is always complete; pass ms, convert to sec inside)
+        # 3. Get or create cached HTTP client based on effective proxy config
+        client = await self._get_or_create_client(http_config)
+
+        # 4. Execute (http_config is always complete; pass ms, convert to sec inside)
         resolved_ms = (
             http_config.total_timeout_ms,
             http_config.connect_timeout_ms,
             http_config.response_timeout_ms,
         )
-        response = await execute(connector_request, self.client, resolved_ms)
+        response = await execute(connector_request, client, resolved_ms)
 
         # 4. Encode HTTP response for FFI
         res_proto = FfiConnectorHttpResponse(
@@ -243,7 +270,7 @@ class _ConnectorClientBase:
         res_bytes = res_proto.SerializeToString()
 
         # 5. Parse connector response via FFI
-        #    Parse result bytes as response_cls; if that fails, parse as ConnectorResponseTransformationError.
+        #    Parse result bytes as response_cls; if that fails, parse as ConnectorError.
         result_bytes_res = res_transformer(res_bytes, request_bytes, options_bytes)
         http_response = check_res(result_bytes_res)
         
@@ -264,7 +291,7 @@ class _ConnectorClientBase:
         Execute a single-step flow: FFI transformer called directly, no HTTP round-trip.
 
         Used for inbound flows like webhook processing where the connector sends
-        data to us. Errors are raised as ConnectorResponseTransformationError directly.
+        data to us. Errors are raised as ConnectorError directly.
 
         Args:
             flow: Flow name matching the FFI transformer (e.g. "handle_event").
@@ -276,7 +303,7 @@ class _ConnectorClientBase:
             Decoded domain response proto.
 
         Raises:
-            ConnectorResponseTransformationError: On FFI transformer failures.
+            ConnectorError: On FFI transformer failures.
         """
         transformer = getattr(_ffi, f"{flow}_transformer")
 
@@ -297,8 +324,10 @@ class _ConnectorClientBase:
         return domain_response
 
     async def close(self):
-        """Close the underlying asynchronous connection pool."""
-        await self.client.aclose()
+        """Close all underlying asynchronous connection pools."""
+        for client in self._client_cache.values():
+            await client.aclose()
+        self._client_cache.clear()
 
 
 class ConnectorClient(_ConnectorClientBase):

@@ -184,18 +184,18 @@ let return_url = data.router_return_url
 
 ### `handle_json_response_deserialization_failure`
 **Location:** `connector_integration::utils::handle_json_response_deserialization_failure`
-**Signature:** `fn handle_json_response_deserialization_failure(res: Response, connector: &'static str) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError>`
+**Signature:** `fn handle_json_response_deserialization_failure(res: Response, connector: &'static str) -> CustomResult<ErrorResponse, ConnectorError>`
 **Description:** Handles cases where JSON deserialization fails by checking if response is valid JSON or HTML/text.
 **Use Case:** Use in `build_error_response` when deserialization of expected error response format fails.
 **Example:**
 ```rust
 fn build_error_response(&self, res: Response, event_builder: Option<&mut ConnectorEvent>)
-    -> CustomResult<ErrorResponse, errors::ConnectorResponseTransformationError> {
+    -> CustomResult<ErrorResponse, errors::ConnectorError> {
     let response_data = String::from_utf8(res.response.to_vec())
-        .change_context(errors::ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })?;
+        .change_context(errors::ConnectorError::ResponseDeserializationFailed { context: Default::default() })?;
 
     serde_json::from_str::<ErrorResponse>(&response_data)
-        .change_context(errors::ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })
+        .change_context(errors::ConnectorError::ResponseDeserializationFailed { context: Default::default() })
         .or_else(|_| handle_json_response_deserialization_failure(res, "connector_name"))
 }
 ```
@@ -336,7 +336,7 @@ let state_code = convert_us_state_to_code("New York"); // Returns "NY"
 
 ### `preprocess_xml_response_bytes`
 **Location:** `connector_integration::utils::xml_utils::preprocess_xml_response_bytes`
-**Signature:** `fn preprocess_xml_response_bytes(xml_data: Bytes) -> Result<Bytes, ConnectorResponseTransformationError>`
+**Signature:** `fn preprocess_xml_response_bytes(xml_data: Bytes) -> Result<Bytes, ConnectorError>`
 **Description:** Converts XML response to properly structured JSON by parsing XML, removing declarations, flattening nested structures.
 **Use Case:** When connector returns XML and you need to deserialize it into Rust structs.
 **Example:**
@@ -345,7 +345,7 @@ use connector_integration::utils::preprocess_xml_response_bytes;
 
 let json_bytes = preprocess_xml_response_bytes(res.response)?;
 let response: ConnectorResponse = serde_json::from_slice(&json_bytes)
-    .change_context(errors::ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })?;
+    .change_context(errors::ConnectorError::ResponseDeserializationFailed { context: Default::default() })?;
 ```
 
 ### `serialize_to_xml_string_with_root`
@@ -517,9 +517,9 @@ let signature = get_http_header("X-Signature", headers)?;
 
 ### `extract_merchant_id_from_metadata`
 **Location:** `domain_types::utils::extract_merchant_id_from_metadata`
-**Signature:** `fn extract_merchant_id_from_metadata(metadata: &MaskedMetadata) -> Result<MerchantId, ApplicationErrorResponse>`
-**Description:** Extracts merchant ID from request metadata.
-**Use Case:** In webhook handlers to identify merchant from metadata.
+**Signature:** `fn extract_merchant_id_from_metadata(metadata: &MaskedMetadata) -> Result<MerchantId, IntegrationError>`
+**Description:** Extracts merchant ID from request metadata. If the `x-merchant-id` header is missing, a default ID is auto-generated.
+**Use Case:** In webhook handlers and transformers to identify merchant from metadata.
 
 ### `generate_id_with_default_len`
 **Location:** `common_utils::fp_utils::generate_id_with_default_len`

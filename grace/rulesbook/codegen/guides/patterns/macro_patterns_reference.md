@@ -422,11 +422,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: {{connector_name_lower}}::{{ConnectorName}}ErrorResponse = res
             .response
             .parse_struct("ErrorResponse")
-            .map_err(|_| errors::ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })?;
+            .map_err(|_| errors::ConnectorError::ResponseDeserializationFailed { context: Default::default() })?;
 
         with_error_response_body!(event_builder, response);
 

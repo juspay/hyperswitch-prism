@@ -48,7 +48,7 @@ use self::{
     response::{PaytmInitiateTxnResponse, PaytmProcessTxnResponse, PaytmTransactionStatusResponse},
 };
 use crate::{connectors::macros, types::ResponseRouterData};
-use domain_types::errors::ConnectorResponseTransformationError;
+use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
 
 // Define connector prerequisites using macros - following the exact pattern from other connectors
@@ -96,7 +96,7 @@ macros::create_all_prerequisites!(
             &self,
             res: Response,
             event_builder: Option<&mut events::Event>,
-        ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
             // First try to parse as session token error response format
             if let Ok(session_error_response) = res
                 .response
@@ -394,7 +394,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         self.build_custom_error_response(res, event_builder)
     }
 }
@@ -439,7 +439,7 @@ macros::macro_connector_implementation!(
             &self,
             res: Response,
             event_builder: Option<&mut events::Event>,
-        ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
             self.build_custom_error_response(res, event_builder)
         }
     }
@@ -508,7 +508,7 @@ macros::macro_connector_implementation!(
             &self,
             res: Response,
             event_builder: Option<&mut events::Event>,
-        ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
             self.build_custom_error_response(res, event_builder)
         }
     }
@@ -548,7 +548,7 @@ macros::macro_connector_implementation!(
             &self,
             res: Response,
             event_builder: Option<&mut events::Event>,
-        ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
             self.build_custom_error_response(res, event_builder)
         }
     }

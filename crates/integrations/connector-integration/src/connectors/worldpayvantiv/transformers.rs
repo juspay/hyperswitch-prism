@@ -9,9 +9,9 @@ use domain_types::{
         PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
         RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
-    errors::{ConnectorResponseTransformationError, IntegrationError},
+    errors::{ConnectorError, IntegrationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData},
-    router_data::{ConnectorSpecificConfig, ErrorResponse, PaymentMethodToken},
+    router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     ResponseTransformationErrorContext,
 };
@@ -1249,7 +1249,7 @@ pub enum WorldpayvantivPaymentFlow {
 // Helper function to determine payment flow type from merchant transaction ID
 fn get_payment_flow_type(
     merchant_txn_id: &str,
-) -> Result<WorldpayvantivPaymentFlow, Report<ConnectorResponseTransformationError>> {
+) -> Result<WorldpayvantivPaymentFlow, Report<ConnectorError>> {
     let merchant_txn_id_lower = merchant_txn_id.to_lowercase();
     if merchant_txn_id_lower.contains("auth") {
         Ok(WorldpayvantivPaymentFlow::Auth)
@@ -1262,7 +1262,7 @@ fn get_payment_flow_type(
     } else if merchant_txn_id_lower.contains("capture") {
         Ok(WorldpayvantivPaymentFlow::Capture)
     } else {
-        Err(Report::new(ConnectorResponseTransformationError::UnexpectedResponseError {
+        Err(Report::new(ConnectorError::UnexpectedResponseError {
             context: ResponseTransformationErrorContext {
                 http_status_code: None,
                 additional_context: Some(format!(
@@ -1278,7 +1278,7 @@ fn determine_attempt_status_for_psync(
     payment_status: PaymentStatus,
     merchant_txn_id: &str,
     current_status: common_enums::AttemptStatus,
-) -> Result<common_enums::AttemptStatus, Report<ConnectorResponseTransformationError>> {
+) -> Result<common_enums::AttemptStatus, Report<ConnectorError>> {
     let flow_type = get_payment_flow_type(merchant_txn_id)?;
 
     match payment_status {
@@ -1323,7 +1323,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = Report<ConnectorResponseTransformationError>;
+    type Error = Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<CnpOnlineResponse, Self>) -> Result<Self, Self::Error> {
         match (
             item.response.sale_response.as_ref(),
@@ -1479,7 +1479,6 @@ where
 #[allow(dead_code)]
 fn get_payment_info<T: PaymentMethodDataTypes>(
     payment_method_data: &PaymentMethodData<T>,
-    _payment_method_token: Option<PaymentMethodToken>,
 ) -> Result<PaymentInfo<T>, Report<IntegrationError>>
 where
     T::Inner: From<String> + Clone,
@@ -1725,7 +1724,7 @@ fn get_valid_transaction_id(
 impl TryFrom<ResponseRouterData<VantivSyncResponse, Self>>
     for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = Report<ConnectorResponseTransformationError>;
+    type Error = Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<VantivSyncResponse, Self>) -> Result<Self, Self::Error> {
         let status = if let Some(merchant_txn_id) = item
             .response
@@ -2046,7 +2045,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
     for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = Report<ConnectorResponseTransformationError>;
+    type Error = Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<CnpOnlineResponse, Self>) -> Result<Self, Self::Error> {
         if let Some(credit_response) = item.response.credit_response {
             let status = match credit_response.response {
@@ -2100,7 +2099,7 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
 impl TryFrom<ResponseRouterData<VantivSyncResponse, Self>>
     for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
-    type Error = Report<ConnectorResponseTransformationError>;
+    type Error = Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<VantivSyncResponse, Self>) -> Result<Self, Self::Error> {
         let status = match item.response.payment_status {
             PaymentStatus::ProcessedSuccessfully => common_enums::RefundStatus::Success,
@@ -2195,7 +2194,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
     for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
-    type Error = Report<ConnectorResponseTransformationError>;
+    type Error = Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<CnpOnlineResponse, Self>) -> Result<Self, Self::Error> {
         if let Some(capture_response) = item.response.capture_response {
             let status = get_attempt_status(
@@ -2330,7 +2329,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
     for RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
 {
-    type Error = Report<ConnectorResponseTransformationError>;
+    type Error = Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<CnpOnlineResponse, Self>) -> Result<Self, Self::Error> {
         // Check for AuthReversal response first (pre-capture void)
         if let Some(auth_reversal_response) = item.response.auth_reversal_response {
@@ -2461,7 +2460,7 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
 impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
     for RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>
 {
-    type Error = Report<ConnectorResponseTransformationError>;
+    type Error = Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<CnpOnlineResponse, Self>) -> Result<Self, Self::Error> {
         if let Some(void_response) = item.response.void_response {
             let status =
@@ -2540,7 +2539,7 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
 fn get_attempt_status(
     flow: WorldpayvantivPaymentFlow,
     response: WorldpayvantivResponseCode,
-) -> Result<common_enums::AttemptStatus, Report<ConnectorResponseTransformationError>> {
+) -> Result<common_enums::AttemptStatus, Report<ConnectorError>> {
     match response {
         WorldpayvantivResponseCode::Approved
         | WorldpayvantivResponseCode::PartiallyApproved

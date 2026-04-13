@@ -9,11 +9,14 @@ use domain_types::{
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
         RefundsResponseData, ResponseId,
     },
-    errors::{ConnectorResponseTransformationError, IntegrationError},
-    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
+    errors::{ConnectorError, IntegrationError},
+    payment_method_data::{
+        GpayTokenizationData, PaymentMethodData, PaymentMethodDataTypes, WalletData,
+    },
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
 };
+use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
@@ -165,6 +168,7 @@ pub struct TrustpaymentsAuthRequest {
 #[serde(untagged)]
 pub enum TrustpaymentsPaymentMethod {
     Card(TrustpaymentsCardData),
+    GooglePay(Box<TrustpaymentsGooglePayData>),
 }
 
 #[derive(Debug, Serialize)]
@@ -172,6 +176,21 @@ pub struct TrustpaymentsCardData {
     pub pan: Secret<String>,
     pub expirydate: Secret<String>,
     pub securitycode: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct TrustpaymentsGooglePayData {
+    pub pan: Secret<String>,
+    pub expirydate: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tavv: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub eci: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tokenisedpayment: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tokentype: Option<String>,
+    pub walletsource: String,
 }
 
 // ===== AUTHORIZE RESPONSE =====
@@ -256,6 +275,70 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     securitycode: card_data.card_cvc.clone(),
                 })
             }
+            PaymentMethodData::Wallet(WalletData::GooglePay(google_pay_data)) => {
+                let decrypted_data = match &google_pay_data.tokenization_data {
+                    GpayTokenizationData::Decrypted(data) => data,
+                    GpayTokenizationData::Encrypted(_) => {
+                        return Err(error_stack::report!(IntegrationError::InvalidWalletToken {
+                            wallet_name: "Google Pay".to_string(),
+                            context: Default::default(),
+                        }))
+                    }
+                };
+
+                let four_digit_year = decrypted_data.get_four_digit_expiry_year().change_context(
+                    IntegrationError::InvalidWalletToken {
+                        wallet_name: "Google Pay".to_string(),
+                        context: Default::default(),
+                    },
+                )?;
+                let month = decrypted_data.get_expiry_month().change_context(
+                    IntegrationError::InvalidWalletToken {
+                        wallet_name: "Google Pay".to_string(),
+                        context: Default::default(),
+                    },
+                )?;
+                // TrustPayments expects MM/YYYY format
+                let expirydate =
+                    Secret::new(format!("{}/{}", month.peek(), four_digit_year.peek()));
+
+                let is_cryptogram_3ds = decrypted_data.cryptogram.is_some();
+
+                TrustpaymentsPaymentMethod::GooglePay(Box::new(TrustpaymentsGooglePayData {
+                    pan: Secret::new(
+                        decrypted_data
+                            .application_primary_account_number
+                            .get_card_no(),
+                    ),
+                    expirydate,
+                    // CRYPTOGRAM_3DS: send tavv (cryptogram) + tokenisedpayment + tokentype
+                    tavv: if is_cryptogram_3ds {
+                        decrypted_data.cryptogram.clone()
+                    } else {
+                        None
+                    },
+                    // For PAN_ONLY, eci is required by TrustPayments; default to "06" if absent.
+                    // Google Pay PAN_ONLY decrypted payloads never include eciIndicator (by spec).
+                    // Ref: https://github.com/juspay/hyperswitch-prism/issues/894
+                    eci: Some(
+                        decrypted_data
+                            .eci_indicator
+                            .clone()
+                            .unwrap_or_else(|| "06".to_string()),
+                    ),
+                    tokenisedpayment: if is_cryptogram_3ds {
+                        Some("1".to_string())
+                    } else {
+                        None
+                    },
+                    tokentype: if is_cryptogram_3ds {
+                        Some("GOOGLEPAY".to_string())
+                    } else {
+                        None
+                    },
+                    walletsource: "GOOGLEPAY".to_string(),
+                }))
+            }
             _ => {
                 return Err(error_stack::report!(IntegrationError::not_implemented(
                     "Payment method not supported".to_string()
@@ -324,7 +407,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<ResponseRouterData<TrustpaymentsAuthorizeResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<TrustpaymentsAuthorizeResponse, Self>,
@@ -534,7 +617,7 @@ fn get_status_from_settlestatus(
 impl TryFrom<ResponseRouterData<TrustpaymentsPSyncResponse, Self>>
     for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<TrustpaymentsPSyncResponse, Self>,
@@ -737,7 +820,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl TryFrom<ResponseRouterData<TrustpaymentsCaptureResponse, Self>>
     for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<TrustpaymentsCaptureResponse, Self>,
@@ -886,7 +969,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl TryFrom<ResponseRouterData<TrustpaymentsVoidResponse, Self>>
     for RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<TrustpaymentsVoidResponse, Self>,
@@ -1128,7 +1211,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl TryFrom<ResponseRouterData<TrustpaymentsRSyncResponse, Self>>
     for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<TrustpaymentsRSyncResponse, Self>,
@@ -1207,7 +1290,7 @@ impl TryFrom<ResponseRouterData<TrustpaymentsRSyncResponse, Self>>
 impl TryFrom<ResponseRouterData<TrustpaymentsRefundResponse, Self>>
     for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<TrustpaymentsRefundResponse, Self>,

@@ -25,7 +25,7 @@ let return_url = data.router_return_url
 - **Example:**
 ```rust
 serde_json::from_str::<ErrorResponse>(&response_data)
-    .change_context(errors::ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })
+    .change_context(errors::ConnectorError::ResponseDeserializationFailed { context: Default::default() })
     .or_else(|_| handle_json_response_deserialization_failure(res, "connector_name"))
 ```
 
@@ -206,7 +206,7 @@ let formatted = format_date(now(), DateFormat::YYYYMMDDHHmmss)?; // "20250117153
 ```rust
 let json_bytes = preprocess_xml_response_bytes(res.response)?;
 let response: ConnectorResponse = serde_json::from_slice(&json_bytes)
-    .change_context(errors::ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })?;
+    .change_context(errors::ConnectorError::ResponseDeserializationFailed { context: Default::default() })?;
 ```
 
 ### `serialize_to_xml_string_with_root`

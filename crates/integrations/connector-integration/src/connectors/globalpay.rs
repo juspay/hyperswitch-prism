@@ -44,15 +44,16 @@ use serde::Serialize;
 use transformers as globalpay;
 use transformers::{
     GlobalpayAuthorizeResponse, GlobalpayCaptureRequest, GlobalpayCaptureResponse,
-    GlobalpayPSyncResponse, GlobalpayPaymentsRequest, GlobalpayRSyncResponse,
-    GlobalpayRefundRequest, GlobalpayRefundResponse, GlobalpayVoidRequest, GlobalpayVoidResponse,
+    GlobalpayClientAuthRequest, GlobalpayClientAuthResponse, GlobalpayPSyncResponse,
+    GlobalpayPaymentsRequest, GlobalpayRSyncResponse, GlobalpayRefundRequest,
+    GlobalpayRefundResponse, GlobalpayVoidRequest, GlobalpayVoidResponse,
 };
 
 use crate::connectors::macros;
 use crate::types::ResponseRouterData;
 use crate::with_error_response_body;
 use crate::with_response_body;
-use domain_types::errors::ConnectorResponseTransformationError;
+use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
 
 pub(crate) mod headers {
@@ -101,6 +102,12 @@ macros::create_all_prerequisites!(
             flow: RSync,
             response_body: GlobalpayRSyncResponse,
             router_data: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        ),
+        (
+            flow: ClientAuthenticationToken,
+            request_body: GlobalpayClientAuthRequest,
+            response_body: GlobalpayClientAuthResponse,
+            router_data: RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -647,15 +654,44 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        ClientAuthenticationToken,
-        PaymentFlowData,
-        ClientAuthenticationTokenRequestData,
-        PaymentsResponseData,
-    > for Globalpay<T>
-{
-}
+// ClientAuthenticationToken flow implementation using macro
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Globalpay,
+    curl_request: Json(GlobalpayClientAuthRequest),
+    curl_response: GlobalpayClientAuthResponse,
+    flow_name: ClientAuthenticationToken,
+    resource_common_data: PaymentFlowData,
+    flow_request: ClientAuthenticationTokenRequestData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            _req: &RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            Ok(vec![
+                (
+                    headers::CONTENT_TYPE.to_string(),
+                    self.common_get_content_type().to_string().into(),
+                ),
+                (
+                    headers::X_GP_VERSION.to_string(),
+                    API_VERSION.to_string().into(),
+                ),
+            ])
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            let base_url = &req.resource_common_data.connectors.globalpay.base_url;
+            Ok(format!("{base_url}/accesstoken"))
+        }
+    }
+);
 
 // Dispute Accept
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -789,7 +825,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ServerAuthenticationTokenRequestData,
             ServerAuthenticationTokenResponseData,
         >,
-        ConnectorResponseTransformationError,
+        ConnectorError,
     > {
         let response: globalpay::GlobalpayAccessTokenResponse = res
             .response
@@ -813,7 +849,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 }
@@ -906,7 +942,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: globalpay::GlobalpayErrorResponse = res
             .response
             .parse_struct("GlobalpayErrorResponse")

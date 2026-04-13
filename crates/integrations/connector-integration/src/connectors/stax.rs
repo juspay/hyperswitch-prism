@@ -97,7 +97,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: StaxErrorResponse = res
             .response
             .parse_struct("StaxErrorResponse")
@@ -142,7 +142,7 @@ use domain_types::connector_flow::{Authenticate, PostAuthenticate, PreAuthentica
 use domain_types::connector_types::{
     PaymentsAuthenticateData, PaymentsPostAuthenticateData, PaymentsPreAuthenticateData,
 };
-use domain_types::errors::ConnectorResponseTransformationError;
+use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

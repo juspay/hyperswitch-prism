@@ -11,13 +11,13 @@ use common_utils::{
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund},
     connector_types::{
-        PaymentFlowData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        ResponseId as DomainResponseId,
+        MandateReference, PaymentFlowData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, ResponseId as DomainResponseId,
     },
     payment_address::PaymentAddress,
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
-    router_data::{ConnectorSpecificConfig, ErrorResponse, PaymentMethodToken},
+    router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
 };
 use error_stack::{report, ResultExt};
@@ -30,7 +30,7 @@ use serde_with::skip_serializing_none;
 
 use super::ElavonRouterData;
 use crate::types::ResponseRouterData;
-use domain_types::errors::ConnectorResponseTransformationError;
+use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
 
 #[derive(Debug, Clone, Serialize)]
@@ -410,7 +410,7 @@ pub enum SslResult {
 }
 
 impl TryFrom<String> for SslResult {
-    type Error = ConnectorResponseTransformationError;
+    type Error = ConnectorError;
     fn try_from(value: String) -> Result<Self, Self::Error> {
         match value.as_str() {
             "0" => Ok(Self::Approved),
@@ -767,7 +767,7 @@ impl<
     > TryFrom<ResponseRouterData<ElavonPaymentsResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         value: ResponseRouterData<ElavonPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -783,22 +783,24 @@ impl<
         let (attempt_status, error_response) =
             get_elavon_attempt_status(&response.result, http_code);
 
-        let payment_method_token = match &response.result {
-            ElavonResult::Success(payment_resp_struct) => {
-                if payment_resp_struct.ssl_token_response.as_deref() == Some("SUCCESS") {
-                    payment_resp_struct
-                        .ssl_token
-                        .clone()
-                        .map(PaymentMethodToken::Token)
-                } else {
-                    None
-                }
-            }
-            ElavonResult::Error(_) => None,
-        };
-
         let payments_response_data = match (&response.result, error_response) {
             (ElavonResult::Success(payment_resp_struct), None) => {
+                let ssl_token =
+                    if payment_resp_struct.ssl_token_response.as_deref() == Some("SUCCESS") {
+                        payment_resp_struct
+                            .ssl_token
+                            .as_ref()
+                            .map(|t| t.peek().to_string())
+                    } else {
+                        None
+                    };
+                let mandate_reference = ssl_token.map(|token| {
+                    Box::new(MandateReference {
+                        connector_mandate_id: None,
+                        payment_method_id: Some(token),
+                        connector_mandate_request_reference_id: None,
+                    })
+                });
                 Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: DomainResponseId::ConnectorTransactionId(
                         payment_resp_struct.ssl_txn_id.clone(),
@@ -808,7 +810,7 @@ impl<
                     network_txn_id: payment_resp_struct.ssl_approval_code.clone(),
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
-                    mandate_reference: None,
+                    mandate_reference,
                     status_code: http_code,
                 })
             }
@@ -833,7 +835,6 @@ impl<
             response: payments_response_data,
             resource_common_data: PaymentFlowData {
                 status: attempt_status,
-                payment_method_token,
                 ..router_data.resource_common_data
             },
             ..router_data
@@ -1009,7 +1010,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl<F> TryFrom<ResponseRouterData<ElavonCaptureResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         value: ResponseRouterData<ElavonCaptureResponse, Self>,
@@ -1175,7 +1176,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl<F> TryFrom<ResponseRouterData<ElavonRefundResponse, Self>>
     for RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         value: ResponseRouterData<ElavonRefundResponse, Self>,
@@ -1353,7 +1354,7 @@ pub fn get_refund_status_from_elavon_sync_response(
 impl<F> TryFrom<ResponseRouterData<ElavonRSyncResponse, Self>>
     for RouterDataV2<F, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(value: ResponseRouterData<ElavonRSyncResponse, Self>) -> Result<Self, Self::Error> {
         let ResponseRouterData {
@@ -1410,7 +1411,7 @@ pub enum SyncTransactionType {
 impl<F> TryFrom<ResponseRouterData<ElavonPSyncResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(value: ResponseRouterData<ElavonPSyncResponse, Self>) -> Result<Self, Self::Error> {
         let ResponseRouterData {
             response,

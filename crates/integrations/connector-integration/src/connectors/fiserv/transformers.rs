@@ -11,7 +11,7 @@ use domain_types::{
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
         RefundsResponseData, ResponseId,
     },
-    errors::{ConnectorResponseTransformationError, IntegrationError},
+    errors::{ConnectorError, IntegrationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -546,7 +546,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
-            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
@@ -793,7 +793,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
     TryFrom<ResponseRouterData<FiservPaymentsResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<FiservPaymentsResponse, Self>,
@@ -861,7 +861,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
 impl<F> TryFrom<ResponseRouterData<FiservCaptureResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<FiservCaptureResponse, Self>,
@@ -929,7 +929,7 @@ impl<F> TryFrom<ResponseRouterData<FiservCaptureResponse, Self>>
 impl<F> TryFrom<ResponseRouterData<FiservVoidResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<FiservVoidResponse, Self>) -> Result<Self, Self::Error> {
         let ResponseRouterData {
@@ -995,7 +995,7 @@ impl<F> TryFrom<ResponseRouterData<FiservVoidResponse, Self>>
 impl<F> TryFrom<ResponseRouterData<FiservSyncResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<FiservSyncResponse, Self>) -> Result<Self, Self::Error> {
         let ResponseRouterData {
@@ -1071,7 +1071,7 @@ impl<F> TryFrom<ResponseRouterData<FiservSyncResponse, Self>>
 impl<F> TryFrom<ResponseRouterData<FiservRefundResponse, Self>>
     for RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<FiservRefundResponse, Self>) -> Result<Self, Self::Error> {
         let ResponseRouterData {
@@ -1127,7 +1127,7 @@ impl<F> TryFrom<ResponseRouterData<FiservRefundResponse, Self>>
 impl<F> TryFrom<ResponseRouterData<FiservRefundSyncResponse, Self>>
     for RouterDataV2<F, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<FiservRefundSyncResponse, Self>,
@@ -1195,7 +1195,7 @@ impl<F> TryFrom<ResponseRouterData<FiservRefundSyncResponse, Self>>
 impl<F, Req, Res> TryFrom<ResponseRouterData<FiservErrorResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, Req, Res>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<FiservErrorResponse, Self>) -> Result<Self, Self::Error> {
         let ResponseRouterData {

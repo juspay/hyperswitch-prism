@@ -18,7 +18,7 @@ Use this config for all flows in this connector. Replace `YOUR_API_KEY` with you
 <details><summary>Python</summary>
 
 ```python
-from payments.generated import sdk_config_pb2, payment_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -96,8 +96,10 @@ let config = ConnectorConfig {
 
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
-| [ConnectorSessionService.CreateAccessToken](#connectorsessionservicecreateaccesstoken) | Authentication | `ConnectorSessionServiceCreateAccessTokenRequest` |
+| [MerchantAuthenticationService.CreateServerAuthenticationToken](#merchantauthenticationservicecreateserverauthenticationtoken) | Authentication | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
+| [EventService.HandleEvent](#eventservicehandleevent) | Events | `EventServiceHandleRequest` |
+| [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
 
 ### Payments
 
@@ -110,17 +112,30 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/truelayer/python/truelayer.py) · [JavaScript](../../examples/truelayer/javascript/truelayer.js) · [Kotlin](../../examples/truelayer/kotlin/truelayer.kt#L55) · [Rust](../../examples/truelayer/rust/truelayer.rs#L54)
+**Examples:** [Python](../../examples/truelayer/truelayer.py#L87) · [TypeScript](../../examples/truelayer/truelayer.ts#L77) · [Kotlin](../../examples/truelayer/truelayer.kt#L59) · [Rust](../../examples/truelayer/truelayer.rs#L79)
+
+### Refunds
+
+#### RefundService.Get
+
+Retrieve refund status from the payment processor. Tracks refund progress through processor settlement for accurate customer communication.
+
+| | Message |
+|---|---------|
+| **Request** | `RefundServiceGetRequest` |
+| **Response** | `RefundResponse` |
+
+**Examples:** [Python](../../examples/truelayer/truelayer.py#L105) · [TypeScript](../../examples/truelayer/truelayer.ts#L95) · [Kotlin](../../examples/truelayer/truelayer.kt#L77) · [Rust](../../examples/truelayer/truelayer.rs#L93)
 
 ### Authentication
 
-#### ConnectorSessionService.CreateAccessToken
+#### MerchantAuthenticationService.CreateServerAuthenticationToken
 
 Generate short-lived connector authentication token. Provides secure credentials for connector API access without storing secrets client-side.
 
 | | Message |
 |---|---------|
-| **Request** | `ConnectorSessionServiceCreateAccessTokenRequest` |
-| **Response** | `ConnectorSessionServiceCreateAccessTokenResponse` |
+| **Request** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
+| **Response** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/truelayer/python/truelayer.py) · [JavaScript](../../examples/truelayer/javascript/truelayer.js) · [Kotlin](../../examples/truelayer/kotlin/truelayer.kt#L45) · [Rust](../../examples/truelayer/rust/truelayer.rs#L45)
+**Examples:** [Python](../../examples/truelayer/truelayer.py#L78) · [TypeScript](../../examples/truelayer/truelayer.ts#L68) · [Kotlin](../../examples/truelayer/truelayer.kt#L49) · [Rust](../../examples/truelayer/truelayer.rs#L72)

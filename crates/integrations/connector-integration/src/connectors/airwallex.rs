@@ -51,7 +51,7 @@ use transformers::{
 use super::macros;
 use crate::types::ResponseRouterData;
 use crate::with_error_response_body;
-use domain_types::errors::ConnectorResponseTransformationError;
+use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
 
 pub(crate) mod headers {
@@ -323,9 +323,9 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<String, IntegrationError> {
             // 2-step flow: Authorize always confirms the payment intent created by CreateOrder
             // Get order_id from reference_id (stored after CreateOrder via set_order_reference_id)
-            let order_id = req.resource_common_data.reference_id
+            let order_id = req.resource_common_data.connector_order_id
                 .as_ref()
-                .ok_or(IntegrationError::MissingRequiredField { field_name: "merchant_order_id", context: Default::default() })?;
+                .ok_or(IntegrationError::MissingRequiredField { field_name: "connector_order_id", context: Default::default() })?;
             Ok(format!(
                 "{}/pa/payment_intents/{}/confirm",
                 &req.resource_common_data.connectors.airwallex.base_url,
@@ -781,7 +781,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: airwallex::AirwallexErrorResponse = res
             .response
             .parse_struct("AirwallexErrorResponse")

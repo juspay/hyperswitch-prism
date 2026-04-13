@@ -4,7 +4,7 @@ use common_utils::{
     request::Method,
     types::{FloatMajorUnit, StringMajorUnit},
 };
-use domain_types::errors::{ConnectorResponseTransformationError, IntegrationError};
+use domain_types::errors::{ConnectorError, IntegrationError};
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
     connector_types::{
@@ -558,7 +558,7 @@ fn get_payment_status(
 impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<AirwallexPaymentsResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<AirwallexPaymentsResponse, Self>,
@@ -610,7 +610,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<AirwallexPaymentsResp
 impl TryFrom<ResponseRouterData<AirwallexSyncResponse, Self>>
     for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<AirwallexSyncResponse, Self>,
@@ -714,7 +714,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl TryFrom<ResponseRouterData<AirwallexCaptureResponse, Self>>
     for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<AirwallexCaptureResponse, Self>,
@@ -851,7 +851,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl TryFrom<ResponseRouterData<AirwallexRefundResponse, Self>>
     for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<AirwallexRefundResponse, Self>,
@@ -882,7 +882,7 @@ pub type AirwallexRefundSyncResponse = AirwallexRefundResponse;
 impl TryFrom<ResponseRouterData<AirwallexRefundSyncResponse, Self>>
     for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<AirwallexRefundSyncResponse, Self>,
@@ -971,7 +971,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl TryFrom<ResponseRouterData<AirwallexVoidResponse, Self>>
     for RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<AirwallexVoidResponse, Self>,
@@ -1314,7 +1314,7 @@ impl TryFrom<ResponseRouterData<AirwallexIntentResponse, Self>>
         domain_types::connector_types::PaymentCreateOrderResponse,
     >
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<AirwallexIntentResponse, Self>,
@@ -1337,14 +1337,15 @@ impl TryFrom<ResponseRouterData<AirwallexIntentResponse, Self>>
         };
 
         router_data.response = Ok(domain_types::connector_types::PaymentCreateOrderResponse {
-            order_id: item.response.id.clone(),
+            connector_order_id: item.response.id.clone(),
             session_data: None,
         });
 
         // Update the flow data with the new status and store payment intent ID as reference_id (like Razorpay V2)
         router_data.resource_common_data = PaymentFlowData {
             status,
-            reference_id: Some(item.response.id), // Store payment intent ID for subsequent Authorize call
+            reference_id: Some(item.response.id.clone()), // Store payment intent ID for subsequent Authorize call
+            connector_order_id: Some(item.response.id), // Store payment intent ID for subsequent Authorize call
             ..router_data.resource_common_data
         };
 
@@ -1396,7 +1397,7 @@ impl TryFrom<ResponseRouterData<AirwallexAccessTokenResponse, Self>>
         domain_types::connector_types::ServerAuthenticationTokenResponseData,
     >
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<AirwallexAccessTokenResponse, Self>,

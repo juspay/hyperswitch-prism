@@ -19,7 +19,7 @@ use domain_types::{
         RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse, RefundsData,
         RefundsResponseData, RepeatPaymentData, ResponseId,
     },
-    errors::{ConnectorResponseTransformationError, IntegrationError},
+    errors::{ConnectorError, IntegrationError},
     payment_method_data::{
         ApplePayDecryptedData, BankRedirectData, Card, CardDetailsForNetworkTransactionId,
         GooglePayWalletData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
@@ -604,7 +604,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | BankRedirectData::Trustly { .. }
                 | BankRedirectData::OnlineBankingThailand { .. }
                 | BankRedirectData::LocalBankRedirect {}
-                | BankRedirectData::OpenBanking {} => Err(IntegrationError::not_implemented(
+                | BankRedirectData::OpenBanking {}
+                | BankRedirectData::Netbanking { .. } => Err(IntegrationError::not_implemented(
                     utils::get_unimplemented_payment_method_error_message("fiuu"),
                 )
                 .into()),
@@ -669,7 +670,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
-            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
@@ -1050,7 +1051,7 @@ impl<F, R> TryFrom<ResponseRouterData<FiuuPaymentsResponse, Self>>
 where
     R: GetRequestIsAutoCapture,
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<FiuuPaymentsResponse, Self>) -> Result<Self, Self::Error> {
         let ResponseRouterData {
             response,
@@ -1370,7 +1371,7 @@ pub enum FiuuRefundResponse {
 impl<F> TryFrom<ResponseRouterData<FiuuRefundResponse, Self>>
     for RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<FiuuRefundResponse, Self>) -> Result<Self, Self::Error> {
         let ResponseRouterData {
             response,
@@ -1567,7 +1568,7 @@ struct ErrorDetails {
 }
 
 impl TryFrom<ErrorInputs> for ErrorDetails {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(value: ErrorInputs) -> Result<Self, Self::Error> {
         let query_params = value
             .encoded_data
@@ -1576,10 +1577,7 @@ impl TryFrom<ErrorInputs> for ErrorDetails {
                 serde_urlencoded::from_str::<FiuuPaymentRedirectResponse>(encoded_data)
             })
             .transpose()
-            .change_context(
-                ConnectorResponseTransformationError::response_handling_failed_http_status_unknown(
-                ),
-            )
+            .change_context(ConnectorError::response_handling_failed_http_status_unknown())
             .attach_printable("Failed to deserialize FiuuPaymentRedirectResponse")?;
         let error_message = value
             .response_error_desc
@@ -1619,7 +1617,7 @@ impl TryFrom<ErrorInputs> for ErrorDetails {
 impl<F> TryFrom<ResponseRouterData<FiuuPaymentResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<FiuuPaymentResponse, Self>) -> Result<Self, Self::Error> {
         let ResponseRouterData {
             response,
@@ -1744,7 +1742,7 @@ pub struct FiuuWebhookStatus {
 }
 
 impl TryFrom<FiuuWebhookStatus> for common_enums::AttemptStatus {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(webhook_status: FiuuWebhookStatus) -> Result<Self, Self::Error> {
         match webhook_status.status {
             FiuuPaymentWebhookStatus::Success => match webhook_status.capture_method {
@@ -1753,7 +1751,7 @@ impl TryFrom<FiuuWebhookStatus> for common_enums::AttemptStatus {
                 }
                 Some(CaptureMethod::Manual) => Ok(Self::Authorized),
                 _ => Err(error_stack::Report::from(
-                    ConnectorResponseTransformationError::unexpected_response_error_http_status_unknown(),
+                    ConnectorError::unexpected_response_error_http_status_unknown(),
                 )
                 .attach_printable(webhook_status.status.to_string())),
             },
@@ -1788,7 +1786,7 @@ pub struct FiuuSyncStatus {
 }
 
 impl TryFrom<FiuuSyncStatus> for common_enums::AttemptStatus {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(sync_status: FiuuSyncStatus) -> Result<Self, Self::Error> {
         match (sync_status.stat_code, sync_status.stat_name) {
             (StatCode::Success, StatName::Captured | StatName::Settled) => Ok(Self::Charged), // For Success as StatCode we can only expect Captured,Settled and Authorized as StatName.
@@ -1800,8 +1798,7 @@ impl TryFrom<FiuuSyncStatus> for common_enums::AttemptStatus {
             }
             (StatCode::Failure, _) => Ok(Self::Failure),
             (other, _) => Err(error_stack::Report::from(
-                ConnectorResponseTransformationError::unexpected_response_error_http_status_unknown(
-                ),
+                ConnectorError::unexpected_response_error_http_status_unknown(),
             )
             .attach_printable(other.to_string())),
         }
@@ -1887,7 +1884,7 @@ fn capture_status_codes() -> HashMap<&'static str, &'static str> {
 impl<F> TryFrom<ResponseRouterData<PaymentCaptureResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<PaymentCaptureResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -2020,7 +2017,7 @@ fn void_status_codes() -> HashMap<&'static str, &'static str> {
 impl<F> TryFrom<ResponseRouterData<FiuuPaymentCancelResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<FiuuPaymentCancelResponse, Self>,
@@ -2150,7 +2147,7 @@ pub enum RefundStatus {
 impl<F> TryFrom<ResponseRouterData<FiuuRefundSyncResponse, Self>>
     for RouterDataV2<F, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<FiuuRefundSyncResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -2183,7 +2180,7 @@ impl<F> TryFrom<ResponseRouterData<FiuuRefundSyncResponse, Self>>
                     })
                     .ok_or_else(|| {
                         error_stack::Report::new(
-                            ConnectorResponseTransformationError::response_handling_failed_with_context(
+                            ConnectorError::response_handling_failed_with_context(
                                 item.http_code,
                                 Some(
                                     "refund sync: no row for request connector_refund_id"
@@ -2228,14 +2225,12 @@ impl From<RefundStatus> for common_enums::RefundStatus {
 
 pub fn get_qr_metadata(
     response: &DuitNowQrCodeResponse,
-) -> CustomResult<Option<Value>, ConnectorResponseTransformationError> {
+) -> CustomResult<Option<Value>, ConnectorError> {
     let image_data = QrImage::new_colored_from_data(
         response.txn_data.request_data.qr_data.peek().clone(),
         DUIT_NOW_BRAND_COLOR,
     )
-    .change_context(
-        ConnectorResponseTransformationError::response_handling_failed_http_status_unknown(),
-    )?;
+    .change_context(ConnectorError::response_handling_failed_http_status_unknown())?;
 
     let image_data_url = Url::parse(image_data.data.clone().as_str()).ok();
     let display_to_timestamp = None;
@@ -2250,10 +2245,7 @@ pub fn get_qr_metadata(
 
         Some(qr_code_info.encode_to_value())
             .transpose()
-            .change_context(
-                ConnectorResponseTransformationError::response_handling_failed_http_status_unknown(
-                ),
-            )
+            .change_context(ConnectorError::response_handling_failed_http_status_unknown())
     } else {
         Ok(None)
     }

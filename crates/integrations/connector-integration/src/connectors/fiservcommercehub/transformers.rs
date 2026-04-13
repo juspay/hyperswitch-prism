@@ -477,7 +477,7 @@ impl<T: PaymentMethodDataTypes>
     TryFrom<ResponseRouterData<FiservcommercehubAuthorizeResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<FiservcommercehubAuthorizeResponse, Self>,
@@ -585,7 +585,7 @@ pub struct FiservcommercehubPSyncResponse(pub Vec<FiservcommercehubPSyncItem>);
 impl TryFrom<ResponseRouterData<FiservcommercehubPSyncResponse, Self>>
     for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<FiservcommercehubPSyncResponse, Self>,
@@ -701,7 +701,7 @@ pub struct FiservcommercehubRefundGatewayResponseBody {
 impl TryFrom<ResponseRouterData<FiservcommercehubRefundResponse, Self>>
     for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<FiservcommercehubRefundResponse, Self>,
@@ -792,7 +792,7 @@ pub struct FiservcommercehubRSyncResponse(pub Vec<FiservcommercehubRSyncItem>);
 impl TryFrom<ResponseRouterData<FiservcommercehubRSyncResponse, Self>>
     for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<FiservcommercehubRSyncResponse, Self>,
@@ -896,7 +896,7 @@ pub struct FiservcommercehubVoidResponse {
 impl TryFrom<ResponseRouterData<FiservcommercehubVoidResponse, Self>>
     for RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<FiservcommercehubVoidResponse, Self>,
@@ -1016,7 +1016,7 @@ pub struct FiservcommercehubAccessTokenResponse {
 impl<F, T> TryFrom<ResponseRouterData<FiservcommercehubAccessTokenResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, T, ServerAuthenticationTokenResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<FiservcommercehubAccessTokenResponse, Self>,

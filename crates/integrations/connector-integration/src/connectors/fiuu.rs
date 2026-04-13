@@ -67,7 +67,7 @@ use crate::{
     types::ResponseRouterData, utils::xml_utils::flatten_json_structure, with_error_response_body,
     with_response_body,
 };
-use domain_types::errors::ConnectorResponseTransformationError;
+use domain_types::errors::ConnectorError;
 use domain_types::errors::{IntegrationError, WebhookError};
 
 // Trait implementations with generic type parameters
@@ -275,7 +275,7 @@ macros::create_all_prerequisites!(
             _req: &RouterDataV2<F, FCD, Req, Res>,
             response_bytes: Bytes,
             status_code: u16,
-        ) -> Result<Bytes, ConnectorResponseTransformationError> {
+        ) -> Result<Bytes, ConnectorError> {
                 let response_str = String::from_utf8(response_bytes.to_vec()).map_err(|e| {
                 error!("Error in Deserializing Response Data: {:?}", e);
                 crate::utils::response_deserialization_fail(status_code, "fiuu: response body did not match the expected format; confirm API version and connector documentation.")
@@ -398,7 +398,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: fiuu::FiuuErrorResponse = res
             .response
             .parse_struct("fiuu::FiuuErrorResponse")
@@ -672,7 +672,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         res: Response,
     ) -> CustomResult<
         RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
-        ConnectorResponseTransformationError,
+        ConnectorError,
     > {
         match res.headers {
             Some(headers) => {
@@ -730,7 +730,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 }
@@ -1134,7 +1134,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 fn parse_response<T>(
     data: &[u8],
     http_status: u16,
-) -> Result<T, error_stack::Report<ConnectorResponseTransformationError>>
+) -> Result<T, error_stack::Report<ConnectorError>>
 where
     T: for<'de> Deserialize<'de>,
 {
