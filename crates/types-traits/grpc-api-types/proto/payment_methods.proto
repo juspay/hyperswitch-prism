@@ -614,16 +614,6 @@ message SwishQrWallet {
   // Fields will be added as needed for Swish QR integration
 }
 
-// AliPay HK - Hong Kong version of Alipay
-message AliPayHKWallet {
-  // Fields will be added as needed for Alipay HK integration
-}
-
-// WeChat Pay Redirect - WeChat Pay redirect payment service
-message WeChatPayRedirectWallet {
-  // Fields will be added as needed for WeChat Pay redirect integration
-}
-
 // Apple Pay Third Party SDK - Apple Pay with token from third-party SDK
 message ApplePayThirdPartySdkWallet {
   // Payment token from third-party SDK
