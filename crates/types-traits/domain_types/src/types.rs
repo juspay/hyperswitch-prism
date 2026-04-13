@@ -1978,8 +1978,12 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for Option<Paym
                 Ok(Some(PaymentMethodType::Satispay))
             }
             grpc_api_types::payments::PaymentMethodType::Wero => Ok(Some(PaymentMethodType::Wero)),
-            grpc_api_types::payments::PaymentMethodType::OpenBanking => Ok(Some(PaymentMethodType::OpenBanking)),
-            grpc_api_types::payments::PaymentMethodType::TrustlyBankRedirect => Ok(Some(PaymentMethodType::Trustly)),
+            grpc_api_types::payments::PaymentMethodType::OpenBanking => {
+                Ok(Some(PaymentMethodType::OpenBanking))
+            }
+            grpc_api_types::payments::PaymentMethodType::TrustlyBankRedirect => {
+                Ok(Some(PaymentMethodType::Trustly))
+            }
             _ => Err(IntegrationError::InvalidDataFormat {
                 field_name: "unknown",
                 context: IntegrationErrorContext {
