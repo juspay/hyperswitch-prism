@@ -1,0 +1,56 @@
+{
+  "$schema": "https://context7.com/schema/context7.json",
+  "projectTitle": "Hyperswitch Prism",
+  "description": "Stateless payment connector library for AI agents and developers. Unified API for 100+ payment processors with multi-language SDKs.",
+  "folders": [
+    "sdk",
+    "docs",
+    "docs-generated",
+    "examples",
+    "crates/types-traits",
+    "crates/grpc-server",
+    "crates/integrations",
+    "crates/ffi",
+    "llm"
+  ],
+  "excludeFolders": [
+    "target",
+    ".cargo",
+    ".git",
+    ".github",
+    ".agents",
+    ".claude",
+    ".opencode",
+    ".skills",
+    ".sisyphus",
+    "artifacts",
+    "browser-automation-engine",
+    "data",
+    "nix",
+    "scripts",
+    "target",
+    "crates/internal",
+    "**/tests",
+    "**/beta_tests",
+    "**/smoke-test"
+  ],
+  "excludeFiles": [
+    "CHANGELOG.md",
+    "creds.json",
+    "creds_dummy.json",
+    "Cargo.lock",
+    "routing_demo.gif",
+    "*_generated_*.rs"
+  ],
+  "rules": [
+    "Use the unified PaymentClient API for all payment operations",
+    "SDKs are available for Python, Node.js, Java, PHP, and Rust",
+    "Connector configuration varies by provider - check examples/ directory",
+    "Always handle both IntegrationError and ConnectorError",
+    "Use types from the SDK (types.Currency, types.PaymentStatus, etc.)",
+    "Payment amounts use minorAmount (cents, not dollars)",
+    "Card data should use Value types for PCI compliance",
+    "For gRPC server deployment, see crates/grpc-server/",
+    "Reference llm/llm.txt for complete SDK documentation"
+  ]
+}
