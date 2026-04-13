@@ -5,12 +5,12 @@ use common_utils::{
     types::MinorUnit,
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture, RepeatPayment, SetupMandate, Void},
+    connector_flow::{Authorize, Capture, CreateOrder, RepeatPayment, SetupMandate, Void},
     connector_types::{
-        MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
-        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        ResponseId, SetupMandateRequestData,
+        MandateReference, MandateReferenceId, PaymentCreateOrderData, PaymentCreateOrderResponse,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{
@@ -2452,4 +2452,119 @@ fn convert_to_additional_payment_method_connector_response(
             auth_code: None,
         }
     })
+}
+
+// ===== CreateOrder (Payment Sessions) types =====
+
+/// Checkout.com CreateOrder request — POST /payment-sessions
+#[skip_serializing_none]
+#[derive(Debug, Serialize)]
+pub struct CheckoutCreateOrderRequest {
+    pub amount: MinorUnit,
+    pub currency: common_enums::Currency,
+    pub reference: String,
+    pub processing_channel_id: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<serde_json::Value>,
+}
+
+/// Checkout.com CreateOrder response
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CheckoutCreateOrderResponse {
+    pub id: String,
+    #[serde(default)]
+    pub payment_session_token: Option<String>,
+}
+
+// --- TryFrom: RouterDataV2 -> CheckoutCreateOrderRequest (via macro wrapper) ---
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        CheckoutRouterData<
+            RouterDataV2<
+                CreateOrder,
+                PaymentFlowData,
+                PaymentCreateOrderData,
+                PaymentCreateOrderResponse,
+            >,
+            T,
+        >,
+    > for CheckoutCreateOrderRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: CheckoutRouterData<
+            RouterDataV2<
+                CreateOrder,
+                PaymentFlowData,
+                PaymentCreateOrderData,
+                PaymentCreateOrderResponse,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let auth = CheckoutAuthType::try_from(&router_data.connector_config)?;
+
+        let amount = MinorUnit::new(router_data.request.amount.get_amount_as_i64());
+
+        let reference = router_data
+            .resource_common_data
+            .connector_request_reference_id
+            .clone();
+
+        Ok(Self {
+            amount,
+            currency: router_data.request.currency,
+            reference,
+            processing_channel_id: auth.processing_channel_id,
+            metadata: None,
+        })
+    }
+}
+
+// --- TryFrom: CheckoutCreateOrderResponse -> PaymentCreateOrderResponse ---
+
+impl TryFrom<CheckoutCreateOrderResponse> for PaymentCreateOrderResponse {
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(response: CheckoutCreateOrderResponse) -> Result<Self, Self::Error> {
+        Ok(Self {
+            order_id: response.id,
+            session_data: None,
+        })
+    }
+}
+
+// --- TryFrom: ResponseRouterData -> RouterDataV2 (CreateOrder response handler) ---
+
+impl TryFrom<ResponseRouterData<CheckoutCreateOrderResponse, Self>>
+    for RouterDataV2<
+        CreateOrder,
+        PaymentFlowData,
+        PaymentCreateOrderData,
+        PaymentCreateOrderResponse,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<CheckoutCreateOrderResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response;
+
+        let order_response = PaymentCreateOrderResponse::try_from(response.clone())?;
+        let order_id = order_response.order_id.clone();
+
+        Ok(Self {
+            response: Ok(order_response),
+            resource_common_data: PaymentFlowData {
+                status: common_enums::AttemptStatus::Pending,
+                reference_id: Some(order_id),
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
+    }
 }
