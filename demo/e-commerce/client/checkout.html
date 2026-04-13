@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Checkout - Hyperswitch Store</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header>
+    <div class="container">
+      <h1>🛒 Checkout</h1>
+      <a href="/" class="back-link">← Continue Shopping</a>
+    </div>
+  </header>
+
+  <main class="container checkout-container">
+    <div class="checkout-layout">
+      <!-- Order Summary -->
+      <div class="order-summary">
+        <h2>Order Summary</h2>
+        <div id="order-items">
+          <!-- Order items will be rendered here -->
+        </div>
+        <div class="order-total">
+          <span>Total:</span>
+          <span id="order-total-amount">$0.00</span>
+        </div>
+      </div>
+
+      <!-- Payment Form -->
+      <div class="payment-section">
+        <h2>Payment Details</h2>
+        <div id="payment-connector-info" class="connector-info">
+          <!-- Connector info will be shown here -->
+        </div>
+        
+        <!-- Loading state -->
+        <div id="loading" class="loading">
+          <div class="spinner"></div>
+          <p>Initializing payment...</p>
+        </div>
+
+        <!-- Stripe Checkout Container -->
+        <div id="stripe-checkout-container" class="checkout-container hidden">
+          <!-- Stripe Payment Element will be mounted here -->
+          <div id="payment-element"></div>
+          <button id="stripe-submit-btn" class="submit-btn">
+            <span id="btn-text">Pay Now</span>
+            <span id="btn-spinner" class="btn-spinner hidden">
+              <div class="spinner-small"></div>
+            </span>
+          </button>
+          <div id="stripe-error" class="card-errors"></div>
+        </div>
+
+        <!-- GlobalPay Checkout Container -->
+        <div id="globalpay-checkout-container" class="checkout-container hidden">
+          <!-- GlobalPay Checkout will be mounted here -->
+          <div id="globalpay-payment-element"></div>
+          <button id="globalpay-submit-btn" class="submit-btn">
+            <span id="gp-btn-text">Pay Now</span>
+            <span id="gp-btn-spinner" class="btn-spinner hidden">
+              <div class="spinner-small"></div>
+            </span>
+          </button>
+          <div id="globalpay-error" class="card-errors"></div>
+        </div>
+
+        <!-- Payment Result -->
+        <div id="payment-result" class="payment-result hidden">
+          <div id="result-icon"></div>
+          <h3 id="result-title"></h3>
+          <p id="result-message"></p>
+          <p id="result-txn-id" class="txn-id"></p>
+          <div id="result-actions" class="result-actions">
+            <button id="refund-btn" class="refund-btn hidden">Process Refund</button>
+            <a href="/" class="continue-btn">Continue Shopping</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Stripe.js with Payment Element support -->
+  <script src="https://js.stripe.com/v3/"></script>
+  
+  <script src="js/stripe-sdk.js"></script>
+  <script src="js/globalpay-sdk.js"></script>
+  <script src="js/checkout.js"></script>
+</body>
+</html>

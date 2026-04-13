@@ -1,0 +1,29 @@
+{
+  "name": "e-commerce-demo",
+  "version": "1.0.0",
+  "description": "E-commerce payment demo with hyperswitch-prism SDK",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch server/index.ts",
+    "build": "tsc",
+    "start": "node dist/server/index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "hyperswitch-prism": "^0.0.5",
+    "dotenv": "^16.3.1",
+    "cors": "^2.8.5",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.2",
+    "tsx": "^4.6.2",
+    "@types/express": "^4.17.21",
+    "@types/cors": "^2.8.17",
+    "@types/uuid": "^9.0.7",
+    "@types/node": "^18.18.0"
+  }
+}
