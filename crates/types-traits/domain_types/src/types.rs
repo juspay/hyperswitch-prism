@@ -965,10 +965,14 @@ impl<
                     };
                     Ok(Self::CardRedirect(card_redirect_data))
                 }
-                grpc_api_types::payments::payment_method::PaymentMethod::Token(_token) => {
-                    Ok(Self::CardToken(payment_method_data::CardToken {
-                        card_holder_name: None,
-                        card_cvc: None,
+                grpc_api_types::payments::payment_method::PaymentMethod::Token(token) => {
+                    Ok(Self::PaymentMethodToken(payment_method_data::PaymentMethodToken {
+                        token: token
+                            .token
+                            .ok_or_else(|| report!(IntegrationError::MissingRequiredField {
+                                field_name: "payment_method.token.token",
+                                context: Default::default(),
+                            }))?,
                     }))
                 }
                 grpc_api_types::payments::payment_method::PaymentMethod::UpiCollect(
@@ -1083,6 +1087,36 @@ impl<
                             payment_method_data::AmazonPayRedirectData {},
                         )),
                     ))
+                }
+                grpc_api_types::payments::payment_method::PaymentMethod::LazypayRedirect(_) => {
+                    Ok(Self::Wallet(payment_method_data::WalletData::LazyPayRedirect(
+                        payment_method_data::LazyPayRedirectData {},
+                    )))
+                }
+                grpc_api_types::payments::payment_method::PaymentMethod::PhonepeRedirect(_) => {
+                    Ok(Self::Wallet(payment_method_data::WalletData::PhonePeRedirect(
+                        payment_method_data::PhonePeRedirectData {},
+                    )))
+                }
+                grpc_api_types::payments::payment_method::PaymentMethod::BilldeskRedirect(_) => {
+                    Ok(Self::Wallet(payment_method_data::WalletData::BillDeskRedirect(
+                        payment_method_data::BillDeskRedirectData {},
+                    )))
+                }
+                grpc_api_types::payments::payment_method::PaymentMethod::CashfreeRedirect(_) => {
+                    Ok(Self::Wallet(payment_method_data::WalletData::CashfreeRedirect(
+                        payment_method_data::CashfreeRedirectData {},
+                    )))
+                }
+                grpc_api_types::payments::payment_method::PaymentMethod::PayuRedirect(_) => {
+                    Ok(Self::Wallet(payment_method_data::WalletData::PayURedirect(
+                        payment_method_data::PayURedirectData {},
+                    )))
+                }
+                grpc_api_types::payments::payment_method::PaymentMethod::EasebuzzRedirect(_) => {
+                    Ok(Self::Wallet(payment_method_data::WalletData::EaseBuzzRedirect(
+                        payment_method_data::EaseBuzzRedirectData {},
+                    )))
                 }
                 grpc_api_types::payments::payment_method::PaymentMethod::CashappQr(_) => {
                     Ok(Self::Wallet(payment_method_data::WalletData::CashappQr(
@@ -2041,6 +2075,22 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for Option<Paym
                 Ok(Some(PaymentMethodType::Satispay))
             }
             grpc_api_types::payments::PaymentMethodType::Wero => Ok(Some(PaymentMethodType::Wero)),
+            grpc_api_types::payments::PaymentMethodType::LazyPay => {
+                Ok(Some(PaymentMethodType::LazyPay))
+            }
+            grpc_api_types::payments::PaymentMethodType::PhonePe => {
+                Ok(Some(PaymentMethodType::PhonePe))
+            }
+            grpc_api_types::payments::PaymentMethodType::BillDesk => {
+                Ok(Some(PaymentMethodType::BillDesk))
+            }
+            grpc_api_types::payments::PaymentMethodType::CashFree => {
+                Ok(Some(PaymentMethodType::Cashfree))
+            }
+            grpc_api_types::payments::PaymentMethodType::PayU => Ok(Some(PaymentMethodType::PayU)),
+            grpc_api_types::payments::PaymentMethodType::EaseBuzz => {
+                Ok(Some(PaymentMethodType::EaseBuzz))
+            }
             grpc_api_types::payments::PaymentMethodType::Netbanking => {
                 Ok(Some(PaymentMethodType::Netbanking))
             }
@@ -2142,6 +2192,12 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                 grpc_api_types::payments::payment_method::PaymentMethod::MbWay(_) => Ok(Some(PaymentMethodType::MbWay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::Satispay(_) => Ok(Some(PaymentMethodType::Satispay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::Wero(_) => Ok(Some(PaymentMethodType::Wero)),
+                grpc_api_types::payments::payment_method::PaymentMethod::LazypayRedirect(_) => Ok(Some(PaymentMethodType::LazyPay)),
+                grpc_api_types::payments::payment_method::PaymentMethod::PhonepeRedirect(_) => Ok(Some(PaymentMethodType::PhonePe)),
+                grpc_api_types::payments::payment_method::PaymentMethod::BilldeskRedirect(_) => Ok(Some(PaymentMethodType::BillDesk)),
+                grpc_api_types::payments::payment_method::PaymentMethod::CashfreeRedirect(_) => Ok(Some(PaymentMethodType::Cashfree)),
+                grpc_api_types::payments::payment_method::PaymentMethod::PayuRedirect(_) => Ok(Some(PaymentMethodType::PayU)),
+                grpc_api_types::payments::payment_method::PaymentMethod::EasebuzzRedirect(_) => Ok(Some(PaymentMethodType::EaseBuzz)),
                 // ============================================================================
                 // BANK TRANSFERS - PaymentMethodType mappings
                 // ============================================================================
@@ -3334,7 +3390,6 @@ impl
             session_token: None,
             reference_id: None,
             connector_order_id: None,
-            payment_method_token: None,
             preprocessing_id: None,
             connector_api_version: None,
             test_mode: value.test_mode,
@@ -3420,21 +3475,6 @@ impl ForeignTryFrom<(PaymentServiceAuthorizeRequest, Connectors, &MaskedMetadata
             .map(ServerAuthenticationTokenResponseData::foreign_try_from)
             .transpose()?;
 
-        let payment_method_token = value.payment_method.as_ref().and_then(|pm| {
-            pm.payment_method.as_ref().and_then(|method| {
-                if let grpc_api_types::payments::payment_method::PaymentMethod::Token(token_data) =
-                    method
-                {
-                    token_data
-                        .token
-                        .clone()
-                        .map(router_data::PaymentMethodToken::Token)
-                } else {
-                    None
-                }
-            })
-        });
-
         Ok(Self {
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
@@ -3478,7 +3518,6 @@ impl ForeignTryFrom<(PaymentServiceAuthorizeRequest, Connectors, &MaskedMetadata
             session_token: value.session_token,
             reference_id: value.merchant_order_id.clone(),
             connector_order_id: value.connector_order_id,
-            payment_method_token,
             preprocessing_id: None,
             connector_api_version: None,
             test_mode: value.test_mode,
@@ -3576,7 +3615,6 @@ impl
             session_token: None,
             reference_id: None,
             connector_order_id: None,
-            payment_method_token: None,
             preprocessing_id: None,
             connector_api_version: None,
             test_mode: value.test_mode,
@@ -3654,7 +3692,6 @@ impl
             session_token: None,
             reference_id: value.connector_order_reference_id.clone(),
             connector_order_id: None,
-            payment_method_token: None,
             preprocessing_id: None,
             connector_api_version: None,
             test_mode: value.test_mode,
@@ -3726,7 +3763,6 @@ impl ForeignTryFrom<(PaymentServiceVoidRequest, Connectors, &MaskedMetadata)> fo
             session_token: None,
             reference_id: None,
             connector_order_id: None,
-            payment_method_token: None,
             preprocessing_id: None,
             connector_api_version: None,
             test_mode: value.test_mode,
@@ -4429,6 +4465,30 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
                     Some(grpc_api_types::payments::payment_method::PaymentMethod::Satispay(_)),
+            } => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::LazypayRedirect(_)),
+            } => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::PhonepeRedirect(_)),
+            } => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::BilldeskRedirect(_)),
+            } => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::CashfreeRedirect(_)),
+            } => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::PayuRedirect(_)),
+            } => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::EasebuzzRedirect(_)),
             } => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
@@ -5587,6 +5647,12 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             grpc_api_types::payments::PaymentMethodType::MbWay => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::Satispay => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::Wero => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethodType::LazyPay => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethodType::PhonePe => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethodType::BillDesk => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethodType::CashFree => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethodType::PayU => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethodType::EaseBuzz => Ok(Self::Wallet),
 
             grpc_api_types::payments::PaymentMethodType::UpiCollect => Ok(Self::Upi),
             grpc_api_types::payments::PaymentMethodType::UpiIntent => Ok(Self::Upi),
@@ -6315,7 +6381,6 @@ impl
             session_token: None,
             reference_id: None,
             connector_order_id: None,
-            payment_method_token: None,
             preprocessing_id: None,
             connector_api_version: None,
             test_mode: None,
@@ -6424,7 +6489,6 @@ impl
             session_token: None,
             reference_id: None,
             connector_order_id: None,
-            payment_method_token: None,
             preprocessing_id: None,
             connector_api_version: None,
             test_mode: None,
@@ -7032,7 +7096,6 @@ impl
             session_token: None,
             reference_id: None,
             connector_order_id: None,
-            payment_method_token: None,
             preprocessing_id: None,
             connector_api_version: None,
             test_mode: value.test_mode,
@@ -7070,6 +7133,11 @@ impl
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let merchant_id_from_header = extract_merchant_id_from_metadata(metadata)?;
 
+        let return_url = match &value.domain_context {
+            Some(grpc_api_types::payments::merchant_authentication_service_create_client_authentication_token_request::DomainContext::Payment(ctx)) => ctx.return_url.clone(),
+            _ => None,
+        };
+
         Ok(Self {
             merchant_id: merchant_id_from_header,
             payment_id: "PAYMENT_ID".to_string(),
@@ -7082,7 +7150,7 @@ impl
             customer_id: None,
             connector_customer: None,
             description: None,
-            return_url: None,
+            return_url,
             connector_feature_data: value
                 .connector_feature_data
                 .map(|metadata| serde_json::from_str(&metadata.expose()))
@@ -7104,7 +7172,6 @@ impl
             session_token: None,
             reference_id: None,
             connector_order_id: None,
-            payment_method_token: None,
             preprocessing_id: None,
             connector_api_version: None,
             test_mode: None,
@@ -7411,21 +7478,6 @@ impl
             .map(|m| ForeignTryFrom::foreign_try_from((m, "merchant account metadata")))
             .transpose()?;
 
-        let payment_method_token = value.payment_method.as_ref().and_then(|pm| {
-            pm.payment_method.as_ref().and_then(|method| {
-                if let grpc_api_types::payments::payment_method::PaymentMethod::Token(token_data) =
-                    method
-                {
-                    token_data
-                        .token
-                        .clone()
-                        .map(router_data::PaymentMethodToken::Token)
-                } else {
-                    None
-                }
-            })
-        });
-
         Ok(Self {
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
@@ -7463,7 +7515,6 @@ impl
             session_token: value.session_token,
             reference_id: None,
             connector_order_id: None,
-            payment_method_token,
             preprocessing_id: None,
             connector_api_version: None,
             test_mode,
@@ -7534,21 +7585,6 @@ impl
             .map(|m| ForeignTryFrom::foreign_try_from((m, "merchant account metadata")))
             .transpose()?;
 
-        let payment_method_token = value.payment_method.as_ref().and_then(|pm| {
-            pm.payment_method.as_ref().and_then(|method| {
-                if let grpc_api_types::payments::payment_method::PaymentMethod::Token(token_data) =
-                    method
-                {
-                    token_data
-                        .token
-                        .clone()
-                        .map(router_data::PaymentMethodToken::Token)
-                } else {
-                    None
-                }
-            })
-        });
-
         Ok(Self {
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
@@ -7585,7 +7621,6 @@ impl
             session_token: value.session_token,
             reference_id: None,
             connector_order_id: None,
-            payment_method_token,
             preprocessing_id: None,
             connector_api_version: None,
             test_mode: None,
@@ -8658,7 +8693,6 @@ impl
             session_token: None,
             reference_id: None,
             connector_order_id: None,
-            payment_method_token: None,
             preprocessing_id: None,
             connector_api_version: None,
             test_mode: value.test_mode,
@@ -8861,7 +8895,7 @@ pub enum PaymentMethodDataType {
     PayEasy,
     Givex,
     PaySafeCar,
-    CardToken,
+    PaymentMethodToken,
     LocalBankTransfer,
     Mifinity,
     Fps,
@@ -8879,6 +8913,12 @@ pub enum PaymentMethodDataType {
     MbWay,
     Satispay,
     Wero,
+    LazyPayRedirect,
+    PhonePeRedirect,
+    BillDeskRedirect,
+    CashfreeRedirect,
+    PayURedirect,
+    EaseBuzzRedirect,
     SepaGuaranteedBankDebit,
     IndonesianBankTransfer,
     Netbanking,
@@ -9165,7 +9205,6 @@ impl
             session_token: None,
             reference_id: None,
             connector_order_id: None,
-            payment_method_token: None,
             preprocessing_id: None,
             connector_api_version: None,
             test_mode: value.test_mode,
@@ -9345,7 +9384,6 @@ impl
             session_token: None,
             reference_id: None,
             connector_order_id: None,
-            payment_method_token: None,
             preprocessing_id: None,
             connector_api_version: None,
             test_mode: value.test_mode,
@@ -9494,7 +9532,6 @@ impl
             session_token: None,
             reference_id: None,
             connector_order_id: None,
-            payment_method_token: None,
             preprocessing_id: None,
             connector_api_version: None,
             test_mode: value.test_mode,
@@ -11234,7 +11271,6 @@ impl
             session_token: None,
             reference_id: None,
             connector_order_id: None,
-            payment_method_token: None,
             preprocessing_id: None,
             connector_api_version: None,
             test_mode: None,
@@ -11324,7 +11360,6 @@ impl
             session_token: None,
             reference_id: None,
             connector_order_id: None,
-            payment_method_token: None,
             preprocessing_id: None,
             connector_api_version: None,
             test_mode: None,
@@ -11423,7 +11458,6 @@ impl
             session_token: None,
             reference_id: value.connector_order_reference_id.clone(),
             connector_order_id: None,
-            payment_method_token: None,
             preprocessing_id: None,
             connector_api_version: None,
             test_mode: None,
@@ -11500,7 +11534,6 @@ impl
             session_token: None,
             reference_id: None,
             connector_order_id: None,
-            payment_method_token: None,
             preprocessing_id: None,
             connector_api_version: None,
             test_mode: None,

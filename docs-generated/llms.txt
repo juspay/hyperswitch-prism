@@ -339,7 +339,7 @@ connector_id: mollie
 doc: docs/connectors/mollie.md
 scenarios: checkout_autocapture, refund, void_payment, get_payment
 payment_methods: Card
-flows: authorize, get, proxy_authorize, refund, refund_get, void
+flows: authorize, get, proxy_authorize, refund, refund_get, token_authorize, void
 examples_python: examples/mollie/mollie.py
 
 ## Multisafepay
@@ -355,7 +355,7 @@ connector_id: nexinets
 doc: docs/connectors/nexinets.md
 scenarios: checkout_autocapture, refund, get_payment
 payment_methods: ApplePay, Card, Eps, Giropay, Ideal, PaypalRedirect, Sofort
-flows: authorize, get, proxy_authorize, refund
+flows: authorize, create_client_authentication_token, get, proxy_authorize, refund
 examples_python: examples/nexinets/nexinets.py
 
 ## Nexixpay
@@ -395,7 +395,7 @@ connector_id: nuvei
 doc: docs/connectors/nuvei.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Card
-flows: authorize, capture, create_client_authentication_token, create_server_session_authentication_token, get, refund, refund_get, void
+flows: authorize, capture, create_client_authentication_token, create_order, create_server_session_authentication_token, get, refund, refund_get, void
 examples_python: examples/nuvei/nuvei.py
 
 ## Paybox
@@ -563,14 +563,14 @@ connector_id: stax
 doc: docs/connectors/stax.md
 scenarios: none
 payment_methods: none
-flows: capture, create_customer, get, refund, refund_get, tokenize, void
+flows: capture, create_customer, get, refund, refund_get, token_authorize, tokenize, void
 examples_python: none
 
 ## Stripe
 connector_id: stripe
 doc: docs/connectors/stripe.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
-payment_methods: Ach, AchBankTransfer, Affirm, Afterpay, AliPayRedirect, AmazonPayRedirect, Bacs, BacsBankTransfer, BancontactCard, Becs, Blik, Card, CashappQr, Eps, Giropay, GooglePay, Ideal, Klarna, MultibancoBankTransfer, Przelewy24, RevolutPay, Sepa, SepaBankTransfer, WeChatPayQr
+payment_methods: Ach, AchBankTransfer, Affirm, Afterpay, AliPayRedirect, AmazonPayRedirect, ApplePay, ApplePayDecrypted, Bacs, BacsBankTransfer, BancontactCard, Becs, Blik, Card, CashappQr, Eps, Giropay, GooglePay, Ideal, Klarna, MultibancoBankTransfer, Przelewy24, RevolutPay, Sepa, SepaBankTransfer, WeChatPayQr
 flows: authorize, capture, create_client_authentication_token, create_customer, get, incremental_authorization, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, token_authorize, tokenize, void
 examples_python: examples/stripe/stripe.py
 

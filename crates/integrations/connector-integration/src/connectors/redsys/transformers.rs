@@ -282,7 +282,7 @@ where
             | Some(PaymentMethodData::MobilePayment(..))
             | Some(PaymentMethodData::Upi(..))
             | Some(PaymentMethodData::OpenBanking(_))
-            | Some(PaymentMethodData::CardToken(..))
+            | Some(PaymentMethodData::PaymentMethodToken(..))
             | Some(PaymentMethodData::NetworkToken(..))
             | Some(PaymentMethodData::CardDetailsForNetworkTransactionId(_))
             | Some(PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_))

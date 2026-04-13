@@ -3,6 +3,7 @@
   "supported_suites": [
     "authorize",
     "capture",
+    "client_authentication_token",
     "complete_authorize",
     "get",
     "post_authenticate",

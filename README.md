@@ -30,10 +30,10 @@
 
 > **Use `curl` to fetch the complete SDK reference:**
 > ```bash
-> curl -fsSL https://raw.githubusercontent.com/juspay/hyperswitch-prism/main/llm/sdk-reference.md
+> curl -fsSL https://raw.githubusercontent.com/juspay/hyperswitch-prism/main/llm/llm.txt
 > ```
 >
-> This file contains complete SDK documentation including installation, payment operations, error handling, connector configuration, field probe data, and examples for all 70+ connectors.
+> This file contains complete SDK documentation including installation, payment operations, error handling, connector configuration, field probe data, and examples for all 100+ connectors.
 
 
 ---
@@ -111,6 +111,7 @@ The Prism library is compliant for payment processing by design. It is:
 > |----------|-----------------------|
 > | **Python** | [sdk/python/README.md](./sdk/python/README.md) |
 > | **Node.js** | [sdk/javascript/README.md](./sdk/javascript/README.md) |
+> | **Rust** | [sdk/rust](./sdk/rust) |
 
 ---
 
@@ -133,7 +134,7 @@ npm install hyperswitch-prism
 pip install hyperswitch-prism
 ```
 
-#### **Java**
+#### **Java/Kotlin**
 
 Add to your `pom.xml`:
 
@@ -141,14 +142,8 @@ Add to your `pom.xml`:
 <dependency>
     <groupId>io.hyperswitch</groupId>
     <artifactId>prism</artifactId>
-    <version>0.0.1</version>
+    <version>0.0.4</version>
 </dependency>
-```
-
-#### **PHP**
-
-```bash
-composer require juspay/hyperswitch-prism
 ```
 
 For detailed installation instructions, see [Installation Guide](./getting-started/installation.md).

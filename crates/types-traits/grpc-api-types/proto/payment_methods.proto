@@ -66,18 +66,24 @@ message PaymentMethod {
     MBWay mb_way = 25;                                  // MB WAY
     Satispay satispay = 26;                             // Satispay
     Wero wero = 27;                                     // Wero
-    KakaoPayRedirectWallet kakao_pay_redirect = 28;     // KakaoPay Redirect
-    MbWayRedirectWallet mb_way_redirect = 29;           // MB WAY Redirect
-    SwishQrWallet swish_qr = 168;                       // Swish QR
-    MomoRedirectWallet momo_redirect = 159;             // MoMo Redirect
-    TouchNGoRedirectWallet touch_n_go_redirect = 160;   // Touch 'n Go Redirect
-    TwintRedirectWallet twint_redirect = 161;           // TWINT Redirect
-    VippsRedirectWallet vipps_redirect = 162;           // Vipps Redirect
-    WeChatPayRedirectWallet we_chat_pay_redirect = 163; // WeChat Pay Redirect
-    AliPayHKWallet ali_pay_hk = 164;                    // AliPay HK Redirect
-    DanaRedirectWallet dana_redirect = 165;             // Dana Redirect
-    GcashRedirectWallet gcash_redirect = 166;           // GCash Redirect
-    GoPayRedirectWallet go_pay_redirect = 167;          // GoPay Redirect
+    LazyPayRedirectWallet lazypay_redirect = 28;
+    PhonePeRedirectWallet phonepe_redirect = 29;
+    BillDeskRedirectWallet billdesk_redirect = 159;
+    CashfreeRedirectWallet cashfree_redirect = 160;
+    PayURedirectWallet payu_redirect = 161;
+    EaseBuzzRedirectWallet easebuzz_redirect = 162;
+    KakaoPayRedirectWallet kakao_pay_redirect = 163;     // KakaoPay Redirect
+    MbWayRedirectWallet mb_way_redirect = 164;           // MB WAY Redirect
+    MomoRedirectWallet momo_redirect = 165;             // MoMo Redirect
+    TouchNGoRedirectWallet touch_n_go_redirect = 166;   // Touch 'n Go Redirect
+    TwintRedirectWallet twint_redirect = 167;           // TWINT Redirect
+    VippsRedirectWallet vipps_redirect = 168;           // Vipps Redirect
+    WeChatPayRedirectWallet we_chat_pay_redirect = 169; // WeChat Pay Redirect
+    AliPayHKWallet ali_pay_hk = 170;                    // AliPay HK Redirect
+    DanaRedirectWallet dana_redirect = 171;             // Dana Redirect
+    GcashRedirectWallet gcash_redirect = 172;           // GCash Redirect
+    GoPayRedirectWallet go_pay_redirect = 173;          // GoPay Redirect
+    SwishQrWallet swish_qr = 174;                       // Swish QR
 
     // UPI METHODS (30-39) - Direct variants
     UpiCollect upi_collect = 30;                        // UPI Collect
@@ -540,6 +546,23 @@ message Wero {
   // Fields will be added as needed for Wero integration
 }
 
+// LazyPay - Indian BNPL/wallet service
+message LazyPayRedirectWallet {}
+
+// PhonePe - Indian digital payments platform
+message PhonePeRedirectWallet {}
+
+// BillDesk - Indian payment gateway with wallet support
+message BillDeskRedirectWallet {}
+
+// Cashfree - Indian payment gateway with wallet support
+message CashfreeRedirectWallet {}
+
+// PayU - Indian payment gateway with wallet support
+message PayURedirectWallet {}
+
+// EaseBuzz - Indian payment gateway with wallet support
+message EaseBuzzRedirectWallet {}
 
 // Dana Redirect - Indonesian digital wallet Dana redirect payment
 message DanaRedirectWallet {
@@ -589,6 +612,16 @@ message VippsRedirectWallet {
 // Swish QR - Swedish mobile payment Swish QR code payment
 message SwishQrWallet {
   // Fields will be added as needed for Swish QR integration
+}
+
+// AliPay HK - Hong Kong version of Alipay
+message AliPayHKWallet {
+  // Fields will be added as needed for Alipay HK integration
+}
+
+// WeChat Pay Redirect - WeChat Pay redirect payment service
+message WeChatPayRedirectWallet {
+  // Fields will be added as needed for WeChat Pay redirect integration
 }
 
 // Apple Pay Third Party SDK - Apple Pay with token from third-party SDK

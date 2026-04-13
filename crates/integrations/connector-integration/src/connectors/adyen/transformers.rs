@@ -27,13 +27,13 @@ use domain_types::{
     },
     payment_method_data::{
         ApplePayPaymentData, BankDebitData, BankRedirectData, BankTransferData, Card,
-        CardRedirectData, CardToken, DefaultPCIHolder, GiftCardData, GpayTokenizationData,
-        NetworkTokenData, PayLaterData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
-        VoucherData, VoucherNextStepData, WalletData,
+        CardRedirectData, DefaultPCIHolder, GiftCardData, GpayTokenizationData, NetworkTokenData,
+        PayLaterData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, VoucherData,
+        VoucherNextStepData, WalletData,
     },
     router_data::{
         ConnectorResponseData, ConnectorSpecificConfig, ErrorResponse,
-        ExtendedAuthorizationResponseData, PaymentMethodToken,
+        ExtendedAuthorizationResponseData,
     },
     router_data_v2::RouterDataV2,
     router_request_types::SyncRequestType,
@@ -1555,7 +1555,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | WalletData::BluecodeRedirect { .. }
             | WalletData::MbWay(_)
             | WalletData::Satispay(_)
-            | WalletData::Wero(_) => {
+            | WalletData::Wero(_)
+            | WalletData::LazyPayRedirect(_)
+            | WalletData::PhonePeRedirect(_)
+            | WalletData::BillDeskRedirect(_)
+            | WalletData::CashfreeRedirect(_)
+            | WalletData::PayURedirect(_)
+            | WalletData::EaseBuzzRedirect(_) => {
                 Err(IntegrationError::not_implemented("payment_method").into())
             }
         }
@@ -3690,26 +3696,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 PaymentMethodData::NetworkToken(ref token_data) => {
                     Self::try_from((item, token_data))
                 }
-                // TODO: Add payment method token field and also rename the struct to PaymentMethodToken since it is not being used anywhere
-                PaymentMethodData::CardToken(CardToken { .. }) => {
-                    let token = item
-                        .router_data
-                        .resource_common_data
-                        .payment_method_token
-                        .as_ref()
-                        .map(|t| match t {
-                            PaymentMethodToken::Token(s) => s.clone(),
-                        })
-                        .ok_or_else(|| {
-                            error_stack::report!(IntegrationError::MissingRequiredField {
-                                field_name: "payment_method_token",
-                                context: domain_types::errors::IntegrationErrorContext {
-                                    doc_url: Some("https://docs.adyen.com/api-explorer/Checkout/68/post/payments".to_string()),
-                                    additional_context: Some("Adyen requires a storedPaymentMethodId (payment_method_token) for token-based card payments. Ensure the token was obtained via a prior session or tokenization flow.".to_string()),
-                                    ..Default::default()
-                                },
-                            })
-                        })?;
+                PaymentMethodData::PaymentMethodToken(token_data) => {
+                    let token = token_data.token.clone();
 
                     let amount = get_amount_data(&item);
                     let auth_type = AdyenAuthType::try_from(&item.router_data.connector_config)?;
@@ -6143,7 +6131,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
                 | PaymentMethodData::NetworkToken(_)
                 | PaymentMethodData::MobilePayment(_)
-                | PaymentMethodData::CardToken(_) => {
+                | PaymentMethodData::PaymentMethodToken(_) => {
                     Err(IntegrationError::not_implemented("payment method").into())
                 }
             },
