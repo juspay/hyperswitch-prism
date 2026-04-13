@@ -5,7 +5,7 @@
 // Nexinets — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx nexinets.ts checkout_autocapture
 
-import { PaymentClient, types } from 'hyperswitch-prism';
+import { PaymentClient, MerchantAuthenticationClient, types } from 'hyperswitch-prism';
 const { ConnectorConfig, ConnectorSpecificConfig, SdkOptions, Environment, AuthenticationType, CaptureMethod, Currency } = types;
 
 const _defaultConfig: ConnectorConfig = {
@@ -42,6 +42,16 @@ function _buildAuthorizeRequest(captureMethod: CaptureMethod): PaymentServiceAut
         },
         "authType": AuthenticationType.NO_THREE_DS,  // Authentication Details.
         "returnUrl": "https://example.com/return"  // URLs for Redirection and Webhooks.
+    };
+}
+
+function _buildCreateClientAuthenticationTokenRequest(): MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest {
+    return {
+        "merchantClientSessionId": "probe_sdk_session_001",  // Infrastructure.
+        "domainContext": {
+            "minorAmount": 1000,
+            "currency": "USD"
+        }
     };
 }
 
@@ -171,6 +181,15 @@ async function authorize(merchantTransactionId: string, config: ConnectorConfig 
     return { status: authorizeResponse.status, transactionId: authorizeResponse.connectorTransactionId };
 }
 
+// Flow: MerchantAuthenticationService.CreateClientAuthenticationToken
+async function createClientAuthenticationToken(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse> {
+    const merchantAuthenticationClient = new MerchantAuthenticationClient(config);
+
+    const createResponse = await merchantAuthenticationClient.createClientAuthenticationToken(_buildCreateClientAuthenticationTokenRequest());
+
+    return { status: createResponse.status };
+}
+
 // Flow: PaymentService.Get
 async function get(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<PaymentServiceGetResponse> {
     const paymentClient = new PaymentClient(config);
@@ -201,7 +220,7 @@ async function refund(merchantTransactionId: string, config: ConnectorConfig = _
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processRefund, processGetPayment, authorize, get, proxyAuthorize, refund, _buildAuthorizeRequest, _buildGetRequest, _buildProxyAuthorizeRequest, _buildRefundRequest
+    processCheckoutAutocapture, processRefund, processGetPayment, authorize, createClientAuthenticationToken, get, proxyAuthorize, refund, _buildAuthorizeRequest, _buildCreateClientAuthenticationTokenRequest, _buildGetRequest, _buildProxyAuthorizeRequest, _buildRefundRequest
 };
 
 // CLI runner
