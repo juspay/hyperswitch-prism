@@ -1,0 +1,277 @@
+{
+  "connector": "shift4",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "Affirm": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "Afterpay": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "ApplePay": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "Bacs": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "Becs": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "Blik": {
+        "status": "not_supported",
+        "error": "BankRedirect type Blik { blik_code: Some(\"777124\") } is not supported by Shift4 is not supported by Shift4"
+      },
+      "Card": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "first_name": "John"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.shift4.com/charges",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"captured\":true,\"card\":{\"number\":\"4111111111111111\",\"expMonth\":\"03\",\"expYear\":\"2030\",\"cardholderName\":\"John\"}}"
+        }
+      },
+      "GooglePay": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "Ideal": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "ideal": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.shift4.com/charges",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"captured\":true,\"paymentMethod\":{\"type\":\"ideal\",\"billing\":{\"name\":null,\"email\":null,\"address\":{\"line1\":null,\"line2\":null,\"city\":null,\"state\":null,\"zip\":null,\"country\":null}}},\"flow\":{\"returnUrl\":\"https://example.com/return\"}}"
+        }
+      },
+      "Klarna": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "PaypalRedirect": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "SamsungPay": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "Sepa": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      },
+      "UpiCollect": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Shift4"
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_capture_id": "probe_capture_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount_to_capture": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://api.shift4.com/charges/probe_connector_txn_001/capture",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "via": "HyperSwitch"
+          },
+          "body": "{}"
+        }
+      }
+    },
+    "create_access_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_customer": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_session_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_merchant_txn_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://api.shift4.com/charges/probe_connector_txn_001",
+          "method": "Get",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "via": "HyperSwitch"
+          },
+          "body": "{}"
+        }
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "payment_amount": 1000,
+          "refund_amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "reason": "customer_request"
+        },
+        "sample": {
+          "url": "https://api.shift4.com/refunds",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"chargeId\":\"probe_connector_txn_001\",\"amount\":1000}"
+        }
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "tokenize": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "not_implemented"
+      }
+    }
+  }
+}

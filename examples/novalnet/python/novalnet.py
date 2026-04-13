@@ -33,20 +33,20 @@ def _build_authorize_request(capture_method: str):
             },
             "payment_method": {  # Payment method to be used
                 "card": {  # Generic card payment
-                    "card_number": {"value": "4111111111111111"},  # Card Identification
-                    "card_exp_month": {"value": "03"},
-                    "card_exp_year": {"value": "2030"},
-                    "card_cvc": {"value": "737"},
-                    "card_holder_name": {"value": "John Doe"}  # Cardholder Information
+                    "card_number": "4111111111111111",  # Card Identification
+                    "card_exp_month": "03",
+                    "card_exp_year": "2030",
+                    "card_cvc": "737",
+                    "card_holder_name": "John Doe"  # Cardholder Information
                 }
             },
             "capture_method": capture_method,  # Method for capturing the payment
             "customer": {  # Customer Information
-                "email": {"value": "test@example.com"}  # Customer's email address
+                "email": "test@example.com"  # Customer's email address
             },
             "address": {  # Address Information
                 "billing_address": {
-                    "first_name": {"value": "John"}  # Personal Information
+                    "first_name": "John"  # Personal Information
                 }
             },
             "auth_type": "NO_THREE_DS",  # Authentication Details
@@ -167,7 +167,7 @@ async def process_checkout_wallet(merchant_transaction_id: str, config: sdk_conf
             },
             "capture_method": "AUTOMATIC",  # Method for capturing the payment
             "customer": {  # Customer Information
-                "email": {"value": "test@example.com"}  # Customer's email address
+                "email": "test@example.com"  # Customer's email address
             },
             "address": {  # Address Information
                 "billing_address": {
@@ -206,13 +206,13 @@ async def process_checkout_bank(merchant_transaction_id: str, config: sdk_config
             },
             "payment_method": {  # Payment method to be used
                 "sepa": {  # Sepa - Single Euro Payments Area direct debit
-                    "iban": {"value": "DE89370400440532013000"},  # International bank account number (iban) for SEPA
-                    "bank_account_holder_name": {"value": "John Doe"}  # Owner name for bank debit
+                    "iban": "DE89370400440532013000",  # International bank account number (iban) for SEPA
+                    "bank_account_holder_name": "John Doe"  # Owner name for bank debit
                 }
             },
             "capture_method": "AUTOMATIC",  # Method for capturing the payment
             "customer": {  # Customer Information
-                "email": {"value": "test@example.com"}  # Customer's email address
+                "email": "test@example.com"  # Customer's email address
             },
             "address": {  # Address Information
                 "billing_address": {
@@ -289,19 +289,19 @@ async def process_recurring(merchant_transaction_id: str, config: sdk_config_pb2
             },
             "payment_method": {
                 "card": {  # Generic card payment
-                    "card_number": {"value": "4111111111111111"},  # Card Identification
-                    "card_exp_month": {"value": "03"},
-                    "card_exp_year": {"value": "2030"},
-                    "card_cvc": {"value": "737"},
-                    "card_holder_name": {"value": "John Doe"}  # Cardholder Information
+                    "card_number": "4111111111111111",  # Card Identification
+                    "card_exp_month": "03",
+                    "card_exp_year": "2030",
+                    "card_cvc": "737",
+                    "card_holder_name": "John Doe"  # Cardholder Information
                 }
             },
             "customer": {
-                "email": {"value": "test@example.com"}  # Customer's email address
+                "email": "test@example.com"  # Customer's email address
             },
             "address": {  # Address Information
                 "billing_address": {
-                    "first_name": {"value": "John"}  # Personal Information
+                    "first_name": "John"  # Personal Information
                 }
             },
             "auth_type": "NO_THREE_DS",  # Type of authentication to be used
@@ -334,7 +334,7 @@ async def process_recurring(merchant_transaction_id: str, config: sdk_config_pb2
             },
             "webhook_url": "https://example.com/webhook",
             "return_url": "https://example.com/recurring-return",
-            "email": {"value": "test@example.com"},  # Customer Information
+            "email": "test@example.com",  # Customer Information
             "connector_customer_id": "cust_probe_123",
             "off_session": True  # Behavioral Flags and Preferences
         },
@@ -435,11 +435,11 @@ async def recurring_charge(merchant_transaction_id: str, config: sdk_config_pb2.
                 "currency": "USD"  # ISO 4217 currency code (e.g., "USD", "EUR")
             },
             "payment_method": {  # Optional payment Method Information (for network transaction flows)
-                "token": {"token": {"value": "probe_pm_token"}}  # Payment tokens
+                "token": "probe_pm_token"  # Payment tokens
             },
             "webhook_url": "https://example.com/webhook",
             "return_url": "https://example.com/recurring-return",
-            "email": {"value": "test@example.com"},  # Customer Information
+            "email": "test@example.com",  # Customer Information
             "connector_customer_id": "cust_probe_123",
             "payment_method_type": "PAY_PAL",
             "off_session": True  # Behavioral Flags and Preferences
@@ -467,19 +467,19 @@ async def setup_recurring(merchant_transaction_id: str, config: sdk_config_pb2.C
             },
             "payment_method": {
                 "card": {  # Generic card payment
-                    "card_number": {"value": "4111111111111111"},  # Card Identification
-                    "card_exp_month": {"value": "03"},
-                    "card_exp_year": {"value": "2030"},
-                    "card_cvc": {"value": "737"},
-                    "card_holder_name": {"value": "John Doe"}  # Cardholder Information
+                    "card_number": "4111111111111111",  # Card Identification
+                    "card_exp_month": "03",
+                    "card_exp_year": "2030",
+                    "card_cvc": "737",
+                    "card_holder_name": "John Doe"  # Cardholder Information
                 }
             },
             "customer": {
-                "email": {"value": "test@example.com"}  # Customer's email address
+                "email": "test@example.com"  # Customer's email address
             },
             "address": {  # Address Information
                 "billing_address": {
-                    "first_name": {"value": "John"}  # Personal Information
+                    "first_name": "John"  # Personal Information
                 }
             },
             "auth_type": "NO_THREE_DS",  # Type of authentication to be used

@@ -27,11 +27,11 @@ function _buildAuthorizeRequest(captureMethod) {
         },
         "paymentMethod": {  // Payment method to be used
             "card": {  // Generic card payment
-                "cardNumber": {"value": "4111111111111111"},  // Card Identification
-                "cardExpMonth": {"value": "03"},
-                "cardExpYear": {"value": "2030"},
-                "cardCvc": {"value": "737"},
-                "cardHolderName": {"value": "John Doe"}  // Cardholder Information
+                "cardNumber": "4111111111111111",  // Card Identification
+                "cardExpMonth": "03",
+                "cardExpYear": "2030",
+                "cardCvc": "737",
+                "cardHolderName": "John Doe"  // Cardholder Information
             }
         },
         "captureMethod": captureMethod,  // Method for capturing the payment
@@ -43,7 +43,7 @@ function _buildAuthorizeRequest(captureMethod) {
         "returnUrl": "https://example.com/return",  // URLs for Redirection and Webhooks
         "state": {  // State Information
             "accessToken": {  // Access token obtained from connector
-                "token": {"value": "probe_access_token"},  // The token string.
+                "token": "probe_access_token",  // The token string.
                 "expiresInSeconds": 3600,  // Expiration timestamp (seconds since epoch)
                 "tokenType": "Bearer"  // Token type (e.g., "Bearer", "Basic").
             }
@@ -61,7 +61,7 @@ function _buildCaptureRequest(connectorTransactionId) {
         },
         "state": {  // State Information
             "accessToken": {  // Access token obtained from connector
-                "token": {"value": "probe_access_token"},  // The token string.
+                "token": "probe_access_token",  // The token string.
                 "expiresInSeconds": 3600,  // Expiration timestamp (seconds since epoch)
                 "tokenType": "Bearer"  // Token type (e.g., "Bearer", "Basic").
             }
@@ -79,7 +79,7 @@ function _buildGetRequest(connectorTransactionId) {
         },
         "state": {  // State Information
             "accessToken": {  // Access token obtained from connector
-                "token": {"value": "probe_access_token"},  // The token string.
+                "token": "probe_access_token",  // The token string.
                 "expiresInSeconds": 3600,  // Expiration timestamp (seconds since epoch)
                 "tokenType": "Bearer"  // Token type (e.g., "Bearer", "Basic").
             }
@@ -93,7 +93,7 @@ function _buildVoidRequest(connectorTransactionId) {
         "connectorTransactionId": connectorTransactionId,
         "state": {  // State Information
             "accessToken": {  // Access token obtained from connector
-                "token": {"value": "probe_access_token"},  // The token string.
+                "token": "probe_access_token",  // The token string.
                 "expiresInSeconds": 3600,  // Expiration timestamp (seconds since epoch)
                 "tokenType": "Bearer"  // Token type (e.g., "Bearer", "Basic").
             }
@@ -174,7 +174,7 @@ async function processRefund(merchantTransactionId, config = _defaultConfig) {
         "reason": "customer_request",  // Reason for the refund
         "state": {  // State data for access token storage and other connector-specific state
             "accessToken": {  // Access token obtained from connector
-                "token": {"value": "probe_access_token"},  // The token string.
+                "token": "probe_access_token",  // The token string.
                 "expiresInSeconds": 3600,  // Expiration timestamp (seconds since epoch)
                 "tokenType": "Bearer"  // Token type (e.g., "Bearer", "Basic").
             }

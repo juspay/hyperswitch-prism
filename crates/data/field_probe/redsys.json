@@ -1,0 +1,266 @@
+{
+  "connector": "redsys",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: authentication_data.threeds_server_transaction_id — Missing required field: authentication_data.threeds_server_transaction_id"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "Affirm": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "Afterpay": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "ApplePay": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "Bacs": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "Becs": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "Blik": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "Card": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "GooglePay": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "Ideal": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "Klarna": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "PaypalRedirect": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "SamsungPay": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "Sepa": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      },
+      "UpiCollect": {
+        "status": "not_supported",
+        "error": "Cards No3DS is not supported by Redsys"
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_capture_id": "probe_capture_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount_to_capture": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://sis-t.redsys.es:25443/sis/rest/trataPeticionREST",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"Ds_SignatureVersion\":\"HMAC_SHA256_V1\",\"Ds_MerchantParameters\":\"eyJEU19NRVJDSEFOVF9BTU9VTlQiOiIxMDAwIiwiRFNfTUVSQ0hBTlRfQ1VSUkVOQ1kiOiI4NDAiLCJEU19NRVJDSEFOVF9NRVJDSEFOVENPREUiOiJwcm9iZV9tZXJjaGFudCIsIkRTX01FUkNIQU5UX09SREVSIjoicHJvYmVfY29ubmVjdG9yX3R4bl8wMDEiLCJEU19NRVJDSEFOVF9URVJNSU5BTCI6InByb2JlX2lkIiwiRFNfTUVSQ0hBTlRfVFJBTlNBQ1RJT05UWVBFIjoiMiJ9\",\"Ds_Signature\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"}"
+        }
+      }
+    },
+    "create_access_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_customer": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_session_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_merchant_txn_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://sis-t.redsys.es:25443/apl02/services/SerClsWSConsulta",
+          "method": "Post",
+          "headers": {
+            "content-type": "text/xml; charset=utf-8",
+            "soapaction": "consultaOperaciones",
+            "via": "HyperSwitch"
+          },
+          "body": "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:web=\"http://webservices.apl02.redsys.es\"><soapenv:Header/><soapenv:Body><web:consultaOperaciones><cadenaXML><![CDATA[<Messages><Version Ds_Version=\"0.0\"><Message><Monitor><Ds_MerchantCode>probe_merchant</Ds_MerchantCode><Ds_Terminal>probe_id</Ds_Terminal><Ds_Order>probe_merchant_txn_001</Ds_Order></Monitor></Message></Version><Signature>cHJvYmVfa2V5OnByb2JlX3NlY3JldA==</Signature><SignatureVersion>HMAC_SHA256_V1</SignatureVersion></Messages>]]></cadenaXML></web:consultaOperaciones></soapenv:Body></soapenv:Envelope>"
+        }
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/3ds-return"
+        },
+        "sample": {
+          "url": "https://sis-t.redsys.es:25443/sis/rest/iniciaPeticionREST",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"Ds_SignatureVersion\":\"HMAC_SHA256_V1\",\"Ds_MerchantParameters\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\",\"Ds_Signature\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"}"
+        }
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "payment_amount": 1000,
+          "refund_amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "reason": "customer_request"
+        },
+        "sample": {
+          "url": "https://sis-t.redsys.es:25443/sis/rest/trataPeticionREST",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"Ds_SignatureVersion\":\"HMAC_SHA256_V1\",\"Ds_MerchantParameters\":\"eyJEU19NRVJDSEFOVF9BTU9VTlQiOiIxMDAwIiwiRFNfTUVSQ0hBTlRfQ1VSUkVOQ1kiOiI4NDAiLCJEU19NRVJDSEFOVF9NRVJDSEFOVENPREUiOiJwcm9iZV9tZXJjaGFudCIsIkRTX01FUkNIQU5UX09SREVSIjoicHJvYmVfY29ubmVjdG9yX3R4bl8wMDEiLCJEU19NRVJDSEFOVF9URVJNSU5BTCI6InByb2JlX2lkIiwiRFNfTUVSQ0hBTlRfVFJBTlNBQ1RJT05UWVBFIjoiMyJ9\",\"Ds_Signature\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"}"
+        }
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "tokenize": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_void_id": "probe_void_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://sis-t.redsys.es:25443/sis/rest/trataPeticionREST",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"Ds_SignatureVersion\":\"HMAC_SHA256_V1\",\"Ds_MerchantParameters\":\"eyJEU19NRVJDSEFOVF9BTU9VTlQiOiIxMDAwIiwiRFNfTUVSQ0hBTlRfQ1VSUkVOQ1kiOiI4NDAiLCJEU19NRVJDSEFOVF9NRVJDSEFOVENPREUiOiJwcm9iZV9tZXJjaGFudCIsIkRTX01FUkNIQU5UX09SREVSIjoicHJvYmVfY29ubmVjdG9yX3R4bl8wMDEiLCJEU19NRVJDSEFOVF9URVJNSU5BTCI6InByb2JlX2lkIiwiRFNfTUVSQ0hBTlRfVFJBTlNBQ1RJT05UWVBFIjoiOSJ9\",\"Ds_Signature\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"}"
+        }
+      }
+    }
+  }
+}

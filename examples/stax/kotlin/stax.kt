@@ -34,11 +34,11 @@ private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAutho
         }
         paymentMethodBuilder.apply {  // Payment method to be used
             cardBuilder.apply {  // Generic card payment
-                cardNumberBuilder.value = "4111111111111111"  // Card Identification
-                cardExpMonthBuilder.value = "03"
-                cardExpYearBuilder.value = "2030"
-                cardCvcBuilder.value = "737"
-                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information
+                cardNumber = "4111111111111111"  // Card Identification
+                cardExpMonth = "03"
+                cardExpYear = "2030"
+                cardCvc = "737"
+                cardHolderName = "John Doe"  // Cardholder Information
             }
         }
         captureMethod = CaptureMethod.valueOf(captureMethodStr)  // Method for capturing the payment
@@ -48,7 +48,7 @@ private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAutho
         }
         authType = AuthenticationType.NO_THREE_DS  // Authentication Details
         returnUrl = "https://example.com/return"  // URLs for Redirection and Webhooks
-        paymentMethodTokenBuilder.value = "probe_pm_token"  // Payment Method Token
+        paymentMethodToken = "probe_pm_token"  // Payment Method Token
     }.build()
 }
 
@@ -152,8 +152,8 @@ fun processCheckoutBank(txnId: String, config: ConnectorConfig = _defaultConfig)
         }
         paymentMethodBuilder.apply {  // Payment method to be used
             sepaBuilder.apply {  // Sepa - Single Euro Payments Area direct debit
-                ibanBuilder.value = "DE89370400440532013000"  // International bank account number (iban) for SEPA
-                bankAccountHolderNameBuilder.value = "John Doe"  // Owner name for bank debit
+                iban = "DE89370400440532013000"  // International bank account number (iban) for SEPA
+                bankAccountHolderName = "John Doe"  // Owner name for bank debit
             }
         }
         captureMethod = CaptureMethod.AUTOMATIC  // Method for capturing the payment
@@ -163,7 +163,7 @@ fun processCheckoutBank(txnId: String, config: ConnectorConfig = _defaultConfig)
         }
         authType = AuthenticationType.NO_THREE_DS  // Authentication Details
         returnUrl = "https://example.com/return"  // URLs for Redirection and Webhooks
-        paymentMethodTokenBuilder.value = "probe_pm_token"  // Payment Method Token
+        paymentMethodToken = "probe_pm_token"  // Payment Method Token
     }.build())
 
     when (authorizeResponse.status.name) {
@@ -243,7 +243,7 @@ fun processCreateCustomer(txnId: String, config: ConnectorConfig = _defaultConfi
     val createResponse = customerClient.create(CustomerServiceCreateRequest.newBuilder().apply {
         merchantCustomerId = "cust_probe_123"  // Identification
         customerName = "John Doe"  // Name of the customer
-        emailBuilder.value = "test@example.com"  // Email address of the customer
+        email = "test@example.com"  // Email address of the customer
         phoneNumber = "4155552671"  // Phone number of the customer
     }.build())
 
@@ -263,11 +263,11 @@ fun processTokenize(txnId: String, config: ConnectorConfig = _defaultConfig): Ma
         }
         paymentMethodBuilder.apply {
             cardBuilder.apply {  // Generic card payment
-                cardNumberBuilder.value = "4111111111111111"  // Card Identification
-                cardExpMonthBuilder.value = "03"
-                cardExpYearBuilder.value = "2030"
-                cardCvcBuilder.value = "737"
-                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information
+                cardNumber = "4111111111111111"  // Card Identification
+                cardExpMonth = "03"
+                cardExpYear = "2030"
+                cardCvc = "737"
+                cardHolderName = "John Doe"  // Cardholder Information
             }
         }
         customerBuilder.apply {  // Customer Information
@@ -310,7 +310,7 @@ fun createCustomer(txnId: String) {
     val request = CustomerServiceCreateRequest.newBuilder().apply {
         merchantCustomerId = "cust_probe_123"  // Identification
         customerName = "John Doe"  // Name of the customer
-        emailBuilder.value = "test@example.com"  // Email address of the customer
+        email = "test@example.com"  // Email address of the customer
         phoneNumber = "4155552671"  // Phone number of the customer
     }.build()
     val response = client.create(request)
@@ -345,11 +345,11 @@ fun tokenize(txnId: String) {
         }
         paymentMethodBuilder.apply {
             cardBuilder.apply {  // Generic card payment
-                cardNumberBuilder.value = "4111111111111111"  // Card Identification
-                cardExpMonthBuilder.value = "03"
-                cardExpYearBuilder.value = "2030"
-                cardCvcBuilder.value = "737"
-                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information
+                cardNumber = "4111111111111111"  // Card Identification
+                cardExpMonth = "03"
+                cardExpYear = "2030"
+                cardCvc = "737"
+                cardHolderName = "John Doe"  // Cardholder Information
             }
         }
         customerBuilder.apply {  // Customer Information

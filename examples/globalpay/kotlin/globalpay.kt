@@ -32,11 +32,11 @@ private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAutho
         }
         paymentMethodBuilder.apply {  // Payment method to be used
             cardBuilder.apply {  // Generic card payment
-                cardNumberBuilder.value = "4111111111111111"  // Card Identification
-                cardExpMonthBuilder.value = "03"
-                cardExpYearBuilder.value = "2030"
-                cardCvcBuilder.value = "737"
-                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information
+                cardNumber = "4111111111111111"  // Card Identification
+                cardExpMonth = "03"
+                cardExpYear = "2030"
+                cardCvc = "737"
+                cardHolderName = "John Doe"  // Cardholder Information
             }
         }
         captureMethod = CaptureMethod.valueOf(captureMethodStr)  // Method for capturing the payment
@@ -48,7 +48,7 @@ private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAutho
         returnUrl = "https://example.com/return"  // URLs for Redirection and Webhooks
         stateBuilder.apply {  // State Information
             accessTokenBuilder.apply {  // Access token obtained from connector
-                tokenBuilder.value = "probe_access_token"  // The token string.
+                token = "probe_access_token"  // The token string.
                 expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch)
                 tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
             }
@@ -66,7 +66,7 @@ private fun buildCaptureRequest(connectorTransactionIdStr: String): PaymentServi
         }
         stateBuilder.apply {  // State Information
             accessTokenBuilder.apply {  // Access token obtained from connector
-                tokenBuilder.value = "probe_access_token"  // The token string.
+                token = "probe_access_token"  // The token string.
                 expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch)
                 tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
             }
@@ -84,7 +84,7 @@ private fun buildGetRequest(connectorTransactionIdStr: String): PaymentServiceGe
         }
         stateBuilder.apply {  // State Information
             accessTokenBuilder.apply {  // Access token obtained from connector
-                tokenBuilder.value = "probe_access_token"  // The token string.
+                token = "probe_access_token"  // The token string.
                 expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch)
                 tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
             }
@@ -104,7 +104,7 @@ private fun buildRefundRequest(connectorTransactionIdStr: String): PaymentServic
         reason = "customer_request"  // Reason for the refund
         stateBuilder.apply {  // State data for access token storage and other connector-specific state
             accessTokenBuilder.apply {  // Access token obtained from connector
-                tokenBuilder.value = "probe_access_token"  // The token string.
+                token = "probe_access_token"  // The token string.
                 expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch)
                 tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
             }
@@ -118,7 +118,7 @@ private fun buildVoidRequest(connectorTransactionIdStr: String): PaymentServiceV
         connectorTransactionId = connectorTransactionIdStr
         stateBuilder.apply {  // State Information
             accessTokenBuilder.apply {  // Access token obtained from connector
-                tokenBuilder.value = "probe_access_token"  // The token string.
+                token = "probe_access_token"  // The token string.
                 expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch)
                 tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
             }

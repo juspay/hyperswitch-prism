@@ -1,0 +1,235 @@
+{
+  "connector": "volt",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through Volt"
+      },
+      "Affirm": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through Volt"
+      },
+      "Afterpay": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through Volt"
+      },
+      "ApplePay": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through Volt"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through Volt"
+      },
+      "Bacs": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through Volt"
+      },
+      "Becs": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through Volt"
+      },
+      "Blik": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through Volt"
+      },
+      "Card": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through Volt"
+      },
+      "GooglePay": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through Volt"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through Volt"
+      },
+      "Ideal": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through Volt"
+      },
+      "Klarna": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through Volt"
+      },
+      "PaypalRedirect": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through Volt"
+      },
+      "SamsungPay": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through Volt"
+      },
+      "Sepa": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through Volt"
+      },
+      "UpiCollect": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through Volt"
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_access_token": {
+      "default": {
+        "status": "supported",
+        "proto_request": {},
+        "sample": {
+          "url": "https://gateway.sandbox.volt.io/oauth",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"grant_type\":\"password\",\"client_id\":\"probe_id\",\"client_secret\":\"probe_secret\",\"username\":\"probe_user\",\"password\":\"probe_pass\"}"
+        }
+      }
+    },
+    "create_customer": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_session_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_merchant_txn_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://gateway.sandbox.volt.io/payments/probe_connector_txn_001",
+          "method": "Get",
+          "headers": {
+            "accept": "application/json",
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
+            "via": "HyperSwitch",
+            "x-volt-api-version": "1",
+            "x-volt-initiation-channel": "hosted"
+          },
+          "body": "null"
+        }
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "payment_amount": 1000,
+          "refund_amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "reason": "customer_request",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api.sandbox.volt.io/payments/probe_connector_txn_001/request-refund",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
+            "via": "HyperSwitch",
+            "x-volt-api-version": "1",
+            "x-volt-initiation-channel": "hosted"
+          },
+          "body": "{\"amount\":1000,\"externalReference\":\"probe_refund_001\"}"
+        }
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "tokenize": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "not_implemented"
+      }
+    }
+  }
+}

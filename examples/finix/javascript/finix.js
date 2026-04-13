@@ -27,11 +27,11 @@ function _buildAuthorizeRequest(captureMethod) {
         },
         "paymentMethod": {  // Payment method to be used
             "card": {  // Generic card payment
-                "cardNumber": {"value": "4111111111111111"},  // Card Identification
-                "cardExpMonth": {"value": "03"},
-                "cardExpYear": {"value": "2030"},
-                "cardCvc": {"value": "737"},
-                "cardHolderName": {"value": "John Doe"}  // Cardholder Information
+                "cardNumber": "4111111111111111",  // Card Identification
+                "cardExpMonth": "03",
+                "cardExpYear": "2030",
+                "cardCvc": "737",
+                "cardHolderName": "John Doe"  // Cardholder Information
             }
         },
         "captureMethod": captureMethod,  // Method for capturing the payment
@@ -41,7 +41,7 @@ function _buildAuthorizeRequest(captureMethod) {
         },
         "authType": "NO_THREE_DS",  // Authentication Details
         "returnUrl": "https://example.com/return",  // URLs for Redirection and Webhooks
-        "paymentMethodToken": {"value": "probe_pm_token"}  // Payment Method Token
+        "paymentMethodToken": "probe_pm_token"  // Payment Method Token
     };
 }
 
@@ -154,7 +154,7 @@ async function processCheckoutWallet(merchantTransactionId, config = _defaultCon
         },
         "authType": "NO_THREE_DS",  // Authentication Details
         "returnUrl": "https://example.com/return",  // URLs for Redirection and Webhooks
-        "paymentMethodToken": {"value": "probe_pm_token"}  // Payment Method Token
+        "paymentMethodToken": "probe_pm_token"  // Payment Method Token
     });
 
     if (authorizeResponse.status === 'FAILED') {
@@ -182,8 +182,8 @@ async function processCheckoutBank(merchantTransactionId, config = _defaultConfi
         },
         "paymentMethod": {  // Payment method to be used
             "sepa": {  // Sepa - Single Euro Payments Area direct debit
-                "iban": {"value": "DE89370400440532013000"},  // International bank account number (iban) for SEPA
-                "bankAccountHolderName": {"value": "John Doe"}  // Owner name for bank debit
+                "iban": "DE89370400440532013000",  // International bank account number (iban) for SEPA
+                "bankAccountHolderName": "John Doe"  // Owner name for bank debit
             }
         },
         "captureMethod": "AUTOMATIC",  // Method for capturing the payment
@@ -193,7 +193,7 @@ async function processCheckoutBank(merchantTransactionId, config = _defaultConfi
         },
         "authType": "NO_THREE_DS",  // Authentication Details
         "returnUrl": "https://example.com/return",  // URLs for Redirection and Webhooks
-        "paymentMethodToken": {"value": "probe_pm_token"}  // Payment Method Token
+        "paymentMethodToken": "probe_pm_token"  // Payment Method Token
     });
 
     if (authorizeResponse.status === 'FAILED') {
@@ -295,7 +295,7 @@ async function processCreateCustomer(merchantTransactionId, config = _defaultCon
     const createResponse = await customerClient.create({
         "merchantCustomerId": "cust_probe_123",  // Identification
         "customerName": "John Doe",  // Name of the customer
-        "email": {"value": "test@example.com"},  // Email address of the customer
+        "email": "test@example.com",  // Email address of the customer
         "phoneNumber": "4155552671"  // Phone number of the customer
     });
 
@@ -315,11 +315,11 @@ async function processTokenize(merchantTransactionId, config = _defaultConfig) {
         },
         "paymentMethod": {
             "card": {  // Generic card payment
-                "cardNumber": {"value": "4111111111111111"},  // Card Identification
-                "cardExpMonth": {"value": "03"},
-                "cardExpYear": {"value": "2030"},
-                "cardCvc": {"value": "737"},
-                "cardHolderName": {"value": "John Doe"}  // Cardholder Information
+                "cardNumber": "4111111111111111",  // Card Identification
+                "cardExpMonth": "03",
+                "cardExpYear": "2030",
+                "cardCvc": "737",
+                "cardHolderName": "John Doe"  // Cardholder Information
             }
         },
         "customer": {  // Customer Information

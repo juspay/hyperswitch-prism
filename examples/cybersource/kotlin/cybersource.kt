@@ -24,6 +24,7 @@ import payments.CaptureMethod
 import payments.Currency
 import payments.FutureUsage
 import payments.PaymentMethodType
+import payments.TokenPaymentMethodType
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
@@ -38,16 +39,16 @@ private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAutho
         }
         paymentMethodBuilder.apply {  // Payment method to be used
             cardBuilder.apply {  // Generic card payment
-                cardNumberBuilder.value = "4111111111111111"  // Card Identification
-                cardExpMonthBuilder.value = "03"
-                cardExpYearBuilder.value = "2030"
-                cardCvcBuilder.value = "737"
-                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information
+                cardNumber = "4111111111111111"  // Card Identification
+                cardExpMonth = "03"
+                cardExpYear = "2030"
+                cardCvc = "737"
+                cardHolderName = "John Doe"  // Cardholder Information
             }
         }
         captureMethod = CaptureMethod.valueOf(captureMethodStr)  // Method for capturing the payment
         customerBuilder.apply {  // Customer Information
-            emailBuilder.value = "test@example.com"  // Customer's email address
+            email = "test@example.com"  // Customer's email address
         }
         addressBuilder.apply {  // Address Information
             billingAddressBuilder.apply {
@@ -179,7 +180,7 @@ fun processCheckoutWallet(txnId: String, config: ConnectorConfig = _defaultConfi
         }
         captureMethod = CaptureMethod.AUTOMATIC  // Method for capturing the payment
         customerBuilder.apply {  // Customer Information
-            emailBuilder.value = "test@example.com"  // Customer's email address
+            email = "test@example.com"  // Customer's email address
         }
         addressBuilder.apply {  // Address Information
             billingAddressBuilder.apply {
@@ -234,15 +235,15 @@ fun processRecurring(txnId: String, config: ConnectorConfig = _defaultConfig): M
         }
         paymentMethodBuilder.apply {
             cardBuilder.apply {  // Generic card payment
-                cardNumberBuilder.value = "4111111111111111"  // Card Identification
-                cardExpMonthBuilder.value = "03"
-                cardExpYearBuilder.value = "2030"
-                cardCvcBuilder.value = "737"
-                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information
+                cardNumber = "4111111111111111"  // Card Identification
+                cardExpMonth = "03"
+                cardExpYear = "2030"
+                cardCvc = "737"
+                cardHolderName = "John Doe"  // Cardholder Information
             }
         }
         customerBuilder.apply {
-            emailBuilder.value = "test@example.com"  // Customer's email address
+            email = "test@example.com"  // Customer's email address
         }
         addressBuilder.apply {  // Address Information
             billingAddressBuilder.apply {
@@ -250,7 +251,7 @@ fun processRecurring(txnId: String, config: ConnectorConfig = _defaultConfig): M
         }
         authType = AuthenticationType.NO_THREE_DS  // Type of authentication to be used
         enrolledFor3Ds = false  // Indicates if the customer is enrolled for 3D Secure
-        metadataBuilder.value = "{\"reference_id\":\"probe_ref_001\",\"connector_request_id\":\"probe_req_001\",\"transaction_id\":\"probe_txn_001\"}"  // Additional metadata for the connector
+        metadata = "{\"reference_id\":\"probe_ref_001\",\"connector_request_id\":\"probe_req_001\",\"transaction_id\":\"probe_txn_001\"}"  // Additional metadata for the connector
         returnUrl = "https://example.com/mandate-return"  // URL to redirect after setup
         setupFutureUsage = FutureUsage.OFF_SESSION  // Indicates future usage intention
         requestIncrementalAuthorization = false  // Indicates if incremental authorization is requested
@@ -363,11 +364,11 @@ fun preAuthenticate(txnId: String) {
         }
         paymentMethodBuilder.apply {  // Payment Method
             cardBuilder.apply {  // Generic card payment
-                cardNumberBuilder.value = "4111111111111111"  // Card Identification
-                cardExpMonthBuilder.value = "03"
-                cardExpYearBuilder.value = "2030"
-                cardCvcBuilder.value = "737"
-                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information
+                cardNumber = "4111111111111111"  // Card Identification
+                cardExpMonth = "03"
+                cardExpYear = "2030"
+                cardCvc = "737"
+                cardHolderName = "John Doe"  // Cardholder Information
             }
         }
         addressBuilder.apply {  // Address Information
@@ -395,9 +396,7 @@ fun recurringCharge(txnId: String) {
             currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR")
         }
         paymentMethodBuilder.apply {  // Optional payment Method Information (for network transaction flows)
-            tokenBuilder.apply {  // Payment tokens
-                tokenBuilder.value = "probe_pm_token"
-            }
+            token = TokenPaymentMethodType.probe_pm_token  // Payment tokens
         }
         returnUrl = "https://example.com/recurring-return"
         connectorCustomerId = "cust_probe_123"
@@ -431,15 +430,15 @@ fun setupRecurring(txnId: String) {
         }
         paymentMethodBuilder.apply {
             cardBuilder.apply {  // Generic card payment
-                cardNumberBuilder.value = "4111111111111111"  // Card Identification
-                cardExpMonthBuilder.value = "03"
-                cardExpYearBuilder.value = "2030"
-                cardCvcBuilder.value = "737"
-                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information
+                cardNumber = "4111111111111111"  // Card Identification
+                cardExpMonth = "03"
+                cardExpYear = "2030"
+                cardCvc = "737"
+                cardHolderName = "John Doe"  // Cardholder Information
             }
         }
         customerBuilder.apply {
-            emailBuilder.value = "test@example.com"  // Customer's email address
+            email = "test@example.com"  // Customer's email address
         }
         addressBuilder.apply {  // Address Information
             billingAddressBuilder.apply {
@@ -447,7 +446,7 @@ fun setupRecurring(txnId: String) {
         }
         authType = AuthenticationType.NO_THREE_DS  // Type of authentication to be used
         enrolledFor3Ds = false  // Indicates if the customer is enrolled for 3D Secure
-        metadataBuilder.value = "{\"reference_id\":\"probe_ref_001\",\"connector_request_id\":\"probe_req_001\",\"transaction_id\":\"probe_txn_001\"}"  // Additional metadata for the connector
+        metadata = "{\"reference_id\":\"probe_ref_001\",\"connector_request_id\":\"probe_req_001\",\"transaction_id\":\"probe_txn_001\"}"  // Additional metadata for the connector
         returnUrl = "https://example.com/mandate-return"  // URL to redirect after setup
         setupFutureUsage = FutureUsage.OFF_SESSION  // Indicates future usage intention
         requestIncrementalAuthorization = false  // Indicates if incremental authorization is requested

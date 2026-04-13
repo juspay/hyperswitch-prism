@@ -1,0 +1,298 @@
+{
+  "connector": "payload",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "Affirm": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "Afterpay": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "ApplePay": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Payment method"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Payment method"
+      },
+      "Bacs": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "Becs": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "Blik": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "Card": {
+        "status": "error",
+        "error": "Stuck on field: billing.address.zip — Missing required field: billing.address.zip"
+      },
+      "GooglePay": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Payment method"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Payment method"
+      },
+      "Ideal": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "Klarna": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "PaypalRedirect": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by Payload"
+      },
+      "SamsungPay": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by Payload"
+      },
+      "Sepa": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "UpiCollect": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_capture_id": "probe_capture_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount_to_capture": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api.payload.com/transactions/probe_connector_txn_001",
+          "method": "Put",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "status=processed"
+        }
+      }
+    },
+    "create_access_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_customer": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_session_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_merchant_txn_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api.payload.com/transactions/probe_connector_txn_001",
+          "method": "Get",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "via": "HyperSwitch"
+          },
+          "body": null
+        }
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "connector_recurring_payment_id": {
+            "mandate_id_type": {
+              "connector_mandate_id": "probe-mandate-123"
+            }
+          },
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "token": "probe_pm_token"
+          },
+          "return_url": "https://example.com/recurring-return",
+          "connector_customer_id": "cust_probe_123",
+          "payment_method_type": "PAY_PAL",
+          "off_session": true,
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api.payload.com/transactions",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "amount=10.0&type=payment&payment_method_id=probe-mandate-123"
+        }
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "payment_amount": 1000,
+          "refund_amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "reason": "customer_request",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api.payload.com/transactions",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "type=refund&amount=10.0&ledger%5B0%5D%5Bassoc_transaction_id%5D=probe_connector_txn_001"
+        }
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: billing.address.zip — Missing required field: billing.address.zip"
+      }
+    },
+    "tokenize": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_void_id": "probe_void_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api.payload.com/transactions/probe_connector_txn_001",
+          "method": "Put",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "status=voided"
+        }
+      }
+    }
+  }
+}

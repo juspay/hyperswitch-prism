@@ -24,6 +24,7 @@ import payments.CaptureMethod
 import payments.Currency
 import payments.FutureUsage
 import payments.PaymentMethodType
+import payments.TokenPaymentMethodType
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
@@ -38,11 +39,11 @@ private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAutho
         }
         paymentMethodBuilder.apply {  // Payment method to be used
             cardBuilder.apply {  // Generic card payment
-                cardNumberBuilder.value = "4111111111111111"  // Card Identification
-                cardExpMonthBuilder.value = "03"
-                cardExpYearBuilder.value = "2030"
-                cardCvcBuilder.value = "737"
-                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information
+                cardNumber = "4111111111111111"  // Card Identification
+                cardExpMonth = "03"
+                cardExpYear = "2030"
+                cardCvc = "737"
+                cardHolderName = "John Doe"  // Cardholder Information
             }
         }
         captureMethod = CaptureMethod.valueOf(captureMethodStr)  // Method for capturing the payment
@@ -54,7 +55,7 @@ private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAutho
         returnUrl = "https://example.com/return"  // URLs for Redirection and Webhooks
         stateBuilder.apply {  // State Information
             accessTokenBuilder.apply {  // Access token obtained from connector
-                tokenBuilder.value = "probe_access_token"  // The token string.
+                token = "probe_access_token"  // The token string.
                 expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch)
                 tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
             }
@@ -72,7 +73,7 @@ private fun buildCaptureRequest(connectorTransactionIdStr: String): PaymentServi
         }
         stateBuilder.apply {  // State Information
             accessTokenBuilder.apply {  // Access token obtained from connector
-                tokenBuilder.value = "probe_access_token"  // The token string.
+                token = "probe_access_token"  // The token string.
                 expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch)
                 tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
             }
@@ -90,7 +91,7 @@ private fun buildGetRequest(connectorTransactionIdStr: String): PaymentServiceGe
         }
         stateBuilder.apply {  // State Information
             accessTokenBuilder.apply {  // Access token obtained from connector
-                tokenBuilder.value = "probe_access_token"  // The token string.
+                token = "probe_access_token"  // The token string.
                 expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch)
                 tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
             }
@@ -110,7 +111,7 @@ private fun buildRefundRequest(connectorTransactionIdStr: String): PaymentServic
         reason = "customer_request"  // Reason for the refund
         stateBuilder.apply {  // State data for access token storage and other connector-specific state
             accessTokenBuilder.apply {  // Access token obtained from connector
-                tokenBuilder.value = "probe_access_token"  // The token string.
+                token = "probe_access_token"  // The token string.
                 expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch)
                 tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
             }
@@ -124,7 +125,7 @@ private fun buildVoidRequest(connectorTransactionIdStr: String): PaymentServiceV
         connectorTransactionId = connectorTransactionIdStr
         stateBuilder.apply {  // State Information
             accessTokenBuilder.apply {  // Access token obtained from connector
-                tokenBuilder.value = "probe_access_token"  // The token string.
+                token = "probe_access_token"  // The token string.
                 expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch)
                 tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
             }
@@ -213,11 +214,11 @@ fun processRecurring(txnId: String, config: ConnectorConfig = _defaultConfig): M
         }
         paymentMethodBuilder.apply {
             cardBuilder.apply {  // Generic card payment
-                cardNumberBuilder.value = "4111111111111111"  // Card Identification
-                cardExpMonthBuilder.value = "03"
-                cardExpYearBuilder.value = "2030"
-                cardCvcBuilder.value = "737"
-                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information
+                cardNumber = "4111111111111111"  // Card Identification
+                cardExpMonth = "03"
+                cardExpYear = "2030"
+                cardCvc = "737"
+                cardHolderName = "John Doe"  // Cardholder Information
             }
         }
         addressBuilder.apply {  // Address Information
@@ -235,7 +236,7 @@ fun processRecurring(txnId: String, config: ConnectorConfig = _defaultConfig): M
         }
         stateBuilder.apply {  // State data for access token storage and other connector-specific state
             accessTokenBuilder.apply {  // Access token obtained from connector
-                tokenBuilder.value = "probe_access_token"  // The token string.
+                token = "probe_access_token"  // The token string.
                 expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch)
                 tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
             }
@@ -256,7 +257,7 @@ fun processRecurring(txnId: String, config: ConnectorConfig = _defaultConfig): M
         offSession = true  // Behavioral Flags and Preferences
         stateBuilder.apply {  // State Information
             accessTokenBuilder.apply {  // Access token obtained from connector
-                tokenBuilder.value = "probe_access_token"  // The token string.
+                token = "probe_access_token"  // The token string.
                 expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch)
                 tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
             }
@@ -366,9 +367,7 @@ fun recurringCharge(txnId: String) {
             currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR")
         }
         paymentMethodBuilder.apply {  // Optional payment Method Information (for network transaction flows)
-            tokenBuilder.apply {  // Payment tokens
-                tokenBuilder.value = "probe_pm_token"
-            }
+            token = TokenPaymentMethodType.probe_pm_token  // Payment tokens
         }
         returnUrl = "https://example.com/recurring-return"
         connectorCustomerId = "cust_probe_123"
@@ -376,7 +375,7 @@ fun recurringCharge(txnId: String) {
         offSession = true  // Behavioral Flags and Preferences
         stateBuilder.apply {  // State Information
             accessTokenBuilder.apply {  // Access token obtained from connector
-                tokenBuilder.value = "probe_access_token"  // The token string.
+                token = "probe_access_token"  // The token string.
                 expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch)
                 tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
             }
@@ -409,11 +408,11 @@ fun setupRecurring(txnId: String) {
         }
         paymentMethodBuilder.apply {
             cardBuilder.apply {  // Generic card payment
-                cardNumberBuilder.value = "4111111111111111"  // Card Identification
-                cardExpMonthBuilder.value = "03"
-                cardExpYearBuilder.value = "2030"
-                cardCvcBuilder.value = "737"
-                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information
+                cardNumber = "4111111111111111"  // Card Identification
+                cardExpMonth = "03"
+                cardExpYear = "2030"
+                cardCvc = "737"
+                cardHolderName = "John Doe"  // Cardholder Information
             }
         }
         addressBuilder.apply {  // Address Information
@@ -431,7 +430,7 @@ fun setupRecurring(txnId: String) {
         }
         stateBuilder.apply {  // State data for access token storage and other connector-specific state
             accessTokenBuilder.apply {  // Access token obtained from connector
-                tokenBuilder.value = "probe_access_token"  // The token string.
+                token = "probe_access_token"  // The token string.
                 expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch)
                 tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
             }

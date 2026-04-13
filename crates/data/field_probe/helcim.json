@@ -1,0 +1,225 @@
+{
+  "connector": "helcim",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "Affirm": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "Afterpay": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "ApplePay": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "Bacs": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "Becs": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "Blik": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "Card": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "line1": "123 Main St",
+              "zip_code": "98101"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "browser_info": {
+            "ip_address": "1.2.3.4"
+          }
+        },
+        "sample": {
+          "url": "https://api.helcim.com/v2/payment/purchase",
+          "method": "Post",
+          "headers": {
+            "api-token": "probe_key",
+            "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":10.0,\"currency\":\"USD\",\"ipAddress\":\"1.2.3.4\",\"cardData\":{\"cardNumber\":\"4111111111111111\",\"cardExpiry\":\"0330\",\"cardCVV\":\"737\"},\"invoice\":{\"invoiceNumber\":\"probe_txn_001\",\"lineItems\":[{\"description\":\"No Description\",\"quantity\":1,\"price\":10.0,\"total\":10.0}]},\"billingAddress\":{\"name\":\"John\",\"street1\":\"123 Main St\",\"postalCode\":\"98101\"}}"
+        }
+      },
+      "GooglePay": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "Ideal": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "Klarna": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "PaypalRedirect": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "SamsungPay": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "Sepa": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      },
+      "UpiCollect": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: payment method"
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      }
+    },
+    "create_access_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_customer": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_session_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_merchant_txn_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://api.helcim.com/v2/card-transactions/probe_connector_txn_001",
+          "method": "Get",
+          "headers": {
+            "api-token": "probe_key",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": null
+        }
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "tokenize": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      }
+    }
+  }
+}

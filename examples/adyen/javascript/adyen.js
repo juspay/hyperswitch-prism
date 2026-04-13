@@ -27,11 +27,11 @@ function _buildAuthorizeRequest(captureMethod) {
         },
         "paymentMethod": {  // Payment method to be used
             "card": {  // Generic card payment
-                "cardNumber": {"value": "4111111111111111"},  // Card Identification
-                "cardExpMonth": {"value": "03"},
-                "cardExpYear": {"value": "2030"},
-                "cardCvc": {"value": "737"},
-                "cardHolderName": {"value": "John Doe"}  // Cardholder Information
+                "cardNumber": "4111111111111111",  // Card Identification
+                "cardExpMonth": "03",
+                "cardExpYear": "2030",
+                "cardCvc": "737",
+                "cardHolderName": "John Doe"  // Cardholder Information
             }
         },
         "captureMethod": captureMethod,  // Method for capturing the payment
@@ -195,14 +195,14 @@ async function processCheckoutBank(merchantTransactionId, config = _defaultConfi
         },
         "paymentMethod": {  // Payment method to be used
             "sepa": {  // Sepa - Single Euro Payments Area direct debit
-                "iban": {"value": "DE89370400440532013000"},  // International bank account number (iban) for SEPA
-                "bankAccountHolderName": {"value": "John Doe"}  // Owner name for bank debit
+                "iban": "DE89370400440532013000",  // International bank account number (iban) for SEPA
+                "bankAccountHolderName": "John Doe"  // Owner name for bank debit
             }
         },
         "captureMethod": "AUTOMATIC",  // Method for capturing the payment
         "address": {  // Address Information
             "billingAddress": {
-                "firstName": {"value": "John"}  // Personal Information
+                "firstName": "John"  // Personal Information
             }
         },
         "authType": "NO_THREE_DS",  // Authentication Details
@@ -270,11 +270,11 @@ async function processRecurring(merchantTransactionId, config = _defaultConfig) 
         },
         "paymentMethod": {
             "card": {  // Generic card payment
-                "cardNumber": {"value": "4111111111111111"},  // Card Identification
-                "cardExpMonth": {"value": "03"},
-                "cardExpYear": {"value": "2030"},
-                "cardCvc": {"value": "737"},
-                "cardHolderName": {"value": "John Doe"}  // Cardholder Information
+                "cardNumber": "4111111111111111",  // Card Identification
+                "cardExpMonth": "03",
+                "cardExpYear": "2030",
+                "cardCvc": "737",
+                "cardHolderName": "John Doe"  // Cardholder Information
             }
         },
         "customer": {
@@ -423,7 +423,7 @@ async function recurringCharge(merchantTransactionId, config = _defaultConfig) {
             "currency": "USD"  // ISO 4217 currency code (e.g., "USD", "EUR")
         },
         "paymentMethod": {  // Optional payment Method Information (for network transaction flows)
-            "token": {"token": {"value": "probe_pm_token"}}  // Payment tokens
+            "token": "probe_pm_token"  // Payment tokens
         },
         "returnUrl": "https://example.com/recurring-return",
         "connectorCustomerId": "cust_probe_123",
@@ -449,11 +449,11 @@ async function setupRecurring(merchantTransactionId, config = _defaultConfig) {
         },
         "paymentMethod": {
             "card": {  // Generic card payment
-                "cardNumber": {"value": "4111111111111111"},  // Card Identification
-                "cardExpMonth": {"value": "03"},
-                "cardExpYear": {"value": "2030"},
-                "cardCvc": {"value": "737"},
-                "cardHolderName": {"value": "John Doe"}  // Cardholder Information
+                "cardNumber": "4111111111111111",  // Card Identification
+                "cardExpMonth": "03",
+                "cardExpYear": "2030",
+                "cardCvc": "737",
+                "cardHolderName": "John Doe"  // Cardholder Information
             }
         },
         "customer": {

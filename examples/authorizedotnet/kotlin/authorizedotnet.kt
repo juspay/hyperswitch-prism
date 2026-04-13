@@ -24,6 +24,7 @@ import payments.CaptureMethod
 import payments.Currency
 import payments.FutureUsage
 import payments.PaymentMethodType
+import payments.TokenPaymentMethodType
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
@@ -38,11 +39,11 @@ private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAutho
         }
         paymentMethodBuilder.apply {  // Payment method to be used
             cardBuilder.apply {  // Generic card payment
-                cardNumberBuilder.value = "4111111111111111"  // Card Identification
-                cardExpMonthBuilder.value = "03"
-                cardExpYearBuilder.value = "2030"
-                cardCvcBuilder.value = "737"
-                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information
+                cardNumber = "4111111111111111"  // Card Identification
+                cardExpMonth = "03"
+                cardExpYear = "2030"
+                cardCvc = "737"
+                cardHolderName = "John Doe"  // Cardholder Information
             }
         }
         captureMethod = CaptureMethod.valueOf(captureMethodStr)  // Method for capturing the payment
@@ -155,9 +156,9 @@ fun processCheckoutBank(txnId: String, config: ConnectorConfig = _defaultConfig)
         }
         paymentMethodBuilder.apply {  // Payment method to be used
             achBuilder.apply {  // Ach - Automated Clearing House
-                accountNumberBuilder.value = "000123456789"  // Account number for ach bank debit payment
-                routingNumberBuilder.value = "110000000"  // Routing number for ach bank debit payment
-                bankAccountHolderNameBuilder.value = "John Doe"  // Bank account holder name
+                accountNumber = "000123456789"  // Account number for ach bank debit payment
+                routingNumber = "110000000"  // Routing number for ach bank debit payment
+                bankAccountHolderName = "John Doe"  // Bank account holder name
             }
         }
         captureMethod = CaptureMethod.AUTOMATIC  // Method for capturing the payment
@@ -214,11 +215,11 @@ fun processRecurring(txnId: String, config: ConnectorConfig = _defaultConfig): M
         }
         paymentMethodBuilder.apply {
             cardBuilder.apply {  // Generic card payment
-                cardNumberBuilder.value = "4111111111111111"  // Card Identification
-                cardExpMonthBuilder.value = "03"
-                cardExpYearBuilder.value = "2030"
-                cardCvcBuilder.value = "737"
-                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information
+                cardNumber = "4111111111111111"  // Card Identification
+                cardExpMonth = "03"
+                cardExpYear = "2030"
+                cardCvc = "737"
+                cardHolderName = "John Doe"  // Cardholder Information
             }
         }
         customerBuilder.apply {
@@ -311,7 +312,7 @@ fun processCreateCustomer(txnId: String, config: ConnectorConfig = _defaultConfi
     val createResponse = customerClient.create(CustomerServiceCreateRequest.newBuilder().apply {
         merchantCustomerId = "cust_probe_123"  // Identification
         customerName = "John Doe"  // Name of the customer
-        emailBuilder.value = "test@example.com"  // Email address of the customer
+        email = "test@example.com"  // Email address of the customer
         phoneNumber = "4155552671"  // Phone number of the customer
     }.build())
 
@@ -346,7 +347,7 @@ fun createCustomer(txnId: String) {
     val request = CustomerServiceCreateRequest.newBuilder().apply {
         merchantCustomerId = "cust_probe_123"  // Identification
         customerName = "John Doe"  // Name of the customer
-        emailBuilder.value = "test@example.com"  // Email address of the customer
+        email = "test@example.com"  // Email address of the customer
         phoneNumber = "4155552671"  // Phone number of the customer
     }.build()
     val response = client.create(request)
@@ -375,9 +376,7 @@ fun recurringCharge(txnId: String) {
             currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR")
         }
         paymentMethodBuilder.apply {  // Optional payment Method Information (for network transaction flows)
-            tokenBuilder.apply {  // Payment tokens
-                tokenBuilder.value = "probe_pm_token"
-            }
+            token = TokenPaymentMethodType.probe_pm_token  // Payment tokens
         }
         returnUrl = "https://example.com/recurring-return"
         connectorCustomerId = "cust_probe_123"
@@ -411,11 +410,11 @@ fun setupRecurring(txnId: String) {
         }
         paymentMethodBuilder.apply {
             cardBuilder.apply {  // Generic card payment
-                cardNumberBuilder.value = "4111111111111111"  // Card Identification
-                cardExpMonthBuilder.value = "03"
-                cardExpYearBuilder.value = "2030"
-                cardCvcBuilder.value = "737"
-                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information
+                cardNumber = "4111111111111111"  // Card Identification
+                cardExpMonth = "03"
+                cardExpYear = "2030"
+                cardCvc = "737"
+                cardHolderName = "John Doe"  // Cardholder Information
             }
         }
         customerBuilder.apply {

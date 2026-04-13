@@ -1,0 +1,267 @@
+{
+  "connector": "forte",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "ach": {
+              "account_number": "000123456789",
+              "routing_number": "110000000",
+              "bank_account_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "first_name": "John"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://sandbox.forte.net/api/v3/organizations/org_probe_org_id/locations/loc_probe_loc_id/transactions",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfaWQ6cHJvYmVfa2V5",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-forte-auth-organization-id": "org_probe_org_id"
+          },
+          "body": "{\"action\":\"sale\",\"authorization_amount\":10.0,\"billing_address\":{\"first_name\":\"John\",\"last_name\":\"John\"},\"echeck\":{\"sec_code\":\"WEB\",\"account_type\":\"Checking\",\"routing_number\":\"110000000\",\"account_number\":\"000123456789\",\"account_holder\":\"John Doe\"}}"
+        }
+      },
+      "Affirm": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through Forte"
+      },
+      "Afterpay": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through Forte"
+      },
+      "ApplePay": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through Forte"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through Forte"
+      },
+      "Bacs": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: BACS bank debit is not supported by Forte. Only ACH (US) bank debits are supported."
+      },
+      "Becs": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: BECS bank debit is not supported by Forte. Only ACH (US) bank debits are supported."
+      },
+      "Blik": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through Forte"
+      },
+      "Card": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "first_name": "John"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://sandbox.forte.net/api/v3/organizations/org_probe_org_id/locations/loc_probe_loc_id/transactions",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfaWQ6cHJvYmVfa2V5",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-forte-auth-organization-id": "org_probe_org_id"
+          },
+          "body": "{\"action\":\"sale\",\"authorization_amount\":10.0,\"billing_address\":{\"first_name\":\"John\",\"last_name\":\"John\"},\"card_type\":\"visa\",\"name_on_card\":\"John\",\"account_number\":\"4111111111111111\",\"expire_month\":\"03\",\"expire_year\":\"2030\",\"card_verification_value\":\"737\"}"
+        }
+      },
+      "GooglePay": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through Forte"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through Forte"
+      },
+      "Ideal": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through Forte"
+      },
+      "Klarna": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through Forte"
+      },
+      "PaypalRedirect": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through Forte"
+      },
+      "SamsungPay": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through Forte"
+      },
+      "Sepa": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: SEPA bank debit is not supported by Forte. Only ACH (US) bank debits are supported."
+      },
+      "UpiCollect": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through Forte"
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: amount — Missing required field: amount"
+      }
+    },
+    "create_access_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_customer": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_session_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_merchant_txn_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://sandbox.forte.net/api/v3/organizations/org_probe_org_id/locations/loc_probe_loc_id/transactions/probe_connector_txn_001",
+          "method": "Get",
+          "headers": {
+            "authorization": "Basic cHJvYmVfaWQ6cHJvYmVfa2V5",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-forte-auth-organization-id": "org_probe_org_id"
+          },
+          "body": null
+        }
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "error",
+        "error": "Connector meta data not found"
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "tokenize": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_void_id": "probe_void_001",
+          "connector_transaction_id": "probe_connector_txn_001"
+        },
+        "sample": {
+          "url": "https://sandbox.forte.net/api/v3/organizations/org_probe_org_id/locations/loc_probe_loc_id/transactions/probe_connector_txn_001",
+          "method": "Put",
+          "headers": {
+            "authorization": "Basic cHJvYmVfaWQ6cHJvYmVfa2V5",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-forte-auth-organization-id": "org_probe_org_id"
+          },
+          "body": "{\"action\":\"void\",\"authorization_code\":\"probe_auth_001\"}"
+        }
+      }
+    }
+  }
+}

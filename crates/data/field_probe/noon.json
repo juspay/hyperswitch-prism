@@ -1,0 +1,410 @@
+{
+  "connector": "noon",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through Noon"
+      },
+      "Affirm": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through Noon"
+      },
+      "Afterpay": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through Noon"
+      },
+      "ApplePay": {
+        "status": "error",
+        "error": "Stuck on field: payment_method_token — Failed to parse Apple Pay wallet token"
+      },
+      "ApplePayDecrypted": {
+        "status": "error",
+        "error": "Stuck on field: Apple pay encrypted data — Missing required field: Apple pay encrypted data"
+      },
+      "Bacs": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through Noon"
+      },
+      "Becs": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through Noon"
+      },
+      "Blik": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through Noon"
+      },
+      "Card": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "order_category": "mobile",
+          "description": "Probe payment"
+        },
+        "sample": {
+          "url": "https://api-test.noonpayments.com/payment/v1/order",
+          "method": "Post",
+          "headers": {
+            "authorization": "Key cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"apiOperation\":\"INITIATE\",\"order\":{\"amount\":\"10.00\",\"currency\":\"USD\",\"channel\":\"WEB\",\"category\":\"mobile\",\"reference\":\"probe_txn_001\",\"name\":\"Probe payment\",\"nvp\":null,\"ipAddress\":null},\"configuration\":{\"tokenizeCC\":null,\"paymentAction\":\"SALE\",\"returnUrl\":\"https://example.com/return\"},\"paymentData\":{\"type\":\"CARD\",\"data\":{\"nameOnCard\":null,\"numberPlain\":\"4111111111111111\",\"expiryMonth\":\"03\",\"expiryYear\":\"2030\",\"cvv\":\"737\"}},\"subscription\":null,\"billing\":{\"address\":{\"street\":null,\"street2\":null,\"city\":null,\"stateProvince\":null,\"country\":null,\"postalCode\":null}}}"
+        }
+      },
+      "GooglePay": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay": {
+              "type": "CARD",
+              "description": "Visa 1111",
+              "info": {
+                "card_network": "VISA",
+                "card_details": "1111"
+              },
+              "tokenization_data": {
+                "encrypted_data": {
+                  "token_type": "PAYMENT_GATEWAY",
+                  "token": "{\"id\":\"tok_probe_gpay\",\"object\":\"token\",\"type\":\"card\"}"
+                }
+              }
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "order_category": "mobile",
+          "description": "Probe payment"
+        },
+        "sample": {
+          "url": "https://api-test.noonpayments.com/payment/v1/order",
+          "method": "Post",
+          "headers": {
+            "authorization": "Key cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"apiOperation\":\"INITIATE\",\"order\":{\"amount\":\"10.00\",\"currency\":\"USD\",\"channel\":\"WEB\",\"category\":\"mobile\",\"reference\":\"probe_txn_001\",\"name\":\"Probe payment\",\"nvp\":null,\"ipAddress\":null},\"configuration\":{\"tokenizeCC\":null,\"paymentAction\":\"SALE\",\"returnUrl\":\"https://example.com/return\"},\"paymentData\":{\"type\":\"GOOGLEPAY\",\"data\":{\"apiVersionMinor\":0,\"apiVersion\":2,\"paymentMethodData\":{\"type\":\"CARD\",\"description\":\"Visa 1111\",\"info\":{\"card_network\":\"VISA\",\"card_details\":\"1111\",\"assurance_details\":null},\"tokenization_data\":{\"type\":\"PAYMENT_GATEWAY\",\"token\":\"{\\\"id\\\":\\\"tok_probe_gpay\\\",\\\"object\\\":\\\"token\\\",\\\"type\\\":\\\"card\\\"}\"}}}},\"subscription\":null,\"billing\":{\"address\":{\"street\":null,\"street2\":null,\"city\":null,\"stateProvince\":null,\"country\":null,\"postalCode\":null}}}"
+        }
+      },
+      "GooglePayDecrypted": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay": {
+              "type": "CARD",
+              "description": "Visa 1111",
+              "info": {
+                "card_network": "VISA",
+                "card_details": "1111"
+              },
+              "tokenization_data": {
+                "decrypted_data": {
+                  "card_exp_month": "03",
+                  "card_exp_year": "2030",
+                  "application_primary_account_number": "4111111111111111",
+                  "cryptogram": "AAAAAA==",
+                  "eci_indicator": "05"
+                }
+              }
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "order_category": "mobile",
+          "description": "Probe payment"
+        },
+        "sample": {
+          "url": "https://api-test.noonpayments.com/payment/v1/order",
+          "method": "Post",
+          "headers": {
+            "authorization": "Key cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"apiOperation\":\"INITIATE\",\"order\":{\"amount\":\"10.00\",\"currency\":\"USD\",\"channel\":\"WEB\",\"category\":\"mobile\",\"reference\":\"probe_txn_001\",\"name\":\"Probe payment\",\"nvp\":null,\"ipAddress\":null},\"configuration\":{\"tokenizeCC\":null,\"paymentAction\":\"SALE\",\"returnUrl\":\"https://example.com/return\"},\"paymentData\":{\"type\":\"GOOGLEPAY\",\"data\":{\"apiVersionMinor\":0,\"apiVersion\":2,\"paymentMethodData\":{\"type\":\"CARD\",\"description\":\"Visa 1111\",\"info\":{\"card_network\":\"VISA\",\"card_details\":\"1111\",\"assurance_details\":null},\"tokenization_data\":{\"cardExpMonth\":\"03\",\"cardExpYear\":\"2030\",\"applicationPrimaryAccountNumber\":\"4111111111111111\",\"cryptogram\":\"AAAAAA==\",\"eciIndicator\":\"05\"}}}},\"subscription\":null,\"billing\":{\"address\":{\"street\":null,\"street2\":null,\"city\":null,\"stateProvince\":null,\"country\":null,\"postalCode\":null}}}"
+        }
+      },
+      "Ideal": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through Noon"
+      },
+      "Klarna": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through Noon"
+      },
+      "PaypalRedirect": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "paypal_redirect": {
+              "email": "test@example.com"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "order_category": "mobile",
+          "description": "Probe payment"
+        },
+        "sample": {
+          "url": "https://api-test.noonpayments.com/payment/v1/order",
+          "method": "Post",
+          "headers": {
+            "authorization": "Key cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"apiOperation\":\"INITIATE\",\"order\":{\"amount\":\"10.00\",\"currency\":\"USD\",\"channel\":\"WEB\",\"category\":\"mobile\",\"reference\":\"probe_txn_001\",\"name\":\"Probe payment\",\"nvp\":null,\"ipAddress\":null},\"configuration\":{\"tokenizeCC\":null,\"paymentAction\":\"SALE\",\"returnUrl\":\"https://example.com/return\"},\"paymentData\":{\"type\":\"PAYPAL\",\"data\":{\"returnUrl\":\"https://example.com/return\"}},\"subscription\":null,\"billing\":{\"address\":{\"street\":null,\"street2\":null,\"city\":null,\"stateProvince\":null,\"country\":null,\"postalCode\":null}}}"
+        }
+      },
+      "SamsungPay": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through Noon"
+      },
+      "Sepa": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through Noon"
+      },
+      "UpiCollect": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through Noon"
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_capture_id": "probe_capture_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount_to_capture": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://api-test.noonpayments.com/payment/v1/order",
+          "method": "Post",
+          "headers": {
+            "authorization": "Key cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"apiOperation\":\"CAPTURE\",\"order\":{\"id\":\"probe_connector_txn_001\"},\"transaction\":{\"amount\":\"10.00\",\"currency\":\"USD\",\"transactionReference\":null}}"
+        }
+      }
+    },
+    "create_access_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_customer": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_session_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_merchant_txn_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://api-test.noonpayments.com/payment/v1/order/getbyreference/probe_merchant_txn_001",
+          "method": "Get",
+          "headers": {
+            "authorization": "Key cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": null
+        }
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "connector_recurring_payment_id": {
+            "mandate_id_type": {
+              "connector_mandate_id": "probe-mandate-123"
+            }
+          },
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "token": "probe_pm_token"
+          },
+          "return_url": "https://example.com/recurring-return",
+          "description": "Probe payment",
+          "connector_customer_id": "cust_probe_123",
+          "payment_method_type": "PAY_PAL",
+          "off_session": true
+        },
+        "sample": {
+          "url": "https://api-test.noonpayments.com/payment/v1/order",
+          "method": "Post",
+          "headers": {
+            "authorization": "Key cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"apiOperation\":\"INITIATE\",\"order\":{\"amount\":\"10.00\",\"currency\":null,\"channel\":\"WEB\",\"category\":null,\"reference\":\"\",\"name\":\"Probe payment\",\"nvp\":null,\"ipAddress\":null},\"configuration\":{\"tokenizeCC\":null,\"paymentAction\":\"SALE\",\"returnUrl\":\"https://example.com/recurring-return\"},\"paymentData\":{\"type\":\"SUBSCRIPTION\",\"data\":{\"subscriptionIdentifier\":\"probe-mandate-123\"}},\"subscription\":null,\"billing\":null}"
+        }
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "payment_amount": 1000,
+          "refund_amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "reason": "customer_request"
+        },
+        "sample": {
+          "url": "https://api-test.noonpayments.com/payment/v1/order",
+          "method": "Post",
+          "headers": {
+            "authorization": "Key cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"apiOperation\":\"REFUND\",\"order\":{\"id\":\"probe_connector_txn_001\"},\"transaction\":{\"amount\":\"10.00\",\"currency\":\"USD\",\"transactionReference\":\"probe_refund_001\"}}"
+        }
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: description — Missing required field: description"
+      }
+    },
+    "tokenize": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_void_id": "probe_void_001",
+          "connector_transaction_id": "probe_connector_txn_001"
+        },
+        "sample": {
+          "url": "https://api-test.noonpayments.com/payment/v1/order",
+          "method": "Post",
+          "headers": {
+            "authorization": "Key cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"apiOperation\":\"REVERSE\",\"order\":{\"id\":\"probe_connector_txn_001\"}}"
+        }
+      }
+    }
+  }
+}

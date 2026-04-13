@@ -35,11 +35,11 @@ def _build_authorize_request(capture_method: str):
             },
             "payment_method": {  # Payment method to be used
                 "card": {  # Generic card payment
-                    "card_number": {"value": "4111111111111111"},  # Card Identification
-                    "card_exp_month": {"value": "03"},
-                    "card_exp_year": {"value": "2030"},
-                    "card_cvc": {"value": "737"},
-                    "card_holder_name": {"value": "John Doe"}  # Cardholder Information
+                    "card_number": "4111111111111111",  # Card Identification
+                    "card_exp_month": "03",
+                    "card_exp_year": "2030",
+                    "card_cvc": "737",
+                    "card_holder_name": "John Doe"  # Cardholder Information
                 }
             },
             "capture_method": capture_method,  # Method for capturing the payment
@@ -199,8 +199,8 @@ async def process_checkout_bank(merchant_transaction_id: str, config: sdk_config
             },
             "payment_method": {  # Payment method to be used
                 "sepa": {  # Sepa - Single Euro Payments Area direct debit
-                    "iban": {"value": "DE89370400440532013000"},  # International bank account number (iban) for SEPA
-                    "bank_account_holder_name": {"value": "John Doe"}  # Owner name for bank debit
+                    "iban": "DE89370400440532013000",  # International bank account number (iban) for SEPA
+                    "bank_account_holder_name": "John Doe"  # Owner name for bank debit
                 }
             },
             "capture_method": "AUTOMATIC",  # Method for capturing the payment
@@ -278,11 +278,11 @@ async def process_recurring(merchant_transaction_id: str, config: sdk_config_pb2
             },
             "payment_method": {
                 "card": {  # Generic card payment
-                    "card_number": {"value": "4111111111111111"},  # Card Identification
-                    "card_exp_month": {"value": "03"},
-                    "card_exp_year": {"value": "2030"},
-                    "card_cvc": {"value": "737"},
-                    "card_holder_name": {"value": "John Doe"}  # Cardholder Information
+                    "card_number": "4111111111111111",  # Card Identification
+                    "card_exp_month": "03",
+                    "card_exp_year": "2030",
+                    "card_cvc": "737",
+                    "card_holder_name": "John Doe"  # Cardholder Information
                 }
             },
             "address": {  # Address Information
@@ -385,7 +385,7 @@ async def process_create_customer(merchant_transaction_id: str, config: sdk_conf
         {
             "merchant_customer_id": "cust_probe_123",  # Identification
             "customer_name": "John Doe",  # Name of the customer
-            "email": {"value": "test@example.com"},  # Email address of the customer
+            "email": "test@example.com",  # Email address of the customer
             "phone_number": "4155552671"  # Phone number of the customer
         },
         payment_pb2.CustomerServiceCreateRequest(),
@@ -410,11 +410,11 @@ async def process_tokenize(merchant_transaction_id: str, config: sdk_config_pb2.
             },
             "payment_method": {
                 "card": {  # Generic card payment
-                    "card_number": {"value": "4111111111111111"},  # Card Identification
-                    "card_exp_month": {"value": "03"},
-                    "card_exp_year": {"value": "2030"},
-                    "card_cvc": {"value": "737"},
-                    "card_holder_name": {"value": "John Doe"}  # Cardholder Information
+                    "card_number": "4111111111111111",  # Card Identification
+                    "card_exp_month": "03",
+                    "card_exp_year": "2030",
+                    "card_cvc": "737",
+                    "card_holder_name": "John Doe"  # Cardholder Information
                 }
             },
             "address": {  # Address Information
@@ -472,7 +472,7 @@ async def recurring_charge(merchant_transaction_id: str, config: sdk_config_pb2.
                 "currency": "USD"  # ISO 4217 currency code (e.g., "USD", "EUR")
             },
             "payment_method": {  # Optional payment Method Information (for network transaction flows)
-                "token": {"token": {"value": "probe_pm_token"}}  # Payment tokens
+                "token": "probe_pm_token"  # Payment tokens
             },
             "return_url": "https://example.com/recurring-return",
             "connector_customer_id": "cust_probe_123",
@@ -502,11 +502,11 @@ async def setup_recurring(merchant_transaction_id: str, config: sdk_config_pb2.C
             },
             "payment_method": {
                 "card": {  # Generic card payment
-                    "card_number": {"value": "4111111111111111"},  # Card Identification
-                    "card_exp_month": {"value": "03"},
-                    "card_exp_year": {"value": "2030"},
-                    "card_cvc": {"value": "737"},
-                    "card_holder_name": {"value": "John Doe"}  # Cardholder Information
+                    "card_number": "4111111111111111",  # Card Identification
+                    "card_exp_month": "03",
+                    "card_exp_year": "2030",
+                    "card_cvc": "737",
+                    "card_holder_name": "John Doe"  # Cardholder Information
                 }
             },
             "address": {  # Address Information

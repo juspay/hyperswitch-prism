@@ -27,11 +27,11 @@ function _buildAuthorizeRequest(captureMethod) {
         },
         "paymentMethod": {  // Payment method to be used
             "card": {  // Generic card payment
-                "cardNumber": {"value": "4111111111111111"},  // Card Identification
-                "cardExpMonth": {"value": "03"},
-                "cardExpYear": {"value": "2030"},
-                "cardCvc": {"value": "737"},
-                "cardHolderName": {"value": "John Doe"}  // Cardholder Information
+                "cardNumber": "4111111111111111",  // Card Identification
+                "cardExpMonth": "03",
+                "cardExpYear": "2030",
+                "cardCvc": "737",
+                "cardHolderName": "John Doe"  // Cardholder Information
             }
         },
         "captureMethod": captureMethod,  // Method for capturing the payment
@@ -180,16 +180,16 @@ async function processCheckoutBank(merchantTransactionId, config = _defaultConfi
         },
         "paymentMethod": {  // Payment method to be used
             "ach": {  // Ach - Automated Clearing House
-                "accountNumber": {"value": "000123456789"},  // Account number for ach bank debit payment
-                "routingNumber": {"value": "110000000"},  // Routing number for ach bank debit payment
-                "bankAccountHolderName": {"value": "John Doe"}  // Bank account holder name
+                "accountNumber": "000123456789",  // Account number for ach bank debit payment
+                "routingNumber": "110000000",  // Routing number for ach bank debit payment
+                "bankAccountHolderName": "John Doe"  // Bank account holder name
             }
         },
         "captureMethod": "AUTOMATIC",  // Method for capturing the payment
         "address": {  // Address Information
             "billingAddress": {
-                "firstName": {"value": "John"},  // Personal Information
-                "zipCode": {"value": "98101"}
+                "firstName": "John",  // Personal Information
+                "zipCode": "98101"
             }
         },
         "authType": "NO_THREE_DS",  // Authentication Details

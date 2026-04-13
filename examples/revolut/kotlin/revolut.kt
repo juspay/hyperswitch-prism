@@ -29,11 +29,11 @@ private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAutho
         }
         paymentMethodBuilder.apply {  // Payment method to be used
             cardBuilder.apply {  // Generic card payment
-                cardNumberBuilder.value = "4111111111111111"  // Card Identification
-                cardExpMonthBuilder.value = "03"
-                cardExpYearBuilder.value = "2030"
-                cardCvcBuilder.value = "737"
-                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information
+                cardNumber = "4111111111111111"  // Card Identification
+                cardExpMonth = "03"
+                cardExpYear = "2030"
+                cardCvc = "737"
+                cardHolderName = "John Doe"  // Cardholder Information
             }
         }
         captureMethod = CaptureMethod.valueOf(captureMethodStr)  // Method for capturing the payment
@@ -184,8 +184,8 @@ fun processCheckoutBank(txnId: String, config: ConnectorConfig = _defaultConfig)
         }
         paymentMethodBuilder.apply {  // Payment method to be used
             sepaBuilder.apply {  // Sepa - Single Euro Payments Area direct debit
-                ibanBuilder.value = "DE89370400440532013000"  // International bank account number (iban) for SEPA
-                bankAccountHolderNameBuilder.value = "John Doe"  // Owner name for bank debit
+                iban = "DE89370400440532013000"  // International bank account number (iban) for SEPA
+                bankAccountHolderName = "John Doe"  // Owner name for bank debit
             }
         }
         captureMethod = CaptureMethod.AUTOMATIC  // Method for capturing the payment

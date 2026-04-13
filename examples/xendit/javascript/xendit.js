@@ -27,20 +27,20 @@ function _buildAuthorizeRequest(captureMethod) {
         },
         "paymentMethod": {  // Payment method to be used
             "card": {  // Generic card payment
-                "cardNumber": {"value": "4111111111111111"},  // Card Identification
-                "cardExpMonth": {"value": "03"},
-                "cardExpYear": {"value": "2030"},
-                "cardCvc": {"value": "737"},
-                "cardHolderName": {"value": "John Doe"}  // Cardholder Information
+                "cardNumber": "4111111111111111",  // Card Identification
+                "cardExpMonth": "03",
+                "cardExpYear": "2030",
+                "cardCvc": "737",
+                "cardHolderName": "John Doe"  // Cardholder Information
             }
         },
         "captureMethod": captureMethod,  // Method for capturing the payment
         "customer": {  // Customer Information
-            "email": {"value": "test@example.com"}  // Customer's email address
+            "email": "test@example.com"  // Customer's email address
         },
         "address": {  // Address Information
             "billingAddress": {
-                "phoneNumber": {"value": "4155552671"},
+                "phoneNumber": "4155552671",
                 "phoneCountryCode": "+1"
             }
         },

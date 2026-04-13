@@ -1,0 +1,385 @@
+{
+  "connector": "worldpay",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through worldpay"
+      },
+      "Affirm": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through worldpay"
+      },
+      "Afterpay": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through worldpay"
+      },
+      "ApplePay": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "apple_pay": {
+              "payment_data": {
+                "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9"
+              },
+              "payment_method": {
+                "display_name": "Visa 1111",
+                "network": "Visa",
+                "type": "debit"
+              },
+              "transaction_identifier": "probe_txn_id"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://try.access.worldpay.com/api/payments",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "wp-api-version": "2024-06-01"
+          },
+          "body": "{\"transactionReference\":\"probe_txn_001\",\"merchant\":{\"entity\":\"probe_id\"},\"instruction\":{\"settlement\":{\"auto\":true},\"method\":\"applepay\",\"paymentInstrument\":{\"type\":\"encrypted\",\"walletToken\":\"{\\\"version\\\":\\\"EC_v1\\\",\\\"data\\\":\\\"probe\\\",\\\"signature\\\":\\\"probe\\\"}\"},\"narrative\":{\"line1\":\"Probe Merchant\"},\"value\":{\"amount\":1000,\"currency\":\"USD\"},\"tokenCreation\":null,\"customerAgreement\":null}}"
+        }
+      },
+      "ApplePayDecrypted": {
+        "status": "error",
+        "error": "Stuck on field: Apple pay encrypted data — Missing required field: Apple pay encrypted data"
+      },
+      "Bacs": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through worldpay"
+      },
+      "Becs": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through worldpay"
+      },
+      "Blik": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through worldpay"
+      },
+      "Card": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://try.access.worldpay.com/api/payments",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "wp-api-version": "2024-06-01"
+          },
+          "body": "{\"transactionReference\":\"probe_txn_001\",\"merchant\":{\"entity\":\"probe_id\"},\"instruction\":{\"settlement\":{\"auto\":true},\"method\":\"card\",\"paymentInstrument\":{\"type\":\"plain\",\"cardNumber\":\"4111111111111111\",\"expiryDate\":{\"month\":3,\"year\":2030},\"cvc\":\"737\"},\"narrative\":{\"line1\":\"Probe Merchant\"},\"value\":{\"amount\":1000,\"currency\":\"USD\"},\"tokenCreation\":null,\"customerAgreement\":null}}"
+        }
+      },
+      "GooglePay": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay": {
+              "type": "CARD",
+              "description": "Visa 1111",
+              "info": {
+                "card_network": "VISA",
+                "card_details": "1111"
+              },
+              "tokenization_data": {
+                "encrypted_data": {
+                  "token_type": "PAYMENT_GATEWAY",
+                  "token": "{\"id\":\"tok_probe_gpay\",\"object\":\"token\",\"type\":\"card\"}"
+                }
+              }
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://try.access.worldpay.com/api/payments",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "wp-api-version": "2024-06-01"
+          },
+          "body": "{\"transactionReference\":\"probe_txn_001\",\"merchant\":{\"entity\":\"probe_id\"},\"instruction\":{\"settlement\":{\"auto\":true},\"method\":\"googlepay\",\"paymentInstrument\":{\"type\":\"encrypted\",\"walletToken\":\"{\\\"id\\\":\\\"tok_probe_gpay\\\",\\\"object\\\":\\\"token\\\",\\\"type\\\":\\\"card\\\"}\"},\"narrative\":{\"line1\":\"Probe Merchant\"},\"value\":{\"amount\":1000,\"currency\":\"USD\"},\"tokenCreation\":null,\"customerAgreement\":null}}"
+        }
+      },
+      "GooglePayDecrypted": {
+        "status": "error",
+        "error": "Stuck on field: gpay wallet_token — Missing required field: gpay wallet_token"
+      },
+      "Ideal": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through worldpay"
+      },
+      "Klarna": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through worldpay"
+      },
+      "PaypalRedirect": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through worldpay"
+      },
+      "SamsungPay": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through worldpay"
+      },
+      "Sepa": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through worldpay"
+      },
+      "UpiCollect": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through worldpay"
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_capture_id": "probe_capture_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount_to_capture": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://try.access.worldpay.com/api/payments/probe_connector_txn_001/partialSettlements",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "wp-api-version": "2024-06-01"
+          },
+          "body": "{\"value\":{\"amount\":1000,\"currency\":\"USD\"},\"reference\":\"probe-capture-001\"}"
+        }
+      }
+    },
+    "create_access_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_customer": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_session_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_merchant_txn_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://try.access.worldpay.com/api/payments/probe_connector_txn_001",
+          "method": "Get",
+          "headers": {
+            "accept": "application/json",
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "wp-api-version": "2024-06-01"
+          },
+          "body": null
+        }
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "error",
+        "error": "Failed to deserialize connector response"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "error",
+        "error": "Failed to deserialize connector response"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "connector_recurring_payment_id": {
+            "mandate_id_type": {
+              "connector_mandate_id": "probe-mandate-123"
+            }
+          },
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "token": "probe_pm_token"
+          },
+          "return_url": "https://example.com/recurring-return",
+          "connector_customer_id": "cust_probe_123",
+          "payment_method_type": "PAY_PAL",
+          "off_session": true
+        },
+        "sample": {
+          "url": "https://try.access.worldpay.com/api/payments",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "wp-api-version": "2024-06-01"
+          },
+          "body": "{\"transactionReference\":\"\",\"merchant\":{\"entity\":\"probe_id\"},\"instruction\":{\"settlement\":{\"auto\":true},\"method\":\"card\",\"paymentInstrument\":{\"type\":\"token\",\"href\":\"probe-mandate-123\"},\"narrative\":{\"line1\":\"Probe Merchant\"},\"value\":{\"amount\":1000,\"currency\":\"USD\"},\"tokenCreation\":null,\"customerAgreement\":{\"type\":\"subscription\",\"storedCardUsage\":\"subsequent\"}}}"
+        }
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "payment_amount": 1000,
+          "refund_amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "reason": "customer_request"
+        },
+        "sample": {
+          "url": "https://try.access.worldpay.com/api/payments/probe_connector_txn_001/partialRefunds",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "wp-api-version": "2024-06-01"
+          },
+          "body": "{\"value\":{\"amount\":1000,\"currency\":\"USD\"},\"reference\":\"probe-refund-001\"}"
+        }
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "tokenize": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_void_id": "probe_void_001",
+          "connector_transaction_id": "probe_connector_txn_001"
+        },
+        "sample": {
+          "url": "https://try.access.worldpay.com/api/payments/probe_connector_txn_001/cancellations",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "wp-api-version": "2024-06-01"
+          },
+          "body": null
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,218 @@
+{
+  "connector": "payu",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "Affirm": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "Afterpay": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "ApplePay": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "Bacs": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "Becs": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "Blik": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "Card": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "GooglePay": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "Ideal": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "Klarna": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "PaypalRedirect": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "SamsungPay": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "Sepa": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "UpiCollect": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "upi_collect": {
+              "vpa_id": "test@upi"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "email": "test@example.com",
+              "phone_number": "4155552671",
+              "phone_country_code": "+1"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "browser_info": {
+            "ip_address": "1.2.3.4"
+          }
+        },
+        "sample": {
+          "url": "https://test.payu.in//_payment",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "key=probe_key&txnid=probe_txn_001&amount=10.00&currency=USD&productinfo=Payment&firstname=John&email=test%40example.com&phone=%2B14155552671&surl=https%3A%2F%2Fexample.com%2Freturn&furl=https%3A%2F%2Fexample.com%2Freturn&pg=UPI&bankcode=UPI&vpa=test%40upi&txn_s2s_flow=2&s2s_client_ip=1.2.3.4&s2s_device_info=web&api_version=2.0&hash=a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3&udf1=IRRELEVANT_PAYMENT_ID&udf2=DefaultMerchantId&upi_app_name=test%40upi"
+        }
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_access_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_customer": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_session_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_merchant_txn_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://test.payu.in//merchant/postservice.php?form=2",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "key=probe_key&command=verify_payment&var1=probe_connector_txn_001&hash=a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3"
+        }
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "tokenize": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "not_implemented"
+      }
+    }
+  }
+}

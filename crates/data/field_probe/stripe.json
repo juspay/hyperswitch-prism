@@ -1,0 +1,762 @@
+{
+  "connector": "stripe",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "ach": {
+              "account_number": "000123456789",
+              "routing_number": "110000000",
+              "bank_account_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.stripe.com/v1/payment_intents",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/x-www-form-urlencoded",
+            "stripe-version": "2022-11-15",
+            "via": "HyperSwitch"
+          },
+          "body": "amount=1000&currency=USD&metadata%5Border_id%5D=probe_txn_001&return_url=https%3A%2F%2Fexample.com%2Freturn&confirm=true&payment_method_data%5Btype%5D=us_bank_account&payment_method_data%5Bus_bank_account%5D%5Baccount_holder_type%5D=individual&payment_method_data%5Bus_bank_account%5D%5Baccount_number%5D=000123456789&payment_method_data%5Bus_bank_account%5D%5Brouting_number%5D=110000000&capture_method=automatic&payment_method_types%5B0%5D=us_bank_account&expand%5B0%5D=latest_charge"
+        }
+      },
+      "Affirm": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "affirm": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.stripe.com/v1/payment_intents",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/x-www-form-urlencoded",
+            "stripe-version": "2022-11-15",
+            "via": "HyperSwitch"
+          },
+          "body": "amount=1000&currency=USD&metadata%5Border_id%5D=probe_txn_001&return_url=https%3A%2F%2Fexample.com%2Freturn&confirm=true&payment_method_data%5Btype%5D=affirm&capture_method=automatic&payment_method_types%5B0%5D=affirm&expand%5B0%5D=latest_charge"
+        }
+      },
+      "Afterpay": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "afterpay_clearpay": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "shipping_address": {
+              "line1": "123 Main St",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            },
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.stripe.com/v1/payment_intents",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/x-www-form-urlencoded",
+            "stripe-version": "2022-11-15",
+            "via": "HyperSwitch"
+          },
+          "body": "amount=1000&currency=USD&metadata%5Border_id%5D=probe_txn_001&return_url=https%3A%2F%2Fexample.com%2Freturn&confirm=true&shipping%5Baddress%5D%5Bcountry%5D=US&shipping%5Baddress%5D%5Bline1%5D=123+Main+St&shipping%5Baddress%5D%5Bpostal_code%5D=98101&payment_method_data%5Btype%5D=afterpay_clearpay&capture_method=automatic&payment_method_types%5B0%5D=afterpay_clearpay&expand%5B0%5D=latest_charge"
+        }
+      },
+      "ApplePay": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "apple_pay": {
+              "payment_data": {
+                "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9"
+              },
+              "payment_method": {
+                "display_name": "Visa 1111",
+                "network": "Visa",
+                "type": "debit"
+              },
+              "transaction_identifier": "probe_txn_id"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.stripe.com/v1/payment_intents",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/x-www-form-urlencoded",
+            "stripe-version": "2022-11-15",
+            "via": "HyperSwitch"
+          },
+          "body": "amount=1000&currency=USD&metadata%5Border_id%5D=probe_txn_001&return_url=https%3A%2F%2Fexample.com%2Freturn&confirm=true&payment_method_data%5Bcard%5D%5Btoken%5D=probe_pm_token&payment_method_data%5Btype%5D=card&capture_method=automatic&expand%5B0%5D=latest_charge"
+        }
+      },
+      "ApplePayDecrypted": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "apple_pay": {
+              "payment_data": {
+                "decrypted_data": {
+                  "application_primary_account_number": "4111111111111111",
+                  "application_expiration_month": "03",
+                  "application_expiration_year": "2030",
+                  "payment_data": {
+                    "online_payment_cryptogram": "AAAAAA==",
+                    "eci_indicator": "05"
+                  }
+                }
+              },
+              "payment_method": {
+                "display_name": "Visa 1111",
+                "network": "Visa",
+                "type": "debit"
+              },
+              "transaction_identifier": "probe_txn_id"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "payment_method_token": "probe_pm_token"
+        },
+        "sample": {
+          "url": "https://api.stripe.com/v1/payment_intents",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/x-www-form-urlencoded",
+            "stripe-version": "2022-11-15",
+            "via": "HyperSwitch"
+          },
+          "body": "amount=1000&currency=USD&metadata%5Border_id%5D=probe_txn_001&return_url=https%3A%2F%2Fexample.com%2Freturn&confirm=true&payment_method_data%5Bcard%5D%5Btoken%5D=probe_pm_token&payment_method_data%5Btype%5D=card&capture_method=automatic&expand%5B0%5D=latest_charge"
+        }
+      },
+      "Bacs": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "bacs": {
+              "account_number": "55779911",
+              "sort_code": "200000",
+              "bank_account_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.stripe.com/v1/payment_intents",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/x-www-form-urlencoded",
+            "stripe-version": "2022-11-15",
+            "via": "HyperSwitch"
+          },
+          "body": "amount=1000&currency=USD&metadata%5Border_id%5D=probe_txn_001&return_url=https%3A%2F%2Fexample.com%2Freturn&confirm=true&payment_method_data%5Btype%5D=bacs_debit&payment_method_data%5Bbacs_debit%5D%5Baccount_number%5D=55779911&payment_method_data%5Bbacs_debit%5D%5Bsort_code%5D=200000&capture_method=automatic&payment_method_types%5B0%5D=bacs_debit&expand%5B0%5D=latest_charge"
+        }
+      },
+      "Becs": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "becs": {
+              "account_number": "000123456",
+              "bsb_number": "000000",
+              "bank_account_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.stripe.com/v1/payment_intents",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/x-www-form-urlencoded",
+            "stripe-version": "2022-11-15",
+            "via": "HyperSwitch"
+          },
+          "body": "amount=1000&currency=USD&metadata%5Border_id%5D=probe_txn_001&return_url=https%3A%2F%2Fexample.com%2Freturn&confirm=true&payment_method_data%5Btype%5D=au_becs_debit&payment_method_data%5Bau_becs_debit%5D%5Baccount_number%5D=000123456&payment_method_data%5Bau_becs_debit%5D%5Bbsb_number%5D=000000&capture_method=automatic&payment_method_types%5B0%5D=au_becs_debit&expand%5B0%5D=latest_charge"
+        }
+      },
+      "Blik": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "blik": {
+              "blik_code": "777124"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.stripe.com/v1/payment_intents",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/x-www-form-urlencoded",
+            "stripe-version": "2022-11-15",
+            "via": "HyperSwitch"
+          },
+          "body": "amount=1000&currency=USD&metadata%5Border_id%5D=probe_txn_001&return_url=https%3A%2F%2Fexample.com%2Freturn&confirm=true&payment_method_data%5Btype%5D=blik&payment_method_options%5Bblik%5D%5Bcode%5D=777124&capture_method=automatic&payment_method_types%5B0%5D=blik&expand%5B0%5D=latest_charge"
+        }
+      },
+      "Card": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.stripe.com/v1/payment_intents",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/x-www-form-urlencoded",
+            "stripe-version": "2022-11-15",
+            "via": "HyperSwitch"
+          },
+          "body": "amount=1000&currency=USD&metadata%5Border_id%5D=probe_txn_001&return_url=https%3A%2F%2Fexample.com%2Freturn&confirm=true&payment_method_data%5Btype%5D=card&payment_method_data%5Bcard%5D%5Bnumber%5D=4111111111111111&payment_method_data%5Bcard%5D%5Bexp_month%5D=03&payment_method_data%5Bcard%5D%5Bexp_year%5D=2030&payment_method_data%5Bcard%5D%5Bcvc%5D=737&payment_method_options%5Bcard%5D%5Brequest_three_d_secure%5D=automatic&capture_method=automatic&payment_method_types%5B0%5D=card&expand%5B0%5D=latest_charge"
+        }
+      },
+      "GooglePay": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay": {
+              "type": "CARD",
+              "description": "Visa 1111",
+              "info": {
+                "card_network": "VISA",
+                "card_details": "1111"
+              },
+              "tokenization_data": {
+                "encrypted_data": {
+                  "token_type": "PAYMENT_GATEWAY",
+                  "token": "{\"id\":\"tok_probe_gpay\",\"object\":\"token\",\"type\":\"card\"}"
+                }
+              }
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.stripe.com/v1/payment_intents",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/x-www-form-urlencoded",
+            "stripe-version": "2022-11-15",
+            "via": "HyperSwitch"
+          },
+          "body": "amount=1000&currency=USD&metadata%5Border_id%5D=probe_txn_001&return_url=https%3A%2F%2Fexample.com%2Freturn&confirm=true&payment_method_data%5Btype%5D=card&payment_method_data%5Bcard%5D%5Btoken%5D=tok_probe_gpay&capture_method=automatic&payment_method_types%5B0%5D=card&expand%5B0%5D=latest_charge"
+        }
+      },
+      "GooglePayDecrypted": {
+        "status": "error",
+        "error": "Stuck on field: gpay wallet_token — Missing required field: gpay wallet_token"
+      },
+      "Ideal": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "ideal": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.stripe.com/v1/payment_intents",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/x-www-form-urlencoded",
+            "stripe-version": "2022-11-15",
+            "via": "HyperSwitch"
+          },
+          "body": "amount=1000&currency=USD&metadata%5Border_id%5D=probe_txn_001&return_url=https%3A%2F%2Fexample.com%2Freturn&confirm=true&payment_method_data%5Btype%5D=ideal&capture_method=automatic&payment_method_types%5B0%5D=ideal&expand%5B0%5D=latest_charge"
+        }
+      },
+      "Klarna": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "klarna": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.stripe.com/v1/payment_intents",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/x-www-form-urlencoded",
+            "stripe-version": "2022-11-15",
+            "via": "HyperSwitch"
+          },
+          "body": "amount=1000&currency=USD&metadata%5Border_id%5D=probe_txn_001&return_url=https%3A%2F%2Fexample.com%2Freturn&confirm=true&payment_method_data%5Btype%5D=klarna&capture_method=automatic&payment_method_types%5B0%5D=klarna&expand%5B0%5D=latest_charge"
+        }
+      },
+      "PaypalRedirect": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through stripe"
+      },
+      "SamsungPay": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through stripe"
+      },
+      "Sepa": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "sepa": {
+              "iban": "DE89370400440532013000",
+              "bank_account_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.stripe.com/v1/payment_intents",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/x-www-form-urlencoded",
+            "stripe-version": "2022-11-15",
+            "via": "HyperSwitch"
+          },
+          "body": "amount=1000&currency=USD&metadata%5Border_id%5D=probe_txn_001&return_url=https%3A%2F%2Fexample.com%2Freturn&confirm=true&payment_method_data%5Btype%5D=sepa_debit&payment_method_data%5Bsepa_debit%5D%5Biban%5D=DE89370400440532013000&capture_method=automatic&payment_method_types%5B0%5D=sepa_debit&expand%5B0%5D=latest_charge"
+        }
+      },
+      "UpiCollect": {
+        "status": "not_implemented",
+        "error": "This step has not been implemented for: Selected payment method through stripe"
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_capture_id": "probe_capture_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount_to_capture": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://api.stripe.com/v1/payment_intents/probe_connector_txn_001/capture",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/x-www-form-urlencoded",
+            "stripe-version": "2022-11-15",
+            "via": "HyperSwitch"
+          },
+          "body": "amount_to_capture=1000"
+        }
+      }
+    },
+    "create_access_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_customer": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_customer_id": "cust_probe_123",
+          "customer_name": "John Doe",
+          "email": "test@example.com",
+          "phone_number": "4155552671"
+        },
+        "sample": {
+          "url": "https://api.stripe.com/v1/customers",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/x-www-form-urlencoded",
+            "stripe-version": "2022-11-15",
+            "via": "HyperSwitch"
+          },
+          "body": "email=test%40example.com&name=John+Doe"
+        }
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_session_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_merchant_txn_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://api.stripe.com/v1/payment_intents/probe_connector_txn_001?expand[0]=latest_charge",
+          "method": "Get",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/x-www-form-urlencoded",
+            "stripe-version": "2022-11-15",
+            "via": "HyperSwitch"
+          },
+          "body": null
+        }
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "connector_recurring_payment_id": {
+            "mandate_id_type": {
+              "connector_mandate_id": "probe-mandate-123"
+            }
+          },
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "token": "probe_pm_token"
+          },
+          "return_url": "https://example.com/recurring-return",
+          "connector_customer_id": "cust_probe_123",
+          "payment_method_type": "PAY_PAL",
+          "off_session": true
+        },
+        "sample": {
+          "url": "https://api.stripe.com/v1/payment_intents",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/x-www-form-urlencoded",
+            "stripe-version": "2022-11-15",
+            "via": "HyperSwitch"
+          },
+          "body": "amount=1000&currency=USD&metadata%5Border_id%5D=&return_url=https%3A%2F%2Fexample.com%2Frecurring-return&confirm=true&payment_method=probe-mandate-123&customer=cust_probe_123&capture_method=automatic&off_session=true&payment_method_types%5B0%5D=card&expand%5B0%5D=latest_charge"
+        }
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "payment_amount": 1000,
+          "refund_amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "reason": "customer_request"
+        },
+        "sample": {
+          "url": "https://api.stripe.com/v1/refunds",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/x-www-form-urlencoded",
+            "stripe-version": "2022-11-15",
+            "via": "HyperSwitch"
+          },
+          "body": "amount=1000&payment_intent=probe_connector_txn_001&metadata%5Border_id%5D=probe_refund_001&metadata%5Bis_refund_id_as_reference%5D=true"
+        }
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/mandate-return",
+          "setup_future_usage": "OFF_SESSION",
+          "request_incremental_authorization": false,
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          }
+        },
+        "sample": {
+          "url": "https://api.stripe.com/v1/setup_intents",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/x-www-form-urlencoded",
+            "stripe-version": "2022-11-15",
+            "via": "HyperSwitch"
+          },
+          "body": "confirm=true&usage=off_session&return_url=https%3A%2F%2Fexample.com%2Fmandate-return&payment_method_data%5Btype%5D=card&payment_method_data%5Bcard%5D%5Bnumber%5D=4111111111111111&payment_method_data%5Bcard%5D%5Bexp_month%5D=03&payment_method_data%5Bcard%5D%5Bexp_year%5D=2030&payment_method_data%5Bcard%5D%5Bcvc%5D=737&payment_method_options%5Bcard%5D%5Brequest_three_d_secure%5D=automatic&metadata%5Border_id%5D=probe_mandate_001&payment_method_types%5B0%5D=card&expand%5B0%5D=latest_attempt"
+        }
+      }
+    },
+    "tokenize": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          }
+        },
+        "sample": {
+          "url": "https://api.stripe.com/v1/tokens",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/x-www-form-urlencoded",
+            "stripe-version": "2022-11-15",
+            "via": "HyperSwitch"
+          },
+          "body": "type=card&card%5Bnumber%5D=4111111111111111&card%5Bexp_month%5D=03&card%5Bexp_year%5D=2030&card%5Bcvc%5D=737"
+        }
+      }
+    },
+    "void": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_void_id": "probe_void_001",
+          "connector_transaction_id": "probe_connector_txn_001"
+        },
+        "sample": {
+          "url": "https://api.stripe.com/v1/payment_intents/probe_connector_txn_001/cancel",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/x-www-form-urlencoded",
+            "stripe-version": "2022-11-15",
+            "via": "HyperSwitch"
+          },
+          "body": ""
+        }
+      }
+    }
+  }
+}

@@ -27,11 +27,11 @@ function _buildAuthorizeRequest(captureMethod) {
         },
         "paymentMethod": {  // Payment method to be used
             "card": {  // Generic card payment
-                "cardNumber": {"value": "4111111111111111"},  // Card Identification
-                "cardExpMonth": {"value": "03"},
-                "cardExpYear": {"value": "2030"},
-                "cardCvc": {"value": "737"},
-                "cardHolderName": {"value": "John Doe"}  // Cardholder Information
+                "cardNumber": "4111111111111111",  // Card Identification
+                "cardExpMonth": "03",
+                "cardExpYear": "2030",
+                "cardCvc": "737",
+                "cardHolderName": "John Doe"  // Cardholder Information
             }
         },
         "captureMethod": captureMethod,  // Method for capturing the payment
@@ -41,7 +41,7 @@ function _buildAuthorizeRequest(captureMethod) {
         },
         "authType": "NO_THREE_DS",  // Authentication Details
         "returnUrl": "https://example.com/return",  // URLs for Redirection and Webhooks
-        "paymentMethodToken": {"value": "probe_pm_token"}  // Payment Method Token
+        "paymentMethodToken": "probe_pm_token"  // Payment Method Token
     };
 }
 
@@ -176,11 +176,11 @@ async function processTokenize(merchantTransactionId, config = _defaultConfig) {
         },
         "paymentMethod": {
             "card": {  // Generic card payment
-                "cardNumber": {"value": "4111111111111111"},  // Card Identification
-                "cardExpMonth": {"value": "03"},
-                "cardExpYear": {"value": "2030"},
-                "cardCvc": {"value": "737"},
-                "cardHolderName": {"value": "John Doe"}  // Cardholder Information
+                "cardNumber": "4111111111111111",  // Card Identification
+                "cardExpMonth": "03",
+                "cardExpYear": "2030",
+                "cardCvc": "737",
+                "cardHolderName": "John Doe"  // Cardholder Information
             }
         },
         "address": {  // Address Information

@@ -32,11 +32,11 @@ def _build_authorize_request(capture_method: str):
             },
             "payment_method": {  # Payment method to be used
                 "card": {  # Generic card payment
-                    "card_number": {"value": "4111111111111111"},  # Card Identification
-                    "card_exp_month": {"value": "03"},
-                    "card_exp_year": {"value": "2030"},
-                    "card_cvc": {"value": "737"},
-                    "card_holder_name": {"value": "John Doe"}  # Cardholder Information
+                    "card_number": "4111111111111111",  # Card Identification
+                    "card_exp_month": "03",
+                    "card_exp_year": "2030",
+                    "card_cvc": "737",
+                    "card_holder_name": "John Doe"  # Cardholder Information
                 }
             },
             "capture_method": capture_method,  # Method for capturing the payment
@@ -187,8 +187,8 @@ async def process_checkout_bank(merchant_transaction_id: str, config: sdk_config
             },
             "payment_method": {  # Payment method to be used
                 "sepa": {  # Sepa - Single Euro Payments Area direct debit
-                    "iban": {"value": "DE89370400440532013000"},  # International bank account number (iban) for SEPA
-                    "bank_account_holder_name": {"value": "John Doe"}  # Owner name for bank debit
+                    "iban": "DE89370400440532013000",  # International bank account number (iban) for SEPA
+                    "bank_account_holder_name": "John Doe"  # Owner name for bank debit
                 }
             },
             "capture_method": "AUTOMATIC",  # Method for capturing the payment
