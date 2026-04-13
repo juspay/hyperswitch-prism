@@ -1,0 +1,82 @@
+name: "prism-route-connectors"
+version: "1.0.0"
+description: "Implement intelligent routing to switch between payment providers dynamically"
+author: "Hyperswitch Prism Team"
+tags:
+  - payments
+  - sdk
+  - routing
+  - multi-provider
+
+parameters:
+  - name: language
+    type: string
+    required: true
+    description: "Programming language"
+    enum:
+      - python
+      - node
+      - java
+      - php
+      - rust
+  
+  - name: primary_connector
+    type: string
+    required: true
+    description: "Primary payment provider"
+  
+  - name: fallback_connector
+    type: string
+    required: false
+    description: "Fallback provider for retries"
+  
+  - name: routing_criteria
+    type: string
+    required: true
+    description: "Criteria for routing decisions"
+    enum:
+      - currency
+      - region
+      - amount_threshold
+      - random
+
+prompt: |
+  Create a dynamic routing implementation in {{language}} using Hyperswitch Prism.
+
+  Routing Logic:
+  - Primary: {{primary_connector}}
+  {{#if fallback_connector}}
+  - Fallback: {{fallback_connector}}
+  {{/if}}
+  - Criteria: {{routing_criteria}}
+
+  Requirements:
+  1. Define configuration objects for both connectors
+  2. Create a routing function that selects connector based on {{routing_criteria}}:
+     {{#if (eq routing_criteria "currency")}}
+     - Currency-based routing (USD → Stripe, EUR → Adyen)
+     {{/if}}
+     {{#if (eq routing_criteria "region")}}
+     - Region-based routing (EU → Adyen, US → Stripe)
+     {{/if}}
+     {{#if (eq routing_criteria "amount_threshold")}}
+     - Amount-based routing (high value → specific processor)
+     {{/if}}
+     {{#if (eq routing_criteria "random")}}
+     - Random/load balancing between providers
+     {{/if}}
+  3. Implement fallback logic:
+     - Try primary connector
+     - On specific failures, retry with fallback
+     - Track which connector succeeded
+  4. Show how to switch connectors in ONE line of code
+
+  Output: Complete routing implementation with example criteria.
+
+examples:
+  - parameters:
+      language: "node"
+      primary_connector: "stripe"
+      fallback_connector: "adyen"
+      routing_criteria: "currency"
+    description: "Route USD to Stripe, fallback to Adyen on failure"

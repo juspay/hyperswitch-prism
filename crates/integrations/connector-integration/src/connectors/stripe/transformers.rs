@@ -922,6 +922,12 @@ impl TryFrom<common_enums::PaymentMethodType> for StripePaymentMethodType {
             | common_enums::PaymentMethodType::Mifinity
             | common_enums::PaymentMethodType::Satispay
             | common_enums::PaymentMethodType::Wero
+            | common_enums::PaymentMethodType::LazyPay
+            | common_enums::PaymentMethodType::PhonePe
+            | common_enums::PaymentMethodType::BillDesk
+            | common_enums::PaymentMethodType::Cashfree
+            | common_enums::PaymentMethodType::PayU
+            | common_enums::PaymentMethodType::EaseBuzz
             | common_enums::PaymentMethodType::Netbanking => {
                 Err(IntegrationError::not_implemented(
                     get_unimplemented_payment_method_error_message("stripe"),
@@ -1214,7 +1220,13 @@ fn get_stripe_payment_method_type_from_wallet_data(
         | WalletData::Mifinity(_)
         | WalletData::MbWay(_)
         | WalletData::Satispay(_)
-        | WalletData::Wero(_) => Err(IntegrationError::not_implemented(
+        | WalletData::Wero(_)
+        | WalletData::LazyPayRedirect(_)
+        | WalletData::PhonePeRedirect(_)
+        | WalletData::BillDeskRedirect(_)
+        | WalletData::CashfreeRedirect(_)
+        | WalletData::PayURedirect(_)
+        | WalletData::EaseBuzzRedirect(_) => Err(IntegrationError::not_implemented(
             get_unimplemented_payment_method_error_message("stripe"),
         )),
     }
@@ -1680,7 +1692,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> TryF
             | WalletData::Mifinity(_)
             | WalletData::MbWay(_)
             | WalletData::Satispay(_)
-            | WalletData::Wero(_) => Err(IntegrationError::not_implemented(
+            | WalletData::Wero(_)
+            | WalletData::LazyPayRedirect(_)
+            | WalletData::PhonePeRedirect(_)
+            | WalletData::BillDeskRedirect(_)
+            | WalletData::CashfreeRedirect(_)
+            | WalletData::PayURedirect(_)
+            | WalletData::EaseBuzzRedirect(_) => Err(IntegrationError::not_implemented(
                 get_unimplemented_payment_method_error_message("stripe"),
             )
             .into()),
