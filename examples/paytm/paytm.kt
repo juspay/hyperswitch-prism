@@ -10,6 +10,7 @@ package examples.paytm
 import payments.PaymentClient
 import payments.MerchantAuthenticationClient
 import payments.PaymentServiceAuthorizeRequest
+import payments.PaymentServiceCreateOrderRequest
 import payments.MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest
 import payments.PaymentServiceGetRequest
 import payments.AuthenticationType
@@ -72,6 +73,20 @@ fun authorize(txnId: String) {
     }
 }
 
+// Flow: PaymentService.CreateOrder
+fun createOrder(txnId: String) {
+    val client = PaymentClient(_defaultConfig)
+    val request = PaymentServiceCreateOrderRequest.newBuilder().apply {
+        merchantOrderId = "probe_order_001"  // Identification.
+        amountBuilder.apply {  // Amount Information.
+            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
+            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+    }.build()
+    val response = client.create_order(request)
+    println("Order: ${response.connectorOrderId}")
+}
+
 // Flow: MerchantAuthenticationService.CreateServerSessionAuthenticationToken
 fun createServerSessionAuthenticationToken(txnId: String) {
     val client = MerchantAuthenticationClient(_defaultConfig)
@@ -101,8 +116,9 @@ fun main(args: Array<String>) {
     val flow = args.firstOrNull() ?: "authorize"
     when (flow) {
         "authorize" -> authorize(txnId)
+        "createOrder" -> createOrder(txnId)
         "createServerSessionAuthenticationToken" -> createServerSessionAuthenticationToken(txnId)
         "get" -> get(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: authorize, createServerSessionAuthenticationToken, get")
+        else -> System.err.println("Unknown flow: $flow. Available: authorize, createOrder, createServerSessionAuthenticationToken, get")
     }
 }

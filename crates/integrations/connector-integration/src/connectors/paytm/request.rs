@@ -3,6 +3,19 @@ use common_utils::{types::StringMajorUnit, CustomerId, Email};
 use hyperswitch_masking::Secret;
 use serde::Serialize;
 
+// ================================
+// CreateOrder flow request structures
+// ================================
+
+/// CreateOrder request - uses the same Paytm Initiate Transaction API
+/// This creates an order and returns a txnToken for subsequent payment flows
+#[derive(Debug, Serialize)]
+pub struct PaytmCreateOrderRequest {
+    pub head: PaytmRequestHeader,
+    pub body: PaytmInitiateReqBody,
+}
+
+// ================================
 // Request structures for ServerSessionAuthenticationToken flow (Paytm initiate)
 
 #[derive(Debug, Serialize)]

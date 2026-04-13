@@ -44,8 +44,14 @@ use serde::Serialize;
 use transformers as paytm;
 
 use self::{
-    request::{PaytmAuthorizeRequest, PaytmInitiateTxnRequest, PaytmTransactionStatusRequest},
-    response::{PaytmInitiateTxnResponse, PaytmProcessTxnResponse, PaytmTransactionStatusResponse},
+    request::{
+        PaytmAuthorizeRequest, PaytmCreateOrderRequest, PaytmInitiateTxnRequest,
+        PaytmTransactionStatusRequest,
+    },
+    response::{
+        PaytmCreateOrderResponse, PaytmInitiateTxnResponse, PaytmProcessTxnResponse,
+        PaytmTransactionStatusResponse,
+    },
 };
 use crate::{connectors::macros, types::ResponseRouterData};
 use domain_types::errors::ConnectorError;
@@ -56,6 +62,12 @@ macros::create_all_prerequisites!(
     connector_name: Paytm,
     generic_type: T,
     api: [
+        (
+            flow: CreateOrder,
+            request_body: PaytmCreateOrderRequest,
+            response_body: PaytmCreateOrderResponse,
+            router_data: RouterDataV2<CreateOrder, PaymentFlowData, PaymentCreateOrderData, PaymentCreateOrderResponse>,
+        ),
         (
             flow: ServerSessionAuthenticationToken,
             request_body: PaytmInitiateTxnRequest,
@@ -218,7 +230,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 
     fn should_do_order_create(&self) -> bool {
-        false // Paytm doesn't require separate order creation
+        true // Enable CreateOrder -> Authorize two-step flow
     }
 }
 
@@ -598,15 +610,51 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     for Paytm<T>
 {
 }
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        CreateOrder,
-        PaymentFlowData,
-        PaymentCreateOrderData,
-        PaymentCreateOrderResponse,
-    > for Paytm<T>
-{
-}
+// CreateOrder flow implementation using macros
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Paytm,
+    curl_request: Json(PaytmCreateOrderRequest),
+    curl_response: PaytmCreateOrderResponse,
+    flow_name: CreateOrder,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentCreateOrderData,
+    flow_response: PaymentCreateOrderResponse,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<CreateOrder, PaymentFlowData, PaymentCreateOrderData, PaymentCreateOrderResponse>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            let headers = self.get_auth_header(&req.connector_config)?;
+            Ok(headers)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<CreateOrder, PaymentFlowData, PaymentCreateOrderData, PaymentCreateOrderResponse>,
+        ) -> CustomResult<String, IntegrationError> {
+            let base_url = self.connector_base_url(req);
+            let auth = paytm::PaytmAuthType::try_from(&req.connector_config)?;
+            let merchant_id = auth.merchant_id.peek();
+            let order_id = &req.resource_common_data.connector_request_reference_id;
+
+            Ok(format!(
+                "{base_url}theia/api/v1/initiateTransaction?mid={merchant_id}&orderId={order_id}"
+            ))
+        }
+
+        fn get_5xx_error_response(
+            &self,
+            res: Response,
+            event_builder: Option<&mut events::Event>,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            self.build_custom_error_response(res, event_builder)
+        }
+    }
+);
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
         RepeatPayment,

@@ -42,6 +42,16 @@ function _buildAuthorizeRequest(captureMethod: CaptureMethod): PaymentServiceAut
     };
 }
 
+function _buildCreateOrderRequest(): PaymentServiceCreateOrderRequest {
+    return {
+        "merchantOrderId": "probe_order_001",  // Identification.
+        "amount": {  // Amount Information.
+            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+    };
+}
+
 function _buildCreateServerSessionAuthenticationTokenRequest(): MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest {
     return {
         "domainContext": {
@@ -73,6 +83,15 @@ async function authorize(merchantTransactionId: string, config: ConnectorConfig 
     return { status: authorizeResponse.status, transactionId: authorizeResponse.connectorTransactionId };
 }
 
+// Flow: PaymentService.CreateOrder
+async function createOrder(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<PaymentServiceCreateOrderResponse> {
+    const paymentClient = new PaymentClient(config);
+
+    const createResponse = await paymentClient.createOrder(_buildCreateOrderRequest());
+
+    return { status: createResponse.status };
+}
+
 // Flow: MerchantAuthenticationService.CreateServerSessionAuthenticationToken
 async function createServerSessionAuthenticationToken(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse> {
     const merchantAuthenticationClient = new MerchantAuthenticationClient(config);
@@ -94,7 +113,7 @@ async function get(merchantTransactionId: string, config: ConnectorConfig = _def
 
 // Export all process* functions for the smoke test
 export {
-    authorize, createServerSessionAuthenticationToken, get, _buildAuthorizeRequest, _buildCreateServerSessionAuthenticationTokenRequest, _buildGetRequest
+    authorize, createOrder, createServerSessionAuthenticationToken, get, _buildAuthorizeRequest, _buildCreateOrderRequest, _buildCreateServerSessionAuthenticationTokenRequest, _buildGetRequest
 };
 
 // CLI runner
