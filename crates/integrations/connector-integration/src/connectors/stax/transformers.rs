@@ -1095,23 +1095,21 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .get_card_no();
 
                     // Convert PAN string into the generic RawCardNumber<T> type
-                    let inner: T::Inner = serde_json::from_value(serde_json::Value::String(
-                        card_number_string,
-                    ))
-                    .map_err(|e| {
-                        error_stack::report!(IntegrationError::InvalidDataFormat {
-                            field_name: "apple_pay.application_primary_account_number",
-                            context: Default::default(),
-                        })
-                        .attach_printable(format!(
-                            "Failed to convert Apple Pay PAN to card number type: {e}"
-                        ))
-                    })?;
+                    let inner: T::Inner =
+                        serde_json::from_value(serde_json::Value::String(card_number_string))
+                            .map_err(|e| {
+                                error_stack::report!(IntegrationError::InvalidDataFormat {
+                                    field_name: "apple_pay.application_primary_account_number",
+                                    context: Default::default(),
+                                })
+                                .attach_printable(format!(
+                                    "Failed to convert Apple Pay PAN to card number type: {e}"
+                                ))
+                            })?;
                     let card_number: RawCardNumber<T> = RawCardNumber(inner);
 
                     // Stax requires expiry as MMYY (no delimiter)
-                    let exp_month_raw =
-                        apple_pay_decrypted_data.get_expiry_month().expose();
+                    let exp_month_raw = apple_pay_decrypted_data.get_expiry_month().expose();
                     let exp_month_padded = format!("{exp_month_raw:0>2}");
                     let exp_year_4d = apple_pay_decrypted_data
                         .get_four_digit_expiry_year()
@@ -1147,7 +1145,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         }
                     } else {
                         return Err(IntegrationError::MissingRequiredField {
-                            field_name: "billing address (required by Stax for Apple Pay tokenization)",
+                            field_name:
+                                "billing address (required by Stax for Apple Pay tokenization)",
                             context: Default::default(),
                         })?;
                     };
@@ -1184,7 +1183,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(IntegrationError::not_implemented(
-                    "Only card, ACH bank debit, and Apple Pay tokenization are supported for Stax".to_string(),
+                    "Only card, ACH bank debit, and Apple Pay tokenization are supported for Stax"
+                        .to_string(),
                 ))?
             }
         }
