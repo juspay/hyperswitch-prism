@@ -9,87 +9,133 @@
     "authorize": {
       "Ach": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "AchBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "Affirm": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "Afterpay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "Alfamart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "AliPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only Apple Pay (with decrypted token) wallet payments are supported for Fiserv EMEA"
       },
       "AmazonPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only Apple Pay (with decrypted token) wallet payments are supported for Fiserv EMEA"
       },
       "ApplePay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: apple_pay_decrypted_data — Missing required field: apple_pay_decrypted_data"
       },
       "ApplePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "apple_pay": {
+              "payment_data": {
+                "decrypted_data": {
+                  "application_primary_account_number": "4111111111111111",
+                  "application_expiration_month": "03",
+                  "application_expiration_year": "2030",
+                  "payment_data": {
+                    "online_payment_cryptogram": "AAAAAA==",
+                    "eci_indicator": "05"
+                  }
+                }
+              },
+              "payment_method": {
+                "display_name": "Visa 1111",
+                "network": "Visa",
+                "type": "debit"
+              },
+              "transaction_identifier": "probe_txn_id"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://prod.emea.api.fiservapps.com/sandbox/ipp/payments-gateway/v2/payments",
+          "method": "Post",
+          "headers": {
+            "api-key": "probe_key",
+            "client-request-id": "00000000-0000-0000-0000-000000000000",
+            "content-type": "application/json",
+            "message-signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "timestamp": "0000000000",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"requestType\":\"PaymentCardSaleTransaction\",\"merchantTransactionId\":\"probe_txn_001\",\"transactionAmount\":{\"total\":\"10.00\",\"currency\":\"USD\"},\"order\":{\"orderId\":\"probe_txn_001\"},\"paymentMethod\":{\"paymentCard\":{\"number\":\"4111111111111111\",\"expiryDate\":{\"month\":\"03\",\"year\":\"30\"},\"securityCode\":null}}}"
+        }
       },
       "ApplePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only Apple Pay (with decrypted token) wallet payments are supported for Fiserv EMEA"
       },
       "Bacs": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "BacsBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "BancontactCard": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "BcaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "Becs": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "Bizum": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "Blik": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "Bluecode": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only Apple Pay (with decrypted token) wallet payments are supported for Fiserv EMEA"
       },
       "BniVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "Boleto": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "BriVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "Card": {
         "status": "supported",
@@ -131,15 +177,15 @@
       },
       "CashappQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only Apple Pay (with decrypted token) wallet payments are supported for Fiserv EMEA"
       },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "ClassicReward": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "Crypto": {
         "status": "not_supported",
@@ -147,7 +193,7 @@
       },
       "DanamonVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "DuitNow": {
         "status": "not_supported",
@@ -155,27 +201,27 @@
       },
       "EVoucher": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "Efecty": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "Eft": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "Eps": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "FamilyMart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "Giropay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "Givex": {
         "status": "not_supported",
@@ -183,107 +229,107 @@
       },
       "GooglePay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only Apple Pay (with decrypted token) wallet payments are supported for Fiserv EMEA"
       },
       "GooglePayDecrypted": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only Apple Pay (with decrypted token) wallet payments are supported for Fiserv EMEA"
       },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only Apple Pay (with decrypted token) wallet payments are supported for Fiserv EMEA"
       },
       "Ideal": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "Indomaret": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "IndonesianBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "InstantBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "InstantBankTransferFinland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "InstantBankTransferPoland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "Interac": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "Klarna": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "Lawson": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "LocalBankRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "LocalBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "MandiriVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "MbWay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only Apple Pay (with decrypted token) wallet payments are supported for Fiserv EMEA"
       },
       "Mifinity": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only Apple Pay (with decrypted token) wallet payments are supported for Fiserv EMEA"
       },
       "MiniStop": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "MultibancoBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "OnlineBankingCzechRepublic": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "OnlineBankingFinland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "OnlineBankingFpx": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "OnlineBankingPoland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "OnlineBankingSlovakia": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "OnlineBankingThailand": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "OpenBanking": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "OpenBankingPis": {
         "status": "not_supported",
@@ -291,19 +337,19 @@
       },
       "OpenBankingUk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "Oxxo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "PagoEfectivo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "PayEasy": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "PaySafeCard": {
         "status": "not_supported",
@@ -311,11 +357,11 @@
       },
       "PaypalRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only Apple Pay (with decrypted token) wallet payments are supported for Fiserv EMEA"
       },
       "PaypalSdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only Apple Pay (with decrypted token) wallet payments are supported for Fiserv EMEA"
       },
       "Paze": {
         "status": "not_supported",
@@ -323,87 +369,87 @@
       },
       "PermataBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "Pix": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "Przelewy24": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "Pse": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "RedCompra": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "RedPagos": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "RevolutPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only Apple Pay (with decrypted token) wallet payments are supported for Fiserv EMEA"
       },
       "SamsungPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only Apple Pay (with decrypted token) wallet payments are supported for Fiserv EMEA"
       },
       "Satispay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only Apple Pay (with decrypted token) wallet payments are supported for Fiserv EMEA"
       },
       "Seicomart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "Sepa": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "SepaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "SepaGuaranteedDebit": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "SevenEleven": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "Sofort": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "Trustly": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "UpiCollect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "UpiIntent": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "UpiQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       },
       "WeChatPayQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only Apple Pay (with decrypted token) wallet payments are supported for Fiserv EMEA"
       },
       "Wero": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only Apple Pay (with decrypted token) wallet payments are supported for Fiserv EMEA"
       }
     },
     "capture": {
@@ -645,7 +691,7 @@
     "token_authorize": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and Apple Pay payments are supported for Fiserv EMEA"
       }
     },
     "token_setup_recurring": {
