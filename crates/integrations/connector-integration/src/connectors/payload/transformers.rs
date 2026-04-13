@@ -236,8 +236,8 @@ fn build_payload_cards_request_data_from_apple_pay<T: PaymentMethodDataTypes>(
     let card_number_string = apple_pay_decrypted_data
         .application_primary_account_number
         .get_card_no();
-    let inner: T::Inner =
-        serde_json::from_value(serde_json::Value::String(card_number_string)).map_err(|e| {
+    let inner: T::Inner = serde_json::from_value(serde_json::Value::String(card_number_string))
+        .map_err(|e| {
             error_stack::report!(IntegrationError::InvalidDataFormat {
                 field_name: "apple_pay.application_primary_account_number",
                 context: Default::default(),
@@ -268,13 +268,12 @@ fn build_payload_cards_request_data_from_apple_pay<T: PaymentMethodDataTypes>(
                 field_name: "billing.address.zip",
                 context: Default::default(),
             })?,
-        state_province: billing_addr
-            .state
-            .clone()
-            .ok_or(IntegrationError::MissingRequiredField {
+        state_province: billing_addr.state.clone().ok_or(
+            IntegrationError::MissingRequiredField {
                 field_name: "billing.address.state",
                 context: Default::default(),
-            })?,
+            },
+        )?,
         street_address: resource_common_data.get_billing_line1()?,
     };
 
