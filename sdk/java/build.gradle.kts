@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "io.hyperswitch"
-version = "0.0.3"
+version = "0.0.4"
 
 repositories {
     mavenCentral()
@@ -49,33 +49,19 @@ tasks.register<JavaExec>("runClientSanity") {
     dependsOn("compileSanityKotlin")
 }
 
-// Signing configuration
-signing {
-    val signingKey = System.getenv("GPG_SIGNING_KEY")
-    val signingPassword = System.getenv("GPG_SIGNING_KEY_PASSWORD")
+// Signing configuration - required for Maven Central
+// Local Maven (publishToMavenLocal) doesn't require signing
+val signingKey = System.getenv("GPG_SIGNING_KEY")
+val signingPassword = System.getenv("GPG_SIGNING_KEY_PASSWORD")
+val hasSigningCredentials = !signingKey.isNullOrBlank() && !signingPassword.isNullOrBlank()
 
-    if (signingKey.isNullOrBlank() || signingPassword.isNullOrBlank()) {
-        // Only fail if we're trying to publish to Central
-        if (System.getenv("CENTRAL_TOKEN_USERNAME") != null) {
-            throw GradleException("""
-                Missing GPG signing credentials for Maven Central publishing.
-                Set environment variables:
-                  - GPG_SIGNING_KEY: PGP private key in ASCII armor format
-                  - GPG_SIGNING_KEY_PASSWORD: Password for the PGP key
-            """.trimIndent())
-        }
-    } else {
+// Pre-configure signing with keys (actual signing setup deferred to afterEvaluate)
+if (hasSigningCredentials) {
+    signing {
         useInMemoryPgpKeys(signingKey, signingPassword)
     }
 }
-
-// The central-publisher plugin creates publications in afterEvaluate,
-// so we must defer signing until publications are available.
-afterEvaluate {
-    signing {
-        sign(publishing.publications)
-    }
-}
+// When no credentials: no signing configuration, allowing local publishToMavenLocal to work
 
 // Configure Central Portal Publisher plugin
 // Only configure if credentials are present (avoids validation errors during regular builds)
@@ -92,8 +78,8 @@ if (System.getenv("CENTRAL_TOKEN_USERNAME") != null) {
             url = "https://github.com/juspay/hyperswitch-prism"
 
             license {
-                name = "Apache License 2.0"
-                url = "https://www.apache.org/licenses/LICENSE-2.0.txt"
+                name = "MIT License"
+                url = "https://opensource.org/licenses/MIT"
             }
 
             developer {
@@ -117,4 +103,53 @@ if (System.getenv("CENTRAL_TOKEN_USERNAME") != null) {
     }
 }
 
+// Standard publishing configuration for local Maven (publishToMavenLocal)
+// This runs alongside the central-publisher plugin which handles Maven Central
+publishing {
+    publications {
+        create<MavenPublication>("mavenLocal") {
+            from(components["java"])
+            artifactId = "prism"
+
+            pom {
+                name.set("Hyperswitch Prism")
+                description.set("Hyperswitch Payments SDK - Kotlin client for connector integrations")
+                url.set("https://github.com/juspay/hyperswitch-prism")
+
+                licenses {
+                    license {
+                        name.set("MIT License")
+                        url.set("https://opensource.org/licenses/MIT")
+                    }
+                }
+
+                developers {
+                    developer {
+                        id.set("juspay")
+                        name.set("Juspay")
+                        email.set("hyperswitch@juspay.in")
+                    }
+                }
+
+                scm {
+                    url.set("https://github.com/juspay/hyperswitch-prism")
+                    connection.set("scm:git:git://github.com/juspay/hyperswitch-prism.git")
+                    developerConnection.set("scm:git:ssh://github.com/juspay/hyperswitch-prism.git")
+                }
+            }
+        }
+    }
+}
+
 // Note: The Central Publisher plugin automatically generates sources and javadoc jars
+
+// Sign only the central-publisher's publication (named "maven") for Maven Central
+// The "mavenLocal" publication is for local use and doesn't require signing
+afterEvaluate {
+    if (hasSigningCredentials) {
+        // Find the central-publisher's publication and sign only that one
+        publishing.publications.findByName("maven")?.let { pub ->
+            signing.sign(pub)
+        }
+    }
+}

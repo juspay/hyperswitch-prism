@@ -3,8 +3,11 @@ use common_enums::{AttemptStatus, RefundStatus};
 use common_utils::types::MinorUnit;
 use domain_types::errors::{ConnectorError, IntegrationError};
 use domain_types::{
-    connector_flow::{Authorize, PSync, RSync},
+    connector_flow::{Authorize, ClientAuthenticationToken, PSync, RSync},
     connector_types::{
+        ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
+        ConnectorSpecificClientAuthenticationResponse,
+        MultisafepayClientAuthenticationResponse as MultisafepayClientAuthenticationResponseDomain,
         PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData,
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
@@ -154,7 +157,7 @@ fn get_order_type_from_payment_method<T: PaymentMethodDataTypes>(
         | PaymentMethodData::Voucher(_)
         | PaymentMethodData::GiftCard(_)
         | PaymentMethodData::OpenBanking(_)
-        | PaymentMethodData::CardToken(_)
+        | PaymentMethodData::PaymentMethodToken(_)
         | PaymentMethodData::NetworkToken(_)
         | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
         | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
@@ -335,7 +338,7 @@ fn get_gateway_from_payment_method<T: PaymentMethodDataTypes>(
         | PaymentMethodData::Voucher(_)
         | PaymentMethodData::GiftCard(_)
         | PaymentMethodData::OpenBanking(_)
-        | PaymentMethodData::CardToken(_)
+        | PaymentMethodData::PaymentMethodToken(_)
         | PaymentMethodData::NetworkToken(_)
         | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
         | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
@@ -1077,6 +1080,54 @@ impl TryFrom<ResponseRouterData<MultisafepayRefundResponse, Self>>
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.data.refund_id.to_string(),
                 refund_status: refund_status.into(),
+                status_code: item.http_code,
+            }),
+            ..item.router_data
+        })
+    }
+}
+
+// ===== CLIENT AUTHENTICATION TOKEN FLOW STRUCTURES =====
+
+/// Response from the /auth/api_token endpoint for client-side Payment Components.
+/// The API token is used to encrypt sensitive payment details from a customer's device.
+/// Tokens are active for 600 seconds.
+#[derive(Debug, Deserialize, Serialize)]
+pub struct MultisafepayClientAuthResponse {
+    pub success: bool,
+    pub data: MultisafepayClientAuthData,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct MultisafepayClientAuthData {
+    pub api_token: Secret<String>,
+}
+
+impl TryFrom<ResponseRouterData<MultisafepayClientAuthResponse, Self>>
+    for RouterDataV2<
+        ClientAuthenticationToken,
+        PaymentFlowData,
+        ClientAuthenticationTokenRequestData,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<MultisafepayClientAuthResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response;
+
+        let session_data = ClientAuthenticationTokenData::ConnectorSpecific(Box::new(
+            ConnectorSpecificClientAuthenticationResponse::Multisafepay(
+                MultisafepayClientAuthenticationResponseDomain {
+                    api_token: response.data.api_token,
+                },
+            ),
+        ));
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::ClientAuthenticationTokenResponse {
+                session_data,
                 status_code: item.http_code,
             }),
             ..item.router_data

@@ -55,7 +55,7 @@ pub struct JpmorganPaymentsResponse {
     pub transaction_state: JpmorganTransactionState,
     pub response_status: JpmorganTransactionStatus,
     pub response_code: String,
-    pub response_message: String,
+    pub response_message: Option<String>,
     pub payment_method_type: Option<PaymentMethodType>,
     pub capture_method: Option<CapMethod>,
 }
@@ -156,7 +156,7 @@ pub struct JpmorganRefundResponse {
     pub transaction_state: JpmorganTransactionState,
     pub response_status: JpmorganResponseStatus,
     pub response_code: String,
-    pub response_message: String,
+    pub response_message: Option<String>,
 }
 
 /// Client Authentication Token response — wraps the OAuth2 token response.

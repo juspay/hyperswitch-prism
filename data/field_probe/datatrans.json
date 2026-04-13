@@ -428,7 +428,28 @@
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_client_session_id": "probe_sdk_session_001",
+          "domain_context": {
+            "payment": {
+              "amount": {
+                "minor_amount": 1000,
+                "currency": "USD"
+              }
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api.sandbox.datatrans.com/v1/transactions/secureFields",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"returnUrl\":\"https://example.com/return\"}"
+        }
       }
     },
     "create_customer": {
@@ -624,8 +645,30 @@
     },
     "token_authorize": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_tokenized_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "connector_token": "pm_1AbcXyzStripeTestToken",
+          "address": {
+            "billing_address": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.sandbox.datatrans.com/v1/transactions/authorize",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"currency\":\"USD\",\"refno\":\"probe_tokenized_txn_001\",\"amount\":1000,\"card\":{\"alias\":\"pm_1AbcXyzStripeTestToken\"},\"autoSettle\":true,\"option\":null}"
+        }
       }
     },
     "token_setup_recurring": {
