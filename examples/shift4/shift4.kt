@@ -15,6 +15,7 @@ import payments.RefundClient
 import payments.PaymentServiceAuthorizeRequest
 import payments.PaymentServiceCaptureRequest
 import payments.PaymentServiceRefundRequest
+import payments.PaymentServiceVoidRequest
 import payments.PaymentServiceGetRequest
 import payments.MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest
 import payments.CustomerServiceCreateRequest
@@ -93,6 +94,13 @@ private fun buildRefundRequest(connectorTransactionIdStr: String): PaymentServic
     }.build()
 }
 
+private fun buildVoidRequest(connectorTransactionIdStr: String): PaymentServiceVoidRequest {
+    return PaymentServiceVoidRequest.newBuilder().apply {
+        merchantVoidId = "probe_void_001"  // Identification.
+        connectorTransactionId = connectorTransactionIdStr
+    }.build()
+}
+
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
     // .setConnectorConfig(...) — set your connector config here
@@ -157,6 +165,25 @@ fun processRefund(txnId: String, config: ConnectorConfig = _defaultConfig): Map<
         throw RuntimeException("Refund failed: ${refundResponse.error.unifiedDetails.message}")
 
     return mapOf("status" to refundResponse.status.name, "error" to refundResponse.error)
+}
+
+// Scenario: Void Payment
+// Cancel an authorized but not-yet-captured payment.
+fun processVoidPayment(txnId: String, config: ConnectorConfig = _defaultConfig): Map<String, Any?> {
+    val paymentClient = PaymentClient(config)
+
+    // Step 1: Authorize — reserve funds on the payment method
+    val authorizeResponse = paymentClient.authorize(buildAuthorizeRequest("MANUAL"))
+
+    when (authorizeResponse.status.name) {
+        "FAILED"  -> throw RuntimeException("Payment failed: ${authorizeResponse.error.unifiedDetails.message}")
+        "PENDING" -> return mapOf("status" to "PENDING")  // await webhook before proceeding
+    }
+
+    // Step 2: Void — release reserved funds (cancel authorization)
+    val voidResponse = paymentClient.void(buildVoidRequest(authorizeResponse.connectorTransactionId ?: ""))
+
+    return mapOf("status" to voidResponse.status.name, "transactionId" to authorizeResponse.connectorTransactionId, "error" to voidResponse.error)
 }
 
 // Scenario: Get Payment Status
@@ -340,6 +367,16 @@ fun tokenAuthorize(txnId: String) {
     println("Status: ${response.status.name}")
 }
 
+// Flow: PaymentService.Void
+fun void(txnId: String) {
+    val client = PaymentClient(_defaultConfig)
+    val request = buildVoidRequest("probe_connector_txn_001")
+    val response = client.void(request)
+    if (response.status.name == "FAILED")
+        throw RuntimeException("Void failed: ${response.error.unifiedDetails.message}")
+    println("Done: ${response.status.name}")
+}
+
 
 fun main(args: Array<String>) {
     val txnId = "order_001"
@@ -348,6 +385,7 @@ fun main(args: Array<String>) {
         "processCheckoutAutocapture" -> processCheckoutAutocapture(txnId)
         "processCheckoutCard" -> processCheckoutCard(txnId)
         "processRefund" -> processRefund(txnId)
+        "processVoidPayment" -> processVoidPayment(txnId)
         "processGetPayment" -> processGetPayment(txnId)
         "authorize" -> authorize(txnId)
         "capture" -> capture(txnId)
@@ -359,6 +397,7 @@ fun main(args: Array<String>) {
         "refund" -> refund(txnId)
         "refundGet" -> refundGet(txnId)
         "tokenAuthorize" -> tokenAuthorize(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processGetPayment, authorize, capture, createClientAuthenticationToken, createCustomer, get, proxyAuthorize, recurringCharge, refund, refundGet, tokenAuthorize")
+        "void" -> void(txnId)
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createClientAuthenticationToken, createCustomer, get, proxyAuthorize, recurringCharge, refund, refundGet, tokenAuthorize, void")
     }
 }

@@ -545,9 +545,9 @@ examples_python: examples/revolv3/revolv3.py
 ## Shift4
 connector_id: shift4
 doc: docs/connectors/shift4.md
-scenarios: checkout_autocapture, checkout_card, refund, get_payment
+scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Card, Eps, Ideal
-flows: authorize, capture, create_client_authentication_token, create_customer, get, proxy_authorize, recurring_charge, refund, refund_get, token_authorize
+flows: authorize, capture, create_client_authentication_token, create_customer, get, proxy_authorize, recurring_charge, refund, refund_get, token_authorize, void
 examples_python: examples/shift4/shift4.py
 
 ## Silverflow

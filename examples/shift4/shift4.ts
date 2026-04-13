@@ -173,6 +173,13 @@ function _buildTokenAuthorizeRequest(): PaymentServiceTokenAuthorizeRequest {
     };
 }
 
+function _buildVoidRequest(connectorTransactionId: string): PaymentServiceVoidRequest {
+    return {
+        "merchantVoidId": "probe_void_001",  // Identification.
+        "connectorTransactionId": connectorTransactionId
+    };
+}
+
 
 // ANCHOR: scenario_functions
 // One-step Payment (Authorize + Capture)
@@ -244,6 +251,28 @@ async function processRefund(merchantTransactionId: string, config: ConnectorCon
     }
 
     return { status: refundResponse.status, error: refundResponse.error };
+}
+
+// Void Payment
+// Cancel an authorized but not-yet-captured payment.
+async function processVoidPayment(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<PaymentServiceVoidResponse> {
+    const paymentClient = new PaymentClient(config);
+
+    // Step 1: Authorize — reserve funds on the payment method
+    const authorizeResponse = await paymentClient.authorize(_buildAuthorizeRequest(CaptureMethod.MANUAL));
+
+    if (authorizeResponse.status === 'FAILED') {
+        throw new Error(`Payment failed: ${authorizeResponse.error?.message}`);
+    }
+    if (authorizeResponse.status === 'PENDING') {
+        // Awaiting async confirmation — handle via webhook
+        return { status: 'pending', transactionId: authorizeResponse.connectorTransactionId };
+    }
+
+    // Step 2: Void — release reserved funds (cancel authorization)
+    const voidResponse = await paymentClient.void(_buildVoidRequest(authorizeResponse.connectorTransactionId));
+
+    return { status: voidResponse.status, transactionId: authorizeResponse.connectorTransactionId, error: voidResponse.error };
 }
 
 // Get Payment Status
@@ -358,10 +387,19 @@ async function tokenAuthorize(merchantTransactionId: string, config: ConnectorCo
     return { status: tokenResponse.status };
 }
 
+// Flow: PaymentService.Void
+async function voidPayment(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<PaymentServiceVoidResponse> {
+    const paymentClient = new PaymentClient(config);
+
+    const voidResponse = await paymentClient.void(_buildVoidRequest('probe_connector_txn_001'));
+
+    return { status: voidResponse.status };
+}
+
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processCheckoutCard, processRefund, processGetPayment, authorize, capture, createClientAuthenticationToken, createCustomer, get, proxyAuthorize, recurringCharge, refund, refundGet, tokenAuthorize, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateClientAuthenticationTokenRequest, _buildCreateCustomerRequest, _buildGetRequest, _buildProxyAuthorizeRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildTokenAuthorizeRequest
+    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createClientAuthenticationToken, createCustomer, get, proxyAuthorize, recurringCharge, refund, refundGet, tokenAuthorize, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateClientAuthenticationTokenRequest, _buildCreateCustomerRequest, _buildGetRequest, _buildProxyAuthorizeRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildTokenAuthorizeRequest, _buildVoidRequest
 };
 
 // CLI runner

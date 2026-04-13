@@ -1198,9 +1198,7 @@ impl TryFrom<ResponseRouterData<Shift4VoidResponse, Self>>
 {
     type Error = error_stack::Report<ConnectorError>;
 
-    fn try_from(
-        item: ResponseRouterData<Shift4VoidResponse, Self>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: ResponseRouterData<Shift4VoidResponse, Self>) -> Result<Self, Self::Error> {
         // Map refund status to void status
         let status = match item.response.status {
             Shift4RefundStatus::Successful => AttemptStatus::Voided,

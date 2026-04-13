@@ -186,6 +186,13 @@ pub fn build_token_authorize_request() -> PaymentServiceTokenAuthorizeRequest {
     })).unwrap_or_default()
 }
 
+pub fn build_void_request(connector_transaction_id: &str) -> PaymentServiceVoidRequest {
+    serde_json::from_value::<PaymentServiceVoidRequest>(serde_json::json!({
+    "merchant_void_id": "probe_void_001",  // Identification.
+    "connector_transaction_id": connector_transaction_id,
+    })).unwrap_or_default()
+}
+
 
 // Scenario: One-step Payment (Authorize + Capture)
 // Simple payment that authorizes and captures in one call. Use for immediate charges.
@@ -247,6 +254,25 @@ pub async fn process_refund(client: &ConnectorClient, _merchant_transaction_id: 
     }
 
     Ok(format!("Refunded: {:?}", refund_response.status()))
+}
+
+// Scenario: Void Payment
+// Cancel an authorized but not-yet-captured payment.
+#[allow(dead_code)]
+pub async fn process_void_payment(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
+    // Step 1: Authorize — reserve funds on the payment method
+    let authorize_response = client.authorize(build_authorize_request("MANUAL"), &HashMap::new(), None).await?;
+
+    match authorize_response.status() {
+        PaymentStatus::Failure | PaymentStatus::AuthorizationFailed => return Err(format!("Payment failed: {:?}", authorize_response.error).into()),
+        PaymentStatus::Pending => return Ok("pending — awaiting webhook".to_string()),
+        _                      => {},
+    }
+
+    // Step 2: Void — release reserved funds (cancel authorization)
+    let void_response = client.void(build_void_request(authorize_response.connector_transaction_id.as_deref().unwrap_or("")), &HashMap::new(), None).await?;
+
+    Ok(format!("Voided: {:?}", void_response.status()))
 }
 
 // Scenario: Get Payment Status
@@ -343,6 +369,13 @@ pub async fn token_authorize(client: &ConnectorClient, _merchant_transaction_id:
     Ok(format!("status: {:?}", response.status()))
 }
 
+// Flow: PaymentService.Void
+#[allow(dead_code)]
+pub async fn void(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client.void(build_void_request("probe_connector_txn_001"), &HashMap::new(), None).await?;
+    Ok(format!("status: {:?}", response.status()))
+}
+
 #[allow(dead_code)]
 #[tokio::main]
 async fn main() {
@@ -352,6 +385,7 @@ async fn main() {
         "process_checkout_autocapture" => process_checkout_autocapture(&client, "order_001").await,
         "process_checkout_card" => process_checkout_card(&client, "order_001").await,
         "process_refund" => process_refund(&client, "order_001").await,
+        "process_void_payment" => process_void_payment(&client, "order_001").await,
         "process_get_payment" => process_get_payment(&client, "order_001").await,
         "authorize" => authorize(&client, "order_001").await,
         "capture" => capture(&client, "order_001").await,
@@ -363,7 +397,8 @@ async fn main() {
         "refund" => refund(&client, "order_001").await,
         "refund_get" => refund_get(&client, "order_001").await,
         "token_authorize" => token_authorize(&client, "order_001").await,
-        _ => { eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_get_payment, authorize, capture, create_client_authentication_token, create_customer, get, proxy_authorize, recurring_charge, refund, refund_get, token_authorize", flow); return; }
+        "void" => void(&client, "order_001").await,
+        _ => { eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, authorize, capture, create_client_authentication_token, create_customer, get, proxy_authorize, recurring_charge, refund, refund_get, token_authorize, void", flow); return; }
     };
     match result {
         Ok(msg) => println!("✓ {msg}"),
