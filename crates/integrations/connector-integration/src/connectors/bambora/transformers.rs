@@ -292,7 +292,7 @@ impl<T: PaymentMethodDataTypes>
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
-            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::OpenBanking(_)

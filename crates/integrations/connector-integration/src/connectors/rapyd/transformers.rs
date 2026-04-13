@@ -10,10 +10,8 @@ use domain_types::{
         RefundFlowData, RefundsData, RefundsResponseData, ResponseId,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
-    payment_method_data::{
-        CardToken, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData,
-    },
-    router_data::{ConnectorSpecificConfig, ErrorResponse, PaymentMethodToken},
+    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData},
+    router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
 };
@@ -349,36 +347,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     },
                 )))
             }
-            PaymentMethodData::CardToken(CardToken { .. }) => {
-                let token = item
-                    .router_data
-                    .resource_common_data
-                    .payment_method_token
-                    .as_ref()
-                    .map(|t| match t {
-                        PaymentMethodToken::Token(s) => s.clone(),
-                    })
-                    .ok_or_else(|| {
-                        error_stack::report!(IntegrationError::MissingRequiredField {
-                            field_name: "payment_method_token",
-                            context: IntegrationErrorContext {
-                                suggested_action: Some(
-                                    "Ensure a valid Rapyd customer payment method token is \
-                                     provided via payment_method_token."
-                                        .to_owned(),
-                                ),
-                                doc_url: Some(
-                                    "https://docs.rapyd.net/en/create-payment.html".to_owned(),
-                                ),
-                                additional_context: Some(
-                                    "Rapyd requires a customer payment method token (e.g., \
-                                     'card_xxxxxxxx') to process saved card payments."
-                                        .to_owned(),
-                                ),
-                            },
-                        })
-                    })?;
-                Some(RapydPaymentMethodData::Token(token))
+            PaymentMethodData::PaymentMethodToken(token_data) => {
+                Some(RapydPaymentMethodData::Token(token_data.token.clone()))
             }
             _ => None,
         }

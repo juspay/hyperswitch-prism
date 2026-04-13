@@ -177,14 +177,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         // Extract payment method data based on payment method type
         let payment_method_data = match &item.request.payment_method_data {
+            PaymentMethodData::PaymentMethodToken(t) => {
+                MolliePaymentMethodData::CreditCard(Box::new(CreditCardMethodData {
+                    card_token: Some(t.token.clone()),
+                    billing_address: None,
+                    shipping_address: None,
+                }))
+            }
             PaymentMethodData::Card(_card_data) => {
-                // Extract card token from payment_method_token
-                // Following Hyperswitch pattern: ALL tokens (cst_ and tkn_) go to cardToken field
-                let card_token = item.resource_common_data.payment_method_token.as_ref().map(
-                    |token| match token {
-                        domain_types::router_data::PaymentMethodToken::Token(t) => t.clone(),
-                    },
-                );
+                let card_token = None;
 
                 // Extract billing address if available
                 // Match Hyperswitch format: comma separator, no region

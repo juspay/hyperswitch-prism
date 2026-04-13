@@ -276,7 +276,8 @@ pub struct NmiPaymentsRequest<T: PaymentMethodDataTypes> {
     #[serde(rename = "type")]
     transaction_type: TransactionType,
     amount: FloatMajorUnit,
-    currency: common_enums::Currency,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    currency: Option<common_enums::Currency>,
     orderid: String,
     #[serde(flatten)]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -418,7 +419,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 security_key: auth.api_key.clone(),
                 transaction_type,
                 amount,
-                currency: router_data.request.currency,
+                currency: None,
                 orderid: three_ds_data.order_id.ok_or_else(|| {
                     error_stack::report!(IntegrationError::MissingRequiredField {
                         field_name: "order_id",
@@ -426,11 +427,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     })
                 })?,
                 payment_method: None,
-                merchant_defined_field: router_data
-                    .request
-                    .metadata
-                    .as_ref()
-                    .map(|m| NmiMerchantDefinedField::new(m.peek())),
+                merchant_defined_field: None,
                 billing_details: None,
                 shipping_details: None,
                 customer_vault_id: Some(three_ds_data.customer_vault_id),
@@ -518,7 +515,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 security_key: auth.api_key.clone(),
                 transaction_type,
                 amount,
-                currency: router_data.request.currency,
+                currency: Some(router_data.request.currency),
                 orderid: router_data
                     .resource_common_data
                     .connector_request_reference_id
