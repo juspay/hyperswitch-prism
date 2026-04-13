@@ -402,7 +402,7 @@ examples_python: examples/nuvei/nuvei.py
 connector_id: paybox
 doc: docs/connectors/paybox.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
-payment_methods: Card
+payment_methods: ApplePayDecrypted, Card
 flows: authorize, capture, get, proxy_authorize, refund, refund_get, void
 examples_python: examples/paybox/paybox.py
 

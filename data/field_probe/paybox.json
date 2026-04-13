@@ -8,88 +8,130 @@
     },
     "authorize": {
       "Ach": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "AchBankTransfer": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "Affirm": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "Afterpay": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "Alfamart": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "AliPayRedirect": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "AmazonPayRedirect": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "ApplePay": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "ApplePayDecrypted": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "apple_pay": {
+              "payment_data": {
+                "decrypted_data": {
+                  "application_primary_account_number": "4111111111111111",
+                  "application_expiration_month": "03",
+                  "application_expiration_year": "2030",
+                  "payment_data": {
+                    "online_payment_cryptogram": "AAAAAA==",
+                    "eci_indicator": "05"
+                  }
+                }
+              },
+              "payment_method": {
+                "display_name": "Visa 1111",
+                "network": "Visa",
+                "type": "debit"
+              },
+              "transaction_identifier": "probe_txn_id"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://preprod-ppps.paybox.com/PPPS.php",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "VERSION=00104&TYPE=00003&SITE=probe_site&RANG=probe_rank&CLE=probe_key&NUMQUESTION=000000000&MONTANT=1000&DEVISE=840&REFERENCE=probe_txn_001&DATEQ=00000000000000&PORTEUR=4111111111111111&DATEVAL=0330&CVV=&ACTIVITE=024"
+        }
       },
       "ApplePayThirdPartySdk": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "Bacs": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "BacsBankTransfer": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "BancontactCard": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "BcaBankTransfer": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "Becs": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "Bizum": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "Blik": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "Bluecode": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "BniVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "Boleto": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "BriVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "Card": {
         "status": "supported",
@@ -122,284 +164,284 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "VERSION=00104&TYPE=00003&SITE=probe_site&RANG=probe_rank&CLE=probe_key&NUMQUESTION=000000000&MONTANT=1000&DEVISE=USD&REFERENCE=probe_txn_001&DATEQ=00000000000000&PORTEUR=4111111111111111&DATEVAL=0330&CVV=737&ACTIVITE=024"
+          "body": "VERSION=00104&TYPE=00003&SITE=probe_site&RANG=probe_rank&CLE=probe_key&NUMQUESTION=000000000&MONTANT=1000&DEVISE=840&REFERENCE=probe_txn_001&DATEQ=00000000000000&PORTEUR=4111111111111111&DATEVAL=0330&CVV=737&ACTIVITE=024"
         }
       },
       "CashappQr": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "CimbVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "ClassicReward": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "Crypto": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "DanamonVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "DuitNow": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "EVoucher": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "Efecty": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "Eft": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "Eps": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "FamilyMart": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "Giropay": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "Givex": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "GooglePay": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "GooglePayDecrypted": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "GooglePayThirdPartySdk": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "Ideal": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "Indomaret": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "IndonesianBankTransfer": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "InstantBankTransfer": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "InstantBankTransferFinland": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "InstantBankTransferPoland": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "Interac": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "Klarna": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "Lawson": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "LocalBankRedirect": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "LocalBankTransfer": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "MandiriVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "MbWay": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "Mifinity": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "MiniStop": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "MultibancoBankTransfer": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "OnlineBankingCzechRepublic": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "OnlineBankingFinland": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "OnlineBankingFpx": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "OnlineBankingPoland": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "OnlineBankingSlovakia": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "OnlineBankingThailand": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "OpenBanking": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "OpenBankingPis": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "OpenBankingUk": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "Oxxo": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "PagoEfectivo": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "PayEasy": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "PaySafeCard": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "PaypalRedirect": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "PaypalSdk": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "Paze": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "PermataBankTransfer": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "Pix": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "Przelewy24": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "Pse": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "RedCompra": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "RedPagos": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "RevolutPay": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "SamsungPay": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "Satispay": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "Seicomart": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "Sepa": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "SepaBankTransfer": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "SepaGuaranteedDebit": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "SevenEleven": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "Sofort": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "Trustly": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "UpiCollect": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "UpiIntent": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "UpiQr": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "WeChatPayQr": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       },
       "Wero": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       }
     },
     "capture": {
@@ -420,7 +462,7 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "VERSION=00104&TYPE=00002&SITE=probe_site&RANG=probe_rank&CLE=probe_key&NUMQUESTION=000000000&MONTANT=1000&DEVISE=USD&REFERENCE=probe_capture_001&DATEQ=00000000000000&NUMTRANS=probe_req_001&NUMAPPEL=probe_connector_txn_001"
+          "body": "VERSION=00104&TYPE=00002&SITE=probe_site&RANG=probe_rank&CLE=probe_key&NUMQUESTION=000000000&MONTANT=1000&DEVISE=840&REFERENCE=probe_capture_001&DATEQ=00000000000000&NUMTRANS=probe_req_001&NUMAPPEL=probe_connector_txn_001"
         }
       }
     },
@@ -546,7 +588,7 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "VERSION=00104&TYPE=00003&SITE=probe_site&RANG=probe_rank&CLE=probe_key&NUMQUESTION=000000000&MONTANT=1000&DEVISE=USD&REFERENCE=probe_proxy_txn_001&DATEQ=00000000000000&PORTEUR=4111111111111111&DATEVAL=0330&CVV=123&ACTIVITE=024"
+          "body": "VERSION=00104&TYPE=00003&SITE=probe_site&RANG=probe_rank&CLE=probe_key&NUMQUESTION=000000000&MONTANT=1000&DEVISE=840&REFERENCE=probe_proxy_txn_001&DATEQ=00000000000000&PORTEUR=4111111111111111&DATEVAL=0330&CVV=123&ACTIVITE=024"
         }
       }
     },
@@ -585,7 +627,7 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "VERSION=00104&TYPE=00014&SITE=probe_site&RANG=probe_rank&CLE=probe_key&NUMQUESTION=000000000&MONTANT=1000&DEVISE=USD&REFERENCE=probe_refund_001&DATEQ=00000000000000&NUMTRANS=probe_req_001&NUMAPPEL=probe_connector_txn_001&ACTIVITE=024"
+          "body": "VERSION=00104&TYPE=00014&SITE=probe_site&RANG=probe_rank&CLE=probe_key&NUMQUESTION=000000000&MONTANT=1000&DEVISE=840&REFERENCE=probe_refund_001&DATEQ=00000000000000&NUMTRANS=probe_req_001&NUMAPPEL=probe_connector_txn_001&ACTIVITE=024"
         }
       }
     },
@@ -620,8 +662,8 @@
     },
     "token_authorize": {
       "default": {
-        "status": "not_supported",
-        "error": "Only card payments are supported is not supported by Paybox"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paybox"
       }
     },
     "token_setup_recurring": {
@@ -657,7 +699,7 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "VERSION=00104&TYPE=00005&SITE=probe_site&RANG=probe_rank&CLE=probe_key&NUMQUESTION=000000000&MONTANT=1000&DEVISE=USD&REFERENCE=probe_void_001&DATEQ=00000000000000&NUMTRANS=probe_req_001&NUMAPPEL=probe_connector_txn_001"
+          "body": "VERSION=00104&TYPE=00005&SITE=probe_site&RANG=probe_rank&CLE=probe_key&NUMQUESTION=000000000&MONTANT=1000&DEVISE=840&REFERENCE=probe_void_001&DATEQ=00000000000000&NUMTRANS=probe_req_001&NUMAPPEL=probe_connector_txn_001"
         }
       }
     }
