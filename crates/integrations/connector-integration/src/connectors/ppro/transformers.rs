@@ -1,6 +1,6 @@
 use common_enums;
 use common_utils::consts;
-use hyperswitch_masking::{Secret};
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use super::PproRouterData;

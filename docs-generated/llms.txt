@@ -490,8 +490,8 @@ examples_python: examples/powertranz/powertranz.py
 connector_id: ppro
 doc: docs/connectors/ppro.md
 scenarios: none
-payment_methods: AliPayRedirect, BancontactCard, Blik, Ideal, MbWay, Satispay, Trustly, UpiIntent, UpiQr, WeChatPayQr, Wero
-flows: authorize, capture, get, handle_event, recurring_charge, refund, refund_get, void
+payment_methods: none
+flows: capture, get, handle_event, recurring_charge, refund, refund_get, void
 examples_python: none
 
 ## Rapyd
