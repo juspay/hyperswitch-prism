@@ -15,7 +15,7 @@ use domain_types::{
         Shift4ClientAuthenticationResponse as Shift4ClientAuthenticationResponseDomain,
     },
     payment_method_data::{
-        BankRedirectData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
+        BankRedirectData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData,
     },
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
@@ -349,6 +349,72 @@ impl<T: PaymentMethodDataTypes>
                     card: pmt.token.clone(),
                 })
             }
+            PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                WalletData::ApplePay(apple_pay_data) => {
+                    let apple_pay_decrypted_data = apple_pay_data
+                        .payment_data
+                        .get_decrypted_apple_pay_payment_data_optional()
+                        .ok_or_else(|| {
+                            error_stack::report!(IntegrationError::MissingRequiredField {
+                                field_name: "apple_pay_decrypted_data",
+                                context: Default::default(),
+                            })
+                            .attach_printable(
+                                "Shift4 requires pre-decrypted Apple Pay data; \
+                                 encrypted Apple Pay tokens are not supported.",
+                            )
+                        })?;
+
+                    let cardholder_name = item
+                        .resource_common_data
+                        .address
+                        .get_payment_method_billing()
+                        .and_then(|billing| billing.get_optional_full_name())
+                        .or_else(|| {
+                            item.request
+                                .customer_name
+                                .as_ref()
+                                .map(|name| Secret::new(name.clone()))
+                        })
+                        .unwrap_or_else(|| Secret::new(String::new()));
+
+                    let exp_month = apple_pay_decrypted_data.get_expiry_month();
+                    let exp_year = apple_pay_decrypted_data.get_four_digit_expiry_year();
+
+                    let card_number_string = apple_pay_decrypted_data
+                        .application_primary_account_number
+                        .get_card_no();
+                    let inner: T::Inner = serde_json::from_value(serde_json::Value::String(
+                        card_number_string,
+                    ))
+                    .map_err(|e| {
+                        error_stack::report!(IntegrationError::InvalidDataFormat {
+                            field_name: "apple_pay.application_primary_account_number",
+                            context: Default::default(),
+                        })
+                        .attach_printable(format!(
+                            "Failed to convert Apple Pay PAN to card number type: {e}"
+                        ))
+                    })?;
+                    let raw_card_number: RawCardNumber<T> = RawCardNumber(inner);
+
+                    Shift4PaymentMethod::Card(Shift4CardPayment {
+                        card: Shift4CardData {
+                            number: raw_card_number,
+                            exp_month,
+                            exp_year,
+                            cardholder_name,
+                        },
+                    })
+                }
+                _ => {
+                    return Err(error_stack::report!(IntegrationError::NotSupported {
+                        message: "Only Apple Pay (with decrypted token) wallet payments are supported for Shift4".to_string(),
+                        connector: "Shift4",
+                        context: Default::default()
+                    }))
+                }
+            },
             PaymentMethodData::BankRedirect(_bank_redirect_data) => {
                 let bank_redirect_method = Shift4BankRedirectMethod::try_from(item)?;
                 let return_url = item.request.get_router_return_url().change_context(
