@@ -19,7 +19,9 @@ use domain_types::{
         ResponseId, SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError},
-    payment_method_data::{BankDebitData, PaymentMethodData, PaymentMethodDataTypes},
+    payment_method_data::{
+        BankDebitData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData,
+    },
     router_data::{
         AdditionalPaymentMethodConnectorResponse, ConnectorResponseData, ConnectorSpecificConfig,
         ErrorResponse,
@@ -27,7 +29,7 @@ use domain_types::{
     router_data_v2::RouterDataV2,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeOptionInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, ExposeOptionInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use super::{requests, responses};
@@ -184,6 +186,113 @@ fn build_payload_cards_request_data<T: PaymentMethodDataTypes>(
         }
         .into())
     }
+}
+
+// Helper function to build card request data from Apple Pay (decrypted) wallet data.
+// Payload has no native encrypted Apple Pay endpoint; the integration pattern is to
+// submit the decrypted DPAN through the standard card /payments path. This maps
+// application_primary_account_number to PayloadCard.number and the decrypted expiry
+// to PayloadCard.expiry (MM/YY). Encrypted-only Apple Pay tokens return
+// MissingRequiredField.
+fn build_payload_cards_request_data_from_apple_pay<T: PaymentMethodDataTypes>(
+    apple_pay_data: &domain_types::payment_method_data::ApplePayWalletData,
+    connector_config: &ConnectorSpecificConfig,
+    currency: enums::Currency,
+    amount: FloatMajorUnit,
+    resource_common_data: &PaymentFlowData,
+    capture_method: Option<enums::CaptureMethod>,
+    is_mandate: bool,
+) -> Result<PayloadCardsRequestData<T>, Error> {
+    let apple_pay_decrypted_data = apple_pay_data
+        .payment_data
+        .get_decrypted_apple_pay_payment_data_optional()
+        .ok_or_else(|| {
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "apple_pay_decrypted_data",
+                context: Default::default(),
+            })
+            .attach_printable(
+                "Payload requires pre-decrypted Apple Pay data; \
+                 encrypted Apple Pay tokens are not supported.",
+            )
+        })?;
+
+    let payload_auth = PayloadAuth::try_from((connector_config, currency))?;
+
+    // Build expiry in MM/YY format (matches PayloadCard card path).
+    let exp_month_secret = apple_pay_decrypted_data.get_expiry_month();
+    let exp_year_full_secret = apple_pay_decrypted_data.get_four_digit_expiry_year();
+    let exp_month_str = exp_month_secret.expose();
+    let formatted_exp_month = format!("{exp_month_str:0>2}");
+    let exp_year_full = exp_year_full_secret.expose();
+    let formatted_exp_year = if exp_year_full.len() == 4 {
+        exp_year_full[2..].to_string()
+    } else {
+        exp_year_full
+    };
+    let expiry = Secret::new(format!("{formatted_exp_month}/{formatted_exp_year}"));
+
+    // Convert decrypted PAN string to RawCardNumber<T>.
+    let card_number_string = apple_pay_decrypted_data
+        .application_primary_account_number
+        .get_card_no();
+    let inner: T::Inner =
+        serde_json::from_value(serde_json::Value::String(card_number_string)).map_err(|e| {
+            error_stack::report!(IntegrationError::InvalidDataFormat {
+                field_name: "apple_pay.application_primary_account_number",
+                context: Default::default(),
+            })
+            .attach_printable(format!(
+                "Failed to convert Apple Pay PAN to card number type: {e}"
+            ))
+        })?;
+    let number: RawCardNumber<T> = RawCardNumber(inner);
+
+    let card = requests::PayloadCard {
+        number,
+        expiry,
+        // Apple Pay decrypted data does not include CVV.
+        cvc: Secret::new(String::new()),
+    };
+
+    let billing_addr = resource_common_data.get_billing_address()?;
+
+    let billing_address = requests::BillingAddress {
+        city: resource_common_data.get_billing_city()?,
+        country: resource_common_data.get_billing_country()?,
+        postal_code: billing_addr
+            .zip
+            .clone()
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "billing.address.zip",
+                context: Default::default(),
+            })?,
+        state_province: billing_addr
+            .state
+            .clone()
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "billing.address.state",
+                context: Default::default(),
+            })?,
+        street_address: resource_common_data.get_billing_line1()?,
+    };
+
+    let status = if is_manual_capture(capture_method) {
+        Some(responses::PayloadPaymentStatus::Authorized)
+    } else {
+        None
+    };
+
+    Ok(PayloadCardsRequestData {
+        amount,
+        card,
+        transaction_types: requests::TransactionTypes::Payment,
+        payment_method_type: PAYMENT_METHOD_TYPE_CARD.to_string(),
+        status,
+        billing_address,
+        processing_id: payload_auth.processing_account_id,
+        keep_active: is_mandate,
+    })
 }
 
 // Helper function to build bank account (ACH) request data
@@ -373,10 +482,26 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
                 Ok(Self::PayloadBankAccountRequest(Box::new(bank_account_data)))
             }
-            // Payload connector supports GooglePay and ApplePay wallets, but not yet integrated
+            // Payload has no native encrypted Apple Pay endpoint; decrypted Apple Pay
+            // tokens are routed through the standard card /payments path. GooglePay
+            // and other wallet variants are not yet integrated.
             PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-                domain_types::payment_method_data::WalletData::GooglePay(_)
-                | domain_types::payment_method_data::WalletData::ApplePay(_) => {
+                WalletData::ApplePay(apple_pay_data) => {
+                    let is_mandate = router_data.request.is_mandate_payment();
+
+                    let cards_data = build_payload_cards_request_data_from_apple_pay(
+                        apple_pay_data,
+                        &router_data.connector_config,
+                        router_data.request.currency,
+                        amount,
+                        &router_data.resource_common_data,
+                        router_data.request.capture_method,
+                        is_mandate,
+                    )?;
+
+                    Ok(Self::PayloadCardsRequest(Box::new(cards_data)))
+                }
+                WalletData::GooglePay(_) => {
                     Err(IntegrationError::not_implemented("Payment method".to_string()).into())
                 }
                 _ => Err(IntegrationError::NotSupported {
