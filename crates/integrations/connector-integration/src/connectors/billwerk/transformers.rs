@@ -23,10 +23,8 @@ use domain_types::{
         SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
-    payment_method_data::{CardToken, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
-    router_data::{
-        ConnectorSpecificConfig, ErrorResponse, PaymentMethodToken as PaymentMethodTokenFlow,
-    },
+    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
+    router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
 };
 
@@ -237,7 +235,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
-            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
@@ -283,47 +281,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .into());
         };
         let source = match &item.router_data.request.payment_method_data {
-            // TODO: Add payment method token field and also rename the struct to PaymentMethodToken since it is not being used anywhere
-            PaymentMethodData::CardToken(CardToken { .. }) => {
-                let token = item
-                    .router_data
-                    .resource_common_data
-                    .payment_method_token
-                    .as_ref()
-                    .map(|t| match t {
-                        PaymentMethodTokenFlow::Token(s) => s.clone(),
-                    })
-                    .ok_or_else(|| {
-                        error_stack::report!(IntegrationError::MissingRequiredField {
-                            field_name: "payment_method_token",
-                            context: IntegrationErrorContext {
-                                suggested_action: Some(
-                                    "Ensure a payment method token is obtained via \
-                                     `PaymentMethodService.Tokenize` before calling Authorize \
-                                     with a CardToken payment method."
-                                        .to_owned(),
-                                ),
-                                doc_url: Some(
-                                    "https://optimize.billwerk.com/reference/create-session"
-                                        .to_owned(),
-                                ),
-                                additional_context: Some(
-                                    "Billwerk requires a tokenized payment source (from a \
-                                     checkout session or prior tokenization) to process card \
-                                     payments."
-                                        .to_owned(),
-                                ),
-                            },
-                        })
-                    })?;
-                token
-            }
+            PaymentMethodData::PaymentMethodToken(t) => t.token.clone(),
             _ => {
-                let PaymentMethodTokenFlow::Token(source) = item
-                    .router_data
-                    .resource_common_data
-                    .get_payment_method_token()?;
-                source
+                return Err(IntegrationError::NotSupported {
+                    message: "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted.".to_string(),
+                    connector: "billwerk",
+                    context: IntegrationErrorContext {
+                        suggested_action: Some("Ensure a payment method token is obtained via PaymentMethodService.Tokenize before initiating a Billwerk payment.".to_string()),
+                        doc_url: Some("https://optimize.billwerk.com/reference/create-session".to_string()),
+                        additional_context: Some("Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted.".to_string()),
+                    },
+                }
+                .into())
             }
         };
         let recurring = if item.router_data.request.setup_future_usage.is_some() {
@@ -602,10 +571,21 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let PaymentMethodTokenFlow::Token(source) = item
-            .router_data
-            .resource_common_data
-            .get_payment_method_token()?;
+        let source = match &item.router_data.request.payment_method_data {
+            PaymentMethodData::PaymentMethodToken(t) => t.token.clone(),
+            _ => {
+                return Err(IntegrationError::NotSupported {
+                    message: "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted.".to_string(),
+                    connector: "billwerk",
+                    context: IntegrationErrorContext {
+                        suggested_action: Some("Ensure a payment method token is obtained via PaymentMethodService.Tokenize before initiating a Billwerk payment.".to_string()),
+                        doc_url: Some("https://optimize.billwerk.com/reference/create-session".to_string()),
+                        additional_context: Some("Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted.".to_string()),
+                    },
+                }
+                .into())
+            }
+        };
         let amount = item
             .router_data
             .request

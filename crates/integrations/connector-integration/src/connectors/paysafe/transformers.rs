@@ -21,7 +21,7 @@ use serde::{Deserialize, Serialize};
 use crate::connectors::paysafe::PaysafeRouterData;
 use crate::types::ResponseRouterData;
 use domain_types::errors::ConnectorError;
-use domain_types::errors::IntegrationError;
+use domain_types::errors::{IntegrationError, IntegrationErrorContext};
 
 pub use super::requests::*;
 pub use super::responses::*;
@@ -523,30 +523,28 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 context: Default::default(),
             })?;
 
-        let payment_handle_token: Secret<String> = router_data
-            .resource_common_data
-            .payment_method_token
-            .as_ref()
-            .map(|token| match token {
-                domain_types::router_data::PaymentMethodToken::Token(t) => t.clone(),
-            })
-            .or_else(|| {
-                router_data
-                    .resource_common_data
-                    .connector_feature_data
-                    .as_ref()
-                    .and_then(|metadata_value| {
-                        metadata_value
-                            .clone()
-                            .parse_value::<PaysafeMeta>("PaysafeMeta")
-                            .ok()
-                            .map(|meta| meta.payment_handle_token)
-                    })
-            })
-            .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "payment_method_token",
-                context: Default::default(),
-            })?;
+        let payment_handle_token: Secret<String> = match &router_data.request.payment_method_data {
+            PaymentMethodData::PaymentMethodToken(t) => t.token.clone(),
+            _ => router_data
+                .resource_common_data
+                .connector_feature_data
+                .as_ref()
+                .and_then(|metadata_value| {
+                    metadata_value
+                        .clone()
+                        .parse_value::<PaysafeMeta>("PaysafeMeta")
+                        .ok()
+                        .map(|meta| meta.payment_handle_token)
+                })
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "payment_method_token",
+                    context: IntegrationErrorContext {
+                        suggested_action: Some("Obtain a Paysafe payment_handle_token via PaymentMethodService.Tokenize before authorizing.".to_string()),
+                        doc_url: Some("https://developer.paysafe.com/en/payments/payment-handles/create-payment-handle/".to_string()),
+                        additional_context: Some("Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata.".to_string()),
+                    },
+                })?,
+        };
 
         let customer_ip = router_data
             .request

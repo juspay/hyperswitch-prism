@@ -11,7 +11,7 @@ use domain_types::{
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData},
-    router_data::{ConnectorSpecificConfig, ErrorResponse, PaymentMethodToken},
+    router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     ResponseTransformationErrorContext,
 };
@@ -1479,7 +1479,6 @@ where
 #[allow(dead_code)]
 fn get_payment_info<T: PaymentMethodDataTypes>(
     payment_method_data: &PaymentMethodData<T>,
-    _payment_method_token: Option<PaymentMethodToken>,
 ) -> Result<PaymentInfo<T>, Report<IntegrationError>>
 where
     T::Inner: From<String> + Clone,

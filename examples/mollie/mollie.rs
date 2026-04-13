@@ -304,7 +304,7 @@ async fn main() {
         "refund_get" => refund_get(&client, "order_001").await,
         "token_authorize" => token_authorize(&client, "order_001").await,
         "void" => void(&client, "order_001").await,
-        _ => { eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_refund, process_void_payment, process_get_payment, authorize, create_client_authentication_token, get, proxy_authorize, refund, refund_get, token_authorize, void", flow); return; }
+        _ => { eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_refund, process_void_payment, process_get_payment, authorize, get, proxy_authorize, refund, refund_get, token_authorize, void", flow); return; }
     };
     match result {
         Ok(msg) => println!("✓ {msg}"),

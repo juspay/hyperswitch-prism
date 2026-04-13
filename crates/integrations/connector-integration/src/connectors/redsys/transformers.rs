@@ -38,6 +38,7 @@ pub const SIGNATURE_VERSION: &str = "HMAC_SHA256_V1";
 pub const DS_VERSION: &str = "0.0";
 pub const XMLNS_WEB_URL: &str = "http://webservices.apl02.redsys.es";
 pub const REDSYS_SOAP_ACTION: &str = "consultaOperaciones";
+pub const REDSYS_ORDER_ID_METADATA_KEY: &str = "order_id";
 pub const REDSYS_ORDER_ID_MAX_LENGTH: usize = 12;
 
 static LWV_THRESHOLD: LazyLock<common_utils::types::MinorUnit> =
@@ -46,21 +47,37 @@ static LWV_THRESHOLD: LazyLock<common_utils::types::MinorUnit> =
 type Error = Report<IntegrationError>;
 type ResponseError = Report<ConnectorError>;
 
-fn get_ds_merchant_order(connector_request_reference_id: &str) -> Result<String, Error> {
-    // If connector_request_reference_id is within limit, use it
+fn get_redsys_order_id_from_metadata(
+    metadata: Option<&Secret<serde_json::Value>>,
+) -> Option<String> {
+    metadata
+        .and_then(|meta| meta.peek().as_object())
+        .and_then(|obj| obj.get(REDSYS_ORDER_ID_METADATA_KEY))
+        .and_then(|value| value.as_str())
+        .map(|s| s.to_string())
+        .filter(|s| s.len() <= REDSYS_ORDER_ID_MAX_LENGTH)
+}
+
+fn get_ds_merchant_order(
+    connector_request_reference_id: String,
+    metadata: Option<&Secret<serde_json::Value>>,
+) -> Result<String, Error> {
     if connector_request_reference_id.len() <= REDSYS_ORDER_ID_MAX_LENGTH {
-        Ok(connector_request_reference_id.to_string())
-    } else {
-        Err(IntegrationError::MaxFieldLengthViolated {
+        return Ok(connector_request_reference_id);
+    }
+
+    Ok(get_redsys_order_id_from_metadata(metadata).ok_or_else(|| {
+        IntegrationError::MaxFieldLengthViolated {
             connector: "Redsys".to_string(),
             field_name: "ds_merchant_order".to_string(),
             max_length: REDSYS_ORDER_ID_MAX_LENGTH,
             received_length: connector_request_reference_id.len(),
             context: Default::default(),
-        })?
-    }
+        }
+    })?)
 }
 
+// Specifies the type of transaction for XML requests
 // Specifies the type of transaction for XML requests
 pub mod transaction_type {
     pub const PAYMENT: &str = "0";
@@ -265,7 +282,7 @@ where
             | Some(PaymentMethodData::MobilePayment(..))
             | Some(PaymentMethodData::Upi(..))
             | Some(PaymentMethodData::OpenBanking(_))
-            | Some(PaymentMethodData::CardToken(..))
+            | Some(PaymentMethodData::PaymentMethodToken(..))
             | Some(PaymentMethodData::NetworkToken(..))
             | Some(PaymentMethodData::CardDetailsForNetworkTransactionId(_))
             | Some(PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_))
@@ -843,7 +860,7 @@ where
             .connector_request_reference_id
             .clone();
 
-        let ds_merchant_order = get_ds_merchant_order(&connector_request_reference_id)?;
+        let ds_merchant_order = get_ds_merchant_order(connector_request_reference_id, None)?;
 
         let payment_request = requests::RedsysPaymentRequest {
             ds_merchant_amount: amount,
@@ -1359,9 +1376,11 @@ where
         };
 
         let ds_merchant_order = get_ds_merchant_order(
-            &router_data
+            router_data
                 .resource_common_data
-                .connector_request_reference_id,
+                .connector_request_reference_id
+                .clone(),
+            router_data.request.metadata.as_ref(),
         )?;
 
         let payment_request = requests::RedsysPaymentRequest {

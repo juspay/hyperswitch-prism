@@ -1337,7 +1337,7 @@ impl TryFrom<ResponseRouterData<AirwallexIntentResponse, Self>>
         };
 
         router_data.response = Ok(domain_types::connector_types::PaymentCreateOrderResponse {
-            order_id: item.response.id.clone(),
+            connector_order_id: item.response.id.clone(),
             session_data: None,
         });
 

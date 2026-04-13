@@ -302,6 +302,6 @@ fun main(args: Array<String>) {
         "refundGet" -> refundGet(txnId)
         "tokenAuthorize" -> tokenAuthorize(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processRefund, processVoidPayment, processGetPayment, authorize, createClientAuthenticationToken, get, proxyAuthorize, refund, refundGet, tokenAuthorize, void")
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processRefund, processVoidPayment, processGetPayment, authorize, get, proxyAuthorize, refund, refundGet, tokenAuthorize, void")
     }
 }
