@@ -507,7 +507,7 @@ macros::macro_connector_implementation!(
         fn build_request_v2(
             &self,
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
-        ) -> CustomResult<Option<common_utils::request::Request>, errors::ConnectorError> {
+        ) -> CustomResult<Option<common_utils::request::Request>, IntegrationError> {
             // For wallet redirects, encoded_data may be None
             // In such cases, gracefully skip the psync request
             if req.request.encoded_data.clone().is_some() {
