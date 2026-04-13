@@ -3,6 +3,18 @@ use std::marker::{Send, Sync};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use common_enums::{AttemptStatus, RefundStatus};
+
+// Paybox expects the currency as the ISO 4217 numeric code (e.g., "978" for EUR),
+// not the alphabetic code. Use this helper as a `serialize_with` for DEVISE fields.
+fn serialize_currency_iso4217_numeric<S>(
+    currency: &common_enums::Currency,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    serializer.serialize_str(currency.iso_4217())
+}
 use common_utils::{
     date_time::{format_date, now, DateFormat},
     errors::CustomResult,
@@ -187,7 +199,10 @@ pub struct PayboxPaymentRequest<T: PaymentMethodDataTypes> {
     pub paybox_request_number: String,
     #[serde(rename = "MONTANT")]
     pub amount: MinorUnit,
-    #[serde(rename = "DEVISE")]
+    #[serde(
+        rename = "DEVISE",
+        serialize_with = "serialize_currency_iso4217_numeric"
+    )]
     pub currency: common_enums::Currency,
     pub reference: String,
     #[serde(rename = "DATEQ")]
@@ -262,18 +277,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     req_card.card_cvc.clone(),
                 )
             }
-            PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-                WalletData::ApplePay(apple_pay_data) => {
-                    build_paybox_card_fields_from_apple_pay::<T>(apple_pay_data)?
-                }
-                _ => {
-                    return Err(IntegrationError::NotImplemented(
-                        utils::get_unimplemented_payment_method_error_message("Paybox"),
-                        Default::default(),
-                    )
-                    .into())
-                }
-            },
+            PaymentMethodData::Wallet(WalletData::ApplePay(apple_pay_data)) => {
+                build_paybox_card_fields_from_apple_pay::<T>(apple_pay_data)?
+            }
             _ => {
                 return Err(IntegrationError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Paybox"),
@@ -310,9 +316,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // application_primary_account_number to PORTEUR (card_number) and the decrypted
 // expiry (MMYY) to DATEVAL. Encrypted-only Apple Pay tokens return NotImplemented
 // since Paybox cannot consume them without prior decryption.
+type PayboxCardFields<T> = (RawCardNumber<T>, Secret<String>, Secret<String>);
+
 fn build_paybox_card_fields_from_apple_pay<T: PaymentMethodDataTypes>(
     apple_pay_data: &ApplePayWalletData,
-) -> Result<(RawCardNumber<T>, Secret<String>, Secret<String>), Report<IntegrationError>> {
+) -> Result<PayboxCardFields<T>, Report<IntegrationError>> {
     let decrypted = apple_pay_data
         .payment_data
         .get_decrypted_apple_pay_payment_data_optional()
@@ -328,17 +336,17 @@ fn build_paybox_card_fields_from_apple_pay<T: PaymentMethodDataTypes>(
         })?;
 
     // DATEVAL in MMYY.
-    let expiry_mmyy = decrypted
-        .get_expiry_date_as_mmyy()
-        .change_context(IntegrationError::InvalidDataFormat {
+    let expiry_mmyy = decrypted.get_expiry_date_as_mmyy().change_context(
+        IntegrationError::InvalidDataFormat {
             field_name: "apple_pay.expiry",
             context: Default::default(),
-        })?;
+        },
+    )?;
 
     // Convert decrypted PAN string to RawCardNumber<T>.
     let card_number_string = decrypted.application_primary_account_number.get_card_no();
-    let inner: T::Inner =
-        serde_json::from_value(serde_json::Value::String(card_number_string)).map_err(|e| {
+    let inner: T::Inner = serde_json::from_value(serde_json::Value::String(card_number_string))
+        .map_err(|e| {
             Report::new(IntegrationError::InvalidDataFormat {
                 field_name: "apple_pay.application_primary_account_number",
                 context: Default::default(),
@@ -600,7 +608,10 @@ pub struct PayboxCaptureRequest {
     pub paybox_request_number: String,
     #[serde(rename = "MONTANT")]
     pub amount: MinorUnit,
-    #[serde(rename = "DEVISE")]
+    #[serde(
+        rename = "DEVISE",
+        serialize_with = "serialize_currency_iso4217_numeric"
+    )]
     pub currency: common_enums::Currency,
     #[serde(rename = "REFERENCE")]
     pub reference: String,
@@ -757,7 +768,10 @@ pub struct PayboxVoidRequest {
     pub paybox_request_number: String,
     #[serde(rename = "MONTANT")]
     pub amount: MinorUnit,
-    #[serde(rename = "DEVISE")]
+    #[serde(
+        rename = "DEVISE",
+        serialize_with = "serialize_currency_iso4217_numeric"
+    )]
     pub currency: common_enums::Currency,
     #[serde(rename = "REFERENCE")]
     pub reference: String,
@@ -918,7 +932,10 @@ pub struct PayboxRefundRequest {
     pub paybox_request_number: String,
     #[serde(rename = "MONTANT")]
     pub amount: MinorUnit,
-    #[serde(rename = "DEVISE")]
+    #[serde(
+        rename = "DEVISE",
+        serialize_with = "serialize_currency_iso4217_numeric"
+    )]
     pub currency: common_enums::Currency,
     #[serde(rename = "REFERENCE")]
     pub reference: String,
