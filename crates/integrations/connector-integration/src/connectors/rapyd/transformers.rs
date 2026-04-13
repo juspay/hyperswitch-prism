@@ -17,7 +17,7 @@ use domain_types::{
 };
 use error_stack;
 use error_stack::ResultExt;
-use hyperswitch_masking::Secret;
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::Deserialize;
 use serde::Serialize;
 use std::fmt::Debug;
@@ -776,6 +776,13 @@ pub struct RapydCheckoutData {
     pub timestamp: Option<i64>,
 }
 
+/// Metadata for CreateOrder flow, passed via connector_feature_data
+#[derive(Debug, Clone, Deserialize)]
+pub struct RapydCreateOrderMetadata {
+    /// Country code for the checkout page (ISO 3166-1 alpha-2)
+    pub country: Option<String>,
+}
+
 // ============================================================================
 // CreateOrder Flow - Request Transformation
 // ============================================================================
@@ -816,13 +823,26 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 context: Default::default(),
             })?;
 
+        // Try to get country from billing address first, then fallback to connector_feature_data
         let country = router_data
             .resource_common_data
             .get_optional_billing_country()
             .map(|c| c.to_string())
+            .or_else(|| {
+                // Fallback: try to get country from connector_feature_data
+                router_data
+                    .resource_common_data
+                    .connector_feature_data
+                    .as_ref()
+                    .and_then(|meta| {
+                        serde_json::from_value::<RapydCreateOrderMetadata>(meta.clone().expose())
+                            .ok()
+                    })
+                    .and_then(|m| m.country)
+            })
             .ok_or_else(|| {
                 error_stack::report!(IntegrationError::MissingRequiredField {
-                    field_name: "billing_country",
+                    field_name: "billing_country or connector_feature_data.country",
                     context: Default::default(),
                 })
             })?;
@@ -872,14 +892,19 @@ impl TryFrom<ResponseRouterData<RapydCreateOrderResponse, Self>>
                     _ => common_enums::AttemptStatus::Pending,
                 };
 
+                // Extract checkout_id for use in resource_common_data
+                let checkout_id = data.id.clone();
+
                 Ok(Self {
                     response: Ok(PaymentCreateOrderResponse {
-                        order_id: data.id.clone(),
+                        connector_order_id: checkout_id.clone(),
                         session_data: None,
                     }),
                     resource_common_data: PaymentFlowData {
                         status,
-                        reference_id: Some(data.id),
+                        reference_id: Some(checkout_id.clone()),
+                        // Store order ID so Authorize flow can use it via connector_order_id
+                        connector_order_id: Some(checkout_id),
                         ..item.router_data.resource_common_data
                     },
                     ..item.router_data
