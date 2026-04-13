@@ -5,15 +5,18 @@ use common_utils::{
     types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
+    connector_flow::{Authorize, Capture, ClientAuthenticationToken, PSync, RSync, Refund, Void},
     connector_types::{
+        ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
+        ConnectorSpecificClientAuthenticationResponse,
+        FiservClientAuthenticationResponse as FiservClientAuthenticationResponseDomain,
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
         RefundsResponseData, ResponseId,
     },
     errors::{ConnectorError, IntegrationError},
-    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    payment_method_data::{CardToken, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, PaymentMethodToken},
     router_data_v2::RouterDataV2,
     utils,
 };
@@ -152,6 +155,11 @@ pub enum Source<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'sta
         data: Secret<String>,
         signature: Secret<String>,
         version: String,
+    },
+    /// Tokenized card data from Payment.js SDK (nonce from client-side tokenization)
+    PaymentToken {
+        #[serde(rename = "tokenData")]
+        token_data: Secret<String>,
     },
 }
 
@@ -525,6 +533,51 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             // transaction encryption such as SSL/TLS, but authentication was not performed
                             eci_indicator: TransactionInteractionEciIndicator::ChannelEncrypted,
                             //card not present in online transaction
+                            pos_condition_code:
+                                TransactionInteractionPosConditionCode::CardNotPresentEcom,
+                        }),
+                    },
+                ))
+            }
+            // TODO: Add payment method token field and also rename the struct to PaymentMethodToken since it is not being used anywhere
+            PaymentMethodData::CardToken(CardToken { .. }) => {
+                let token = item
+                    .router_data
+                    .resource_common_data
+                    .payment_method_token
+                    .as_ref()
+                    .map(|t| match t {
+                        PaymentMethodToken::Token(s) => s.clone(),
+                    })
+                    .ok_or_else(|| {
+                        error_stack::report!(IntegrationError::MissingRequiredField {
+                            field_name: "payment_method_token",
+                            context: Default::default(),
+                        })
+                    })?;
+
+                Ok(FiservCheckoutChargesRequest::Charges(
+                    ChargesPaymentRequest {
+                        source: Source::PaymentToken { token_data: token },
+                        transaction_details: TransactionDetails {
+                            capture_flag: Some(matches!(
+                                item.router_data.request.capture_method,
+                                Some(enums::CaptureMethod::Automatic)
+                                    | Some(enums::CaptureMethod::SequentialAutomatic)
+                                    | None
+                            )),
+                            reversal_reason_code: None,
+                            merchant_transaction_id: Some(
+                                item.router_data
+                                    .resource_common_data
+                                    .connector_request_reference_id
+                                    .clone(),
+                            ),
+                            operation_type: None,
+                        },
+                        transaction_interaction: Some(TransactionInteraction {
+                            origin: TransactionInteractionOrigin::Ecom,
+                            eci_indicator: TransactionInteractionEciIndicator::ChannelEncrypted,
                             pos_condition_code:
                                 TransactionInteractionPosConditionCode::CardNotPresentEcom,
                         }),
@@ -1230,5 +1283,106 @@ impl<F, Req, Res> TryFrom<ResponseRouterData<FiservErrorResponse, Self>>
         });
 
         Ok(router_data_out)
+    }
+}
+
+// ---- ClientAuthenticationToken flow types ----
+
+/// Creates a security credentials session for client-side Payment.js SDK initialization.
+/// The returned sessionId is used by the browser to tokenize card data directly with Fiserv.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FiservClientAuthRequest {
+    pub merchant_details: MerchantDetails,
+    pub domains: Vec<String>,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        FiservRouterData<
+            RouterDataV2<
+                ClientAuthenticationToken,
+                PaymentFlowData,
+                ClientAuthenticationTokenRequestData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for FiservClientAuthRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        item: FiservRouterData<
+            RouterDataV2<
+                ClientAuthenticationToken,
+                PaymentFlowData,
+                ClientAuthenticationTokenRequestData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = item.router_data;
+        let auth: FiservAuthType = FiservAuthType::try_from(&router_data.connector_config)?;
+
+        let merchant_details = MerchantDetails {
+            merchant_id: auth.merchant_account.clone(),
+            terminal_id: auth.terminal_id.clone(),
+        };
+
+        // Domains where Payment.js SDK will be loaded
+        let domains = vec!["*.hyperswitch.io".to_string()];
+
+        Ok(Self {
+            merchant_details,
+            domains,
+        })
+    }
+}
+
+/// Fiserv security credentials response containing the sessionId for Payment.js SDK.
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FiservClientAuthResponse {
+    /// The access token / session ID for client-side SDK initialization
+    pub access_token: Option<Secret<String>>,
+    /// The session ID for client-side SDK initialization
+    pub session_id: Option<Secret<String>>,
+}
+
+impl TryFrom<ResponseRouterData<FiservClientAuthResponse, Self>>
+    for RouterDataV2<
+        ClientAuthenticationToken,
+        PaymentFlowData,
+        ClientAuthenticationTokenRequestData,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<FiservClientAuthResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response;
+
+        // Fiserv may return access_token or session_id depending on the API version
+        let session_id = response.access_token.or(response.session_id).ok_or(
+            ConnectorError::ResponseDeserializationFailed {
+                context: Default::default(),
+            },
+        )?;
+
+        let session_data = ClientAuthenticationTokenData::ConnectorSpecific(Box::new(
+            ConnectorSpecificClientAuthenticationResponse::Fiserv(
+                FiservClientAuthenticationResponseDomain { session_id },
+            ),
+        ));
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::ClientAuthenticationTokenResponse {
+                session_data,
+                status_code: item.http_code,
+            }),
+            ..item.router_data
+        })
     }
 }
