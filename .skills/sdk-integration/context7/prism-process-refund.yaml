@@ -1,0 +1,82 @@
+name: "prism-process-refund"
+version: "1.0.0"
+description: "Implement refund operations (full or partial) using the Prism SDK"
+author: "Hyperswitch Prism Team"
+tags:
+  - payments
+  - sdk
+  - refund
+  - reverse
+
+parameters:
+  - name: language
+    type: string
+    required: true
+    description: "Programming language"
+    enum:
+      - python
+      - node
+      - java
+      - php
+      - rust
+  
+  - name: refund_type
+    type: string
+    required: true
+    description: "Full or partial refund"
+    enum:
+      - full
+      - partial
+  
+  - name: original_amount
+    type: number
+    required: false
+    description: "Original transaction amount (required for partial refunds)"
+  
+  - name: refund_amount
+    type: number
+    required: false
+    description: "Amount to refund (required for partial refunds)"
+
+prompt: |
+  Create a complete refund processing function in {{language}} using Hyperswitch Prism.
+
+  Refund Details:
+  - Type: {{refund_type}}
+  {{#if (eq refund_type "partial")}}
+  - Original Amount: {{original_amount}}
+  - Refund Amount: {{refund_amount}}
+  {{/if}}
+
+  Requirements:
+  1. Accept original transaction ID as input
+  2. Create RefundServiceRequest with:
+     - merchantRefundId (unique)
+     - paymentReference (original transaction)
+     - amount (minorAmount for {{refund_type}} refund)
+     - reason (optional but recommended)
+  3. Call appropriate refund method on client
+  4. Handle response statuses:
+     - SUCCESS: Refund processed
+     - PENDING: Refund queued
+     - FAILED: Refund declined
+  5. Error handling for:
+     - Invalid original transaction
+     - Amount exceeds original
+     - Connector refund failures
+  6. Include idempotency considerations
+
+  Output: Complete refund function with partial/full logic.
+
+examples:
+  - parameters:
+      language: "java"
+      refund_type: "full"
+    description: "Process full refund in Java"
+  
+  - parameters:
+      language: "python"
+      refund_type: "partial"
+      original_amount: 100.00
+      refund_amount: 50.00
+    description: "Process partial refund of $50 from $100 transaction"
