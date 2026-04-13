@@ -420,7 +420,29 @@
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_client_session_id": "probe_sdk_session_001",
+          "domain_context": {
+            "payment": {
+              "amount": {
+                "minor_amount": 1000,
+                "currency": "USD"
+              }
+            }
+          }
+        },
+        "sample": {
+          "url": "https://demo.mifinity.com/pegasus-ci/api/gateway/init-iframe",
+          "method": "Post",
+          "headers": {
+            "api-version": "1",
+            "content-type": "application/json",
+            "key": "probe_key",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"money\":{\"amount\":\"10.00\",\"currency\":\"USD\"},\"validationKey\":\"payment_validation_key_DefaultMerchantId_probe_sdk_session_001\",\"clientReference\":\"DefaultMerchantId\",\"traceId\":\"probe_sdk_session_001\",\"description\":\"probe_sdk_session_001\",\"destinationAccountNumber\":\"probe_acct_123\",\"brandId\":\"probe_brand\",\"returnUrl\":\"https://hyperswitch.io\"}"
+        }
       }
     },
     "create_customer": {

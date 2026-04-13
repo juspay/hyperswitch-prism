@@ -5,7 +5,7 @@
 // Mifinity — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx mifinity.ts checkout_autocapture
 
-import { PaymentClient, types } from 'hyperswitch-prism';
+import { MerchantAuthenticationClient, PaymentClient, types } from 'hyperswitch-prism';
 const { ConnectorConfig, ConnectorSpecificConfig, SdkOptions, Environment, Currency } = types;
 
 const _defaultConfig: ConnectorConfig = {
@@ -18,6 +18,16 @@ const _defaultConfig: ConnectorConfig = {
 //     mifinity: { apiKey: { value: 'YOUR_API_KEY' } }
 // };
 
+
+function _buildCreateClientAuthenticationTokenRequest(): MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest {
+    return {
+        "merchantClientSessionId": "probe_sdk_session_001",  // Infrastructure.
+        "domainContext": {
+            "minorAmount": 1000,
+            "currency": "USD"
+        }
+    };
+}
 
 function _buildGetRequest(connectorTransactionId: string): PaymentServiceGetRequest {
     return {
@@ -32,6 +42,15 @@ function _buildGetRequest(connectorTransactionId: string): PaymentServiceGetRequ
 
 
 // ANCHOR: scenario_functions
+// Flow: MerchantAuthenticationService.CreateClientAuthenticationToken
+async function createClientAuthenticationToken(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse> {
+    const merchantAuthenticationClient = new MerchantAuthenticationClient(config);
+
+    const createResponse = await merchantAuthenticationClient.createClientAuthenticationToken(_buildCreateClientAuthenticationTokenRequest());
+
+    return { status: createResponse.status };
+}
+
 // Flow: PaymentService.Get
 async function get(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<PaymentServiceGetResponse> {
     const paymentClient = new PaymentClient(config);
@@ -44,7 +63,7 @@ async function get(merchantTransactionId: string, config: ConnectorConfig = _def
 
 // Export all process* functions for the smoke test
 export {
-    get, _buildGetRequest
+    createClientAuthenticationToken, get, _buildCreateClientAuthenticationTokenRequest, _buildGetRequest
 };
 
 // CLI runner
