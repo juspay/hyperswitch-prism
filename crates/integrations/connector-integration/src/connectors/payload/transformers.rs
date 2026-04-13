@@ -137,7 +137,7 @@ fn build_payload_cards_request_data<T: PaymentMethodDataTypes>(
         let card = requests::PayloadCard {
             number: req_card.card_number.clone(),
             expiry: req_card.get_card_expiry_month_year_2_digit_with_delimiter("/".to_string())?,
-            cvc: req_card.card_cvc.clone(),
+            cvc: Some(req_card.card_cvc.clone()),
         };
 
         // Get billing address to access zip and state
@@ -251,8 +251,9 @@ fn build_payload_cards_request_data_from_apple_pay<T: PaymentMethodDataTypes>(
     let card = requests::PayloadCard {
         number,
         expiry,
-        // Apple Pay decrypted data does not include CVV.
-        cvc: Secret::new(String::new()),
+        // Apple Pay decrypted data does not include CVV; send placeholder to
+        // satisfy Payload API's required card_code validation.
+        cvc: Some(Secret::new("000".to_string())),
     };
 
     let billing_addr = resource_common_data.get_billing_address()?;

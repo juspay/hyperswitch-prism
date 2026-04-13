@@ -96,8 +96,8 @@ pub struct PayloadCard<T: PaymentMethodDataTypes> {
     pub number: RawCardNumber<T>,
     #[serde(rename = "payment_method[card][expiry]")]
     pub expiry: Secret<String>,
-    #[serde(rename = "payment_method[card][card_code]")]
-    pub cvc: Secret<String>,
+    #[serde(rename = "payment_method[card][card_code]", skip_serializing_if = "Option::is_none")]
+    pub cvc: Option<Secret<String>>,
 }
 
 /// Bank account payment method type for ACH bank debit payments
