@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { PaymentClient, types, IntegrationError, ConnectorError } from 'hyperswitch-prism';
+import { PaymentClient, MerchantAuthenticationClient, types, IntegrationError, ConnectorError } from 'hyperswitch-prism';
 import { getConnectorConfig, getConnectorName, config } from '../config.js';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
@@ -106,7 +106,23 @@ router.post('/token-authorize', async (req: Request, res: Response) => {
       }
 
       // Fetch server access token (without tokenization permissions - just for auth)
-      const serverToken = await fetchGlobalPayServerToken(appId, appKey);
+      // const serverToken = await fetchGlobalPayServerToken(appId, appKey);
+
+      // Alternative: Use createClientAuthToken for server-side authentication
+      const authClient = new MerchantAuthenticationClient(connectorConfig);
+      const sessionResponse = await authClient.createClientAuthenticationToken({
+        merchantClientSessionId: `server_session_${Date.now()}`,
+        payment: {
+          amount: {
+            minorAmount: amountNum,
+            currency: currencyEnum
+          }
+        }
+      });
+      
+      // Extract GlobalPay server token from SDK response
+      const gpData = (sessionResponse as any).sessionData?.connectorSpecific?.globalpay;
+      const serverToken = gpData?.accessToken?.value || '';
 
       // Add state with server token (as shown in transformer.js)
       authorizeRequest.state = {
@@ -116,7 +132,7 @@ router.post('/token-authorize', async (req: Request, res: Response) => {
         }
       };
 
-      console.log('[Token Authorize] Added server token to GlobalPay request');
+      console.log('[Token Authorize] Added server token (via SDK) to GlobalPay request');
     }
 
     // Authorize payment using token

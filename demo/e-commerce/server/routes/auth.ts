@@ -1,11 +1,28 @@
 import { Router, Request, Response } from 'express';
-import { MerchantAuthenticationClient, types } from 'hyperswitch-prism';
+import { types } from 'hyperswitch-prism';
 import { getConnectorConfig, getConnectorName, getPublishableKey, config } from '../config.js';
+import { createClientAuthToken as createClientAuthTokenShared } from '../utils/auth.js';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
 
 const router = Router();
-const { Environment, Currency } = types;
+const { Environment } = types;
+
+/**
+ * Creates a client authentication token using the SDK (wrapper that adds publishableKey)
+ */
+async function createClientAuthToken(
+  currencyStr: string,
+  amountNum: number
+): Promise<{ sessionResponse: any; serverToken: string; publishableKey: string; connectorConfig: any; currencyEnum: types.Currency }> {
+  const connectorConfig = getConnectorConfig(currencyStr);
+  const publishableKey = getPublishableKey(currencyStr);
+  
+  // Use shared utility
+  const { sessionResponse, serverToken, currencyEnum } = await createClientAuthTokenShared(currencyStr, amountNum);
+
+  return { sessionResponse, serverToken, publishableKey, connectorConfig, currencyEnum };
+}
 
 /**
  * Fetch GlobalPay access token with specific permissions
@@ -38,8 +55,8 @@ async function fetchGlobalPayAccessToken(appId: string, appKey: string, permissi
     body: JSON.stringify(body)
   });
 
-  const data = await resp.json() as { token?: string; [key: string]: unknown };
-
+  const data = await resp.json() as { token?: string;[key: string]: unknown };
+  console.log(JSON.stringify(data))
   if (!data.token) {
     console.error('[GlobalPay Token] Error:', data);
     throw new Error(`GlobalPay access token request failed: ${JSON.stringify(data)}`);
@@ -88,50 +105,69 @@ router.get('/sdk-session', async (req: Request, res: Response) => {
 
     if (connectorName === 'stripe') {
       // Stripe flow - use SDK
-      const connectorConfig = getConnectorConfig(currencyStr);
-      publishableKey = getPublishableKey(currencyStr);
+      const { sessionResponse, publishableKey: pk } = await createClientAuthToken(
+        currencyStr,
+        amountNum
+      );
+      publishableKey = pk;
 
-      const authClient = new MerchantAuthenticationClient(connectorConfig);
-      const sessionResponse = await authClient.createClientAuthenticationToken({
-        merchantClientSessionId: `session_${Date.now()}`,
-        payment: {
-          amount: {
-            minorAmount: amountNum,
-            currency: Currency.USD
-          }
-        }
-      });
+      console.log('[Stripe Raw Request]', sessionResponse.rawConnectorRequest?.value);
 
       // Extract Stripe client secret
       const stripeData = (sessionResponse as any).sessionData?.connectorSpecific?.stripe;
       clientToken = stripeData?.clientSecret?.value || '';
       sessionData = sessionResponse as unknown as Record<string, unknown>;
 
-    } else {
-      // GlobalPay flow - fetch token directly with tokenization permissions
-      const appId = process.env.GLOBALPAY_APP_ID;
-      const appKey = process.env.GLOBALPAY_APP_KEY;
+    } else if (connectorName === 'globalpay') {
+      // GlobalPay flow - compare both methods
+      const appId = process.env.GLOBALPAY_APP_ID!;
+      const appKey = process.env.GLOBALPAY_APP_KEY!;
 
-      if (!appId || !appKey) {
-        return res.status(500).json({
-          error: 'GlobalPay credentials not configured'
-        });
-      }
-
-      // Fetch token with PMT_POST_Create_Single permission for client-side tokenization
-      const accessToken = await fetchGlobalPayAccessToken(
+      // Method 1: Direct API call via fetchGlobalPayAccessToken
+      // console.log('\n========== METHOD 1: fetchGlobalPayAccessToken ==========');
+      const fetchToken = await fetchGlobalPayAccessToken(
         appId,
         appKey,
-        ['PMT_POST_Create_Single']  // Permission needed for Hosted Fields tokenization
+        ["PMT_POST_Create_Single"],
       );
 
-      clientToken = accessToken;
-      publishableKey = ''; // Not used for GlobalPay
+
+      // // Method 2: SDK via createClientAuthToken
+      // console.log('\n========== METHOD 2: createClientAuthToken (SDK) ==========');
+      const { sessionResponse, publishableKey: pk } = await createClientAuthToken(
+        currencyStr,
+        amountNum
+      );
+      console.log('[Method 2] Full SDK Response:');
+      console.log(JSON.stringify(sessionResponse, null, 2));
+
+      // Extract token from SDK response
+      const gpData = (sessionResponse as any).sessionData?.connectorSpecific?.globalpay;
+      const sdkToken = gpData?.accessToken?.value || '';
+      console.log('[Method 2] Token from SDK:', sdkToken ? sdkToken.substring(0, 20) + '...' : 'NOT FOUND');
+
+      // Compare tokens
+      // console.log('\n========== COMPARISON ==========');
+      // console.log('[Compare] Tokens match:', fetchToken === sdkToken);
+      // console.log('[Compare] Method 1 token length:', fetchToken.length);
+      // console.log('[Compare] Method 2 token length:', sdkToken.length);
+
+      // Use Method 1 token for backward compatibility
+      // clientToken = sdkToken;
+      clientToken = fetchToken;
+
+      publishableKey = pk;
       sessionData = {
-        accessToken: accessToken,
-        currency: currencyStr,
-        amount: amountNum
+        method1Token: fetchToken,
+        method2Token: sdkToken ,
+        // tokensMatch: fetchToken === sdkToken,
+        rawSdkResponse: gpData
       };
+    } else {
+      // Unsupported connector
+      return res.status(400).json({
+        error: `Unsupported connector: ${connectorName}`
+      });
     }
 
     const merchantTransactionId = `txn_${uuidv4().replace(/-/g, '').substring(0, 16)}`;
