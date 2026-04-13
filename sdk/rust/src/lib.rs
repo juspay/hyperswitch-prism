@@ -7,7 +7,9 @@ pub mod grpc_config;
 pub mod grpc_utils;
 pub mod http_client;
 
-pub use connector_client::{build_ffi_request, clear_perf_log, get_perf_log, ConnectorClient, PerfEntry};
+pub use connector_client::{
+    build_ffi_request, clear_perf_log, get_perf_log, ConnectorClient, PerfEntry,
+};
 pub use error::SdkError;
 pub use grpc_client::GrpcClient;
 pub use grpc_config::{build_connector_config, ConnectorSpecificConfig, GrpcConfig};

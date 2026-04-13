@@ -167,7 +167,11 @@ async fn test_connector_scenarios(
 
         match result {
             Ok(msg) => {
-                println!("{} {}", green("PASSED"), grey(&format!("({duration_ms:.1}ms) — {msg}")));
+                println!(
+                    "{} {}",
+                    green("PASSED"),
+                    grey(&format!("({duration_ms:.1}ms) — {msg}"))
+                );
                 scenarios.push((
                     scenario_key,
                     ScenarioResult {
@@ -214,7 +218,10 @@ async fn test_connector_scenarios(
                     any_failed = true;
                 } else if mock {
                     // In mock mode, connector-level errors mean req_transformer successfully built the HTTP request.
-                    println!("{} ({duration_ms:.1}ms) — req_transformer OK (mock response)", green("PASSED"));
+                    println!(
+                        "{} ({duration_ms:.1}ms) — req_transformer OK (mock response)",
+                        green("PASSED")
+                    );
                     scenarios.push((
                         scenario_key,
                         ScenarioResult {
@@ -227,7 +234,10 @@ async fn test_connector_scenarios(
                     ));
                 } else {
                     // Connector-level error (expected)
-                    println!("{} ({duration_ms:.1}ms)", yellow("SKIPPED (connector error)"));
+                    println!(
+                        "{} ({duration_ms:.1}ms)",
+                        yellow("SKIPPED (connector error)")
+                    );
                     scenarios.push((
                         scenario_key,
                         ScenarioResult {
@@ -528,8 +538,12 @@ fn print_performance_summary(results: &[ConnectorResult]) {
         );
         println!(
             "  {:<30} {:>10} {:>10} {:>10} {:>10} {:>10}",
-            "─".repeat(30), "─".repeat(10), "─".repeat(10),
-            "─".repeat(10), "─".repeat(10), "─".repeat(10)
+            "─".repeat(30),
+            "─".repeat(10),
+            "─".repeat(10),
+            "─".repeat(10),
+            "─".repeat(10),
+            "─".repeat(10)
         );
         let (mut total_req, mut total_http, mut total_res) = (0.0_f64, 0.0_f64, 0.0_f64);
         for e in &perf {
@@ -545,10 +559,18 @@ fn print_performance_summary(results: &[ConnectorResult]) {
         let n = perf.len() as f64;
         let total_overhead = total_req + total_res;
         let total_all = total_req + total_http + total_res;
-        let pct = if total_all > 0.0 { total_overhead / total_all * 100.0 } else { 0.0 };
+        let pct = if total_all > 0.0 {
+            total_overhead / total_all * 100.0
+        } else {
+            0.0
+        };
         println!("\n  Average req_ffi:  {:.2}ms", total_req / n);
         println!("  Average res_ffi:  {:.2}ms", total_res / n);
-        println!("  Average overhead: {:.2}ms ({:.1}% of total)", total_overhead / n, pct);
+        println!(
+            "  Average overhead: {:.2}ms ({:.1}% of total)",
+            total_overhead / n,
+            pct
+        );
         // Write perf data for cross-SDK comparison
         if let Ok(()) = std::fs::create_dir_all("/tmp/sdk-perf") {
             let entries: Vec<String> = perf.iter().map(|e| {
@@ -557,7 +579,10 @@ fn print_performance_summary(results: &[ConnectorResult]) {
                     e.flow, e.req_ffi_ms, e.http_ms, e.res_ffi_ms, e.total_ms
                 )
             }).collect();
-            let json = format!("{{\"sdk\":\"Rust\",\"flows\":[\n{}\n]}}", entries.join(",\n"));
+            let json = format!(
+                "{{\"sdk\":\"Rust\",\"flows\":[\n{}\n]}}",
+                entries.join(",\n")
+            );
             let _ = std::fs::write("/tmp/sdk-perf/rust.json", json);
         }
         hyperswitch_payments_client::clear_perf_log();

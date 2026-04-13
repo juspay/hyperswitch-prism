@@ -568,7 +568,9 @@ fn main() {
                             "            let _res = connectors::{}::{}(client, &txn_id).await;\n",
                             name, example_fn
                         ));
-                        code.push_str("            let _dur = _t.elapsed().as_secs_f64() * 1000.0;\n");
+                        code.push_str(
+                            "            let _dur = _t.elapsed().as_secs_f64() * 1000.0;\n",
+                        );
                         code.push_str("            match _res {\n");
                         code.push_str("                Ok(msg) => results.push((\"");
                         code.push_str(flow);
