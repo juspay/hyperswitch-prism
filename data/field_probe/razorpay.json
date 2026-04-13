@@ -742,7 +742,7 @@
     "token_authorize": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment Method CardToken(CardToken { card_holder_name: None, card_cvc: None }) not supported for Razorpay"
+        "error": "This feature is not implemented: Payment Method PaymentMethodToken(PaymentMethodToken { token: *** alloc::string::String *** }) not supported for Razorpay"
       }
     },
     "token_setup_recurring": {
