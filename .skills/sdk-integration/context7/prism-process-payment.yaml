@@ -1,0 +1,84 @@
+name: "prism-process-payment"
+version: "1.0.0"
+description: "Create a complete payment authorization flow using the Prism SDK"
+author: "Hyperswitch Prism Team"
+tags:
+  - payments
+  - sdk
+  - authorize
+  - transaction
+
+parameters:
+  - name: language
+    type: string
+    required: true
+    description: "Programming language"
+    enum:
+      - python
+      - node
+      - java
+      - php
+      - rust
+  
+  - name: payment_method
+    type: string
+    required: true
+    description: "Payment method type"
+    enum:
+      - card
+      - wallet
+      - bank_transfer
+      - bnpl
+  
+  - name: amount
+    type: number
+    required: true
+    description: "Payment amount in major currency units (e.g., 10.00 for $10)"
+  
+  - name: currency
+    type: string
+    required: true
+    description: "ISO 4217 currency code (USD, EUR, GBP, etc.)"
+  
+  - name: capture_method
+    type: string
+    required: false
+    default: "AUTOMATIC"
+    description: "When to capture the payment"
+    enum:
+      - AUTOMATIC
+      - MANUAL
+
+prompt: |
+  Create a complete payment authorization function in {{language}} using Hyperswitch Prism.
+
+  Payment Details:
+  - Method: {{payment_method}}
+  - Amount: {{amount}} {{currency}}
+  - Capture: {{capture_method}}
+
+  Requirements:
+  1. Create a PaymentClient with proper configuration
+  2. Build the PaymentServiceAuthorizeRequest with:
+     - merchantTransactionId (unique ID generation)
+     - Amount object with minorAmount calculation (convert {{amount}} to cents)
+     - Payment method details for {{payment_method}}
+     - Appropriate captureMethod ({{capture_method}})
+  3. Call client.authorize()
+  4. Handle the response:
+     - SUCCESS/CHARGED status
+     - FAILED status with error details
+     - PENDING status (if applicable)
+  5. Wrap in try-catch for IntegrationError and ConnectorError
+  6. Include example test card data for sandbox
+
+  Output: Complete function with comments explaining the flow.
+
+examples:
+  - parameters:
+      language: "node"
+      payment_method: "card"
+      amount: 10.00
+      currency: "USD"
+      capture_method: "AUTOMATIC"
+    description: "Process $10 card payment with automatic capture"
