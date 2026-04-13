@@ -1,9 +1,10 @@
 use crate::{connectors::zift::ZiftRouterData, types::ResponseRouterData};
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
+    errors::CustomResult,
     types::{MinorUnit, StringMinorUnit},
 };
-use error_stack::ResultExt;
+use error_stack::{report, Report, ResultExt};
 use std::fmt::Debug;
 
 use domain_types::{
@@ -13,11 +14,56 @@ use domain_types::{
         PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundsData,
         RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
-    errors::ConnectorError,
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
 };
+
+pub trait ConnectorTransactionIdExt {
+    fn get_connector_transaction_id_i64(&self) -> CustomResult<i64, IntegrationError>;
+}
+
+impl ConnectorTransactionIdExt for String {
+    fn get_connector_transaction_id_i64(&self) -> CustomResult<i64, IntegrationError> {
+        self.parse::<i64>()
+            .change_context(IntegrationError::InvalidDataFormat {
+                field_name: "connector_transaction_id",
+                context: IntegrationErrorContext {
+                    additional_context: Some("Expected numeric transaction ID".to_owned()),
+                    ..Default::default()
+                },
+            })
+            .attach_printable(format!(
+                "Failed to parse connector_transaction_id: {} as i64",
+                self
+            ))
+    }
+}
+
+impl ConnectorTransactionIdExt for Option<String> {
+    fn get_connector_transaction_id_i64(&self) -> CustomResult<i64, IntegrationError> {
+        self.as_ref()
+            .ok_or_else(|| {
+                report!(IntegrationError::MissingRequiredField {
+                    field_name: "connector_transaction_id",
+                    context: Default::default(),
+                })
+            })?
+            .get_connector_transaction_id_i64()
+    }
+}
+
+impl ConnectorTransactionIdExt for ResponseId {
+    fn get_connector_transaction_id_i64(&self) -> CustomResult<i64, IntegrationError> {
+        self.get_connector_transaction_id()
+            .change_context(IntegrationError::MissingRequiredField {
+                field_name: "connector_transaction_id",
+                context: Default::default(),
+            })?
+            .get_connector_transaction_id_i64()
+    }
+}
 
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -237,6 +283,17 @@ pub struct ZiftAuthPaymentsResponse {
     pub token: Option<String>,
 }
 
+impl ZiftAuthPaymentsResponse {
+    pub fn get_transaction_id(&self, http_code: u16) -> CustomResult<String, ConnectorError> {
+        self.transaction_id.clone().ok_or_else(|| {
+            Report::new(ConnectorError::response_handling_failed_with_context(
+                http_code,
+                Some("missing transaction_id in connector response".to_string()),
+            ))
+        })
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ZiftCaptureResponse {
@@ -262,6 +319,17 @@ pub struct ZiftRefundResponse {
     response_code: String,
     response_message: Option<String>,
     transaction_code: Option<String>,
+}
+
+impl ZiftRefundResponse {
+    pub fn get_transaction_id(&self, http_code: u16) -> CustomResult<String, ConnectorError> {
+        self.transaction_id.clone().ok_or_else(|| {
+            Report::new(ConnectorError::response_handling_failed_with_context(
+                http_code,
+                Some("missing transaction_id in connector response".to_string()),
+            ))
+        })
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -353,7 +421,7 @@ pub struct CardVerificationDetails<T: PaymentMethodDataTypes + Serialize + Debug
 }
 
 impl TryFrom<&ConnectorSpecificConfig> for ZiftAuthType {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<IntegrationError>;
     fn try_from(auth_type: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         if let ConnectorSpecificConfig::Zift {
             user_name,
@@ -368,13 +436,15 @@ impl TryFrom<&ConnectorSpecificConfig> for ZiftAuthType {
                 account_id: account_id.to_owned(),
             })
         } else {
-            Err(ConnectorError::FailedToObtainAuthType)?
+            Err(IntegrationError::FailedToObtainAuthType {
+                context: Default::default(),
+            })?
         }
     }
 }
 
 impl TryFrom<&domain_types::router_request_types::AuthenticationData> for AuthenticationStatus {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<IntegrationError>;
 
     fn try_from(
         auth_data: &domain_types::router_request_types::AuthenticationData,
@@ -408,7 +478,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     > for ZiftPaymentsRequest<T>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<IntegrationError>;
     fn try_from(
         item: ZiftRouterData<
             RouterDataV2<
@@ -423,7 +493,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let router_data = item.router_data.clone();
         let request_data = &router_data.request;
         let auth = ZiftAuthType::try_from(&item.router_data.connector_config)?;
-        let request_type = if item.router_data.request.is_auto_capture()? {
+        let request_type = if item.router_data.request.is_auto_capture() {
             RequestType::Sale
         } else {
             RequestType::Auth
@@ -432,7 +502,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .connector
             .amount_converter
             .convert(request_data.minor_amount, request_data.currency)
-            .change_context(ConnectorError::AmountConversionFailed)?;
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: Default::default(),
+            })?;
 
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(card) => {
@@ -440,9 +512,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     item.router_data.resource_common_data.is_three_ds(),
                     item.router_data.request.authentication_data.is_some(),
                 ) {
-                    (true, false) => Err(ConnectorError::NotSupported {
+                    (true, false) => Err(IntegrationError::NotSupported {
                         message: "3DS flow".to_string(),
                         connector: "Zift",
+                        context: Default::default(),
                     }
                     .into()),
                     (true, true) => {
@@ -451,8 +524,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             .request
                             .authentication_data
                             .as_ref()
-                            .ok_or(ConnectorError::MissingRequiredField {
+                            .ok_or(IntegrationError::MissingRequiredField {
                                 field_name: "authentication_data",
+                                context: Default::default(),
                             })?;
 
                         let authentication_status = AuthenticationStatus::try_from(auth_data)?;
@@ -477,7 +551,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             authentication_status,
                             authentication_code: auth_data.ds_trans_id.clone().map(Secret::new),
                             authentication_verification_value: auth_data.cavv.clone().ok_or(
-                                ConnectorError::MissingRequiredField { field_name: "cavv" },
+                                IntegrationError::MissingRequiredField {
+                                    field_name: "cavv",
+                                    context: Default::default(),
+                                },
                             )?,
                             authentication_version: auth_data
                                 .message_version
@@ -520,7 +597,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     }
                 }
             }
-            _ => Err(error_stack::report!(ConnectorError::NotImplemented(
+            _ => Err(error_stack::report!(IntegrationError::not_implemented(
                 "Payment method".to_string()
             ),)),
         }
@@ -530,12 +607,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<ZiftAuthPaymentsResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<ZiftAuthPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let is_approved = item.response.response_code.is_approved();
-        let is_auto_capture = item.router_data.request.is_auto_capture()?;
+        let is_auto_capture = item.router_data.request.is_auto_capture();
 
         let status = match (is_approved, is_auto_capture) {
             (true, true) => common_enums::AttemptStatus::Charged,
@@ -580,11 +657,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<ZiftAuthPaymentsRespo
                     None
                 };
 
-                let transaction_id = item.response.transaction_id.ok_or_else(|| {
-                    ConnectorError::MissingRequiredField {
-                        field_name: "transaction_id",
-                    }
-                })?;
+                let transaction_id = item.response.get_transaction_id(item.http_code)?;
 
                 Ok(Self {
                     resource_common_data: PaymentFlowData {
@@ -621,7 +694,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     > for ZiftRepeatPaymentsRequest<T>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<IntegrationError>;
     fn try_from(
         item: ZiftRouterData<
             RouterDataV2<
@@ -636,7 +709,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let router_data = item.router_data.clone();
         let request_data = &router_data.request;
         let auth = ZiftAuthType::try_from(&item.router_data.connector_config)?;
-        let request_type = if item.router_data.request.is_auto_capture()? {
+        let request_type = if item.router_data.request.is_auto_capture() {
             RequestType::Sale
         } else {
             RequestType::Auth
@@ -645,15 +718,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .connector
             .amount_converter
             .convert(request_data.minor_amount, request_data.currency)
-            .change_context(ConnectorError::AmountConversionFailed)?;
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: Default::default(),
+            })?;
 
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::MandatePayment => {
                 let card_details = match &item.router_data.request.payment_method_data {
                     PaymentMethodData::Card(card) => Ok(card),
-                    _ => Err(error_stack::report!(ConnectorError::NotSupported {
+                    _ => Err(error_stack::report!(IntegrationError::NotSupported {
                         message: "Payment Method Not Supported".to_string(),
                         connector: "Zift",
+                        context: Default::default()
                     })),
                 }?;
 
@@ -662,8 +738,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     auth,
                     account_type: AccountType::PaymentCard,
                     token: Secret::new(item.router_data.request.connector_mandate_id().ok_or(
-                        ConnectorError::MissingRequiredField {
+                        IntegrationError::MissingRequiredField {
                             field_name: "connector_mandate_id",
+                            context: Default::default(),
                         },
                     )?),
                     account_accessory: card_details
@@ -684,7 +761,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 };
                 Ok(Self::Mandate(mandate_request))
             }
-            _ => Err(error_stack::report!(ConnectorError::NotImplemented(
+            _ => Err(error_stack::report!(IntegrationError::not_implemented(
                 "Payment method".to_string()
             ),)),
         }
@@ -694,12 +771,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<ZiftAuthPaymentsResponse, Self>>
     for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<ZiftAuthPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let is_approved = item.response.response_code.is_approved();
-        let is_auto_capture = item.router_data.request.is_auto_capture()?;
+        let is_auto_capture = item.router_data.request.is_auto_capture();
 
         let status = match (is_approved, is_auto_capture) {
             (true, true) => common_enums::AttemptStatus::Charged,
@@ -728,11 +805,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<ZiftAuthPaymentsRespo
             }),
 
             _ => {
-                let transaction_id = item.response.transaction_id.ok_or_else(|| {
-                    ConnectorError::MissingRequiredField {
-                        field_name: "transaction_id",
-                    }
-                })?;
+                let transaction_id = item.response.get_transaction_id(item.http_code)?;
 
                 Ok(Self {
                     resource_common_data: PaymentFlowData {
@@ -759,7 +832,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<ZiftAuthPaymentsRespo
 impl TryFrom<ResponseRouterData<ZiftSyncResponse, Self>>
     for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<ZiftSyncResponse, Self>) -> Result<Self, Self::Error> {
         let attempt_status = match item.response.transaction_type {
             // Sale transactions
@@ -841,7 +914,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     > for ZiftSyncRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<IntegrationError>;
     fn try_from(
         item: ZiftRouterData<
             RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
@@ -849,20 +922,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     ) -> Result<Self, Self::Error> {
         let auth = ZiftAuthType::try_from(&item.router_data.connector_config)?;
-        let transaction_id = item
-            .router_data
-            .request
-            .connector_transaction_id
-            .clone()
-            .get_connector_transaction_id()
-            .change_context(ConnectorError::MissingConnectorTransactionID)?;
-
         Ok(Self {
             request_type: RequestType::Find,
             auth,
-            transaction_id: transaction_id
-                .parse::<i64>()
-                .map_err(|_| ConnectorError::RequestEncodingFailed)?,
+            transaction_id: item
+                .router_data
+                .request
+                .connector_transaction_id
+                .get_connector_transaction_id_i64()?,
         })
     }
 }
@@ -875,7 +942,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     > for ZiftCaptureRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<IntegrationError>;
     fn try_from(
         item: ZiftRouterData<
             RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
@@ -890,7 +957,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 item.router_data.request.minor_amount_to_capture,
                 item.router_data.request.currency,
             )
-            .change_context(ConnectorError::RequestEncodingFailed)?;
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?;
         Ok(Self {
             request_type: RequestType::Capture,
             auth,
@@ -898,11 +967,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .router_data
                 .request
                 .connector_transaction_id
-                .clone()
-                .get_connector_transaction_id()
-                .change_context(ConnectorError::MissingConnectorTransactionID)?
-                .parse::<i64>()
-                .map_err(|_| ConnectorError::RequestEncodingFailed)?,
+                .get_connector_transaction_id_i64()?,
             amount,
         })
     }
@@ -911,7 +976,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<F> TryFrom<ResponseRouterData<ZiftCaptureResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<ZiftCaptureResponse, Self>) -> Result<Self, Self::Error> {
         let capture_response = &item.response;
 
@@ -969,7 +1034,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     > for ZiftSetupMandateRequest<T>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<IntegrationError>;
     fn try_from(
         item: ZiftRouterData<
             RouterDataV2<
@@ -982,9 +1047,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     ) -> Result<Self, Self::Error> {
         if item.router_data.request.amount.unwrap_or(0) > 0 {
-            return Err(ConnectorError::FlowNotSupported {
+            return Err(IntegrationError::FlowNotSupported {
                 flow: "Setup Mandate with non zero amount".to_string(),
                 connector: "Zift".to_string(),
+                context: Default::default(),
             }
             .into());
         }
@@ -1003,9 +1069,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         csc: card.card_cvc.clone(),
                     }),
                 ),
-                _ => Err(ConnectorError::NotSupported {
+                _ => Err(IntegrationError::NotSupported {
                     message: "Only card supported for mandate setup".to_string(),
                     connector: "Zift",
+                    context: Default::default(),
                 })?,
             };
 
@@ -1038,10 +1105,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     >
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<ZiftAuthPaymentsResponse, Self>,
-    ) -> Result<Self, error_stack::Report<ConnectorError>> {
+    ) -> Result<Self, Report<ConnectorError>> {
         let status = if item.response.response_code.is_approved() {
             common_enums::AttemptStatus::Charged
         } else if item.response.response_code.is_pending() {
@@ -1050,11 +1117,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             common_enums::AttemptStatus::Failure
         };
         if status != common_enums::AttemptStatus::Failure {
-            let transaction_id = item.response.transaction_id.ok_or_else(|| {
-                ConnectorError::MissingRequiredField {
-                    field_name: "transaction_id",
-                }
-            })?;
+            let transaction_id = item.response.get_transaction_id(item.http_code)?;
 
             Ok(Self {
                 resource_common_data: PaymentFlowData {
@@ -1110,7 +1173,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     > for ZiftVoidRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<IntegrationError>;
     fn try_from(
         item: ZiftRouterData<
             RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
@@ -1125,9 +1188,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .router_data
                 .request
                 .connector_transaction_id
-                .clone()
-                .parse::<i64>()
-                .map_err(|_| ConnectorError::RequestEncodingFailed)?,
+                .get_connector_transaction_id_i64()?,
         })
     }
 }
@@ -1135,7 +1196,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<F> TryFrom<ResponseRouterData<ZiftVoidResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<ZiftVoidResponse, Self>) -> Result<Self, Self::Error> {
         let void_response = &item.response;
@@ -1185,7 +1246,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         ZiftRouterData<RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>, T>,
     > for ZiftRefundRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<IntegrationError>;
     fn try_from(
         item: ZiftRouterData<
             RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
@@ -1200,7 +1261,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 MinorUnit::new(item.router_data.request.refund_amount),
                 item.router_data.request.currency,
             )
-            .change_context(ConnectorError::RequestEncodingFailed)?;
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?;
         Ok(Self {
             request_type: RequestType::Refund,
             auth,
@@ -1214,7 +1277,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<F> TryFrom<ResponseRouterData<ZiftRefundResponse, Self>>
     for RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<ZiftRefundResponse, Self>) -> Result<Self, Self::Error> {
         let refund_response = &item.response;
@@ -1233,7 +1296,12 @@ impl<F> TryFrom<ResponseRouterData<ZiftRefundResponse, Self>>
                     .transaction_id
                     .clone()
                     .or(item.response.transaction_code.clone())
-                    .ok_or(ConnectorError::MissingConnectorRefundID)?,
+                    .ok_or_else(|| {
+                        Report::new(ConnectorError::response_handling_failed_with_context(
+                            item.http_code,
+                            Some("missing connector refund id in connector response".to_string()),
+                        ))
+                    })?,
                 refund_status,
                 status_code: item.http_code,
             })

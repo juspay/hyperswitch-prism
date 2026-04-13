@@ -19,14 +19,14 @@ pub struct {{CONNECTOR_NAME_PASCAL}}AuthType {
 }
 
 impl TryFrom<&ConnectorSpecificConfig> for {{CONNECTOR_NAME_PASCAL}}AuthType {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<errors::IntegrationError>;
 
     fn try_from(auth_type: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         match auth_type {
             ConnectorSpecificConfig::{{CONNECTOR_NAME_PASCAL}} { api_key, .. } => Ok(Self {
                 api_key: api_key.to_owned(),
             }),
-            _ => Err(error_stack::report!(errors::ConnectorError::FailedToObtainAuthType)),
+            _ => Err(error_stack::report!(errors::IntegrationError::FailedToObtainAuthType { context: errors::IntegrationErrorContext::default() })),
         }
     }
 }
@@ -48,7 +48,7 @@ impl<T: PaymentMethodDataTypes>
     TryFrom<&RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>>
     for {{CONNECTOR_NAME_PASCAL}}PaymentsRequest
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<errors::IntegrationError>;
 
     fn try_from(
         item: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,

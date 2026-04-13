@@ -90,7 +90,7 @@ use domain_types::{
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData,
         RefundsData, RefundsResponseData, SubmitEvidenceData,
     },
-    errors::{self, ConnectorError},
+    errors::{self, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorAuthType, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -172,7 +172,7 @@ macros::create_all_prerequisites!(
         pub fn build_headers<F, FCD, Req, Res>(
             &self,
             req: &RouterDataV2<F, FCD, Req, Res>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let mut header = vec![(
                 headers::CONTENT_TYPE.to_string(),
                 "application/json".to_string().into(),
@@ -217,9 +217,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
     fn get_auth_header(
         &self,
         auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
         let auth = transformers::{ConnectorName}AuthType::try_from(auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+            .change_context(errors::IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
 
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
@@ -237,7 +237,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
         } else {
             res.response
                 .parse_struct("ErrorResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed { context: Default::default() })?
         };
 
         if let Some(i) = event_builder {
@@ -275,16 +275,16 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
 
         fn get_url(
             &self,
             req: &RouterDataV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>,
-        ) -> CustomResult<String, ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let base_url = self.connector_base_url_disputes(req)
-                .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
+                .ok_or(errors::IntegrationError::FailedToObtainIntegrationUrl)?;
             let dispute_id = &req.request.connector_dispute_id;
             Ok(format!("{base_url}/{api_endpoint}/{dispute_id}/evidence"))
         }
@@ -303,7 +303,7 @@ use domain_types::{
     connector_types::{
         DisputeFlowData, DisputeResponseData, SubmitEvidenceData,
     },
-    errors::{self, ConnectorError},
+    errors::{self, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorAuthType, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -321,14 +321,14 @@ pub struct {ConnectorName}AuthType {
 }
 
 impl TryFrom<&ConnectorAuthType> for {ConnectorName}AuthType {
-    type Error = ConnectorError;
+    type Error = IntegrationError;
 
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
             ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
                 api_key: api_key.to_owned(),
             }),
-            _ => Err(ConnectorError::FailedToObtainAuthType),
+            _ => Err(IntegrationError::FailedToObtainAuthType { context: Default::default() }),
         }
     }
 }
@@ -386,7 +386,7 @@ pub struct {ConnectorName}RouterData<T, U> {
 }
 
 impl<T, U> TryFrom<(T, U)> for {ConnectorName}RouterData<T, U> {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from((router_data, connector): (T, U)) -> Result<Self, Self::Error> {
         Ok(Self {
@@ -400,7 +400,7 @@ impl<T, U> TryFrom<(T, U)> for {ConnectorName}RouterData<T, U> {
 impl TryFrom<{ConnectorName}RouterData<RouterDataV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>, T>>
     for {ConnectorName}SubmitEvidenceRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: {ConnectorName}RouterData<RouterDataV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>, T>,
@@ -548,7 +548,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn get_headers(
         &self,
         req: &RouterDataV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>,
-    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
         let mut header = vec![(
             "Content-Type".to_string(),
             "application/json".to_string().into(),
@@ -561,7 +561,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn get_url(
         &self,
         req: &RouterDataV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>,
-    ) -> CustomResult<String, errors::ConnectorError> {
+    ) -> CustomResult<String, errors::IntegrationError> {
         let base_url = &req.resource_common_data.connectors.{connector_name}.base_url;
         let dispute_id = &req.request.connector_dispute_id;
         Ok(format!("{base_url}/{endpoint}/{dispute_id}/evidence"))
@@ -570,7 +570,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn get_request_body(
         &self,
         req: &RouterDataV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>,
-    ) -> CustomResult<Option<RequestContent>, errors::ConnectorError> {
+    ) -> CustomResult<Option<RequestContent>, errors::IntegrationError> {
         let connector_router_data = {ConnectorName}RouterData::try_from((req.clone(), self))?;
         let connector_req = {ConnectorName}SubmitEvidenceRequest::try_from(&connector_router_data)?;
 
@@ -586,7 +586,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let response: {ConnectorName}SubmitEvidenceResponse = res
             .response
             .parse_struct("{ConnectorName}SubmitEvidenceResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed { context: Default::default() })?;
 
         event_builder.map(|i| i.set_response_body(&response));
 
@@ -703,7 +703,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
         } else {
             res.response
                 .parse_struct("ErrorResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed { context: Default::default() })?
         };
 
         if let Some(i) = event_builder {

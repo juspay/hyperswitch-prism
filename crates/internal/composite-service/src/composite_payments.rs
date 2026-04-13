@@ -3,7 +3,7 @@
 // use grpc_api_types::payments::{
 //     composite_payment_service_server::CompositePaymentService,
 //     payment_service_server::PaymentService, CompositeAuthorizeRequest, CompositeAuthorizeResponse,
-//     PaymentServiceAuthorizeResponse, MerchantAuthenticationServiceCreateAccessTokenResponse,
+//     PaymentServiceAuthorizeResponse, MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
 //     CustomerServiceCreateResponse,
 // };
 

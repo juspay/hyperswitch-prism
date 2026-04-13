@@ -161,6 +161,9 @@ message PaymentMethod {
     FamilyMart family_mart = 151;                             // FamilyMart - Japanese convenience store payment
     Seicomart seicomart = 152;                                // Seicomart - Japanese convenience store payment
     PayEasy pay_easy = 153;                                    // Pay-easy - Japanese bill payment service
+
+    // NETBANKING - Indian net banking (bank redirect)
+    NetbankingPayment netbanking = 158;                          // Netbanking - Indian online banking (bank redirect)
   }
 }
 
@@ -581,6 +584,12 @@ message UpiQr {
 
 message UpiConnectorResponse {
   optional UpiSource upi_mode = 1; // Final UPI source detected from connector response
+}
+
+// Netbanking - Indian online banking payment method (bank redirect)
+message NetbankingPayment {
+  // Bank selection for Indian netbanking
+  BankNames issuer = 1;
 }
 
 // PIX - Brazilian instant payment ecosystem
@@ -1262,6 +1271,22 @@ enum BankNames {
   Yoursafe = 144;
   N26 = 145;
   NationaleNederlanden = 146;
+  // Indian banks (Netbanking)
+  StateBank = 147;
+  HdfcBank = 148;
+  IciciBank = 149;
+  AxisBank = 150;
+  KotakMahindraBank = 151;
+  PunjabNationalBank = 152;
+  BankOfBaroda = 153;
+  UnionBankOfIndia = 154;
+  CanaraBank = 155;
+  IndusIndBank = 156;
+  YesBank = 157;
+  IdbiBank = 158;
+  FederalBank = 159;
+  IndianOverseasBank = 160;
+  CentralBankOfIndia = 161;
 }
 
 // ============================================================================

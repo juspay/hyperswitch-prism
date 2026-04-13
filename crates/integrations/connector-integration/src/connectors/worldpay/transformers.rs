@@ -10,7 +10,7 @@ use domain_types::{
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
         ResponseId,
     },
-    errors::ConnectorError,
+    errors::{ConnectorError, IntegrationError},
     payment_method_data::{
         PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
         WalletData as WalletDataPaymentMethod,
@@ -59,12 +59,13 @@ pub struct WorldpayConnectorMetadataObject {
 }
 
 impl TryFrom<Option<&pii::SecretSerdeValue>> for WorldpayConnectorMetadataObject {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(meta_data: Option<&pii::SecretSerdeValue>) -> Result<Self, Self::Error> {
         let metadata: Self =
             crate::utils::to_connector_meta_from_secret::<Self>(meta_data.cloned())
-                .change_context(ConnectorError::InvalidConnectorConfig {
+                .change_context(IntegrationError::InvalidConnectorConfig {
                     config: "connector_feature_data",
+                    context: Default::default(),
                 })?;
         Ok(metadata)
     }
@@ -75,7 +76,7 @@ fn fetch_payment_instrument<
 >(
     payment_method: PaymentMethodData<T>,
     billing_address: Option<&domain_types::payment_address::Address>,
-) -> CustomResult<PaymentInstrument<T>, ConnectorError> {
+) -> CustomResult<PaymentInstrument<T>, IntegrationError> {
     match payment_method {
         PaymentMethodData::Card(card) => {
             // Extract expiry month and year using helper functions
@@ -84,17 +85,19 @@ fn fetch_payment_instrument<
             let expiry_year: i32 = expiry_year_4_digit
                 .peek()
                 .parse::<i32>()
-                .change_context(ConnectorError::ResponseDeserializationFailed)?;
+                .change_context(IntegrationError::RequestEncodingFailed {
+                    context: Default::default(),
+                })?;
 
             Ok(PaymentInstrument::Card(CardPayment {
                 raw_card_details: RawCardDetails {
                     payment_type: PaymentType::Plain,
                     expiry_date: ExpiryDate {
                         month: expiry_month_i8,
-                        year: Secret::new(expiry_year),
-                    },
-                    card_number: card.card_number,
-                },
+                        year: Secret::new(expiry_year)
+},
+                    card_number: card.card_number
+},
                 cvc: card.card_cvc,
                 card_holder_name: billing_address
                     .and_then(|address| address.get_optional_full_name()),
@@ -110,13 +113,13 @@ fn fetch_payment_instrument<
                                     city,
                                     state: address.state,
                                     postal_code,
-                                    country_code,
-                                })
+                                    country_code
+})
                             }
-                            _ => None,
-                        }
-                    }),
-            }))
+                            _ => None
+}
+                    })
+}))
         }
         PaymentMethodData::CardDetailsForNetworkTransactionId(raw_card_details) => {
             // Extract expiry month and year using helper functions
@@ -125,19 +128,21 @@ fn fetch_payment_instrument<
             let expiry_year: i32 = expiry_year_4_digit
                 .peek()
                 .parse::<i32>()
-                .change_context(ConnectorError::ResponseDeserializationFailed)?;
+                .change_context(IntegrationError::RequestEncodingFailed {
+                    context: Default::default(),
+                })?;
 
             Ok(PaymentInstrument::RawCardForNTI(RawCardDetails {
                 payment_type: PaymentType::Plain,
                 expiry_date: ExpiryDate {
                     month: expiry_month_i8,
-                    year: Secret::new(expiry_year),
-                },
-                card_number: RawCardNumber(raw_card_details.card_number),
-            }))
+                    year: Secret::new(expiry_year)
+},
+                card_number: RawCardNumber(raw_card_details.card_number)
+}))
         }
         PaymentMethodData::MandatePayment => {
-            Err(ConnectorError::NotImplemented(
+            Err(IntegrationError::not_implemented(
                 "MandatePayment should not be used in Authorize flow - use RepeatPayment flow for MIT transactions".to_string()
             ).into())
         }
@@ -148,8 +153,9 @@ fn fetch_payment_instrument<
                     wallet_token: Secret::new(
                         data.tokenization_data
                             .get_encrypted_google_pay_token()
-                            .change_context(ConnectorError::MissingRequiredField {
+                            .change_context(IntegrationError::MissingRequiredField {
                                 field_name: "gpay wallet_token",
+                context: Default::default()
                             })?,
                     ),
                     ..WalletPayment::default()
@@ -194,7 +200,7 @@ fn fetch_payment_instrument<
             | WalletDataPaymentMethod::MbWay(_)
             | WalletDataPaymentMethod::Satispay(_)
             | WalletDataPaymentMethod::Wero(_) => {
-                Err(ConnectorError::NotImplemented(
+                Err(IntegrationError::not_implemented(
                     utils::get_unimplemented_payment_method_error_message("worldpay"),
                 )
                 .into())
@@ -213,36 +219,37 @@ fn fetch_payment_instrument<
         | PaymentMethodData::CardRedirect(_)
         | PaymentMethodData::GiftCard(_)
         | PaymentMethodData::OpenBanking(_)
-        | PaymentMethodData::CardToken(_)
+        | PaymentMethodData::PaymentMethodToken(_)
         | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
-        | PaymentMethodData::NetworkToken(_) => Err(ConnectorError::NotImplemented(
+        | PaymentMethodData::NetworkToken(_) => Err(IntegrationError::not_implemented(
             utils::get_unimplemented_payment_method_error_message("worldpay"),
         )
-        .into()),
-    }
+        .into())
+}
 }
 
 impl TryFrom<(enums::PaymentMethod, Option<enums::PaymentMethodType>)> for PaymentMethod {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(
         src: (enums::PaymentMethod, Option<enums::PaymentMethodType>),
     ) -> Result<Self, Self::Error> {
         match (src.0, src.1) {
             (enums::PaymentMethod::Card, _) => Ok(Self::Card),
             (enums::PaymentMethod::Wallet, pmt) => {
-                let pm = pmt.ok_or(ConnectorError::MissingRequiredField {
+                let pm = pmt.ok_or(IntegrationError::MissingRequiredField {
                     field_name: "payment_method_type",
+                    context: Default::default(),
                 })?;
                 match pm {
                     enums::PaymentMethodType::ApplePay => Ok(Self::ApplePay),
                     enums::PaymentMethodType::GooglePay => Ok(Self::GooglePay),
-                    _ => Err(ConnectorError::NotImplemented(
+                    _ => Err(IntegrationError::not_implemented(
                         utils::get_unimplemented_payment_method_error_message("worldpay"),
                     )
                     .into()),
                 }
             }
-            _ => Err(ConnectorError::NotImplemented(
+            _ => Err(IntegrationError::not_implemented(
                 utils::get_unimplemented_payment_method_error_message("worldpay"),
             )
             .into()),
@@ -261,7 +268,7 @@ fn create_three_ds_request<
         PaymentsResponseData,
     >,
     is_mandate_payment: bool,
-) -> Result<Option<ThreeDSRequest>, error_stack::Report<ConnectorError>> {
+) -> Result<Option<ThreeDSRequest>, error_stack::Report<IntegrationError>> {
     match (
         &router_data.resource_common_data.auth_type,
         &router_data.request.payment_method_data,
@@ -271,8 +278,9 @@ fn create_three_ds_request<
         // 3DS for regular payments
         (enums::AuthenticationType::ThreeDs, _) => {
             let browser_info = router_data.request.browser_info.as_ref().ok_or(
-                ConnectorError::MissingRequiredField {
+                IntegrationError::MissingRequiredField {
                     field_name: "browser_info",
+                    context: Default::default(),
                 },
             )?;
 
@@ -280,16 +288,18 @@ fn create_three_ds_request<
                 .accept_header
                 .clone()
                 .get_required_value("accept_header")
-                .change_context(ConnectorError::MissingRequiredField {
+                .change_context(IntegrationError::MissingRequiredField {
                     field_name: "accept_header",
+                    context: Default::default(),
                 })?;
 
             let user_agent_header = browser_info
                 .user_agent
                 .clone()
                 .get_required_value("user_agent")
-                .change_context(ConnectorError::MissingRequiredField {
+                .change_context(IntegrationError::MissingRequiredField {
                     field_name: "user_agent",
+                    context: Default::default(),
                 })?;
 
             let channel = Some(ThreeDSRequestChannel::Browser);
@@ -405,7 +415,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for WorldpayAuthorizeRequest<T>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(
         item: WorldpayRouterData<
             RouterDataV2<
@@ -421,8 +431,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let merchant_name = auth
             .merchant_name
-            .ok_or(ConnectorError::InvalidConnectorConfig {
+            .ok_or(IntegrationError::InvalidConnectorConfig {
                 config: "connector_config.merchant_name",
+                context: Default::default(),
             })?;
 
         let is_mandate_payment = item.router_data.request.is_mandate_payment();
@@ -489,7 +500,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for WorldpayRepeatPaymentRequest<T>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(
         item: WorldpayRouterData<
             RouterDataV2<
@@ -506,16 +517,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let merchant_name = auth
             .merchant_name
-            .ok_or(ConnectorError::InvalidConnectorConfig {
+            .ok_or(IntegrationError::InvalidConnectorConfig {
                 config: "connector_config.merchant_name",
+                context: Default::default(),
             })?;
 
         // Extract payment instrument from mandate_reference
         let payment_instrument = match &item.router_data.request.mandate_reference {
             MandateReferenceId::ConnectorMandateId(connector_mandate_ref) => {
                 let href = connector_mandate_ref.get_connector_mandate_id().ok_or(
-                    ConnectorError::MissingRequiredField {
+                    IntegrationError::MissingRequiredField {
                         field_name: "connector_mandate_id",
+                        context: Default::default(),
                     },
                 )?;
 
@@ -527,13 +540,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
             MandateReferenceId::NetworkMandateId(_network_txn_id) => {
                 // NTI flow would need raw card details, which RepeatPayment doesn't have
-                return Err(ConnectorError::NotImplemented(
+                return Err(IntegrationError::not_implemented(
                     "NetworkMandateId not supported in RepeatPayment".to_string(),
                 )
                 .into());
             }
             MandateReferenceId::NetworkTokenWithNTI(_) => {
-                return Err(ConnectorError::NotImplemented(
+                return Err(IntegrationError::not_implemented(
                     "NetworkTokenWithNTI not supported in RepeatPayment yet".to_string(),
                 )
                 .into());
@@ -593,7 +606,7 @@ pub struct WorldpayAuthType {
 }
 
 impl TryFrom<&ConnectorSpecificConfig> for WorldpayAuthType {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(auth_type: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         match auth_type {
             ConnectorSpecificConfig::Worldpay {
@@ -614,7 +627,9 @@ impl TryFrom<&ConnectorSpecificConfig> for WorldpayAuthType {
                     merchant_name: merchant_name.clone(),
                 })
             }
-            _ => Err(ConnectorError::FailedToObtainAuthType)?,
+            _ => Err(IntegrationError::FailedToObtainAuthType {
+                context: Default::default(),
+            })?,
         }
     }
 }
@@ -886,6 +901,7 @@ impl<F, T>
                 resource_id: ResponseId::foreign_try_from((
                     router_data.response,
                     optional_correlation_id.clone(),
+                    router_data.http_code,
                 ))?,
                 redirection_data: redirection_data.map(Box::new),
                 mandate_reference: mandate_reference.map(Box::new),
@@ -943,7 +959,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for WorldpayPartialRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(
         item: WorldpayRouterData<
             RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
@@ -976,7 +992,11 @@ impl TryFrom<ResponseRouterData<WorldpayPaymentsResponse, Self>>
     ) -> Result<Self, Self::Error> {
         let status = enums::AttemptStatus::from(item.response.outcome.clone());
         let response = Ok(PaymentsResponseData::TransactionResponse {
-            resource_id: ResponseId::foreign_try_from((item.response.clone(), None))?,
+            resource_id: ResponseId::foreign_try_from((
+                item.response.clone(),
+                None,
+                item.http_code,
+            ))?,
             redirection_data: None,
             mandate_reference: None,
             connector_metadata: None,
@@ -1003,7 +1023,7 @@ impl<F>
         MinorUnit,
     )> for WorldpayPartialRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(
         req: (
             &RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>,
@@ -1022,7 +1042,7 @@ impl<F>
 }
 
 impl TryFrom<WorldpayWebhookEventType> for WorldpayEventResponse {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(event: WorldpayWebhookEventType) -> Result<Self, Self::Error> {
         Ok(Self {
             last_event: event.event_details.event_type,
@@ -1073,7 +1093,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
         WorldpayRouterData<RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>, T>,
     > for WorldpayPartialRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(
         item: WorldpayRouterData<
             RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>,
@@ -1152,7 +1172,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for ()
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(
         _item: WorldpayRouterData<
             RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
@@ -1173,7 +1193,11 @@ impl TryFrom<ResponseRouterData<WorldpayPaymentsResponse, Self>>
     ) -> Result<Self, Self::Error> {
         let status = enums::AttemptStatus::from(item.response.outcome.clone());
         let response = Ok(PaymentsResponseData::TransactionResponse {
-            resource_id: ResponseId::foreign_try_from((item.response.clone(), None))?,
+            resource_id: ResponseId::foreign_try_from((
+                item.response.clone(),
+                None,
+                item.http_code,
+            ))?,
             redirection_data: None,
             mandate_reference: None,
             connector_metadata: None,
@@ -1194,21 +1218,21 @@ impl TryFrom<ResponseRouterData<WorldpayPaymentsResponse, Self>>
     }
 }
 
-impl ForeignTryFrom<(WorldpayPaymentsResponse, Option<String>)> for ResponseIdStr {
+impl ForeignTryFrom<(WorldpayPaymentsResponse, Option<String>, u16)> for ResponseIdStr {
     type Error = error_stack::Report<ConnectorError>;
     fn foreign_try_from(
-        item: (WorldpayPaymentsResponse, Option<String>),
+        item: (WorldpayPaymentsResponse, Option<String>, u16),
     ) -> Result<Self, Self::Error> {
-        get_resource_id(item.0, item.1, |id| Self { id })
+        get_resource_id(item.0, item.1, |id| Self { id }, item.2)
     }
 }
 
-impl ForeignTryFrom<(WorldpayPaymentsResponse, Option<String>)> for ResponseId {
+impl ForeignTryFrom<(WorldpayPaymentsResponse, Option<String>, u16)> for ResponseId {
     type Error = error_stack::Report<ConnectorError>;
     fn foreign_try_from(
-        item: (WorldpayPaymentsResponse, Option<String>),
+        item: (WorldpayPaymentsResponse, Option<String>, u16),
     ) -> Result<Self, Self::Error> {
-        get_resource_id(item.0, item.1, Self::ConnectorTransactionId)
+        get_resource_id(item.0, item.1, Self::ConnectorTransactionId, item.2)
     }
 }
 
@@ -1228,7 +1252,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for WorldpayPreAuthenticateRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(
         item: WorldpayRouterData<
             RouterDataV2<
@@ -1246,10 +1270,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .redirect_response
             .as_ref()
             .and_then(|redirect_response| redirect_response.params.as_ref())
-            .ok_or(ConnectorError::ResponseDeserializationFailed)?;
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "redirect_response.params",
+                context: Default::default(),
+            })?;
 
-        let parsed_request = serde_urlencoded::from_str::<Self>(params.peek())
-            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+        let parsed_request = serde_urlencoded::from_str::<Self>(params.peek()).change_context(
+            IntegrationError::BodySerializationFailed {
+                context: Default::default(),
+            },
+        )?;
 
         Ok(parsed_request)
     }
@@ -1269,7 +1299,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for WorldpayPostAuthenticateRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(
         item: WorldpayRouterData<
             RouterDataV2<
@@ -1287,10 +1317,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .redirect_response
             .as_ref()
             .and_then(|redirect_response| redirect_response.params.as_ref())
-            .ok_or(ConnectorError::ResponseDeserializationFailed)?;
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "redirect_response.params",
+                context: Default::default(),
+            })?;
 
-        let parsed_request = serde_urlencoded::from_str::<Self>(params.peek())
-            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+        let parsed_request = serde_urlencoded::from_str::<Self>(params.peek()).change_context(
+            IntegrationError::BodySerializationFailed {
+                context: Default::default(),
+            },
+        )?;
 
         Ok(parsed_request)
     }

@@ -6,7 +6,7 @@ use domain_types::{
         PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
         RepeatPaymentData, ResponseId,
     },
-    errors::ConnectorError,
+    errors::{ConnectorError, IntegrationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -124,7 +124,7 @@ pub struct BamboraapacAuthType {
 }
 
 impl TryFrom<&ConnectorSpecificConfig> for BamboraapacAuthType {
-    type Error = ConnectorError;
+    type Error = IntegrationError;
 
     fn try_from(auth_type: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         match auth_type {
@@ -138,7 +138,9 @@ impl TryFrom<&ConnectorSpecificConfig> for BamboraapacAuthType {
                 password: password.clone(),
                 account_number: account_number.clone(),
             }),
-            _ => Err(ConnectorError::FailedToObtainAuthType),
+            _ => Err(IntegrationError::FailedToObtainAuthType {
+                context: Default::default(),
+            }),
         }
     }
 }
@@ -430,7 +432,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
     > for BamboraapacPaymentRequest<T>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         router_data: &RouterDataV2<
@@ -445,7 +447,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Extract card data
         let card_data = match &router_data.request.payment_method_data {
             PaymentMethodData::Card(card) => Ok(card),
-            _ => Err(ConnectorError::NotImplemented(
+            _ => Err(IntegrationError::not_implemented(
                 "Payment method not supported".to_string(),
             )),
         }?;
@@ -477,8 +479,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             exp_year: card_data.get_expiry_year_4_digit(),
             cvn: card_data.card_cvc.clone(),
             card_holder_name: card_data.card_holder_name.clone().ok_or(
-                ConnectorError::MissingRequiredField {
+                IntegrationError::MissingRequiredField {
                     field_name: "payment_method.card.card_holder_name",
+                    context: Default::default(),
                 },
             )?,
             username: auth.username,
@@ -512,10 +515,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .replace("&gt;", ">");
 
         // Parse the inner Response XML
-        let response: PaymentResponse = inner_xml
-            .as_str()
-            .parse_xml()
-            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+        let response: PaymentResponse = inner_xml.as_str().parse_xml().change_context(
+            crate::utils::response_handling_fail_for_connector(item.http_code, "bamboraapac"),
+        )?;
 
         // Map Bambora response code to standard status
         // 0 = Approved, 1 = Not Approved
@@ -588,7 +590,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl TryFrom<&RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>>
     for BamboraapacCaptureRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         router_data: &RouterDataV2<
@@ -604,9 +606,12 @@ impl TryFrom<&RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, Paymen
         let receipt = match &router_data.request.connector_transaction_id {
             ResponseId::ConnectorTransactionId(id) | ResponseId::EncodedData(id) => id.clone(),
             ResponseId::NoResponseId => {
-                return Err(error_stack::report!(ConnectorError::MissingRequiredField {
-                    field_name: "connector_transaction_id",
-                }))
+                return Err(error_stack::report!(
+                    IntegrationError::MissingRequiredField {
+                        field_name: "connector_transaction_id",
+                        context: Default::default()
+                    }
+                ))
             }
         };
 
@@ -642,10 +647,9 @@ impl TryFrom<ResponseRouterData<BamboraapacCaptureResponse, Self>>
             .replace("&gt;", ">");
 
         // Parse the inner Response XML
-        let response: CaptureResponse = inner_xml
-            .as_str()
-            .parse_xml()
-            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+        let response: CaptureResponse = inner_xml.as_str().parse_xml().change_context(
+            crate::utils::response_handling_fail_for_connector(item.http_code, "bamboraapac"),
+        )?;
 
         // Map Bambora response code to standard status (0 = Approved)
         let status = if response.response_code == 0 {
@@ -713,7 +717,7 @@ impl TryFrom<ResponseRouterData<BamboraapacCaptureResponse, Self>>
 impl TryFrom<&RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>>
     for BamboraapacSyncRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         router_data: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
@@ -726,7 +730,9 @@ impl TryFrom<&RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsRes
             .connector_transaction_id
             .clone()
             .get_connector_transaction_id()
-            .change_context(ConnectorError::MissingConnectorTransactionID)?;
+            .change_context(IntegrationError::MissingConnectorTransactionID {
+                context: Default::default(),
+            })?;
 
         Ok(Self {
             account_number: auth.account_number,
@@ -760,10 +766,9 @@ impl TryFrom<ResponseRouterData<BamboraapacSyncResponse, Self>>
             .replace("&gt;", ">");
 
         // Parse the inner QueryResponse XML
-        let query_response: QueryResponse = inner_xml
-            .as_str()
-            .parse_xml()
-            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+        let query_response: QueryResponse = inner_xml.as_str().parse_xml().change_context(
+            crate::utils::response_handling_fail_for_connector(item.http_code, "bamboraapac"),
+        )?;
 
         // Check if response element exists
         let response = match &query_response.response {
@@ -868,7 +873,7 @@ impl
         >,
     > for BamboraapacRefundRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         router_data: &RouterDataV2<
@@ -924,10 +929,9 @@ impl TryFrom<ResponseRouterData<BamboraapacRefundResponse, Self>>
             .replace("&gt;", ">");
 
         // Parse the inner RefundResponse XML
-        let response: RefundResponseInner = inner_xml
-            .as_str()
-            .parse_xml()
-            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+        let response: RefundResponseInner = inner_xml.as_str().parse_xml().change_context(
+            crate::utils::response_handling_fail_for_connector(item.http_code, "bamboraapac"),
+        )?;
 
         // Map Bambora response code to standard refund status (0 = Approved)
         let refund_status = if response.response_code == 0 {
@@ -990,7 +994,7 @@ impl TryFrom<ResponseRouterData<BamboraapacRefundResponse, Self>>
 impl TryFrom<&RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>>
     for BamboraapacSyncRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         router_data: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
@@ -1032,10 +1036,9 @@ impl TryFrom<ResponseRouterData<BamboraapacSyncResponse, Self>>
             .replace("&gt;", ">");
 
         // Parse the inner QueryResponse XML
-        let query_response: QueryResponse = inner_xml
-            .as_str()
-            .parse_xml()
-            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+        let query_response: QueryResponse = inner_xml.as_str().parse_xml().change_context(
+            crate::utils::response_handling_fail_for_connector(item.http_code, "bamboraapac"),
+        )?;
 
         // Check if response element exists
         let response = match &query_response.response {
@@ -1181,7 +1184,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for BamboraapacSetupMandateRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         router_data: &RouterDataV2<
@@ -1196,7 +1199,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Extract card data from payment method data
         let card_data = match &router_data.request.payment_method_data {
             PaymentMethodData::Card(card) => Ok(card),
-            _ => Err(ConnectorError::NotImplemented(
+            _ => Err(IntegrationError::not_implemented(
                 "Only card payment methods are supported for SetupMandate".to_string(),
             )),
         }?;
@@ -1224,8 +1227,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             exp_month: card_data.card_exp_month.clone(),
             exp_year: card_data.get_expiry_year_4_digit(),
             card_holder_name: card_data.card_holder_name.clone().ok_or(
-                ConnectorError::MissingRequiredField {
+                IntegrationError::MissingRequiredField {
                     field_name: "payment_method.card.card_holder_name",
+                    context: Default::default(),
                 },
             )?,
             username: auth.username,
@@ -1263,10 +1267,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .replace("&gt;", ">");
 
         // Parse the inner RegisterSingleCustomerResponse XML
-        let response: RegisterSingleCustomerResponseInner = inner_xml
-            .as_str()
-            .parse_xml()
-            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+        let response: RegisterSingleCustomerResponseInner =
+            inner_xml.as_str().parse_xml().change_context(
+                crate::utils::response_handling_fail_for_connector(item.http_code, "bamboraapac"),
+            )?;
 
         // Map Bambora return_value to status
         // 0 = Successful, 1 = Invalid username/password, 2 = User does not belong to API User Group, etc.
@@ -1374,7 +1378,7 @@ impl<
         &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
     > for BamboraapacRepeatPaymentRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         router_data: &RouterDataV2<
@@ -1390,13 +1394,14 @@ impl<
         let token = match &router_data.request.mandate_reference {
             domain_types::connector_types::MandateReferenceId::ConnectorMandateId(mandate_ref) => {
                 mandate_ref.get_connector_mandate_id().ok_or(
-                    ConnectorError::MissingRequiredField {
+                    IntegrationError::MissingRequiredField {
                         field_name: "connector_mandate_id",
+                        context: Default::default(),
                     },
                 )?
             }
             _ => {
-                return Err(error_stack::report!(ConnectorError::NotImplemented(
+                return Err(error_stack::report!(IntegrationError::not_implemented(
                     "Only ConnectorMandateId is supported for RepeatPayment".to_string()
                 )))
             }
@@ -1448,10 +1453,9 @@ impl<
             .replace("&gt;", ">");
 
         // Parse the inner Response XML
-        let response: PaymentResponse = inner_xml
-            .as_str()
-            .parse_xml()
-            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+        let response: PaymentResponse = inner_xml.as_str().parse_xml().change_context(
+            crate::utils::response_handling_fail_for_connector(item.http_code, "bamboraapac"),
+        )?;
 
         // Map Bambora response code to standard status
         // 0 = Approved, 1 = Not Approved
@@ -1741,7 +1745,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for BamboraapacPaymentRequest<T>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         data: super::BamboraapacRouterData<
@@ -1766,7 +1770,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for BamboraapacPSyncRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         data: super::BamboraapacRouterData<
@@ -1786,7 +1790,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for BamboraapacCaptureRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         data: super::BamboraapacRouterData<
@@ -1806,7 +1810,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for BamboraapacRSyncRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         data: super::BamboraapacRouterData<
@@ -1831,7 +1835,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for BamboraapacRefundRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         data: super::BamboraapacRouterData<
@@ -1861,7 +1865,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for BamboraapacSetupMandateRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         data: super::BamboraapacRouterData<
@@ -1891,7 +1895,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for BamboraapacRepeatPaymentRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         data: super::BamboraapacRouterData<

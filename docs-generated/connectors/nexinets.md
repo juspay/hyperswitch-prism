@@ -18,7 +18,7 @@ Use this config for all flows in this connector. Replace `YOUR_API_KEY` with you
 <details><summary>Python</summary>
 
 ```python
-from payments.generated import sdk_config_pb2, payment_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -96,23 +96,9 @@ let config = ConnectorConfig {
 
 Complete, runnable examples for common integration patterns. Each example shows the full flow with status handling. Copy-paste into your app and replace placeholder values.
 
-### Card Payment (Automatic Capture)
+### One-step Payment (Authorize + Capture)
 
-Authorize and capture in one call using `capture_method=AUTOMATIC`. Use for digital goods or immediate fulfillment.
-
-**Response status handling:**
-
-| Status | Recommended action |
-|--------|-------------------|
-| `AUTHORIZED` | Payment authorized and captured — funds will be settled automatically |
-| `PENDING` | Payment processing — await webhook for final status before fulfilling |
-| `FAILED` | Payment declined — surface error to customer, do not retry without new details |
-
-**Examples:** [Python](../../examples/nexinets/python/nexinets.py#L65) · [JavaScript](../../examples/nexinets/javascript/nexinets.js#L60) · [Kotlin](../../examples/nexinets/kotlin/nexinets.kt#L80) · [Rust](../../examples/nexinets/rust/nexinets.rs#L80)
-
-### Wallet Payment (Google Pay / Apple Pay)
-
-Wallet payments pass an encrypted token from the browser/device SDK. Pass the token blob directly — do not decrypt client-side.
+Simple payment that authorizes and captures in one call. Use for immediate charges.
 
 **Response status handling:**
 
@@ -122,19 +108,19 @@ Wallet payments pass an encrypted token from the browser/device SDK. Pass the to
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/nexinets/python/nexinets.py#L84) · [JavaScript](../../examples/nexinets/javascript/nexinets.js#L79) · [Kotlin](../../examples/nexinets/kotlin/nexinets.kt#L96) · [Rust](../../examples/nexinets/rust/nexinets.rs#L96)
+**Examples:** [Python](../../examples/nexinets/nexinets.py#L106) · [JavaScript](../../examples/nexinets/nexinets.js) · [Kotlin](../../examples/nexinets/nexinets.kt#L81) · [Rust](../../examples/nexinets/nexinets.rs#L105)
 
-### Refund a Payment
+### Refund
 
-Authorize with automatic capture, then refund the captured amount. `connector_transaction_id` from the Authorize response is reused for the Refund call.
+Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/nexinets/python/nexinets.py#L132) · [JavaScript](../../examples/nexinets/javascript/nexinets.js#L124) · [Kotlin](../../examples/nexinets/kotlin/nexinets.kt#L138) · [Rust](../../examples/nexinets/rust/nexinets.rs#L142)
+**Examples:** [Python](../../examples/nexinets/nexinets.py#L125) · [JavaScript](../../examples/nexinets/nexinets.js) · [Kotlin](../../examples/nexinets/nexinets.kt#L97) · [Rust](../../examples/nexinets/nexinets.rs#L121)
 
 ### Get Payment Status
 
-Authorize a payment, then poll the connector for its current status using Get. Use this to sync payment state when webhooks are unavailable or delayed.
+Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/nexinets/python/nexinets.py#L169) · [JavaScript](../../examples/nexinets/javascript/nexinets.js#L159) · [Kotlin](../../examples/nexinets/kotlin/nexinets.kt#L160) · [Rust](../../examples/nexinets/rust/nexinets.rs#L165)
+**Examples:** [Python](../../examples/nexinets/nexinets.py#L150) · [JavaScript](../../examples/nexinets/nexinets.js) · [Kotlin](../../examples/nexinets/nexinets.kt#L119) · [Rust](../../examples/nexinets/nexinets.rs#L144)
 
 ## API Reference
 
@@ -142,6 +128,7 @@ Authorize a payment, then poll the connector for its current status using Get. U
 |--------------------|----------|----------------------|
 | [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
+| [PaymentService.ProxyAuthorize](#paymentserviceproxyauthorize) | Payments | `PaymentServiceProxyAuthorizeRequest` |
 | [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
 
 ### Payments
@@ -160,20 +147,96 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Payment Method | Supported |
 |----------------|:---------:|
 | Card | ✓ |
-| Google Pay | ⚠ |
+| Bancontact | ⚠ |
 | Apple Pay | ✓ |
+| Apple Pay Dec | ? |
+| Apple Pay SDK | ⚠ |
+| Google Pay | ⚠ |
+| Google Pay Dec | ⚠ |
+| Google Pay SDK | ⚠ |
+| PayPal SDK | ⚠ |
+| Amazon Pay | ⚠ |
+| Cash App | ⚠ |
+| PayPal | ✓ |
+| WeChat Pay | ⚠ |
+| Alipay | ⚠ |
+| Revolut Pay | ⚠ |
+| MiFinity | ⚠ |
+| Bluecode | ⚠ |
+| Paze | x |
+| Samsung Pay | ⚠ |
+| MB Way | ⚠ |
+| Satispay | ⚠ |
+| Wero | ⚠ |
+| Affirm | ⚠ |
+| Afterpay | ⚠ |
+| Klarna | ⚠ |
+| UPI Collect | ⚠ |
+| UPI Intent | ⚠ |
+| UPI QR | ⚠ |
+| Thailand | ⚠ |
+| Czech | ⚠ |
+| Finland | ⚠ |
+| FPX | ⚠ |
+| Poland | ⚠ |
+| Slovakia | ⚠ |
+| UK | ⚠ |
+| PIS | x |
+| Generic | ⚠ |
+| Local | ⚠ |
+| iDEAL | ✓ |
+| Sofort | ✓ |
+| Trustly | ⚠ |
+| Giropay | ✓ |
+| EPS | ✓ |
+| Przelewy24 | ⚠ |
+| PSE | ⚠ |
+| BLIK | ⚠ |
+| Interac | ⚠ |
+| Bizum | ⚠ |
+| EFT | ⚠ |
+| DuitNow | x |
+| ACH | ⚠ |
 | SEPA | ⚠ |
 | BACS | ⚠ |
+| Multibanco | ⚠ |
+| Instant | ⚠ |
+| Instant FI | ⚠ |
+| Instant PL | ⚠ |
+| Pix | ⚠ |
+| Permata | ⚠ |
+| BCA | ⚠ |
+| BNI VA | ⚠ |
+| BRI VA | ⚠ |
+| CIMB VA | ⚠ |
+| Danamon VA | ⚠ |
+| Mandiri VA | ⚠ |
+| Local | ⚠ |
+| Indonesian | ⚠ |
 | ACH | ⚠ |
+| SEPA | ⚠ |
+| BACS | ⚠ |
 | BECS | ⚠ |
-| iDEAL | ✓ |
-| PayPal | ✓ |
-| BLIK | ⚠ |
-| Klarna | ⚠ |
-| Afterpay | ⚠ |
-| UPI | ⚠ |
-| Affirm | ⚠ |
-| Samsung Pay | ⚠ |
+| SEPA Guaranteed | ⚠ |
+| Crypto | x |
+| Reward | ⚠ |
+| Givex | x |
+| PaySafeCard | x |
+| E-Voucher | ⚠ |
+| Boleto | ⚠ |
+| Efecty | ⚠ |
+| Pago Efectivo | ⚠ |
+| Red Compra | ⚠ |
+| Red Pagos | ⚠ |
+| Alfamart | ⚠ |
+| Indomaret | ⚠ |
+| Oxxo | ⚠ |
+| 7-Eleven | ⚠ |
+| Lawson | ⚠ |
+| Mini Stop | ⚠ |
+| Family Mart | ⚠ |
+| Seicomart | ⚠ |
+| Pay Easy | ⚠ |
 
 **Payment method objects** — use these in the `payment_method` field of the Authorize request.
 
@@ -181,12 +244,12 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "card": {  # Generic card payment
-        "card_number": {"value": "4111111111111111"},  # Card Identification
+    "card": {  # Generic card payment.
+        "card_number": {"value": "4111111111111111"},  # Card Identification.
         "card_exp_month": {"value": "03"},
         "card_exp_year": {"value": "2030"},
         "card_cvc": {"value": "737"},
-        "card_holder_name": {"value": "John Doe"}  # Cardholder Information
+        "card_holder_name": {"value": "John Doe"}  # Cardholder Information.
     }
 }
 ```
@@ -195,16 +258,16 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "apple_pay": {  # Apple Pay
+    "apple_pay": {  # Apple Pay.
         "payment_data": {
-            "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9"  # Encrypted Apple Pay payment data as string
+            "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9"  # Encrypted Apple Pay payment data as string.
         },
         "payment_method": {
             "display_name": "Visa 1111",
             "network": "Visa",
             "type": "debit"
         },
-        "transaction_identifier": "probe_txn_id"  # Transaction identifier
+        "transaction_identifier": "probe_txn_id"  # Transaction identifier.
     }
 }
 ```
@@ -222,13 +285,13 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "paypal_redirect": {  # PayPal
-        "email": {"value": "test@example.com"}  # PayPal's email address
+    "paypal_redirect": {  # PayPal.
+        "email": {"value": "test@example.com"}  # PayPal's email address.
     }
 }
 ```
 
-**Examples:** [Python](../../examples/nexinets/python/nexinets.py#L191) · [JavaScript](../../examples/nexinets/javascript/nexinets.js#L180) · [Kotlin](../../examples/nexinets/kotlin/nexinets.kt#L178) · [Rust](../../examples/nexinets/rust/nexinets.rs#L183)
+**Examples:** [Python](../../examples/nexinets/nexinets.py#L172) · [TypeScript](../../examples/nexinets/nexinets.ts#L166) · [Kotlin](../../examples/nexinets/nexinets.kt#L137) · [Rust](../../examples/nexinets/nexinets.rs#L162)
 
 #### PaymentService.Get
 
@@ -239,15 +302,26 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/nexinets/python/nexinets.py#L200) · [JavaScript](../../examples/nexinets/javascript/nexinets.js#L189) · [Kotlin](../../examples/nexinets/kotlin/nexinets.kt#L190) · [Rust](../../examples/nexinets/rust/nexinets.rs#L195)
+**Examples:** [Python](../../examples/nexinets/nexinets.py#L181) · [TypeScript](../../examples/nexinets/nexinets.ts#L175) · [Kotlin](../../examples/nexinets/nexinets.kt#L149) · [Rust](../../examples/nexinets/nexinets.rs#L174)
+
+#### PaymentService.ProxyAuthorize
+
+Authorize using vault-aliased card data. Proxy substitutes before connector.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceProxyAuthorizeRequest` |
+| **Response** | `PaymentServiceAuthorizeResponse` |
+
+**Examples:** [Python](../../examples/nexinets/nexinets.py#L190) · [TypeScript](../../examples/nexinets/nexinets.ts#L184) · [Kotlin](../../examples/nexinets/nexinets.kt#L157) · [Rust](../../examples/nexinets/nexinets.rs#L181)
 
 #### PaymentService.Refund
 
-Initiate a refund to customer's payment method. Returns funds for returns, cancellations, or service adjustments after original payment.
+Process a partial or full refund for a captured payment. Returns funds to the customer when goods are returned or services are cancelled.
 
 | | Message |
 |---|---------|
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/nexinets/python/nexinets.py#L132) · [JavaScript](../../examples/nexinets/javascript/nexinets.js#L124) · [Kotlin](../../examples/nexinets/kotlin/nexinets.kt#L198) · [Rust](../../examples/nexinets/rust/nexinets.rs#L202)
+**Examples:** [Python](../../examples/nexinets/nexinets.py#L199) · [TypeScript](../../examples/nexinets/nexinets.ts#L193) · [Kotlin](../../examples/nexinets/nexinets.kt#L185) · [Rust](../../examples/nexinets/nexinets.rs#L188)

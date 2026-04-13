@@ -26,8 +26,8 @@ Most connectors return `NotImplemented`. No primary reference implementation exi
 ```rust
 // For unsupported connectors (most common):
 PaymentMethodData::MobilePayment(_) => {
-    Err(ConnectorError::NotImplemented(
-        "Direct Carrier Billing is not supported by ConnectorName".to_string()
+    Err(IntegrationError::NotImplemented(
+        "Direct Carrier Billing is not supported by ConnectorName".to_string(, Default::default())
     ))?
 }
 
@@ -42,7 +42,7 @@ PaymentMethodData::MobilePayment(ref mobile_data) => {
                 msisdn: msisdn.clone(),
                 client_uid: client_uid.clone(),
                 callback_url: router_data.request.router_return_url.clone()
-                    .ok_or(ConnectorError::MissingRequiredField { field_name: "router_return_url" })?,
+                    .ok_or(IntegrationError::MissingRequiredField { field_name: "router_return_url" , context: Default::default() })?,
                 reference: router_data.resource_common_data.connector_request_reference_id.clone(),
                 ...
             })
@@ -70,14 +70,14 @@ pub struct MobilePaymentAuthorizeRequest {
 ## MSISDN Validation
 
 ```rust
-fn validate_msisdn(msisdn: &str) -> Result<(), ConnectorError> {
+fn validate_msisdn(msisdn: &str) -> Result<(), IntegrationError> {
     if !msisdn.starts_with('+') || !msisdn[1..].chars().all(|c| c.is_ascii_digit()) {
-        return Err(ConnectorError::InvalidRequestData {
+        return Err(IntegrationError::InvalidRequestData {
             message: format!("Invalid MSISDN format: {}", msisdn),
         });
     }
     if msisdn.len() < 8 || msisdn.len() > 16 {
-        return Err(ConnectorError::InvalidRequestData {
+        return Err(IntegrationError::InvalidRequestData {
             message: "MSISDN length must be 8-16 characters including +".to_string(),
         });
     }

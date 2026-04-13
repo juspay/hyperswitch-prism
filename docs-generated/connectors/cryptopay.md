@@ -18,7 +18,7 @@ Use this config for all flows in this connector. Replace `YOUR_API_KEY` with you
 <details><summary>Python</summary>
 
 ```python
-from payments.generated import sdk_config_pb2, payment_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -97,6 +97,7 @@ let config = ConnectorConfig {
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
+| [EventService.HandleEvent](#eventservicehandleevent) | Events | `EventServiceHandleRequest` |
 
 ### Payments
 
@@ -109,4 +110,4 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/cryptopay/python/cryptopay.py) · [JavaScript](../../examples/cryptopay/javascript/cryptopay.js) · [Kotlin](../../examples/cryptopay/kotlin/cryptopay.kt#L36) · [Rust](../../examples/cryptopay/rust/cryptopay.rs#L38)
+**Examples:** [Python](../../examples/cryptopay/cryptopay.py#L45) · [TypeScript](../../examples/cryptopay/cryptopay.ts#L41) · [Kotlin](../../examples/cryptopay/cryptopay.kt#L38) · [Rust](../../examples/cryptopay/cryptopay.rs#L44)

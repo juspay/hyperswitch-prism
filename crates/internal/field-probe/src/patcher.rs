@@ -4,10 +4,11 @@
 //!   1. [[multi]]  — one alias → multiple fields simultaneously
 //!   2. [[rule]]   — explicit typed mapping; flow-specific rules win over generic
 
+use domain_types::connector_types::ConnectorEnum;
 use serde::Serialize;
 use serde_json::Value;
 
-use crate::config::{get_patch_config, PatchConfig};
+use crate::config::{connector_flow_overrides, get_patch_config, PatchConfig};
 use crate::sample_data::{full_browser_info, usd_money};
 
 // ── Struct-level patch values ─────────────────────────────────────────────────
@@ -103,6 +104,14 @@ fn parse_rule_key(key: &str) -> (&str, Option<&str>) {
         "recurring_charge",
         "proxy_authorize",
         "proxy_setup_recurring",
+        "pre_authenticate",
+        "authenticate",
+        "post_authenticate",
+        "token_authorize",
+        "token_setup_recurring",
+        "create_order",
+        "incremental_authorization",
+        "refund_get",
     ];
     for flow in FLOWS {
         if let Some(rest) = key.strip_prefix(&format!("{}.", flow)) {
@@ -114,7 +123,23 @@ fn parse_rule_key(key: &str) -> (&str, Option<&str>) {
 
 /// Tries all resolution strategies in order. Returns true if the JSON was modified.
 fn apply_patch(config: &PatchConfig, flow: &str, field: &str, json: &mut Value) -> bool {
-    // Flow-specific rules first, then flow-agnostic
+    // [[multi]] rules: one alias → multiple fields patched simultaneously.
+    for rule in &config.multi {
+        if rule.aliases.iter().any(|a| a == field) {
+            let mut applied = false;
+            for patch in &rule.patches {
+                if let Some(v) = patch_type_to_value(&patch.patch_type, patch.value.as_deref()) {
+                    set_at_path(json, &patch.path, v);
+                    applied = true;
+                }
+            }
+            if applied {
+                return true;
+            }
+        }
+    }
+
+    // Single-field rules: flow-specific first, then flow-agnostic.
     for pass_flow_specific in [true, false] {
         for (key, rule) in &config.rules {
             let (target_path, rule_flow) = parse_rule_key(key);
@@ -155,7 +180,6 @@ pub(crate) fn patch_type_to_value(patch_type: &str, value: Option<&str>) -> Opti
         "full_browser_info" => serde_json::to_value(full_browser_info()).ok(),
         "full_address" => serde_json::to_value(full_address()).ok(),
         "full_customer" => serde_json::to_value(full_customer()).ok(),
-        "redirection_response" => Some(serde_json::json!({"params": "probe_redirect_params"})),
         "bank_names_ing" => Some(Value::Number((proto::BankNames::Ing as i32).into())),
         _ => None,
     }
@@ -184,6 +208,34 @@ fn set_at_path(json: &mut Value, path: &str, value: Value) {
 
     if let Some(obj) = current.as_object_mut() {
         obj.insert(parts.last().unwrap().to_string(), value);
+    }
+}
+
+/// Pre-applies connector-specific flow overrides to the request before probing begins.
+///
+/// Reads `[connector_overrides.<name>.<flow>]` from probe-config.toml and sets each
+/// listed field in the request via a JSON round-trip. This prevents the probe from
+/// getting stuck on connector-specific required fields (e.g. Braintree's
+/// `refund_connector_metadata` which embeds `currency` and `merchant_account_id`).
+pub(crate) fn apply_connector_flow_overrides<T>(req: &mut T, connector: &ConnectorEnum, flow: &str)
+where
+    T: Serialize + for<'de> serde::Deserialize<'de>,
+{
+    let Some(overrides) = connector_flow_overrides(connector, flow) else {
+        return;
+    };
+
+    let mut json = match serde_json::to_value(&req) {
+        Ok(v) => v,
+        Err(_) => return,
+    };
+
+    for (field, value) in overrides {
+        set_at_path(&mut json, field, Value::String(value.clone()));
+    }
+
+    if let Ok(patched) = serde_json::from_value(json) {
+        *req = patched;
     }
 }
 
@@ -395,5 +447,36 @@ mod tests {
         );
         assert_eq!(clean_error_field("field_name: String"), "field_name");
         assert_eq!(clean_error_field("  field_name  "), "field_name");
+    }
+
+    #[test]
+    fn test_redirect_response_patching() {
+        use grpc_api_types::payments::PaymentMethodAuthenticationServiceAuthenticateRequest;
+
+        let mut req = PaymentMethodAuthenticationServiceAuthenticateRequest::default();
+
+        // Debug: print initial JSON
+        let json_before = serde_json::to_value(&req).unwrap();
+        println!(
+            "Before patch: {}",
+            serde_json::to_string_pretty(&json_before).unwrap()
+        );
+
+        // Apply patch
+        smart_patch(&mut req, "authenticate", "redirect_response");
+
+        // Debug: print final JSON
+        let json_after = serde_json::to_value(&req).unwrap();
+        println!(
+            "After patch: {}",
+            serde_json::to_string_pretty(&json_after).unwrap()
+        );
+
+        // Verify the field is set
+        assert!(
+            req.redirection_response.is_some(),
+            "redirection_response should be set after patching. Got: {:?}",
+            req.redirection_response
+        );
     }
 }

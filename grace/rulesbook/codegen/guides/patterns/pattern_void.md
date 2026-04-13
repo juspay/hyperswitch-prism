@@ -108,7 +108,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
     TryFrom<{ConnectorName}RouterData<RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>, T>>
     for {ConnectorName}VoidRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     
     fn try_from(
         item: {ConnectorName}RouterData<RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>, T>,
@@ -148,7 +148,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
     TryFrom<{ConnectorName}RouterData<RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>, T>>
     for {ConnectorName}VoidRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     
     fn try_from(
         item: {ConnectorName}RouterData<RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>, T>,
@@ -197,7 +197,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
     TryFrom<{ConnectorName}RouterData<RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>, T>>
     for {ConnectorName}VoidRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     
     fn try_from(
         item: {ConnectorName}RouterData<RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>, T>,
@@ -223,22 +223,22 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
 // Helper function to extract session data
 fn extract_session_from_metadata(
     meta_data: Option<&pii::SecretSerdeValue>
-) -> Result<SessionData, ConnectorError> {
+) -> Result<SessionData, IntegrationError> {
     let session_meta_value = meta_data
-        .ok_or_else(|| ConnectorError::MissingRequiredField {
+        .ok_or_else(|| IntegrationError::MissingRequiredField {
             field_name: "connector_meta_data for session in Void"
-        })?
+        , context: Default::default() })?
         .peek();
 
     let session_str = match session_meta_value {
         serde_json::Value::String(s) => s,
-        _ => return Err(ConnectorError::InvalidConnectorConfig {
+        _ => return Err(IntegrationError::InvalidConnectorConfig {
             config: "connector_meta_data was not a JSON string for session in Void",
         }),
     };
 
     serde_json::from_str(session_str)
-        .map_err(|_| ConnectorError::InvalidConnectorConfig {
+        .map_err(|_| IntegrationError::InvalidConnectorConfig {
             config: "Deserializing session from connector_meta_data string in Void",
         })
 }
@@ -335,7 +335,7 @@ impl From<&{ConnectorName}VoidResponse> for enums::AttemptStatus {
 fn get_url(
     &self,
     req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
-) -> CustomResult<String, ConnectorError> {
+) -> CustomResult<String, IntegrationError> {
     let base_url = &req.resource_common_data.connectors.{connector_name}.base_url;
     let payment_id = req.request.connector_transaction_id.clone();
     Ok(format!("{base_url}/payments/{payment_id}/voids"))
@@ -347,7 +347,7 @@ fn get_url(
 fn get_url(
     &self,
     req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
-) -> CustomResult<String, ConnectorError> {
+) -> CustomResult<String, IntegrationError> {
     let base_url = &req.resource_common_data.connectors.{connector_name}.base_url;
     Ok(format!("{base_url}/ch/payments/v1/cancels"))
     // Payment ID goes in request body instead of URL
@@ -359,7 +359,7 @@ fn get_url(
 fn get_url(
     &self,
     req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
-) -> CustomResult<String, ConnectorError> {
+) -> CustomResult<String, IntegrationError> {
     let base_url = &req.resource_common_data.connectors.{connector_name}.base_url;
     let payment_id = req.request.connector_transaction_id.clone();
     Ok(format!("{base_url}/payments/{payment_id}/actions/void"))
@@ -371,7 +371,7 @@ fn get_url(
 fn get_url(
     &self,
     req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
-) -> CustomResult<String, ConnectorError> {
+) -> CustomResult<String, IntegrationError> {
     let base_url = &req.resource_common_data.connectors.{connector_name}.base_url;
     Ok(format!("{base_url}/transaction/cancel"))
 }
@@ -488,22 +488,22 @@ fn handle_void_timing_errors(error_code: &str) -> Option<AttemptStatus> {
 fn validate_void_request(
     payment_status: &str,
     connector_transaction_id: &str,
-) -> Result<(), ConnectorError> {
+) -> Result<(), IntegrationError> {
     if connector_transaction_id.is_empty() {
-        return Err(ConnectorError::MissingRequiredField {
+        return Err(IntegrationError::MissingRequiredField {
             field_name: "connector_transaction_id".to_string(),
-        });
+        , context: Default::default() });
     }
     
     // Some connectors provide current payment status
     match payment_status {
         "captured" | "settled" => {
-            return Err(ConnectorError::InvalidRequestData {
+            return Err(IntegrationError::InvalidRequestData {
                 message: "Cannot void captured/settled payment. Use refund instead.".to_string(),
             })
         }
         "voided" | "cancelled" => {
-            return Err(ConnectorError::InvalidRequestData {
+            return Err(IntegrationError::InvalidRequestData {
                 message: "Payment already voided".to_string(),
             })
         }
@@ -571,7 +571,7 @@ macros::macro_connector_implementation!(
         fn get_url(
             &self,
             req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
-        ) -> CustomResult<String, ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let base_url = self.connector_base_url_payments(req);
             let payment_id = req.request.connector_transaction_id.clone();
             Ok(format!("{base_url}/payments/{payment_id}/voids"))
@@ -722,7 +722,7 @@ fn can_void_payment(payment_status: &str) -> bool {
 
 // Provide helpful error messages
 if !can_void_payment(&current_status) {
-    return Err(ConnectorError::InvalidRequestData {
+    return Err(IntegrationError::InvalidRequestData {
         message: format!(
             "Cannot void payment with status '{}'. Use refund for captured payments.", 
             current_status
@@ -740,11 +740,11 @@ if !can_void_payment(&current_status) {
 // Extract session data from connector metadata
 fn extract_session_data(
     connector_meta_data: Option<&pii::SecretSerdeValue>
-) -> Result<SessionData, ConnectorError> {
+) -> Result<SessionData, IntegrationError> {
     let meta_data = connector_meta_data
-        .ok_or_else(|| ConnectorError::MissingRequiredField {
+        .ok_or_else(|| IntegrationError::MissingRequiredField {
             field_name: "connector_meta_data for session data in Void"
-        })?;
+        , context: Default::default() })?;
         
     // Parse session data from metadata
     // ... implementation

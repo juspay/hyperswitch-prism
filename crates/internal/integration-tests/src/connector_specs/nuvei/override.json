@@ -1,0 +1,20 @@
+{
+  "void": {
+    "void_authorized_payment": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 6000,
+          "currency": "USD"
+        }
+      }
+    },
+    "void_without_cancellation_reason": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 6000,
+          "currency": "USD"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "connector": "adyen",
+  "supported_suites": [
+    "authorize",
+    "capture",
+    "client_authentication_token",
+    "create_order",
+    "get",
+    "recurring_charge",
+    "refund",
+    "setup_recurring",
+    "void",
+    "handle_event"
+  ]
+}

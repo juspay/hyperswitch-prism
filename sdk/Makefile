@@ -3,9 +3,10 @@
 # This Makefile should be run from the repository root
 
 .PHONY: help build build-all build-macos build-linux clean check-cargo generate install-deps \
-        generate-descriptor generate-rust generate-flows-python generate-flows-javascript generate-flows-java \
+        generate-rust generate-flows-python generate-flows-javascript generate-flows-java \
         test test-rust test-grpc test-python test-javascript test-java \
-        dist dist-python dist-javascript dist-java
+        dist dist-python dist-javascript dist-java \
+        publish-check-python publish-check-javascript publish-check-java publish-check
 
 # Default target
 .DEFAULT_GOAL := help
@@ -131,52 +132,35 @@ generate-javascript: ## Regenerate JavaScript/TypeScript SDK client (flows)
 generate-kotlin: ## Regenerate Kotlin SDK client (flows + bindings)
 	@$(MAKE) -C $(MAKEFILE_DIR)java generate-bindings generate-flows
 
-# ---------------------------------------------------------------------------
-# generate-descriptor
-# Generates the proto descriptor file used by all SDK codegen scripts.
-# This is a prerequisite for generate-client-* targets.
-# ---------------------------------------------------------------------------
-generate-descriptor:
-	@echo "Generating proto descriptor..."
-	@mkdir -p $(REPO_ROOT)/scripts/generators/code
-	@protoc \
-		--proto_path=$(REPO_ROOT)/crates/types-traits/grpc-api-types/proto \
-		--descriptor_set_out=$(REPO_ROOT)/scripts/generators/code/services.desc \
-		--include_source_info \
-		$(REPO_ROOT)/crates/types-traits/grpc-api-types/proto/services.proto \
-		$(REPO_ROOT)/crates/types-traits/grpc-api-types/proto/payment.proto \
-		$(REPO_ROOT)/crates/types-traits/grpc-api-types/proto/payouts.proto \
-		$(REPO_ROOT)/crates/types-traits/grpc-api-types/proto/payment_methods.proto \
-		$(REPO_ROOT)/crates/types-traits/grpc-api-types/proto/sdk_config.proto
-	@echo "Descriptor written to scripts/generators/code/services.desc"
+
 
 # ---------------------------------------------------------------------------
 # generate-client-python
 # Delegates to python/Makefile to generate Python client flow methods.
 # ---------------------------------------------------------------------------
-generate-client-python: generate-descriptor
+generate-client-python:
 	@$(MAKE) -C $(REPO_ROOT)/sdk/python generate-client
 
 # ---------------------------------------------------------------------------
 # generate-client-javascript
 # Delegates to javascript/Makefile to generate JavaScript client flow methods.
 # ---------------------------------------------------------------------------
-generate-client-javascript: generate-descriptor
+generate-client-javascript:
 	@$(MAKE) -C $(REPO_ROOT)/sdk/javascript generate-client
 
 # ---------------------------------------------------------------------------
 # generate-client-java
 # Delegates to java/Makefile to generate Java/Kotlin client flow methods.
 # ---------------------------------------------------------------------------
-generate-client-java: generate-descriptor
+generate-client-java:
 	@$(MAKE) -C $(REPO_ROOT)/sdk/java generate-client
 
 # ---------------------------------------------------------------------------
 # generate
 # Main entry point for regenerating all SDK clients.
-# Generates the descriptor, then delegates to each SDK's generate-client target.
+# Delegates to each SDK's generate-client target.
 # ---------------------------------------------------------------------------
-generate: install-deps generate-descriptor generate-rust generate-grpc-client generate-python generate-javascript generate-kotlin ## Auto-discover flows and regenerate all SDK clients
+generate: install-deps generate-rust generate-grpc-client generate-python generate-javascript generate-kotlin ## Auto-discover flows and regenerate all SDK clients
 	@echo
 	@echo "Generating Python protobuf stubs (_pb2.pyi)..."
 	@mkdir -p $(REPO_ROOT)/sdk/python/src/payments/generated
@@ -194,9 +178,24 @@ generate: install-deps generate-descriptor generate-rust generate-grpc-client ge
 # ---------------------------------------------------------------------------
 # Test targets - delegate to SDK-specific test-package
 # ---------------------------------------------------------------------------
-test: test-rust test-python test-javascript test-java ## Run all SDK smoke tests
 
-test-rust: ## Run Rust FFI smoke test
+# Optimized test target: build FFI once, then run all SDK tests sequentially.
+# The FFI library build is now idempotent (skips if already exists), and each
+# SDK's generate-bindings step also checks if outputs exist before regenerating.
+# Set QUIET=0 to show full compilation output (default: QUIET=1 shows only test results)
+test: build-ffi-lib generate-harnesses ## Run all SDK smoke tests (builds FFI and generates harnesses, runs sequentially). Use QUIET=0 for verbose output.
+	@echo "Running FFI smoke tests for all SDKs..."
+	@echo; echo "═══ Rust FFI ═══"; echo
+	@$(MAKE) -C $(REPO_ROOT)/sdk/rust test-package CONNECTORS=$(CONNECTORS) 2>&1 
+	@echo; echo "═══ Python FFI ═══"; echo
+	@$(MAKE) -C $(REPO_ROOT)/sdk/python test-package CONNECTORS=$(CONNECTORS) 2>&1 
+	@echo; echo "═══ JavaScript FFI ═══"; echo
+	@$(MAKE) -C $(REPO_ROOT)/sdk/javascript test-package CONNECTORS=$(CONNECTORS) 2>&1 
+	@echo; echo "═══ Kotlin FFI ═══"; echo
+	@$(MAKE) -C $(REPO_ROOT)/sdk/java test-package CONNECTORS=$(CONNECTORS) 2>&1 
+	@echo; echo "All SDK smoke tests passed."
+
+test-rust: build-ffi-lib ## Run Rust FFI smoke test
 	@$(MAKE) -C $(REPO_ROOT)/sdk/rust test-package CONNECTORS=$(CONNECTORS)
 
 GRPC_CONNECTOR ?= $(CONNECTORS)
@@ -204,6 +203,7 @@ GRPC_PROFILE   ?= release-fast
 QUIET          ?= 1
 
 # Filter output if QUIET=1 (suppress build logs, show only test results)
+# Use script to preserve exit codes while filtering (cross-platform compatible)
 ifeq ($(QUIET),1)
   OUTPUT_FILTER = 2>&1 | grep -v "^\[INFO\]\|^\[WARNING\]\|^Building\|^Running\|^Checking\|^Compiling\|^Finished\|^Build\|^Running\|cargo check\|Compiling\|^   Compiling\|^   Finished\|^     Running\|^     Finished\|^cargo\|^\s*-->\|^\s*::\|^Note:\|^warning:" || true
   BUILD_FLAGS = --quiet 2>/dev/null || true
@@ -212,7 +212,7 @@ else
   BUILD_FLAGS = 
 endif
 
-GRPC_SERVER_BIN := $(REPO_ROOT)/target/$(GRPC_PROFILE)/grpc-server
+GRPC_SERVER_BIN := $(REPO_ROOT)/target/$(PLATFORM)/$(GRPC_PROFILE)/grpc-server
 
 # Internal target: wait for gRPC server to be ready (checks TCP port 8000)
 _wait-for-server:
@@ -298,6 +298,28 @@ test-java: build-ffi-lib ## Build FFI → Run Java smoke test
 	@$(MAKE) -C $(REPO_ROOT)/sdk/java test-package CONNECTORS=$(CONNECTORS)
 
 # ---------------------------------------------------------------------------
+# Test Mock targets - run smoke tests in mock mode (no real HTTP)
+# ---------------------------------------------------------------------------
+test-mock: build-ffi-lib ## Run all SDK smoke tests in MOCK mode (verifies req_transformer only)
+	@echo "Running FFI smoke tests in MOCK mode for all SDKs..."
+	@echo; echo "═══ Rust FFI (MOCK) ═══"; echo
+	@$(MAKE) -C $(REPO_ROOT)/sdk/rust test-package-mock CONNECTORS=$(CONNECTORS) 2>&1
+	@echo; echo "═══ Python FFI (MOCK) ═══"; echo
+	@$(MAKE) -C $(REPO_ROOT)/sdk/python test-package-mock CONNECTORS=$(CONNECTORS) 2>&1
+	@echo; echo "═══ JavaScript FFI (MOCK) ═══"; echo
+	@$(MAKE) -C $(REPO_ROOT)/sdk/javascript test-package-mock CONNECTORS=$(CONNECTORS) 2>&1
+	@echo; echo "═══ Kotlin FFI (MOCK) ═══"; echo
+	@$(MAKE) -C $(REPO_ROOT)/sdk/java test-package-mock CONNECTORS=$(CONNECTORS) 2>&1
+	@echo; echo "All SDK mock smoke tests completed."
+
+# ---------------------------------------------------------------------------
+# Generate harnesses for mock mode testing
+# ---------------------------------------------------------------------------
+generate-harnesses: ## Generate flow harnesses for mock mode testing
+	@echo "Generating flow harnesses from field probe data..."
+	@python3 $(REPO_ROOT)/scripts/generators/code/generate_harnesses.py --connectors $(CONNECTORS)
+
+# ---------------------------------------------------------------------------
 # Distribution targets - delegate to SDK-specific dist
 # ---------------------------------------------------------------------------
 dist: dist-python dist-javascript dist-java ## Build all SDK distribution packages
@@ -312,12 +334,27 @@ dist-java: build-ffi-lib ## Build FFI → Build Java JAR
 	@$(MAKE) -C $(REPO_ROOT)/sdk/java dist
 
 # ---------------------------------------------------------------------------
+# Pre-publish check targets - delegate to SDK-specific publish-check
+# ---------------------------------------------------------------------------
+
+publish-check-python: ## Run Python SDK pre-publish checks
+	@$(MAKE) -C $(REPO_ROOT)/sdk/python publish-check
+
+publish-check-javascript: ## Run JavaScript SDK pre-publish checks
+	@$(MAKE) -C $(REPO_ROOT)/sdk/javascript publish-check
+
+publish-check-java: ## Run Java SDK pre-publish checks
+	@$(MAKE) -C $(REPO_ROOT)/sdk/java publish-check
+
+publish-check: publish-check-python publish-check-javascript publish-check-java ## Run all SDK pre-publish checks
+	@echo "All SDK pre-publish checks passed."
+
+# ---------------------------------------------------------------------------
 # Clean - comprehensive cleanup across all SDKs
 # ---------------------------------------------------------------------------
 clean: ## Clean all build artifacts
 	@echo "Cleaning build artifacts..."
 	@cd $(FFI_CRATE) && cargo clean
-	@rm -f $(REPO_ROOT)/scripts/generators/code/services.desc
 	@rm -f $(REPO_ROOT)/crates/ffi/ffi/src/handlers/_generated_flow_registrations.rs
 	@rm -f $(REPO_ROOT)/crates/ffi/ffi/src/bindings/_generated_ffi_flows.rs
 	@$(MAKE) -C $(REPO_ROOT)/sdk/python clean

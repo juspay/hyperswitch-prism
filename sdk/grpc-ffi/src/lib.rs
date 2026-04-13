@@ -26,9 +26,9 @@ use grpc_api_types::payments::{
     payment_method_service_client::PaymentMethodServiceClient,
     payment_service_client::PaymentServiceClient,
     recurring_payment_service_client::RecurringPaymentServiceClient, CustomerServiceCreateRequest,
-    EventServiceHandleRequest, MerchantAuthenticationServiceCreateAccessTokenRequest,
-    MerchantAuthenticationServiceCreateSdkSessionTokenRequest,
-    MerchantAuthenticationServiceCreateSessionTokenRequest,
+    EventServiceHandleRequest, MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
+    MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
+    MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest,
     PaymentMethodAuthenticationServiceAuthenticateRequest,
     PaymentMethodAuthenticationServicePostAuthenticateRequest,
     PaymentMethodAuthenticationServicePreAuthenticateRequest, PaymentMethodServiceTokenizeRequest,
@@ -216,18 +216,18 @@ async fn dispatch(method: &str, cfg: GrpcConfigInput, req_bytes: &[u8]) -> Resul
         "event/handle_event" => call!(EventServiceClient, handle_event, EventServiceHandleRequest),
         "merchant_authentication/create_access_token" => call!(
             MerchantAuthenticationServiceClient,
-            create_access_token,
-            MerchantAuthenticationServiceCreateAccessTokenRequest
+            create_server_authentication_token,
+            MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest
         ),
         "merchant_authentication/create_session_token" => call!(
             MerchantAuthenticationServiceClient,
-            create_session_token,
-            MerchantAuthenticationServiceCreateSessionTokenRequest
+            create_server_session_authentication_token,
+            MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest
         ),
         "merchant_authentication/create_sdk_session_token" => call!(
             MerchantAuthenticationServiceClient,
-            create_sdk_session_token,
-            MerchantAuthenticationServiceCreateSdkSessionTokenRequest
+            create_client_authentication_token,
+            MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest
         ),
         "recurring_payment/charge" => call!(
             RecurringPaymentServiceClient,

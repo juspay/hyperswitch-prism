@@ -65,7 +65,7 @@ match response.status {
 
 ## 4. Error Handling
 
-- [ ] Use specific `ConnectorError` types (NotSupported, InvalidData, etc.)
+- [ ] Use specific `IntegrationError` types (NotSupported, InvalidData, etc.)
 - [ ] NotSupported errors include the exact feature/method name: `"Apple Pay is not supported"`
 - [ ] No generic error messages -- all errors are descriptive
 - [ ] Error response struct is defined and deserialized from connector error responses

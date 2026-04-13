@@ -55,7 +55,7 @@ pub struct JpmorganPaymentsResponse {
     pub transaction_state: JpmorganTransactionState,
     pub response_status: JpmorganTransactionStatus,
     pub response_code: String,
-    pub response_message: String,
+    pub response_message: Option<String>,
     pub payment_method_type: Option<PaymentMethodType>,
     pub capture_method: Option<CapMethod>,
 }
@@ -156,7 +156,17 @@ pub struct JpmorganRefundResponse {
     pub transaction_state: JpmorganTransactionState,
     pub response_status: JpmorganResponseStatus,
     pub response_code: String,
-    pub response_message: String,
+    pub response_message: Option<String>,
+}
+
+/// Client Authentication Token response — wraps the OAuth2 token response.
+/// The access_token serves as the client authentication token for SDK initialization.
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct JpmorganClientAuthResponse {
+    pub access_token: Secret<String>,
+    pub scope: String,
+    pub token_type: String,
+    pub expires_in: i64,
 }
 
 pub type JpmorganPSyncResponse = JpmorganPaymentsResponse;

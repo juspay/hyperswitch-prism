@@ -740,6 +740,7 @@ enum Connector {
   PEACHPAYMENTS = 112;
   PPRO = 113;
   FISERVCOMMERCEHUB = 114;
+  TRUSTLY = 115;
 }
 
 // Payment method types
@@ -822,7 +823,7 @@ enum PaymentMethodType {
   SOFORT = 75;
   SWISH = 76;
   TOUCH_N_GO = 77;
-  TRUSTLY = 78;
+  TRUSTLY_BANK_REDIRECT = 78;
   TWINT = 79;
   UPI_COLLECT = 80;
   UPI_INTENT = 81;
@@ -849,6 +850,7 @@ enum PaymentMethodType {
   SATISPAY = 102;
   WERO = 103;
   NETWORK_TOKEN = 104;
+  NETBANKING = 105;
 }
 
 // Product type enumeration
@@ -1214,6 +1216,9 @@ message RedirectForm {
 
     // Mifinity-specific redirection data for SDK-based flows.
     MifinityData mifinity = 5;
+
+    // NMI-specific redirection data for 3DS flows.
+    NmiData nmi = 6;
   }
 }
 
@@ -1260,6 +1265,24 @@ message BraintreeData {
 message MifinityData {
   // Initialization token for Mifinity SDK initialization
   string initialization_token = 1;
+}
+
+// Represents NMI-specific redirection data for 3DS flows
+message NmiData {
+  // Transaction amount
+  Money amount = 1;
+
+  // NMI public key for 3DS
+  SecretString public_key = 2;
+
+  // Customer vault ID for the tokenized card
+  string customer_vault_id = 3;
+
+  // Order ID for the transaction
+  string order_id = 4;
+
+  // URL to redirect to after 3DS completion
+  string continue_redirection_url = 5;
 }
 
 // Details of an HTTP request, typically for incoming webhooks
@@ -1495,19 +1518,186 @@ message CardDetailUpdate {
 }
 
 // ============================================================================
-// SESSION TOKEN MESSAGES
+// SDK SESSION DATA MESSAGES
 // ============================================================================
 
-message SessionToken {
-  oneof wallet_name {
-    GpaySessionTokenResponse google_pay = 1;
-    PaypalSessionTokenResponse paypal = 2;
-    ApplepaySessionTokenResponse apple_pay = 3;
+message ClientAuthenticationTokenData {
+  oneof sdk_type {
+    GpayClientAuthenticationResponse google_pay = 1;
+    PaypalClientAuthenticationResponse paypal = 2;
+    ApplepayClientAuthenticationResponse apple_pay = 3;
+    ConnectorSpecificClientAuthenticationResponse connector_specific = 4;
   }
 }
 
-// Google Pay Session Token
-message GpaySessionTokenResponse {
+// Generic connector-specific SDK session data — discriminated by connector
+message ConnectorSpecificClientAuthenticationResponse {
+  oneof connector {
+    StripeClientAuthenticationResponse stripe = 1;
+    AdyenClientAuthenticationResponse adyen = 2;
+    CheckoutClientAuthenticationResponse checkout = 3;
+    CybersourceClientAuthenticationResponse cybersource = 4;
+    NuveiClientAuthenticationResponse nuvei = 5;
+    MollieClientAuthenticationResponse mollie = 6;
+    GlobalpayClientAuthenticationResponse globalpay = 7;
+    BluesnapClientAuthenticationResponse bluesnap = 8;
+    RapydClientAuthenticationResponse rapyd = 9;
+    Shift4ClientAuthenticationResponse shift4 = 10;
+    BankOfAmericaClientAuthenticationResponse bank_of_america = 11;
+    WellsfargoClientAuthenticationResponse wellsfargo = 12;
+    FiservClientAuthenticationResponse fiserv = 13;
+    ElavonClientAuthenticationResponse elavon = 14;
+    NoonClientAuthenticationResponse noon = 15;
+    PaysafeClientAuthenticationResponse paysafe = 16;
+    BamboraapacClientAuthenticationResponse bamboraapac = 17;
+    JpmorganClientAuthenticationResponse jpmorgan = 18;
+    BillwerkClientAuthenticationResponse billwerk = 19;
+    DatatransClientAuthenticationResponse datatrans = 20;
+    BamboraClientAuthenticationResponse bambora = 21;
+    PayloadClientAuthenticationResponse payload = 22;
+    MultisafepayClientAuthenticationResponse multisafepay = 23;
+    NexinetsClientAuthenticationResponse nexinets = 24;
+    NexixpayClientAuthenticationResponse nexixpay = 25;
+  }
+}
+
+// Adyen SDK initialization data — session_id + session_data for Adyen Drop-in/Components
+message AdyenClientAuthenticationResponse {
+  string session_id = 1;
+  SecretString session_data = 2;
+}
+
+// Checkout.com SDK initialization data — payment_session_token + payment_session_secret for Frames/Flow
+message CheckoutClientAuthenticationResponse {
+  string payment_session_id = 1;
+  SecretString payment_session_token = 2;
+  SecretString payment_session_secret = 3;
+}
+
+// Cybersource SDK initialization data — capture_context JWT for Flex Microform SDK
+message CybersourceClientAuthenticationResponse {
+  SecretString capture_context = 1;
+}
+
+// Nuvei SDK initialization data — session_token for client-side SDK operations
+message NuveiClientAuthenticationResponse {
+  SecretString session_token = 1;
+}
+
+// Mollie SDK initialization data — payment_id + checkout_url for client-side redirect
+message MollieClientAuthenticationResponse {
+  string payment_id = 1;
+  SecretString checkout_url = 2;
+}
+
+// Globalpay SDK initialization data — access_token for client-side SDK operations
+message GlobalpayClientAuthenticationResponse {
+  SecretString access_token = 1;
+  optional string token_type = 2;
+  optional int64 expires_in = 3;
+}
+
+// Bluesnap SDK initialization data — pfToken for Hosted Payment Fields initialization
+message BluesnapClientAuthenticationResponse {
+  SecretString pf_token = 1;
+}
+
+// Rapyd SDK initialization data — checkout_id + redirect_url for client-side checkout
+message RapydClientAuthenticationResponse {
+  string checkout_id = 1;
+  string redirect_url = 2;
+}
+
+// Shift4 SDK initialization data — client_secret for client-side SDK
+message Shift4ClientAuthenticationResponse {
+  SecretString client_secret = 1;
+}
+
+// Bank of America SDK initialization data — capture_context JWT for Flex Microform
+message BankOfAmericaClientAuthenticationResponse {
+  SecretString capture_context = 1;
+}
+
+// Wellsfargo SDK initialization data — capture_context JWT for Flex Microform
+message WellsfargoClientAuthenticationResponse {
+  SecretString capture_context = 1;
+}
+
+// Fiserv SDK initialization data — session_id for client-side SDK
+message FiservClientAuthenticationResponse {
+  SecretString session_id = 1;
+}
+
+// Elavon SDK initialization data — session_token for Converge Hosted Payments Lightbox
+message ElavonClientAuthenticationResponse {
+  SecretString session_token = 1;
+}
+
+// Noon SDK initialization data — order_id + checkout_url
+message NoonClientAuthenticationResponse {
+  uint64 order_id = 1;
+  SecretString checkout_url = 2;
+}
+
+// Paysafe SDK initialization data — payment_handle_token for client-side SDK
+message PaysafeClientAuthenticationResponse {
+  SecretString payment_handle_token = 1;
+}
+
+// Bamboraapac SDK initialization data — token for client-side SDK
+message BamboraapacClientAuthenticationResponse {
+  SecretString token = 1;
+}
+
+// Jpmorgan SDK initialization data — transaction_id + request_id
+message JpmorganClientAuthenticationResponse {
+  string transaction_id = 1;
+  string request_id = 2;
+}
+
+// Billwerk SDK initialization data — session_id for checkout session
+message BillwerkClientAuthenticationResponse {
+  string session_id = 1;
+}
+
+// Datatrans SDK initialization data — transaction_id for Secure Fields initialization
+message DatatransClientAuthenticationResponse {
+  SecretString transaction_id = 1;
+}
+
+// Bambora SDK initialization data — token for Custom Checkout initialization
+message BamboraClientAuthenticationResponse {
+  SecretString token = 1;
+}
+
+// Payload SDK initialization data — client_token for Payload.js Checkout/Secure Input SDK
+message PayloadClientAuthenticationResponse {
+  SecretString client_token = 1;
+}
+
+// Multisafepay SDK initialization data — api_token for Payment Components initialization
+message MultisafepayClientAuthenticationResponse {
+  SecretString api_token = 1;
+}
+
+// Nexinets SDK initialization data — order_id for client-side hosted payment page initialization
+message NexinetsClientAuthenticationResponse {
+  string order_id = 1;
+}
+
+// Nexixpay SDK initialization data — security_token and hosted_page URL for HPP initialization
+message NexixpayClientAuthenticationResponse {
+  SecretString security_token = 1;
+  string hosted_page = 2;
+}
+
+// Stripe SDK initialization data — client_secret for stripe.confirmPayment()
+message StripeClientAuthenticationResponse {
+  SecretString client_secret = 1;
+}
+
+// Google Pay Session Data
+message GpayClientAuthenticationResponse {
   GooglePaySessionResponse google_pay_session = 1;
 }
 
@@ -1581,9 +1771,9 @@ message GpayTransactionInfo {
   int64 total_price = 4; // Minor units
 }
 
-// Apple Pay Session Token
-message ApplepaySessionTokenResponse {
-  optional ApplePaySessionResponse session_token_data = 1;
+// Apple Pay Session Data
+message ApplepayClientAuthenticationResponse {
+  optional ApplePaySessionResponse session_response = 1;
   ApplePayPaymentRequest payment_request_data = 2;
   string connector = 3;
   bool delayed_session_token = 4;
@@ -1675,8 +1865,8 @@ enum RecurringPaymentIntervalUnit {
   MINUTE = 5;
 }
 
-// PayPal Session Token
-message PaypalSessionTokenResponse {
+// PayPal Session Data
+message PaypalClientAuthenticationResponse {
   string connector = 1;
   string session_token = 2;
   SdkNextAction sdk_next_action = 3;
@@ -1695,7 +1885,7 @@ enum PaypalFlow {
   PAYPAL_FLOW_CHECKOUT = 1;
 }
 
-// Common Session Token Types
+// Common SDK Session Types
 enum SdkNextAction {
   SDK_NEXT_ACTION_UNSPECIFIED = 0;
   SDK_NEXT_ACTION_POST_SESSION_TOKENS = 1;
@@ -1801,13 +1991,14 @@ message PaymentServiceAuthorizeRequest {
 
   // URL for Redirection
   optional string continue_redirection_url =
-      41; // URL to complete authorization
-
-  // Payment Method Token
-  optional SecretString payment_method_token = 42;
+       41; // URL to complete authorization
 
   // Level 2 / Level 3 data for enhanced payment processing
   optional L2L3Data l2_l3_data = 43;
+
+  // Send the connector order identifier here if an order was created before
+  // authorize
+  optional string connector_order_id = 44;
 }
 
 // Response message for a payment authorization
@@ -2032,7 +2223,7 @@ message PaymentServiceReverseResponse {
 }
 
 // Request message for creating an access token
-message MerchantAuthenticationServiceCreateAccessTokenRequest {
+message MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
   optional string merchant_access_token_id = 1;
   Connector connector = 2; // The connector to create the access token for
 
@@ -2046,7 +2237,7 @@ message MerchantAuthenticationServiceCreateAccessTokenRequest {
 }
 
 // Response message for creating an access token
-message MerchantAuthenticationServiceCreateAccessTokenResponse {
+message MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse {
   SecretString access_token = 1;  // The access token string
   optional string token_type = 2; // Token type (e.g., "Bearer", "Basic")
   optional int64 expires_in_seconds =
@@ -2057,63 +2248,69 @@ message MerchantAuthenticationServiceCreateAccessTokenResponse {
   optional string merchant_access_token_id = 7;
 }
 
-// Request message for creating a session token
-message MerchantAuthenticationServiceCreateSessionTokenRequest {
-  // Identification
-  optional string merchant_session_id = 1;
+// Request message for creating a connector session
+message MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest {
+  // Infrastructure (about the session itself)
+  optional string merchant_server_session_id = 1;
+  optional SecretString connector_feature_data = 2;
+  optional ConnectorState state = 3;
+  optional bool test_mode = 4;
 
-  // Amount Information
-  Money amount = 2;
-
-  // Optional metadata for the connector
-  optional SecretString metadata = 3; // Additional metadata for the connector
-  optional SecretString connector_feature_data =
-      4; // Connector-specific metadata for the transaction
-
-  // State Information
-  optional ConnectorState state = 5;
-  // Browser Information
-  optional BrowserInformation browser_info = 6;
-
-  optional bool test_mode = 7;
+  // Domain-specific context
+  oneof domain_context {
+    PaymentSessionContext payment = 5;
+    // PayoutSessionContext payout = 6;  // future
+    // FrmSessionContext frm = 7;        // future
+  }
 }
 
-// Response message for creating a session token
-message MerchantAuthenticationServiceCreateSessionTokenResponse {
+// Payment-specific context for connector session creation
+message PaymentSessionContext {
+  Money amount = 1;
+  optional SecretString metadata = 2;
+  optional BrowserInformation browser_info = 3;
+}
+
+// Response message for creating a connector session
+message MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse {
   // Error Information
   optional ErrorInfo error = 1;
   uint32 status_code = 2;
 
-  // Session Token Details
+  // Session Details
   string session_token = 3;
 }
 
-// Request message for SDK session token
-message MerchantAuthenticationServiceCreateSdkSessionTokenRequest {
-  // Identification
-  string merchant_sdk_session_id = 1;
+// Request message for SDK session
+message MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest {
+  // Infrastructure
+  string merchant_client_session_id = 1;
+  optional SecretString connector_feature_data = 2;
+  optional bool test_mode = 3;
 
-  // Amount Information
-  Money amount = 2;
-  optional int64 order_tax_amount = 3;
-  optional int64 shipping_cost = 4;
-
-  // Payment Method Type
-  optional PaymentMethodType payment_method_type = 5;
-
-  optional CountryAlpha2 country_alpha2_code = 6;
-
-  // Customer Information
-  optional Customer customer = 7;
-
-  optional SecretString metadata = 8; // Additional metadata for the connector
-  optional SecretString connector_feature_data =
-      9; // Connector-specific metadata for the transaction
+  // Domain-specific context
+  oneof domain_context {
+    PaymentClientAuthenticationContext payment = 4;
+    // FrmClientAuthenticationContext frm = 5;      // future: device fingerprinting
+    // PayoutClientAuthenticationContext payout = 6; // future: payout verification widget
+  }
 }
 
-// Response message for SDK session token
-message MerchantAuthenticationServiceCreateSdkSessionTokenResponse {
-  SessionToken session_token = 1;
+// Payment-specific context for client authentication token creation
+message PaymentClientAuthenticationContext {
+  Money amount = 1;
+  optional int64 order_tax_amount = 2;
+  optional int64 shipping_cost = 3;
+  optional PaymentMethodType payment_method_type = 4;
+  optional CountryAlpha2 country_alpha2_code = 5;
+  optional Customer customer = 6;
+  optional SecretString metadata = 7;
+  optional string return_url = 8;
+}
+
+// Response message for SDK session
+message MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse {
+  ClientAuthenticationTokenData session_data = 1;
   optional ErrorInfo error = 2;
   uint32 status_code = 3;
   optional SecretString raw_connector_response = 4;
@@ -2229,10 +2426,9 @@ message PaymentServiceCreateOrderResponse {
   optional SecretString raw_connector_request = 7;
   optional SecretString raw_connector_response = 8;
 
-  // Wallet Session Token
-  optional SessionToken session_token =
-      9; // JSON serialized session token for wallet payments (Apple Pay, Google
-         // Pay)
+  // SDK Session Data
+  optional ClientAuthenticationTokenData session_data =
+      9; // SDK session data for wallets (Apple Pay, Google Pay) and other SDK types
 }
 
 // Request message for processing a refund
@@ -2438,9 +2634,6 @@ message PaymentServiceSetupRecurringRequest {
   // State Information
   optional ConnectorState state = 29; // State data for access token storage and
                                       // other connector-specific state
-
-  // Payment Method Token
-  optional SecretString payment_method_token = 30;
 
   // Send the connector order identifier here if an order was created before
   // authorize
@@ -2818,6 +3011,9 @@ message PaymentMethodAuthenticationServicePostAuthenticateRequest {
 
   // Redirection Information after DDC step
   optional RedirectionResponse redirection_response = 14;
+  
+  // Capture Settings
+  optional CaptureMethod capture_method = 15;
 }
 
 // Response message for post-authentication step
@@ -3678,6 +3874,12 @@ message FiservcommercehubConfig {
   optional string base_url = 50;
 }
 
+message ItaubankConfig {
+  SecretString client_secret = 1;
+  SecretString client_id = 2;
+  optional string base_url = 50;
+}
+
 message GigadatConfig {
   SecretString campaign_id = 1;
   SecretString access_token = 2;
@@ -3807,10 +4009,23 @@ message PeachpaymentsConfig {
   optional SecretString merchant_payment_method_route_id = 52;
 }
 
+message PproConfig {
+  SecretString api_key = 1;
+  SecretString merchant_id = 2;
+  optional string base_url = 50;
+}
+
 message PaypalConfig {
   SecretString client_id = 1;
   SecretString client_secret = 2;
   optional SecretString payer_id = 3;
+  optional string base_url = 50;
+}
+
+message TrustlyConfig {
+  SecretString username = 1;
+  SecretString password = 2;
+  SecretString private_key = 3;
   optional string base_url = 50;
 }
 
@@ -4057,6 +4272,15 @@ message ConnectorSpecificConfig {
 
     // FISERVCOMMERCEHUB = 114
     FiservcommercehubConfig fiservcommercehub = 112;
+
+    // ITAUBANKCONFIG = 115
+    ItaubankConfig itaubank = 113;
+
+    // PPRO = 113
+    PproConfig ppro = 114;
+
+    // TRUSTLY = 116
+    TrustlyConfig trustly = 115;
   }
 }
 
@@ -4093,6 +4317,10 @@ message PaymentServiceTokenAuthorizeRequest {
   optional bool test_mode = 21;
   // auth_type intentionally absent: PSP tokens cannot drive external 3DS.
   // Use connector_feature_data to pass connector-specific delegated-3DS flags.
+
+  // Send the connector order identifier here if an order was created before
+  // authorize
+  optional string connector_order_id = 22;
 }
 
 message PaymentServiceTokenSetupRecurringRequest {
@@ -4141,6 +4369,13 @@ message PaymentServiceProxyAuthorizeRequest {
   optional CustomerAcceptance customer_acceptance = 21;
   optional string merchant_order_id = 22;
   optional bool test_mode = 23;
+  // Order Details
+  optional string order_category = 24; // Category of the order/service
+  optional string description = 25; // Description of the transaction
+
+  // Send the connector order identifier here if an order was created before
+  // authorize
+  optional string connector_order_id = 26;
 }
 
 message PaymentServiceProxySetupRecurringRequest {
@@ -4160,5 +4395,7 @@ message PaymentServiceProxySetupRecurringRequest {
   optional AuthenticationData authentication_data = 13;
   optional FutureUsage setup_future_usage = 14;
   optional BrowserInformation browser_info = 15;
+  // Order Details
+  optional string order_category = 16; // Category of the order/service
+  optional string description = 17; // Description of the mandate setup
 }
-

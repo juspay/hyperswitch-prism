@@ -107,9 +107,9 @@ WalletData::Paze(_paze_data) => {
         Some(PaymentMethodToken::PazeDecrypt(paze_decrypted)) => {
             // Use paze_decrypted fields
         }
-        _ => Err(ConnectorError::MissingRequiredField {
+        _ => Err(IntegrationError::MissingRequiredField {
             field_name: "paze_decrypted_data",
-        })?
+        , context: Default::default() })?
     }
 }
 ```
@@ -124,7 +124,7 @@ WalletData::Paze(_paze_data) => {
 impl TryFrom<&ConnectorRouterData<&PaymentsAuthorizeRouterDataV2<'_, T>>>
     for ConnectorPaymentsRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(item: &ConnectorRouterData<&PaymentsAuthorizeRouterDataV2<'_, T>>) -> Result<Self, Self::Error> {
         let amount = item.amount;
@@ -142,12 +142,12 @@ impl TryFrom<&ConnectorRouterData<&PaymentsAuthorizeRouterDataV2<'_, T>>>
                         .get_encrypted_google_pay_token()?;
                     Ok(Self { amount, currency, payment_type: "googlepay", token })
                 }
-                _ => Err(ConnectorError::NotImplemented(
-                    "Wallet not supported".to_string()
+                _ => Err(IntegrationError::NotImplemented(
+                    "Wallet not supported".to_string(, Default::default())
                 ).into())
             },
-            _ => Err(ConnectorError::NotImplemented(
-                "Payment method not supported".to_string()
+            _ => Err(IntegrationError::NotImplemented(
+                "Payment method not supported".to_string(, Default::default())
             ).into())
         }
     }
@@ -242,7 +242,7 @@ Ok(Self {
     response: Ok(PaymentsResponseData::TransactionResponse {
         resource_id: ResponseId::ConnectorTransactionId(item.response.id),
         redirection_data: Some(Box::new(RedirectForm::from((
-            link.ok_or(ConnectorError::ResponseDeserializationFailed)?,
+            link.ok_or(ConnectorError::ResponseDeserializationFailed { context: Default::default() })?,
             Method::Get,
         )))),
         mandate_reference: None,
@@ -309,5 +309,5 @@ pub struct MifinityData {
 2. Redirect wallets must set `return_url` and `cancel_url` from `complete_authorize_url`.
 3. Redirect wallet responses must return `redirection_data` with the provider URL.
 4. Use `AuthenticationPending` status for redirect flows, not `Charged`.
-5. Unsupported wallet variants must return `ConnectorError::NotImplemented`.
+5. Unsupported wallet variants must return `IntegrationError::NotImplemented`.
 6. Samsung Pay token data may need base64 fluid data encoding depending on the connector.

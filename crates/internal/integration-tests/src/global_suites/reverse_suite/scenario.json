@@ -1,0 +1,65 @@
+{
+  "reverse_full_payment": {
+    "grpc_req": {
+      "merchant_reverse_id": "auto_generate",
+      "connector_transaction_id": "auto_generate",
+      "cancellation_reason": "Customer cancellation request"
+    },
+    "assert": {
+      "status": {
+        "one_of": [
+          "VOIDED",
+          "CANCELED",
+          "REVERSED"
+        ]
+      },
+      "connector_transaction_id": {
+        "must_exist": true
+      },
+      "error": {
+        "must_not_exist": true
+      }
+    },
+    "is_default": true,
+    "display_name": "Reverse | Full Payment"
+  },
+  "reverse_with_reason": {
+    "grpc_req": {
+      "merchant_reverse_id": "auto_generate",
+      "connector_transaction_id": "auto_generate",
+      "cancellation_reason": "Merchant error - incorrect amount captured"
+    },
+    "assert": {
+      "status": {
+        "one_of": [
+          "VOIDED",
+          "CANCELED",
+          "REVERSED"
+        ]
+      },
+      "error": {
+        "must_not_exist": true
+      }
+    },
+    "display_name": "Reverse | Reason"
+  },
+  "reverse_fail_invalid_transaction_id": {
+    "grpc_req": {
+      "merchant_reverse_id": "auto_generate",
+      "connector_transaction_id": "invalid_txn_12345",
+      "cancellation_reason": "Test failure case"
+    },
+    "assert": {
+      "status": {
+        "one_of": [
+          "FAILED",
+          "PROCESSING_ERROR"
+        ]
+      },
+      "error": {
+        "must_exist": true
+      }
+    },
+    "display_name": "Reverse | Fail Invalid Transaction ID"
+  }
+}

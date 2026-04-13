@@ -395,14 +395,14 @@ impl IncomingWebhook for {{ConnectorName}} {
     fn get_webhook_object_reference_id(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<ObjectReferenceId, errors::ConnectorError> {
+    ) -> CustomResult<ObjectReferenceId, errors::IntegrationError> {
         // Extract payment/refund ID from webhook
     }
     
     fn get_webhook_event_type(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
+    ) -> CustomResult<IncomingWebhookEvent, errors::IntegrationError> {
         // Map connector events to UCS events
     }
 }

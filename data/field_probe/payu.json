@@ -11,11 +11,27 @@
         "status": "not_supported",
         "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
       },
+      "AchBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
       "Affirm": {
         "status": "not_supported",
         "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
       },
       "Afterpay": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "Alfamart": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "AliPayRedirect": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "AmazonPayRedirect": {
         "status": "not_supported",
         "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
       },
@@ -27,7 +43,23 @@
         "status": "not_supported",
         "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
       },
+      "ApplePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
       "Bacs": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "BacsBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "BancontactCard": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "BcaBankTransfer": {
         "status": "not_supported",
         "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
       },
@@ -35,13 +67,85 @@
         "status": "not_supported",
         "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
       },
+      "Bizum": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
       "Blik": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "Bluecode": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "Boleto": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "BriVaBankTransfer": {
         "status": "not_supported",
         "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
       },
       "Card": {
         "status": "not_supported",
         "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "CashappQr": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "ClassicReward": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "EVoucher": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "Efecty": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "Eft": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "Eps": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "FamilyMart": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "Giropay": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "GooglePay": {
         "status": "not_supported",
@@ -51,7 +155,35 @@
         "status": "not_supported",
         "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
       },
+      "GooglePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
       "Ideal": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "Indomaret": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "InstantBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "Interac": {
         "status": "not_supported",
         "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
       },
@@ -59,7 +191,127 @@
         "status": "not_supported",
         "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
       },
+      "Lawson": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "LocalBankRedirect": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "LocalBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "MbWay": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "Mifinity": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "MiniStop": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "OpenBanking": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "OpenBankingUk": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "Oxxo": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "PagoEfectivo": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "PayEasy": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "PaySafeCard": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
       "PaypalRedirect": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "PaypalSdk": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "PermataBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "Pix": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "Przelewy24": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "Pse": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "RedCompra": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "RedPagos": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "RevolutPay": {
         "status": "not_supported",
         "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
       },
@@ -67,7 +319,35 @@
         "status": "not_supported",
         "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
       },
+      "Satispay": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "Seicomart": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
       "Sepa": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "SepaBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "SevenEleven": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "Sofort": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "Trustly": {
         "status": "not_supported",
         "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
       },
@@ -109,6 +389,88 @@
           },
           "body": "key=probe_key&txnid=probe_txn_001&amount=10.00&currency=USD&productinfo=Payment&firstname=John&email=test%40example.com&phone=%2B14155552671&surl=https%3A%2F%2Fexample.com%2Freturn&furl=https%3A%2F%2Fexample.com%2Freturn&pg=UPI&bankcode=UPI&vpa=test%40upi&txn_s2s_flow=2&s2s_client_ip=1.2.3.4&s2s_device_info=web&api_version=2.0&hash=a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3&udf1=IRRELEVANT_PAYMENT_ID&udf2=DefaultMerchantId&upi_app_name=test%40upi"
         }
+      },
+      "UpiIntent": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "upi_intent": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "email": "test@example.com",
+              "phone_number": "4155552671",
+              "phone_country_code": "+1"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "browser_info": {
+            "ip_address": "1.2.3.4"
+          }
+        },
+        "sample": {
+          "url": "https://test.payu.in//_payment",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "key=probe_key&txnid=probe_txn_001&amount=10.00&currency=USD&productinfo=Payment&firstname=John&email=test%40example.com&phone=%2B14155552671&surl=https%3A%2F%2Fexample.com%2Freturn&furl=https%3A%2F%2Fexample.com%2Freturn&pg=UPI&bankcode=INTENT&txn_s2s_flow=2&s2s_client_ip=1.2.3.4&s2s_device_info=web&api_version=2.0&hash=a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3&udf1=IRRELEVANT_PAYMENT_ID&udf2=DefaultMerchantId"
+        }
+      },
+      "UpiQr": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "upi_qr": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "email": "test@example.com",
+              "phone_number": "4155552671",
+              "phone_country_code": "+1"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "browser_info": {
+            "ip_address": "1.2.3.4"
+          }
+        },
+        "sample": {
+          "url": "https://test.payu.in//_payment",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "key=probe_key&txnid=probe_txn_001&amount=10.00&currency=USD&productinfo=Payment&firstname=John&email=test%40example.com&phone=%2B14155552671&surl=https%3A%2F%2Fexample.com%2Freturn&furl=https%3A%2F%2Fexample.com%2Freturn&pg=UPI&bankcode=INTENT&txn_s2s_flow=2&s2s_client_ip=1.2.3.4&s2s_device_info=web&api_version=2.0&hash=a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3&udf1=IRRELEVANT_PAYMENT_ID&udf2=DefaultMerchantId"
+        }
+      },
+      "WeChatPayQr": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      },
+      "Wero": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
       }
     },
     "capture": {
@@ -116,7 +478,7 @@
         "status": "not_implemented"
       }
     },
-    "create_access_token": {
+    "create_client_authentication_token": {
       "default": {
         "status": "not_implemented"
       }
@@ -131,7 +493,12 @@
         "status": "not_implemented"
       }
     },
-    "create_session_token": {
+    "create_server_authentication_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_server_session_authentication_token": {
       "default": {
         "status": "not_implemented"
       }
@@ -146,7 +513,17 @@
         "status": "not_implemented"
       }
     },
+    "dispute_get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "eligibility": {
       "default": {
         "status": "not_implemented"
       }
@@ -174,6 +551,16 @@
         }
       }
     },
+    "handle_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "post_authenticate": {
       "default": {
         "status": "not_implemented"
@@ -184,12 +571,33 @@
         "status": "not_implemented"
       }
     },
+    "proxy_authorize": {
+      "default": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "recurring_charge": {
       "default": {
         "status": "not_implemented"
       }
     },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "refund": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "refund_get": {
       "default": {
         "status": "not_implemented"
       }
@@ -204,7 +612,23 @@
         "status": "not_implemented"
       }
     },
+    "token_authorize": {
+      "default": {
+        "status": "not_supported",
+        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "tokenize": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "verify_redirect": {
       "default": {
         "status": "not_implemented"
       }

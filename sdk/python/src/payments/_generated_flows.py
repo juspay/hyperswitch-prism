@@ -26,6 +26,8 @@ SERVICE_FLOWS = {
         "create_order": "PaymentServiceCreateOrderResponse",
         # get: PaymentService.Get — Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.
         "get": "PaymentServiceGetResponse",
+        # incremental_authorization: PaymentService.IncrementalAuthorization — Increase the authorized amount for an existing payment. Enables you to capture additional funds when the transaction amount changes after initial authorization.
+        "incremental_authorization": "PaymentServiceIncrementalAuthorizationResponse",
         # proxy_authorize: PaymentService.ProxyAuthorize — Authorize using vault-aliased card data. Proxy substitutes before connector.
         "proxy_authorize": "PaymentServiceAuthorizeResponse",
         # proxy_setup_recurring: PaymentService.ProxySetupRecurring — Setup recurring mandate using vault-aliased card data.
@@ -46,16 +48,20 @@ SERVICE_FLOWS = {
     "RecurringPaymentClient": {
         # charge: RecurringPaymentService.Charge — Charge using an existing stored recurring payment instruction. Processes repeat payments for subscriptions or recurring billing without collecting payment details.
         "charge": "RecurringPaymentServiceChargeResponse",
+        # recurring_revoke: RecurringPaymentService.Revoke — Cancel an existing recurring payment mandate. Stops future automatic charges on customer's stored consent for subscription cancellations.
+        "recurring_revoke": "RecurringPaymentServiceRevokeResponse",
     },
     "CustomerClient": {
         # create: CustomerService.Create — Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information.
         "create": "CustomerServiceCreateResponse",
     },
     "MerchantAuthenticationClient": {
-        # create_access_token: MerchantAuthenticationService.CreateAccessToken — Generate short-lived connector authentication token. Provides secure credentials for connector API access without storing secrets client-side.
-        "create_access_token": "MerchantAuthenticationServiceCreateAccessTokenResponse",
-        # create_session_token: MerchantAuthenticationService.CreateSessionToken — Create session token for payment processing. Maintains session state across multiple payment operations for improved security and tracking.
-        "create_session_token": "MerchantAuthenticationServiceCreateSessionTokenResponse",
+        # create_client_authentication_token: MerchantAuthenticationService.CreateClientAuthenticationToken — Initialize client-facing SDK sessions for wallets, device fingerprinting, etc. Returns structured data the client SDK needs to render payment/verification UI.
+        "create_client_authentication_token": "MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse",
+        # create_server_authentication_token: MerchantAuthenticationService.CreateServerAuthenticationToken — Generate short-lived connector authentication token. Provides secure credentials for connector API access without storing secrets client-side.
+        "create_server_authentication_token": "MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse",
+        # create_server_session_authentication_token: MerchantAuthenticationService.CreateServerSessionAuthenticationToken — Create a server-side session with the connector. Establishes session state for multi-step operations like 3DS verification or wallet authorization.
+        "create_server_session_authentication_token": "MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse",
     },
     "PayoutClient": {
         # payout_create: PayoutService.Create — Creates a payout.
@@ -75,6 +81,10 @@ SERVICE_FLOWS = {
         # payout_void: PayoutService.Void — Void a payout.
         "payout_void": "PayoutServiceVoidResponse",
     },
+    "RefundClient": {
+        # refund_get: RefundService.Get — Retrieve refund status from the payment processor. Tracks refund progress through processor settlement for accurate customer communication.
+        "refund_get": "RefundResponse",
+    },
     "PaymentMethodClient": {
         # tokenize: PaymentMethodService.Tokenize — Tokenize payment method for secure storage. Replaces raw card details with secure token for one-click payments and recurring billing.
         "tokenize": "PaymentMethodServiceTokenizeResponse",
@@ -86,5 +96,9 @@ SINGLE_SERVICE_FLOWS = {
     "EventClient": {
         # handle_event: EventService.HandleEvent — Process webhook notifications from connectors. Translates connector events into standardized responses for asynchronous payment state updates.
         "handle_event": "EventServiceHandleResponse",
+    },
+    "PaymentClient": {
+        # verify_redirect_response: PaymentService.VerifyRedirectResponse — Verify and process redirect responses from 3D Secure or other external flows. Validates authentication results and updates payment state accordingly.
+        "verify_redirect_response": "PaymentServiceVerifyRedirectResponseResponse",
     },
 }

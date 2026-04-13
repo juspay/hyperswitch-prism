@@ -49,8 +49,8 @@ pub fn create_router(state: AppState) -> Router {
             post(handlers::payments::create_order),
         )
         .route(
-            "/payments/create_session_token",
-            post(handlers::payments::create_session_token),
+            "/payments/server_session_authentication_token",
+            post(handlers::payments::server_session_authentication_token),
         )
         .route(
             "/payments/create_connector_customer",
@@ -87,8 +87,8 @@ pub fn create_router(state: AppState) -> Router {
             post(handlers::payments::post_authenticate),
         )
         .route(
-            "/payments/create_access_token",
-            post(handlers::payments::create_access_token),
+            "/payments/server_authentication_token",
+            post(handlers::payments::server_authentication_token),
         )
         .route("/payments/transform", post(handlers::payments::transform))
         .route(

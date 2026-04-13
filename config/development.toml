@@ -70,7 +70,8 @@ multisafepay.base_url = "https://testapi.multisafepay.com/v1/json"
 iatapay.base_url = "https://sandbox.iata-pay.iata.org/api/v1"
 jpmorgan.base_url = "https://api-mock.payments.jpmorgan.com/api/v2"
 jpmorgan.secondary_base_url = "https://id.payments.jpmorgan.com"
-nmi.base_url = "https://sandbox.nmi.com"
+nmi.base_url = "https://secure.nmi.com"
+nmi.secondary_base_url = "https://sandbox.nmi.com"
 nexixpay.base_url = "https://xpaysandbox.nexigroup.com/api/phoenix-0.0/psp/api/v1"
 authipay.base_url = "https://prod.emea.api.fiservapps.com/sandbox/ipp/payments-gateway/v2/payments"
 stax.base_url = "https://apiprod.fattlabs.com"
@@ -139,6 +140,7 @@ wellsfargo.base_url = "https://apitest.cybersource.com/"
 zift.base_url = "https://sandbox-secure.zift.io/"
 truelayer.base_url = "https://api.truelayer-sandbox.com"
 truelayer.secondary_base_url = "https://auth.truelayer-sandbox.com"
+trustly.base_url = "https://test.trustly.com/api/1"
 itaubank.base_url = "https://sandbox.devportal.itau.com.br"
 
 # Generic Events Configuration
@@ -176,4 +178,3 @@ field_prefix = "lineage_"
 
 [unmasked_headers]
 keys = ["x-request-id","x-merchant-id","x-lineage-ids","x-reference-id","x-connector","x-tenant-id","x-shadow-mode"]
-

@@ -18,7 +18,7 @@ Use this config for all flows in this connector. Replace `YOUR_API_KEY` with you
 <details><summary>Python</summary>
 
 ```python
-from payments.generated import sdk_config_pb2, payment_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -96,23 +96,9 @@ let config = ConnectorConfig {
 
 Complete, runnable examples for common integration patterns. Each example shows the full flow with status handling. Copy-paste into your app and replace placeholder values.
 
-### Card Payment (Authorize + Capture)
+### One-step Payment (Authorize + Capture)
 
-Reserve funds with Authorize, then settle with a separate Capture call. Use for physical goods or delayed fulfillment where capture happens later.
-
-**Response status handling:**
-
-| Status | Recommended action |
-|--------|-------------------|
-| `AUTHORIZED` | Funds reserved — proceed to Capture to settle |
-| `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
-| `FAILED` | Payment declined — surface error to customer, do not retry without new details |
-
-**Examples:** [Python](../../examples/dlocal/python/dlocal.py#L92) · [JavaScript](../../examples/dlocal/javascript/dlocal.js#L83) · [Kotlin](../../examples/dlocal/kotlin/dlocal.kt#L106) · [Rust](../../examples/dlocal/rust/dlocal.rs#L103)
-
-### Card Payment (Automatic Capture)
-
-Authorize and capture in one call using `capture_method=AUTOMATIC`. Use for digital goods or immediate fulfillment.
+Simple payment that authorizes and captures in one call. Use for immediate charges.
 
 **Response status handling:**
 
@@ -122,25 +108,39 @@ Authorize and capture in one call using `capture_method=AUTOMATIC`. Use for digi
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/dlocal/python/dlocal.py#L117) · [JavaScript](../../examples/dlocal/javascript/dlocal.js#L109) · [Kotlin](../../examples/dlocal/kotlin/dlocal.kt#L128) · [Rust](../../examples/dlocal/rust/dlocal.rs#L126)
+**Examples:** [Python](../../examples/dlocal/dlocal.py#L183) · [JavaScript](../../examples/dlocal/dlocal.js) · [Kotlin](../../examples/dlocal/dlocal.kt#L112) · [Rust](../../examples/dlocal/dlocal.rs#L176)
 
-### Refund a Payment
+### Card Payment (Authorize + Capture)
 
-Authorize with automatic capture, then refund the captured amount. `connector_transaction_id` from the Authorize response is reused for the Refund call.
+Two-step card payment. First authorize, then capture. Use when you need to verify funds before finalizing.
 
-**Examples:** [Python](../../examples/dlocal/python/dlocal.py#L136) · [JavaScript](../../examples/dlocal/javascript/dlocal.js#L128) · [Kotlin](../../examples/dlocal/kotlin/dlocal.kt#L144) · [Rust](../../examples/dlocal/rust/dlocal.rs#L142)
+**Response status handling:**
 
-### Void a Payment
+| Status | Recommended action |
+|--------|-------------------|
+| `AUTHORIZED` | Funds reserved — proceed to Capture to settle |
+| `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
+| `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-Authorize funds with a manual capture flag, then cancel the authorization with Void before any capture occurs. Releases the hold on the customer's funds.
+**Examples:** [Python](../../examples/dlocal/dlocal.py#L202) · [JavaScript](../../examples/dlocal/dlocal.js) · [Kotlin](../../examples/dlocal/dlocal.kt#L128) · [Rust](../../examples/dlocal/dlocal.rs#L192)
 
-**Examples:** [Python](../../examples/dlocal/python/dlocal.py#L173) · [JavaScript](../../examples/dlocal/javascript/dlocal.js#L163) · [Kotlin](../../examples/dlocal/kotlin/dlocal.kt#L166) · [Rust](../../examples/dlocal/rust/dlocal.rs#L165)
+### Refund
+
+Return funds to the customer for a completed payment.
+
+**Examples:** [Python](../../examples/dlocal/dlocal.py#L227) · [JavaScript](../../examples/dlocal/dlocal.js) · [Kotlin](../../examples/dlocal/dlocal.kt#L150) · [Rust](../../examples/dlocal/dlocal.rs#L215)
+
+### Void Payment
+
+Cancel an authorized but not-yet-captured payment.
+
+**Examples:** [Python](../../examples/dlocal/dlocal.py#L252) · [JavaScript](../../examples/dlocal/dlocal.js) · [Kotlin](../../examples/dlocal/dlocal.kt#L172) · [Rust](../../examples/dlocal/dlocal.rs#L238)
 
 ### Get Payment Status
 
-Authorize a payment, then poll the connector for its current status using Get. Use this to sync payment state when webhooks are unavailable or delayed.
+Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/dlocal/python/dlocal.py#L195) · [JavaScript](../../examples/dlocal/javascript/dlocal.js#L185) · [Kotlin](../../examples/dlocal/kotlin/dlocal.kt#L185) · [Rust](../../examples/dlocal/rust/dlocal.rs#L184)
+**Examples:** [Python](../../examples/dlocal/dlocal.py#L274) · [JavaScript](../../examples/dlocal/dlocal.js) · [Kotlin](../../examples/dlocal/dlocal.kt#L191) · [Rust](../../examples/dlocal/dlocal.rs#L257)
 
 ## API Reference
 
@@ -149,7 +149,10 @@ Authorize a payment, then poll the connector for its current status using Get. U
 | [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
 | [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
+| [PaymentService.ProxyAuthorize](#paymentserviceproxyauthorize) | Payments | `PaymentServiceProxyAuthorizeRequest` |
+| [RecurringPaymentService.Charge](#recurringpaymentservicecharge) | Mandates | `RecurringPaymentServiceChargeRequest` |
 | [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
+| [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
 | [PaymentService.Void](#paymentservicevoid) | Payments | `PaymentServiceVoidRequest` |
 
 ### Payments
@@ -168,20 +171,96 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Payment Method | Supported |
 |----------------|:---------:|
 | Card | ✓ |
-| Google Pay | ⚠ |
+| Bancontact | ⚠ |
 | Apple Pay | ⚠ |
+| Apple Pay Dec | ⚠ |
+| Apple Pay SDK | ⚠ |
+| Google Pay | ⚠ |
+| Google Pay Dec | ⚠ |
+| Google Pay SDK | ⚠ |
+| PayPal SDK | ⚠ |
+| Amazon Pay | ⚠ |
+| Cash App | ⚠ |
+| PayPal | ⚠ |
+| WeChat Pay | ⚠ |
+| Alipay | ⚠ |
+| Revolut Pay | ⚠ |
+| MiFinity | ⚠ |
+| Bluecode | ⚠ |
+| Paze | x |
+| Samsung Pay | ⚠ |
+| MB Way | ⚠ |
+| Satispay | ⚠ |
+| Wero | ⚠ |
+| Affirm | ⚠ |
+| Afterpay | ⚠ |
+| Klarna | ⚠ |
+| UPI Collect | ⚠ |
+| UPI Intent | ⚠ |
+| UPI QR | ⚠ |
+| Thailand | ⚠ |
+| Czech | ⚠ |
+| Finland | ⚠ |
+| FPX | ⚠ |
+| Poland | ⚠ |
+| Slovakia | ⚠ |
+| UK | ⚠ |
+| PIS | x |
+| Generic | ⚠ |
+| Local | ⚠ |
+| iDEAL | ⚠ |
+| Sofort | ⚠ |
+| Trustly | ⚠ |
+| Giropay | ⚠ |
+| EPS | ⚠ |
+| Przelewy24 | ⚠ |
+| PSE | ⚠ |
+| BLIK | ⚠ |
+| Interac | ⚠ |
+| Bizum | ⚠ |
+| EFT | ⚠ |
+| DuitNow | x |
+| ACH | ⚠ |
 | SEPA | ⚠ |
 | BACS | ⚠ |
-| ACH | ⚠ |
+| Multibanco | ⚠ |
+| Instant | ⚠ |
+| Instant FI | ⚠ |
+| Instant PL | ⚠ |
+| Pix | ⚠ |
+| Permata | ⚠ |
+| BCA | ⚠ |
+| BNI VA | ⚠ |
+| BRI VA | ⚠ |
+| CIMB VA | ⚠ |
+| Danamon VA | ⚠ |
+| Mandiri VA | ⚠ |
+| Local | ⚠ |
+| Indonesian | ⚠ |
+| ACH | x |
+| SEPA | x |
+| BACS | ⚠ |
 | BECS | ⚠ |
-| iDEAL | ⚠ |
-| PayPal | ⚠ |
-| BLIK | ⚠ |
-| Klarna | ⚠ |
-| Afterpay | ⚠ |
-| UPI | ⚠ |
-| Affirm | ⚠ |
-| Samsung Pay | ⚠ |
+| SEPA Guaranteed | x |
+| Crypto | x |
+| Reward | ⚠ |
+| Givex | x |
+| PaySafeCard | x |
+| E-Voucher | ⚠ |
+| Boleto | ⚠ |
+| Efecty | ⚠ |
+| Pago Efectivo | ⚠ |
+| Red Compra | ⚠ |
+| Red Pagos | ⚠ |
+| Alfamart | ⚠ |
+| Indomaret | ⚠ |
+| Oxxo | ⚠ |
+| 7-Eleven | ⚠ |
+| Lawson | ⚠ |
+| Mini Stop | ⚠ |
+| Family Mart | ⚠ |
+| Seicomart | ⚠ |
+| Pay Easy | ⚠ |
 
 **Payment method objects** — use these in the `payment_method` field of the Authorize request.
 
@@ -189,28 +268,28 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "card": {  # Generic card payment
-        "card_number": {"value": "4111111111111111"},  # Card Identification
+    "card": {  # Generic card payment.
+        "card_number": {"value": "4111111111111111"},  # Card Identification.
         "card_exp_month": {"value": "03"},
         "card_exp_year": {"value": "2030"},
         "card_cvc": {"value": "737"},
-        "card_holder_name": {"value": "John Doe"}  # Cardholder Information
+        "card_holder_name": {"value": "John Doe"}  # Cardholder Information.
     }
 }
 ```
 
-**Examples:** [Python](../../examples/dlocal/python/dlocal.py#L217) · [JavaScript](../../examples/dlocal/javascript/dlocal.js#L206) · [Kotlin](../../examples/dlocal/kotlin/dlocal.kt#L203) · [Rust](../../examples/dlocal/rust/dlocal.rs#L202)
+**Examples:** [Python](../../examples/dlocal/dlocal.py#L296) · [TypeScript](../../examples/dlocal/dlocal.ts#L281) · [Kotlin](../../examples/dlocal/dlocal.kt#L209) · [Rust](../../examples/dlocal/dlocal.rs#L275)
 
 #### PaymentService.Capture
 
-Finalize an authorized payment transaction. Transfers reserved funds from customer to merchant account, completing the payment lifecycle.
+Finalize an authorized payment by transferring funds. Captures the authorized amount to complete the transaction and move funds to your merchant account.
 
 | | Message |
 |---|---------|
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/dlocal/python/dlocal.py#L226) · [JavaScript](../../examples/dlocal/javascript/dlocal.js#L215) · [Kotlin](../../examples/dlocal/kotlin/dlocal.kt#L215) · [Rust](../../examples/dlocal/rust/dlocal.rs#L214)
+**Examples:** [Python](../../examples/dlocal/dlocal.py#L305) · [TypeScript](../../examples/dlocal/dlocal.ts#L290) · [Kotlin](../../examples/dlocal/dlocal.kt#L221) · [Rust](../../examples/dlocal/dlocal.rs#L287)
 
 #### PaymentService.Get
 
@@ -221,26 +300,63 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/dlocal/python/dlocal.py#L235) · [JavaScript](../../examples/dlocal/javascript/dlocal.js#L224) · [Kotlin](../../examples/dlocal/kotlin/dlocal.kt#L225) · [Rust](../../examples/dlocal/rust/dlocal.rs#L221)
+**Examples:** [Python](../../examples/dlocal/dlocal.py#L314) · [TypeScript](../../examples/dlocal/dlocal.ts#L299) · [Kotlin](../../examples/dlocal/dlocal.kt#L231) · [Rust](../../examples/dlocal/dlocal.rs#L294)
+
+#### PaymentService.ProxyAuthorize
+
+Authorize using vault-aliased card data. Proxy substitutes before connector.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceProxyAuthorizeRequest` |
+| **Response** | `PaymentServiceAuthorizeResponse` |
+
+**Examples:** [Python](../../examples/dlocal/dlocal.py#L323) · [TypeScript](../../examples/dlocal/dlocal.ts#L308) · [Kotlin](../../examples/dlocal/dlocal.kt#L239) · [Rust](../../examples/dlocal/dlocal.rs#L301)
 
 #### PaymentService.Refund
 
-Initiate a refund to customer's payment method. Returns funds for returns, cancellations, or service adjustments after original payment.
+Process a partial or full refund for a captured payment. Returns funds to the customer when goods are returned or services are cancelled.
 
 | | Message |
 |---|---------|
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/dlocal/python/dlocal.py#L136) · [JavaScript](../../examples/dlocal/javascript/dlocal.js#L128) · [Kotlin](../../examples/dlocal/kotlin/dlocal.kt#L233) · [Rust](../../examples/dlocal/rust/dlocal.rs#L228)
+**Examples:** [Python](../../examples/dlocal/dlocal.py#L341) · [TypeScript](../../examples/dlocal/dlocal.ts#L326) · [Kotlin](../../examples/dlocal/dlocal.kt#L311) · [Rust](../../examples/dlocal/dlocal.rs#L315)
 
 #### PaymentService.Void
 
-Cancel an authorized payment before capture. Releases held funds back to customer, typically used when orders are cancelled or abandoned.
+Cancel an authorized payment that has not been captured. Releases held funds back to the customer's payment method when a transaction cannot be completed.
 
 | | Message |
 |---|---------|
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/dlocal/python/dlocal.py#L244) · [JavaScript](../../examples/dlocal/javascript/dlocal.js#L233) · [Kotlin](../../examples/dlocal/kotlin/dlocal.kt#L243) · [Rust](../../examples/dlocal/rust/dlocal.rs#L235)
+**Examples:** [Python](../../examples/dlocal/dlocal.py#L359) · [TypeScript](../../examples/dlocal/dlocal.ts) · [Kotlin](../../examples/dlocal/dlocal.kt#L333) · [Rust](../../examples/dlocal/dlocal.rs#L329)
+
+### Refunds
+
+#### RefundService.Get
+
+Retrieve refund status from the payment processor. Tracks refund progress through processor settlement for accurate customer communication.
+
+| | Message |
+|---|---------|
+| **Request** | `RefundServiceGetRequest` |
+| **Response** | `RefundResponse` |
+
+**Examples:** [Python](../../examples/dlocal/dlocal.py#L350) · [TypeScript](../../examples/dlocal/dlocal.ts#L335) · [Kotlin](../../examples/dlocal/dlocal.kt#L321) · [Rust](../../examples/dlocal/dlocal.rs#L322)
+
+### Mandates
+
+#### RecurringPaymentService.Charge
+
+Charge using an existing stored recurring payment instruction. Processes repeat payments for subscriptions or recurring billing without collecting payment details.
+
+| | Message |
+|---|---------|
+| **Request** | `RecurringPaymentServiceChargeRequest` |
+| **Response** | `RecurringPaymentServiceChargeResponse` |
+
+**Examples:** [Python](../../examples/dlocal/dlocal.py#L332) · [TypeScript](../../examples/dlocal/dlocal.ts#L317) · [Kotlin](../../examples/dlocal/dlocal.kt#L272) · [Rust](../../examples/dlocal/dlocal.rs#L308)

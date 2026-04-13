@@ -15,23 +15,31 @@ The Development environment will matter when there is a need to mock the payment
 
 ## How to Configure Environment?
 
-You may Configure environments at the connector level as show below.
+You may configure environments at the client level using the SdkOptions as shown below.
 
 ```javascript
-const client = new ConnectorServiceClient({
-    connectors: {
+const { PaymentClient } = require('hyperswitch-prism');
+
+// Sandbox environment configuration
+const sandboxConfig = {
+    options: { environment: "SANDBOX" },
+    connectorConfig: {
         stripe: {
-            // Use sandbox for development
-            apiKey: process.env.STRIPE_TEST_API_KEY,
-            environment: 'test'  // or 'live'
-        },
-        adyen: {
-            // Different endpoints for different environments
-            apiKey: process.env.ADYEN_TEST_API_KEY,
-            merchantAccount: process.env.ADYEN_TEST_MERCHANT,
-            environment: 'test'  // or 'live'
+            apiKey: { value: process.env.STRIPE_TEST_API_KEY }
         }
     }
-});
+};
+const sandboxClient = new PaymentClient(sandboxConfig);
+
+// Production environment configuration
+const prodConfig = {
+    options: { environment: "PRODUCTION" },
+    connectorConfig: {
+        stripe: {
+            apiKey: { value: process.env.STRIPE_LIVE_API_KEY }
+        }
+    }
+};
+const prodClient = new PaymentClient(prodConfig);
 ```
 

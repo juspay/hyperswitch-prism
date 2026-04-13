@@ -1,13 +1,12 @@
 use common_enums::{self, AttemptStatus};
 use common_utils::{consts, request::Method, types::MinorUnit, CustomerId};
 use domain_types::{
-    connector_flow::{Authorize, CreateAccessToken, PSync},
+    connector_flow::{Authorize, PSync, ServerAuthenticationToken},
     connector_types::{
-        AccessTokenRequestData, AccessTokenResponseData, PaymentFlowData, PaymentsAuthorizeData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundsData, RefundsResponseData,
-        ResponseId,
+        PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundsData, RefundsResponseData, ResponseId,
+        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
     },
-    errors,
     payment_method_data::{BankRedirectData, PaymentMethodData, PaymentMethodDataTypes},
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -19,6 +18,7 @@ use interfaces::webhooks::IncomingWebhookEvent;
 use serde::{Deserialize, Serialize};
 
 use crate::{connectors::volt::VoltRouterData, types::ResponseRouterData};
+use domain_types::errors::{ConnectorError, IntegrationError};
 
 // Type alias for refunds router data following existing patterns
 pub type RefundsResponseRouterData<F, T> =
@@ -36,7 +36,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for VoltPsyncRequest
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(
         _item: VoltRouterData<
             RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
@@ -166,7 +166,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for VoltPaymentsRequest
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(
         item: VoltRouterData<
             RouterDataV2<
@@ -221,8 +221,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     | BankRedirectData::Trustly { .. }
                     | BankRedirectData::OnlineBankingFpx { .. }
                     | BankRedirectData::OnlineBankingThailand { .. }
-                    | BankRedirectData::LocalBankRedirect {} => {
-                        Err(errors::ConnectorError::NotImplemented(
+                    | BankRedirectData::LocalBankRedirect {}
+                    | BankRedirectData::Netbanking { .. } => {
+                        Err(IntegrationError::not_implemented(
                             utils::get_unimplemented_payment_method_error_message("Volt"),
                         ))
                     }
@@ -292,11 +293,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
-            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(errors::ConnectorError::NotImplemented(
+                Err(IntegrationError::not_implemented(
                     utils::get_unimplemented_payment_method_error_message("Volt"),
                 )
                 .into())
@@ -315,7 +316,7 @@ pub struct VoltAuthUpdateRequest {
 }
 
 impl TryFrom<&ConnectorSpecificConfig> for VoltAuthUpdateRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(auth_type: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         let auth = VoltAuthType::try_from(auth_type)?;
         Ok(Self {
@@ -332,23 +333,23 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     TryFrom<
         VoltRouterData<
             RouterDataV2<
-                CreateAccessToken,
+                ServerAuthenticationToken,
                 PaymentFlowData,
-                AccessTokenRequestData,
-                AccessTokenResponseData,
+                ServerAuthenticationTokenRequestData,
+                ServerAuthenticationTokenResponseData,
             >,
             T,
         >,
     > for VoltAuthUpdateRequest
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(
         item: VoltRouterData<
             RouterDataV2<
-                CreateAccessToken,
+                ServerAuthenticationToken,
                 PaymentFlowData,
-                AccessTokenRequestData,
-                AccessTokenResponseData,
+                ServerAuthenticationTokenRequestData,
+                ServerAuthenticationTokenResponseData,
             >,
             T,
         >,
@@ -365,14 +366,14 @@ pub struct VoltAuthUpdateResponse {
 }
 
 impl<F, T> TryFrom<ResponseRouterData<VoltAuthUpdateResponse, Self>>
-    for RouterDataV2<F, PaymentFlowData, T, AccessTokenResponseData>
+    for RouterDataV2<F, PaymentFlowData, T, ServerAuthenticationTokenResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<VoltAuthUpdateResponse, Self>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(AccessTokenResponseData {
+            response: Ok(ServerAuthenticationTokenResponseData {
                 access_token: item.response.access_token,
                 expires_in: Some(item.response.expires_in),
                 token_type: Some(item.response.token_type),
@@ -390,7 +391,7 @@ pub struct VoltAuthType {
 }
 
 impl TryFrom<&ConnectorSpecificConfig> for VoltAuthType {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(auth_type: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         match auth_type {
             ConnectorSpecificConfig::Volt {
@@ -405,7 +406,10 @@ impl TryFrom<&ConnectorSpecificConfig> for VoltAuthType {
                 client_id: client_id.to_owned(),
                 client_secret: client_secret.to_owned(),
             }),
-            _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
+            _ => Err(IntegrationError::FailedToObtainAuthType {
+                context: Default::default(),
+            }
+            .into()),
         }
     }
 }
@@ -454,7 +458,7 @@ pub struct VoltRedirect {
 impl<F, T> TryFrom<ResponseRouterData<VoltPaymentsResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, T, PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<VoltPaymentsResponse, Self>) -> Result<Self, Self::Error> {
         let url = item
             .response
@@ -534,7 +538,7 @@ pub struct VoltPsyncResponse {
 impl<F, T> TryFrom<ResponseRouterData<VoltPaymentsResponseData, Self>>
     for RouterDataV2<F, PaymentFlowData, T, PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<VoltPaymentsResponseData, Self>,
     ) -> Result<Self, Self::Error> {
@@ -654,7 +658,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
     TryFrom<VoltRouterData<RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>, T>>
     for VoltRefundRequest
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(
         item: VoltRouterData<RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>, T>,
     ) -> Result<Self, Self::Error> {
@@ -673,7 +677,7 @@ pub struct RefundResponse {
 impl<F> TryFrom<RefundsResponseRouterData<F, RefundResponse>>
     for RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: RefundsResponseRouterData<F, RefundResponse>) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(RefundsResponseData {

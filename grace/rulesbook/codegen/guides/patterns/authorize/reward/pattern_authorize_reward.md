@@ -91,7 +91,7 @@ match item.router_data.resource_common_data.payment_method {
         // 2. Get connector-specific merchant credentials
         // 3. Build redirect-based request
     },
-    _ => Err(ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+    _ => Err(IntegrationError::NotImplemented("Payment methods".to_string(, Default::default())).into()),
 }
 ```
 
@@ -168,18 +168,18 @@ fn get_mid(
     connector_auth_type: &ConnectorAuthType,
     payment_method_type: Option<common_enums::PaymentMethodType>,
     currency: common_enums::Currency,
-) -> Result<Secret<String>, ConnectorError> {
+) -> Result<Secret<String>, IntegrationError> {
     match CashtocodeAuth::try_from((connector_auth_type, &currency)) {
         Ok(cashtocode_auth) => match payment_method_type {
             Some(common_enums::PaymentMethodType::ClassicReward) => Ok(cashtocode_auth
                 .merchant_id_classic
-                .ok_or(ConnectorError::FailedToObtainAuthType)?),
+                .ok_or(IntegrationError::FailedToObtainAuthType { context: Default::default() })?),
             Some(common_enums::PaymentMethodType::Evoucher) => Ok(cashtocode_auth
                 .merchant_id_evoucher
-                .ok_or(ConnectorError::FailedToObtainAuthType)?),
-            _ => Err(ConnectorError::FailedToObtainAuthType),
+                .ok_or(IntegrationError::FailedToObtainAuthType { context: Default::default() })?),
+            _ => Err(IntegrationError::FailedToObtainAuthType { context: Default::default() }),
         },
-        Err(_) => Err(ConnectorError::FailedToObtainAuthType)?,
+        Err(_) => Err(IntegrationError::FailedToObtainAuthType { context: Default::default() })?,
     }
 }
 ```
@@ -219,7 +219,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for CashtocodePaymentsRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(
         item: CashtocodeRouterData<...>,
     ) -> Result<Self, Self::Error> {
@@ -237,7 +237,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 item.router_data.request.minor_amount,
                 item.router_data.request.currency,
             )
-            .change_context(ConnectorError::RequestEncodingFailed)?;
+            .change_context(IntegrationError::RequestEncodingFailed)?;
 
         match item.router_data.resource_common_data.payment_method {
             common_enums::PaymentMethod::Reward => Ok(Self {
@@ -256,7 +256,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 email: item.router_data.request.email.clone(),
                 mid,
             }),
-            _ => Err(ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+            _ => Err(IntegrationError::NotImplemented("Payment methods".to_string(, Default::default())).into()),
         }
     }
 }
@@ -289,7 +289,7 @@ impl From<CashtocodePaymentStatus> for common_enums::AttemptStatus {
 fn get_redirect_form_data(
     payment_method_type: common_enums::PaymentMethodType,
     response_data: CashtocodePaymentsResponseData,
-) -> CustomResult<RedirectForm, ConnectorError> {
+) -> CustomResult<RedirectForm, IntegrationError> {
     match payment_method_type {
         common_enums::PaymentMethodType::ClassicReward => Ok(RedirectForm::Form {
             // Redirect form is manually constructed because the connector
@@ -304,8 +304,8 @@ fn get_redirect_form_data(
             response_data.pay_url,
             Method::Get,
         ))),
-        _ => Err(ConnectorError::NotImplemented(
-            utils::get_unimplemented_payment_method_error_message("CashToCode"),
+        _ => Err(IntegrationError::NotImplemented(
+            utils::get_unimplemented_payment_method_error_message("CashToCode", Default::default()),
         ))?,
     }
 }
@@ -324,7 +324,7 @@ let auth_header = match payment_method_type {
         auth_type.username_evoucher.to_owned(),
         auth_type.password_evoucher.to_owned(),
     ),
-    _ => return Err(errors::ConnectorError::MissingPaymentMethodType)?,
+    _ => return Err(errors::IntegrationError::MissingPaymentMethodType)?,
 }?;
 ```
 
@@ -394,7 +394,7 @@ match payment_method_type {
         // Evoucher specific implementation
         handle_evoucher(...)
     }
-    _ => Err(ConnectorError::MissingPaymentMethodType)?,
+    _ => Err(IntegrationError::MissingPaymentMethodType)?,
 }
 ```
 
@@ -404,13 +404,13 @@ match payment_method_type {
 
 ```rust
 // 1. Missing payment method type
-_ => Err(ConnectorError::MissingPaymentMethodType)?
+_ => Err(IntegrationError::MissingPaymentMethodType)?
 
 // 2. Failed to obtain auth type
- Err(ConnectorError::FailedToObtainAuthType)?
+ Err(IntegrationError::FailedToObtainAuthType { context: Default::default() })?
 
 // 3. Currency not supported
-Err(ConnectorError::CurrencyNotSupported {
+Err(IntegrationError::CurrencyNotSupported {
     message: currency.to_string(),
     connector: "CashToCode",
 })
@@ -600,7 +600,7 @@ mod integration_tests {
 let payment_method_type = router_data
     .request
     .payment_method_type
-    .ok_or(ConnectorError::MissingPaymentMethodType)?;
+    .ok_or(IntegrationError::MissingPaymentMethodType)?;
 ```
 
 ### 2. Use FloatMajorUnit for Amounts
@@ -621,8 +621,8 @@ match payment_method_type {
     Some(common_enums::PaymentMethodType::Evoucher) => {
         // Evoucher specific logic
     }
-    _ => Err(ConnectorError::NotImplemented(
-        "Unsupported payment method type".to_string()
+    _ => Err(IntegrationError::NotImplemented(
+        "Unsupported payment method type".to_string(, Default::default())
     ))?,
 }
 ```

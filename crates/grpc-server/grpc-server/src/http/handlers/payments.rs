@@ -10,10 +10,10 @@ use grpc_api_types::payments::{
     payment_method_service_server::PaymentMethodService, payment_service_server::PaymentService,
     recurring_payment_service_server::RecurringPaymentService, CustomerServiceCreateRequest,
     CustomerServiceCreateResponse, EventServiceHandleRequest, EventServiceHandleResponse,
-    MerchantAuthenticationServiceCreateAccessTokenRequest,
-    MerchantAuthenticationServiceCreateAccessTokenResponse,
-    MerchantAuthenticationServiceCreateSessionTokenRequest,
-    MerchantAuthenticationServiceCreateSessionTokenResponse,
+    MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
+    MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
+    MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest,
+    MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse,
     PaymentMethodAuthenticationServiceAuthenticateRequest,
     PaymentMethodAuthenticationServiceAuthenticateResponse,
     PaymentMethodAuthenticationServicePostAuthenticateRequest,
@@ -89,10 +89,10 @@ http_handler!(
     payments_service
 );
 http_handler!(
-    create_session_token,
-    MerchantAuthenticationServiceCreateSessionTokenRequest,
-    MerchantAuthenticationServiceCreateSessionTokenResponse,
-    create_session_token,
+    server_session_authentication_token,
+    MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest,
+    MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse,
+    create_server_session_authentication_token,
     merchant_authentication_service
 );
 http_handler!(
@@ -159,10 +159,10 @@ http_handler!(
     payment_method_authentication_service
 );
 http_handler!(
-    create_access_token,
-    MerchantAuthenticationServiceCreateAccessTokenRequest,
-    MerchantAuthenticationServiceCreateAccessTokenResponse,
-    create_access_token,
+    server_authentication_token,
+    MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
+    MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
+    create_server_authentication_token,
     merchant_authentication_service
 );
 http_handler!(

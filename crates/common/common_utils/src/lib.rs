@@ -24,9 +24,7 @@ pub use errors::{CustomResult, EventPublisherError, ParsingError, ValidationErro
 pub use event_publisher::{emit_event_with_config, init_event_publisher};
 
 #[cfg(not(feature = "kafka"))]
-pub fn init_event_publisher(_config: &events::EventConfig) -> CustomResult<(), ()> {
-    Ok(())
-}
+pub fn init_event_publisher(_config: &events::EventConfig) {}
 #[cfg(not(feature = "kafka"))]
 pub fn emit_event_with_config(_event: events::Event, _config: &events::EventConfig) {
     // No-op when kafka feature is disabled

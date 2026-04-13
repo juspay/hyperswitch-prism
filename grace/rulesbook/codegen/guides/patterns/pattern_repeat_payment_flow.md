@@ -129,10 +129,10 @@ macros::macro_connector_implementation!(
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     other_functions: {
-        fn get_headers(...) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        fn get_headers(...) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
             // Custom header logic
         }
-        fn get_url(...) -> CustomResult<String, errors::ConnectorError> {
+        fn get_url(...) -> CustomResult<String, errors::IntegrationError> {
             // URL construction logic
         }
     }
@@ -242,25 +242,25 @@ AciPaymentsResponse as AciRepeatPaymentResponse
 pub fn extract_mandate_id(
     &self,
     mandate_reference: &MandateReferenceId,
-) -> CustomResult<String, errors::ConnectorError> {
+) -> CustomResult<String, errors::IntegrationError> {
     match mandate_reference {
         MandateReferenceId::ConnectorMandateId(connector_mandate_ref) => {
             connector_mandate_ref
                 .get_connector_mandate_id()
                 .ok_or_else(|| error_stack::report!(
-                    errors::ConnectorError::MissingRequiredField {
+                    errors::IntegrationError::MissingRequiredField {
                         field_name: "connector_mandate_id"
-                    }
+                    , context: Default::default() }
                 ))
         }
         MandateReferenceId::NetworkMandateId(_) => {
-            Err(error_stack::report!(errors::ConnectorError::NotImplemented(
-                "Network mandate ID not supported for repeat payments in aci".to_string(),
+            Err(error_stack::report!(errors::IntegrationError::NotImplemented(
+                "Network mandate ID not supported for repeat payments in aci".to_string(, Default::default()),
             )))
         }
         MandateReferenceId::NetworkTokenWithNTI(_) => {
-            Err(error_stack::report!(errors::ConnectorError::NotImplemented(
-                "Network token with NTI not supported for aci".to_string(),
+            Err(error_stack::report!(errors::IntegrationError::NotImplemented(
+                "Network token with NTI not supported for aci".to_string(, Default::default()),
             )))
         }
     }
@@ -371,14 +371,14 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
             self.build_headers(req)
         }
 
         fn get_url(
             &self,
             req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData, PaymentsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, errors::IntegrationError> {
             Ok(format!("{}api/v1/repeat-payment", self.connector_base_url_payments(req)))
         }
     }
@@ -412,7 +412,7 @@ pub struct MyConnectorRepeatPaymentRequest<T> {
 impl<T: PaymentMethodDataTypes> TryFrom<&RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData, PaymentsResponseData>>
     for MyConnectorRepeatPaymentRequest<T>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<errors::IntegrationError>;
 
     fn try_from(
         item: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData, PaymentsResponseData>
@@ -429,23 +429,23 @@ impl<T: PaymentMethodDataTypes> TryFrom<&RouterDataV2<RepeatPayment, PaymentFlow
 }
 
 // Helper function to extract mandate token
-fn extract_mandate_token(mandate_ref: &MandateReferenceId) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+fn extract_mandate_token(mandate_ref: &MandateReferenceId) -> Result<String, error_stack::Report<errors::IntegrationError>> {
     match mandate_ref {
         MandateReferenceId::ConnectorMandateId(connector_mandate_ref) => {
             connector_mandate_ref
                 .get_connector_mandate_id()
                 .ok_or_else(|| {
-                    error_stack::report!(errors::ConnectorError::MissingRequiredField {
+                    error_stack::report!(errors::IntegrationError::MissingRequiredField {
                         field_name: "connector_mandate_id"
-                    })
+                    , context: Default::default() })
                 })
         }
         MandateReferenceId::NetworkMandateId(network_mandate_ref) => {
             Ok(network_mandate_ref.network_transaction_id.clone())
         }
         MandateReferenceId::NetworkTokenWithNTI(_) => {
-            Err(error_stack::report!(errors::ConnectorError::NotImplemented(
-                "Network token with NTI not supported".to_string(),
+            Err(error_stack::report!(errors::IntegrationError::NotImplemented(
+                "Network token with NTI not supported".to_string(, Default::default()),
             )))
         }
     }
@@ -494,7 +494,7 @@ use transformers::{
 pub fn extract_mandate_id(
     &self,
     mandate_reference: &MandateReferenceId,
-) -> CustomResult<String, errors::ConnectorError> {
+) -> CustomResult<String, errors::IntegrationError> {
     match mandate_reference {
         MandateReferenceId::ConnectorMandateId(ref) => {
             ref.get_connector_mandate_id().ok_or(/* error */)
@@ -578,10 +578,10 @@ connectors/
 
 ```rust
 MandateReferenceId::NetworkMandateId(_) => {
-    Err(error_stack::report!(errors::ConnectorError::NotImplemented(
+    Err(error_stack::report!(errors::IntegrationError::NotImplemented(
         format!(
             "Network mandate ID not supported for repeat payments in {}",
-            self.id()
+            self.id(, Default::default())
         )
     )))
 }
@@ -601,7 +601,7 @@ type RepeatPaymentRouterData = RouterDataV2<
 >;
 
 // Use in function signatures
-fn get_url(&self, req: &RepeatPaymentRouterData) -> CustomResult<String, errors::ConnectorError>
+fn get_url(&self, req: &RepeatPaymentRouterData) -> CustomResult<String, errors::IntegrationError>
 ```
 
 ### 4. Testing Considerations
@@ -673,9 +673,9 @@ impl<T> TryFrom<&RouterDataV2<RepeatPayment, ...>> for ConnectorRepeatPaymentReq
 ```rust
 connector_mandate_ref
     .get_connector_mandate_id()
-    .ok_or_else(|| report!(errors::ConnectorError::MissingRequiredField {
+    .ok_or_else(|| report!(errors::IntegrationError::MissingRequiredField {
         field_name: "connector_mandate_id"
-    }))
+    , context: Default::default() }))
 ```
 
 ### Issue 2: Unsupported Mandate Type
@@ -685,8 +685,8 @@ connector_mandate_ref
 **Solution**: Return explicit `NotImplemented` error
 ```rust
 MandateReferenceId::NetworkMandateId(_) => {
-    Err(report!(errors::ConnectorError::NotImplemented(
-        "Network mandate not supported".to_string()
+    Err(report!(errors::IntegrationError::NotImplemented(
+        "Network mandate not supported".to_string(, Default::default())
     )))
 }
 ```

@@ -11,11 +11,27 @@
         "status": "not_supported",
         "error": "Selected payment method is not supported by bambora"
       },
+      "AchBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
       "Affirm": {
         "status": "not_supported",
         "error": "Selected payment method is not supported by bambora"
       },
       "Afterpay": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "Alfamart": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "AliPayRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "AmazonPayRedirect": {
         "status": "not_supported",
         "error": "Selected payment method is not supported by bambora"
       },
@@ -27,7 +43,23 @@
         "status": "not_supported",
         "error": "Selected payment method is not supported by bambora"
       },
+      "ApplePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
       "Bacs": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "BacsBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "BancontactCard": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "BcaBankTransfer": {
         "status": "not_supported",
         "error": "Selected payment method is not supported by bambora"
       },
@@ -35,7 +67,27 @@
         "status": "not_supported",
         "error": "Selected payment method is not supported by bambora"
       },
+      "Bizum": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
       "Blik": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "Bluecode": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "Boleto": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "BriVaBankTransfer": {
         "status": "not_supported",
         "error": "Selected payment method is not supported by bambora"
       },
@@ -76,6 +128,58 @@
           "body": "{\"order_number\":\"probe_txn_001\",\"amount\":10.0,\"payment_method\":\"card\",\"card\":{\"name\":\"Doe\",\"number\":\"4111111111111111\",\"expiry_month\":\"03\",\"expiry_year\":\"30\",\"cvd\":\"737\",\"complete\":true},\"billing\":{\"name\":\"Doe\"}}"
         }
       },
+      "CashappQr": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "ClassicReward": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "EVoucher": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "Efecty": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "Eft": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "Eps": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "FamilyMart": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "Giropay": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
       "GooglePay": {
         "status": "not_supported",
         "error": "Selected payment method is not supported by bambora"
@@ -84,7 +188,35 @@
         "status": "not_supported",
         "error": "Selected payment method is not supported by bambora"
       },
+      "GooglePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
       "Ideal": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "Indomaret": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "InstantBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "Interac": {
         "status": "not_supported",
         "error": "Selected payment method is not supported by bambora"
       },
@@ -92,7 +224,127 @@
         "status": "not_supported",
         "error": "Selected payment method is not supported by bambora"
       },
+      "Lawson": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "LocalBankRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "LocalBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "MbWay": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "Mifinity": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "MiniStop": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "OpenBanking": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "OpenBankingUk": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "Oxxo": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "PagoEfectivo": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "PayEasy": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "PaySafeCard": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
       "PaypalRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "PaypalSdk": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "PermataBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "Pix": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "Przelewy24": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "Pse": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "RedCompra": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "RedPagos": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "RevolutPay": {
         "status": "not_supported",
         "error": "Selected payment method is not supported by bambora"
       },
@@ -100,11 +352,55 @@
         "status": "not_supported",
         "error": "Selected payment method is not supported by bambora"
       },
+      "Satispay": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "Seicomart": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
       "Sepa": {
         "status": "not_supported",
         "error": "Selected payment method is not supported by bambora"
       },
+      "SepaBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "SevenEleven": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "Sofort": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "Trustly": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
       "UpiCollect": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "UpiIntent": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "UpiQr": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "WeChatPayQr": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
+      "Wero": {
         "status": "not_supported",
         "error": "Selected payment method is not supported by bambora"
       }
@@ -132,7 +428,7 @@
         }
       }
     },
-    "create_access_token": {
+    "create_client_authentication_token": {
       "default": {
         "status": "not_implemented"
       }
@@ -147,7 +443,12 @@
         "status": "not_implemented"
       }
     },
-    "create_session_token": {
+    "create_server_authentication_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_server_session_authentication_token": {
       "default": {
         "status": "not_implemented"
       }
@@ -162,7 +463,17 @@
         "status": "not_implemented"
       }
     },
+    "dispute_get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "eligibility": {
       "default": {
         "status": "not_implemented"
       }
@@ -189,6 +500,16 @@
         }
       }
     },
+    "handle_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "post_authenticate": {
       "default": {
         "status": "not_implemented"
@@ -199,7 +520,54 @@
         "status": "not_implemented"
       }
     },
+    "proxy_authorize": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_proxy_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe"
+          },
+          "address": {
+            "billing_address": {
+              "last_name": "Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.na.bambora.com/v1/payments",
+          "method": "Post",
+          "headers": {
+            "authorization": "Passcode cHJvYmVfbWVyY2hhbnQ6cHJvYmVfa2V5",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"order_number\":\"probe_proxy_txn_001\",\"amount\":10.0,\"payment_method\":\"card\",\"card\":{\"name\":\"Doe\",\"number\":\"4111111111111111\",\"expiry_month\":\"03\",\"expiry_year\":\"30\",\"cvd\":\"123\",\"complete\":true},\"billing\":{\"name\":\"Doe\"}}"
+        }
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "recurring_charge": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "recurring_revoke": {
       "default": {
         "status": "not_implemented"
       }
@@ -229,6 +597,25 @@
         }
       }
     },
+    "refund_get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "refund_id": "probe_refund_id_001"
+        },
+        "sample": {
+          "url": "https://api.na.bambora.com/v1/payments/probe_refund_id_001",
+          "method": "Get",
+          "headers": {
+            "authorization": "Passcode cHJvYmVfbWVyY2hhbnQ6cHJvYmVfa2V5",
+            "via": "HyperSwitch"
+          },
+          "body": null
+        }
+      }
+    },
     "reverse": {
       "default": {
         "status": "not_implemented"
@@ -239,7 +626,23 @@
         "status": "not_implemented"
       }
     },
+    "token_authorize": {
+      "default": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "tokenize": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "verify_redirect": {
       "default": {
         "status": "not_implemented"
       }

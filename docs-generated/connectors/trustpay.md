@@ -18,7 +18,7 @@ Use this config for all flows in this connector. Replace `YOUR_API_KEY` with you
 <details><summary>Python</summary>
 
 ```python
-from payments.generated import sdk_config_pb2, payment_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -96,9 +96,9 @@ let config = ConnectorConfig {
 
 Complete, runnable examples for common integration patterns. Each example shows the full flow with status handling. Copy-paste into your app and replace placeholder values.
 
-### Card Payment (Automatic Capture)
+### One-step Payment (Authorize + Capture)
 
-Authorize and capture in one call using `capture_method=AUTOMATIC`. Use for digital goods or immediate fulfillment.
+Simple payment that authorizes and captures in one call. Use for immediate charges.
 
 **Response status handling:**
 
@@ -108,29 +108,32 @@ Authorize and capture in one call using `capture_method=AUTOMATIC`. Use for digi
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/trustpay/python/trustpay.py#L92) · [JavaScript](../../examples/trustpay/javascript/trustpay.js#L86) · [Kotlin](../../examples/trustpay/kotlin/trustpay.kt#L117) · [Rust](../../examples/trustpay/rust/trustpay.rs#L113)
+**Examples:** [Python](../../examples/trustpay/trustpay.py#L211) · [JavaScript](../../examples/trustpay/trustpay.js) · [Kotlin](../../examples/trustpay/trustpay.kt#L122) · [Rust](../../examples/trustpay/trustpay.rs#L201)
 
-### Refund a Payment
+### Refund
 
-Authorize with automatic capture, then refund the captured amount. `connector_transaction_id` from the Authorize response is reused for the Refund call.
+Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/trustpay/python/trustpay.py#L111) · [JavaScript](../../examples/trustpay/javascript/trustpay.js#L105) · [Kotlin](../../examples/trustpay/kotlin/trustpay.kt#L133) · [Rust](../../examples/trustpay/rust/trustpay.rs#L129)
+**Examples:** [Python](../../examples/trustpay/trustpay.py#L230) · [JavaScript](../../examples/trustpay/trustpay.js) · [Kotlin](../../examples/trustpay/trustpay.kt#L138) · [Rust](../../examples/trustpay/trustpay.rs#L217)
 
 ### Get Payment Status
 
-Authorize a payment, then poll the connector for its current status using Get. Use this to sync payment state when webhooks are unavailable or delayed.
+Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/trustpay/python/trustpay.py#L155) · [JavaScript](../../examples/trustpay/javascript/trustpay.js#L147) · [Kotlin](../../examples/trustpay/kotlin/trustpay.kt#L155) · [Rust](../../examples/trustpay/rust/trustpay.rs#L152)
+**Examples:** [Python](../../examples/trustpay/trustpay.py#L255) · [JavaScript](../../examples/trustpay/trustpay.js) · [Kotlin](../../examples/trustpay/trustpay.kt#L160) · [Rust](../../examples/trustpay/trustpay.rs#L240)
 
 ## API Reference
 
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
 | [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
-| [MerchantAuthenticationService.CreateAccessToken](#merchantauthenticationservicecreateaccesstoken) | Authentication | `MerchantAuthenticationServiceCreateAccessTokenRequest` |
 | [PaymentService.CreateOrder](#paymentservicecreateorder) | Payments | `PaymentServiceCreateOrderRequest` |
+| [MerchantAuthenticationService.CreateServerAuthenticationToken](#merchantauthenticationservicecreateserverauthenticationtoken) | Authentication | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
+| [EventService.HandleEvent](#eventservicehandleevent) | Events | `EventServiceHandleRequest` |
+| [PaymentService.ProxyAuthorize](#paymentserviceproxyauthorize) | Payments | `PaymentServiceProxyAuthorizeRequest` |
 | [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
+| [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
 
 ### Payments
 
@@ -148,20 +151,96 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Payment Method | Supported |
 |----------------|:---------:|
 | Card | ✓ |
-| Google Pay | ⚠ |
+| Bancontact | ⚠ |
 | Apple Pay | ⚠ |
+| Apple Pay Dec | ⚠ |
+| Apple Pay SDK | ⚠ |
+| Google Pay | ⚠ |
+| Google Pay Dec | ⚠ |
+| Google Pay SDK | ⚠ |
+| PayPal SDK | ⚠ |
+| Amazon Pay | ⚠ |
+| Cash App | ⚠ |
+| PayPal | ⚠ |
+| WeChat Pay | ⚠ |
+| Alipay | ⚠ |
+| Revolut Pay | ⚠ |
+| MiFinity | ⚠ |
+| Bluecode | ⚠ |
+| Paze | x |
+| Samsung Pay | ⚠ |
+| MB Way | ⚠ |
+| Satispay | ⚠ |
+| Wero | ⚠ |
+| Affirm | ⚠ |
+| Afterpay | ⚠ |
+| Klarna | ⚠ |
+| UPI Collect | ⚠ |
+| UPI Intent | ⚠ |
+| UPI QR | ⚠ |
+| Thailand | ⚠ |
+| Czech | ⚠ |
+| Finland | ⚠ |
+| FPX | ⚠ |
+| Poland | ⚠ |
+| Slovakia | ⚠ |
+| UK | ⚠ |
+| PIS | x |
+| Generic | ⚠ |
+| Local | ⚠ |
+| iDEAL | ✓ |
+| Sofort | ✓ |
+| Trustly | ⚠ |
+| Giropay | ✓ |
+| EPS | ✓ |
+| Przelewy24 | ⚠ |
+| PSE | ⚠ |
+| BLIK | ✓ |
+| Interac | ⚠ |
+| Bizum | ⚠ |
+| EFT | ⚠ |
+| DuitNow | x |
+| ACH | ⚠ |
+| SEPA | ✓ |
+| BACS | ⚠ |
+| Multibanco | ⚠ |
+| Instant | ✓ |
+| Instant FI | ✓ |
+| Instant PL | ✓ |
+| Pix | ⚠ |
+| Permata | ⚠ |
+| BCA | ⚠ |
+| BNI VA | ⚠ |
+| BRI VA | ⚠ |
+| CIMB VA | ⚠ |
+| Danamon VA | ⚠ |
+| Mandiri VA | ⚠ |
+| Local | ⚠ |
+| Indonesian | ⚠ |
+| ACH | ⚠ |
 | SEPA | ⚠ |
 | BACS | ⚠ |
-| ACH | ⚠ |
 | BECS | ⚠ |
-| iDEAL | ✓ |
-| PayPal | ⚠ |
-| BLIK | ✓ |
-| Klarna | ⚠ |
-| Afterpay | ⚠ |
-| UPI | ⚠ |
-| Affirm | ⚠ |
-| Samsung Pay | ⚠ |
+| SEPA Guaranteed | ⚠ |
+| Crypto | x |
+| Reward | ⚠ |
+| Givex | x |
+| PaySafeCard | x |
+| E-Voucher | ⚠ |
+| Boleto | ⚠ |
+| Efecty | ⚠ |
+| Pago Efectivo | ⚠ |
+| Red Compra | ⚠ |
+| Red Pagos | ⚠ |
+| Alfamart | ⚠ |
+| Indomaret | ⚠ |
+| Oxxo | ⚠ |
+| 7-Eleven | ⚠ |
+| Lawson | ⚠ |
+| Mini Stop | ⚠ |
+| Family Mart | ⚠ |
+| Seicomart | ⚠ |
+| Pay Easy | ⚠ |
 
 **Payment method objects** — use these in the `payment_method` field of the Authorize request.
 
@@ -169,12 +248,12 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "card": {  # Generic card payment
-        "card_number": {"value": "4111111111111111"},  # Card Identification
+    "card": {  # Generic card payment.
+        "card_number": {"value": "4111111111111111"},  # Card Identification.
         "card_exp_month": {"value": "03"},
         "card_exp_year": {"value": "2030"},
         "card_cvc": {"value": "737"},
-        "card_holder_name": {"value": "John Doe"}  # Cardholder Information
+        "card_holder_name": {"value": "John Doe"}  # Cardholder Information.
     }
 }
 ```
@@ -198,18 +277,18 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/trustpay/python/trustpay.py#L177) · [JavaScript](../../examples/trustpay/javascript/trustpay.js#L168) · [Kotlin](../../examples/trustpay/kotlin/trustpay.kt#L173) · [Rust](../../examples/trustpay/rust/trustpay.rs#L170)
+**Examples:** [Python](../../examples/trustpay/trustpay.py#L277) · [TypeScript](../../examples/trustpay/trustpay.ts#L260) · [Kotlin](../../examples/trustpay/trustpay.kt#L178) · [Rust](../../examples/trustpay/trustpay.rs#L258)
 
 #### PaymentService.CreateOrder
 
-Initialize an order in the payment processor system. Sets up payment context before customer enters card details for improved authorization rates.
+Create a payment order for later processing. Establishes a transaction context that can be authorized or captured in subsequent API calls.
 
 | | Message |
 |---|---------|
 | **Request** | `PaymentServiceCreateOrderRequest` |
 | **Response** | `PaymentServiceCreateOrderResponse` |
 
-**Examples:** [Python](../../examples/trustpay/python/trustpay.py#L201) · [JavaScript](../../examples/trustpay/javascript/trustpay.js#L187) · [Kotlin](../../examples/trustpay/kotlin/trustpay.kt#L195) · [Rust](../../examples/trustpay/rust/trustpay.rs#L191)
+**Examples:** [Python](../../examples/trustpay/trustpay.py#L286) · [TypeScript](../../examples/trustpay/trustpay.ts#L269) · [Kotlin](../../examples/trustpay/trustpay.kt#L190) · [Rust](../../examples/trustpay/trustpay.rs#L270)
 
 #### PaymentService.Get
 
@@ -220,28 +299,52 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/trustpay/python/trustpay.py#L227) · [JavaScript](../../examples/trustpay/javascript/trustpay.js#L208) · [Kotlin](../../examples/trustpay/kotlin/trustpay.kt#L216) · [Rust](../../examples/trustpay/rust/trustpay.rs#L211)
+**Examples:** [Python](../../examples/trustpay/trustpay.py#L304) · [TypeScript](../../examples/trustpay/trustpay.ts#L287) · [Kotlin](../../examples/trustpay/trustpay.kt#L221) · [Rust](../../examples/trustpay/trustpay.rs#L284)
+
+#### PaymentService.ProxyAuthorize
+
+Authorize using vault-aliased card data. Proxy substitutes before connector.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceProxyAuthorizeRequest` |
+| **Response** | `PaymentServiceAuthorizeResponse` |
+
+**Examples:** [Python](../../examples/trustpay/trustpay.py#L322) · [TypeScript](../../examples/trustpay/trustpay.ts#L305) · [Kotlin](../../examples/trustpay/trustpay.kt#L239) · [Rust](../../examples/trustpay/trustpay.rs#L298)
 
 #### PaymentService.Refund
 
-Initiate a refund to customer's payment method. Returns funds for returns, cancellations, or service adjustments after original payment.
+Process a partial or full refund for a captured payment. Returns funds to the customer when goods are returned or services are cancelled.
 
 | | Message |
 |---|---------|
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/trustpay/python/trustpay.py#L111) · [JavaScript](../../examples/trustpay/javascript/trustpay.js#L105) · [Kotlin](../../examples/trustpay/kotlin/trustpay.kt#L224) · [Rust](../../examples/trustpay/rust/trustpay.rs#L218)
+**Examples:** [Python](../../examples/trustpay/trustpay.py#L331) · [TypeScript](../../examples/trustpay/trustpay.ts#L314) · [Kotlin](../../examples/trustpay/trustpay.kt#L286) · [Rust](../../examples/trustpay/trustpay.rs#L305)
+
+### Refunds
+
+#### RefundService.Get
+
+Retrieve refund status from the payment processor. Tracks refund progress through processor settlement for accurate customer communication.
+
+| | Message |
+|---|---------|
+| **Request** | `RefundServiceGetRequest` |
+| **Response** | `RefundResponse` |
+
+**Examples:** [Python](../../examples/trustpay/trustpay.py#L340) · [TypeScript](../../examples/trustpay/trustpay.ts#L323) · [Kotlin](../../examples/trustpay/trustpay.kt#L296) · [Rust](../../examples/trustpay/trustpay.rs#L312)
 
 ### Authentication
 
-#### MerchantAuthenticationService.CreateAccessToken
+#### MerchantAuthenticationService.CreateServerAuthenticationToken
 
 Generate short-lived connector authentication token. Provides secure credentials for connector API access without storing secrets client-side.
 
 | | Message |
 |---|---------|
-| **Request** | `MerchantAuthenticationServiceCreateAccessTokenRequest` |
-| **Response** | `MerchantAuthenticationServiceCreateAccessTokenResponse` |
+| **Request** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
+| **Response** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/trustpay/python/trustpay.py#L186) · [JavaScript](../../examples/trustpay/javascript/trustpay.js#L177) · [Kotlin](../../examples/trustpay/kotlin/trustpay.kt#L185) · [Rust](../../examples/trustpay/rust/trustpay.rs#L182)
+**Examples:** [Python](../../examples/trustpay/trustpay.py#L295) · [TypeScript](../../examples/trustpay/trustpay.ts#L278) · [Kotlin](../../examples/trustpay/trustpay.kt#L211) · [Rust](../../examples/trustpay/trustpay.rs#L277)

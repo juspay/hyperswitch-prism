@@ -3,26 +3,34 @@ name: Release
 on:
   workflow_dispatch:
     inputs:
-      branch:
-        description: 'Branch to release from'
-        required: true
-        default: 'main'
-        type: string
-      dry_run:
-        description: 'Dry run (do not create release)'
+      preview_only:
+        description: 'Preview only (do not actually publish)'
         required: false
-        default: true
+        default: false
+        type: boolean
+      publish_java:
+        description: 'Publish Java SDK to Maven Central'
+        required: false
+        default: false
+        type: boolean
+      publish_python:
+        description: 'Publish Python SDK to PyPI'
+        required: false
+        default: false
+        type: boolean
+      publish_javascript:
+        description: 'Publish JavaScript SDK to npm'
+        required: false
+        default: false
         type: boolean
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# Workflow-level permissions
 permissions:
-  contents: write      # Required for creating releases and pushing tags
-  actions: read        # Required for downloading artifacts
-  pull-requests: read  # Required for reading PR information
+  contents: read
+  actions: read
 
 env:
   CARGO_TERM_COLOR: always
@@ -31,88 +39,20 @@ env:
   RUSTFLAGS: "-C codegen-units=16"
 
 jobs:
-  # Job 1: Generate version and changelog
-  version-and-changelog:
-    name: Generate Version and Changelog
-    runs-on: ubuntu-latest
-    outputs:
-      new_version: ${{ steps.version.outputs.new_version }}
-      changelog: ${{ steps.changelog.outputs.content }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
-          ref: ${{ github.event.inputs.branch }}
-
-      - name: Install git-cliff
-        run: |
-          cargo install git-cliff
-
-      - name: Generate new version
-        id: version
-        run: |
-          # git-cliff automatically detects bump type from conventional commits
-          # Breaking changes (! or BREAKING CHANGE) -> major
-          # Features (feat:) -> minor
-          # Fixes and others -> patch
-          NEW_VERSION=$(git-cliff --bumped-version)
-          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
-          echo "New version: $NEW_VERSION"
-          
-      - name: Show detected changes
-        run: |
-          echo "Changes since last tag:"
-          git-cliff --unreleased
-
-      - name: Generate changelog
-        id: changelog
-        run: |
-          CHANGELOG=$(git-cliff --unreleased --strip header)
-          # Escape multiline string for GitHub Actions
-          echo "content<<EOF" >> $GITHUB_OUTPUT
-          echo "$CHANGELOG" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
-      - name: Update CHANGELOG.md
-        run: |
-          git-cliff -o CHANGELOG.md
-
-      - name: Upload changelog artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: changelog
-          path: CHANGELOG.md
-
-  # Job 2: Build binaries for all platforms
   build-binaries:
     name: Build Binaries (${{ matrix.os }} ${{ matrix.arch }})
     runs-on: ${{ matrix.runner }}
-    needs: version-and-changelog
     strategy:
       matrix:
         include:
-          # macOS Intel (temporarily disabled)
-          # - os: macos
-          #   arch: x86_64
-          #   target: x86_64-apple-darwin
-          #   runner: macos-latest
-          # macOS ARM
           - os: macos
             arch: aarch64
             target: aarch64-apple-darwin
             runner: macos-latest
-          # Linux x86_64
           - os: linux
             arch: x86_64
             target: x86_64-unknown-linux-gnu
             runner: ubuntu-latest
-          # Linux ARM (temporarily disabled)
-          # - os: linux
-          #   arch: aarch64
-          #   target: aarch64-unknown-linux-gnu
-          #   runner: ubuntu-latest
 
     steps:
       - name: Checkout repository
@@ -122,7 +62,6 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
-          components: clippy
           targets: ${{ matrix.target }}
 
       - name: Cache Rust dependencies
@@ -145,19 +84,7 @@ jobs:
           echo "LIBRARY_PATH=$(brew --prefix libpq)/lib:$LIBRARY_PATH" >> $GITHUB_ENV
           echo "PKG_CONFIG_PATH=$(brew --prefix libpq)/lib/pkgconfig:$PKG_CONFIG_PATH" >> $GITHUB_ENV
 
-      # Cross-compilation tools disabled - building native platforms only
-      # - name: Install cross-compilation tools (Linux)
-      #   if: matrix.os == 'linux'
-      #   run: |
-      #     curl -L https://github.com/ziglang/zig/releases/download/0.11.0/zig-linux-x86_64-0.11.0.tar.xz | tar -xJ
-      #     sudo mv zig-linux-x86_64-0.11.0/zig /usr/local/bin/zig
-      #     cargo install cargo-zigbuild
-      #     sudo apt-get update
-      #     sudo apt-get install -y gcc-aarch64-linux-gnu
-
       - name: Build binary (${{ matrix.target }})
-        # build-ffi-lib auto-detects the platform and always writes to
-        # target/<PLATFORM>/release/ — identical layout on local and CI.
         run: make -C sdk/java build-ffi-lib PROFILE=release
 
       - name: Upload binary artifact
@@ -166,12 +93,6 @@ jobs:
           name: binary-${{ matrix.target }}
           path: |
             target/${{ matrix.target }}/release/libconnector_service_ffi.*
-
-      # All code generation runs once from aarch64-apple-darwin (macOS ARM).
-      # generate-all combines UniFFI bindings + proto stubs in a single make step per SDK.
-      # Java uploads two separate artifacts (one per output directory) so that
-      # download-artifact can restore each to its exact path without relying on
-      # upload-artifact's multi-path common-prefix computation.
 
       - name: Verify FFI library has UniFFI scaffolding
         if: matrix.target == 'aarch64-apple-darwin'
@@ -182,7 +103,7 @@ jobs:
           [ "$count" -gt 0 ] || \
             (echo "ERROR: library missing uniffi scaffolding — was it built with --features uniffi?" && exit 1)
 
-      - name: Set up Python (for SDK codegen — Java, Python, JS all use generate.py)
+      - name: Set up Python (for SDK codegen)
         if: matrix.target == 'aarch64-apple-darwin'
         uses: actions/setup-python@v5
         with:
@@ -219,7 +140,7 @@ jobs:
 
       - name: Generate JavaScript SDK (JS proto stubs + native lib)
         if: matrix.target == 'aarch64-apple-darwin'
-        run: make -C sdk/javascript generate-all
+        run: make -C sdk/javascript generate-all PROFILE=release
 
       - name: Upload JavaScript SDK generated files
         if: matrix.target == 'aarch64-apple-darwin'
@@ -228,40 +149,11 @@ jobs:
           name: generated-javascript
           path: sdk/javascript/src/payments/generated/
 
-  # Job 3: Build universal macOS binary (temporarily disabled)
-  # build-macos-universal:
-  #   name: Build macOS Universal Binary
-  #   runs-on: macos-latest
-  #   needs: build-binaries
-  #   steps:
-  #     - name: Checkout repository
-  #       uses: actions/checkout@v4
-  #
-  #     - name: Download macOS binaries
-  #       uses: actions/download-artifact@v4
-  #       with:
-  #         path: target
-  #         pattern: binary-*-apple-darwin
-  #
-  #     - name: Create universal binary
-  #       run: |
-  #         mkdir -p target/universal/release
-  #         lipo -create \
-  #           target/binary-x86_64-apple-darwin/libconnector_service_ffi.dylib \
-  #           target/binary-aarch64-apple-darwin/libconnector_service_ffi.dylib \
-  #           -output target/universal/release/libconnector_service_ffi.dylib
-  #
-  #     - name: Upload universal binary
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: binary-universal-apple-darwin
-  #         path: target/universal/release/libconnector_service_ffi.dylib
-
-  # Job 4a: Package Java SDK
   package-sdk-java:
     name: Package Java SDK
     runs-on: ubuntu-latest
-    needs: [build-binaries, version-and-changelog]
+    needs: [build-binaries]
+    if: ${{ inputs.preview_only == true || inputs.publish_java == true }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -300,11 +192,11 @@ jobs:
           name: sdk-java
           path: artifacts/sdk-java/*.jar
 
-  # Job 4b: Package Python SDK
   package-sdk-python:
     name: Package Python SDK
     runs-on: ubuntu-latest
-    needs: [build-binaries, version-and-changelog]
+    needs: [build-binaries]
+    if: ${{ inputs.preview_only == true || inputs.publish_python == true }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -337,16 +229,20 @@ jobs:
           name: sdk-python
           path: artifacts/sdk-python/*.whl
 
-  # Job 4c: Package JavaScript SDK
   package-sdk-javascript:
     name: Package JavaScript SDK
     runs-on: ubuntu-latest
-    needs: [build-binaries, version-and-changelog]
+    needs: [build-binaries]
+    if: ${{ inputs.preview_only == true || inputs.publish_javascript == true }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Download binaries
         uses: actions/download-artifact@v4
         with:
@@ -367,43 +263,18 @@ jobs:
           name: generated-javascript
           path: sdk/javascript/src/payments/generated/
       - name: Package JavaScript SDK
-        run: make -C sdk/javascript dist
+        run: make -C sdk/javascript pack-archive
       - name: Upload JavaScript SDK artifact
         uses: actions/upload-artifact@v4
         with:
           name: sdk-javascript
           path: artifacts/sdk-javascript/*.tgz
 
-  # Job 4d: Package Rust SDK (builds for verification, packages source only)
-  package-sdk-rust:
-    name: Package Rust SDK
-    runs-on: ubuntu-latest
-    needs: [build-binaries, version-and-changelog]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: stable
-      - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: "sdk-rust"
-      - uses: arduino/setup-protoc@v3
-        with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Package Rust SDK
-        run: make -C sdk/rust dist
-      - name: Upload Rust SDK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: sdk-rust
-          path: artifacts/sdk-rust/*.zip
-
-  # Job 4e: Collect SDK Artifacts
   collect-sdks:
     name: Collect SDK Artifacts
     runs-on: ubuntu-latest
-    needs: [package-sdk-java, package-sdk-python, package-sdk-javascript, package-sdk-rust]
+    needs: [package-sdk-java, package-sdk-python, package-sdk-javascript]
+    if: always() && (needs.package-sdk-java.result == 'success' || needs.package-sdk-python.result == 'success' || needs.package-sdk-javascript.result == 'success')
     steps:
       - name: Download all SDK artifacts
         uses: actions/download-artifact@v4
@@ -416,79 +287,464 @@ jobs:
           name: sdks
           path: artifacts/sdks/**/*
 
-  # Job 5: Create GitHub Release
-  create-release:
-    name: Create GitHub Release
+  preview-publish:
+    name: Preview What Will Be Published
     runs-on: ubuntu-latest
-    needs: [version-and-changelog, collect-sdks]
-    if: ${{ github.event.inputs.dry_run == 'false' }}
-    permissions:
-      contents: write
+    needs: [collect-sdks]
+    if: always() && needs.collect-sdks.result == 'success'
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Download changelog
+      - uses: actions/checkout@v4
+      - name: Download Java SDK artifact
+        if: ${{ inputs.preview_only == true || inputs.publish_java == true }}
         uses: actions/download-artifact@v4
         with:
-          name: changelog
-
-      - name: Download SDK artifacts
+          name: sdk-java
+          path: artifacts/sdk-java
+      - name: Download Python SDK artifact
+        if: ${{ inputs.preview_only == true || inputs.publish_python == true }}
         uses: actions/download-artifact@v4
         with:
-          name: sdks
-          path: artifacts/sdks
-
-      - name: Create and push tag
+          name: sdk-python
+          path: artifacts/sdk-python
+      - name: Download JavaScript SDK artifact
+        if: ${{ inputs.preview_only == true || inputs.publish_javascript == true }}
+        uses: actions/download-artifact@v4
+        with:
+          name: sdk-javascript
+          path: artifacts/sdk-javascript
+      - name: Show Preview
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add CHANGELOG.md
-          git commit -m "chore(release): prepare for ${{ needs.version-and-changelog.outputs.new_version }}" || true
-          git tag -a "${{ needs.version-and-changelog.outputs.new_version }}" -m "Release ${{ needs.version-and-changelog.outputs.new_version }}"
-          git push origin "${{ needs.version-and-changelog.outputs.new_version }}"
-          git push origin HEAD
+          echo "╔════════════════════════════════════════════════════════════════╗"
+          echo "║        📦 SDK PUBLICATION PREVIEW                              ║"
+          echo "╚════════════════════════════════════════════════════════════════╝"
+          echo ""
+          echo "Java SDK (Maven Central):"
+          echo "  Location: artifacts/sdk-java/"
+          ls -la artifacts/sdk-java/*.jar 2>/dev/null || echo "  ❌ No JAR found"
+          echo ""
+          echo "Python SDK (PyPI):"
+          echo "  Location: artifacts/sdk-python/"
+          ls -la artifacts/sdk-python/*.whl 2>/dev/null || echo "  ❌ No wheel found"
+          echo ""
+          echo "JavaScript SDK (npm):"
+          echo "  Location: artifacts/sdk-javascript/"
+          ls -la artifacts/sdk-javascript/*.tgz 2>/dev/null || echo "  ❌ No tarball found"
+          echo ""
+          echo "═══════════════════════════════════════════════════════════════════"
+          echo ""
+          if [ "${{ inputs.preview_only }}" == "true" ]; then
+            echo "⚠️  PREVIEW ONLY MODE - No SDKs will be published"
+          elif [ "${{ inputs.publish_java }}" == "true" ] || [ "${{ inputs.publish_python }}" == "true" ] || [ "${{ inputs.publish_javascript }}" == "true" ]; then
+            echo "✅ The following SDKs will be published:"
+            [ "${{ inputs.publish_java }}" == "true" ] && echo "   - Java SDK → Maven Central"
+            [ "${{ inputs.publish_python }}" == "true" ] && echo "   - Python SDK → PyPI"
+            [ "${{ inputs.publish_javascript }}" == "true" ] && echo "   - JavaScript SDK → npm"
+          else
+            echo "ℹ️  No SDKs selected for publishing (all checkboxes unchecked)"
+          fi
+          echo ""
+          echo "═══════════════════════════════════════════════════════════════════"
 
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
+  pre-publish-check:
+    name: Pre-Publish Validation
+    runs-on: ubuntu-latest
+    needs: [collect-sdks]
+    if: always() && needs.collect-sdks.result == 'success' && (inputs.preview_only == true || inputs.publish_java == true || inputs.publish_python == true || inputs.publish_javascript == true)
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
-          tag_name: ${{ needs.version-and-changelog.outputs.new_version }}
-          name: Release ${{ needs.version-and-changelog.outputs.new_version }}
-          body: ${{ needs.version-and-changelog.outputs.changelog }}
-          files: |
-            artifacts/sdks/**/*
-          draft: false
-          prerelease: false
+          python-version: '3.11'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download all generated artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: generated-*
+          path: generated-artifacts
+
+      - name: Organize generated artifacts
+        run: |
+          # Python
+          mkdir -p sdk/python/src/payments/generated
+          cp -r generated-artifacts/generated-python/* sdk/python/src/payments/generated/ 2>/dev/null || true
+          # JavaScript
+          mkdir -p sdk/javascript/src/payments/generated
+          cp -r generated-artifacts/generated-javascript/* sdk/javascript/src/payments/generated/ 2>/dev/null || true
+          # Java Kotlin bindings
+          mkdir -p sdk/java/src/main/kotlin/generated
+          cp -r generated-artifacts/generated-kotlin/* sdk/java/src/main/kotlin/generated/ 2>/dev/null || true
+          # Java proto stubs
+          mkdir -p sdk/java/src/main/java/generated
+          cp -r generated-artifacts/generated-java-proto/* sdk/java/src/main/java/generated/ 2>/dev/null || true
+
+      - name: Download binaries
+        uses: actions/download-artifact@v4
+        with:
+          pattern: binary-*
+          path: target
+
+      - name: Organize binaries
+        run: |
+          for dir in target/binary-*; do
+            if [ -d "$dir" ]; then
+              target_name=$(basename "$dir" | sed 's/binary-//')
+              mkdir -p "target/$target_name/release"
+              cp "$dir"/* "target/$target_name/release/" 2>/dev/null || true
+            fi
+          done
+
+      - name: Install Python tools
+        run: pip install twine build
+
+      - name: Install JavaScript dependencies
+        run: cd sdk/javascript && npm install --silent
+
+      # --- Auth checks ---
+      - name: Check Java auth
+        id: check-java-auth
+        if: ${{ inputs.preview_only == true || inputs.publish_java == true }}
+        continue-on-error: true
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CENTRAL_TOKEN_USERNAME: ${{ secrets.CENTRAL_TOKEN_USERNAME }}
+          CENTRAL_TOKEN_PASSWORD: ${{ secrets.CENTRAL_TOKEN_PASSWORD }}
+          GPG_SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
+          GPG_SIGNING_KEY_PASSWORD: ${{ secrets.GPG_SIGNING_KEY_PASSWORD }}
+        run: make -C sdk/java publish-check-auth
 
-  # Dry run summary
-  dry-run-summary:
-    name: Dry Run Summary
+      - name: Check Python auth
+        id: check-python-auth
+        if: ${{ inputs.preview_only == true || inputs.publish_python == true }}
+        continue-on-error: true
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+        run: make -C sdk/python publish-check-auth
+
+      - name: Check JavaScript auth
+        id: check-js-auth
+        if: ${{ inputs.preview_only == true || inputs.publish_javascript == true }}
+        continue-on-error: true
+        working-directory: sdk/javascript
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if npm whoami >/dev/null 2>&1; then
+            echo "npm authenticated as: $(npm whoami)"
+          else
+            echo "Error: npm authentication failed"
+            exit 1
+          fi
+
+      # --- Version checks ---
+      - name: Check Java version
+        id: check-java-version
+        if: ${{ inputs.preview_only == true || inputs.publish_java == true }}
+        continue-on-error: true
+        run: make -C sdk/java publish-check-version
+
+      - name: Check Python version
+        id: check-python-version
+        if: ${{ inputs.preview_only == true || inputs.publish_python == true }}
+        continue-on-error: true
+        run: make -C sdk/python publish-check-version
+
+      - name: Check JavaScript version
+        id: check-js-version
+        if: ${{ inputs.preview_only == true || inputs.publish_javascript == true }}
+        continue-on-error: true
+        working-directory: sdk/javascript
+        run: |
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          echo "Checking if hyperswitch-prism $PACKAGE_VERSION exists on npm..."
+          if npm view hyperswitch-prism@$PACKAGE_VERSION version >/dev/null 2>&1; then
+            echo "Error: Version $PACKAGE_VERSION already exists on npm"
+            exit 1
+          fi
+          echo "Version $PACKAGE_VERSION does not exist on npm - OK to publish"
+
+      # --- Dry-run checks ---
+      - name: Download Java SDK artifact for dry-run
+        if: ${{ inputs.preview_only == true || inputs.publish_java == true }}
+        uses: actions/download-artifact@v4
+        with:
+          name: sdk-java
+          path: artifacts/sdk-java
+
+      - name: Java dry-run (verify bundle)
+        id: check-java-dryrun
+        if: ${{ inputs.preview_only == true || inputs.publish_java == true }}
+        continue-on-error: true
+        env:
+          CENTRAL_TOKEN_USERNAME: ${{ secrets.CENTRAL_TOKEN_USERNAME }}
+          CENTRAL_TOKEN_PASSWORD: ${{ secrets.CENTRAL_TOKEN_PASSWORD }}
+          GPG_SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
+          GPG_SIGNING_KEY_PASSWORD: ${{ secrets.GPG_SIGNING_KEY_PASSWORD }}
+        run: |
+          # Copy the JAR to build/libs where Gradle expects it
+          mkdir -p sdk/java/build/libs
+          cp artifacts/sdk-java/*.jar sdk/java/build/libs/
+          make -C sdk/java publish-check-dry-run
+
+      - name: Python dry-run (twine check)
+        id: check-python-dryrun
+        if: ${{ inputs.preview_only == true || inputs.publish_python == true }}
+        continue-on-error: true
+        run: make -C sdk/python publish-check-dry-run
+
+      - name: JavaScript dry-run (npm publish --dry-run)
+        id: check-js-dryrun
+        if: ${{ inputs.preview_only == true || inputs.publish_javascript == true }}
+        continue-on-error: true
+        working-directory: sdk/javascript
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          npm ci
+          npm publish --dry-run --access public
+
+      - name: Pre-Publish Check Summary
+        run: |
+          echo "=== Pre-Publish Check Summary ==="
+          echo ""
+          FAILED=0
+
+          # Java checks
+          java_auth="${{ steps.check-java-auth.outcome }}"
+          java_ver="${{ steps.check-java-version.outcome }}"
+          java_dry="${{ steps.check-java-dryrun.outcome }}"
+          if [ "$java_auth" == "failure" ] || [ "$java_ver" == "failure" ] || [ "$java_dry" == "failure" ]; then
+            echo "  Java: FAILED (auth=$java_auth, version=$java_ver, dry-run=$java_dry)"
+            [ "${{ inputs.publish_java }}" == "true" ] && FAILED=1
+          else
+            echo "  Java: PASSED"
+          fi
+
+          # Python checks
+          py_auth="${{ steps.check-python-auth.outcome }}"
+          py_ver="${{ steps.check-python-version.outcome }}"
+          py_dry="${{ steps.check-python-dryrun.outcome }}"
+          if [ "$py_auth" == "failure" ] || [ "$py_ver" == "failure" ] || [ "$py_dry" == "failure" ]; then
+            echo "  Python: FAILED (auth=$py_auth, version=$py_ver, dry-run=$py_dry)"
+            [ "${{ inputs.publish_python }}" == "true" ] && FAILED=1
+          else
+            echo "  Python: PASSED"
+          fi
+
+          # JavaScript checks
+          js_auth="${{ steps.check-js-auth.outcome }}"
+          js_ver="${{ steps.check-js-version.outcome }}"
+          js_dry="${{ steps.check-js-dryrun.outcome }}"
+          if [ "$js_auth" == "failure" ] || [ "$js_ver" == "failure" ] || [ "$js_dry" == "failure" ]; then
+            echo "  JavaScript: FAILED (auth=$js_auth, version=$js_ver, dry-run=$js_dry)"
+            [ "${{ inputs.publish_javascript }}" == "true" ] && FAILED=1
+          else
+            echo "  JavaScript: PASSED"
+          fi
+
+          echo ""
+          if [ "$FAILED" -eq 1 ]; then
+            echo "One or more pre-publish checks FAILED. Publishing will be blocked."
+            exit 1
+          fi
+          if [ "${{ inputs.preview_only }}" == "true" ]; then
+            echo "PREVIEW ONLY MODE - No SDKs will be published"
+          else
+            echo "All pre-publish checks passed. Proceeding to publish."
+          fi
+
+  publish-java:
+    name: Publish Java SDK to Maven Central
     runs-on: ubuntu-latest
-    needs: [version-and-changelog, collect-sdks]
-    if: ${{ github.event.inputs.dry_run != 'false' }}
+    needs: [preview-publish, pre-publish-check]
+    if: always() && inputs.publish_java == true && inputs.preview_only == false && needs.pre-publish-check.result == 'success'
     steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
       - name: Download SDK artifacts
         uses: actions/download-artifact@v4
         with:
-          name: sdks
-          path: artifacts/sdks
-
-      - name: Print summary
+          name: sdk-java
+          path: artifacts/sdk-java
+      - name: Download generated Kotlin bindings
+        uses: actions/download-artifact@v4
+        with:
+          name: generated-kotlin
+          path: sdk/java/src/main/kotlin/generated/
+      - name: Download generated Java proto stubs
+        uses: actions/download-artifact@v4
+        with:
+          name: generated-java-proto
+          path: sdk/java/src/main/java/generated/
+      - name: Download Linux binary
+        uses: actions/download-artifact@v4
+        with:
+          name: binary-x86_64-unknown-linux-gnu
+          path: target/x86_64-unknown-linux-gnu/release
+      - name: Download macOS binary
+        uses: actions/download-artifact@v4
+        with:
+          name: binary-aarch64-apple-darwin
+          path: target/aarch64-apple-darwin/release
+      - name: Check what will be published (Java)
         run: |
-          echo "## Dry Run Summary"
+          echo "=== Java SDK Publication Preview ==="
+          echo "Artifact location: artifacts/sdk-java/"
+          ls -la artifacts/sdk-java/
           echo ""
-          echo "New version: ${{ needs.version-and-changelog.outputs.new_version }}"
+          echo "Gradle publish task (dry run):"
+          cd sdk/java && ./gradlew tasks --group=publishing 2>/dev/null || echo "Gradle tasks unavailable"
           echo ""
-          echo "### Changelog Preview"
-          echo "\`\`\`"
-          cat << 'CHANGELOG_EOF'
-          ${{ needs.version-and-changelog.outputs.changelog }}
-          CHANGELOG_EOF
-          echo "\`\`\`"
+          echo "Package details:"
+          find artifacts/sdk-java -name "*.jar" -exec jar -tf {} \; | head -20
           echo ""
-          echo "### SDK Artifacts"
-          ls -la artifacts/sdks/**/* 2>/dev/null || echo "No artifacts found"
+          if [ "${{ inputs.preview_only }}" == "true" ]; then
+            echo "⚠️ PREVIEW ONLY MODE - Skipping actual publish"
+          else
+            echo "✅ Will publish to Maven Central"
+          fi
+      - name: Publish to Maven Central
+        if: ${{ inputs.preview_only == false }}
+        env:
+          CENTRAL_TOKEN_USERNAME: ${{ secrets.CENTRAL_TOKEN_USERNAME }}
+          CENTRAL_TOKEN_PASSWORD: ${{ secrets.CENTRAL_TOKEN_PASSWORD }}
+          GPG_SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
+          GPG_SIGNING_KEY_PASSWORD: ${{ secrets.GPG_SIGNING_KEY_PASSWORD }}
+        run: make -C sdk/java publish
+
+  publish-python:
+    name: Publish Python SDK to PyPI
+    runs-on: ubuntu-latest
+    needs: [preview-publish, pre-publish-check]
+    if: always() && inputs.publish_python == true && inputs.preview_only == false && needs.pre-publish-check.result == 'success'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install twine
+        run: pip install twine
+      - name: Download SDK artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: sdk-python
+          path: artifacts/sdk-python
+      - name: Download generated Python files
+        uses: actions/download-artifact@v4
+        with:
+          name: generated-python
+          path: sdk/python/src/payments/generated/
+      - name: Download Linux binary
+        uses: actions/download-artifact@v4
+        with:
+          name: binary-x86_64-unknown-linux-gnu
+          path: target/x86_64-unknown-linux-gnu/release
+      - name: Download macOS binary
+        uses: actions/download-artifact@v4
+        with:
+          name: binary-aarch64-apple-darwin
+          path: target/aarch64-apple-darwin/release
+      - name: Check what will be published (Python)
+        run: |
+          echo "=== Python SDK Publication Preview ==="
+          echo "Wheel location: artifacts/sdk-python/"
+          ls -la artifacts/sdk-python/
           echo ""
-          echo "This was a dry run. No release was created."
+          echo "Wheel metadata:"
+          cd artifacts/sdk-python && unzip -l *.whl | head -30
+          echo ""
+          echo "Package info:"
+          pip show artifacts/sdk-python/*.whl 2>/dev/null || echo "pip show failed"
+          echo ""
+          if [ "${{ inputs.preview_only }}" == "true" ]; then
+            echo "⚠️ PREVIEW ONLY MODE - Skipping actual publish"
+          else
+            echo "✅ Will publish to PyPI"
+          fi
+      - name: Publish to PyPI
+        if: ${{ inputs.preview_only == false }}
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+        run: make -C sdk/python publish
+
+  publish-javascript:
+    name: Publish JavaScript SDK to npm
+    runs-on: ubuntu-latest
+    needs: [preview-publish, pre-publish-check]
+    if: always() && inputs.publish_javascript == true && inputs.preview_only == false && needs.pre-publish-check.result == 'success'
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Download SDK artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: sdk-javascript
+          path: artifacts/sdk-javascript
+      - name: Download generated JavaScript files
+        uses: actions/download-artifact@v4
+        with:
+          name: generated-javascript
+          path: sdk/javascript/src/payments/generated/
+      - name: Download Linux binary
+        uses: actions/download-artifact@v4
+        with:
+          name: binary-x86_64-unknown-linux-gnu
+          path: target/x86_64-unknown-linux-gnu/release
+      - name: Download macOS binary
+        uses: actions/download-artifact@v4
+        with:
+          name: binary-aarch64-apple-darwin
+          path: target/aarch64-apple-darwin/release
+      - name: Check what will be published (JavaScript)
+        run: |
+          echo "=== JavaScript SDK Publication Preview ==="
+          echo "Package location: artifacts/sdk-javascript/"
+          ls -la artifacts/sdk-javascript/
+          echo ""
+          echo "Package contents preview:"
+          tar -tzf artifacts/sdk-javascript/*.tgz | head -30
+          echo ""
+          echo "package.json:"
+          tar -xzf artifacts/sdk-javascript/*.tgz -O package/package.json | head -30
+          echo ""
+          if [ "${{ inputs.preview_only }}" == "true" ]; then
+            echo "⚠️ PREVIEW ONLY MODE - Skipping actual publish"
+          else
+            echo "✅ Will publish to npm"
+          fi
+      - name: Publish to npm
+        if: ${{ inputs.preview_only == false }}
+        working-directory: sdk/javascript
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          npm ci
+          npm publish --access public

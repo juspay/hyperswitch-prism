@@ -8,11 +8,11 @@ use common_utils::{
     FloatMajorUnit,
 };
 use domain_types::{
-    connector_flow::{Authorize, CreateAccessToken, PSync, RSync, Refund, Void},
+    connector_flow::{Authorize, PSync, RSync, Refund, ServerAuthenticationToken, Void},
     connector_types::{
-        AccessTokenRequestData, AccessTokenResponseData, PaymentFlowData, PaymentVoidData,
-        PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsResponseData,
+        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
+        ResponseId, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
     },
     errors,
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
@@ -43,11 +43,13 @@ impl FiservcommercehubAuthType {
         client_request_id: &str,
         timestamp: &str,
         request_body: &str,
-    ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+    ) -> Result<String, error_stack::Report<errors::IntegrationError>> {
         let raw_signature = format!("{api_key}{client_request_id}{timestamp}{request_body}");
         let signature = crypto::HmacSha256
             .sign_message(self.api_secret.peek().as_bytes(), raw_signature.as_bytes())
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            .change_context(errors::IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?;
         Ok(general_purpose::STANDARD.encode(signature))
     }
 
@@ -65,7 +67,7 @@ impl FiservcommercehubAuthType {
 }
 
 impl TryFrom<&ConnectorSpecificConfig> for FiservcommercehubAuthType {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<errors::IntegrationError>;
 
     fn try_from(auth_type: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         match auth_type {
@@ -82,7 +84,9 @@ impl TryFrom<&ConnectorSpecificConfig> for FiservcommercehubAuthType {
                 terminal_id: terminal_id.to_owned(),
             }),
             _ => Err(error_stack::report!(
-                errors::ConnectorError::FailedToObtainAuthType
+                errors::IntegrationError::FailedToObtainAuthType {
+                    context: Default::default()
+                }
             )),
         }
     }
@@ -226,7 +230,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for FiservcommercehubAuthorizeRequest
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<errors::IntegrationError>;
 
     fn try_from(
         item: super::FiservcommercehubRouterData<
@@ -253,21 +257,27 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let key_id = parts
             .first()
             .ok_or_else(|| {
-                error_stack::report!(errors::ConnectorError::MissingRequiredField {
-                    field_name: "key_id"
+                error_stack::report!(errors::IntegrationError::MissingRequiredField {
+                    field_name: "key_id",
+                    context: Default::default()
                 })
             })?
             .to_string();
 
         let encoded_public_key = parts.get(1).ok_or_else(|| {
-            error_stack::report!(errors::ConnectorError::MissingRequiredField {
-                field_name: "encoded_public_key"
+            error_stack::report!(errors::IntegrationError::MissingRequiredField {
+                field_name: "encoded_public_key",
+                context: Default::default()
             })
         })?;
 
         let public_key_der = general_purpose::STANDARD
             .decode(encoded_public_key)
-            .map_err(|_| error_stack::report!(errors::ConnectorError::RequestEncodingFailed))
+            .map_err(|_| {
+                error_stack::report!(errors::IntegrationError::RequestEncodingFailed {
+                    context: Default::default()
+                })
+            })
             .attach_printable("Failed to decode Base64 RSA public key")?;
 
         let auth_type = &router_data.connector_config;
@@ -280,8 +290,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .card_holder_name
                     .as_ref()
                     .map(|n| n.peek().clone())
-                    .ok_or(errors::ConnectorError::MissingRequiredField {
+                    .ok_or(errors::IntegrationError::MissingRequiredField {
                         field_name: "card_holder_name",
+                        context: Default::default(),
                     })?;
                 let expiration_month = card.card_exp_month.peek().to_string();
                 let expiration_year = card.get_expiry_year_4_digit().peek().to_string();
@@ -299,7 +310,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
                 let encrypted_bytes =
                     RsaOaepSha256::encrypt(&public_key_der, plain_block.as_bytes())
-                        .change_context(errors::ConnectorError::RequestEncodingFailed)
+                        .change_context(errors::IntegrationError::RequestEncodingFailed {
+                            context: Default::default(),
+                        })
                         .attach_printable("RSA OAEP-SHA256 encryption of card data failed")?;
 
                 let encryption_block =
@@ -317,7 +330,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
             _ => {
                 return Err(error_stack::report!(
-                    errors::ConnectorError::NotImplemented(
+                    errors::IntegrationError::not_implemented(
                         "This payment method is not implemented".to_string(),
                     )
                 ))
@@ -526,7 +539,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for FiservcommercehubPSyncRequest
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<errors::IntegrationError>;
 
     fn try_from(
         item: super::FiservcommercehubRouterData<
@@ -540,7 +553,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .request
             .connector_transaction_id
             .get_connector_transaction_id()
-            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+            .change_context(errors::IntegrationError::MissingConnectorTransactionID {
+                context: Default::default(),
+            })?;
         Ok(Self {
             merchant_details: FiservcommercehubPSyncMerchantDetails {
                 merchant_id: auth.merchant_id.clone(),
@@ -576,7 +591,11 @@ impl TryFrom<ResponseRouterData<FiservcommercehubPSyncResponse, Self>>
         item: ResponseRouterData<FiservcommercehubPSyncResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let psync_item = item.response.0.into_iter().next().ok_or_else(|| {
-            error_stack::report!(errors::ConnectorError::ResponseDeserializationFailed)
+            error_stack::report!(
+                crate::utils::response_deserialization_fail(
+                    item.http_code
+                , "fiservcommercehub: response body did not match the expected format; confirm API version and connector documentation.")
+            )
         })?;
         let status = AttemptStatus::from(&psync_item.gateway_response.transaction_state);
         Ok(Self {
@@ -627,7 +646,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for FiservcommercehubRefundRequest
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<errors::IntegrationError>;
 
     fn try_from(
         item: super::FiservcommercehubRouterData<
@@ -726,7 +745,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for FiservcommercehubRSyncRequest
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<errors::IntegrationError>;
 
     fn try_from(
         item: super::FiservcommercehubRouterData<
@@ -779,7 +798,11 @@ impl TryFrom<ResponseRouterData<FiservcommercehubRSyncResponse, Self>>
         item: ResponseRouterData<FiservcommercehubRSyncResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let rsync_item = item.response.0.into_iter().next().ok_or_else(|| {
-            error_stack::report!(errors::ConnectorError::ResponseDeserializationFailed)
+            error_stack::report!(
+                crate::utils::response_deserialization_fail(
+                    item.http_code
+                , "fiservcommercehub: response body did not match the expected format; confirm API version and connector documentation.")
+            )
         })?;
         let refund_status = RefundStatus::from(&rsync_item.gateway_response.transaction_state);
         let connector_refund_id = rsync_item
@@ -824,7 +847,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for FiservcommercehubVoidRequest
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<errors::IntegrationError>;
 
     fn try_from(
         item: super::FiservcommercehubRouterData<
@@ -921,7 +944,7 @@ pub struct FiservcommercehubAccessTokenRequest {
 }
 
 impl TryFrom<&ConnectorSpecificConfig> for FiservcommercehubAccessTokenRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<errors::IntegrationError>;
 
     fn try_from(auth_type: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         let auth = FiservcommercehubAuthType::try_from(auth_type)?;
@@ -938,24 +961,24 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     TryFrom<
         super::FiservcommercehubRouterData<
             RouterDataV2<
-                CreateAccessToken,
+                ServerAuthenticationToken,
                 PaymentFlowData,
-                AccessTokenRequestData,
-                AccessTokenResponseData,
+                ServerAuthenticationTokenRequestData,
+                ServerAuthenticationTokenResponseData,
             >,
             T,
         >,
     > for FiservcommercehubAccessTokenRequest
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<errors::IntegrationError>;
 
     fn try_from(
         item: super::FiservcommercehubRouterData<
             RouterDataV2<
-                CreateAccessToken,
+                ServerAuthenticationToken,
                 PaymentFlowData,
-                AccessTokenRequestData,
-                AccessTokenResponseData,
+                ServerAuthenticationTokenRequestData,
+                ServerAuthenticationTokenResponseData,
             >,
             T,
         >,
@@ -991,7 +1014,7 @@ pub struct FiservcommercehubAccessTokenResponse {
 }
 
 impl<F, T> TryFrom<ResponseRouterData<FiservcommercehubAccessTokenResponse, Self>>
-    for RouterDataV2<F, PaymentFlowData, T, AccessTokenResponseData>
+    for RouterDataV2<F, PaymentFlowData, T, ServerAuthenticationTokenResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 
@@ -1004,7 +1027,7 @@ impl<F, T> TryFrom<ResponseRouterData<FiservcommercehubAccessTokenResponse, Self
             "{key_id}{ACCESS_TOKEN_SEPARATOR}{encoded_public_key}"
         ));
         Ok(Self {
-            response: Ok(AccessTokenResponseData {
+            response: Ok(ServerAuthenticationTokenResponseData {
                 access_token: combined_token,
                 expires_in: Some(604_800), // 1 week in seconds
                 token_type: None,

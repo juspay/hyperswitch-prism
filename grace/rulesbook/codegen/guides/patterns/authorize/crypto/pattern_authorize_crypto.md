@@ -117,8 +117,8 @@ match &router_data.request.payment_method_data {
         let network = crypto_data.network.clone();
         // ... build request
     }
-    _ => Err(ConnectorError::NotImplemented(
-        get_unimplemented_payment_method_error_message("ConnectorName")
+    _ => Err(IntegrationError::NotImplemented(
+        get_unimplemented_payment_method_error_message("ConnectorName", Default::default())
     )),
 }
 ```
@@ -213,7 +213,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     > for CryptoPaymentsRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: CryptoRouterData<...>,
@@ -245,8 +245,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 })
             }
             // Other payment methods not supported
-            _ => Err(ConnectorError::NotImplemented(
-                get_unimplemented_payment_method_error_message("CryptoConnector"),
+            _ => Err(IntegrationError::NotImplemented(
+                get_unimplemented_payment_method_error_message("CryptoConnector", Default::default()),
             )),
         }
     }
@@ -259,7 +259,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 fn get_url(
     &self,
     req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
-) -> CustomResult<String, errors::ConnectorError> {
+) -> CustomResult<String, errors::IntegrationError> {
     let base_url = self.connector_base_url_payments(req);
     // Crypto connectors typically use "/invoices" or "/payments" endpoint
     Ok(format!("{}/api/invoices", base_url))
@@ -479,11 +479,11 @@ fn get_event_type(
     request: RequestDetails,
     _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
     _connector_account_details: Option<ConnectorAuthType>,
-) -> Result<EventType, error_stack::Report<errors::ConnectorError>> {
+) -> Result<EventType, error_stack::Report<errors::IntegrationError>> {
     let notif: CryptoWebhookDetails = request
         .body
         .parse_struct("CryptoWebhookDetails")
-        .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+        .change_context(errors::IntegrationError::WebhookEventTypeNotFound)?;
 
     match notif.data.status {
         CryptoPaymentStatus::Completed => Ok(EventType::PaymentIntentSuccess),
@@ -504,22 +504,22 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: &RequestDetails,
         _connector_webhook_secret: &ConnectorWebhookSecrets,
-    ) -> Result<Vec<u8>, error_stack::Report<errors::ConnectorError>> {
+    ) -> Result<Vec<u8>, error_stack::Report<errors::IntegrationError>> {
         let signature = request
             .headers
             .get("x-crypto-signature")
-            .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)
+            .ok_or(errors::IntegrationError::WebhookSourceVerificationFailed)
             .attach_printable("Missing webhook signature")?;
 
         hex::decode(signature)
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
+            .change_context(errors::IntegrationError::WebhookSourceVerificationFailed)
     }
 
     fn get_webhook_source_verification_message(
         &self,
         request: &RequestDetails,
         _connector_webhook_secrets: &ConnectorWebhookSecrets,
-    ) -> Result<Vec<u8>, error_stack::Report<errors::ConnectorError>> {
+    ) -> Result<Vec<u8>, error_stack::Report<errors::IntegrationError>> {
         // Return raw body for HMAC verification
         Ok(request.body.to_vec())
     }
@@ -536,7 +536,7 @@ Crypto payments require PSync for polling status when webhooks are delayed or mi
 fn get_url(
     &self,
     req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
-) -> CustomResult<String, errors::ConnectorError> {
+) -> CustomResult<String, errors::IntegrationError> {
     let custom_id = req.resource_common_data.connector_request_reference_id.clone();
 
     Ok(format!(
@@ -594,7 +594,7 @@ fn build_error_response(
     let response: CryptoErrorResponse = res
         .response
         .parse_struct("CryptoErrorResponse")
-        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        .change_context(errors::ConnectorError::ResponseDeserializationFailed { context: Default::default() })?;
 
     with_error_response_body!(event_builder, response);
 
@@ -685,9 +685,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     fn get_auth_header(
         &self,
         auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
         let auth = cryptopay::CryptopayAuthType::try_from(auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+            .change_context(errors::IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
             auth.api_key.peek().to_owned().into_masked(),
@@ -752,7 +752,7 @@ macros::create_all_prerequisites!(
         pub fn build_headers<F, Req, Res>(
             &self,
             req: &RouterDataV2<F, PaymentFlowData, Req, Res>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
             // HMAC-SHA1 signature implementation
             // ...
         }
@@ -783,13 +783,13 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
             self.build_headers(req)
         }
         fn get_url(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, errors::IntegrationError> {
             Ok(format!("{}/api/invoices", self.connector_base_url_payments(req)))
         }
     }
@@ -811,13 +811,13 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
             self.build_headers(req)
         }
         fn get_url(
             &self,
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, errors::IntegrationError> {
             let custom_id = req.resource_common_data.connector_request_reference_id.clone();
             Ok(format!(
                 "{}/api/invoices/custom_id/{custom_id}",

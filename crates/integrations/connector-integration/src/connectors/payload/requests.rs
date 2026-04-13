@@ -9,6 +9,7 @@ use crate::connectors::payload::responses;
 #[serde(untagged)]
 pub enum PayloadPaymentsRequest<T: PaymentMethodDataTypes> {
     PayloadCardsRequest(Box<PayloadCardsRequestData<T>>),
+    PayloadBankAccountRequest(Box<PayloadBankAccountRequestData>),
     PayloadMandateRequest(Box<PayloadMandateRequestData>),
 }
 
@@ -81,6 +82,47 @@ pub struct PayloadCard<T: PaymentMethodDataTypes> {
     pub expiry: Secret<String>,
     #[serde(rename = "payment_method[card][card_code]")]
     pub cvc: Secret<String>,
+}
+
+/// Bank account payment method type for ACH bank debit payments
+pub const PAYMENT_METHOD_TYPE_BANK_ACCOUNT: &str = "bank_account";
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct PayloadBankAccountRequestData {
+    pub amount: FloatMajorUnit,
+    #[serde(flatten)]
+    pub bank_account: PayloadBankAccount,
+    #[serde(rename = "type")]
+    pub transaction_types: TransactionTypes,
+    #[serde(rename = "payment_method[type]")]
+    pub payment_method_type: String,
+    /// Account holder name is required by Payload for bank account payments
+    #[serde(rename = "payment_method[account_holder]")]
+    pub account_holder: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status: Option<responses::PayloadPaymentStatus>,
+    pub processing_id: Option<Secret<String>>,
+    /// For one-time payments, set to false
+    #[serde(rename = "payment_method[keep_active]")]
+    pub keep_active: bool,
+}
+
+#[derive(Default, Clone, Debug, Serialize, PartialEq)]
+pub struct PayloadBankAccount {
+    #[serde(rename = "payment_method[bank_account][account_number]")]
+    pub account_number: Secret<String>,
+    #[serde(rename = "payment_method[bank_account][routing_number]")]
+    pub routing_number: Secret<String>,
+    #[serde(rename = "payment_method[bank_account][account_type]")]
+    pub account_type: PayloadBankAccountType,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum PayloadBankAccountType {
+    #[default]
+    Checking,
+    Savings,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq)]

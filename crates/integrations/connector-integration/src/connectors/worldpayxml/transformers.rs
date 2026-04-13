@@ -8,12 +8,11 @@ use domain_types::{
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
         RefundsResponseData, ResponseId,
     },
-    errors,
     payment_method_data::{Card, PaymentMethodData, PaymentMethodDataTypes},
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
 };
-use error_stack::ResultExt;
+use error_stack::{Report, ResultExt};
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::Serialize;
 
@@ -23,6 +22,8 @@ use super::{
     WorldpayxmlRouterData,
 };
 use crate::types::ResponseRouterData;
+use domain_types::errors::ConnectorError;
+use domain_types::errors::IntegrationError;
 
 const API_VERSION: &str = "1.4";
 
@@ -34,7 +35,7 @@ pub struct WorldpayxmlAuthType {
 }
 
 impl TryFrom<&ConnectorSpecificConfig> for WorldpayxmlAuthType {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Report<IntegrationError>;
 
     fn try_from(auth_type: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         match auth_type {
@@ -48,7 +49,10 @@ impl TryFrom<&ConnectorSpecificConfig> for WorldpayxmlAuthType {
                 api_password: api_password.to_owned(),
                 merchant_code: merchant_code.to_owned(),
             }),
-            _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
+            _ => Err(IntegrationError::FailedToObtainAuthType {
+                context: Default::default(),
+            }
+            .into()),
         }
     }
 }
@@ -63,7 +67,7 @@ fn get_worldpayxml_payment_method<T>(
     payment_method_data: &PaymentMethodData<T>,
     card: &Card<T>,
     billing_address: Option<&requests::WorldpayxmlBillingAddress>,
-) -> Result<requests::WorldpayxmlPaymentMethod, error_stack::Report<errors::ConnectorError>>
+) -> Result<requests::WorldpayxmlPaymentMethod, Report<IntegrationError>>
 where
     T: PaymentMethodDataTypes,
 {
@@ -130,9 +134,10 @@ where
                 None => Ok(requests::WorldpayxmlPaymentMethod::Card(card_data)),
             }
         }
-        _ => Err(errors::ConnectorError::NotSupported {
+        _ => Err(IntegrationError::NotSupported {
             message: "Selected payment method".to_string(),
             connector: "worldpayxml",
+            context: Default::default(),
         }
         .into()),
     }
@@ -152,7 +157,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     > for requests::WorldpayxmlPaymentsRequest
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Report<IntegrationError>;
 
     fn try_from(
         item: WorldpayxmlRouterData<
@@ -204,9 +209,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 billing_address.as_ref(),
             )?,
             _ => {
-                return Err(errors::ConnectorError::NotSupported {
+                return Err(IntegrationError::NotSupported {
                     message: "Selected payment method".to_string(),
                     connector: "worldpayxml",
+                    context: Default::default(),
                 }
                 .into())
             }
@@ -291,7 +297,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     > for requests::WorldpayxmlCaptureRequest
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Report<IntegrationError>;
 
     fn try_from(
         item: WorldpayxmlRouterData<
@@ -307,7 +313,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .request
             .connector_transaction_id
             .get_connector_transaction_id()
-            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+            .change_context(IntegrationError::MissingConnectorTransactionID {
+                context: Default::default(),
+            })?;
 
         // Convert amount using the connector's amount converter
         let converted_amount = super::WorldpayxmlAmountConvertor::convert(
@@ -349,7 +357,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     > for requests::WorldpayxmlVoidRequest
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Report<IntegrationError>;
 
     fn try_from(
         item: WorldpayxmlRouterData<
@@ -385,7 +393,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     > for requests::WorldpayxmlRefundRequest
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Report<IntegrationError>;
 
     fn try_from(
         item: WorldpayxmlRouterData<
@@ -439,7 +447,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     > for requests::WorldpayxmlPSyncRequest
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Report<IntegrationError>;
 
     fn try_from(
         item: WorldpayxmlRouterData<
@@ -455,7 +463,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .request
             .connector_transaction_id
             .get_connector_transaction_id()
-            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+            .change_context(IntegrationError::MissingConnectorTransactionID {
+                context: Default::default(),
+            })?;
 
         Ok(Self {
             version: API_VERSION.to_string(),
@@ -478,7 +488,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     > for requests::WorldpayxmlRSyncRequest
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Report<IntegrationError>;
 
     fn try_from(
         item: WorldpayxmlRouterData<
@@ -545,9 +555,18 @@ fn map_worldpayxml_refund_status(last_event: &WorldpayxmlLastEvent) -> RefundSta
 }
 
 // Helper function to parse string last_event from webhook/JSON responses
-fn parse_last_event(event_str: &str) -> Result<WorldpayxmlLastEvent, errors::ConnectorError> {
-    serde_json::from_str(&format!("\"{}\"", event_str))
-        .map_err(|_| errors::ConnectorError::ResponseDeserializationFailed)
+fn parse_last_event(
+    event_str: &str,
+    http_code: u16,
+) -> Result<WorldpayxmlLastEvent, Report<ConnectorError>> {
+    serde_json::from_str(&format!("\"{}\"", event_str)).map_err(|_| {
+        Report::new(
+            ConnectorError::response_deserialization_failed_with_context(
+                http_code,
+                Some("invalid last_event".to_string()),
+            ),
+        )
+    })
 }
 
 // Response transformers - Authorize
@@ -555,7 +574,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<ResponseRouterData<responses::WorldpayxmlAuthorizeResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<responses::WorldpayxmlAuthorizeResponse, Self>,
@@ -586,11 +605,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         }
 
         // Extract order status
-        let order_status = response
-            .reply
-            .order_status
-            .as_ref()
-            .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let order_status = response.reply.order_status.as_ref().ok_or(
+            crate::utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
+        )?;
 
         // Check for error in order status
         if let Some(error) = &order_status.error {
@@ -615,10 +632,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         }
 
         // Extract payment details
-        let payment = order_status
-            .payment
-            .as_ref()
-            .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let payment = order_status.payment.as_ref().ok_or(
+            crate::utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
+        )?;
 
         // Determine if auto-capture
         let is_auto_capture = router_data.request.capture_method != Some(CaptureMethod::Manual)
@@ -661,7 +677,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl TryFrom<ResponseRouterData<responses::WorldpayxmlCaptureResponse, Self>>
     for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<responses::WorldpayxmlCaptureResponse, Self>,
@@ -692,11 +708,9 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlCaptureResponse, Self>>
         }
 
         // Extract ok response
-        let ok_response = response
-            .reply
-            .ok
-            .as_ref()
-            .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let ok_response = response.reply.ok.as_ref().ok_or(
+            crate::utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
+        )?;
 
         // Extract captureReceived
         let capture_received = &ok_response.capture_received;
@@ -730,7 +744,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlCaptureResponse, Self>>
 impl TryFrom<ResponseRouterData<responses::WorldpayxmlVoidResponse, Self>>
     for RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<responses::WorldpayxmlVoidResponse, Self>,
@@ -761,11 +775,9 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlVoidResponse, Self>>
         }
 
         // Extract ok response
-        let ok_response = response
-            .reply
-            .ok
-            .as_ref()
-            .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let ok_response = response.reply.ok.as_ref().ok_or(
+            crate::utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
+        )?;
 
         // Extract cancelReceived
         let cancel_received = &ok_response.cancel_received;
@@ -799,7 +811,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlVoidResponse, Self>>
 impl TryFrom<ResponseRouterData<responses::WorldpayxmlTransactionResponse, Self>>
     for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<responses::WorldpayxmlTransactionResponse, Self>,
@@ -835,11 +847,11 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlTransactionResponse, Self>
                 }
 
                 // Extract order status
-                let order_status = response
-                    .reply
-                    .order_status
-                    .as_ref()
-                    .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
+                let order_status = response.reply.order_status.as_ref().ok_or(
+                    crate::utils::response_deserialization_fail(
+                        item.http_code,
+                    "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
+                )?;
 
                 // Special handling: If error exists but payment is None, return current status (don't fail)
                 if let Some(error) = &order_status.error {
@@ -890,10 +902,11 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlTransactionResponse, Self>
                 }
 
                 // Extract payment details
-                let payment = order_status
-                    .payment
-                    .as_ref()
-                    .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
+                let payment = order_status.payment.as_ref().ok_or(
+                    crate::utils::response_deserialization_fail(
+                        item.http_code,
+                    "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
+                )?;
 
                 // Determine if auto-capture from request data
                 let is_auto_capture = router_data.request.capture_method
@@ -944,10 +957,14 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlTransactionResponse, Self>
                     .last_event
                     .as_ref()
                     .or(webhook_response.payment_status.as_ref())
-                    .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
+                    .ok_or(
+                        crate::utils::response_deserialization_fail(
+                            item.http_code,
+                        "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
+                    )?;
 
                 // Parse string to enum
-                let last_event = parse_last_event(last_event_str)?;
+                let last_event = parse_last_event(last_event_str, item.http_code)?;
 
                 // Determine if auto-capture from request data
                 let is_auto_capture = router_data.request.capture_method
@@ -990,7 +1007,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlTransactionResponse, Self>
 impl TryFrom<ResponseRouterData<responses::WorldpayxmlRefundResponse, Self>>
     for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<responses::WorldpayxmlRefundResponse, Self>,
@@ -1017,11 +1034,9 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlRefundResponse, Self>>
         }
 
         // Extract ok response
-        let ok_response = response
-            .reply
-            .ok
-            .as_ref()
-            .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let ok_response = response.reply.ok.as_ref().ok_or(
+            crate::utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
+        )?;
 
         // Extract refundReceived
         let refund_received = &ok_response.refund_received;
@@ -1046,7 +1061,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlRefundResponse, Self>>
 impl TryFrom<ResponseRouterData<responses::WorldpayxmlRsyncResponse, Self>>
     for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<responses::WorldpayxmlRsyncResponse, Self>,
@@ -1078,11 +1093,11 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlRsyncResponse, Self>>
                 }
 
                 // Extract order status
-                let order_status = response
-                    .reply
-                    .order_status
-                    .as_ref()
-                    .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
+                let order_status = response.reply.order_status.as_ref().ok_or(
+                    crate::utils::response_deserialization_fail(
+                        item.http_code,
+                    "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
+                )?;
 
                 // Special handling: If error exists but payment is None, return Pending (don't fail)
                 if let Some(_error) = &order_status.error {
@@ -1102,10 +1117,11 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlRsyncResponse, Self>>
                 }
 
                 // Extract payment details
-                let payment = order_status
-                    .payment
-                    .as_ref()
-                    .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
+                let payment = order_status.payment.as_ref().ok_or(
+                    crate::utils::response_deserialization_fail(
+                        item.http_code,
+                    "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
+                )?;
 
                 // Map status from lastEvent using refund status mapping
                 let refund_status = map_worldpayxml_refund_status(&payment.last_event);
@@ -1153,10 +1169,14 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlRsyncResponse, Self>>
                     .last_event
                     .as_ref()
                     .or(webhook_response.payment_status.as_ref())
-                    .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
+                    .ok_or(
+                        crate::utils::response_deserialization_fail(
+                            item.http_code,
+                        "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
+                    )?;
 
                 // Parse string to enum
-                let last_event = parse_last_event(last_event_str)?;
+                let last_event = parse_last_event(last_event_str, item.http_code)?;
 
                 // Map status from lastEvent using refund status mapping
                 let refund_status = map_worldpayxml_refund_status(&last_event);

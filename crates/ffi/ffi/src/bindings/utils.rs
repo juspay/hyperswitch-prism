@@ -5,18 +5,15 @@
 
 use bytes::Bytes;
 use domain_types::connector_types::ConnectorEnum;
-use domain_types::errors::{ApplicationErrorResponse, ConnectorError};
 use domain_types::router_data::ConnectorSpecificConfig;
 use domain_types::router_response_types::Response;
 use domain_types::utils::ForeignTryFrom;
 use error_stack::Report;
 use grpc_api_types::payments::{
-    ConnectorResponseTransformationError, FfiConnectorHttpRequest, FfiConnectorHttpResponse,
-    FfiOptions, IntegrationError,
+    ConnectorError, FfiConnectorHttpRequest, FfiConnectorHttpResponse, FfiOptions, IntegrationError,
 };
 use http::header::{HeaderMap, HeaderName, HeaderValue};
 use prost::Message;
-use ucs_env::error::ErrorSwitch;
 
 /// Helper to convert internal Request to Protobuf FfiConnectorHttpRequest bytes.
 pub fn build_ffi_request_bytes(
@@ -54,11 +51,9 @@ pub fn build_ffi_request_bytes(
 }
 
 /// Helper to convert Protobuf FfiConnectorHttpResponse bytes to internal Response.
-pub fn build_domain_response(
-    response_bytes: Vec<u8>,
-) -> Result<Response, ConnectorResponseTransformationError> {
+pub fn build_domain_response(response_bytes: Vec<u8>) -> Result<Response, ConnectorError> {
     let response = FfiConnectorHttpResponse::decode(Bytes::from(response_bytes)).map_err(|e| {
-        ConnectorResponseTransformationError {
+        ConnectorError {
             error_message: format!("ConnectorHttpResponse decode failed: {e}"),
             error_code: "DECODE_FAILED".to_string(),
             http_status_code: None,
@@ -82,13 +77,14 @@ pub fn build_domain_response(
             Some(header_map)
         },
         response: Bytes::from(response.body),
-        status_code: response.status_code.try_into().map_err(|e| {
-            ConnectorResponseTransformationError {
+        status_code: response
+            .status_code
+            .try_into()
+            .map_err(|e| ConnectorError {
                 error_message: format!("Invalid HTTP status code: {e}"),
                 error_code: "INVALID_STATUS_CODE".to_string(),
                 http_status_code: None,
-            }
-        })?,
+            })?,
     })
 }
 
@@ -113,29 +109,25 @@ pub fn parse_ffi_options_for_req(options_bytes: Vec<u8>) -> Result<FfiOptions, I
 
 /// refactor later
 /// Parse FfiOptions from optional bytes (for response path).
-pub fn parse_ffi_options_for_res(
-    options_bytes: Vec<u8>,
-) -> Result<FfiOptions, ConnectorResponseTransformationError> {
+pub fn parse_ffi_options_for_res(options_bytes: Vec<u8>) -> Result<FfiOptions, ConnectorError> {
     if options_bytes.is_empty() {
-        return Err(ConnectorResponseTransformationError {
+        return Err(ConnectorError {
             error_message: "Empty options bytes".to_string(),
             error_code: "EMPTY_OPTIONS".to_string(),
             http_status_code: None,
         });
     }
-    FfiOptions::decode(Bytes::from(options_bytes)).map_err(|e| {
-        ConnectorResponseTransformationError {
-            error_message: format!("Options decode failed: {e}"),
-            error_code: "DECODE_FAILED".to_string(),
-            http_status_code: None,
-        }
+    FfiOptions::decode(Bytes::from(options_bytes)).map_err(|e| ConnectorError {
+        error_message: format!("Options decode failed: {e}"),
+        error_code: "DECODE_FAILED".to_string(),
+        http_status_code: None,
     })
 }
 
 /// refactor later
 /// Build FfiMetadataPayload from FfiOptions.
 /// The connector identity is inferred from which ConnectorSpecificConfig variant is set.
-pub fn parse_metadata_for_req(
+pub fn parse_metadata(
     options: &FfiOptions,
 ) -> Result<crate::types::FfiMetadataPayload, IntegrationError> {
     // 1. Resolve ConnectorSpecificConfig from FfiOptions
@@ -160,57 +152,16 @@ pub fn parse_metadata_for_req(
             doc_url: None,
         })?;
 
-    let connector = ConnectorEnum::foreign_try_from(config_variant.clone())
-        .map_err(|e: Report<ApplicationErrorResponse>| e.current_context().switch())?;
+    let connector = ConnectorEnum::foreign_try_from(config_variant.clone()).map_err(
+        |e: Report<domain_types::errors::IntegrationError>| {
+            common_utils::errors::ErrorSwitch::switch(e.current_context())
+        },
+    )?;
 
     // 3. Convert proto config to domain ConnectorSpecificConfig
     let connector_config = ConnectorSpecificConfig::foreign_try_from(proto_config.clone())
-        .map_err(|e: Report<ConnectorError>| {
-            let app_error: ApplicationErrorResponse = e.current_context().switch();
-            app_error.switch()
-        })?;
-
-    Ok(crate::types::FfiMetadataPayload {
-        connector,
-        connector_config,
-    })
-}
-
-/// refactor later
-/// Build FfiMetadataPayload from FfiOptions (for response path).
-pub fn parse_metadata_for_res(
-    options: &FfiOptions,
-) -> Result<crate::types::FfiMetadataPayload, ConnectorResponseTransformationError> {
-    // 1. Resolve ConnectorSpecificConfig from FfiOptions
-    let proto_config =
-        options
-            .connector_config
-            .as_ref()
-            .ok_or_else(|| ConnectorResponseTransformationError {
-                error_message: "Missing connector_config".to_string(),
-                error_code: "MISSING_CONNECTOR_CONFIG".to_string(),
-                http_status_code: None,
-            })?;
-
-    // 2. Infer connector from which oneof variant is set
-    let config_variant =
-        proto_config
-            .config
-            .as_ref()
-            .ok_or_else(|| ConnectorResponseTransformationError {
-                error_message: "Missing connector_config.config".to_string(),
-                error_code: "MISSING_CONNECTOR_CONFIG_VARIANT".to_string(),
-                http_status_code: None,
-            })?;
-
-    let connector = ConnectorEnum::foreign_try_from(config_variant.clone())
-        .map_err(|e: Report<ApplicationErrorResponse>| e.current_context().switch())?;
-
-    // 3. Convert proto config to domain ConnectorSpecificConfig
-    let connector_config = ConnectorSpecificConfig::foreign_try_from(proto_config.clone())
-        .map_err(|e: Report<ConnectorError>| {
-            let app_error: ApplicationErrorResponse = e.current_context().switch();
-            app_error.switch()
+        .map_err(|e: Report<domain_types::errors::IntegrationError>| {
+            common_utils::errors::ErrorSwitch::switch(e.current_context())
         })?;
 
     Ok(crate::types::FfiMetadataPayload {

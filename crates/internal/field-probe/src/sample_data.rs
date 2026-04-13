@@ -94,6 +94,7 @@ pub(crate) fn becs_payment_method() -> PaymentMethod {
 
 pub(crate) fn google_pay_decrypted_method() -> PaymentMethod {
     use proto::google_wallet::{tokenization_data::TokenizationData as TD, TokenizationData};
+    // Decrypted format - provides card data directly for connectors that support it
     PaymentMethod {
         payment_method: Some(PmVariant::GooglePay(proto::GoogleWallet {
             r#type: "CARD".to_string(),
@@ -224,7 +225,19 @@ pub(crate) fn affirm_payment_method() -> PaymentMethod {
 }
 
 pub(crate) fn samsung_pay_payment_method() -> PaymentMethod {
+    use base64::Engine;
     use proto::samsung_wallet::{payment_credential::TokenData, PaymentCredential};
+
+    // SamsungPay token data must be a valid JWT with header containing "kid" field
+    // Format: base64url(header).base64url(payload).signature (no padding)
+    // Header: {"alg":"RS256","typ":"JWT","kid":"samsung_probe_key_123"}
+    let jwt_header = base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .encode(r#"{"alg":"RS256","typ":"JWT","kid":"samsung_probe_key_123"}"#);
+    let jwt_payload = base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .encode(r#"{"paymentMethodToken":"probe_samsung_token"}"#);
+    let jwt_signature = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode("dummy_signature");
+    let jwt_token = format!("{}.{}.{}", jwt_header, jwt_payload, jwt_signature);
+
     PaymentMethod {
         payment_method: Some(PmVariant::SamsungPay(proto::SamsungWallet {
             payment_credential: Some(PaymentCredential {
@@ -236,7 +249,7 @@ pub(crate) fn samsung_pay_payment_method() -> PaymentMethod {
                 token_data: Some(TokenData {
                     r#type: Some("S".to_string()),
                     version: "100".to_string(),
-                    data: Some(Secret::new("probe_samsung_token_data".to_string())),
+                    data: Some(Secret::new(jwt_token)),
                 }),
             }),
         })),

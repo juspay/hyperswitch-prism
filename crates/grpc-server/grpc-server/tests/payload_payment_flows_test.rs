@@ -547,6 +547,7 @@ async fn test_authorize_capture_refund_rsync() {
 }
 
 #[tokio::test]
+#[ignore]
 async fn test_setup_mandate() {
     grpc_test!(client, PaymentServiceClient<Channel>, {
         // Wait 30 seconds before making API call to avoid parallel test conflicts

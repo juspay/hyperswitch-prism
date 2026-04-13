@@ -1,0 +1,11 @@
+{
+  "connector": "hipay",
+  "supported_suites": [
+    "authorize",
+    "capture",
+    "void",
+    "refund",
+    "get",
+    "tokenize_payment_method"
+  ]
+}

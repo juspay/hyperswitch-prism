@@ -1,0 +1,12 @@
+{
+  "connector": "getnet",
+  "supported_suites": [
+    "authorize",
+    "capture",
+    "get",
+    "refund",
+    "refund_sync",
+    "server_authentication_token",
+    "void"
+  ]
+}

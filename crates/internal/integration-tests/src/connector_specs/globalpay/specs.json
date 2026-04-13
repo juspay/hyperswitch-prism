@@ -1,0 +1,12 @@
+{
+  "connector": "globalpay",
+  "supported_suites": [
+    "authorize",
+    "capture",
+    "get",
+    "refund",
+    "refund_sync",
+    "void",
+    "client_authentication_token"
+  ]
+}

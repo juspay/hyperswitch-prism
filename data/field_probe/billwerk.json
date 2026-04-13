@@ -8,610 +8,368 @@
     },
     "authorize": {
       "Ach": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "ach": {
-              "account_number": "000123456789",
-              "routing_number": "110000000",
-              "bank_account_holder_name": "John Doe"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
-        },
-        "sample": {
-          "url": "https://api.reepay.com/v1/charge",
-          "method": "Post",
-          "headers": {
-            "authorization": "Basic cHJvYmVfa2V5Og==",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
-        }
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "AchBankTransfer": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "Affirm": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "affirm": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
-        },
-        "sample": {
-          "url": "https://api.reepay.com/v1/charge",
-          "method": "Post",
-          "headers": {
-            "authorization": "Basic cHJvYmVfa2V5Og==",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
-        }
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "Afterpay": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "afterpay_clearpay": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
-        },
-        "sample": {
-          "url": "https://api.reepay.com/v1/charge",
-          "method": "Post",
-          "headers": {
-            "authorization": "Basic cHJvYmVfa2V5Og==",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
-        }
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "Alfamart": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "AliPayRedirect": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "AmazonPayRedirect": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "ApplePay": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "apple_pay": {
-              "payment_data": {
-                "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9"
-              },
-              "payment_method": {
-                "display_name": "Visa 1111",
-                "network": "Visa",
-                "type": "debit"
-              },
-              "transaction_identifier": "probe_txn_id"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
-        },
-        "sample": {
-          "url": "https://api.reepay.com/v1/charge",
-          "method": "Post",
-          "headers": {
-            "authorization": "Basic cHJvYmVfa2V5Og==",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
-        }
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "ApplePayDecrypted": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "apple_pay": {
-              "payment_data": {
-                "decrypted_data": {
-                  "application_primary_account_number": "4111111111111111",
-                  "application_expiration_month": "03",
-                  "application_expiration_year": "2030",
-                  "payment_data": {
-                    "online_payment_cryptogram": "AAAAAA==",
-                    "eci_indicator": "05"
-                  }
-                }
-              },
-              "payment_method": {
-                "display_name": "Visa 1111",
-                "network": "Visa",
-                "type": "debit"
-              },
-              "transaction_identifier": "probe_txn_id"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
-        },
-        "sample": {
-          "url": "https://api.reepay.com/v1/charge",
-          "method": "Post",
-          "headers": {
-            "authorization": "Basic cHJvYmVfa2V5Og==",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
-        }
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "Bacs": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "bacs": {
-              "account_number": "55779911",
-              "sort_code": "200000",
-              "bank_account_holder_name": "John Doe"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
-        },
-        "sample": {
-          "url": "https://api.reepay.com/v1/charge",
-          "method": "Post",
-          "headers": {
-            "authorization": "Basic cHJvYmVfa2V5Og==",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
-        }
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "BacsBankTransfer": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "BancontactCard": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "BcaBankTransfer": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "Becs": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "becs": {
-              "account_number": "000123456",
-              "bsb_number": "000000",
-              "bank_account_holder_name": "John Doe"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
-        },
-        "sample": {
-          "url": "https://api.reepay.com/v1/charge",
-          "method": "Post",
-          "headers": {
-            "authorization": "Basic cHJvYmVfa2V5Og==",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
-        }
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "Bizum": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "Blik": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "blik": {
-              "blik_code": "777124"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
-        },
-        "sample": {
-          "url": "https://api.reepay.com/v1/charge",
-          "method": "Post",
-          "headers": {
-            "authorization": "Basic cHJvYmVfa2V5Og==",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
-        }
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "Bluecode": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "BniVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "Boleto": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "BriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "Card": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "card": {
-              "card_number": "4111111111111111",
-              "card_exp_month": "03",
-              "card_exp_year": "2030",
-              "card_cvc": "737",
-              "card_holder_name": "John Doe"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
-        },
-        "sample": {
-          "url": "https://api.reepay.com/v1/charge",
-          "method": "Post",
-          "headers": {
-            "authorization": "Basic cHJvYmVfa2V5Og==",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
-        }
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "CashappQr": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "ClassicReward": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "EVoucher": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "Efecty": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "Eft": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "Eps": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "FamilyMart": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "Giropay": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "GooglePay": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "google_pay": {
-              "type": "CARD",
-              "description": "Visa 1111",
-              "info": {
-                "card_network": "VISA",
-                "card_details": "1111"
-              },
-              "tokenization_data": {
-                "encrypted_data": {
-                  "token_type": "PAYMENT_GATEWAY",
-                  "token": "{\"id\":\"tok_probe_gpay\",\"object\":\"token\",\"type\":\"card\"}"
-                }
-              }
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
-        },
-        "sample": {
-          "url": "https://api.reepay.com/v1/charge",
-          "method": "Post",
-          "headers": {
-            "authorization": "Basic cHJvYmVfa2V5Og==",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
-        }
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "GooglePayDecrypted": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "google_pay": {
-              "type": "CARD",
-              "description": "Visa 1111",
-              "info": {
-                "card_network": "VISA",
-                "card_details": "1111"
-              },
-              "tokenization_data": {
-                "decrypted_data": {
-                  "card_exp_month": "03",
-                  "card_exp_year": "2030",
-                  "application_primary_account_number": "4111111111111111",
-                  "cryptogram": "AAAAAA==",
-                  "eci_indicator": "05"
-                }
-              }
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
-        },
-        "sample": {
-          "url": "https://api.reepay.com/v1/charge",
-          "method": "Post",
-          "headers": {
-            "authorization": "Basic cHJvYmVfa2V5Og==",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
-        }
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "Ideal": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "ideal": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
-        },
-        "sample": {
-          "url": "https://api.reepay.com/v1/charge",
-          "method": "Post",
-          "headers": {
-            "authorization": "Basic cHJvYmVfa2V5Og==",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
-        }
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "Indomaret": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "InstantBankTransfer": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "Interac": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "Klarna": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "klarna": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
-        },
-        "sample": {
-          "url": "https://api.reepay.com/v1/charge",
-          "method": "Post",
-          "headers": {
-            "authorization": "Basic cHJvYmVfa2V5Og==",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
-        }
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "Lawson": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "LocalBankRedirect": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "LocalBankTransfer": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "MbWay": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "Mifinity": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "MiniStop": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "OnlineBankingFinland": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "OnlineBankingFpx": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "OnlineBankingPoland": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "OnlineBankingThailand": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "OpenBanking": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "OpenBankingUk": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "Oxxo": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "PagoEfectivo": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "PayEasy": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "PaySafeCard": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "PaypalRedirect": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "paypal_redirect": {
-              "email": "test@example.com"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
-        },
-        "sample": {
-          "url": "https://api.reepay.com/v1/charge",
-          "method": "Post",
-          "headers": {
-            "authorization": "Basic cHJvYmVfa2V5Og==",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
-        }
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "PaypalSdk": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "PermataBankTransfer": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "Pix": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "Przelewy24": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "Pse": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "RedCompra": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "RedPagos": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "RevolutPay": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "SamsungPay": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "samsung_pay": {
-              "payment_credential": {
-                "method": "3DS",
-                "recurring_payment": false,
-                "card_brand": "VISA",
-                "card_last_four_digits": "1234",
-                "token_data": {
-                  "type": "S",
-                  "version": "100",
-                  "data": "probe_samsung_token_data"
-                }
-              }
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
-        },
-        "sample": {
-          "url": "https://api.reepay.com/v1/charge",
-          "method": "Post",
-          "headers": {
-            "authorization": "Basic cHJvYmVfa2V5Og==",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
-        }
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "Satispay": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "Seicomart": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "Sepa": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "sepa": {
-              "iban": "DE89370400440532013000",
-              "bank_account_holder_name": "John Doe"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
-        },
-        "sample": {
-          "url": "https://api.reepay.com/v1/charge",
-          "method": "Post",
-          "headers": {
-            "authorization": "Basic cHJvYmVfa2V5Og==",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
-        }
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "SepaBankTransfer": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "SevenEleven": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "Sofort": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "Trustly": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "UpiCollect": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "upi_collect": {
-              "vpa_id": "test@upi"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
-        },
-        "sample": {
-          "url": "https://api.reepay.com/v1/charge",
-          "method": "Post",
-          "headers": {
-            "authorization": "Basic cHJvYmVfa2V5Og==",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"handle\":\"probe_txn_001\",\"amount\":1000,\"source\":\"probe_pm_token\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
-        }
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "UpiIntent": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "UpiQr": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "WeChatPayQr": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "Wero": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       }
     },
     "capture": {
@@ -637,9 +395,10 @@
         }
       }
     },
-    "create_access_token": {
+    "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Stuck on field: customer_id. Billwerk checkout sessions require a customer handle to associate the session with a customer record. — Missing required field: customer_id. Billwerk checkout sessions require a customer handle to associate the session with a customer record."
       }
     },
     "create_customer": {
@@ -652,7 +411,12 @@
         "status": "not_implemented"
       }
     },
-    "create_session_token": {
+    "create_server_authentication_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_server_session_authentication_token": {
       "default": {
         "status": "not_implemented"
       }
@@ -667,7 +431,17 @@
         "status": "not_implemented"
       }
     },
+    "dispute_get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "eligibility": {
       "default": {
         "status": "not_implemented"
       }
@@ -696,6 +470,16 @@
         }
       }
     },
+    "handle_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "post_authenticate": {
       "default": {
         "status": "not_implemented"
@@ -706,7 +490,56 @@
         "status": "not_implemented"
       }
     },
+    "proxy_authorize": {
+      "default": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      }
+    },
     "recurring_charge": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "connector_recurring_payment_id": {
+            "mandate_id_type": {
+              "connector_mandate_id": {
+                "connector_mandate_id": "probe-mandate-123"
+              }
+            }
+          },
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "token": {
+              "token": "probe_pm_token"
+            }
+          },
+          "return_url": "https://example.com/recurring-return",
+          "connector_customer_id": "cust_probe_123",
+          "payment_method_type": "PAY_PAL",
+          "off_session": true
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"\",\"amount\":1000,\"source\":\"probe-mandate-123\",\"currency\":\"USD\",\"settle\":true}"
+        }
+      }
+    },
+    "recurring_revoke": {
       "default": {
         "status": "not_implemented"
       }
@@ -736,6 +569,26 @@
         }
       }
     },
+    "refund_get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "refund_id": "probe_refund_id_001"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/refund/probe_refund_id_001",
+          "method": "Get",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": null
+        }
+      }
+    },
     "reverse": {
       "default": {
         "status": "not_implemented"
@@ -743,7 +596,79 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_tokenized_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "connector_token": "pm_1AbcXyzStripeTestToken",
+          "address": {
+            "billing_address": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_tokenized_txn_001\",\"amount\":1000,\"source\":\"pm_1AbcXyzStripeTestToken\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"metadata\":null,\"settle\":true}"
+        }
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_tokenized_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "connector_token": "pm_1AbcXyzStripeTestToken",
+          "address": {
+            "billing_address": {}
+          },
+          "customer_acceptance": {
+            "acceptance_type": "ONLINE",
+            "accepted_at": 0,
+            "online_mandate_details": {
+              "ip_address": "127.0.0.1",
+              "user_agent": "Mozilla/5.0"
+            }
+          },
+          "setup_mandate_details": {
+            "mandate_type": {
+              "multi_use": {
+                "amount": 0,
+                "currency": "USD"
+              }
+            }
+          },
+          "setup_future_usage": "OFF_SESSION"
+        },
+        "sample": {
+          "url": "https://api.reepay.com/v1/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"handle\":\"probe_tokenized_mandate_001\",\"amount\":0,\"source\":\"pm_1AbcXyzStripeTestToken\",\"currency\":\"USD\",\"customer\":{\"handle\":null,\"email\":null,\"address\":null,\"address2\":null,\"city\":null,\"country\":null,\"first_name\":null,\"last_name\":null},\"settle\":false,\"recurring\":true}"
+        }
       }
     },
     "tokenize": {
@@ -777,6 +702,11 @@
           },
           "body": "{\"number\":\"4111111111111111\",\"month\":\"03\",\"year\":\"30\",\"cvv\":\"737\",\"pkey\":\"probe_pub_key\",\"recurring\":null,\"intent\":null,\"strongAuthenticationRule\":null}"
         }
+      }
+    },
+    "verify_redirect": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "void": {

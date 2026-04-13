@@ -233,7 +233,7 @@ pub fn parse_missing_field_alt(msg: &str) -> Option<String> {
 
 /// Returns true when this connector requires an OAuth access token.
 ///
-/// OAuth connectors need a prior CreateAccessToken step before they can
+/// OAuth connectors need a prior ServerAuthenticationToken step before they can
 /// make payment requests. The probe handles this by providing mock state.
 pub fn is_oauth_connector(connector: &domain_types::connector_types::ConnectorEnum) -> bool {
     let config = crate::config::get_config();

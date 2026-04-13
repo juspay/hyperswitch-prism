@@ -92,7 +92,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn get_url(
         &self,
         req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
-    ) -> CustomResult<String, ConnectorError> {
+    ) -> CustomResult<String, IntegrationError> {
         let base_url = self.connector_base_url_payments(req);
         let payment_id = req.request.connector_transaction_id.clone();
         Ok(format!("{base_url}/payments/{payment_id}/cancel"))
@@ -120,7 +120,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn get_url(
         &self,
         req: &RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
-    ) -> CustomResult<String, ConnectorError> {
+    ) -> CustomResult<String, IntegrationError> {
         let base_url = self.connector_base_url_payments(req);
         let payment_id = req.request.connector_transaction_id.clone();
         Ok(format!("{base_url}/payments/{payment_id}/void"))
@@ -205,7 +205,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsCancelPostCaptureData,
             PaymentsResponseData,
         >,
-    ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
         self.build_headers(req)
     }
 
@@ -221,7 +221,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsCancelPostCaptureData,
             PaymentsResponseData,
         >,
-    ) -> CustomResult<String, ConnectorError> {
+    ) -> CustomResult<String, IntegrationError> {
         let base_url = self.connector_base_url_payments(req);
         let payment_id = req.request.connector_transaction_id.clone();
         Ok(format!("{base_url}/payments/{payment_id}/void"))
@@ -235,7 +235,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsCancelPostCaptureData,
             PaymentsResponseData,
         >,
-    ) -> CustomResult<Option<RequestContent>, ConnectorError> {
+    ) -> CustomResult<Option<RequestContent>, IntegrationError> {
         let request = {ConnectorName}VoidPcRequest::try_from({ConnectorName}RouterData {
             router_data: req.clone(),
             connector: self.clone(),
@@ -260,7 +260,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let response: {ConnectorName}VoidPcResponse = res
             .response
             .parse_struct("{ConnectorName}VoidPcResponse")
-            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+            .change_context(ConnectorError::ResponseDeserializationFailed { context: Default::default() })?;
 
         if let Some(i) = event_builder {
             i.set_response_body(&response);
@@ -345,7 +345,7 @@ macros::macro_connector_implementation!(
         fn get_url(
             &self,
             req: &RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
-        ) -> CustomResult<String, ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let base_url = self.connector_base_url_payments(req);
             let payment_id = req.request.connector_transaction_id.clone();
             Ok(format!("{base_url}/payments/{payment_id}/void"))
@@ -369,7 +369,7 @@ pub struct {ConnectorName}VoidPcRequest {}
 impl TryFrom<{ConnectorName}RouterData<RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>>>
     for {ConnectorName}VoidPcRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         _item: {ConnectorName}RouterData<RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>>,
@@ -392,7 +392,7 @@ pub struct {ConnectorName}VoidPcRequest {
 impl TryFrom<{ConnectorName}RouterData<RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>>>
     for {ConnectorName}VoidPcRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: {ConnectorName}RouterData<RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>>,
@@ -424,7 +424,7 @@ pub struct {ConnectorName}VoidPcRequest {
 impl TryFrom<{ConnectorName}RouterData<RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>>>
     for {ConnectorName}VoidPcRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: {ConnectorName}RouterData<RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>>,
@@ -572,7 +572,7 @@ impl TryFrom<ResponseRouterData<{ConnectorName}VoidPcResponse, RouterDataV2<Void
 fn get_url(
     &self,
     req: &RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
-) -> CustomResult<String, ConnectorError> {
+) -> CustomResult<String, IntegrationError> {
     let base_url = self.connector_base_url_payments(req);
     let payment_id = req.request.connector_transaction_id.clone();
     Ok(format!("{base_url}/payments/{payment_id}/void"))
@@ -585,7 +585,7 @@ fn get_url(
 fn get_url(
     &self,
     req: &RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
-) -> CustomResult<String, ConnectorError> {
+) -> CustomResult<String, IntegrationError> {
     let base_url = self.connector_base_url_payments(req);
     let transaction_id = req.request.connector_transaction_id.clone();
     Ok(format!("{base_url}/transactions/{transaction_id}/cancel"))
@@ -600,7 +600,7 @@ For connectors using an operations pattern (like Nexixpay).
 fn get_url(
     &self,
     req: &RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
-) -> CustomResult<String, ConnectorError> {
+) -> CustomResult<String, IntegrationError> {
     let base_url = self.connector_base_url_payments(req);
     let operation_id = req.request.connector_transaction_id.clone();
     Ok(format!("{base_url}/operations/{operation_id}/void"))
@@ -613,7 +613,7 @@ fn get_url(
 fn get_url(
     &self,
     req: &RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
-) -> CustomResult<String, ConnectorError> {
+) -> CustomResult<String, IntegrationError> {
     let base_url = self.connector_base_url_payments(req);
     let payment_id = req.request.connector_transaction_id.clone();
     Ok(format!("{base_url}/void?payment_id={payment_id}"))
@@ -741,10 +741,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsCancelPostCaptureData,
             PaymentsResponseData,
         >,
-    ) -> CustomResult<Option<RequestContent>, ConnectorError> {
-        Err(ConnectorError::NotSupported {
+    ) -> CustomResult<Option<RequestContent>, IntegrationError> {
+        Err(IntegrationError::NotSupported {
             message: "VoidPC (void post capture) is not supported by this connector. Use Refund flow instead.".to_string(),
-            connector: "{ConnectorName}".to_string(),
+            connector: "{ConnectorName, context: Default::default() }".to_string(),
         }
         .into())
     }
@@ -816,7 +816,7 @@ pub enum {ConnectorName}VoidPcStatus {
 impl TryFrom<{ConnectorName}RouterData<RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>>>
     for {ConnectorName}VoidPcRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: {ConnectorName}RouterData<RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>>,
@@ -830,7 +830,7 @@ impl TryFrom<{ConnectorName}RouterData<RouterDataV2<VoidPC, PaymentFlowData, Pay
 impl TryFrom<ResponseRouterData<{ConnectorName}VoidPcResponse, RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>>>
     for RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: ResponseRouterData<{ConnectorName}VoidPcResponse, RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>>,
@@ -861,7 +861,7 @@ macros::macro_connector_implementation!(
         fn get_url(
             &self,
             req: &RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
-        ) -> CustomResult<String, ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let base_url = self.connector_base_url_payments(req);
             let payment_id = req.request.connector_transaction_id.clone();
             Ok(format!("{base_url}/payments/{payment_id}/void"))
@@ -900,10 +900,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsCancelPostCaptureData,
             PaymentsResponseData,
         >,
-    ) -> CustomResult<Option<RequestContent>, ConnectorError> {
-        Err(ConnectorError::NotSupported {
+    ) -> CustomResult<Option<RequestContent>, IntegrationError> {
+        Err(IntegrationError::NotSupported {
             message: "VoidPC not supported. Use Refund instead.".to_string(),
-            connector: "{ConnectorName}".to_string(),
+            connector: "{ConnectorName, context: Default::default() }".to_string(),
         }
         .into())
     }
