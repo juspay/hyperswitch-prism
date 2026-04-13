@@ -2427,9 +2427,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             get_adyen_metadata(item.router_data.request.metadata.clone().expose_option());
         let device_fingerprint = adyen_metadata.device_fingerprint.clone();
         let platform_chargeback_logic = adyen_metadata.platform_chargeback_logic.clone();
-        let _country_code =
-            get_country_code(item.router_data.resource_common_data.get_optional_billing());
-
         let mpi_data = match wallet_data {
             WalletData::ApplePay(apple_data) => {
                 if let ApplePayPaymentData::Decrypted(decrypt_data) = &apple_data.payment_data {
