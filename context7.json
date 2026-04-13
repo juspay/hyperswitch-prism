@@ -5,7 +5,7 @@
   "folders": [
     "sdk",
     "docs",
-    "docs-genrated",
+    "docs-generated",
     "examples",
     "crates/types-traits",
     "crates/grpc-server",
