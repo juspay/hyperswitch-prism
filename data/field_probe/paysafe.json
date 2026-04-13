@@ -407,7 +407,24 @@
     },
     "create_order": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_order_id": "probe_order_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://api.test.paysafe.com/paymenthub/v1/paymenthandles",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"merchantRefNum\":\"probe_order_001\",\"transactionType\":\"PAYMENT\",\"paymentType\":\"CARD\",\"amount\":1000,\"currencyCode\":\"USD\",\"accountId\":\"probe_acct_no3ds\"}"
+        }
       }
     },
     "create_server_authentication_token": {

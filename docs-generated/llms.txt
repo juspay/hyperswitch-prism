@@ -435,7 +435,7 @@ connector_id: paysafe
 doc: docs/connectors/paysafe.md
 scenarios: none
 payment_methods: none
-flows: capture, get, refund, refund_get, token_authorize, tokenize, void
+flows: capture, create_order, get, refund, refund_get, token_authorize, tokenize, void
 examples_python: none
 
 ## Paytm

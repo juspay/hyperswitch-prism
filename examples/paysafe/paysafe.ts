@@ -30,6 +30,16 @@ function _buildCaptureRequest(connectorTransactionId: string): PaymentServiceCap
     };
 }
 
+function _buildCreateOrderRequest(): PaymentServiceCreateOrderRequest {
+    return {
+        "merchantOrderId": "probe_order_001",  // Identification.
+        "amount": {  // Amount Information.
+            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+    };
+}
+
 function _buildGetRequest(connectorTransactionId: string): PaymentServiceGetRequest {
     return {
         "merchantTransactionId": "probe_merchant_txn_001",  // Identification.
@@ -124,6 +134,15 @@ async function capture(merchantTransactionId: string, config: ConnectorConfig = 
     return { status: captureResponse.status };
 }
 
+// Flow: PaymentService.CreateOrder
+async function createOrder(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<PaymentServiceCreateOrderResponse> {
+    const paymentClient = new PaymentClient(config);
+
+    const createResponse = await paymentClient.createOrder(_buildCreateOrderRequest());
+
+    return { status: createResponse.status };
+}
+
 // Flow: PaymentService.Get
 async function get(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<PaymentServiceGetResponse> {
     const paymentClient = new PaymentClient(config);
@@ -181,7 +200,7 @@ async function voidPayment(merchantTransactionId: string, config: ConnectorConfi
 
 // Export all process* functions for the smoke test
 export {
-    capture, get, refund, refundGet, tokenAuthorize, tokenize, voidPayment, _buildCaptureRequest, _buildGetRequest, _buildRefundRequest, _buildRefundGetRequest, _buildTokenAuthorizeRequest, _buildTokenizeRequest, _buildVoidRequest
+    capture, createOrder, get, refund, refundGet, tokenAuthorize, tokenize, voidPayment, _buildCaptureRequest, _buildCreateOrderRequest, _buildGetRequest, _buildRefundRequest, _buildRefundGetRequest, _buildTokenAuthorizeRequest, _buildTokenizeRequest, _buildVoidRequest
 };
 
 // CLI runner

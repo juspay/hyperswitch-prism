@@ -1,12 +1,15 @@
 use common_enums::enums;
 use common_utils::{ext_traits::ValueExt, request::Method};
 use domain_types::{
-    connector_flow::{Authorize, Capture, PaymentMethodToken, RSync, Refund, RepeatPayment, Void},
+    connector_flow::{
+        Authorize, Capture, CreateOrder, PaymentMethodToken, RSync, Refund, RepeatPayment, Void,
+    },
     connector_types::{
-        MandateReference, MandateReferenceId, PaymentFlowData, PaymentMethodTokenResponse,
-        PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        RepeatPaymentData, ResponseId,
+        MandateReference, MandateReferenceId, PaymentCreateOrderData, PaymentCreateOrderResponse,
+        PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
+        PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        ResponseId,
     },
     payment_method_data::{
         BankDebitData, GpayTokenizationData, PaymentMethodData, PaymentMethodDataTypes, WalletData,
@@ -1044,6 +1047,178 @@ impl TryFrom<ResponseRouterData<PaysafeRSyncResponse, Self>>
                 refund_status: enums::RefundStatus::from(item.response.status),
                 status_code: item.http_code,
             }),
+            ..item.router_data
+        })
+    }
+}
+
+// CreateOrder Flow - Request
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        PaysafeRouterData<
+            RouterDataV2<
+                CreateOrder,
+                PaymentFlowData,
+                PaymentCreateOrderData,
+                PaymentCreateOrderResponse,
+            >,
+            T,
+        >,
+    > for PaysafeCreateOrderRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: PaysafeRouterData<
+            RouterDataV2<
+                CreateOrder,
+                PaymentFlowData,
+                PaymentCreateOrderData,
+                PaymentCreateOrderResponse,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+
+        let auth = PaysafeAuthType::try_from(&router_data.connector_config)?;
+        let currency = router_data.request.currency;
+
+        // Resolve account_id from connector config metadata if available
+        let resolved_account_id = auth
+            .account_id
+            .and_then(|details| details.get_no_three_ds_account_id(currency).ok());
+
+        // Build return_links from return_url if available
+        let return_links =
+            router_data
+                .resource_common_data
+                .get_return_url()
+                .map(|redirect_url: String| {
+                    vec![
+                        ReturnLink {
+                            rel: LinkType::Default,
+                            href: redirect_url.clone(),
+                            method: Method::Get.to_string(),
+                        },
+                        ReturnLink {
+                            rel: LinkType::OnCompleted,
+                            href: redirect_url.clone(),
+                            method: Method::Get.to_string(),
+                        },
+                        ReturnLink {
+                            rel: LinkType::OnFailed,
+                            href: redirect_url.clone(),
+                            method: Method::Get.to_string(),
+                        },
+                        ReturnLink {
+                            rel: LinkType::OnCancelled,
+                            href: redirect_url,
+                            method: Method::Get.to_string(),
+                        },
+                    ]
+                });
+
+        Ok(Self {
+            merchant_ref_num: router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
+            transaction_type: TransactionType::Payment,
+            payment_type: PaysafePaymentType::Card,
+            amount: router_data.request.amount,
+            currency_code: currency,
+            account_id: resolved_account_id,
+            return_links,
+        })
+    }
+}
+
+// CreateOrder Flow - Response (connector response -> PaymentCreateOrderResponse)
+
+impl TryFrom<PaysafeCreateOrderResponse> for PaymentCreateOrderResponse {
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(response: PaysafeCreateOrderResponse) -> Result<Self, Self::Error> {
+        Ok(Self {
+            order_id: response.id,
+            session_data: None,
+        })
+    }
+}
+
+// CreateOrder Flow - Response (ResponseRouterData -> RouterDataV2)
+
+impl TryFrom<ResponseRouterData<PaysafeCreateOrderResponse, Self>>
+    for RouterDataV2<
+        CreateOrder,
+        PaymentFlowData,
+        PaymentCreateOrderData,
+        PaymentCreateOrderResponse,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<PaysafeCreateOrderResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response;
+
+        // Check if the payment handle status indicates an error
+        if matches!(
+            response.status,
+            PaysafePaymentHandleStatus::Failed
+                | PaysafePaymentHandleStatus::Expired
+                | PaysafePaymentHandleStatus::Error
+        ) {
+            let error_code = response
+                .error
+                .as_ref()
+                .map(|e| e.code.clone())
+                .unwrap_or_default();
+            let error_message = response
+                .error
+                .as_ref()
+                .map(|e| e.message.clone())
+                .unwrap_or_else(|| "Unknown error".to_string());
+
+            return Ok(Self {
+                resource_common_data: PaymentFlowData {
+                    status: enums::AttemptStatus::Failure,
+                    ..item.router_data.resource_common_data
+                },
+                response: Err(domain_types::router_data::ErrorResponse {
+                    code: error_code,
+                    message: error_message.clone(),
+                    reason: Some(error_message),
+                    status_code: item.http_code,
+                    attempt_status: Some(enums::AttemptStatus::Failure),
+                    connector_transaction_id: None,
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                }),
+                ..item.router_data
+            });
+        }
+
+        let order_response = PaymentCreateOrderResponse::try_from(response.clone())?;
+        let order_id = order_response.order_id.clone();
+
+        // Store paymentHandleToken in session_token for use by subsequent payment flows
+        let session_token = Some(response.payment_handle_token.peek().to_string());
+
+        Ok(Self {
+            response: Ok(order_response),
+            resource_common_data: PaymentFlowData {
+                status: enums::AttemptStatus::Pending,
+                // Store payment handle ID as reference_id for subsequent flows
+                reference_id: Some(order_id),
+                // Store payment handle token in session_token
+                session_token,
+                ..item.router_data.resource_common_data
+            },
             ..item.router_data
         })
     }
