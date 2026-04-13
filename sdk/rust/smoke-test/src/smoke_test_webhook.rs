@@ -16,8 +16,9 @@
 //!   cargo run --bin smoke-test-webhook
 
 use grpc_api_types::payments::{
-    AdyenConfig, ConnectorConfig, ConnectorSpecificConfig, Environment, EventContext,
-    EventServiceHandleRequest, EventServiceParseRequest, RequestDetails, SdkOptions,
+    event_context::EventContext as EventContextVariant, AdyenConfig, ConnectorConfig,
+    ConnectorSpecificConfig, Environment, EventContext, EventServiceHandleRequest,
+    EventServiceParseRequest, PaymentEventContext, RequestDetails, SdkOptions,
 };
 use hyperswitch_payments_client::ConnectorClient;
 use std::collections::HashMap;
@@ -135,8 +136,9 @@ fn test_handle_event(client: &ConnectorClient) -> bool {
         merchant_event_id: Some("smoke_wh_adyen_auth".to_string()),
         request_details: Some(make_request_details(ADYEN_WEBHOOK_BODY.as_bytes().to_vec())),
         event_context: Some(EventContext {
-            capture_method: Some(CAPTURE_METHOD_MANUAL),
-            test_new_field: None,
+            event_context: Some(EventContextVariant::Payment(PaymentEventContext {
+                capture_method: Some(CAPTURE_METHOD_MANUAL),
+            })),
         }),
         ..Default::default()
     };

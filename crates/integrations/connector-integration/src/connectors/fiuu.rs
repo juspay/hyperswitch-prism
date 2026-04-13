@@ -1002,8 +1002,28 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             }
         };
 
+        let capture_method = event_context.and_then(|ctx| ctx.capture_method);
+
+        // Fiuu webhook status "00" (Success) does not distinguish AUTHORIZED from CAPTURED.
+        // capture_method from the original authorize request is required to resolve this.
+        if webhook_payment.status == fiuu::FiuuPaymentWebhookStatus::Success
+            && capture_method.is_none()
+        {
+            return Err(
+                error_stack::report!(WebhookError::WebhookMissingRequiredContext {
+                    field: "capture_method",
+                    origin: "payment authorize",
+                })
+                .attach_printable(
+                    "Fiuu webhook status '00' (Success) is ambiguous without capture_method: \
+                 AUTOMATIC capture means the payment was Charged, MANUAL means Authorized. \
+                 Pass EventContext.payment.capture_method from your original authorize request.",
+                ),
+            );
+        }
+
         let status = common_enums::AttemptStatus::try_from(fiuu::FiuuWebhookStatus {
-            capture_method: event_context.and_then(|ctx| ctx.capture_method),
+            capture_method,
             status: webhook_payment.status.clone(),
         })
         .change_context(WebhookError::WebhookBodyDecodingFailed)?;

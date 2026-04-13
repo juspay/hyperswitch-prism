@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use base64::Engine;
-use common_enums::AttemptStatus;
+use common_enums::{AttemptStatus, CaptureMethod};
 use common_utils::{
     crypto::{self, VerifySignature},
     errors::CustomResult,
@@ -286,7 +286,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         request: RequestDetails,
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
-        _event_context: Option<EventContext>,
+        event_context: Option<EventContext>,
     ) -> Result<
         domain_types::connector_types::WebhookDetailsResponse,
         error_stack::Report<WebhookError>,
@@ -298,7 +298,27 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .attach_printable("Failed to parse payment webhook details from Noon webhook body")?;
 
         let status = match webhook_object.order_status {
-            noon::NoonPaymentStatus::Authorized => AttemptStatus::Authorized,
+            noon::NoonPaymentStatus::Authorized => {
+                let capture_method = event_context
+                    .and_then(|ctx| ctx.capture_method)
+                    .ok_or_else(|| {
+                        error_stack::report!(WebhookError::WebhookMissingRequiredContext {
+                            field: "capture_method",
+                            origin: "payment authorize",
+                        })
+                        .attach_printable(
+                            "Noon webhook status 'Authorized' is ambiguous without capture_method: \
+                             AUTOMATIC capture means the payment was Charged, MANUAL means Authorized. \
+                             Pass EventContext.payment.capture_method from your original authorize request.",
+                        )
+                    })?;
+                match capture_method {
+                    CaptureMethod::Automatic | CaptureMethod::SequentialAutomatic => {
+                        AttemptStatus::Charged
+                    }
+                    _ => AttemptStatus::Authorized,
+                }
+            }
             noon::NoonPaymentStatus::Captured
             | noon::NoonPaymentStatus::PartiallyCaptured
             | noon::NoonPaymentStatus::PartiallyRefunded

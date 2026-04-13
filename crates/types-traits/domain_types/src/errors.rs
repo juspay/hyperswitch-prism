@@ -582,6 +582,11 @@ pub enum WebhookError {
     WebhookResourceObjectNotFound,
     #[error("Failed to encode webhook response")]
     WebhookResponseEncodingFailed,
+    #[error("Missing required EventContext field '{field}' for this connector's webhook handling. Pass {field} from your original {origin} request in EventContext.")]
+    WebhookMissingRequiredContext {
+        field: &'static str,
+        origin: &'static str,
+    },
 }
 
 impl ErrorSwitch<grpc_api_types::payments::IntegrationError> for WebhookError {

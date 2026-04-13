@@ -2340,7 +2340,7 @@ pub struct FiuWebhookEvent {
     pub status: FiuuPaymentWebhookStatus,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, strum::Display)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, strum::Display)]
 pub enum FiuuPaymentWebhookStatus {
     #[strum(serialize = "00")]
     #[serde(rename = "00")]

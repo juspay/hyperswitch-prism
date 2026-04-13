@@ -3137,15 +3137,48 @@ message EventServiceParseResponse {
   optional WebhookEventType event_type = 2;
 }
 
-// Additional business context for connectors that cannot produce a complete unified
-// response from the webhook payload alone. Which fields are required depends on the
-// connector — refer to the connector integration guide.
+// Business context the caller passes back to fill UCS's stateless gap.
+// UCS is stateless — it cannot retrieve the original request parameters.
+// Pass back the fields from your original request that correspond to the
+// EventReference arm returned by ParseEvent.
+// UCS returns INVALID_ARGUMENT with an actionable message if a required field
+// is missing for the connector being handled.
 message EventContext {
-  // Needed by connectors (e.g. Adyen) that map AUTHORISATION events to both
-  // CAPTURED (automatic) and AUTHORIZED (manual) depending on capture method.
+  oneof event_context {
+    PaymentEventContext  payment  = 1;
+    RefundEventContext   refund   = 2;
+    DisputeEventContext  dispute  = 3;
+    MandateEventContext  mandate  = 4;
+    PayoutEventContext   payout   = 5;
+  }
+}
+
+// Context from the original PaymentServiceAuthorizeRequest.
+// Required by connectors whose webhook payloads do not unambiguously distinguish
+// AUTHORIZED from CAPTURED (e.g. Noon, Fiuu).
+message PaymentEventContext {
+  // From original PaymentServiceAuthorizeRequest.capture_method.
   optional CaptureMethod capture_method = 1;
-  // New optional field added to test backwards compatibility across SDKs.
-  optional string test_new_field = 2;
+}
+
+// Context from the original RefundServiceRefundRequest.
+// Reserved for future use — no connectors currently require it.
+message RefundEventContext {
+}
+
+// Context from the original dispute flow.
+// Reserved for future use — no connectors currently require it.
+message DisputeEventContext {
+}
+
+// Context from the original mandate flow.
+// Reserved for future use — no connectors currently require it.
+message MandateEventContext {
+}
+
+// Context from the original mandate flow.
+// Reserved for future use — no connectors currently require it.
+message PayoutEventContext {
 }
 
 // Request for EventService.HandleEvent.
