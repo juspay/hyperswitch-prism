@@ -144,6 +144,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Cybersource<T>
 {
+    fn requires_pre_authentication(&self) -> bool {
+        true
+    }
+
+    // CyberSource requires a PostAuthenticate call after the 3DS challenge completes
+    // to retrieve the final ECI/CAVV values before Authorize.
+    fn requires_post_authentication(&self) -> bool {
+        true
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentOrderCreate for Cybersource<T>

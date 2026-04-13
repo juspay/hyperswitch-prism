@@ -105,6 +105,7 @@ pub struct Service {
         crate::server::payments::MerchantAuthentication,
         crate::server::payments::Customer,
         crate::server::refunds::Refunds,
+        crate::server::payments::PaymentMethodAuthentication,
     >,
     pub payments_service: crate::server::payments::Payments,
     pub refunds_service: crate::server::refunds::Refunds,
@@ -140,11 +141,15 @@ impl Service {
             merchant_authentication_service: merchant_authentication_service.clone(),
         };
 
+        let payment_method_authentication_service =
+            crate::server::payments::PaymentMethodAuthentication;
+
         let composite_payments_service = composite_service::payments::Payments::new(
             payments_service.clone(),
             merchant_authentication_service.clone(),
             customer_service.clone(),
             refunds_service.clone(),
+            payment_method_authentication_service.clone(),
         );
 
         Self {

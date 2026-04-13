@@ -134,6 +134,18 @@ pub trait ValidationTrait: ConnectorCommon {
         false
     }
 
+    /// Returns true if this connector requires a PreAuthenticate call before Authorize.
+    /// Connectors implementing 3DS flows (e.g. Redsys, CyberSource) should override this to return true.
+    fn requires_pre_authentication(&self) -> bool {
+        false
+    }
+
+    /// Returns true if this connector requires a PostAuthenticate call after Authenticate
+    /// (i.e. after 3DS challenge completion). CyberSource requires this; Redsys does not.
+    fn requires_post_authentication(&self) -> bool {
+        false
+    }
+
     /// Returns true if this connector is in the config set of connectors that require
     /// an external API call for webhook source verification (e.g. PayPal).
     fn requires_external_webhook_verification(

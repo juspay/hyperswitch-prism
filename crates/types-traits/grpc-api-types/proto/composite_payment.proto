@@ -103,11 +103,20 @@ message CompositeAuthorizeRequest {
   optional string connector_order_id = 49;
 }
 
+// Status of the composite authorize flow — indicates whether the flow is complete or needs a redirect.
+enum CompositeStatus {
+  COMPOSITE_STATUS_UNSPECIFIED = 0; // Default/unset value
+  COMPLETED = 1;         // Flow is done; inspect authorize_response for final payment status
+  REDIRECT_REQUIRED = 2; // Caller must redirect the customer (see authorize_response.redirection_data), then call CompositeAuthorize again with redirection_response
+}
+
 // Response message for composite authorize flow.
 message CompositeAuthorizeResponse {
   optional MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse access_token_response = 1; // Access token flow response
   optional CustomerServiceCreateResponse create_customer_response = 2; // Create customer flow response
   optional PaymentServiceAuthorizeResponse authorize_response = 3; // Authorize flow response
+  optional PaymentServiceCreateOrderResponse create_order_response = 4; // Create order flow response
+  CompositeStatus composite_status = 5; // Top-level status: COMPLETED means flow is done; REDIRECT_REQUIRED means caller must redirect customer and call again
 }
 
 // Request message for composite get flow.
