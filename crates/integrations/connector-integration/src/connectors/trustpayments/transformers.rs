@@ -385,7 +385,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         .get_card_no(),
                 );
 
-                let cryptogram = apple_pay_decrypted_data.payment_data.online_payment_cryptogram.clone();
+                let cryptogram = apple_pay_decrypted_data
+                    .payment_data
+                    .online_payment_cryptogram
+                    .clone();
                 let is_cryptogram_3ds = !cryptogram.peek().is_empty();
                 let eci = apple_pay_decrypted_data.payment_data.eci_indicator.clone();
 
