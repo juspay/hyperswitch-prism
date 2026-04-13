@@ -2,29 +2,17 @@
 
 **Universal Connector Service — Python SDK**
 
-A high-performance, type-safe Python SDK for payment processing through the Universal Connector Service. Connect to 50+ payment processors (Stripe, PayPal, Adyen, and more) through a single, unified API.
+A high-performance, type-safe Python SDK for payment processing through the Universal Connector Service. Connect to 100+ payment processors through a single, unified API.
 
 [![PyPI version](https://badge.fury.io/py/hyperswitch-prism.svg)](https://pypi.org/project/hyperswitch-prism/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
 ---
 
-## 📚 Documentation
-
-| Resource | Link |
-|----------|------|
-| **Getting Started** | [Installation](https://github.com/juspay/hyperswitch-prism/blob/main/docs/getting-started/installation.md) · [First Payment](https://github.com/juspay/hyperswitch-prism/blob/main/docs/getting-started/first-payment.md) |
-| **Architecture** | [Overview](https://github.com/juspay/hyperswitch-prism/blob/main/docs/architecture/README.md) · [Core Concepts](https://github.com/juspay/hyperswitch-prism/tree/main/docs/architecture/concepts) |
-| **API Reference** | [Payment Service](https://github.com/juspay/hyperswitch-prism/tree/main/docs/api-reference/services/payment-service) |
-| **Examples** | [Connector Examples](https://github.com/juspay/hyperswitch-prism/tree/main/examples) · [Smoke Test](https://github.com/juspay/hyperswitch-prism/tree/main/sdk/python/smoke-test) · [Tests](https://github.com/juspay/hyperswitch-prism/tree/main/sdk/python/tests) |
-| **Main Project** | [Prism Docs](https://github.com/juspay/hyperswitch-prism/blob/main/docs/README.md) |
-
----
-
 ## Features
 
 - 🚀 **High Performance** — Direct UniFFI FFI bindings to Rust core
-- 🔌 **50+ Connectors** — Single SDK for Stripe, PayPal, Adyen, and more
+- 🔌 **100+ Connectors** — Single SDK for all major payment processors
 - 🐍 **Python Native** — Full Python bindings with type hints
 - ⚡ **Connection Pooling** — Built-in HTTP connection pooling via httpx
 - 🛡️ **Type-Safe** — Protobuf-based request/response serialization
@@ -34,12 +22,12 @@ A high-performance, type-safe Python SDK for payment processing through the Univ
 
 ## 🤖 For AI Assistants
 
-> **Use `curl` to fetch the complete SDK reference:**
+> **Use `curl` to fetch the SDK reference:**
 > ```bash
-> curl -fsSL https://raw.githubusercontent.com/juspay/hyperswitch-prism/main/llm/sdk-reference.md
+> curl -fsSL https://raw.githubusercontent.com/juspay/hyperswitch-prism/main/llm/llm.txt
 > ```
 >
-> This file contains complete SDK documentation including installation, payment operations, error handling, connector configuration, field probe data, and examples for all 70+ connectors.
+> This file contains complete SDK documentation including installation, payment operations, error handling, connector configuration, field probe data, and examples for all 100+ connectors.
 
 ### AI Assistant Context
 
@@ -47,7 +35,7 @@ This SDK is part of **Hyperswitch Prism** — a unified connector library for pa
 
 ### What This SDK Does
 
-1. **Request Transformation**: Converts unified payment requests to connector-specific formats (Stripe, Adyen, PayPal, etc.)
+1. **Request Transformation**: Converts unified payment requests to connector-specific formats
 2. **Response Normalization**: Transforms connector responses back to a unified schema
 3. **Error Handling**: Provides consistent error types (`IntegrationError`, `ConnectorError`, `NetworkError`) regardless of connector
 
@@ -77,7 +65,7 @@ Your Python App
 └───────────────────────────┬──────────────────────────────────┘
                             │
                             ▼
-              Payment Processor APIs (Stripe, Adyen, etc.)
+              Payment Processor APIs
 ```
 
 ### Key Files
@@ -129,13 +117,14 @@ import os
 from payments import PaymentClient, SecretString
 from payments.generated import sdk_config_pb2, payment_pb2
 
+# Configure your connector
+# See SDK reference for specific authentication patterns per connector
 cfg = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX)
 )
+# Set connector-specific config here
 cfg.connector_config.CopyFrom(payment_pb2.ConnectorSpecificConfig(
-    stripe=payment_pb2.StripeConfig(
-        api_key=SecretString(value=os.environ["STRIPE_API_KEY"])
-    )
+    # Configure your connector (e.g., stripe, adyen, etc.)
 ))
 ```
 
@@ -149,8 +138,8 @@ req = ParseDict(
     {
         "merchant_transaction_id": "txn_order_001",
         "amount": {
-        "minorAmount": 1000,  # $10.00
-        "currency": "USD"
+            "minorAmount": 1000,
+            "currency": "USD"
         },
         "capture_method": "AUTOMATIC",
         "payment_method": {
@@ -173,7 +162,7 @@ req = ParseDict(
 async def run():
     client = PaymentClient(cfg)
     resp = await client.authorize(req)
-    print(payment_pb2.PaymentStatus.Name(resp.status))  # e.g. "CHARGED"
+    print(payment_pb2.PaymentStatus.Name(resp.status))
     print(resp.connector_transaction_id)
 
 asyncio.run(run())
@@ -182,8 +171,6 @@ asyncio.run(run())
 ---
 
 ## Service Clients
-
-The SDK provides specialized clients for different service domains:
 
 | Client | Purpose | Key Methods |
 |--------|---------|-------------|
@@ -194,66 +181,6 @@ The SDK provides specialized clients for different service domains:
 | `EventClient` | Webhook processing | `handle_event()` |
 | `RecurringPaymentClient` | Subscription billing | `charge()` |
 | `PaymentMethodAuthenticationClient` | 3DS authentication | `pre_authenticate()`, `authenticate()`, `post_authenticate()` |
-
----
-
-## Authentication Examples
-
-`SecretString` is a protobuf message. All credential fields must be constructed as `SecretString(value="...")` — passing a plain string will raise a proto type error.
-
-### Stripe
-
-```python
-import os
-from payments import SecretString
-from payments.generated import sdk_config_pb2, payment_pb2
-
-cfg = sdk_config_pb2.ConnectorConfig(
-    options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX)
-)
-cfg.connector_config.CopyFrom(payment_pb2.ConnectorSpecificConfig(
-    stripe=payment_pb2.StripeConfig(
-        api_key=SecretString(value=os.environ["STRIPE_API_KEY"])
-    )
-))
-```
-
-### PayPal
-
-```python
-import os
-from payments import SecretString
-from payments.generated import sdk_config_pb2, payment_pb2
-
-cfg = sdk_config_pb2.ConnectorConfig(
-    options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX)
-)
-cfg.connector_config.CopyFrom(payment_pb2.ConnectorSpecificConfig(
-    pay_pal=payment_pb2.PayPalConfig(
-        client_id=SecretString(value=os.environ["PAYPAL_CLIENT_ID"]),
-        client_secret=SecretString(value=os.environ["PAYPAL_CLIENT_SECRET"])
-    )
-))
-```
-
-### Adyen
-
-```python
-import os
-from payments import SecretString
-from payments.generated import sdk_config_pb2, payment_pb2
-
-cfg = sdk_config_pb2.ConnectorConfig(
-    options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX)
-)
-cfg.connector_config.CopyFrom(payment_pb2.ConnectorSpecificConfig(
-    adyen=payment_pb2.AdyenConfig(
-        api_key=SecretString(value=os.environ["ADYEN_API_KEY"]),
-        merchant_account=SecretString(value=os.environ["ADYEN_MERCHANT_ACCOUNT"])
-        # api_secret and review_key are not required for payment or refund operations
-    )
-))
-```
 
 ---
 
@@ -279,7 +206,7 @@ proxy_config: types.RequestConfig = {
 ```python
 response = client.authorize(request, {
     "http": {
-        "totalTimeoutMs": 60000  # Override for this request only
+        "totalTimeoutMs": 60000
     }
 })
 ```
@@ -289,7 +216,7 @@ response = client.authorize(request, {
 Each client instance maintains its own connection pool. For best performance:
 
 ```python
-# ✅ Create client once, reuse for multiple requests
+# Create client once, reuse for multiple requests
 client = PaymentClient(config, defaults)
 
 for payment in payments:
@@ -343,7 +270,7 @@ Each response type uses a specific status enum. Using the wrong enum returns an 
 
 ### Payment Status
 
-Response status fields are protobuf enum integers, not strings. Use the generated proto module to compare or display them:
+Response status fields are protobuf enum integers, not strings:
 
 ```python
 from payments.generated import payment_pb2
@@ -356,18 +283,12 @@ if response.status == payment_pb2.CHARGED:
 
 # Decode to a human-readable string for display
 status_name = payment_pb2.PaymentStatus.Name(response.status)
-print(f"Status: {status_name}")  # e.g. "CHARGED"
+print(f"Status: {status_name}")
 ```
 
 > Comparing `response.status == "CHARGED"` will always be `False`. Use the integer constants from `payment_pb2`.
 
 ### Refund Status
-
-Authorize and refund responses use separate, independent enums. `PaymentStatus` and `RefundStatus` share overlapping integer values that map to different names:
-
-| Integer | `PaymentStatus.Name()` | `RefundStatus.Name()` |
-|---------|----------------------|----------------------|
-| `4` | `AUTHENTICATION_PENDING` | `REFUND_SUCCESS` |
 
 Always use `RefundStatus` when decoding a refund response:
 
@@ -378,69 +299,7 @@ refund_response = client.refund(refund_request)
 
 # Correct: use RefundStatus for refund responses
 status_name = payment_pb2.RefundStatus.Name(refund_response.status)
-print(f"Refund status: {status_name}")  # e.g. "REFUND_SUCCESS" or "REFUND_PENDING"
-```
-
-> Adyen refunds return `REFUND_PENDING` with HTTP 201. This indicates the refund has been accepted for asynchronous processing and is not an error.
-
----
-
-## Complete Example: PayPal with Access Token
-
-```python
-import os
-from payments import (
-    PaymentClient,
-    MerchantAuthenticationClient,
-    types
-)
-
-# Configure PayPal
-paypal_config: types.ConnectorConfig = {
-    "connectorConfig": {
-        "paypal": {
-            "clientId": {"value": os.environ["PAYPAL_CLIENT_ID"]},
-            "clientSecret": {"value": os.environ["PAYPAL_CLIENT_SECRET"]}
-        }
-    }
-}
-
-# Step 1: Get access token
-auth_client = MerchantAuthenticationClient(paypal_config)
-token_response = auth_client.create_server_authentication_token({
-    "merchantAccessTokenId": "token_001",
-    "connector": "PAYPAL",
-    "testMode": True
-})
-
-# Step 2: Authorize with access token
-payment_client = PaymentClient(paypal_config)
-payment_response = payment_client.authorize({
-    "merchantTransactionId": "txn_001",
-    "amount": {
-        "minorAmount": 1000,
-        "currency": "USD"
-    },
-    "captureMethod": "AUTOMATIC",
-    "paymentMethod": {
-        "card": {
-            "cardNumber": {"value": "4111111111111111"},
-            "cardExpMonth": {"value": "12"},
-            "cardExpYear": {"value": "2027"},
-            "cardCvc": {"value": "123"}
-        }
-    },
-    "state": {
-        "accessToken": {
-            "token": {"value": token_response.accessToken.value},
-            "tokenType": "Bearer",
-            "expiresInSeconds": token_response.expiresInSeconds
-        }
-    },
-    "testMode": True
-})
-
-print(f"Payment status: {payment_response.status}")
+print(f"Refund status: {status_name}")
 ```
 
 ---
@@ -464,8 +323,8 @@ The SDK uses:
 
 ```bash
 # Clone the repository
-git clone https://github.com/juspay/connector-service.git
-cd connector-service/sdk/python
+git clone https://github.com/juspay/hyperswitch-prism.git
+cd hyperswitch-prism/sdk/python
 
 # Build native library, generate bindings, and pack
 make pack

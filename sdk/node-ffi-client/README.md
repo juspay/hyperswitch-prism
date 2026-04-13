@@ -8,7 +8,7 @@ Node.js bindings for the connector-service FFI, providing high-level and low-lev
 
 > **Use `curl` to fetch the complete SDK reference:**
 > ```bash
-> curl -fsSL https://raw.githubusercontent.com/juspay/hyperswitch-prism/main/llm/sdk-reference.md
+> curl -fsSL https://raw.githubusercontent.com/juspay/hyperswitch-prism/main/llm/llm.txt
 > ```
 >
 > This file contains complete SDK documentation including installation, payment operations, error handling, connector configuration, field probe data, and examples for all 70+ connectors.
@@ -44,10 +44,9 @@ const { ConnectorClient } = require('connector-service-node-ffi');
 
 // Create client with metadata
 const metadata = {
-    connector: 'Stripe',
+    connector: 'YourConnector',
     connector_auth_type: {
-        auth_type: "HeaderKey",
-        api_key: "sk_test_xxx"
+        // Configure authentication per your connector's requirements
     }
 };
 
@@ -97,10 +96,9 @@ const { authorizeReq, authorizeRes } = require('connector-service-node-ffi');
 const fetch = require('node-fetch');
 
 const metadata = {
-    connector: 'Stripe',
+    connector: 'YourConnector',
     connector_auth_type: {
-        auth_type: "HeaderKey",
-        api_key: "sk_test_xxx"
+        // Configure authentication
     }
 };
 
@@ -148,10 +146,8 @@ new ConnectorClient(metadata)
 
 **Parameters:**
 - `metadata` (object): Metadata containing connector and authentication info
-  - `connector` (string): Connector name (e.g., 'Stripe', 'Adyen')
+  - `connector` (string): Connector name
   - `connector_auth_type` (object): Authentication configuration
-    - `auth_type` (string): Authentication type (e.g., 'HeaderKey')
-    - `api_key` (string): API key for HeaderKey auth
 
 #### Methods
 

@@ -2,8 +2,9 @@
   "connector": "multisafepay",
   "supported_suites": [
     "authorize",
-    "refund",
+    "client_authentication_token",
     "get",
+    "refund",
     "refund_sync"
   ]
 }

@@ -161,7 +161,7 @@ pub struct RazorpayPaymentRequest<
     pub email: Email,
     pub order_id: String,
     pub method: PaymentMethodType,
-    pub card: Option<PaymentMethodSpecificData<T>>,
+    pub card: Option<RazorpayCardSpecificData<T>>,
     pub wallet: Option<RazorpayWalletType>,
     pub authentication: Option<AuthenticationDetails>,
     pub browser: Option<BrowserInfo>,
@@ -172,7 +172,7 @@ pub struct RazorpayPaymentRequest<
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged, rename_all = "snake_case")]
-pub enum PaymentMethodSpecificData<
+pub enum RazorpayCardSpecificData<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 > {
     Card(CardDetails<T>),
@@ -482,7 +482,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     });
                     (
                         PaymentMethodType::Card,
-                        Some(PaymentMethodSpecificData::Card(card_details)),
+                        Some(RazorpayCardSpecificData::Card(card_details)),
                         None,
                         auth,
                         browser,
@@ -510,7 +510,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | PaymentMethodData::Upi(_)
                 | PaymentMethodData::Voucher(_)
                 | PaymentMethodData::GiftCard(_)
-                | PaymentMethodData::CardToken(_)
+                | PaymentMethodData::PaymentMethodToken(_)
                 | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
                 | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
                 | PaymentMethodData::NetworkToken(_)
@@ -1119,7 +1119,7 @@ impl ForeignTryFrom<(RazorpayOrderResponse, Self, u16, bool)>
         (response, data, _status_code, _): (RazorpayOrderResponse, Self, u16, bool),
     ) -> Result<Self, Self::Error> {
         let order_response = PaymentCreateOrderResponse {
-            order_id: response.id.clone(),
+            connector_order_id: response.id.clone(),
             session_data: None,
         };
 

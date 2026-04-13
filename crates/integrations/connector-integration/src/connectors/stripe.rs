@@ -615,19 +615,11 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>,
         ) -> CustomResult<String, IntegrationError> {
-            if matches!(
-                req.request.split_payments,
-                Some(domain_types::connector_types::SplitPaymentsRequest::StripeSplitPayment(_))
-            ) {
-                Ok(format!(
-                    "{}{}",
-                    self.connector_base_url_payments(req),
-                    "v1/payment_methods"
-                ))
-            }
-            else {
-                Ok(format!("{}{}", self.connector_base_url_payments(req), "v1/tokens"))
-            }
+            Ok(format!(
+                "{}{}",
+                self.connector_base_url_payments(req),
+                "v1/payment_methods"
+            ))
         }
     }
 );
