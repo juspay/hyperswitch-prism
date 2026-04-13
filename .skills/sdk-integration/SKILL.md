@@ -1,3 +1,18 @@
+---
+name: sdk-integration
+description: >
+  Helps developers integrate with the Hyperswitch Prism SDK across different programming
+  languages and payment scenarios. Provides skills for setting up payment clients,
+  processing payments, handling errors, routing between connectors, configuring connectors,
+  and processing refunds. Supports Python, Node.js, Java/Kotlin, and Rust SDKs.
+license: Apache-2.0
+compatibility: Works with any AI coding tool that can read files and generate code.
+metadata:
+  author: juspay
+  version: "1.0"
+  domain: sdk-integration
+---
+
 # Hyperswitch Prism SDK Integration Skills
 
 These skills help developers integrate with the Hyperswitch Prism SDK across different programming languages and payment scenarios.
@@ -6,12 +21,12 @@ These skills help developers integrate with the Hyperswitch Prism SDK across dif
 
 ## Table of Contents
 
-1. [Setup Payment Client](#1-setup-payment-client)
-2. [Process Payment](#2-process-payment)
-3. [Handle Payment Errors](#3-handle-payment-errors)
-4. [Route Between Connectors](#4-route-between-connectors)
-5. [Configure Connector](#5-configure-connector)
-6. [Process Refund](#6-process-refund)
+1. [Setup Payment Client](https://github.com/juspay/hyperswitch-prism/blob/main/.skills/sdk-integration/setup-payment-client.md)
+2. [Process Payment](https://github.com/juspay/hyperswitch-prism/blob/main/.skills/sdk-integration/process-payment.md)
+3. [Handle Payment Errors](https://github.com/juspay/hyperswitch-prism/blob/main/.skills/sdk-integration/handle-errors.md)
+4. [Route Between Connectors](https://github.com/juspay/hyperswitch-prism/blob/main/.skills/sdk-integration/route-between-connectors.md)
+5. [Configure Connector](https://github.com/juspay/hyperswitch-prism/blob/main/.skills/sdk-integration/configure-connector.md)
+6. [Process Refund](https://github.com/juspay/hyperswitch-prism/blob/main/.skills/sdk-integration/process-refund.md)
 7. [How to Use These Skills](#how-to-use-these-skills)
 8. [Converting to Context7 Skills Format](#converting-to-context7-skills-format)
 
@@ -29,7 +44,7 @@ Initialize and configure the Hyperswitch Prism PaymentClient for your chosen con
 - Setting up connector credentials
 
 ### Parameters
-- **language**: Programming language (python, node, java, php, rust)
+- **language**: Programming language (python, node, java, rust)
 - **connector**: Payment provider (stripe, adyen, braintree, paypal, etc.)
 - **environment**: sandbox or production
 
@@ -311,7 +326,7 @@ prompt: |
 parameters:
   - name: language
     type: string
-    enum: [python, node, java, php, rust]
+    enum: [python, node, java, rust]
   - name: connector
     type: string
   - name: environment
