@@ -51,7 +51,7 @@ use self::transformers::{
     Shift4PaymentsResponse as Shift4CaptureResponse, Shift4PaymentsResponse as Shift4PSyncResponse,
     Shift4RSyncRequest, Shift4RefundRequest, Shift4RefundResponse,
     Shift4RefundResponse as Shift4RSyncResponse, Shift4RepeatPaymentRequest,
-    Shift4RepeatPaymentResponse,
+    Shift4RepeatPaymentResponse, Shift4VoidRequest, Shift4VoidResponse,
 };
 use crate::{connectors::macros, types::ResponseRouterData, with_error_response_body};
 use domain_types::errors::ConnectorError;
@@ -245,6 +245,12 @@ macros::create_all_prerequisites!(
             request_body: Shift4CreateCustomerRequest,
             response_body: Shift4CreateCustomerResponse,
             router_data: RouterDataV2<CreateConnectorCustomer, PaymentFlowData, ConnectorCustomerData, ConnectorCustomerResponse>,
+        ),
+        (
+            flow: Void,
+            request_body: Shift4VoidRequest,
+            response_body: Shift4VoidResponse,
+            router_data: RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
         ),
         (
             flow: ClientAuthenticationToken,
@@ -547,12 +553,36 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 // ===== EMPTY IMPLEMENTATIONS FOR UNSUPPORTED FLOWS =====
 
-// Void (Not supported by Shift4)
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
-    for Shift4<T>
-{
-}
+// Void Flow (POST /refunds with chargeId — Shift4 has no native void endpoint)
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Shift4,
+    curl_request: Json(Shift4VoidRequest),
+    curl_response: Shift4VoidResponse,
+    flow_name: Void,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentVoidData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            let base_url = self.connector_base_url_payments(req);
+            Ok(format!("{base_url}/refunds"))
+        }
+    }
+);
 
 // Order Create
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

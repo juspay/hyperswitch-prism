@@ -4,14 +4,14 @@ use common_utils::{pii, request::Method, types::MinorUnit};
 use domain_types::{
     connector_flow::{
         Authorize, Capture, ClientAuthenticationToken, CreateConnectorCustomer, PSync, RSync,
-        Refund, RepeatPayment,
+        Refund, RepeatPayment, Void,
     },
     connector_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
         ConnectorCustomerResponse, ConnectorSpecificClientAuthenticationResponse,
-        MandateReferenceId, PaymentFlowData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, RepeatPaymentData, ResponseId,
+        MandateReferenceId, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
+        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
         Shift4ClientAuthenticationResponse as Shift4ClientAuthenticationResponseDomain,
     },
     payment_method_data::{
@@ -1161,5 +1161,91 @@ impl TryFrom<ResponseRouterData<Shift4ClientAuthResponse, Self>>
             }),
             ..item.router_data
         })
+    }
+}
+
+// ===== VOID FLOW STRUCTURES =====
+
+/// Shift4 does not have a native void/cancel endpoint.
+/// Void is implemented via POST /refunds with the chargeId.
+/// Refunding an uncaptured charge releases the authorization hold.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Shift4VoidRequest {
+    pub charge_id: String,
+}
+
+impl TryFrom<&RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>>
+    for Shift4VoidRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            charge_id: item.request.connector_transaction_id.clone(),
+        })
+    }
+}
+
+/// Shift4 Void response is a refund object returned by POST /refunds.
+pub type Shift4VoidResponse = Shift4RefundResponse;
+
+// Void Response Transformer
+impl TryFrom<ResponseRouterData<Shift4VoidResponse, Self>>
+    for RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<Shift4VoidResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        // Map refund status to void status
+        let status = match item.response.status {
+            Shift4RefundStatus::Successful => AttemptStatus::Voided,
+            Shift4RefundStatus::Failed => AttemptStatus::VoidFailed,
+            Shift4RefundStatus::Processing => AttemptStatus::Pending,
+        };
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(item.response.charge.clone()),
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: Some(item.response.id),
+                incremental_authorization_allowed: None,
+                status_code: item.http_code,
+            }),
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
+    }
+}
+
+// Void Request - converts from Shift4RouterData wrapper
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        Shift4RouterData<
+            RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+            T,
+        >,
+    > for Shift4VoidRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: Shift4RouterData<
+            RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        // Delegate to the existing TryFrom<&RouterDataV2> implementation
+        Self::try_from(&item.router_data)
     }
 }
