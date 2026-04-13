@@ -3827,10 +3827,16 @@ pub struct PaypalAccessTokenErrorResponse {
 // ---- ClientAuthenticationToken flow types ----
 
 /// PayPal client token request for SDK initialization.
-/// PayPal's v1/identity/generate-token endpoint accepts an empty JSON body
-/// (or optionally a customer_id) and returns a client_token for the JS SDK.
+/// PayPal's v1/identity/generate-token endpoint accepts an optional customer_id
+/// and returns a client_token for the JS SDK. Passing customer_id scopes the
+/// token to the customer and enables vault-related features.
 #[derive(Debug, Serialize)]
-pub struct PaypalClientAuthTokenRequest {}
+pub struct PaypalClientAuthTokenRequest {
+    /// Optional customer ID to scope the client token to a specific customer.
+    /// When provided, enables vault-related features in the PayPal JS SDK.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub customer_id: Option<String>,
+}
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
@@ -3847,7 +3853,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 {
     type Error = Report<IntegrationError>;
     fn try_from(
-        _item: PaypalRouterData<
+        item: PaypalRouterData<
             RouterDataV2<
                 ClientAuthenticationToken,
                 PaymentFlowData,
@@ -3857,7 +3863,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {})
+        let customer_id = item
+            .router_data
+            .resource_common_data
+            .customer_id
+            .as_ref()
+            .map(|id| id.get_string_repr().to_string());
+
+        Ok(Self { customer_id })
     }
 }
 
