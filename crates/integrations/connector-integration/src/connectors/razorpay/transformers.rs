@@ -303,7 +303,7 @@ fn extract_payment_method_and_data<
         | PaymentMethodData::Upi(_)
         | PaymentMethodData::Voucher(_)
         | PaymentMethodData::GiftCard(_)
-        | PaymentMethodData::CardToken(_)
+        | PaymentMethodData::PaymentMethodToken(_)
         | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
         | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
         | PaymentMethodData::NetworkToken(_)
@@ -1037,7 +1037,7 @@ impl ForeignTryFrom<(RazorpayOrderResponse, Self, u16, bool)>
         (response, data, _status_code, _): (RazorpayOrderResponse, Self, u16, bool),
     ) -> Result<Self, Self::Error> {
         let order_response = PaymentCreateOrderResponse {
-            order_id: response.id.clone(),
+            connector_order_id: response.id.clone(),
             session_data: None,
         };
 

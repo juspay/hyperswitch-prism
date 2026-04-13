@@ -219,7 +219,7 @@ fn fetch_payment_instrument<
         | PaymentMethodData::CardRedirect(_)
         | PaymentMethodData::GiftCard(_)
         | PaymentMethodData::OpenBanking(_)
-        | PaymentMethodData::CardToken(_)
+        | PaymentMethodData::PaymentMethodToken(_)
         | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
         | PaymentMethodData::NetworkToken(_) => Err(IntegrationError::not_implemented(
             utils::get_unimplemented_payment_method_error_message("worldpay"),
