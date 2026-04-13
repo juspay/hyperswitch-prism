@@ -107,7 +107,7 @@ fn rand_hex() -> u32 {
 async fn run_connector_scenarios(
     connector_name: &str,
     client: &ConnectorClient,
-) -> Vec<(String, Result<String, Box<dyn Error>>)> {
+) -> Vec<(String, Result<String, Box<dyn Error>>, f64)> {
     let txn_id = format!("smoke_{:06x}", rand_hex());
     // connector_scenarios.rs expands to a match expression over connector_name
     include!(concat!(env!("OUT_DIR"), "/connector_scenarios.rs"))
@@ -119,6 +119,7 @@ struct ScenarioResult {
     message: Option<String>, // e.g. mock request "POST https://..." or response summary
     reason: Option<String>,  // for skipped
     error: Option<String>,
+    duration_ms: f64,
 }
 
 #[derive(Debug)]
@@ -159,14 +160,14 @@ async fn test_connector_scenarios(
     let mut scenarios = vec![];
     let mut any_failed = false;
 
-    for (scenario_key, result) in scenario_results {
+    for (scenario_key, result, duration_ms) in scenario_results {
         print!("    [{scenario_key}] running ... ");
         use std::io::Write;
         std::io::stdout().flush().ok();
 
         match result {
             Ok(msg) => {
-                println!("{} {}", green("PASSED"), grey(&format!("— {msg}")));
+                println!("{} {}", green("PASSED"), grey(&format!("({duration_ms:.1}ms) — {msg}")));
                 scenarios.push((
                     scenario_key,
                     ScenarioResult {
@@ -174,6 +175,7 @@ async fn test_connector_scenarios(
                         message: Some(msg),
                         reason: None,
                         error: None,
+                        duration_ms,
                     },
                 ));
             }
@@ -193,11 +195,12 @@ async fn test_connector_scenarios(
                             message: None,
                             reason: None,
                             error: Some(detail),
+                            duration_ms,
                         },
                     ));
                 } else if detail.contains("Rust panic:") || detail.starts_with("thread '") {
                     // Rust panic (real SDK crash)
-                    println!("{} — {}", red("FAILED"), &detail);
+                    println!("{} ({duration_ms:.1}ms) — {}", red("FAILED"), &detail);
                     scenarios.push((
                         scenario_key,
                         ScenarioResult {
@@ -205,13 +208,13 @@ async fn test_connector_scenarios(
                             message: None,
                             reason: None,
                             error: Some(detail),
+                            duration_ms,
                         },
                     ));
                     any_failed = true;
                 } else if mock {
                     // In mock mode, connector-level errors mean req_transformer successfully built the HTTP request.
-                    // The error is just from parsing the mock empty response, which is expected.
-                    println!("{} — req_transformer OK (mock response)", green("PASSED"));
+                    println!("{} ({duration_ms:.1}ms) — req_transformer OK (mock response)", green("PASSED"));
                     scenarios.push((
                         scenario_key,
                         ScenarioResult {
@@ -219,11 +222,12 @@ async fn test_connector_scenarios(
                             message: None,
                             reason: Some("mock_verified".to_string()),
                             error: Some(detail),
+                            duration_ms,
                         },
                     ));
                 } else {
                     // Connector-level error (expected)
-                    println!("{}", yellow("SKIPPED (connector error)"));
+                    println!("{} ({duration_ms:.1}ms)", yellow("SKIPPED (connector error)"));
                     scenarios.push((
                         scenario_key,
                         ScenarioResult {
@@ -231,6 +235,7 @@ async fn test_connector_scenarios(
                             message: None,
                             reason: Some("connector_error".to_string()),
                             error: Some(detail),
+                            duration_ms,
                         },
                     ));
                 }
@@ -441,6 +446,125 @@ async fn run_tests(
     results
 }
 
+fn print_performance_summary(results: &[ConnectorResult]) {
+    let mut timings: Vec<(&str, &str, f64, &str)> = Vec::new();
+    for r in results {
+        for (key, scenario) in &r.scenarios {
+            if scenario.duration_ms > 0.0 {
+                timings.push((&r.connector, key, scenario.duration_ms, scenario.status));
+            }
+        }
+    }
+    if timings.is_empty() {
+        return;
+    }
+
+    println!("\n{}", "═".repeat(60));
+    println!("{}", bold("PERFORMANCE SUMMARY"));
+    println!("{}\n", "═".repeat(60));
+
+    println!(
+        "  {:<20} {:<30} {:>10}  {}",
+        "Connector", "Flow", "Duration", "Status"
+    );
+    println!(
+        "  {:<20} {:<30} {:>10}  {}",
+        "─".repeat(20),
+        "─".repeat(30),
+        "─".repeat(10),
+        "─".repeat(10)
+    );
+
+    for (connector, flow, dur, status) in &timings {
+        let color_fn: fn(&str) -> String = match *status {
+            "passed" => green,
+            "skipped" => yellow,
+            _ => grey,
+        };
+        println!(
+            "  {:<20} {:<30} {:>8.1}ms  {}",
+            connector,
+            flow,
+            dur,
+            color_fn(status)
+        );
+    }
+
+    let executed: Vec<f64> = timings
+        .iter()
+        .filter(|(_, _, _, s)| *s == "passed" || *s == "skipped" || *s == "failed")
+        .map(|(_, _, d, _)| *d)
+        .collect();
+    if !executed.is_empty() {
+        let total: f64 = executed.iter().sum();
+        let min_d = executed.iter().cloned().fold(f64::INFINITY, f64::min);
+        let max_d = executed.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+        let min_flow = timings
+            .iter()
+            .find(|(_, _, d, _)| (*d - min_d).abs() < 0.01)
+            .map(|(_, f, _, _)| *f)
+            .unwrap_or("?");
+        let max_flow = timings
+            .iter()
+            .find(|(_, _, d, _)| (*d - max_d).abs() < 0.01)
+            .map(|(_, f, _, _)| *f)
+            .unwrap_or("?");
+        println!("\n  Executed: {} flows", executed.len());
+        println!("  Total:   {:.1}ms", total);
+        println!("  Average: {:.1}ms", total / executed.len() as f64);
+        println!("  Min:     {:.1}ms  ({})", min_d, min_flow);
+        println!("  Max:     {:.1}ms  ({})", max_d, max_flow);
+    }
+
+    // FFI overhead breakdown
+    let perf = hyperswitch_payments_client::get_perf_log();
+    if !perf.is_empty() {
+        println!("\n{}", "═".repeat(60));
+        println!("{}", bold("FFI OVERHEAD BREAKDOWN"));
+        println!("{}\n", "═".repeat(60));
+        println!(
+            "  {:<30} {:>10} {:>10} {:>10} {:>10} {:>10}",
+            "Flow", "req_ffi", "HTTP", "res_ffi", "Overhead", "Total"
+        );
+        println!(
+            "  {:<30} {:>10} {:>10} {:>10} {:>10} {:>10}",
+            "─".repeat(30), "─".repeat(10), "─".repeat(10),
+            "─".repeat(10), "─".repeat(10), "─".repeat(10)
+        );
+        let (mut total_req, mut total_http, mut total_res) = (0.0_f64, 0.0_f64, 0.0_f64);
+        for e in &perf {
+            let overhead = e.req_ffi_ms + e.res_ffi_ms;
+            total_req += e.req_ffi_ms;
+            total_http += e.http_ms;
+            total_res += e.res_ffi_ms;
+            println!(
+                "  {:<30} {:>8.2}ms {:>8.2}ms {:>8.2}ms {:>8.2}ms {:>8.2}ms",
+                e.flow, e.req_ffi_ms, e.http_ms, e.res_ffi_ms, overhead, e.total_ms
+            );
+        }
+        let n = perf.len() as f64;
+        let total_overhead = total_req + total_res;
+        let total_all = total_req + total_http + total_res;
+        let pct = if total_all > 0.0 { total_overhead / total_all * 100.0 } else { 0.0 };
+        println!("\n  Average req_ffi:  {:.2}ms", total_req / n);
+        println!("  Average res_ffi:  {:.2}ms", total_res / n);
+        println!("  Average overhead: {:.2}ms ({:.1}% of total)", total_overhead / n, pct);
+        // Write perf data for cross-SDK comparison
+        if let Ok(()) = std::fs::create_dir_all("/tmp/sdk-perf") {
+            let entries: Vec<String> = perf.iter().map(|e| {
+                format!(
+                    "  {{\"flow\":\"{}\",\"req_ffi_ms\":{:.4},\"http_ms\":{:.4},\"res_ffi_ms\":{:.4},\"total_ms\":{:.4}}}",
+                    e.flow, e.req_ffi_ms, e.http_ms, e.res_ffi_ms, e.total_ms
+                )
+            }).collect();
+            let json = format!("{{\"sdk\":\"Rust\",\"flows\":[\n{}\n]}}", entries.join(",\n"));
+            let _ = std::fs::write("/tmp/sdk-perf/rust.json", json);
+        }
+        hyperswitch_payments_client::clear_perf_log();
+    }
+    println!();
+}
+
 fn print_summary(results: &[ConnectorResult]) -> i32 {
     println!("\n{}", "=".repeat(60));
     println!("{}", bold("TEST SUMMARY"));
@@ -611,5 +735,6 @@ async fn main() {
     }
 
     let exit_code = print_summary(&results);
+    print_performance_summary(&results);
     std::process::exit(exit_code);
 }

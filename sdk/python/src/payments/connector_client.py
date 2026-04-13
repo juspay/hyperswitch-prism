@@ -25,8 +25,9 @@ Error Handling:
           print(e.error_code, e.error_message)
 """
 
-from typing import Optional, Any, Dict
+from typing import Optional, Any, Dict, List
 import asyncio
+import time as _time
 import httpx
 
 from .generated import connector_service_ffi as _ffi
@@ -43,6 +44,21 @@ from .generated.sdk_config_pb2 import (
     ConnectorError as ConnectorErrorProto,
     FfiResult,
 )
+
+
+# ── Per-flow FFI performance log ───────────────────────────────────────────────
+# Each _execute_flow call appends a dict with timing breakdown.
+_perf_log: List[Dict[str, Any]] = []
+
+
+def get_perf_log() -> List[Dict[str, Any]]:
+    """Return the accumulated FFI performance log entries."""
+    return list(_perf_log)
+
+
+def clear_perf_log() -> None:
+    """Clear the FFI performance log."""
+    _perf_log.clear()
 
 
 class IntegrationError(Exception):
@@ -235,6 +251,7 @@ class _ConnectorClientBase:
         # 1. Resolve final configuration (Identity is fixed, others merged)
         ffi_options, http_config = self._resolve_config(options)
 
+        _t0 = _time.monotonic()
         request_bytes = request.SerializeToString()
         options_bytes = ffi_options.SerializeToString()
 
@@ -242,6 +259,7 @@ class _ConnectorClientBase:
         #    Parse result bytes as FfiConnectorHttpRequest; if that fails, parse as IntegrationError.
         result_bytes = req_transformer(request_bytes, options_bytes)
         connector_req = check_req(result_bytes)
+        _t_req_ffi = _time.monotonic()
 
         connector_request = HttpRequest(
             url=connector_req.url,
@@ -260,6 +278,7 @@ class _ConnectorClientBase:
             http_config.response_timeout_ms,
         )
         response = await execute(connector_request, client, resolved_ms)
+        _t_http = _time.monotonic()
 
         # 4. Encode HTTP response for FFI
         res_proto = FfiConnectorHttpResponse(
@@ -277,6 +296,16 @@ class _ConnectorClientBase:
         # Deserialize the domain response from the body
         domain_response = response_cls()
         domain_response.ParseFromString(http_response.body)
+        _t_res_ffi = _time.monotonic()
+
+        _perf_log.append({
+            "flow": flow,
+            "req_ffi_ms": (_t_req_ffi - _t0) * 1000,
+            "http_ms": (_t_http - _t_req_ffi) * 1000,
+            "res_ffi_ms": (_t_res_ffi - _t_http) * 1000,
+            "total_ms": (_t_res_ffi - _t0) * 1000,
+        })
+
         return domain_response
 
 

@@ -10,7 +10,7 @@
  *   node test_smoke.js --creds-file creds.json --all --dry-run
  */
 
-import { types, NetworkError, IntegrationError, ConnectorError } from "hyperswitch-prism";
+import { types, NetworkError, IntegrationError, ConnectorError, getPerfLog, clearPerfLog } from "hyperswitch-prism";
 import * as fs from "fs";
 import * as path from "path";
 import { createRequire } from "module";
@@ -52,11 +52,12 @@ interface Credentials {
 }
 
 interface ScenarioResult {
-  status: "passed" | "skipped" | "failed";
+  status: "passed" | "skipped" | "failed" | "not_implemented";
   result?: any;
   reason?: string;
   detail?: string;
   error?: string;
+  durationMs?: number;
 }
 
 interface ConnectorResult {
@@ -357,6 +358,7 @@ async function testConnectorScenarios(
     if (processFn) {
       const txnId = `smoke_${flowKey}_${Math.random().toString(16).slice(2, 10)}`;
       process.stdout.write(`    [${flowKey}] running ... `);
+      const _t0 = performance.now();
 
       try {
         const response = await processFn(txnId, config);
@@ -406,6 +408,10 @@ async function testConnectorScenarios(
           result.scenarios[flowKey] = { status: "failed", error: `${e?.constructor?.name || "Error"}: ${e.message}` };
           anyFailed = true;
         }
+      }
+      // Record timing for the scenario
+      if (result.scenarios[flowKey]) {
+        result.scenarios[flowKey].durationMs = performance.now() - _t0;
       }
     } else {
       // Example function doesn't exist in this connector's module
@@ -541,6 +547,83 @@ async function runTests(
   return results;
 }
 
+function printPerformanceSummary(results: ConnectorResult[]): void {
+  const timings: { connector: string; flow: string; durationMs: number; status: string }[] = [];
+  for (const r of results) {
+    for (const [key, detail] of Object.entries(r.scenarios)) {
+      if (detail.durationMs !== undefined) {
+        timings.push({ connector: r.connector, flow: key, durationMs: detail.durationMs, status: detail.status });
+      }
+    }
+  }
+  if (timings.length === 0) return;
+
+  console.log(`\n${"═".repeat(60)}`);
+  console.log(_bold("PERFORMANCE SUMMARY"));
+  console.log(`${"═".repeat(60)}\n`);
+
+  console.log(`  ${"Connector".padEnd(20)} ${"Flow".padEnd(30)} ${"Duration".padStart(10)}  Status`);
+  console.log(`  ${"─".repeat(20)} ${"─".repeat(30)} ${"─".repeat(10)}  ${"─".repeat(10)}`);
+
+  for (const { connector, flow, durationMs, status } of timings) {
+    const colorFn = status === "passed" ? _green : status === "skipped" ? _yellow : _grey;
+    console.log(`  ${connector.padEnd(20)} ${flow.padEnd(30)} ${durationMs.toFixed(1).padStart(8)}ms  ${colorFn(status)}`);
+  }
+
+  const executed = timings.filter(t => ["passed", "skipped", "failed"].includes(t.status));
+  if (executed.length > 0) {
+    const durations = executed.map(t => t.durationMs);
+    const total = durations.reduce((a, b) => a + b, 0);
+    const minD = Math.min(...durations);
+    const maxD = Math.max(...durations);
+    const minFlow = executed.find(t => t.durationMs === minD)!.flow;
+    const maxFlow = executed.find(t => t.durationMs === maxD)!.flow;
+    console.log(`\n  Executed: ${executed.length} flows`);
+    console.log(`  Total:   ${total.toFixed(1)}ms`);
+    console.log(`  Average: ${(total / executed.length).toFixed(1)}ms`);
+    console.log(`  Min:     ${minD.toFixed(1)}ms  (${minFlow})`);
+    console.log(`  Max:     ${maxD.toFixed(1)}ms  (${maxFlow})`);
+  }
+
+  // FFI overhead breakdown
+  try {
+    const perf = getPerfLog();
+    if (perf.length > 0) {
+      console.log(`\n${"═".repeat(60)}`);
+      console.log(_bold("FFI OVERHEAD BREAKDOWN"));
+      console.log(`${"═".repeat(60)}\n`);
+      console.log(`  ${"Flow".padEnd(30)} ${"req_ffi".padStart(10)} ${"HTTP".padStart(10)} ${"res_ffi".padStart(10)} ${"Overhead".padStart(10)} ${"Total".padStart(10)}`);
+      console.log(`  ${"─".repeat(30)} ${"─".repeat(10)} ${"─".repeat(10)} ${"─".repeat(10)} ${"─".repeat(10)} ${"─".repeat(10)}`);
+      let totalReq = 0, totalHttp = 0, totalRes = 0;
+      for (const e of perf) {
+        const overhead = e.reqFfiMs + e.resFfiMs;
+        totalReq += e.reqFfiMs;
+        totalHttp += e.httpMs;
+        totalRes += e.resFfiMs;
+        console.log(`  ${e.flow.padEnd(30)} ${e.reqFfiMs.toFixed(2).padStart(8)}ms ${e.httpMs.toFixed(2).padStart(8)}ms ${e.resFfiMs.toFixed(2).padStart(8)}ms ${overhead.toFixed(2).padStart(8)}ms ${e.totalMs.toFixed(2).padStart(8)}ms`);
+      }
+      const n = perf.length;
+      const totalOverhead = totalReq + totalRes;
+      const totalAll = totalReq + totalHttp + totalRes;
+      const pct = totalAll > 0 ? (totalOverhead / totalAll * 100) : 0;
+      console.log(`\n  Average req_ffi:  ${(totalReq/n).toFixed(2)}ms`);
+      console.log(`  Average res_ffi:  ${(totalRes/n).toFixed(2)}ms`);
+      console.log(`  Average overhead: ${(totalOverhead/n).toFixed(2)}ms (${pct.toFixed(1)}% of total)`);
+      // Write perf data for cross-SDK comparison
+      try {
+        const perfDir = "/tmp/sdk-perf";
+        if (!fs.existsSync(perfDir)) fs.mkdirSync(perfDir, { recursive: true });
+        fs.writeFileSync(path.join(perfDir, "javascript.json"), JSON.stringify({
+          sdk: "JavaScript",
+          flows: perf.map(e => ({ flow: e.flow, req_ffi_ms: e.reqFfiMs, http_ms: e.httpMs, res_ffi_ms: e.resFfiMs, total_ms: e.totalMs }))
+        }));
+      } catch {}
+      clearPerfLog();
+    }
+  } catch {}
+  console.log();
+}
+
 function printSummary(results: ConnectorResult[]): number {
   console.log(`\n${"=".repeat(60)}`);
   console.log(_bold("TEST SUMMARY"));
@@ -640,6 +723,7 @@ async function main() {
       mock,
     );
     const exitCode = printSummary(results);
+    printPerformanceSummary(results);
     process.exit(exitCode);
   } catch (e: any) {
     console.error(`\nFatal error: ${e.message || e}`);

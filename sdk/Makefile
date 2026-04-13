@@ -184,6 +184,7 @@ generate: install-deps generate-rust generate-grpc-client generate-python genera
 # SDK's generate-bindings step also checks if outputs exist before regenerating.
 # Set QUIET=0 to show full compilation output (default: QUIET=1 shows only test results)
 test: build-ffi-lib generate-harnesses ## Run all SDK smoke tests (builds FFI and generates harnesses, runs sequentially). Use QUIET=0 for verbose output.
+	@rm -rf /tmp/sdk-perf && mkdir -p /tmp/sdk-perf
 	@echo "Running FFI smoke tests for all SDKs..."
 	@echo; echo "═══ Rust FFI ═══"; echo
 	@$(MAKE) -C $(REPO_ROOT)/sdk/rust test-package CONNECTORS=$(CONNECTORS) 2>&1 
@@ -194,6 +195,7 @@ test: build-ffi-lib generate-harnesses ## Run all SDK smoke tests (builds FFI an
 	@echo; echo "═══ Kotlin FFI ═══"; echo
 	@$(MAKE) -C $(REPO_ROOT)/sdk/java test-package CONNECTORS=$(CONNECTORS) 2>&1 
 	@echo; echo "All SDK smoke tests passed."
+	@python3 $(MAKEFILE_DIR)/scripts/compare_sdk_perf.py
 
 test-rust: build-ffi-lib ## Run Rust FFI smoke test
 	@$(MAKE) -C $(REPO_ROOT)/sdk/rust test-package CONNECTORS=$(CONNECTORS)

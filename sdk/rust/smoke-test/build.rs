@@ -561,23 +561,27 @@ fn main() {
                 // Include ALL flows from manifest, using flow_to_example_fn mapping
                 for flow in manifest {
                     if let Some(example_fn) = implemented.get(flow.as_str()) {
-                        // Flow has an implementation - call the example function
-                        // Use the actual result message for normal mode, mock request info for mock mode
+                        // Flow has an implementation - call the example function with timing
+                        code.push_str("        {\n");
+                        code.push_str("            let _t = std::time::Instant::now();\n");
                         code.push_str(&format!(
-                            "        match connectors::{}::{}(client, &txn_id).await {{\n",
+                            "            let _res = connectors::{}::{}(client, &txn_id).await;\n",
                             name, example_fn
                         ));
-                        code.push_str("            Ok(msg) => results.push((\"");
+                        code.push_str("            let _dur = _t.elapsed().as_secs_f64() * 1000.0;\n");
+                        code.push_str("            match _res {\n");
+                        code.push_str("                Ok(msg) => results.push((\"");
                         code.push_str(flow);
-                        code.push_str("\".to_string(), Ok(msg))),\n");
-                        code.push_str("            Err(e) => results.push((\"");
+                        code.push_str("\".to_string(), Ok(msg), _dur)),\n");
+                        code.push_str("                Err(e) => results.push((\"");
                         code.push_str(flow);
-                        code.push_str("\".to_string(), Err(e))),\n");
+                        code.push_str("\".to_string(), Err(e), _dur)),\n");
+                        code.push_str("            }\n");
                         code.push_str("        }\n");
                     } else {
                         // Flow not implemented
                         code.push_str(&format!(
-                            "        results.push((\"{}\".to_string(), Err(format!(\"NOT IMPLEMENTED — No example function for flow '{}'\").into())));\n",
+                            "        results.push((\"{}\".to_string(), Err(format!(\"NOT IMPLEMENTED — No example function for flow '{}'\").into()), 0.0));\n",
                             flow, flow
                         ));
                     }

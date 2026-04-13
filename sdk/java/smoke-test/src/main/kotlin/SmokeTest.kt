@@ -52,6 +52,7 @@ data class ScenarioResult(
     val reason: String? = null,
     val detail: String? = null,
     val error: String? = null,
+    val durationMs: Double? = null,
 )
 
 data class ConnectorResult(
@@ -393,6 +394,7 @@ fun testConnectorScenarios(
         val txnId = "smoke_${flowKey}_${Integer.toHexString((Math.random() * 0xFFFFFF).toInt())}"
         print("    [$flowKey] running ... ")
         System.out.flush()
+        val _t0 = System.nanoTime()
 
         try {
             @Suppress("UNCHECKED_CAST")
@@ -481,6 +483,11 @@ fun testConnectorScenarios(
                 result.scenarios[flowKey] = ScenarioResult(status = "failed", error = detail)
                 anyFailed = true
             }
+        }
+        // Record timing for the scenario
+        val _durMs = (System.nanoTime() - _t0) / 1_000_000.0
+        result.scenarios[flowKey]?.let { sr ->
+            result.scenarios[flowKey] = sr.copy(durationMs = _durMs)
         }
     }
 
@@ -671,6 +678,104 @@ fun runTests(
     return results
 }
 
+fun printPerformanceSummary(results: List<ConnectorResult>) {
+    data class Timing(val connector: String, val flow: String, val durationMs: Double, val status: String)
+    val timings = mutableListOf<Timing>()
+    for (r in results) {
+        for ((key, detail) in r.scenarios) {
+            if (detail.durationMs != null) {
+                timings.add(Timing(r.connector, key, detail.durationMs, detail.status))
+            }
+        }
+    }
+    if (timings.isEmpty()) return
+
+    println("\n${"═".repeat(60)}")
+    println(bold("PERFORMANCE SUMMARY"))
+    println("═".repeat(60) + "\n")
+
+    println("  ${"%s".format("Connector").padEnd(20)} ${"%s".format("Flow").padEnd(30)} ${"%s".format("Duration").padStart(10)}  Status")
+    println("  ${"─".repeat(20)} ${"─".repeat(30)} ${"─".repeat(10)}  ${"─".repeat(10)}")
+
+    for (t in timings) {
+        val colorFn: (String) -> String = when (t.status) {
+            "passed" -> ::green
+            "skipped" -> ::yellow
+            else -> ::grey
+        }
+        println("  ${t.connector.padEnd(20)} ${t.flow.padEnd(30)} ${"%8.1f".format(t.durationMs)}ms  ${colorFn(t.status)}")
+    }
+
+    val executed = timings.filter { it.status in listOf("passed", "skipped", "failed") }
+    if (executed.isNotEmpty()) {
+        val durations = executed.map { it.durationMs }
+        val total = durations.sum()
+        val minD = durations.min()
+        val maxD = durations.max()
+        val minFlow = executed.first { it.durationMs == minD }.flow
+        val maxFlow = executed.first { it.durationMs == maxD }.flow
+        println("\n  Executed: ${executed.size} flows")
+        println("  Total:   ${"%,.1f".format(total)}ms")
+        println("  Average: ${"%,.1f".format(total / executed.size)}ms")
+        println("  Min:     ${"%,.1f".format(minD)}ms  ($minFlow)")
+        println("  Max:     ${"%,.1f".format(maxD)}ms  ($maxFlow)")
+    }
+
+    // FFI overhead breakdown (use reflection — SDK JAR may not contain PerfLog yet)
+    try {
+        val perfLogClass = Class.forName("payments.PerfLog")
+        val perfEntryClass = Class.forName("payments.PerfEntry")
+        val getMethod = perfLogClass.getMethod("get")
+        val clearMethod = perfLogClass.getMethod("clear")
+        val instance = perfLogClass.getDeclaredField("INSTANCE").get(null)
+        @Suppress("UNCHECKED_CAST")
+        val perf = getMethod.invoke(instance) as List<Any>
+        if (perf.isNotEmpty()) {
+            val flowGetter = perfEntryClass.getMethod("getFlow")
+            val reqGetter = perfEntryClass.getMethod("getReqFfiMs")
+            val httpGetter = perfEntryClass.getMethod("getHttpMs")
+            val resGetter = perfEntryClass.getMethod("getResFfiMs")
+            val totalGetter = perfEntryClass.getMethod("getTotalMs")
+            println("\n${"═".repeat(60)}")
+            println(bold("FFI OVERHEAD BREAKDOWN"))
+            println("═".repeat(60) + "\n")
+            println("  ${"%s".format("Flow").padEnd(30)} ${"%s".format("req_ffi").padStart(10)} ${"%s".format("HTTP").padStart(10)} ${"%s".format("res_ffi").padStart(10)} ${"%s".format("Overhead").padStart(10)} ${"%s".format("Total").padStart(10)}")
+            println("  ${"─".repeat(30)} ${"─".repeat(10)} ${"─".repeat(10)} ${"─".repeat(10)} ${"─".repeat(10)} ${"─".repeat(10)}")
+            var totalReq = 0.0; var totalHttp = 0.0; var totalRes = 0.0
+            for (e in perf) {
+                val f = flowGetter.invoke(e) as String
+                val req = reqGetter.invoke(e) as Double
+                val http = httpGetter.invoke(e) as Double
+                val res = resGetter.invoke(e) as Double
+                val total = totalGetter.invoke(e) as Double
+                val overhead = req + res
+                totalReq += req; totalHttp += http; totalRes += res
+                println("  ${f.padEnd(30)} ${"%8.2f".format(req)}ms ${"%8.2f".format(http)}ms ${"%8.2f".format(res)}ms ${"%8.2f".format(overhead)}ms ${"%8.2f".format(total)}ms")
+            }
+            val n = perf.size
+            val totalOverhead = totalReq + totalRes
+            val totalAll = totalReq + totalHttp + totalRes
+            val pct = if (totalAll > 0) totalOverhead / totalAll * 100 else 0.0
+            println("\n  Average req_ffi:  ${"%,.2f".format(totalReq / n)}ms")
+            println("  Average res_ffi:  ${"%,.2f".format(totalRes / n)}ms")
+            println("  Average overhead: ${"%,.2f".format(totalOverhead / n)}ms (${"%,.1f".format(pct)}% of total)")
+            // Write perf data for cross-SDK comparison
+            try {
+                val perfDir = java.io.File("/tmp/sdk-perf")
+                perfDir.mkdirs()
+                val entries = perf.map { e ->
+                    """  {"flow":"${flowGetter.invoke(e)}","req_ffi_ms":${reqGetter.invoke(e)},"http_ms":${httpGetter.invoke(e)},"res_ffi_ms":${resGetter.invoke(e)},"total_ms":${totalGetter.invoke(e)}}"""
+                }.joinToString(",\n")
+                java.io.File(perfDir, "kotlin.json").writeText("""{"sdk":"Kotlin","flows":[\n$entries\n]}""")
+            } catch (_: Exception) {}
+            clearMethod.invoke(instance)
+        }
+    } catch (_: Exception) {
+        // PerfLog not available in SDK JAR — skip FFI breakdown
+    }
+    println()
+}
+
 fun printSummary(results: List<ConnectorResult>): Int {
     println("\n${"=".repeat(60)}")
     println(bold("TEST SUMMARY"))
@@ -733,6 +838,7 @@ fun main(args: Array<String>) {
     try {
         val results = runTests(parsedArgs.credsFile, parsedArgs.connectors, parsedArgs.dryRun, parsedArgs.mock, parsedArgs.sdkRoot)
         val exitCode = printSummary(results)
+        printPerformanceSummary(results)
         System.exit(exitCode)
     } catch (e: Exception) {
         System.err.println("\nFatal error: ${e.message}")

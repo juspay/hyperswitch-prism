@@ -26,6 +26,7 @@ import importlib.util
 import json
 import os
 import sys
+import time
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 
@@ -373,6 +374,7 @@ async def test_connector_scenarios(
 
         txn_id = f"smoke_{scenario_key}_{os.urandom(4).hex()}"
         print(f"    [{scenario_key}] running (txn={txn_id}) ...", flush=True)
+        _t0 = time.monotonic()
         try:
             response = await process_fn(txn_id, config=config)
             # Check for error in response (works for both dict and protobuf objects)
@@ -483,6 +485,10 @@ async def test_connector_scenarios(
                 "error": f"{type(e).__name__}: {e}",
             }
             any_failed = True
+        # Record timing for the scenario
+        _dur_ms = (time.monotonic() - _t0) * 1000
+        if scenario_key in result["scenarios"] and isinstance(result["scenarios"][scenario_key], dict):
+            result["scenarios"][scenario_key]["duration_ms"] = _dur_ms
 
     result["status"] = "failed" if any_failed else "passed"
     return result
@@ -701,6 +707,75 @@ def print_summary(results: List[Dict[str, Any]]) -> int:
     return 0
 
 
+def print_performance_summary(results: List[Dict[str, Any]]) -> None:
+    """Print performance timing summary table for all executed scenarios."""
+    timings = []
+    for r in results:
+        connector = r.get("connector", "?")
+        for key, detail in r.get("scenarios", {}).items():
+            if isinstance(detail, dict) and "duration_ms" in detail:
+                timings.append((connector, key, detail["duration_ms"], detail.get("status", "?")))
+
+    if not timings:
+        return
+
+    print(f"\n{'═' * 60}")
+    print(_bold("PERFORMANCE SUMMARY"))
+    print(f"{'═' * 60}\n")
+
+    print(f"  {'Connector':<20} {'Flow':<30} {'Duration':>10}  {'Status'}")
+    print(f"  {'─' * 20} {'─' * 30} {'─' * 10}  {'─' * 10}")
+
+    for connector, flow, dur, status in timings:
+        color_fn = _green if status == "passed" else (_yellow if status == "skipped" else _grey)
+        print(f"  {connector:<20} {flow:<30} {dur:>8.1f}ms  {color_fn(status)}")
+
+    executed = [(c, f, d, s) for c, f, d, s in timings if s in ("passed", "skipped", "failed")]
+    if executed:
+        durations = [d for _, _, d, _ in executed]
+        print(f"\n  Executed: {len(executed)} flows")
+        print(f"  Total:   {sum(durations):.1f}ms")
+        print(f"  Average: {sum(durations) / len(durations):.1f}ms")
+        print(f"  Min:     {min(durations):.1f}ms  ({next(f for _, f, d, _ in executed if d == min(durations))})")
+        print(f"  Max:     {max(durations):.1f}ms  ({next(f for _, f, d, _ in executed if d == max(durations))})")
+
+    # FFI breakdown from connector client perf log
+    try:
+        from payments.connector_client import get_perf_log, clear_perf_log
+        perf = get_perf_log()
+        if perf:
+            print(f"\n{'═' * 60}")
+            print(_bold("FFI OVERHEAD BREAKDOWN"))
+            print(f"{'═' * 60}\n")
+            print(f"  {'Flow':<30} {'req_ffi':>10} {'HTTP':>10} {'res_ffi':>10} {'Overhead':>10} {'Total':>10}")
+            print(f"  {'─' * 30} {'─' * 10} {'─' * 10} {'─' * 10} {'─' * 10} {'─' * 10}")
+            total_req = total_http = total_res = 0.0
+            for e in perf:
+                overhead = e['req_ffi_ms'] + e['res_ffi_ms']
+                total_req += e['req_ffi_ms']
+                total_http += e['http_ms']
+                total_res += e['res_ffi_ms']
+                print(f"  {e['flow']:<30} {e['req_ffi_ms']:>8.2f}ms {e['http_ms']:>8.2f}ms {e['res_ffi_ms']:>8.2f}ms {overhead:>8.2f}ms {e['total_ms']:>8.2f}ms")
+            n = len(perf)
+            total_overhead = total_req + total_res
+            total_all = total_req + total_http + total_res
+            pct = (total_overhead / total_all * 100) if total_all > 0 else 0
+            print(f"\n  Average req_ffi:  {total_req/n:.2f}ms")
+            print(f"  Average res_ffi:  {total_res/n:.2f}ms")
+            print(f"  Average overhead: {total_overhead/n:.2f}ms ({pct:.1f}% of total)")
+            # Write perf data for cross-SDK comparison
+            try:
+                perf_dir = Path("/tmp/sdk-perf")
+                perf_dir.mkdir(exist_ok=True)
+                (perf_dir / "python.json").write_text(json.dumps({"sdk": "Python", "flows": perf}))
+            except Exception:
+                pass
+            clear_perf_log()
+    except ImportError:
+        pass
+    print()
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Multi-connector smoke test for hyperswitch-payments SDK"
@@ -762,6 +837,7 @@ def main():
             sys.exit(0)
         else:
             exit_code = print_summary(results)
+            print_performance_summary(results)
             sys.exit(exit_code)
     except Exception as e:
         if args.json_output:

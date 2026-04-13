@@ -17,8 +17,8 @@ export type {
   GrpcMerchantAuthenticationClient,
   GrpcRecurringPaymentClient,
 } from "./payments/grpc_client";
-// Export error classes
-export { IntegrationError, ConnectorError } from './payments/connector_client';
+export { IntegrationError, ConnectorError, getPerfLog, clearPerfLog } from './payments/connector_client';
+export type { PerfEntry } from './payments/connector_client';
 
 // ---------------------------------------------------------------------------
 // Domain namespaces — runtime values

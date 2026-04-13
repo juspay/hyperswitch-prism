@@ -37,6 +37,27 @@ class ConnectorError(val proto: types.SdkConfig.ConnectorError) : Exception(prot
     val httpStatusCode: Int? get() = if (proto.hasHttpStatusCode()) proto.httpStatusCode else null
 }
 
+/**
+ * Per-flow FFI performance entry.
+ */
+data class PerfEntry(
+    val flow: String,
+    val reqFfiMs: Double,
+    val httpMs: Double,
+    val resFfiMs: Double,
+    val totalMs: Double,
+)
+
+/**
+ * Module-level FFI performance log. Each executeFlow call appends an entry.
+ */
+object PerfLog {
+    private val entries = mutableListOf<PerfEntry>()
+    fun add(entry: PerfEntry) { entries.add(entry) }
+    fun get(): List<PerfEntry> = entries.toList()
+    fun clear() { entries.clear() }
+}
+
 open class ConnectorClient(
     val config: ConnectorConfig,
     val defaults: RequestConfig = RequestConfig.getDefaultInstance(),
@@ -154,6 +175,7 @@ open class ConnectorClient(
         val effectiveHttpConfig = resolveHttpConfig(options)
 
         // 2. Build connector HTTP request via FFI
+        val _t0 = System.nanoTime()
         val connectorRequestBytes = reqTransformer(requestBytes, optionsBytes)
         val connectorRequest = checkReq(connectorRequestBytes)
 
@@ -163,12 +185,14 @@ open class ConnectorClient(
             headers = connectorRequest.headersMap,
             body = if (connectorRequest.hasBody()) connectorRequest.body.toByteArray() else null
         )
+        val _tReqFfi = System.nanoTime()
 
         // 3. Get or create cached HTTP client based on effective proxy config
         val httpClient = getOrCreateClient(effectiveHttpConfig)
 
         // 4. Execute HTTP request via standardized HttpClient using the cached connection pool
         val response = HttpClient.execute(httpRequest, effectiveHttpConfig, httpClient)
+        val _tHttp = System.nanoTime()
 
         // 5. Encode HTTP response as FfiConnectorHttpResponse protobuf bytes
         val ffiResponseBytes = FfiConnectorHttpResponse.newBuilder()
@@ -185,7 +209,18 @@ open class ConnectorClient(
             optionsBytes,
         )
         val httpResponse = checkRes(resultBytes)
-        return responseParser.parseFrom(httpResponse.body)
+        val parsed = responseParser.parseFrom(httpResponse.body)
+        val _tResFfi = System.nanoTime()
+
+        PerfLog.add(PerfEntry(
+            flow = flow,
+            reqFfiMs = (_tReqFfi - _t0) / 1_000_000.0,
+            httpMs = (_tHttp - _tReqFfi) / 1_000_000.0,
+            resFfiMs = (_tResFfi - _tHttp) / 1_000_000.0,
+            totalMs = (_tResFfi - _t0) / 1_000_000.0,
+        ))
+
+        return parsed
     }
 
     /**

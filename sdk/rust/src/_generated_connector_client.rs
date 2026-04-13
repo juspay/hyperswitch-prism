@@ -2,7 +2,7 @@
 // Source: services.proto ∩ bindings/uniffi.rs  |  Regenerate: make generate
 
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 
 use crate::error::SdkError;
 use crate::http_client::{
@@ -55,6 +55,29 @@ use grpc_api_types::payouts::{
     PayoutServiceVoidRequest, PayoutServiceVoidResponse,
 };
 
+/// Per-flow FFI performance entry.
+#[derive(Debug, Clone)]
+pub struct PerfEntry {
+    pub flow: String,
+    pub req_ffi_ms: f64,
+    pub http_ms: f64,
+    pub res_ffi_ms: f64,
+    pub total_ms: f64,
+}
+
+static PERF_LOG: std::sync::LazyLock<Mutex<Vec<PerfEntry>>> =
+    std::sync::LazyLock::new(|| Mutex::new(Vec::new()));
+
+/// Return a snapshot of the accumulated FFI performance log.
+pub fn get_perf_log() -> Vec<PerfEntry> {
+    PERF_LOG.lock().unwrap().clone()
+}
+
+/// Clear the FFI performance log.
+pub fn clear_perf_log() {
+    PERF_LOG.lock().unwrap().clear();
+}
+
 /// ConnectorClient — high-level Rust wrapper for the Connector Service.
 ///
 /// Handles the full round-trip for any payment flow:
@@ -91,6 +114,8 @@ macro_rules! impl_flow_method {
 
             let ffi_options = self.resolve_ffi_options(&options);
             let effective_http_config = self.resolve_http_options(options.as_ref());
+
+            let _t0 = std::time::Instant::now();
 
             let ffi_request =
                 build_ffi_request(request.clone(), metadata, &ffi_options).map_err(|e| {
@@ -146,6 +171,8 @@ macro_rules! impl_flow_method {
                 headers,
                 body,
             };
+            let _t_req_ffi = std::time::Instant::now();
+
             let http_client = self
                 .get_or_create_client(&effective_http_config)
                 .map_err(SdkError::from)?;
@@ -153,6 +180,7 @@ macro_rules! impl_flow_method {
                 .execute(http_req, Some(effective_http_config))
                 .await
                 .map_err(SdkError::from)?;
+            let _t_http = std::time::Instant::now();
 
             let mut header_map = http::HeaderMap::new();
             for (key, value) in &http_response.headers {
@@ -177,7 +205,20 @@ macro_rules! impl_flow_method {
                         doc_url: None,
                     }
                 })?;
-            $res_handler(ffi_request_for_res, response, environment).map_err(SdkError::from)
+            $res_handler(ffi_request_for_res, response, environment)
+                .map_err(SdkError::from)
+                .inspect(|_| {
+                    let _t_res_ffi = std::time::Instant::now();
+                    if let Ok(mut log) = PERF_LOG.lock() {
+                        log.push(PerfEntry {
+                            flow: stringify!($method).to_string(),
+                            req_ffi_ms: _t_req_ffi.duration_since(_t0).as_secs_f64() * 1000.0,
+                            http_ms: _t_http.duration_since(_t_req_ffi).as_secs_f64() * 1000.0,
+                            res_ffi_ms: _t_res_ffi.duration_since(_t_http).as_secs_f64() * 1000.0,
+                            total_ms: _t_res_ffi.duration_since(_t0).as_secs_f64() * 1000.0,
+                        });
+                    }
+                })
         }
     };
 }

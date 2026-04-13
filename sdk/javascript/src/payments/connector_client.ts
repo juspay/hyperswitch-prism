@@ -23,6 +23,26 @@ const v2 = types;
 // Re-export error classes from errors.ts
 export { IntegrationError, ConnectorError } from "./errors";
 
+// ── Per-flow FFI performance log ──────────────────────────────────────────────
+// Each _executeFlow call appends an entry with timing breakdown.
+export interface PerfEntry {
+  flow: string;
+  reqFfiMs: number;
+  httpMs: number;
+  resFfiMs: number;
+  totalMs: number;
+}
+
+const _perfLog: PerfEntry[] = [];
+
+export function getPerfLog(): PerfEntry[] {
+  return [..._perfLog];
+}
+
+export function clearPerfLog(): void {
+  _perfLog.length = 0;
+}
+
 export class ConnectorClient {
   private uniffi: UniffiClient;
   private config: types.ConnectorConfig;
@@ -135,6 +155,8 @@ export class ConnectorClient {
     // 2. Serialize domain request
     const requestBytes = Buffer.from(reqType.encode(requestMsg).finish());
 
+    const _t0 = performance.now();
+
     // 3. Build connector HTTP request via FFI
     const resultBytes = this.uniffi.callReq(flow, requestBytes, optionsBytes);
     const connectorReq = v2.FfiConnectorHttpRequest.decode(resultBytes);
@@ -146,6 +168,8 @@ export class ConnectorClient {
       body: connectorReq.body ?? undefined
     };
 
+    const _tReqFfi = performance.now();
+
     // 4. Get or create cached dispatcher based on effective proxy config
     const dispatcher = this._getOrCreateDispatcher(http);
 
@@ -155,6 +179,8 @@ export class ConnectorClient {
       http,
       dispatcher
     );
+
+    const _tHttp = performance.now();
 
     // 6. Encode HTTP response for FFI
     const resProto = v2.FfiConnectorHttpResponse.create({
@@ -168,7 +194,19 @@ export class ConnectorClient {
     const resultBytesRes = this.uniffi.callRes(flow, resBytes, requestBytes, optionsBytes);
     // callRes returns FfiConnectorHttpResponse, extract domain response from body
     const httpResponse = v2.FfiConnectorHttpResponse.decode(resultBytesRes);
-    return resType.decode(httpResponse.body);
+    const decoded = resType.decode(httpResponse.body);
+
+    const _tResFfi = performance.now();
+
+    _perfLog.push({
+      flow,
+      reqFfiMs: _tReqFfi - _t0,
+      httpMs: _tHttp - _tReqFfi,
+      resFfiMs: _tResFfi - _tHttp,
+      totalMs: _tResFfi - _t0,
+    });
+
+    return decoded;
   }
 
   /**
