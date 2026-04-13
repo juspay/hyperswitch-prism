@@ -4,7 +4,7 @@ pub mod transformers;
 
 use common_enums as enums;
 use common_utils::{
-    errors::CustomResult, events, ext_traits::BytesExt, request::RequestContent, types::MinorUnit,
+    errors::CustomResult, events, ext_traits::BytesExt, types::MinorUnit,
 };
 use domain_types::{
     connector_flow::{
@@ -50,7 +50,7 @@ use self::transformers::{
     PhonepeVerifyOtpResponse,
 };
 use super::macros;
-use crate::{types::ResponseRouterData, with_response_body};
+use crate::types::ResponseRouterData;
 use domain_types::errors::{ConnectorError, IntegrationError};
 
 // Trait implementations with generic type parameters
@@ -210,6 +210,18 @@ macros::create_all_prerequisites!(
             request_body: PhonepeSyncRequest,
             response_body: PhonepeSyncResponse,
             router_data: RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
+        ),
+        (
+            flow: TriggerOtpForWallet,
+            request_body: PhonepeTriggerOtpRequest,
+            response_body: PhonepeTriggerOtpResponse,
+            router_data: RouterDataV2<TriggerOtpForWallet, PaymentFlowData, TriggerOtpForWalletData, TriggerOtpForWalletResponseData>,
+        ),
+        (
+            flow: VerifyOtpForWallet,
+            request_body: PhonepeVerifyOtpRequest,
+            response_body: PhonepeVerifyOtpResponse,
+            router_data: RouterDataV2<VerifyOtpForWallet, PaymentFlowData, VerifyOtpForWalletData, VerifyOtpForWalletResponseData>,
         )
     ],
     amount_converters: [
@@ -709,244 +721,88 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 {
 }
 
-// ========== TriggerOtpForWallet ==========
+// TriggerOtpForWallet flow implementation using macros
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Phonepe,
+    curl_request: Json(PhonepeTriggerOtpRequest),
+    curl_response: PhonepeTriggerOtpResponse,
+    flow_name: TriggerOtpForWallet,
+    resource_common_data: PaymentFlowData,
+    flow_request: TriggerOtpForWalletData,
+    flow_response: TriggerOtpForWalletResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<TriggerOtpForWallet, PaymentFlowData, TriggerOtpForWalletData, TriggerOtpForWalletResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            let connector_router_data = PhonepeRouterData {
+                connector: self.clone(),
+                router_data: req,
+            };
+            let connector_req = PhonepeTriggerOtpRequest::try_from(&connector_router_data)?;
 
-impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        TriggerOtpForWallet,
-        PaymentFlowData,
-        TriggerOtpForWalletData,
-        TriggerOtpForWalletResponseData,
-    > for Phonepe<T>
-{
-    fn get_headers(
-        &self,
-        req: &RouterDataV2<
-            TriggerOtpForWallet,
-            PaymentFlowData,
-            TriggerOtpForWalletData,
-            TriggerOtpForWalletResponseData,
-        >,
-    ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError>
-    where
-        Self: ConnectorIntegrationV2<
-            TriggerOtpForWallet,
-            PaymentFlowData,
-            TriggerOtpForWalletData,
-            TriggerOtpForWalletResponseData,
-        >,
-    {
-        let connector_req = PhonepeTriggerOtpRequest::try_from(req)?;
+            Ok(vec![
+                (
+                    headers::CONTENT_TYPE.to_string(),
+                    "application/json".to_string().into(),
+                ),
+                (headers::X_VERIFY.to_string(), connector_req.checksum.into()),
+            ])
+        }
 
-        Ok(vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                "application/json".to_string().into(),
-            ),
-            (headers::X_VERIFY.to_string(), connector_req.checksum.into()),
-        ])
+        fn get_url(
+            &self,
+            req: &RouterDataV2<TriggerOtpForWallet, PaymentFlowData, TriggerOtpForWalletData, TriggerOtpForWalletResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            let base_url = self.connector_base_url(req);
+            Ok(format!("{}{}", base_url, constants::API_TRIGGER_OTP_ENDPOINT))
+        }
     }
+);
 
-    fn get_url(
-        &self,
-        req: &RouterDataV2<
-            TriggerOtpForWallet,
-            PaymentFlowData,
-            TriggerOtpForWalletData,
-            TriggerOtpForWalletResponseData,
-        >,
-    ) -> CustomResult<String, IntegrationError> {
-        let base_url = self.connector_base_url(req);
-        Ok(format!(
-            "{}{}",
-            base_url,
-            constants::API_TRIGGER_OTP_ENDPOINT
-        ))
+// VerifyOtpForWallet flow implementation using macros
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Phonepe,
+    curl_request: Json(PhonepeVerifyOtpRequest),
+    curl_response: PhonepeVerifyOtpResponse,
+    flow_name: VerifyOtpForWallet,
+    resource_common_data: PaymentFlowData,
+    flow_request: VerifyOtpForWalletData,
+    flow_response: VerifyOtpForWalletResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<VerifyOtpForWallet, PaymentFlowData, VerifyOtpForWalletData, VerifyOtpForWalletResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            let connector_router_data = PhonepeRouterData {
+                connector: self.clone(),
+                router_data: req,
+            };
+            let connector_req = PhonepeVerifyOtpRequest::try_from(&connector_router_data)?;
+
+            Ok(vec![
+                (
+                    headers::CONTENT_TYPE.to_string(),
+                    "application/json".to_string().into(),
+                ),
+                (headers::X_VERIFY.to_string(), connector_req.checksum.into()),
+            ])
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<VerifyOtpForWallet, PaymentFlowData, VerifyOtpForWalletData, VerifyOtpForWalletResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            let base_url = self.connector_base_url(req);
+            Ok(format!("{}{}", base_url, constants::API_VERIFY_OTP_ENDPOINT))
+        }
     }
-
-    fn get_request_body(
-        &self,
-        req: &RouterDataV2<
-            TriggerOtpForWallet,
-            PaymentFlowData,
-            TriggerOtpForWalletData,
-            TriggerOtpForWalletResponseData,
-        >,
-    ) -> CustomResult<Option<RequestContent>, IntegrationError> {
-        let connector_req = PhonepeTriggerOtpRequest::try_from(req)?;
-        Ok(Some(RequestContent::Json(Box::new(connector_req))))
-    }
-
-    fn handle_response_v2(
-        &self,
-        data: &RouterDataV2<
-            TriggerOtpForWallet,
-            PaymentFlowData,
-            TriggerOtpForWalletData,
-            TriggerOtpForWalletResponseData,
-        >,
-        event_builder: Option<&mut events::Event>,
-        res: Response,
-    ) -> CustomResult<
-        RouterDataV2<
-            TriggerOtpForWallet,
-            PaymentFlowData,
-            TriggerOtpForWalletData,
-            TriggerOtpForWalletResponseData,
-        >,
-        ConnectorError,
-    > {
-        let response: PhonepeTriggerOtpResponse = res
-            .response
-            .parse_struct("PhonepeTriggerOtpResponse")
-            .change_context(
-                ConnectorError::ResponseDeserializationFailed {
-                    context: Default::default(),
-                },
-            )?;
-
-        with_response_body!(event_builder, response);
-
-        let router_data = RouterDataV2::try_from(ResponseRouterData {
-            response,
-            router_data: data.clone(),
-            http_code: res.status_code,
-        })
-        .change_context(
-            ConnectorError::ResponseHandlingFailed {
-                context: Default::default(),
-            },
-        )?;
-
-        Ok(router_data)
-    }
-
-    fn get_error_response_v2(
-        &self,
-        res: Response,
-        event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, ConnectorError> {
-        self.build_error_response(res, event_builder)
-    }
-}
-
-// ========== VerifyOtpForWallet ==========
-
-impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        VerifyOtpForWallet,
-        PaymentFlowData,
-        VerifyOtpForWalletData,
-        VerifyOtpForWalletResponseData,
-    > for Phonepe<T>
-{
-    fn get_headers(
-        &self,
-        req: &RouterDataV2<
-            VerifyOtpForWallet,
-            PaymentFlowData,
-            VerifyOtpForWalletData,
-            VerifyOtpForWalletResponseData,
-        >,
-    ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError>
-    where
-        Self: ConnectorIntegrationV2<
-            VerifyOtpForWallet,
-            PaymentFlowData,
-            VerifyOtpForWalletData,
-            VerifyOtpForWalletResponseData,
-        >,
-    {
-        let connector_req = PhonepeVerifyOtpRequest::try_from(req)?;
-
-        Ok(vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                "application/json".to_string().into(),
-            ),
-            (headers::X_VERIFY.to_string(), connector_req.checksum.into()),
-        ])
-    }
-
-    fn get_url(
-        &self,
-        req: &RouterDataV2<
-            VerifyOtpForWallet,
-            PaymentFlowData,
-            VerifyOtpForWalletData,
-            VerifyOtpForWalletResponseData,
-        >,
-    ) -> CustomResult<String, IntegrationError> {
-        let base_url = self.connector_base_url(req);
-        Ok(format!(
-            "{}{}",
-            base_url,
-            constants::API_VERIFY_OTP_ENDPOINT
-        ))
-    }
-
-    fn get_request_body(
-        &self,
-        req: &RouterDataV2<
-            VerifyOtpForWallet,
-            PaymentFlowData,
-            VerifyOtpForWalletData,
-            VerifyOtpForWalletResponseData,
-        >,
-    ) -> CustomResult<Option<RequestContent>, IntegrationError> {
-        let connector_req = PhonepeVerifyOtpRequest::try_from(req)?;
-        Ok(Some(RequestContent::Json(Box::new(connector_req))))
-    }
-
-    fn handle_response_v2(
-        &self,
-        data: &RouterDataV2<
-            VerifyOtpForWallet,
-            PaymentFlowData,
-            VerifyOtpForWalletData,
-            VerifyOtpForWalletResponseData,
-        >,
-        event_builder: Option<&mut events::Event>,
-        res: Response,
-    ) -> CustomResult<
-        RouterDataV2<
-            VerifyOtpForWallet,
-            PaymentFlowData,
-            VerifyOtpForWalletData,
-            VerifyOtpForWalletResponseData,
-        >,
-        ConnectorError,
-    > {
-        let response: PhonepeVerifyOtpResponse = res
-            .response
-            .parse_struct("PhonepeVerifyOtpResponse")
-            .change_context(
-                ConnectorError::ResponseDeserializationFailed {
-                    context: Default::default(),
-                },
-            )?;
-
-        with_response_body!(event_builder, response);
-
-        let router_data = RouterDataV2::try_from(ResponseRouterData {
-            response,
-            router_data: data.clone(),
-            http_code: res.status_code,
-        })
-        .change_context(
-            ConnectorError::ResponseHandlingFailed {
-                context: Default::default(),
-            },
-        )?;
-
-        Ok(router_data)
-    }
-
-    fn get_error_response_v2(
-        &self,
-        res: Response,
-        event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, ConnectorError> {
-        self.build_error_response(res, event_builder)
-    }
-}
+);

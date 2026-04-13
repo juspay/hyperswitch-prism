@@ -1194,26 +1194,100 @@ pub struct PhonepeTriggerOtpData {
     pub otp_token: Option<String>,
 }
 
-impl
+// TryFrom implementation for owned PhonepeRouterData wrapper (trigger OTP)
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
-        &RouterDataV2<
-            TriggerOtpForWallet,
-            PaymentFlowData,
-            TriggerOtpForWalletData,
-            TriggerOtpForWalletResponseData,
+        PhonepeRouterData<
+            RouterDataV2<
+                TriggerOtpForWallet,
+                PaymentFlowData,
+                TriggerOtpForWalletData,
+                TriggerOtpForWalletResponseData,
+            >,
+            T,
         >,
     > for PhonepeTriggerOtpRequest
 {
     type Error = Error;
 
     fn try_from(
-        req: &RouterDataV2<
-            TriggerOtpForWallet,
-            PaymentFlowData,
-            TriggerOtpForWalletData,
-            TriggerOtpForWalletResponseData,
+        wrapper: PhonepeRouterData<
+            RouterDataV2<
+                TriggerOtpForWallet,
+                PaymentFlowData,
+                TriggerOtpForWalletData,
+                TriggerOtpForWalletResponseData,
+            >,
+            T,
         >,
     ) -> Result<Self, Self::Error> {
+        let req = &wrapper.router_data;
+        let auth = PhonepeAuthType::try_from(&req.connector_config)?;
+
+        let phone_number =
+            req.request
+                .phone_number
+                .clone()
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "phone_number",
+                    context: Default::default(),
+                })?;
+
+        let inner = PhonepeTriggerOtpInnerRequest {
+            merchant_id: auth.merchant_id.peek().to_string(),
+            mobile_number: phone_number,
+            request_type: "WALLET".to_string(),
+            email: None,
+            short_name: None,
+        };
+
+        let json_payload = Encode::encode_to_string_of_json(&inner).change_context(
+            IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            },
+        )?;
+
+        let base64_payload = base64::engine::general_purpose::STANDARD.encode(&json_payload);
+
+        let api_path = format!("/{}", constants::API_TRIGGER_OTP_ENDPOINT);
+        let checksum =
+            generate_phonepe_checksum(&base64_payload, &api_path, &auth.salt_key, &auth.key_index)?;
+
+        Ok(Self {
+            request: base64_payload,
+            checksum,
+        })
+    }
+}
+
+// TryFrom implementation for borrowed PhonepeRouterData wrapper (trigger OTP header generation)
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        &PhonepeRouterData<
+            &RouterDataV2<
+                TriggerOtpForWallet,
+                PaymentFlowData,
+                TriggerOtpForWalletData,
+                TriggerOtpForWalletResponseData,
+            >,
+            T,
+        >,
+    > for PhonepeTriggerOtpRequest
+{
+    type Error = Error;
+
+    fn try_from(
+        item: &PhonepeRouterData<
+            &RouterDataV2<
+                TriggerOtpForWallet,
+                PaymentFlowData,
+                TriggerOtpForWalletData,
+                TriggerOtpForWalletResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let req = item.router_data;
         let auth = PhonepeAuthType::try_from(&req.connector_config)?;
 
         let phone_number =
@@ -1260,7 +1334,7 @@ impl TryFrom<ResponseRouterData<PhonepeTriggerOtpResponse, Self>>
         TriggerOtpForWalletResponseData,
     >
 {
-    type Error = Error;
+    type Error = ResponseError;
 
     fn try_from(
         item: ResponseRouterData<PhonepeTriggerOtpResponse, Self>,
@@ -1333,26 +1407,107 @@ pub struct PhonepeVerifyOtpData {
     pub user_auth_token: Option<String>,
 }
 
-impl
+// TryFrom implementation for owned PhonepeRouterData wrapper (verify OTP)
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
-        &RouterDataV2<
-            VerifyOtpForWallet,
-            PaymentFlowData,
-            VerifyOtpForWalletData,
-            VerifyOtpForWalletResponseData,
+        PhonepeRouterData<
+            RouterDataV2<
+                VerifyOtpForWallet,
+                PaymentFlowData,
+                VerifyOtpForWalletData,
+                VerifyOtpForWalletResponseData,
+            >,
+            T,
         >,
     > for PhonepeVerifyOtpRequest
 {
     type Error = Error;
 
     fn try_from(
-        req: &RouterDataV2<
-            VerifyOtpForWallet,
-            PaymentFlowData,
-            VerifyOtpForWalletData,
-            VerifyOtpForWalletResponseData,
+        wrapper: PhonepeRouterData<
+            RouterDataV2<
+                VerifyOtpForWallet,
+                PaymentFlowData,
+                VerifyOtpForWalletData,
+                VerifyOtpForWalletResponseData,
+            >,
+            T,
         >,
     ) -> Result<Self, Self::Error> {
+        let req = &wrapper.router_data;
+        let auth = PhonepeAuthType::try_from(&req.connector_config)?;
+
+        let otp = req
+            .request
+            .otp
+            .clone()
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "otp",
+                context: Default::default(),
+            })?;
+
+        let otp_token =
+            req.request
+                .otp_token
+                .clone()
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "otp_token",
+                    context: Default::default(),
+                })?;
+
+        let inner = PhonepeVerifyOtpInnerRequest {
+            merchant_id: auth.merchant_id.peek().to_string(),
+            otp_token,
+            otp,
+        };
+
+        let json_payload = Encode::encode_to_string_of_json(&inner).change_context(
+            IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            },
+        )?;
+
+        let base64_payload = base64::engine::general_purpose::STANDARD.encode(&json_payload);
+
+        let api_path = format!("/{}", constants::API_VERIFY_OTP_ENDPOINT);
+        let checksum =
+            generate_phonepe_checksum(&base64_payload, &api_path, &auth.salt_key, &auth.key_index)?;
+
+        Ok(Self {
+            request: base64_payload,
+            checksum,
+        })
+    }
+}
+
+// TryFrom implementation for borrowed PhonepeRouterData wrapper (verify OTP header generation)
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        &PhonepeRouterData<
+            &RouterDataV2<
+                VerifyOtpForWallet,
+                PaymentFlowData,
+                VerifyOtpForWalletData,
+                VerifyOtpForWalletResponseData,
+            >,
+            T,
+        >,
+    > for PhonepeVerifyOtpRequest
+{
+    type Error = Error;
+
+    fn try_from(
+        item: &PhonepeRouterData<
+            &RouterDataV2<
+                VerifyOtpForWallet,
+                PaymentFlowData,
+                VerifyOtpForWalletData,
+                VerifyOtpForWalletResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let req = item.router_data;
         let auth = PhonepeAuthType::try_from(&req.connector_config)?;
 
         let otp = req
@@ -1406,7 +1561,7 @@ impl TryFrom<ResponseRouterData<PhonepeVerifyOtpResponse, Self>>
         VerifyOtpForWalletResponseData,
     >
 {
-    type Error = Error;
+    type Error = ResponseError;
 
     fn try_from(
         item: ResponseRouterData<PhonepeVerifyOtpResponse, Self>,
