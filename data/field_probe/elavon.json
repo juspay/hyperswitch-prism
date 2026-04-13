@@ -9,87 +9,87 @@
     "authorize": {
       "Ach": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "AchBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "Affirm": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "Afterpay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "Alfamart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "AliPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "AmazonPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "ApplePay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "ApplePayDecrypted": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "ApplePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "Bacs": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "BacsBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "BancontactCard": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "BcaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "Becs": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "Bizum": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "Blik": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "Bluecode": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "BniVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "Boleto": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "BriVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "Card": {
         "status": "supported",
@@ -127,15 +127,15 @@
       },
       "CashappQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "ClassicReward": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "Crypto": {
         "status": "not_supported",
@@ -143,7 +143,7 @@
       },
       "DanamonVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "DuitNow": {
         "status": "not_supported",
@@ -151,27 +151,27 @@
       },
       "EVoucher": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "Efecty": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "Eft": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "Eps": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "FamilyMart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "Giropay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "Givex": {
         "status": "not_supported",
@@ -179,107 +179,107 @@
       },
       "GooglePay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "GooglePayDecrypted": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "Ideal": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "Indomaret": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "IndonesianBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "InstantBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "InstantBankTransferFinland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "InstantBankTransferPoland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "Interac": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "Klarna": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "Lawson": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "LocalBankRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "LocalBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "MandiriVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "MbWay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "Mifinity": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "MiniStop": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "MultibancoBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "OnlineBankingCzechRepublic": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "OnlineBankingFinland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "OnlineBankingFpx": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "OnlineBankingPoland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "OnlineBankingSlovakia": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "OnlineBankingThailand": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "OpenBanking": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "OpenBankingPis": {
         "status": "not_supported",
@@ -287,19 +287,19 @@
       },
       "OpenBankingUk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "Oxxo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "PagoEfectivo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "PayEasy": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "PaySafeCard": {
         "status": "not_supported",
@@ -307,11 +307,11 @@
       },
       "PaypalRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "PaypalSdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "Paze": {
         "status": "not_supported",
@@ -319,87 +319,87 @@
       },
       "PermataBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "Pix": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "Przelewy24": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "Pse": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "RedCompra": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "RedPagos": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "RevolutPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "SamsungPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "Satispay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "Seicomart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "Sepa": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "SepaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "SepaGuaranteedDebit": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "SevenEleven": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "Sofort": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "Trustly": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "UpiCollect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "UpiIntent": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "UpiQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "WeChatPayQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       },
       "Wero": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "error": "This feature is not implemented: Only card and token payments are supported for Elavon"
       }
     },
     "capture": {
@@ -426,7 +426,27 @@
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_client_session_id": "probe_sdk_session_001",
+          "domain_context": {
+            "payment": {
+              "amount": {
+                "minor_amount": 1000,
+                "currency": "USD"
+              }
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api.demo.convergepay.com/hosted-payments/transaction_token",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "ssl_merchant_id=probe_merchant&ssl_user_id=probe_user&ssl_pin=probe_pin&ssl_transaction_type=ccsale&ssl_amount=10.00&ssl_transaction_currency=USD&ssl_invoke_receipt=false"
+        }
       }
     },
     "create_customer": {
@@ -620,8 +640,29 @@
     },
     "token_authorize": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_tokenized_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "connector_token": "pm_1AbcXyzStripeTestToken",
+          "address": {
+            "billing_address": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.demo.convergepay.com/VirtualMerchantDemo/processxml.do",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "xmldata=%3Ctxn%3E%3Cssl_transaction_type%3Eccsale%3C%2Fssl_transaction_type%3E%3Cssl_account_id%3Eprobe_merchant%3C%2Fssl_account_id%3E%3Cssl_user_id%3Eprobe_user%3C%2Fssl_user_id%3E%3Cssl_pin%3Eprobe_pin%3C%2Fssl_pin%3E%3Cssl_amount%3E10.00%3C%2Fssl_amount%3E%3Cssl_token%3Epm_1AbcXyzStripeTestToken%3C%2Fssl_token%3E%3Cssl_transaction_currency%3EUSD%3C%2Fssl_transaction_currency%3E%3Cssl_invoice_number%3EIRRELEVANT_PAYMENT_ID%3C%2Fssl_invoice_number%3E%3C%2Ftxn%3E"
+        }
       }
     },
     "token_setup_recurring": {

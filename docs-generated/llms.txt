@@ -195,7 +195,7 @@ connector_id: elavon
 doc: docs/connectors/elavon.md
 scenarios: checkout_autocapture, checkout_card, refund, get_payment
 payment_methods: Card
-flows: authorize, capture, get, proxy_authorize, refund, refund_get
+flows: authorize, capture, create_client_authentication_token, get, proxy_authorize, refund, refund_get, token_authorize
 examples_python: examples/elavon/elavon.py
 
 ## Finix

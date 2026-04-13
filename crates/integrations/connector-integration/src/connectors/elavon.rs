@@ -39,9 +39,9 @@ use interfaces::{
 };
 use serde::Serialize;
 use transformers::{
-    self as elavon, ElavonCaptureResponse, ElavonPSyncResponse, ElavonPaymentsResponse,
-    ElavonRSyncResponse, ElavonRefundResponse, XMLCaptureRequest, XMLElavonRequest,
-    XMLPSyncRequest, XMLRSyncRequest, XMLRefundRequest,
+    self as elavon, ElavonCaptureResponse, ElavonClientAuthRequest, ElavonClientAuthResponse,
+    ElavonPSyncResponse, ElavonPaymentsResponse, ElavonRSyncResponse, ElavonRefundResponse,
+    XMLCaptureRequest, XMLElavonRequest, XMLPSyncRequest, XMLRSyncRequest, XMLRefundRequest,
 };
 
 use super::macros;
@@ -324,6 +324,12 @@ macros::create_all_prerequisites!(
             request_body: XMLRSyncRequest,
             response_body: ElavonRSyncResponse,
             router_data: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        ),
+        (
+            flow: ClientAuthenticationToken,
+            request_body: ElavonClientAuthRequest,
+            response_body: ElavonClientAuthResponse,
+            router_data: RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
         )
     ],
     amount_converters: [],
@@ -524,6 +530,44 @@ macros::macro_connector_implementation!(
     }
 );
 
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Elavon,
+    curl_request: FormUrlEncoded(ElavonClientAuthRequest),
+    curl_response: ElavonClientAuthResponse,
+    flow_name: ClientAuthenticationToken,
+    resource_common_data: PaymentFlowData,
+    flow_request: ClientAuthenticationTokenRequestData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            // The session token endpoint uses a different path than the main XML API.
+            // Base URL: https://api.demo.convergepay.com/VirtualMerchantDemo/
+            // Session token: https://api.demo.convergepay.com/hosted-payments/transaction_token
+            let base = &req.resource_common_data.connectors.elavon.base_url;
+            let host_url = base
+                .trim_end_matches('/')
+                .rsplit_once('/')
+                .map(|(prefix, _)| prefix)
+                .unwrap_or(base.trim_end_matches('/'));
+            Ok(format!("{host_url}/hosted-payments/transaction_token"))
+        }
+    }
+);
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
     for Elavon<T>
@@ -598,15 +642,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        ClientAuthenticationToken,
-        PaymentFlowData,
-        ClientAuthenticationTokenRequestData,
-        PaymentsResponseData,
-    > for Elavon<T>
-{
-}
+// ClientAuthenticationToken ConnectorIntegrationV2 is provided by macro_connector_implementation! below
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
