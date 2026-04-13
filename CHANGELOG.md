@@ -19,6 +19,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.04.13.0
+
+### Features
+
+- **connector:**
+  - Implement Google Pay (encrypted) flow for JPMorgan connector ([#886](https://github.com/juspay/connector-service/pull/886)) ([`3f23341`](https://github.com/juspay/connector-service/commit/3f2334148bf3a6ff0e0ef55c8d7df81356f43e6d))
+  - Implement OrderCreate for nuvei ([#943](https://github.com/juspay/connector-service/pull/943)) ([`7c12d43`](https://github.com/juspay/connector-service/commit/7c12d43e36d4c346e98d48b692e8b780776cada5))
+  - Implement CreateClientAuthenticationToken for Nexixpay ([#991](https://github.com/juspay/connector-service/pull/991)) ([`4e2e852`](https://github.com/juspay/connector-service/commit/4e2e852433526d3788f9f9d7b6872d1e6938e433))
+- **payouts:** Add owner to payout files ([#1021](https://github.com/juspay/connector-service/pull/1021)) ([`b1044ef`](https://github.com/juspay/connector-service/commit/b1044ef85ac36be0958526b4629b1f8f1b64232d))
+
+### Bug Fixes
+
+- **nmi:** Remove currency and merchant_defined_fields from post-redirect authorize ([#1029](https://github.com/juspay/connector-service/pull/1029)) ([`2b40c2c`](https://github.com/juspay/connector-service/commit/2b40c2cd45b72616869e2ed2abb7430acf617e7f))
+
+### Performance
+
+- **ci:** Overhaul CI pipeline with path filtering, fast-fail ordering, and optimizations ([#1018](https://github.com/juspay/connector-service/pull/1018)) ([`9e2ecbf`](https://github.com/juspay/connector-service/commit/9e2ecbf499cacc1c30a1ff0dde75cd6e5264a98d))
+
+### Refactors
+
+- Move internal pm token into payment_method_data enum ([#1010](https://github.com/juspay/connector-service/pull/1010)) ([`70e0883`](https://github.com/juspay/connector-service/commit/70e0883df27d04b6102b4c6f522baa172ea93c83))
+
+### Documentation
+
+- Payment method ([#1028](https://github.com/juspay/connector-service/pull/1028)) ([`a029670`](https://github.com/juspay/connector-service/commit/a0296707ee218ca6d08a0362d5879ffab5e2b154))
+
+### Miscellaneous Tasks
+
+- Clean sdk readme ([#1030](https://github.com/juspay/connector-service/pull/1030)) ([`dcb4d52`](https://github.com/juspay/connector-service/commit/dcb4d52200cfba40bf14f839d716614378be92b8))
+
+**Full Changelog:** [`2026.04.10.0...2026.04.13.0`](https://github.com/juspay/connector-service/compare/2026.04.10.0...2026.04.13.0)
+
+- - -
+
 ## 2026.04.10.0
 
 ### Features
