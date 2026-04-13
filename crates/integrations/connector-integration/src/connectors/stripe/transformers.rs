@@ -4985,11 +4985,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         | PaymentMethodData::PaymentMethodToken(_)
                         | PaymentMethodData::NetworkToken(_)
                         | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
-                        | PaymentMethodData::Card(_) => Err(IntegrationError::NotSupported {
-                            message: "Network tokenization for payment method".to_string(),
-                            connector: "Stripe",
-                            context: Default::default(),
-                        })?,
+                        | PaymentMethodData::Card(_) => Err(IntegrationError::not_implemented(
+                            "Network tokenization for payment method".to_string(),
+                        ))?,
                     };
 
                         (

@@ -217,12 +217,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 }))
             }
             _ => {
-                return Err(IntegrationError::NotSupported {
-                    message: "Payment method ".to_string(),
-                    connector: "mollie",
-                    context: Default::default(),
-                }
-                .into());
+                return Err(IntegrationError::not_implemented(
+                    "Payment method not supported for Mollie".to_string(),
+                ));
             }
         };
 

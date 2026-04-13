@@ -208,12 +208,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     ) -> Result<Self, Self::Error> {
         if item.router_data.resource_common_data.is_three_ds() {
-            return Err(IntegrationError::NotSupported {
-                message: "3DS payments".to_string(),
-                connector: "peachpayments",
-                context: Default::default(),
-            }
-            .into());
+            return Err(IntegrationError::not_implemented("3DS payments".to_string()).into());
         }
 
         let auth = PeachpaymentsAuthType::try_from(&item.router_data.connector_config)?;

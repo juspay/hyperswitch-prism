@@ -273,8 +273,39 @@ fn get_cashfree_payment_method_data<
                 }
             }
         }
+        PaymentMethodData::Card(_) => Err(IntegrationError::not_implemented(
+            "Card payments are supported by Cashfree, but are not yet implemented for this connector",
+        )),
+        PaymentMethodData::BankRedirect(
+            domain_types::payment_method_data::BankRedirectData::Netbanking { .. },
+        ) => Err(IntegrationError::not_implemented(
+            "Netbanking payments are supported by Cashfree, but are not yet implemented for this connector",
+        )),
+        PaymentMethodData::PayLater(_) => Err(IntegrationError::not_implemented(
+            "Pay later and cardless EMI payments are supported by Cashfree, but are not yet implemented for this connector",
+        )),
+        PaymentMethodData::BankTransfer(_) => Err(IntegrationError::not_implemented(
+            "Bank transfer payments are supported by Cashfree, but are not yet implemented for this connector",
+        )),
+        PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+            domain_types::payment_method_data::WalletData::AmazonPayRedirect(_)
+            | domain_types::payment_method_data::WalletData::PaypalRedirect(_)
+            | domain_types::payment_method_data::WalletData::PaypalSdk(_)
+            | domain_types::payment_method_data::WalletData::ApplePay(_)
+            | domain_types::payment_method_data::WalletData::ApplePayRedirect(_)
+            | domain_types::payment_method_data::WalletData::ApplePayThirdPartySdk(_) => {
+                Err(IntegrationError::not_implemented(
+                    "This wallet payment method is supported by Cashfree, but is not yet implemented for this connector",
+                ))
+            }
+            _ => Err(IntegrationError::NotSupported {
+                message: "Selected wallet payment method".to_string(),
+                connector: "Cashfree",
+                context: Default::default(),
+            }),
+        },
         _ => Err(IntegrationError::NotSupported {
-            message: "Only UPI payment methods are supported for Cashfree V3".to_string(),
+            message: "Selected payment method".to_string(),
             connector: "Cashfree",
             context: Default::default(),
         }),

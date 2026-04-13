@@ -345,11 +345,7 @@ impl<T: PaymentMethodDataTypes>
                 })
             }
             _ => {
-                return Err(error_stack::report!(IntegrationError::NotSupported {
-                    message: "Payment method".to_string(),
-                    connector: "Shift4",
-                    context: Default::default()
-                }))
+                return Err(IntegrationError::not_implemented("Payment method".to_string()).into());
             }
         };
 
