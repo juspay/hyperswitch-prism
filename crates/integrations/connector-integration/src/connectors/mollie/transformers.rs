@@ -18,7 +18,7 @@ use domain_types::{
         PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
         ResponseId,
     },
-    payment_method_data::{CardToken, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
+    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
@@ -219,28 +219,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 MolliePaymentMethodData::CreditCard(Box::new(CreditCardMethodData {
                     card_token,
                     billing_address,
-                    shipping_address: None,
-                }))
-            }
-            // TODO: Add payment method token field and also rename the struct to PaymentMethodToken since it is not being used anywhere
-            PaymentMethodData::CardToken(CardToken { .. }) => {
-                let token = item
-                    .resource_common_data
-                    .payment_method_token
-                    .as_ref()
-                    .map(|t| match t {
-                        domain_types::router_data::PaymentMethodToken::Token(s) => s.clone(),
-                    })
-                    .ok_or_else(|| {
-                        error_stack::report!(IntegrationError::MissingRequiredField {
-                            field_name: "payment_method_token",
-                            context: Default::default(),
-                        })
-                    })?;
-
-                MolliePaymentMethodData::CreditCard(Box::new(CreditCardMethodData {
-                    card_token: Some(token),
-                    billing_address: None,
                     shipping_address: None,
                 }))
             }
