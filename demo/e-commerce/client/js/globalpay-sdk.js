@@ -1,66 +1,43 @@
 /**
- * GlobalPay SDK Handler
- * Uses GlobalPay embedded checkout elements (no redirect)
- * Reference: https://developer.globalpayments.com/docs/payments/online/hosted-payment-page-guide
+ * GlobalPay SDK Handler - NON PCI Compliant
+ * Uses GlobalPay Credit Card Form (auto-submit)
+ * Reference: /Users/jeeva.ramachandran/Downloads/archive/connector/globalpay.html
  */
 
-let globalPayInstance = null;
 let cardForm = null;
 
 /**
- * Initialize GlobalPay with access token
- * @param {string} accessToken - Access token from server
- * @param {string} publishableKey - Publishable key
+ * Initialize GlobalPay Credit Card Form
+ * @param {string} accessToken - Access token from server (with PMT_POST_Create_Single permission)
  * @returns {Promise<boolean>}
  */
-async function initGlobalPay(accessToken, publishableKey) {
+async function initGlobalPay(accessToken) {
   try {
-    console.log('[GlobalPay] Initializing embedded checkout');
-    
-    // Check if GlobalPay is loaded
-    if (typeof GlobalPay === 'undefined') {
-      throw new Error('GlobalPay SDK not loaded');
+    console.log('[GlobalPay] Initializing Credit Card Form');
+
+    // Check if GlobalPayments is loaded
+    if (typeof GlobalPayments === 'undefined') {
+      throw new Error('GlobalPayments SDK not loaded');
     }
-    
-    // Configure GlobalPay
-    globalPayInstance = GlobalPay.configure({
+
+    console.log('[GlobalPay] Using access token:', accessToken?.substring(0, 15) + '...');
+
+    // Configure GlobalPayments
+    GlobalPayments.configure({
       accessToken: accessToken,
-      env: 'sandbox', // Use 'production' for live
-      apiVersion: '2021-03-22'
+      env: 'sandbox'
     });
-    
-    // Create card form with embedded styling
-    cardForm = globalPayInstance.create('card-form', {
-      target: document.getElementById('globalpay-payment-element'),
-      style: {
-        base: {
-          color: '#30313d',
-          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-          fontSize: '16px',
-          '::placeholder': {
-            color: '#aab7c4'
-          }
-        },
-        invalid: {
-          color: '#df1b41'
-        }
-      }
+
+    // Create the credit card form - auto-mounts to #credit-card
+    // This creates hosted fields for card number, expiry, and CVV
+    cardForm = GlobalPayments.creditCard.form('#credit-card');
+
+    // Handle form ready
+    cardForm.ready(() => {
+      console.log('[GlobalPay] Credit Card Form ready');
     });
-    
-    // Mount the card form
-    await cardForm.mount();
-    
-    // Handle validation changes
-    cardForm.on('change', (event) => {
-      const errorElement = document.getElementById('globalpay-error');
-      if (event.error) {
-        errorElement.textContent = event.error.message;
-      } else {
-        errorElement.textContent = '';
-      }
-    });
-    
-    console.log('[GlobalPay] Card form mounted');
+
+    console.log('[GlobalPay] Credit Card Form initialized');
     return true;
   } catch (error) {
     console.error('[GlobalPay] Init error:', error);
@@ -69,84 +46,56 @@ async function initGlobalPay(accessToken, publishableKey) {
 }
 
 /**
- * Submit GlobalPay payment
- * @param {Object} paymentData - Payment details
- * @returns {Promise<{success: boolean, error?: string, token?: string}>}
+ * Setup GlobalPay event handlers
+ * @param {Function} onTokenSuccess - Callback when token is created
  */
-async function submitGlobalPayPayment(paymentData) {
+function setupGlobalPayHandlers(onTokenSuccess) {
   if (!cardForm) {
     throw new Error('GlobalPay not initialized');
   }
-  
-  const submitBtn = document.getElementById('globalpay-submit-btn');
-  const btnText = document.getElementById('gp-btn-text');
-  const btnSpinner = document.getElementById('gp-btn-spinner');
+
   const errorElement = document.getElementById('globalpay-error');
-  
-  // Show loading
-  submitBtn.disabled = true;
-  btnText.textContent = 'Processing...';
-  btnSpinner.classList.remove('hidden');
-  errorElement.textContent = '';
-  
-  try {
-    // Tokenize card
-    const { token, error } = await cardForm.tokenize();
+
+  // Handle token success - auto-submitted when user presses Enter or form validates
+  cardForm.on('token-success', (resp) => {
+    const token = resp.paymentReference;
+    console.log('[GlobalPay] Token created:', token);
     
-    if (error) {
-      throw error;
+    if (token) {
+      onTokenSuccess(token);
+    } else {
+      console.error('[GlobalPay] No paymentReference in response:', resp);
+      if (errorElement) {
+        errorElement.textContent = 'Token creation failed - no payment reference';
+      }
+    }
+  });
+
+  // Handle token error
+  cardForm.on('token-error', (err) => {
+    console.error('[GlobalPay] Tokenization failed:', err);
+    
+    let errorMsg = 'Payment tokenization failed';
+    if (err.error_code === 'ACTION_NOT_AUTHORIZED' || err.detailed_error_code === '40022') {
+      errorMsg = 'Access token lacks tokenization permissions. Contact GlobalPay support to enable PMT_POST_Create permission.';
+    } else if (err.reason || err.detailed_error_description) {
+      errorMsg = err.reason || err.detailed_error_description;
     }
     
-    console.log('[GlobalPay] Card tokenized:', token);
-    
-    // Return token for server-side processing
-    return {
-      success: true,
-      token: token
-    };
-    
-  } catch (error) {
-    console.error('[GlobalPay] Payment error:', error);
-    errorElement.textContent = error.message || 'Payment failed';
-    submitBtn.disabled = false;
-    btnText.textContent = 'Pay Now';
-    btnSpinner.classList.add('hidden');
-    return { success: false, error: error.message };
-  }
-}
+    if (errorElement) {
+      errorElement.textContent = errorMsg;
+    }
+  });
 
-/**
- * Alternative: Initialize with card element (single field)
- */
-async function initGlobalPayCardElement(accessToken) {
-  try {
-    console.log('[GlobalPay] Initializing card element');
-    
-    globalPayInstance = GlobalPay.configure({
-      accessToken: accessToken,
-      env: 'sandbox'
-    });
-    
-    const card = globalPayInstance.create('card', {
-      style: {
-        base: {
-          color: '#30313d',
-          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-          fontSize: '16px'
-        }
-      }
-    });
-    
-    await card.mount('#globalpay-payment-element');
-    
-    return card;
-  } catch (error) {
-    console.error('[GlobalPay] Card element error:', error);
-    throw error;
-  }
+  // Global error handler
+  GlobalPayments.on('error', (err) => {
+    console.error('[GlobalPay] SDK error:', err);
+    if (errorElement) {
+      errorElement.textContent = err.message || 'An error occurred';
+    }
+  });
 }
 
 // Export globally
 window.initGlobalPay = initGlobalPay;
-window.initGlobalPayCardElement = initGlobalPayCardElement;
-window.submitGlobalPayPayment = submitGlobalPayPayment;
+window.setupGlobalPayHandlers = setupGlobalPayHandlers;

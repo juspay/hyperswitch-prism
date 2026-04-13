@@ -1,4 +1,4 @@
-.PHONY: help install dev build start stop restart logs clean docker-build docker-up docker-down docker-logs
+.PHONY: help install dev dev-stop build start stop restart logs clean up docker-up docker-down docker-logs
 
 # Default target
 help:
@@ -7,11 +7,12 @@ help:
 	@echo "  Local Development:"
 	@echo "    install       Install npm dependencies"
 	@echo "    dev           Start development server with hot reload"
+	@echo "    dev-stop      Stop development server"
 	@echo "    build         Build TypeScript to JavaScript"
 	@echo "    start         Start production server"
 	@echo ""
 	@echo "  Docker:"
-	@echo "    docker-build  Build Docker image"
+	@echo "    up            Build and start containers (docker-compose up --build)"
 	@echo "    docker-up     Start containers (docker-compose up)"
 	@echo "    docker-down   Stop containers (docker-compose down)"
 	@echo "    docker-logs   View container logs"
@@ -30,6 +31,9 @@ install:
 dev:
 	npx tsx watch server/index.ts
 
+dev-stop:
+	@pkill -f "tsx watch server/index.ts" 2>/dev/null && echo "Development server stopped" || echo "No development server running"
+
 build:
 	npm run build
 
@@ -37,16 +41,14 @@ start:
 	node dist/server/index.js
 
 # Docker Commands
-docker-build:
-	docker-compose build
+up:
+	docker-compose up --build -d
 
-docker-up:
-	docker-compose up -d
 
-docker-down:
+down:
 	docker-compose down
 
-docker-logs:
+logs:
 	docker-compose logs -f
 
 # Convenience aliases

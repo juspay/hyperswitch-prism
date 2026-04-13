@@ -3,6 +3,47 @@
  * Orchestrates payment SDK initialization and submission
  */
 
+// PaymentStatus enum from types (mirrored from SDK)
+const PaymentStatus = {
+  PAYMENT_STATUS_UNSPECIFIED: 0,
+  STARTED: 1,
+  PAYMENT_METHOD_AWAITED: 22,
+  DEVICE_DATA_COLLECTION_PENDING: 24,
+  CONFIRMATION_AWAITED: 23,
+  AUTHENTICATION_PENDING: 4,
+  AUTHENTICATION_SUCCESSFUL: 5,
+  AUTHENTICATION_FAILED: 2,
+  AUTHORIZING: 9,
+  AUTHORIZED: 6,
+  AUTHORIZATION_FAILED: 7,
+  PARTIALLY_AUTHORIZED: 25,
+  CHARGED: 8,
+  PARTIAL_CHARGED: 17,
+  PARTIAL_CHARGED_AND_CHARGEABLE: 18,
+  AUTO_REFUNDED: 16,
+  CAPTURE_INITIATED: 13,
+  CAPTURE_FAILED: 14,
+  VOID_INITIATED: 12,
+  VOIDED: 11,
+  VOID_FAILED: 15,
+  VOIDED_POST_CAPTURE: 57,
+  COD_INITIATED: 10,
+  EXPIRED: 26,
+  ROUTER_DECLINED: 3,
+  PENDING: 20,
+  FAILURE: 21,
+  UNRESOLVED: 19
+};
+
+// RefundStatus enum from types
+const RefundStatus = {
+  REFUND_STATUS_UNSPECIFIED: 0,
+  PENDING: 1,
+  COMPLETED: 4,
+  FAILED: 3,
+  MANUAL_REVIEW: 2
+};
+
 // State
 let checkoutData = null;
 let sdkConfig = null;
@@ -94,13 +135,19 @@ async function initializePayment() {
     
     // Step 2: Initialize appropriate SDK
     if (sdkConfig.connector === 'stripe') {
+      console.log('[Checkout] Initializing Stripe checkout...');
       await initStripeCheckout();
+      console.log('[Checkout] Stripe checkout initialized');
     } else if (sdkConfig.connector === 'globalpay') {
+      console.log('[Checkout] Initializing GlobalPay checkout...');
       await initGlobalPayCheckout();
+      console.log('[Checkout] GlobalPay checkout initialized');
     }
     
     // Hide loading, show form
+    console.log('[Checkout] Hiding loading indicator');
     loadingEl.classList.add('hidden');
+    console.log('[Checkout] Loading hidden, form should be visible');
     
   } catch (error) {
     console.error('[Checkout] Init error:', error);
@@ -120,12 +167,22 @@ async function initStripeCheckout() {
 
 /**
  * Initialize GlobalPay checkout
+ * Uses auto-submit form (no button) - NON PCI compliant
  */
 async function initGlobalPayCheckout() {
   globalpayContainer.classList.remove('hidden');
-  
-  // Use access token from server
-  await initGlobalPay(sdkConfig.clientToken, sdkConfig.publishableKey);
+
+  // Use the clientToken directly (it's the access token with PMT_POST_Create_Single permission)
+  const accessToken = sdkConfig.clientToken;
+
+  // Initialize GlobalPay with the access token
+  await initGlobalPay(accessToken);
+
+  // Setup handlers - form auto-submits when user presses Enter
+  setupGlobalPayHandlers(async (token) => {
+    console.log('[Checkout] GlobalPay token received, authorizing...');
+    await authorizePayment(token);
+  });
 }
 
 /**
@@ -160,10 +217,10 @@ async function handleStripeSubmit(e) {
   const result = await submitStripePayment();
   
   if (result.success) {
-    // PaymentIntent already processed by Stripe
-    // We need to authorize on our server too
-    await authorizePayment(result.paymentIntent.id);
+    // Send payment method token to server for authorization
+    await authorizePayment(result.paymentMethod.id);
   }
+  // Note: Button state is handled by authorizePayment -> showSuccess/showError
 }
 
 /**
@@ -198,11 +255,12 @@ async function authorizePayment(token) {
     
     const result = await response.json();
     
-    // PaymentStatus: 8 = CHARGED, 6 = AUTHORIZED
-    if (result.status === 8 || result.status === 6) {
+    // Check if payment succeeded using statusText from server
+    const successStatuses = ['CHARGED', 'AUTHORIZED'];
+    if (successStatuses.includes(result.statusText)) {
       showSuccess(result.connectorTransactionId);
     } else {
-      showError(result.error || 'Payment failed');
+      showError(result.error || `Payment ${result.statusText || 'failed'}`);
     }
     
   } catch (error) {
@@ -215,6 +273,16 @@ async function authorizePayment(token) {
  * Show success result
  */
 function showSuccess(transactionId) {
+  // Reset button state
+  const submitBtn = document.getElementById('stripe-submit-btn');
+  const btnText = document.getElementById('btn-text');
+  const btnSpinner = document.getElementById('btn-spinner');
+  if (submitBtn) {
+    submitBtn.disabled = false;
+    btnText.textContent = 'Pay Now';
+    btnSpinner.classList.add('hidden');
+  }
+  
   // Hide payment forms
   stripeContainer.classList.add('hidden');
   globalpayContainer.classList.add('hidden');

@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const { Environment, Connector } = types;
+const { Environment } = types;
 
 // Connector configurations
 export const getStripeConfig = (): types.ConnectorConfig => ({

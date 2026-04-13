@@ -56,14 +56,8 @@
 
         <!-- GlobalPay Checkout Container -->
         <div id="globalpay-checkout-container" class="checkout-container hidden">
-          <!-- GlobalPay Checkout will be mounted here -->
-          <div id="globalpay-payment-element"></div>
-          <button id="globalpay-submit-btn" class="submit-btn">
-            <span id="gp-btn-text">Pay Now</span>
-            <span id="gp-btn-spinner" class="btn-spinner hidden">
-              <div class="spinner-small"></div>
-            </span>
-          </button>
+          <!-- GlobalPay Credit Card Form (auto-submits, no button needed) -->
+          <div id="credit-card"></div>
           <div id="globalpay-error" class="card-errors"></div>
         </div>
 
@@ -84,6 +78,9 @@
 
   <!-- Stripe.js with Payment Element support -->
   <script src="https://js.stripe.com/v3/"></script>
+
+  <!-- GlobalPayments SDK for Credit Card Form -->
+  <script src="https://js.globalpay.com/4.1.21/globalpayments.js"></script>
   
   <script src="js/stripe-sdk.js"></script>
   <script src="js/globalpay-sdk.js"></script>

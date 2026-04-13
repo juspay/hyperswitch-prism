@@ -16,13 +16,20 @@ let currentClientSecret = null;
 async function initStripe(publishableKey, clientSecret) {
   try {
     console.log('[Stripe] Initializing Payment Element');
+    console.log('[Stripe] Publishable key:', publishableKey?.substring(0, 10) + '...');
+    console.log('[Stripe] Client secret:', clientSecret?.substring(0, 20) + '...');
+    
+    if (!publishableKey || !clientSecret) {
+      throw new Error('Missing publishable key or client secret');
+    }
     
     stripe = Stripe(publishableKey);
     currentClientSecret = clientSecret;
     
-    // Create Elements instance
+    // Create Elements instance with manual payment method creation
     elements = stripe.elements({
       clientSecret: clientSecret,
+      paymentMethodCreation: 'manual',
       appearance: {
         theme: 'stripe',
         variables: {
@@ -41,7 +48,23 @@ async function initStripe(publishableKey, clientSecret) {
       layout: 'tabs'
     });
     
+    // Check if container exists
+    const container = document.getElementById('payment-element');
+    if (!container) {
+      throw new Error('Payment element container not found');
+    }
+    
     paymentElement.mount('#payment-element');
+    
+    // Handle when element is ready
+    paymentElement.on('ready', () => {
+      console.log('[Stripe] Payment Element ready');
+    });
+    
+    // Handle load errors
+    paymentElement.on('loaderror', (event) => {
+      console.error('[Stripe] Element load error:', event);
+    });
     
     // Handle real-time validation errors
     paymentElement.on('change', (event) => {
@@ -53,7 +76,7 @@ async function initStripe(publishableKey, clientSecret) {
       }
     });
     
-    console.log('[Stripe] Payment Element mounted');
+    console.log('[Stripe] Payment Element mounted successfully');
     return true;
   } catch (error) {
     console.error('[Stripe] Init error:', error);
@@ -62,8 +85,8 @@ async function initStripe(publishableKey, clientSecret) {
 }
 
 /**
- * Submit payment (no redirect - handles in-app)
- * @returns {Promise<{success: boolean, error?: string, paymentIntent?: object}>}
+ * Submit payment - tokenize card and return payment method
+ * @returns {Promise<{success: boolean, error?: string, paymentMethod?: object}>}
  */
 async function submitStripePayment() {
   if (!stripe || !elements) {
@@ -88,29 +111,23 @@ async function submitStripePayment() {
       throw submitError;
     }
     
-    // Confirm payment without redirect
-    const { paymentIntent, error: confirmError } = await stripe.confirmPayment({
-      elements,
-      clientSecret: currentClientSecret,
-      confirmParams: {
-        return_url: window.location.href, // Required but won't redirect
-      },
-      redirect: 'if_required' // Only redirect if 3DS required
+    // Create payment method (tokenize card) - don't confirm yet
+    const { paymentMethod, error: createError } = await stripe.createPaymentMethod({
+      elements
     });
     
-    if (confirmError) {
-      throw confirmError;
+    if (createError) {
+      throw createError;
     }
     
-    console.log('[Stripe] Payment successful:', paymentIntent);
+    console.log('[Stripe] Payment method created:', paymentMethod);
     
+    // Don't reset button here - let authorizePayment handle it
     return {
       success: true,
-      paymentIntent: {
-        id: paymentIntent.id,
-        status: paymentIntent.status,
-        amount: paymentIntent.amount,
-        currency: paymentIntent.currency
+      paymentMethod: {
+        id: paymentMethod.id,
+        type: paymentMethod.type
       }
     };
     
