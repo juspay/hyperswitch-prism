@@ -799,11 +799,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let response: PhonepeTriggerOtpResponse = res
             .response
             .parse_struct("PhonepeTriggerOtpResponse")
-            .change_context(
-                ConnectorError::ResponseDeserializationFailed {
-                    context: Default::default(),
-                },
-            )?;
+            .change_context(ConnectorError::ResponseDeserializationFailed {
+                context: Default::default(),
+            })?;
 
         with_response_body!(event_builder, response);
 
@@ -812,11 +810,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             router_data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(
-            ConnectorError::ResponseHandlingFailed {
-                context: Default::default(),
-            },
-        )?;
+        .change_context(ConnectorError::ResponseHandlingFailed {
+            context: Default::default(),
+        })?;
 
         Ok(router_data)
     }
@@ -920,11 +916,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let response: PhonepeVerifyOtpResponse = res
             .response
             .parse_struct("PhonepeVerifyOtpResponse")
-            .change_context(
-                ConnectorError::ResponseDeserializationFailed {
-                    context: Default::default(),
-                },
-            )?;
+            .change_context(ConnectorError::ResponseDeserializationFailed {
+                context: Default::default(),
+            })?;
 
         with_response_body!(event_builder, response);
 
@@ -933,11 +927,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             router_data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(
-            ConnectorError::ResponseHandlingFailed {
-                context: Default::default(),
-            },
-        )?;
+        .change_context(ConnectorError::ResponseHandlingFailed {
+            context: Default::default(),
+        })?;
 
         Ok(router_data)
     }

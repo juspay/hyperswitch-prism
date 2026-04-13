@@ -1483,11 +1483,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .response
             .parse_struct("RazorpayResendOtpResponse")
             .map_err(|err| {
-                report!(
-                    ConnectorError::ResponseDeserializationFailed {
-                        context: Default::default()
-                    }
-                )
+                report!(ConnectorError::ResponseDeserializationFailed {
+                    context: Default::default()
+                })
                 .attach_printable(format!(
                     "Failed to parse RazorpayResendOtpResponse: {err:?}"
                 ))
