@@ -2,6 +2,11 @@
   "$schema": "https://context7.com/schema/context7.json",
   "projectTitle": "Hyperswitch Prism",
   "description": "Stateless payment connector library for AI agents and developers. Unified API for 100+ payment processors with multi-language SDKs.",
+  "website": "https://hyperswitch.io/prism",
+  "context7": {
+    "url": "https://context7.com/juspay/hyperswitch-prism",
+    "public_key": "pk_Osw0E5VETxqsVfHy1aPGg"
+  },
   "folders": [
     "sdk",
     "docs",
