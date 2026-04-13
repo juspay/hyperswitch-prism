@@ -10,10 +10,11 @@ use grpc_api_types::payments::{
     merchant_authentication_service_server::MerchantAuthenticationService,
     payment_method_authentication_service_server::PaymentMethodAuthenticationService,
     payment_service_server::PaymentService, refund_service_server::RefundService,
-    CompositeAuthorizeRequest, CompositeAuthorizeResponse, CompositeCaptureRequest,
-    CompositeCaptureResponse, CompositeGetRequest, CompositeGetResponse, CompositeRefundGetRequest,
-    CompositeRefundGetResponse, CompositeRefundRequest, CompositeRefundResponse, CompositeStatus,
-    CompositeVoidRequest, CompositeVoidResponse, ConnectorState, CustomerServiceCreateResponse,
+    AuthenticationData, CompositeAuthorizeRequest, CompositeAuthorizeResponse,
+    CompositeCaptureRequest, CompositeCaptureResponse, CompositeGetRequest, CompositeGetResponse,
+    CompositeRefundGetRequest, CompositeRefundGetResponse, CompositeRefundRequest,
+    CompositeRefundResponse, CompositeStatus, CompositeVoidRequest, CompositeVoidResponse,
+    ConnectorState, CustomerServiceCreateResponse,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse, PaymentMethod,
     PaymentMethodAuthenticationServiceAuthenticateRequest,
@@ -29,6 +30,47 @@ use grpc_api_types::payments::{
 
 use crate::transformers::ForeignFrom;
 use crate::utils::connector_from_composite_authorize_metadata;
+
+/// Decoded CRes (Challenge Response) from 3DS challenge completion.
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DecodedCRes {
+    /// 3DS Server Transaction ID
+    three_d_s_server_trans_i_d: Option<String>,
+    /// Message version (e.g., "2.1.0", "2.2.0")
+    message_version: Option<String>,
+    /// Transaction status (Y = authenticated, N = not authenticated, etc.)
+    #[allow(dead_code)]
+    trans_status: Option<String>,
+}
+
+/// Extracts authentication data (threeds_server_transaction_id, message_version) from CRes.
+/// The CRes is a base64-encoded JSON payload returned after 3DS challenge completion.
+/// The payload is passed as a map<string, string> in RedirectionResponse.
+fn extract_auth_data_from_cres(
+    redirection_response: Option<&grpc_api_types::payments::RedirectionResponse>,
+) -> Option<AuthenticationData> {
+    let redirect_resp = redirection_response?;
+
+    // The payload is a map<string, string> with {"cres": "<base64-encoded-json>"}
+    let cres_b64 = redirect_resp.payload.get("cres")?;
+
+    // Decode base64
+    use base64::Engine;
+    let decoded_bytes = base64::engine::general_purpose::STANDARD
+        .decode(cres_b64)
+        .ok()?;
+    let decoded_str = String::from_utf8(decoded_bytes).ok()?;
+
+    // Parse as JSON
+    let cres: DecodedCRes = serde_json::from_str(&decoded_str).ok()?;
+
+    Some(AuthenticationData {
+        threeds_server_transaction_id: cres.three_d_s_server_trans_i_d,
+        message_version: cres.message_version,
+        ..Default::default()
+    })
+}
 
 /// Trait for abstracting access to common fields needed for access token creation.
 pub trait CompositeAccessTokenRequest {
@@ -581,11 +623,13 @@ where
                 // Check if Authenticate returned a redirect (3DS challenge)
                 if auth_response.redirection_data.is_some() {
                     // Return REDIRECT_REQUIRED — caller must complete 3DS challenge
+                    // Include connector_feature_data which contains auth context for second call
                     let authorize_response =
                         grpc_api_types::payments::PaymentServiceAuthorizeResponse {
                             status: grpc_api_types::payments::PaymentStatus::AuthenticationPending
                                 .into(),
                             redirection_data: auth_response.redirection_data,
+                            connector_feature_data: auth_response.connector_feature_data,
                             ..Default::default()
                         };
 
@@ -717,13 +761,29 @@ where
                     }))
                 } else {
                     // Redsys path: Authorize directly with cres from redirection_response
+                    // Extract authentication data from the CRes payload
+                    let cres_auth_data =
+                        extract_auth_data_from_cres(payload.redirection_response.as_ref());
+
+                    // Create a modified payload with authentication_data filled in from CRes
+                    let payload_with_auth = CompositeAuthorizeRequest {
+                        authentication_data: cres_auth_data
+                            .or_else(|| payload.authentication_data.clone()),
+                        ..payload.clone()
+                    };
+
                     let create_customer_response = self
-                        .create_connector_customer(&connector, &payload, &metadata, &extensions)
+                        .create_connector_customer(
+                            &connector,
+                            &payload_with_auth,
+                            &metadata,
+                            &extensions,
+                        )
                         .await?;
                     let create_order_response = self
                         .create_order(
                             &connector,
-                            &payload,
+                            &payload_with_auth,
                             access_token_response.as_ref(),
                             &metadata,
                             &extensions,
@@ -732,7 +792,7 @@ where
 
                     let authorize_response = self
                         .authorize(
-                            &payload,
+                            &payload_with_auth,
                             access_token_response.as_ref(),
                             create_customer_response.as_ref(),
                             create_order_response.as_ref(),
