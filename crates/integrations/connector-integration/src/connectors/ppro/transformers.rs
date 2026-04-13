@@ -1,6 +1,6 @@
 use common_enums;
 use common_utils::consts;
-use hyperswitch_masking::{PeekInterface, Secret};
+use hyperswitch_masking::{Secret};
 use serde::{Deserialize, Serialize};
 
 use super::PproRouterData;
@@ -203,19 +203,11 @@ where
             .get_optional_billing_email()
             .or_else(|| router_data.request.get_optional_email());
 
-        let merchant_consumer_reference = router_data
-            .request
-            .customer_id
-            .as_ref()
-            .map(|id| id.get_string_repr().to_string())
-            .or_else(|| {
-                router_data
-                    .resource_common_data
-                    .customer_id
-                    .as_ref()
-                    .map(|id| id.get_string_repr().to_string())
-            })
-            .or_else(|| email.as_ref().map(|e| e.peek().to_string()));
+        let merchant_consumer_reference = Some(
+            router_data
+                .resource_common_data
+                .get_connector_customer_id()?,
+        );
 
         let consumer = router_data
             .resource_common_data
@@ -230,7 +222,7 @@ where
 
         Ok(Self {
             payment_method,
-            payment_medium: router_data.request.payment_channel.into(),
+            payment_medium: router_data.request.payment_channel.clone().into(),
             merchant_payment_charge_reference: router_data
                 .resource_common_data
                 .connector_request_reference_id
@@ -239,12 +231,7 @@ where
             amount,
             consumer,
             authentication_settings,
-            webhooks_url: router_data
-                .request
-                .webhook_url
-                .as_ref()
-                .filter(|url| url.starts_with("https://"))
-                .cloned(),
+            webhooks_url: Some(router_data.request.get_webhook_url()?),
         })
     }
 }
@@ -963,19 +950,11 @@ where
 
         let email = router_data.request.email.clone();
 
-        let merchant_consumer_reference = router_data
-            .request
-            .customer_id
-            .as_ref()
-            .map(|id| id.get_string_repr().to_string())
-            .or_else(|| {
-                router_data
-                    .resource_common_data
-                    .customer_id
-                    .as_ref()
-                    .map(|id| id.get_string_repr().to_string())
-            })
-            .or_else(|| email.as_ref().map(|e| e.peek().to_string()));
+        let merchant_consumer_reference = Some(
+            router_data
+                .resource_common_data
+                .get_connector_customer_id()?,
+        );
 
         let consumer = router_data
             .resource_common_data
