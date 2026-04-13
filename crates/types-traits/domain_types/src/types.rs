@@ -11968,8 +11968,7 @@ pub fn generate_resend_otp_for_wallet_response(
         ResendOtpForWalletData,
         ResendOtpForWalletResponseData,
     >,
-) -> Result<PaymentServiceResendOtpForWalletResponse, error_stack::Report<IntegrationError>>
-{
+) -> Result<PaymentServiceResendOtpForWalletResponse, error_stack::Report<IntegrationError>> {
     let raw_connector_response = router_data_v2
         .resource_common_data
         .get_raw_connector_response();
@@ -12113,8 +12112,7 @@ pub fn generate_verify_otp_for_wallet_response(
         VerifyOtpForWalletData,
         VerifyOtpForWalletResponseData,
     >,
-) -> Result<PaymentServiceVerifyOtpForWalletResponse, error_stack::Report<IntegrationError>>
-{
+) -> Result<PaymentServiceVerifyOtpForWalletResponse, error_stack::Report<IntegrationError>> {
     let raw_connector_response = router_data_v2
         .resource_common_data
         .get_raw_connector_response();
@@ -12255,8 +12253,7 @@ pub fn generate_trigger_otp_for_wallet_response(
         TriggerOtpForWalletData,
         TriggerOtpForWalletResponseData,
     >,
-) -> Result<PaymentServiceTriggerOtpForWalletResponse, error_stack::Report<IntegrationError>>
-{
+) -> Result<PaymentServiceTriggerOtpForWalletResponse, error_stack::Report<IntegrationError>> {
     let raw_connector_response = router_data_v2
         .resource_common_data
         .get_raw_connector_response();
