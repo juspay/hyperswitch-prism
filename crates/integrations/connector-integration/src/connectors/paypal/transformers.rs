@@ -813,6 +813,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     },
                 }),
             ),
+            PaymentMethodData::Wallet(WalletData::ApplePay(ref apple_pay_data)) => {
+                build_paypal_card_source_from_apple_pay(apple_pay_data, &item.router_data)?
+            }
             PaymentMethodData::Wallet(_) => {
                 Err(error_stack::report!(IntegrationError::NotSupported {
                     message: utils::get_unimplemented_payment_method_error_message("Paypal"),
@@ -1054,6 +1057,103 @@ impl<
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Customer {
     id: String,
+}
+
+// Apple Pay (decrypted) passthrough for PayPal.
+//
+// PayPal's native "Apple Pay" endpoint requires an encrypted token direct from
+// Apple's payment network, which UCS does not currently forward. To support
+// ApplePay via UCS we use the decrypted-DPAN passthrough pattern also used by
+// elavon / fiservemea / hipay / payload / bamboraapac / multisafepay /
+// trustpayments: consume the pre-decrypted Apple Pay data and submit it via
+// PayPal's standard card payment_source. Encrypted-only Apple Pay tokens
+// return MissingRequiredField.
+fn build_paypal_card_source_from_apple_pay<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+>(
+    apple_pay_data: &domain_types::payment_method_data::ApplePayWalletData,
+    router_data: &RouterDataV2<
+        Authorize,
+        PaymentFlowData,
+        PaymentsAuthorizeData<T>,
+        PaymentsResponseData,
+    >,
+) -> Result<PaymentSourceItem<T>, Report<IntegrationError>> {
+    let apple_pay_decrypted_data = apple_pay_data
+        .payment_data
+        .get_decrypted_apple_pay_payment_data_optional()
+        .ok_or_else(|| {
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "apple_pay_decrypted_data",
+                context: Default::default(),
+            })
+            .attach_printable(
+                "Paypal requires pre-decrypted Apple Pay data; \
+                 encrypted Apple Pay tokens are not supported.",
+            )
+        })?;
+
+    // PayPal card expiry is YYYY-MM.
+    let exp_month_secret = apple_pay_decrypted_data.get_expiry_month();
+    let exp_year_full_secret = apple_pay_decrypted_data.get_four_digit_expiry_year();
+    let exp_month_str = exp_month_secret.expose();
+    let formatted_exp_month = format!("{exp_month_str:0>2}");
+    let exp_year_full = exp_year_full_secret.expose();
+    let formatted_exp_year = if exp_year_full.len() == 4 {
+        exp_year_full
+    } else {
+        format!("20{exp_year_full}")
+    };
+    let expiry = Secret::new(format!("{formatted_exp_year}-{formatted_exp_month}"));
+
+    let card_number_string = apple_pay_decrypted_data
+        .application_primary_account_number
+        .get_card_no();
+    let inner: T::Inner = serde_json::from_value(serde_json::Value::String(card_number_string))
+        .map_err(|e| {
+            error_stack::report!(IntegrationError::InvalidDataFormat {
+                field_name: "apple_pay.application_primary_account_number",
+                context: Default::default(),
+            })
+            .attach_printable(format!(
+                "Failed to convert Apple Pay PAN to card number type: {e}"
+            ))
+        })?;
+    let raw_card_number: RawCardNumber<T> = RawCardNumber(inner);
+
+    let verification = match router_data.resource_common_data.auth_type {
+        common_enums::AuthenticationType::ThreeDs => Some(ThreeDsMethod {
+            method: ThreeDsType::ScaAlways,
+        }),
+        common_enums::AuthenticationType::NoThreeDs => None,
+    };
+
+    Ok(PaymentSourceItem::Card(CardRequest::CardRequestStruct(
+        CardRequestStruct {
+            billing_address: get_address_info(
+                router_data
+                    .resource_common_data
+                    .get_optional_payment_billing(),
+            ),
+            expiry: Some(expiry),
+            name: router_data
+                .resource_common_data
+                .get_optional_payment_billing_full_name(),
+            number: Some(raw_card_number),
+            // Apple Pay decrypted data does not include CVV.
+            security_code: None,
+            attributes: Some(CardRequestAttributes {
+                vault: match router_data.request.setup_future_usage {
+                    Some(common_enums::FutureUsage::OffSession) => Some(PaypalVault {
+                        store_in_vault: StoreInVault::OnSuccess,
+                        usage_type: UsageType::Merchant,
+                    }),
+                    _ => None,
+                },
+                verification,
+            }),
+        },
+    )))
 }
 
 fn get_address_info(
@@ -1421,6 +1521,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     )
                     .into()),
                 },
+                WalletData::ApplePay(apple_pay_data) => {
+                    let payment_source = Some(build_paypal_card_source_from_apple_pay(
+                        apple_pay_data,
+                        &item.router_data,
+                    )?);
+                    Ok(Self {
+                        intent,
+                        purchase_units,
+                        payment_source,
+                    })
+                }
                 WalletData::AliPayQr(_)
                 | WalletData::AliPayRedirect(_)
                 | WalletData::AliPayHkRedirect(_)
@@ -1429,7 +1540,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::KakaoPayRedirect(_)
                 | WalletData::GoPayRedirect(_)
                 | WalletData::GcashRedirect(_)
-                | WalletData::ApplePay(_)
                 | WalletData::ApplePayRedirect(_)
                 | WalletData::ApplePayThirdPartySdk(_)
                 | WalletData::DanaRedirect {}
