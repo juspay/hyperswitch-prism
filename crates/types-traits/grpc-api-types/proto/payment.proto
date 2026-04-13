@@ -850,6 +850,7 @@ enum PaymentMethodType {
   SATISPAY = 102;
   WERO = 103;
   NETWORK_TOKEN = 104;
+  OPEN_BANKING = 105;
 }
 
 // Product type enumeration
