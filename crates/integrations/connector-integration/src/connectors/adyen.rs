@@ -504,6 +504,33 @@ macros::macro_connector_implementation!(
             )?;
             Ok(format!("{endpoint}{ADYEN_API_VERSION}/payments/details"))
         }
+        fn build_request_v2(
+            &self,
+            req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
+        ) -> CustomResult<Option<common_utils::request::Request>, IntegrationError> {
+            // For wallet redirects, encoded_data may be None
+            // In such cases, gracefully skip the psync request
+            if req.request.encoded_data.clone().is_some() {
+                // Build the request normally if encoded_data is present
+                let url = self.get_url(req)?;
+                let headers = self.get_headers(req)?;
+                let body = ConnectorIntegrationV2::<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>::get_request_body(self, req)?;
+
+                Ok(Some(
+                    common_utils::request::RequestBuilder::new()
+                        .method(common_utils::request::Method::Post)
+                        .url(&url)
+                        .attach_default_headers()
+                        .headers(headers)
+                        .set_optional_body(body)
+                        .build(),
+                ))
+            } else {
+                // For wallet redirects without encoded_data, return None
+                // This allows the system to rely on webhooks for payment status
+                Ok(None)
+            }
+        }
     }
 );
 

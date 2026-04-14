@@ -16,6 +16,7 @@
    - [Redirect-Based Wallet Pattern](#redirect-based-wallet-pattern)
    - [Redirect Form Wallet Pattern](#redirect-form-wallet-pattern)
    - [Specialized Wallet Pattern](#specialized-wallet-pattern)
+   - [Per-Wallet Regional Redirect Pattern](#per-wallet-regional-redirect-pattern)
 5. [Request Patterns](#request-patterns)
 6. [Response Patterns](#response-patterns)
 7. [Implementation Templates](#implementation-templates)
@@ -27,12 +28,13 @@
 
 ## Overview
 
-Wallet payments in the Grace-UCS system are represented by the `WalletData` enum in `payment_method_data.rs`. Wallets generally fall into four implementation categories:
+Wallet payments in the Grace-UCS system are represented by the `WalletData` enum in `payment_method_data.rs`. Wallets generally fall into five implementation categories:
 
 1. **Token-Based Wallets**: Apple Pay, Google Pay, Samsung Pay, Paze - Use encrypted payment tokens
 2. **Redirect Wallets**: PayPal, AliPay, WeChat Pay - Redirect customer to wallet provider
 3. **SDK-Based Wallets**: PayPal SDK, Google Pay SDK, Apple Pay SDK - Use provider SDKs
 4. **Specialized Wallets**: Mifinity - Require additional customer data (DOB, etc.)
+5. **Per-Wallet Regional Redirect Wallets**: LazyPay, PhonePe, BillDesk, Cashfree, PayU, EaseBuzz - Individual variants routed through aggregator connectors (e.g., Razorpay) that map each variant to a wallet name string
 
 ### Key Characteristics
 
@@ -83,6 +85,12 @@ Complete list of `WalletData` variants from `payment_method_data.rs`:
 | `SwishQr` | `SwishQrData` | QR code payments |
 | `Mifinity` | `MifinityData` | Specialized (requires DOB) |
 | `RevolutPay` | `RevolutPayData` | Token-based |
+| `LazyPayRedirect` | `LazyPayRedirectData` `{}` | Indian wallet redirect |
+| `PhonePeRedirect` | `PhonePeRedirectData` `{}` | Indian wallet redirect |
+| `BillDeskRedirect` | `BillDeskRedirectData` `{}` | Indian wallet redirect |
+| `CashfreeRedirect` | `CashfreeRedirectData` `{}` | Indian wallet redirect |
+| `PayURedirect` | `PayURedirectData` `{}` | Indian wallet redirect |
+| `EaseBuzzRedirect` | `EaseBuzzRedirectData` `{}` | Indian wallet redirect |
 
 ---
 
@@ -97,7 +105,7 @@ Complete list of `WalletData` variants from `payment_method_data.rs`:
 | **Mifinity** | Mifinity only | Specialized |
 | **Worldpay** | Apple Pay, Google Pay, PayPal | Token-based + Redirect |
 | **Bluesnap** | Apple Pay, Google Pay, PayPal | Token-based + Redirect |
-| **Razorpay** | Various regional wallets | Mixed |
+| **Razorpay** | LazyPay, PhonePe, BillDesk, Cashfree, PayU, EaseBuzz | Per-Wallet Regional Redirect |
 
 ---
 
@@ -495,6 +503,115 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
 ---
 
+### Per-Wallet Regional Redirect Pattern
+
+**Applies to**: Indian wallet providers routed through aggregator connectors (Razorpay)
+
+**Characteristics**:
+- Request Format: Form-encoded or JSON
+- Each wallet provider has its own `WalletData` variant (e.g., `PhonePeRedirect`, `LazyPayRedirect`)
+- The aggregator connector maps each variant to a connector-specific wallet name string
+- Response Type: Async/Redirect (customer completes payment on wallet provider's page)
+- Data structs are empty `{}` -- the wallet identity is carried by the variant itself, not by inner fields
+
+| Characteristic | Value |
+|----------------|-------|
+| Request Format | Form-encoded / JSON |
+| Amount Unit | MinorUnit |
+| Response Type | Redirect (AuthenticationPending) |
+| Wallet Data | Empty struct -- variant name is the identifier |
+| Connector Role | Aggregator (not the wallet itself) |
+
+#### Why Per-Wallet Variants Instead of a Catch-All
+
+Aggregator connectors like Razorpay need to know *which* wallet the customer selected so they can pass the correct wallet name string in their API request (e.g., `"wallet": "phonepe"`). A generic `RedirectWalletDebit` variant would lose this information. Per-wallet variants preserve it through the type system without requiring runtime string fields.
+
+#### Implementation Template
+
+```rust
+// In transformers.rs -- map each WalletData variant to the connector's wallet name string
+
+fn extract_payment_method_and_data<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+>(
+    payment_method_data: &PaymentMethodData<T>,
+    _customer_name: Option<String>,
+) -> Result<(PaymentMethodType, PaymentMethodSpecificData<T>), errors::ConnectorError> {
+    match payment_method_data {
+        PaymentMethodData::Wallet(wallet_data) => {
+            let wallet_name = match wallet_data {
+                WalletData::LazyPayRedirect(_) => "lazypay",
+                WalletData::PhonePeRedirect(_) => "phonepe",
+                WalletData::BillDeskRedirect(_) => "billdesk",
+                WalletData::CashfreeRedirect(_) => "cashfree",
+                WalletData::PayURedirect(_) => "payu",
+                WalletData::EaseBuzzRedirect(_) => "easebuzz",
+                _ => return Err(errors::ConnectorError::NotImplemented(
+                    "This wallet type is not supported".to_string(),
+                )),
+            };
+            Ok((PaymentMethodType::Wallet, PaymentMethodSpecificData::Wallet(wallet_name.to_string())))
+        },
+        _ => Err(errors::ConnectorError::NotImplemented(
+            "Only Wallet payment methods are supported".to_string(),
+        )),
+    }
+}
+```
+
+#### Connector Examples
+
+**Razorpay** (crates/integrations/connector-integration/src/connectors/razorpay/transformers.rs):
+```rust
+// Request struct includes method + wallet name
+#[derive(Debug, Serialize)]
+pub struct RazorpayPaymentRequest<T: ...> {
+    pub amount: MinorUnit,
+    pub currency: String,
+    pub method: PaymentMethodType,       // "wallet"
+    pub wallet: Option<String>,          // "phonepe", "lazypay", etc.
+    pub card: Option<PaymentMethodSpecificData<T>>,
+    // ... other fields
+}
+
+// Wallet name is mapped from the variant, then serialized into the request
+let (method, payment_method_data) = extract_payment_method_and_data(
+    &item.router_data.request.payment_method_data,
+    item.router_data.request.customer_name.clone(),
+)?;
+
+let (card, wallet) = match payment_method_data {
+    PaymentMethodSpecificData::Card(_) => (Some(payment_method_data), None),
+    PaymentMethodSpecificData::Wallet(name) => (None, Some(name)),
+};
+```
+
+**Razorpay Supported Payment Methods Registration** (crates/integrations/connector-integration/src/connectors/razorpay.rs):
+```rust
+// Register each wallet type individually in a loop
+for pmt in [
+    PaymentMethodType::LazyPay,
+    PaymentMethodType::PhonePe,
+    PaymentMethodType::BillDesk,
+    PaymentMethodType::Cashfree,
+    PaymentMethodType::PayU,
+    PaymentMethodType::EaseBuzz,
+] {
+    razorpay_supported_payment_methods.add(
+        PaymentMethod::Wallet,
+        pmt,
+        PaymentMethodDetails {
+            mandates: FeatureStatus::NotSupported,
+            refunds: FeatureStatus::Supported,
+            supported_capture_methods: vec![CaptureMethod::Automatic],
+            specific_features: None,
+        },
+    );
+}
+```
+
+---
+
 ## Request Patterns
 
 ### Standard Token-Based Request
@@ -805,6 +922,32 @@ let fluid_data_str = serde_json::to_string(&fluid_data_value)?;
 let encoded = BASE64_ENGINE.encode(fluid_data_str);
 ```
 
+### 6. Missing Exhaustive Match Arm Updates
+
+**Problem**: Adding a new `WalletData` variant (e.g., `PhonePeRedirect`) without updating the exhaustive `match` arms in all existing connectors. The Rust compiler will catch this, but it results in a large number of compilation errors across 13+ connector transformer files.
+
+**Solution**:
+```rust
+// Every connector that matches on WalletData must include new variants
+// in its unsupported/catch-all arm. Example from adyen/transformers.rs:
+WalletData::LazyPayRedirect(_)
+| WalletData::PhonePeRedirect(_)
+| WalletData::BillDeskRedirect(_)
+| WalletData::CashfreeRedirect(_)
+| WalletData::PayURedirect(_)
+| WalletData::EaseBuzzRedirect(_) => Err(errors::ConnectorError::NotImplemented(
+    "payment_method".into(),
+))?,
+```
+
+**Rule**: When adding a new `WalletData` variant, update the catch-all match arm in **every** existing connector's transformers that matches on `WalletData`. Search for existing variants (e.g., `WalletData::Wero`) to find all locations.
+
+### 7. Using Catch-All Aggregator Variants Instead of Per-Wallet Variants
+
+**Problem**: Creating a single generic variant like `DirectWalletDebit(String)` or `RazorpayWalletRedirect` for aggregator connectors. This loses type safety and prevents the compiler from enforcing correct wallet-to-connector mappings.
+
+**Solution**: Create individual per-wallet variants (e.g., `PhonePeRedirect`, `LazyPayRedirect`) even if their data structs are empty. The variant name itself carries the wallet identity, which the aggregator connector maps to the correct API string. This was learned from Razorpay where a single `RazorpayWalletRedirect` variant was initially created and then replaced with per-wallet variants in a subsequent fix.
+
 ---
 
 ## Testing Patterns
@@ -947,6 +1090,7 @@ mod integration_tests {
   - [ ] Redirect flow (PayPal, AliPay, WeChat Pay)
   - [ ] SDK flow (PayPal SDK, Google Pay SDK)
   - [ ] Specialized flow (Mifinity)
+  - [ ] Per-wallet regional redirect flow (Razorpay-style aggregator mapping per-wallet variants to wallet name strings)
 - [ ] Check for pre-decrypted token support (Apple Pay, Paze)
 - [ ] Understand connector's token format requirements
 - [ ] Verify webhook requirements for async flows
@@ -960,6 +1104,7 @@ mod integration_tests {
 - [ ] Handle redirect URLs for async wallets
 - [ ] Support vault/payment method storage if applicable
 - [ ] Implement proper token extraction for each wallet type
+- [ ] When adding new `WalletData` variants, update exhaustive match arms in **all** existing connector transformers
 
 ### Testing
 
@@ -1070,3 +1215,18 @@ pub struct MifinityData {
     pub language_preference: Option<String>,
 }
 ```
+
+### Indian Wallet Redirect Data Structs
+
+All Indian wallet redirect variants use empty data structs. The wallet identity is carried by the `WalletData` variant name, not by inner fields:
+
+```rust
+pub struct LazyPayRedirectData {}
+pub struct PhonePeRedirectData {}
+pub struct BillDeskRedirectData {}
+pub struct CashfreeRedirectData {}
+pub struct PayURedirectData {}
+pub struct EaseBuzzRedirectData {}
+```
+
+These map to `PaymentMethodType` enums: `LazyPay`, `PhonePe`, `BillDesk`, `Cashfree`, `PayU`, `EaseBuzz`. Each has a corresponding proto message (e.g., `LazyPayRedirectWallet`, `PhonePeRedirectWallet`) and `ForeignTryFrom` conversion in `types.rs`.

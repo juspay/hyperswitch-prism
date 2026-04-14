@@ -21,30 +21,6 @@ fn build_client() -> ConnectorClient {
     ConnectorClient::new(config, None).unwrap()
 }
 
-pub fn build_authorize_request(capture_method: &str) -> PaymentServiceAuthorizeRequest {
-    serde_json::from_value::<PaymentServiceAuthorizeRequest>(serde_json::json!({
-    "merchant_transaction_id": "probe_txn_001",  // Identification.
-    "amount": {  // The amount for the payment.
-        "minor_amount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-        "currency": "USD",  // ISO 4217 currency code (e.g., "USD", "EUR").
-    },
-    "payment_method": {  // Payment method to be used.
-        "payment_method": {
-            "ideal": {
-            },
-        }
-    },
-    "capture_method": capture_method,  // Method for capturing the payment.
-    "address": {  // Address Information.
-        "billing_address": {
-        },
-    },
-    "auth_type": "NO_THREE_DS",  // Authentication Details.
-    "return_url": "https://example.com/return",  // URLs for Redirection and Webhooks.
-    "order_details": []  // Order Details.
-    })).unwrap_or_default()
-}
-
 pub fn build_capture_request(connector_transaction_id: &str) -> PaymentServiceCaptureRequest {
     serde_json::from_value::<PaymentServiceCaptureRequest>(serde_json::json!({
     "merchant_capture_id": "probe_capture_001",  // Identification.
@@ -133,18 +109,6 @@ pub fn build_void_request(connector_transaction_id: &str) -> PaymentServiceVoidR
 }
 
 
-// Flow: PaymentService.Authorize (Ideal)
-#[allow(dead_code)]
-pub async fn authorize(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client.authorize(build_authorize_request("AUTOMATIC"), &HashMap::new(), None).await?;
-    match response.status() {
-        PaymentStatus::Failure | PaymentStatus::AuthorizationFailed
-            => Err(format!("Authorize failed: {:?}", response.error).into()),
-        PaymentStatus::Pending => Ok("pending — await webhook".to_string()),
-        _  => Ok(format!("Authorized: {}", response.connector_transaction_id.as_deref().unwrap_or(""))),
-    }
-}
-
 // Flow: PaymentService.Capture
 #[allow(dead_code)]
 pub async fn capture(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
@@ -198,9 +162,8 @@ pub async fn void(client: &ConnectorClient, _merchant_transaction_id: &str) -> R
 #[tokio::main]
 async fn main() {
     let client = build_client();
-    let flow = std::env::args().nth(1).unwrap_or_else(|| "authorize".to_string());
+    let flow = std::env::args().nth(1).unwrap_or_else(|| "capture".to_string());
     let result: Result<String, Box<dyn std::error::Error>> = match flow.as_str() {
-        "authorize" => authorize(&client, "order_001").await,
         "capture" => capture(&client, "order_001").await,
         "get" => get(&client, "order_001").await,
         "handle_event" => handle_event(&client, "order_001").await,
@@ -208,7 +171,7 @@ async fn main() {
         "refund" => refund(&client, "order_001").await,
         "refund_get" => refund_get(&client, "order_001").await,
         "void" => void(&client, "order_001").await,
-        _ => { eprintln!("Unknown flow: {}. Available: authorize, capture, get, handle_event, recurring_charge, refund, refund_get, void", flow); return; }
+        _ => { eprintln!("Unknown flow: {}. Available: capture, get, handle_event, recurring_charge, refund, refund_get, void", flow); return; }
     };
     match result {
         Ok(msg) => println!("✓ {msg}"),
