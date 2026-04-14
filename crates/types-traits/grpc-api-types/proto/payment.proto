@@ -4048,6 +4048,11 @@ message TruelayerConfig {
   optional string secondary_base_url = 51;
 }
 
+message ImerchantsolutionsConfig {
+  SecretString api_key = 1;
+  optional string base_url = 2;
+}
+
 // ConnectorSpecificConfig message with oneof containing all connector
 // configurations. Comment above each field (e.g. "// PAYPAL = 62") is the
 // Connector enum value from this file;
@@ -4289,6 +4294,9 @@ message ConnectorSpecificConfig {
 
     // TRUSTLY = 116
     TrustlyConfig trustly = 115;
+
+    // IMERCHANTSOLUTIONS = 117
+    ImerchantsolutionsConfig imerchantsolutions = 116;
   }
 }
 

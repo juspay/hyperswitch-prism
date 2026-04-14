@@ -63,6 +63,7 @@ pub struct ImerchantsolutionsPaymentsRequestData<T: PaymentMethodDataTypes> {
     billing: Option<AddressDetails>,
     delivery_address: Option<AddressDetails>,
     manual_capture: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
     capture_delay_hours: Option<u32>,
 }
 
@@ -239,7 +240,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::MobilePayment(_)
-            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::IntegrationError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Imerchantsolutions"),
