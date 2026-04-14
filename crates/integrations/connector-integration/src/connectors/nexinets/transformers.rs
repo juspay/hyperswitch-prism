@@ -1138,7 +1138,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<ResponseRouterData<NexinetsSetupMandateResponse, Self>>
-    for RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>
+    for RouterDataV2<
+        SetupMandate,
+        PaymentFlowData,
+        SetupMandateRequestData<T>,
+        PaymentsResponseData,
+    >
 {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(
@@ -1159,10 +1164,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             order_id: Some(response.order_id.clone()),
             psync_flow: response.transaction_type.clone(),
         };
-        let connector_metadata =
-            serde_json::to_value(&nexinets_metadata).change_context(
-                crate::utils::response_handling_fail_for_connector(http_code, "nexinets"),
-            )?;
+        let connector_metadata = serde_json::to_value(&nexinets_metadata).change_context(
+            crate::utils::response_handling_fail_for_connector(http_code, "nexinets"),
+        )?;
 
         let redirection_data = response
             .redirect_url
@@ -1170,18 +1174,22 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         // For SetupMandate, surface the connector `paymentInstrumentId` as
         // the connector_mandate_id for subsequent RepeatPayment (MIT) calls.
-        let mandate_reference = response
-            .payment_instrument
-            .payment_instrument_id
-            .map(|id| MandateReference {
-                connector_mandate_id: Some(id.expose()),
-                payment_method_id: None,
-                connector_mandate_request_reference_id: None,
-            });
+        let mandate_reference =
+            response
+                .payment_instrument
+                .payment_instrument_id
+                .map(|id| MandateReference {
+                    connector_mandate_id: Some(id.expose()),
+                    payment_method_id: None,
+                    connector_mandate_request_reference_id: None,
+                });
 
         // Promote Authorized to Charged so the zero/low-amount mandate setup
         // reaches a terminal state for downstream consumers.
-        let mut status = get_status(transaction.status.clone(), response.transaction_type.clone());
+        let mut status = get_status(
+            transaction.status.clone(),
+            response.transaction_type.clone(),
+        );
         if status == AttemptStatus::Authorized {
             status = AttemptStatus::Charged;
         }

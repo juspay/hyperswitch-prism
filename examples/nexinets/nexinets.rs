@@ -99,6 +99,33 @@ pub fn build_proxy_authorize_request() -> PaymentServiceProxyAuthorizeRequest {
     })).unwrap_or_default()
 }
 
+pub fn build_proxy_setup_recurring_request() -> PaymentServiceProxySetupRecurringRequest {
+    serde_json::from_value::<PaymentServiceProxySetupRecurringRequest>(serde_json::json!({
+    "merchant_recurring_payment_id": "probe_proxy_mandate_001",
+    "amount": {
+        "minor_amount": 0,  // Amount in minor units (e.g., 1000 = $10.00).
+        "currency": "USD",  // ISO 4217 currency code (e.g., "USD", "EUR").
+    },
+    "card_proxy": {  // Card proxy for vault-aliased payments.
+        "card_number": "4111111111111111",  // Card Identification.
+        "card_exp_month": "03",
+        "card_exp_year": "2030",
+        "card_cvc": "123",
+        "card_holder_name": "John Doe",  // Cardholder Information.
+    },
+    "address": {
+        "billing_address": {
+        },
+    },
+    "customer_acceptance": {
+        "acceptance_type": "OFFLINE",  // Type of acceptance (e.g., online, offline).
+        "accepted_at": 0,  // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
+    },
+    "auth_type": "NO_THREE_DS",
+    "setup_future_usage": "OFF_SESSION",
+    })).unwrap_or_default()
+}
+
 pub fn build_refund_request(connector_transaction_id: &str) -> PaymentServiceRefundRequest {
     serde_json::from_value::<PaymentServiceRefundRequest>(serde_json::json!({
     "merchant_refund_id": "probe_refund_001",  // Identification.
@@ -109,6 +136,40 @@ pub fn build_refund_request(connector_transaction_id: &str) -> PaymentServiceRef
         "currency": "USD",  // ISO 4217 currency code (e.g., "USD", "EUR").
     },
     "reason": "customer_request",  // Reason for the refund.
+    })).unwrap_or_default()
+}
+
+pub fn build_setup_recurring_request() -> PaymentServiceSetupRecurringRequest {
+    serde_json::from_value::<PaymentServiceSetupRecurringRequest>(serde_json::json!({
+    "merchant_recurring_payment_id": "probe_mandate_001",  // Identification.
+    "amount": {  // Mandate Details.
+        "minor_amount": 0,  // Amount in minor units (e.g., 1000 = $10.00).
+        "currency": "USD",  // ISO 4217 currency code (e.g., "USD", "EUR").
+    },
+    "payment_method": {
+        "payment_method": {
+            "card": {  // Generic card payment.
+                "card_number": "4111111111111111",  // Card Identification.
+                "card_exp_month": "03",
+                "card_exp_year": "2030",
+                "card_cvc": "737",
+                "card_holder_name": "John Doe",  // Cardholder Information.
+            },
+        }
+    },
+    "address": {  // Address Information.
+        "billing_address": {
+        },
+    },
+    "auth_type": "NO_THREE_DS",  // Type of authentication to be used.
+    "enrolled_for_3ds": false,  // Indicates if the customer is enrolled for 3D Secure.
+    "return_url": "https://example.com/mandate-return",  // URL to redirect after setup.
+    "setup_future_usage": "OFF_SESSION",  // Indicates future usage intention.
+    "request_incremental_authorization": false,  // Indicates if incremental authorization is requested.
+    "customer_acceptance": {  // Details of customer acceptance.
+        "acceptance_type": "OFFLINE",  // Type of acceptance (e.g., online, offline).
+        "accepted_at": 0,  // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
+    },
     })).unwrap_or_default()
 }
 
@@ -204,11 +265,28 @@ pub async fn proxy_authorize(client: &ConnectorClient, _merchant_transaction_id:
     Ok(format!("status: {:?}", response.status()))
 }
 
+// Flow: PaymentService.ProxySetupRecurring
+#[allow(dead_code)]
+pub async fn proxy_setup_recurring(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client.proxy_setup_recurring(build_proxy_setup_recurring_request(), &HashMap::new(), None).await?;
+    Ok(format!("status: {:?}", response.status()))
+}
+
 // Flow: PaymentService.Refund
 #[allow(dead_code)]
 pub async fn refund(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
     let response = client.refund(build_refund_request("probe_connector_txn_001"), &HashMap::new(), None).await?;
     Ok(format!("status: {:?}", response.status()))
+}
+
+// Flow: PaymentService.SetupRecurring
+#[allow(dead_code)]
+pub async fn setup_recurring(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client.setup_recurring(build_setup_recurring_request(), &HashMap::new(), None).await?;
+    if response.status() == PaymentStatus::Failure {
+        return Err(format!("Setup failed: {:?}", response.error).into());
+    }
+    Ok(format!("Mandate: {}", response.connector_recurring_payment_id.as_deref().unwrap_or("")))
 }
 
 #[allow(dead_code)]
@@ -224,8 +302,10 @@ async fn main() {
         "create_client_authentication_token" => create_client_authentication_token(&client, "order_001").await,
         "get" => get(&client, "order_001").await,
         "proxy_authorize" => proxy_authorize(&client, "order_001").await,
+        "proxy_setup_recurring" => proxy_setup_recurring(&client, "order_001").await,
         "refund" => refund(&client, "order_001").await,
-        _ => { eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_refund, process_get_payment, authorize, create_client_authentication_token, get, proxy_authorize, refund", flow); return; }
+        "setup_recurring" => setup_recurring(&client, "order_001").await,
+        _ => { eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_refund, process_get_payment, authorize, create_client_authentication_token, get, proxy_authorize, proxy_setup_recurring, refund, setup_recurring", flow); return; }
     };
     match result {
         Ok(msg) => println!("✓ {msg}"),
