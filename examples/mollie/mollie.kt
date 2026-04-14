@@ -9,12 +9,14 @@ package examples.mollie
 
 import payments.PaymentClient
 import payments.MerchantAuthenticationClient
+import payments.CustomerClient
 import payments.RefundClient
 import payments.PaymentServiceAuthorizeRequest
 import payments.PaymentServiceRefundRequest
 import payments.PaymentServiceVoidRequest
 import payments.PaymentServiceGetRequest
 import payments.MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest
+import payments.CustomerServiceCreateRequest
 import payments.PaymentServiceProxyAuthorizeRequest
 import payments.RefundServiceGetRequest
 import payments.PaymentServiceTokenAuthorizeRequest
@@ -194,6 +196,19 @@ fun createClientAuthenticationToken(txnId: String) {
     println("StatusCode: ${response.statusCode}")
 }
 
+// Flow: CustomerService.Create
+fun createCustomer(txnId: String) {
+    val client = CustomerClient(_defaultConfig)
+    val request = CustomerServiceCreateRequest.newBuilder().apply {
+        merchantCustomerId = "cust_probe_123"  // Identification.
+        customerName = "John Doe"  // Name of the customer.
+        emailBuilder.value = "test@example.com"  // Email address of the customer.
+        phoneNumber = "4155552671"  // Phone number of the customer.
+    }.build()
+    val response = client.create(request)
+    println("Customer: ${response.connectorCustomerId}")
+}
+
 // Flow: PaymentService.Get
 fun get(txnId: String) {
     val client = PaymentClient(_defaultConfig)
@@ -296,12 +311,13 @@ fun main(args: Array<String>) {
         "processGetPayment" -> processGetPayment(txnId)
         "authorize" -> authorize(txnId)
         "createClientAuthenticationToken" -> createClientAuthenticationToken(txnId)
+        "createCustomer" -> createCustomer(txnId)
         "get" -> get(txnId)
         "proxyAuthorize" -> proxyAuthorize(txnId)
         "refund" -> refund(txnId)
         "refundGet" -> refundGet(txnId)
         "tokenAuthorize" -> tokenAuthorize(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processRefund, processVoidPayment, processGetPayment, authorize, createClientAuthenticationToken, get, proxyAuthorize, refund, refundGet, tokenAuthorize, void")
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processRefund, processVoidPayment, processGetPayment, authorize, createClientAuthenticationToken, createCustomer, get, proxyAuthorize, refund, refundGet, tokenAuthorize, void")
     }
 }

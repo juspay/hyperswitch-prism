@@ -65,6 +65,15 @@ pub fn build_create_client_authentication_token_request() -> MerchantAuthenticat
     })).unwrap_or_default()
 }
 
+pub fn build_create_customer_request() -> CustomerServiceCreateRequest {
+    serde_json::from_value::<CustomerServiceCreateRequest>(serde_json::json!({
+    "merchant_customer_id": "cust_probe_123",  // Identification.
+    "customer_name": "John Doe",  // Name of the customer.
+    "email": "test@example.com",  // Email address of the customer.
+    "phone_number": "4155552671",  // Phone number of the customer.
+    })).unwrap_or_default()
+}
+
 pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetRequest {
     serde_json::from_value::<PaymentServiceGetRequest>(serde_json::json!({
     "merchant_transaction_id": "probe_merchant_txn_001",  // Identification.
@@ -244,6 +253,13 @@ pub async fn create_client_authentication_token(client: &ConnectorClient, _merch
     Ok(format!("status: {:?}", response.status_code))
 }
 
+// Flow: CustomerService.Create
+#[allow(dead_code)]
+pub async fn create_customer(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client.create_customer(build_create_customer_request(), &HashMap::new(), None).await?;
+    Ok(format!("customer_id: {}", response.connector_customer_id))
+}
+
 // Flow: PaymentService.Get
 #[allow(dead_code)]
 pub async fn get(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
@@ -298,13 +314,14 @@ async fn main() {
         "process_get_payment" => process_get_payment(&client, "order_001").await,
         "authorize" => authorize(&client, "order_001").await,
         "create_client_authentication_token" => create_client_authentication_token(&client, "order_001").await,
+        "create_customer" => create_customer(&client, "order_001").await,
         "get" => get(&client, "order_001").await,
         "proxy_authorize" => proxy_authorize(&client, "order_001").await,
         "refund" => refund(&client, "order_001").await,
         "refund_get" => refund_get(&client, "order_001").await,
         "token_authorize" => token_authorize(&client, "order_001").await,
         "void" => void(&client, "order_001").await,
-        _ => { eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_refund, process_void_payment, process_get_payment, authorize, create_client_authentication_token, get, proxy_authorize, refund, refund_get, token_authorize, void", flow); return; }
+        _ => { eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_refund, process_void_payment, process_get_payment, authorize, create_client_authentication_token, create_customer, get, proxy_authorize, refund, refund_get, token_authorize, void", flow); return; }
     };
     match result {
         Ok(msg) => println!("✓ {msg}"),

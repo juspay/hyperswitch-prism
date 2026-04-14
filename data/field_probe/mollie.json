@@ -438,7 +438,23 @@
     },
     "create_customer": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_customer_id": "cust_probe_123",
+          "customer_name": "John Doe",
+          "email": "test@example.com",
+          "phone_number": "4155552671"
+        },
+        "sample": {
+          "url": "https://api.mollie.com/v2/customers",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"name\":\"John Doe\",\"email\":\"test@example.com\"}"
+        }
       }
     },
     "create_order": {
@@ -562,7 +578,8 @@
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Stuck on field: connector_customer — Missing required field: connector_customer"
       }
     },
     "recurring_charge": {
@@ -627,7 +644,8 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Stuck on field: connector_customer — Missing required field: connector_customer"
       }
     },
     "token_authorize": {
@@ -661,7 +679,8 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Stuck on field: connector_customer — Missing required field: connector_customer"
       }
     },
     "tokenize": {

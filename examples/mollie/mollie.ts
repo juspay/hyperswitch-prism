@@ -5,7 +5,7 @@
 // Mollie — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx mollie.ts checkout_autocapture
 
-import { PaymentClient, MerchantAuthenticationClient, RefundClient, types } from 'hyperswitch-prism';
+import { PaymentClient, MerchantAuthenticationClient, CustomerClient, RefundClient, types } from 'hyperswitch-prism';
 const { ConnectorConfig, ConnectorSpecificConfig, SdkOptions, Environment, AuthenticationType, CaptureMethod, Currency } = types;
 
 const _defaultConfig: ConnectorConfig = {
@@ -53,6 +53,15 @@ function _buildCreateClientAuthenticationTokenRequest(): MerchantAuthenticationS
             "minorAmount": 1000,
             "currency": "USD"
         }
+    };
+}
+
+function _buildCreateCustomerRequest(): CustomerServiceCreateRequest {
+    return {
+        "merchantCustomerId": "cust_probe_123",  // Identification.
+        "customerName": "John Doe",  // Name of the customer.
+        "email": {"value": "test@example.com"},  // Email address of the customer.
+        "phoneNumber": "4155552671"  // Phone number of the customer.
     };
 }
 
@@ -247,6 +256,15 @@ async function createClientAuthenticationToken(merchantTransactionId: string, co
     return { status: createResponse.status };
 }
 
+// Flow: CustomerService.Create
+async function createCustomer(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<CustomerServiceCreateResponse> {
+    const customerClient = new CustomerClient(config);
+
+    const createResponse = await customerClient.create(_buildCreateCustomerRequest());
+
+    return { status: createResponse.status };
+}
+
 // Flow: PaymentService.Get
 async function get(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<PaymentServiceGetResponse> {
     const paymentClient = new PaymentClient(config);
@@ -304,7 +322,7 @@ async function voidPayment(merchantTransactionId: string, config: ConnectorConfi
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processRefund, processVoidPayment, processGetPayment, authorize, createClientAuthenticationToken, get, proxyAuthorize, refund, refundGet, tokenAuthorize, voidPayment, _buildAuthorizeRequest, _buildCreateClientAuthenticationTokenRequest, _buildGetRequest, _buildProxyAuthorizeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildTokenAuthorizeRequest, _buildVoidRequest
+    processCheckoutAutocapture, processRefund, processVoidPayment, processGetPayment, authorize, createClientAuthenticationToken, createCustomer, get, proxyAuthorize, refund, refundGet, tokenAuthorize, voidPayment, _buildAuthorizeRequest, _buildCreateClientAuthenticationTokenRequest, _buildCreateCustomerRequest, _buildGetRequest, _buildProxyAuthorizeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildTokenAuthorizeRequest, _buildVoidRequest
 };
 
 // CLI runner

@@ -10,9 +10,8 @@ use domain_types::{
         PaymentMethodToken, RSync, Refund, SetupMandate, Void,
     },
     connector_types::{
-        ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
-        ConnectorCustomerData, ConnectorCustomerResponse,
-        ConnectorSpecificClientAuthenticationResponse, MandateReference,
+        ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
+        ConnectorCustomerResponse, ConnectorSpecificClientAuthenticationResponse, MandateReference,
         MollieClientAuthenticationResponse as MollieClientAuthenticationResponseDomain,
         PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
         PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
@@ -1124,12 +1123,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         // Amount: use minor_amount from the mandate request. Mollie requires
         // a non-zero amount on the first mandate payment.
-        let minor_amount = router_data.request.minor_amount.ok_or(
-            IntegrationError::MissingRequiredField {
-                field_name: "minor_amount",
-                context: Default::default(),
-            },
-        )?;
+        let minor_amount =
+            router_data
+                .request
+                .minor_amount
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "minor_amount",
+                    context: Default::default(),
+                })?;
         let converter = StringMajorUnitForConnector;
         let amount_value = converter
             .convert(minor_amount, router_data.request.currency)
@@ -1244,8 +1245,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 // mandate id (mdt_xxx) which is created server-side after the first payment
 // settles. We surface the payment id as connector_mandate_id to give Repeat
 // flows a concrete reference.
-impl<T: PaymentMethodDataTypes>
-    TryFrom<ResponseRouterData<MolliePaymentsResponse, Self>>
+impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<MolliePaymentsResponse, Self>>
     for RouterDataV2<
         SetupMandate,
         PaymentFlowData,

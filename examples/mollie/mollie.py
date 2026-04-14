@@ -10,6 +10,7 @@ import sys
 from google.protobuf.json_format import ParseDict
 from payments import PaymentClient
 from payments import MerchantAuthenticationClient
+from payments import CustomerClient
 from payments import RefundClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
@@ -63,6 +64,17 @@ def _build_create_client_authentication_token_request():
             }
         },
         payment_pb2.MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest(),
+    )
+
+def _build_create_customer_request():
+    return ParseDict(
+        {
+            "merchant_customer_id": "cust_probe_123",  # Identification.
+            "customer_name": "John Doe",  # Name of the customer.
+            "email": {"value": "test@example.com"},  # Email address of the customer.
+            "phone_number": "4155552671"  # Phone number of the customer.
+        },
+        payment_pb2.CustomerServiceCreateRequest(),
     )
 
 def _build_get_request(connector_transaction_id: str):
@@ -260,6 +272,15 @@ async def create_client_authentication_token(merchant_transaction_id: str, confi
     merchantauthentication_client = MerchantAuthenticationClient(config)
 
     create_response = await merchantauthentication_client.create_client_authentication_token(_build_create_client_authentication_token_request())
+
+    return {"status": create_response.status}
+
+
+async def create_customer(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: CustomerService.Create"""
+    customer_client = CustomerClient(config)
+
+    create_response = await customer_client.create(_build_create_customer_request())
 
     return {"status": create_response.status}
 
