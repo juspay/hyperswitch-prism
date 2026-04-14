@@ -248,16 +248,16 @@
         "error": "This feature is not implemented: Selected payment method through Truelayer"
       },
       "OpenBanking": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Truelayer"
+        "status": "error",
+        "error": "Failed to encode connector request"
       },
       "OpenBankingPis": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "OpenBankingUk": {
-        "status": "error",
-        "error": "Failed to encode connector request"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Truelayer"
       },
       "Oxxo": {
         "status": "not_implemented",
