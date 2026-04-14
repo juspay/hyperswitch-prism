@@ -123,7 +123,7 @@
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"reference\":\"probe_txn_001\",\"card\":{\"number\":\"4111111111111111\",\"cvv\":\"737\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"holder\":\"John Doe\"},\"shopperEmail\":null,\"shopperName\":{\"firstName\":null,\"lastName\":null},\"telephoneNumber\":null,\"billing\":{\"address\":null,\"city\":null,\"state\":null,\"postalCode\":null,\"country\":null},\"deliveryAddress\":{\"address\":null,\"city\":null,\"state\":null,\"postalCode\":null,\"country\":null},\"manualCapture\":false,\"captureDelayHours\":null}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"reference\":\"probe_txn_001\",\"card\":{\"number\":\"4111111111111111\",\"cvv\":\"737\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"holder\":\"John Doe\"},\"shopperEmail\":null,\"shopperName\":{\"firstName\":null,\"lastName\":null},\"telephoneNumber\":null,\"billing\":{\"address\":null,\"city\":null,\"state\":null,\"postalCode\":null,\"country\":null},\"deliveryAddress\":{\"address\":null,\"city\":null,\"state\":null,\"postalCode\":null,\"country\":null},\"manualCapture\":false}"
         }
       },
       "CashappQr": {
@@ -550,7 +550,7 @@
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"reference\":\"probe_proxy_txn_001\",\"card\":{\"number\":\"4111111111111111\",\"cvv\":\"123\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"holder\":\"John Doe\"},\"shopperEmail\":null,\"shopperName\":{\"firstName\":null,\"lastName\":null},\"telephoneNumber\":null,\"billing\":{\"address\":null,\"city\":null,\"state\":null,\"postalCode\":null,\"country\":null},\"deliveryAddress\":{\"address\":null,\"city\":null,\"state\":null,\"postalCode\":null,\"country\":null},\"manualCapture\":false,\"captureDelayHours\":null}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"reference\":\"probe_proxy_txn_001\",\"card\":{\"number\":\"4111111111111111\",\"cvv\":\"123\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"holder\":\"John Doe\"},\"shopperEmail\":null,\"shopperName\":{\"firstName\":null,\"lastName\":null},\"telephoneNumber\":null,\"billing\":{\"address\":null,\"city\":null,\"state\":null,\"postalCode\":null,\"country\":null},\"deliveryAddress\":{\"address\":null,\"city\":null,\"state\":null,\"postalCode\":null,\"country\":null},\"manualCapture\":false}"
         }
       }
     },
