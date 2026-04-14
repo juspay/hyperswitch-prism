@@ -21,9 +21,9 @@ use domain_types::{
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{
-        BankRedirectData, CardToken, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
+        BankRedirectData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
     },
-    router_data::{ConnectorSpecificConfig, ErrorResponse, PaymentMethodToken},
+    router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
 };
@@ -458,21 +458,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 }
             }
 
-            // TODO: Add payment method token field and also rename the struct to PaymentMethodToken since it is not being used anywhere
-            PaymentMethodData::CardToken(CardToken { .. }) => {
-                let token = item
-                    .resource_common_data
-                    .payment_method_token
-                    .as_ref()
-                    .map(|t| match t {
-                        PaymentMethodToken::Token(s) => s.clone(),
-                    })
-                    .ok_or_else(|| {
-                        error_stack::report!(IntegrationError::MissingRequiredField {
-                            field_name: "payment_method_token",
-                            context: Default::default(),
-                        })
-                    })?;
+            PaymentMethodData::PaymentMethodToken(t) => {
+                let token = t.token.clone();
 
                 GlobalpayPaymentMethod {
                     name: item.request.customer_name.clone().map(Secret::new),

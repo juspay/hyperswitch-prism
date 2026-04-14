@@ -399,7 +399,8 @@
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Field 'payment_id' is too long for connector 'Nexixpay'"
       }
     },
     "create_customer": {
@@ -603,7 +604,7 @@
     "token_authorize": {
       "default": {
         "status": "not_supported",
-        "error": "Payment method CardToken(CardToken { card_holder_name: None, card_cvc: None }) is not supported by Nexixpay"
+        "error": "Payment method PaymentMethodToken(PaymentMethodToken { token: *** alloc::string::String *** }) is not supported by Nexixpay"
       }
     },
     "token_setup_recurring": {

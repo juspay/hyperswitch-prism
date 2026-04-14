@@ -307,10 +307,12 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           npm ci
-          npm publish --access public
+          npm publish artifacts/sdk-javascript/*.tgz --access public
 
       - name: Add npm package owners
         if: ${{ inputs.preview_only == false }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           npm owner add titanbot hyperswitch-prism
           npm owner add georgejames hyperswitch-prism

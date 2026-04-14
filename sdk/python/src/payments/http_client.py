@@ -8,6 +8,11 @@ from .generated import sdk_config_pb2
 # Centralized defaults from Protobuf Single Source of Truth
 Defaults = sdk_config_pb2.HttpDefault
 
+# Optional mock intercept — set by smoke test in mock mode only.
+# Signature: async (request: HttpRequest) -> HttpResponse
+# When None (default), real HTTP is used.
+_intercept: Optional[callable] = None
+
 # Type alias for proto-generated HttpConfig and sub-configs
 HttpConfig = sdk_config_pb2.HttpConfig
 
@@ -159,6 +164,10 @@ async def execute(
     resolved_timeouts_ms: (total_ms, connect_ms, read_ms) — matches proto; convert to sec internally.
     When None, uses client default.
     """
+    # Check for mock intercept (used in smoke test mock mode)
+    if _intercept is not None:
+        return await _intercept(request)
+
     # Validate URL: httpx.URL() does not raise for missing scheme (e.g. "not-a-valid-url").
     try:
         parsed_url = httpx.URL(request.url)

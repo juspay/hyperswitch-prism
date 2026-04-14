@@ -23,6 +23,7 @@ import payments.PaymentServiceProxyAuthorizeRequest
 import payments.RecurringPaymentServiceChargeRequest
 import payments.RecurringPaymentServiceRevokeRequest
 import payments.RefundServiceGetRequest
+import payments.PaymentServiceTokenAuthorizeRequest
 import payments.AuthenticationType
 import payments.CaptureMethod
 import payments.Currency
@@ -240,9 +241,7 @@ fun authenticate(txnId: String) {
         continueRedirectionUrl = "https://example.com/3ds-continue"
         redirectionResponseBuilder.apply {  // Redirection Information after DDC step.
             params = "probe_redirect_params"
-            payloadBuilder.apply {
-                transactionId = "probe_txn_123"
-            }
+            putAllPayload(mapOf("transaction_id" to "probe_txn_123"))
         }
     }.build()
     val response = client.authenticate(request)
@@ -302,9 +301,7 @@ fun postAuthenticate(txnId: String) {
         }
         redirectionResponseBuilder.apply {  // Redirection Information after DDC step.
             params = "probe_redirect_params"
-            payloadBuilder.apply {
-                transactionId = "probe_txn_123"
-            }
+            putAllPayload(mapOf("transaction_id" to "probe_txn_123"))
         }
     }.build()
     val response = client.post_authenticate(request)
@@ -435,6 +432,30 @@ fun refundGet(txnId: String) {
     println("Status: ${response.status.name}")
 }
 
+// Flow: PaymentService.TokenAuthorize
+fun tokenAuthorize(txnId: String) {
+    val client = PaymentClient(_defaultConfig)
+    val request = PaymentServiceTokenAuthorizeRequest.newBuilder().apply {
+        merchantTransactionId = "probe_tokenized_txn_001"
+        amountBuilder.apply {
+            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
+            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+        connectorTokenBuilder.value = "pm_1AbcXyzStripeTestToken"  // Connector-issued token. Replaces PaymentMethod entirely. Examples: Stripe pm_xxx, Adyen recurringDetailReference, Braintree nonce.
+        customerBuilder.apply {
+            emailBuilder.value = "test@example.com"  // Customer's email address.
+        }
+        addressBuilder.apply {
+            billingAddressBuilder.apply {
+            }
+        }
+        captureMethod = CaptureMethod.AUTOMATIC
+        returnUrl = "https://example.com/return"
+    }.build()
+    val response = client.token_authorize(request)
+    println("Status: ${response.status.name}")
+}
+
 // Flow: PaymentService.Void
 fun void(txnId: String) {
     val client = PaymentClient(_defaultConfig)
@@ -466,7 +487,8 @@ fun main(args: Array<String>) {
         "recurringRevoke" -> recurringRevoke(txnId)
         "refund" -> refund(txnId)
         "refundGet" -> refundGet(txnId)
+        "tokenAuthorize" -> tokenAuthorize(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authenticate, authorize, capture, get, postAuthenticate, preAuthenticate, proxyAuthorize, recurringCharge, recurringRevoke, refund, refundGet, void")
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authenticate, authorize, capture, get, postAuthenticate, preAuthenticate, proxyAuthorize, recurringCharge, recurringRevoke, refund, refundGet, tokenAuthorize, void")
     }
 }

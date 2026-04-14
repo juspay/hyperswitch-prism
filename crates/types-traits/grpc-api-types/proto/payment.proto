@@ -851,6 +851,12 @@ enum PaymentMethodType {
   WERO = 103;
   NETWORK_TOKEN = 104;
   NETBANKING = 105;
+  LAZY_PAY = 106;
+  PHONE_PE = 107;
+  BILL_DESK = 108;
+  CASH_FREE = 109;
+  PAY_U = 110;
+  EASE_BUZZ = 111;
 }
 
 // Product type enumeration
@@ -1552,6 +1558,12 @@ message ConnectorSpecificClientAuthenticationResponse {
     BamboraapacClientAuthenticationResponse bamboraapac = 17;
     JpmorganClientAuthenticationResponse jpmorgan = 18;
     BillwerkClientAuthenticationResponse billwerk = 19;
+    DatatransClientAuthenticationResponse datatrans = 20;
+    BamboraClientAuthenticationResponse bambora = 21;
+    PayloadClientAuthenticationResponse payload = 22;
+    MultisafepayClientAuthenticationResponse multisafepay = 23;
+    NexinetsClientAuthenticationResponse nexinets = 24;
+    NexixpayClientAuthenticationResponse nexixpay = 25;
   }
 }
 
@@ -1652,6 +1664,37 @@ message JpmorganClientAuthenticationResponse {
 // Billwerk SDK initialization data — session_id for checkout session
 message BillwerkClientAuthenticationResponse {
   string session_id = 1;
+}
+
+// Datatrans SDK initialization data — transaction_id for Secure Fields initialization
+message DatatransClientAuthenticationResponse {
+  SecretString transaction_id = 1;
+}
+
+// Bambora SDK initialization data — token for Custom Checkout initialization
+message BamboraClientAuthenticationResponse {
+  SecretString token = 1;
+}
+
+// Payload SDK initialization data — client_token for Payload.js Checkout/Secure Input SDK
+message PayloadClientAuthenticationResponse {
+  SecretString client_token = 1;
+}
+
+// Multisafepay SDK initialization data — api_token for Payment Components initialization
+message MultisafepayClientAuthenticationResponse {
+  SecretString api_token = 1;
+}
+
+// Nexinets SDK initialization data — order_id for client-side hosted payment page initialization
+message NexinetsClientAuthenticationResponse {
+  string order_id = 1;
+}
+
+// Nexixpay SDK initialization data — security_token and hosted_page URL for HPP initialization
+message NexixpayClientAuthenticationResponse {
+  SecretString security_token = 1;
+  string hosted_page = 2;
 }
 
 // Stripe SDK initialization data — client_secret for stripe.confirmPayment()
@@ -2268,6 +2311,7 @@ message PaymentClientAuthenticationContext {
   optional CountryAlpha2 country_alpha2_code = 5;
   optional Customer customer = 6;
   optional SecretString metadata = 7;
+  optional string return_url = 8;
 }
 
 // Response message for SDK session

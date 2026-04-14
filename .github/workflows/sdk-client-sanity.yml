@@ -86,25 +86,25 @@ jobs:
         run: pip install -r sdk/python/requirements.txt grpcio-tools protobuf
 
       - name: Build FFI library (UniFFI scaffolding)
-        run: make -C sdk/python build-ffi-lib PROFILE=release
+        run: make -C sdk/python build-ffi-lib PROFILE=release-fast
 
       - name: Generate Python SDK artifacts (proto + UniFFI + flows)
         run: make generate-all
         working-directory: sdk/python
         env:
-          PROFILE: release
+          PROFILE: release-fast
 
       - name: Generate JavaScript SDK artifacts (proto + native + flows)
         run: make generate-all
         working-directory: sdk/javascript
         env:
-          PROFILE: release
+          PROFILE: release-fast
 
       - name: Generate Java/Kotlin SDK artifacts (proto + UniFFI + flows)
         run: make generate-all
         working-directory: sdk/java
         env:
-          PROFILE: release
+          PROFILE: release-fast
 
       - name: Run SDK Client Sanity Certification
         id: certify

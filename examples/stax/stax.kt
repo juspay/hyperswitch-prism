@@ -16,8 +16,10 @@ import payments.CustomerServiceCreateRequest
 import payments.PaymentServiceGetRequest
 import payments.PaymentServiceRefundRequest
 import payments.RefundServiceGetRequest
+import payments.PaymentServiceTokenAuthorizeRequest
 import payments.PaymentMethodServiceTokenizeRequest
 import payments.PaymentServiceVoidRequest
+import payments.CaptureMethod
 import payments.Currency
 import payments.ConnectorConfig
 import payments.SdkOptions
@@ -125,6 +127,27 @@ fun refundGet(txnId: String) {
     println("Status: ${response.status.name}")
 }
 
+// Flow: PaymentService.TokenAuthorize
+fun tokenAuthorize(txnId: String) {
+    val client = PaymentClient(_defaultConfig)
+    val request = PaymentServiceTokenAuthorizeRequest.newBuilder().apply {
+        merchantTransactionId = "probe_tokenized_txn_001"
+        amountBuilder.apply {
+            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
+            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+        connectorTokenBuilder.value = "pm_1AbcXyzStripeTestToken"  // Connector-issued token. Replaces PaymentMethod entirely. Examples: Stripe pm_xxx, Adyen recurringDetailReference, Braintree nonce.
+        addressBuilder.apply {
+            billingAddressBuilder.apply {
+            }
+        }
+        captureMethod = CaptureMethod.AUTOMATIC
+        returnUrl = "https://example.com/return"
+    }.build()
+    val response = client.token_authorize(request)
+    println("Status: ${response.status.name}")
+}
+
 // Flow: PaymentMethodService.Tokenize
 fun tokenize(txnId: String) {
     val client = PaymentMethodClient(_defaultConfig)
@@ -174,8 +197,9 @@ fun main(args: Array<String>) {
         "get" -> get(txnId)
         "refund" -> refund(txnId)
         "refundGet" -> refundGet(txnId)
+        "tokenAuthorize" -> tokenAuthorize(txnId)
         "tokenize" -> tokenize(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: capture, createCustomer, get, refund, refundGet, tokenize, void")
+        else -> System.err.println("Unknown flow: $flow. Available: capture, createCustomer, get, refund, refundGet, tokenAuthorize, tokenize, void")
     }
 }

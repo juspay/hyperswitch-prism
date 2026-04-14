@@ -1703,7 +1703,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
-            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(IntegrationError::not_implemented(
@@ -2337,7 +2337,7 @@ pub(crate) fn get_apple_pay_session(
             ..item.router_data.resource_common_data.clone()
         },
         response: Ok(PaymentCreateOrderResponse {
-            order_id: instance_id,
+            connector_order_id: instance_id,
             session_data: Some(session_token),
         }),
         ..item.router_data.clone()
@@ -2392,7 +2392,7 @@ pub(crate) fn get_google_pay_session(
             ..item.router_data.resource_common_data.clone()
         },
         response: Ok(PaymentCreateOrderResponse {
-            order_id: instance_id,
+            connector_order_id: instance_id,
             session_data: Some(session_token),
         }),
         ..item.router_data.clone()

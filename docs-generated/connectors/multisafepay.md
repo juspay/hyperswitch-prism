@@ -18,7 +18,7 @@ Use this config for all flows in this connector. Replace `YOUR_API_KEY` with you
 <details><summary>Python</summary>
 
 ```python
-from payments.generated import sdk_config_pb2, payment_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -108,25 +108,26 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/multisafepay/multisafepay.py#L125) · [JavaScript](../../examples/multisafepay/multisafepay.js) · [Kotlin](../../examples/multisafepay/multisafepay.kt#L87) · [Rust](../../examples/multisafepay/multisafepay.rs#L121)
+**Examples:** [Python](../../examples/multisafepay/multisafepay.py#L138) · [JavaScript](../../examples/multisafepay/multisafepay.js) · [Kotlin](../../examples/multisafepay/multisafepay.kt#L89) · [Rust](../../examples/multisafepay/multisafepay.rs#L135)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/multisafepay/multisafepay.py#L144) · [JavaScript](../../examples/multisafepay/multisafepay.js) · [Kotlin](../../examples/multisafepay/multisafepay.kt#L103) · [Rust](../../examples/multisafepay/multisafepay.rs#L137)
+**Examples:** [Python](../../examples/multisafepay/multisafepay.py#L157) · [JavaScript](../../examples/multisafepay/multisafepay.js) · [Kotlin](../../examples/multisafepay/multisafepay.kt#L105) · [Rust](../../examples/multisafepay/multisafepay.rs#L151)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/multisafepay/multisafepay.py#L169) · [JavaScript](../../examples/multisafepay/multisafepay.js) · [Kotlin](../../examples/multisafepay/multisafepay.kt#L125) · [Rust](../../examples/multisafepay/multisafepay.rs#L160)
+**Examples:** [Python](../../examples/multisafepay/multisafepay.py#L182) · [JavaScript](../../examples/multisafepay/multisafepay.js) · [Kotlin](../../examples/multisafepay/multisafepay.kt#L127) · [Rust](../../examples/multisafepay/multisafepay.rs#L174)
 
 ## API Reference
 
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
 | [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
+| [MerchantAuthenticationService.CreateClientAuthenticationToken](#merchantauthenticationservicecreateclientauthenticationtoken) | Authentication | `MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
 | [PaymentService.ProxyAuthorize](#paymentserviceproxyauthorize) | Payments | `PaymentServiceProxyAuthorizeRequest` |
 | [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
@@ -306,7 +307,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/multisafepay/multisafepay.py#L191) · [TypeScript](../../examples/multisafepay/multisafepay.ts#L182) · [Kotlin](../../examples/multisafepay/multisafepay.kt#L143) · [Rust](../../examples/multisafepay/multisafepay.rs#L178)
+**Examples:** [Python](../../examples/multisafepay/multisafepay.py#L204) · [TypeScript](../../examples/multisafepay/multisafepay.ts#L192) · [Kotlin](../../examples/multisafepay/multisafepay.kt#L145) · [Rust](../../examples/multisafepay/multisafepay.rs#L192)
 
 #### PaymentService.Get
 
@@ -317,7 +318,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/multisafepay/multisafepay.py#L200) · [TypeScript](../../examples/multisafepay/multisafepay.ts#L191) · [Kotlin](../../examples/multisafepay/multisafepay.kt#L155) · [Rust](../../examples/multisafepay/multisafepay.rs#L190)
+**Examples:** [Python](../../examples/multisafepay/multisafepay.py#L222) · [TypeScript](../../examples/multisafepay/multisafepay.ts#L210) · [Kotlin](../../examples/multisafepay/multisafepay.kt#L173) · [Rust](../../examples/multisafepay/multisafepay.rs#L211)
 
 #### PaymentService.ProxyAuthorize
 
@@ -328,7 +329,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/multisafepay/multisafepay.py#L209) · [TypeScript](../../examples/multisafepay/multisafepay.ts#L200) · [Kotlin](../../examples/multisafepay/multisafepay.kt#L163) · [Rust](../../examples/multisafepay/multisafepay.rs#L197)
+**Examples:** [Python](../../examples/multisafepay/multisafepay.py#L231) · [TypeScript](../../examples/multisafepay/multisafepay.ts#L219) · [Kotlin](../../examples/multisafepay/multisafepay.kt#L181) · [Rust](../../examples/multisafepay/multisafepay.rs#L218)
 
 #### PaymentService.Refund
 
@@ -339,7 +340,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/multisafepay/multisafepay.py#L218) · [TypeScript](../../examples/multisafepay/multisafepay.ts#L209) · [Kotlin](../../examples/multisafepay/multisafepay.kt#L195) · [Rust](../../examples/multisafepay/multisafepay.rs#L204)
+**Examples:** [Python](../../examples/multisafepay/multisafepay.py#L240) · [TypeScript](../../examples/multisafepay/multisafepay.ts#L228) · [Kotlin](../../examples/multisafepay/multisafepay.kt#L213) · [Rust](../../examples/multisafepay/multisafepay.rs#L225)
 
 ### Refunds
 
@@ -352,4 +353,17 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/multisafepay/multisafepay.py#L227) · [TypeScript](../../examples/multisafepay/multisafepay.ts#L218) · [Kotlin](../../examples/multisafepay/multisafepay.kt#L205) · [Rust](../../examples/multisafepay/multisafepay.rs#L211)
+**Examples:** [Python](../../examples/multisafepay/multisafepay.py#L249) · [TypeScript](../../examples/multisafepay/multisafepay.ts#L237) · [Kotlin](../../examples/multisafepay/multisafepay.kt#L223) · [Rust](../../examples/multisafepay/multisafepay.rs#L232)
+
+### Authentication
+
+#### MerchantAuthenticationService.CreateClientAuthenticationToken
+
+Initialize client-facing SDK sessions for wallets, device fingerprinting, etc. Returns structured data the client SDK needs to render payment/verification UI.
+
+| | Message |
+|---|---------|
+| **Request** | `MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest` |
+| **Response** | `MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse` |
+
+**Examples:** [Python](../../examples/multisafepay/multisafepay.py#L213) · [TypeScript](../../examples/multisafepay/multisafepay.ts#L201) · [Kotlin](../../examples/multisafepay/multisafepay.kt#L157) · [Rust](../../examples/multisafepay/multisafepay.rs#L204)

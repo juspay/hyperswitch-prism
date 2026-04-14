@@ -516,7 +516,7 @@ impl TryFrom<CashfreeOrderCreateResponse> for PaymentCreateOrderResponse {
 
     fn try_from(response: CashfreeOrderCreateResponse) -> Result<Self, Self::Error> {
         Ok(Self {
-            order_id: response.payment_session_id,
+            connector_order_id: response.payment_session_id,
             session_data: None,
         })
     }
@@ -540,7 +540,7 @@ impl TryFrom<ResponseRouterData<CashfreeOrderCreateResponse, Self>>
         let order_response = PaymentCreateOrderResponse::try_from(response)?;
 
         // Extract order_id before moving order_response
-        let order_id = order_response.order_id.clone();
+        let order_id = order_response.connector_order_id.clone();
 
         Ok(Self {
             response: Ok(order_response),

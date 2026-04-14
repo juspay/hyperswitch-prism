@@ -65,7 +65,13 @@ message PaymentMethod {
     SamsungWallet samsung_pay = 24;                     //Samsung
     MBWay mb_way = 25;                                  // MB WAY 
     Satispay satispay = 26;                             // Satispay 
-    Wero wero = 27;                                     // Wero 
+    Wero wero = 27;                                     // Wero
+    LazyPayRedirectWallet lazypay_redirect = 28;
+    PhonePeRedirectWallet phonepe_redirect = 29;
+    BillDeskRedirectWallet billdesk_redirect = 159;
+    CashfreeRedirectWallet cashfree_redirect = 160;
+    PayURedirectWallet payu_redirect = 161;
+    EaseBuzzRedirectWallet easebuzz_redirect = 162;
 
     // UPI METHODS (30-39) - Direct variants
     UpiCollect upi_collect = 30;                        // UPI Collect
@@ -522,6 +528,24 @@ message Satispay {
 message Wero {
   // Fields will be added as needed for Wero integration
 }
+
+// LazyPay - Indian BNPL/wallet service
+message LazyPayRedirectWallet {}
+
+// PhonePe - Indian digital payments platform
+message PhonePeRedirectWallet {}
+
+// BillDesk - Indian payment gateway with wallet support
+message BillDeskRedirectWallet {}
+
+// Cashfree - Indian payment gateway with wallet support
+message CashfreeRedirectWallet {}
+
+// PayU - Indian payment gateway with wallet support
+message PayURedirectWallet {}
+
+// EaseBuzz - Indian payment gateway with wallet support
+message EaseBuzzRedirectWallet {}
 
 // Apple Pay Third Party SDK - Apple Pay with token from third-party SDK
 message ApplePayThirdPartySdkWallet {

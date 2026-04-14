@@ -119,7 +119,8 @@ generate-flows: install-codegen-deps
 pack-archive:
 	@mkdir -p $(PACKAGE_DIR)
 	@cd $(SDK_ROOT) && $(SDK_ROOT)/gradlew jar
-	@cp $(SDK_ROOT)/build/libs/*.jar $(PACKAGE_DIR)/hyperswitch-prism-$(PACKAGE_VERSION).jar
+	@rm -f $(PACKAGE_DIR)/prism-*.jar
+	@cp $(SDK_ROOT)/build/libs/prism-$(PACKAGE_VERSION).jar $(PACKAGE_DIR)/prism-$(PACKAGE_VERSION).jar
 	@echo "JAR built in $(PACKAGE_DIR)/"
 
 # ---------------------------------------------------------------------------
@@ -130,7 +131,7 @@ pack-archive:
 # ---------------------------------------------------------------------------
 install: pack-archive
 	@$(SDK_ROOT)/gradlew publishToMavenLocal
-	@echo "Published to ~/.m2/repository/com/hyperswitch/hyperswitch-prism/$(PACKAGE_VERSION)/"
+	@echo "Published to ~/.m2/repository/io/hyperswitch/prism/$(PACKAGE_VERSION)/"
 
 # ---------------------------------------------------------------------------
 # test-package
@@ -150,6 +151,22 @@ test-package: generate-all install
 	@echo "Running composite smoke test..."
 	@cd $(SDK_ROOT)/smoke-test && $(SDK_ROOT)/gradlew runComposite
 	@echo "Package test passed."
+
+# ---------------------------------------------------------------------------
+# test-package-mock
+# Same as test-package but runs in MOCK mode (no real HTTP calls).
+# Uses generated harnesses instead of examples and verifies req_transformer only.
+# ---------------------------------------------------------------------------
+test-package-mock: generate-all install
+	@echo "Running Kotlin smoke test in MOCK mode..."
+	@# Copy generated harness to smoke-test source
+	@mkdir -p $(SDK_ROOT)/smoke-test/src/main/kotlin/generated/$(CONNECTORS)
+	@cp $(SDK_ROOT)/smoke-test/generated/$(CONNECTORS)/$(CONNECTORS).kt $(SDK_ROOT)/smoke-test/src/main/kotlin/generated/$(CONNECTORS)/
+	@if [ -f $(REPO_ROOT)/creds_dummy.json ]; then \
+		cp $(REPO_ROOT)/creds_dummy.json $(SDK_ROOT)/smoke-test/creds.json; \
+	fi
+	@cd $(SDK_ROOT)/smoke-test && $(SDK_ROOT)/gradlew run --args="--connectors $(CONNECTORS) --mock"
+	@echo "Package mock test passed."
 
 # ---------------------------------------------------------------------------
 # test-grpc
@@ -204,20 +221,26 @@ dist:
 
 # ---------------------------------------------------------------------------
 # publish
-# Publishes to Maven Central (requires proper credentials and signing).
+# Publishes to Maven Central via Central Portal (requires proper credentials and signing).
 # For local testing, use 'install' which publishes to ~/.m2.
-# Requires SONATYPE_MAVEN_USERNAME and SONATYPE_MAVEN_PASSWORD to be set for authentication.
+# Requires CENTRAL_TOKEN_USERNAME and CENTRAL_TOKEN_PASSWORD to be set for authentication.
+# Also requires GPG_SIGNING_KEY and GPG_SIGNING_KEY_PASSWORD for artifact signing.
+# Uses Central Portal Publisher Gradle plugin (central.sonatype.com).
 # ---------------------------------------------------------------------------
-publish: pack-archive
-	@if [ -z "$(SONATYPE_MAVEN_USERNAME)" ] || [ -z "$(SONATYPE_MAVEN_PASSWORD)" ]; then \
-		echo "Error: SONATYPE_MAVEN_USERNAME and/or SONATYPE_MAVEN_PASSWORD not set"; \
+publish:
+	@if [ -z "$(CENTRAL_TOKEN_USERNAME)" ] || [ -z "$(CENTRAL_TOKEN_PASSWORD)" ]; then \
+		echo "Error: CENTRAL_TOKEN_USERNAME and/or CENTRAL_TOKEN_PASSWORD not set"; \
 		echo "Set them with:"; \
-		echo "  export SONATYPE_MAVEN_USERNAME=your_username"; \
-		echo "  export SONATYPE_MAVEN_PASSWORD=your_token"; \
+		echo "  export CENTRAL_TOKEN_USERNAME=your_token_username"; \
+		echo "  export CENTRAL_TOKEN_PASSWORD=your_token_password"; \
 		exit 1; \
 	fi
-	@echo "Publishing hyperswitch-prism to Maven Central..."
-	@$(SDK_ROOT)/gradlew publish
+	@if [ -z "$${GPG_SIGNING_KEY}" ] || [ -z "$(GPG_SIGNING_KEY_PASSWORD)" ]; then \
+		echo "Error: GPG_SIGNING_KEY and/or GPG_SIGNING_KEY_PASSWORD not set"; \
+		exit 1; \
+	fi
+	@echo "Publishing io.hyperswitch:prism to Maven Central via Central Portal..."
+	@$(SDK_ROOT)/gradlew publishToCentral
 	@echo "Published io.hyperswitch:prism to Maven Central."
 
 # ---------------------------------------------------------------------------
@@ -228,17 +251,25 @@ MAVEN_GROUP := io.hyperswitch
 MAVEN_ARTIFACT := prism
 
 # publish-check-auth
-# Verifies that SONATYPE_MAVEN_USERNAME and SONATYPE_MAVEN_PASSWORD environment variables are set.
+# Verifies that CENTRAL_TOKEN_USERNAME and CENTRAL_TOKEN_PASSWORD environment variables are set.
 publish-check-auth:
-	@if [ -z "$(SONATYPE_MAVEN_USERNAME)" ]; then \
-		echo "Error: SONATYPE_MAVEN_USERNAME is not set"; \
+	@if [ -z "$(CENTRAL_TOKEN_USERNAME)" ]; then \
+		echo "Error: CENTRAL_TOKEN_USERNAME is not set"; \
 		exit 1; \
 	fi
-	@if [ -z "$(SONATYPE_MAVEN_PASSWORD)" ]; then \
-		echo "Error: SONATYPE_MAVEN_PASSWORD is not set"; \
+	@if [ -z "$(CENTRAL_TOKEN_PASSWORD)" ]; then \
+		echo "Error: CENTRAL_TOKEN_PASSWORD is not set"; \
 		exit 1; \
 	fi
-	@echo "Maven Central (OSSRH) authentication credentials are configured."
+	@if [ -z "$${GPG_SIGNING_KEY}" ]; then \
+		echo "Error: GPG_SIGNING_KEY is not set"; \
+		exit 1; \
+	fi
+	@if [ -z "$(GPG_SIGNING_KEY_PASSWORD)" ]; then \
+		echo "Error: GPG_SIGNING_KEY_PASSWORD is not set"; \
+		exit 1; \
+	fi
+	@echo "Maven Central (Central Portal) authentication credentials are configured."
 
 # publish-check-version
 # Checks if $(PACKAGE_VERSION) already exists on Maven Central.
@@ -254,12 +285,10 @@ publish-check-version:
 	@echo "Version $(PACKAGE_VERSION) does not exist on Maven Central - OK to publish."
 
 # publish-check-dry-run
-# Simulates publish by publishing to local Maven repository (~/.m2).
-publish-check-dry-run: pack-archive
-	@echo "Publishing to local Maven repository (~/.m2)..."
-	@$(SDK_ROOT)/gradlew publishToMavenLocal
-	@echo "Local Maven contents:"
-	@ls -la ~/.m2/repository/$(subst .,/,$(MAVEN_GROUP))/$(MAVEN_ARTIFACT)/$(PACKAGE_VERSION)/ 2>/dev/null || echo "  (not found)"
+# Simulates publish by creating bundle (requires signing key).
+publish-check-dry-run:
+	@echo "Creating deployment bundle (dry-run)..."
+	@$(SDK_ROOT)/gradlew bundleArtifacts
 	@echo "Dry-run validation passed."
 
 # publish-check
