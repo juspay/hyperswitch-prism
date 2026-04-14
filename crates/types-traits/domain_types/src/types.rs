@@ -1090,32 +1090,32 @@ impl<
                 }
                 grpc_api_types::payments::payment_method::PaymentMethod::LazypayRedirect(_) => {
                     Ok(Self::Wallet(payment_method_data::WalletData::LazyPayRedirect(
-                        payment_method_data::LazyPayRedirectData {},
+                        payment_method_data::LazyPayRedirection {},
                     )))
                 }
                 grpc_api_types::payments::payment_method::PaymentMethod::PhonepeRedirect(_) => {
                     Ok(Self::Wallet(payment_method_data::WalletData::PhonePeRedirect(
-                        payment_method_data::PhonePeRedirectData {},
+                        payment_method_data::PhonePeRedirection {},
                     )))
                 }
                 grpc_api_types::payments::payment_method::PaymentMethod::BilldeskRedirect(_) => {
                     Ok(Self::Wallet(payment_method_data::WalletData::BillDeskRedirect(
-                        payment_method_data::BillDeskRedirectData {},
+                        payment_method_data::BillDeskRedirection {},
                     )))
                 }
                 grpc_api_types::payments::payment_method::PaymentMethod::CashfreeRedirect(_) => {
                     Ok(Self::Wallet(payment_method_data::WalletData::CashfreeRedirect(
-                        payment_method_data::CashfreeRedirectData {},
+                        payment_method_data::CashfreeRedirection {},
                     )))
                 }
                 grpc_api_types::payments::payment_method::PaymentMethod::PayuRedirect(_) => {
                     Ok(Self::Wallet(payment_method_data::WalletData::PayURedirect(
-                        payment_method_data::PayURedirectData {},
+                        payment_method_data::PayURedirection {},
                     )))
                 }
                 grpc_api_types::payments::payment_method::PaymentMethod::EasebuzzRedirect(_) => {
                     Ok(Self::Wallet(payment_method_data::WalletData::EaseBuzzRedirect(
-                        payment_method_data::EaseBuzzRedirectData {},
+                        payment_method_data::EaseBuzzRedirection {},
                     )))
                 }
                 grpc_api_types::payments::payment_method::PaymentMethod::CashappQr(_) => {
@@ -1923,10 +1923,21 @@ impl<
                     ))
                 }
 
-                _ => Err(report!(IntegrationError::InvalidDataFormat { field_name: "unknown", context: IntegrationErrorContext { additional_context: Some("This payment method type is not yet supported".to_string()), ..Default::default() } })),
+                _ => Err(report!(IntegrationError::InvalidDataFormat {
+                    field_name: "payment_method",
+                    context: IntegrationErrorContext {
+                        additional_context: Some("This payment method type is not yet supported".to_string()),
+                        ..Default::default()
+                    }
+                })),
             },
-            None => Err(IntegrationError::InvalidDataFormat { field_name: "unknown", context: IntegrationErrorContext { additional_context: Some("Payment method data is required".to_string()), ..Default::default() } }
-            .into()),
+            None => Err(report!(IntegrationError::InvalidDataFormat {
+                field_name: "payment_method",
+                context: IntegrationErrorContext {
+                    additional_context: Some("Payment method data is required".to_string()),
+                    ..Default::default()
+                }
+            })),
         }
     }
 }
@@ -4741,7 +4752,13 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
                 payment_method:
                     Some(grpc_api_types::payments::payment_method::PaymentMethod::Netbanking(_)),
             } => Ok(Self::BankRedirect),
-            _ => Err(report!(IntegrationError::InvalidDataFormat { field_name: "unknown", context: IntegrationErrorContext { additional_context: Some("Unsupported payment method".to_string()), ..Default::default() } })),
+            _ => Err(report!(IntegrationError::InvalidDataFormat {
+                field_name: "payment_method",
+                context: IntegrationErrorContext {
+                    additional_context: Some("Unsupported payment method".to_string()),
+                    ..Default::default()
+                }
+            })),
         }
     }
 }

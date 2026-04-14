@@ -716,13 +716,12 @@ pub enum WalletData {
     MbWay(MbWayData),
     Satispay(SatispayData),
     Wero(WeroData),
-    // Indian wallet redirect variants
-    LazyPayRedirect(LazyPayRedirectData),
-    PhonePeRedirect(PhonePeRedirectData),
-    BillDeskRedirect(BillDeskRedirectData),
-    CashfreeRedirect(CashfreeRedirectData),
-    PayURedirect(PayURedirectData),
-    EaseBuzzRedirect(EaseBuzzRedirectData),
+    LazyPayRedirect(LazyPayRedirection),
+    PhonePeRedirect(PhonePeRedirection),
+    BillDeskRedirect(BillDeskRedirection),
+    CashfreeRedirect(CashfreeRedirection),
+    PayURedirect(PayURedirection),
+    EaseBuzzRedirect(EaseBuzzRedirection),
 }
 
 impl WalletData {
@@ -783,22 +782,22 @@ pub struct SatispayData {}
 pub struct WeroData {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct LazyPayRedirectData {}
+pub struct LazyPayRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct PhonePeRedirectData {}
+pub struct PhonePeRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct BillDeskRedirectData {}
+pub struct BillDeskRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct CashfreeRedirectData {}
+pub struct CashfreeRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct PayURedirectData {}
+pub struct PayURedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct EaseBuzzRedirectData {}
+pub struct EaseBuzzRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct MifinityData {

@@ -14,7 +14,8 @@ use domain_types::{
         RefundsResponseData, ResponseId,
     },
     payment_method_data::{
-        self, Card, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData,
+        BankRedirectData, Card, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
+        WalletData,
     },
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
@@ -163,6 +164,7 @@ pub struct RazorpayPaymentRequest<
     pub method: PaymentMethodType,
     pub card: Option<RazorpayCardSpecificData<T>>,
     pub wallet: Option<RazorpayWalletType>,
+    pub bank: Option<String>,
     pub authentication: Option<AuthenticationDetails>,
     pub browser: Option<BrowserInfo>,
     pub ip: Secret<String>,
@@ -177,6 +179,7 @@ pub enum RazorpayCardSpecificData<
 > {
     Card(CardDetails<T>),
     Wallet(RazorpayWalletType),
+    Netbanking(String),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -452,12 +455,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 context: Default::default(),
             })?;
 
-        let browser_info_opt = item.router_data.request.browser_info.as_ref();
         let customer_name = item.router_data.request.customer_name.clone();
+        let browser_info_opt = item.router_data.request.browser_info.as_ref();
 
-        // Dispatch per payment method: only Card and Wallet are supported.
-        // Authentication and browser fields are populated only for Card flows.
-        let (method, card, wallet, authentication, browser) =
+        let (method, card, wallet, bank, authentication, browser) =
             match &item.router_data.request.payment_method_data {
                 PaymentMethodData::Card(card_data) => {
                     let card_details =
@@ -484,6 +485,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         PaymentMethodType::Card,
                         Some(RazorpayCardSpecificData::Card(card_details)),
                         None,
+                        None,
                         auth,
                         browser,
                     )
@@ -496,8 +498,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         Some(wallet_type),
                         None,
                         None,
+                        None,
                     )
                 }
+                PaymentMethodData::BankRedirect(BankRedirectData::Netbanking { issuer }) => (
+                    PaymentMethodType::Netbanking,
+                    None,
+                    None,
+                    Some(issuer.to_string()),
+                    None,
+                    None,
+                ),
                 pm @ (PaymentMethodData::CardRedirect(_)
                 | PaymentMethodData::PayLater(_)
                 | PaymentMethodData::BankRedirect(_)
@@ -555,6 +566,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             method,
             card,
             wallet,
+            bank,
             authentication,
             browser,
             ip,
@@ -896,7 +908,7 @@ impl<F, Req>
                         domain_types::router_data::ConnectorResponseData::
                             with_additional_payment_method_data(
                                 domain_types::router_data::AdditionalPaymentMethodConnectorResponse::Upi {
-                                    upi_mode: Some(payment_method_data::UpiSource::UpiCc)
+                                    upi_mode: Some(domain_types::payment_method_data::UpiSource::UpiCc)
 },
                             )
                     });
@@ -1734,7 +1746,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let bank_code = match &item.router_data.request.payment_method_data {
             PaymentMethodData::BankRedirect(
-                payment_method_data::BankRedirectData::Netbanking { issuer },
+                BankRedirectData::Netbanking { issuer },
             ) => map_bank_name_to_razorpay_code(issuer)?,
             _ => {
                 return Err(IntegrationError::MissingRequiredField {
@@ -1763,28 +1775,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let order_id = item
             .router_data
             .resource_common_data
-            .reference_id
-            .as_ref()
+            .connector_order_id
+            .clone()
             .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "order_id (reference_id)",
-                context: IntegrationErrorContext {
-                    suggested_action: Some(
-                        "Call `PaymentService.CreateOrder` first and pass the returned order id \
-                         as `merchant_order_id` (which becomes `reference_id` internally) on the \
-                         Authorize request."
-                            .to_owned(),
-                    ),
-                    doc_url: Some(
-                        "https://razorpay.com/docs/api/orders/#create-an-order".to_owned(),
-                    ),
-                    additional_context: Some(
-                        "Razorpay requires a pre-created `order_id` in the payment create \
-                         request; it cannot be omitted."
-                            .to_owned(),
-                    ),
-                },
-            })?
-            .clone();
+                field_name: "connector_order_id",
+                context: Default::default(),
+            })?;
 
         let metadata_map = item
             .router_data

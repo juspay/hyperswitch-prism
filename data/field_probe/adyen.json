@@ -668,7 +668,7 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. Unsupported payment method"
       },
       "DanamonVaBankTransfer": {
         "status": "supported",
@@ -704,7 +704,7 @@
       },
       "DuitNow": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. Unsupported payment method"
       },
       "EVoucher": {
         "status": "not_implemented",
@@ -802,7 +802,7 @@
       },
       "Givex": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. Unsupported payment method"
       },
       "GooglePay": {
         "status": "supported",
@@ -1400,7 +1400,7 @@
       },
       "OpenBankingPis": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. Unsupported payment method"
       },
       "OpenBankingUk": {
         "status": "supported",
@@ -1513,7 +1513,7 @@
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. Unsupported payment method"
       },
       "PaypalRedirect": {
         "status": "supported",
@@ -1552,7 +1552,7 @@
       },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. Unsupported payment method"
       },
       "PermataBankTransfer": {
         "status": "supported",
