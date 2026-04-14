@@ -250,6 +250,8 @@ certify-client-sanity:
 	@node sdk/tests/client_sanity/simple_proxy.js > /dev/null 2>&1 & sleep 2
 	@echo "Generating golden captures from manifest..."
 	@node sdk/tests/client_sanity/generate_golden.js
+	@echo "[CERTIFICATION]: Building test runners..."
+	@cd sdk/rust && cargo build --bin client_sanity_runner --quiet 2>/dev/null || cargo build --bin client_sanity_runner
 	@echo "[CERTIFICATION]: Running client sanity suite..."
 	@node sdk/tests/client_sanity/run_client_certification.js rust python node kotlin
 	@pkill -f "[/]echo_server\\.js"; pkill -f "[/]simple_proxy\\.js" || true
