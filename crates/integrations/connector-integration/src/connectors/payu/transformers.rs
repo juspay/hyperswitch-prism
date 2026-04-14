@@ -7,9 +7,9 @@ use domain_types::{
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
         RefundsResponseData, ResponseId,
     },
-    errors::{ConnectorError, IntegrationError},
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{
-        NetbankingData, PaymentMethodData, PaymentMethodDataTypes, UpiData, WalletData,
+        BankRedirectData, PaymentMethodData, PaymentMethodDataTypes, UpiData, WalletData,
     },
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -17,7 +17,7 @@ use domain_types::{
     router_response_types::RedirectForm,
 };
 use error_stack::{report, ResultExt};
-use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::types::ResponseRouterData;
@@ -93,7 +93,17 @@ impl TryFrom<&ConnectorSpecificConfig> for PayuAuthType {
                 api_secret: api_secret.to_owned(),
             }),
             _ => Err(IntegrationError::FailedToObtainAuthType {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Provide a PayuConfig with api_key and api_secret in the connector configuration."
+                            .to_owned(),
+                    ),
+                    doc_url: Some("https://docs.payu.in/docs/server-to-server-integration".to_owned()),
+                    additional_context: Some(
+                        "PayU requires body-key authentication with a merchant key (api_key) and salt (api_secret)."
+                            .to_owned(),
+                    ),
+                },
             }
             .into()),
         }
@@ -316,7 +326,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "PayU expects amount in string major units (e.g. \"10.00\"). Conversion from minor units failed."
+                            .to_owned(),
+                    ),
+                    ..Default::default()
+                },
             })?;
 
         // Extract authentication
@@ -352,7 +368,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .get_billing_first_name()
                 .change_context(IntegrationError::MissingRequiredField {
                     field_name: "billing.first_name",
-                    context: Default::default(),
+                    context: IntegrationErrorContext {
+                        suggested_action: Some("Provide the customer's first name in the billing address.".to_owned()),
+                        additional_context: Some("PayU requires firstname as a mandatory field in the payment request hash.".to_owned()),
+                        ..Default::default()
+                    },
                 })?,
             lastname: router_data
                 .resource_common_data
@@ -362,27 +382,43 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .get_billing_email()
                 .change_context(IntegrationError::MissingRequiredField {
                     field_name: "billing.email",
-                    context: Default::default(),
+                    context: IntegrationErrorContext {
+                        suggested_action: Some("Provide the customer's email in the billing address.".to_owned()),
+                        additional_context: Some("PayU requires email as a mandatory field in the payment request hash.".to_owned()),
+                        ..Default::default()
+                    },
                 })?,
             phone: router_data
                 .resource_common_data
                 .get_billing_phone_number()
                 .change_context(IntegrationError::MissingRequiredField {
                     field_name: "billing.phone_number",
-                    context: Default::default(),
+                    context: IntegrationErrorContext {
+                        suggested_action: Some("Provide the customer's phone number with country code in the billing address.".to_owned()),
+                        additional_context: Some("PayU requires phone number as a mandatory field in the payment request.".to_owned()),
+                        ..Default::default()
+                    },
                 })?,
 
             // URLs - use router return URL if available
             surl: router_data.request.get_router_return_url().map_err(|_| {
                 IntegrationError::MissingRequiredField {
-                    field_name: "router_return_url",
-                    context: Default::default(),
+                    field_name: "return_url",
+                    context: IntegrationErrorContext {
+                        suggested_action: Some("Provide a return_url for PayU to redirect after payment completion.".to_owned()),
+                        additional_context: Some("PayU requires surl (success URL) and furl (failure URL) for all payment flows.".to_owned()),
+                        ..Default::default()
+                    },
                 }
             })?,
             furl: router_data.request.get_router_return_url().map_err(|_| {
                 IntegrationError::MissingRequiredField {
-                    field_name: "router_return_url",
-                    context: Default::default(),
+                    field_name: "return_url",
+                    context: IntegrationErrorContext {
+                        suggested_action: Some("Provide a return_url for PayU to redirect after payment completion.".to_owned()),
+                        additional_context: Some("PayU requires surl (success URL) and furl (failure URL) for all payment flows.".to_owned()),
+                        ..Default::default()
+                    },
                 }
             })?,
 
@@ -398,8 +434,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .get_ip_address_as_optional()
                 .ok_or_else(|| {
                     report!(IntegrationError::MissingRequiredField {
-                        field_name: "IP address",
-                        context: Default::default()
+                        field_name: "browser_info.ip_address",
+                        context: IntegrationErrorContext {
+                            suggested_action: Some("Provide the customer's IP address in browser_info.ip_address.".to_owned()),
+                            additional_context: Some("PayU requires s2s_client_ip for all S2S payment flows.".to_owned()),
+                            ..Default::default()
+                        },
                     })
                 })?,
             s2s_device_info: constants::DEVICE_INFO.to_string(),
@@ -659,7 +699,7 @@ fn determine_upi_app_name<
                 }
             }
         }
-        PaymentMethodData::Wallet(_) | PaymentMethodData::Netbanking(_) => Ok(None),
+        PaymentMethodData::Wallet(_) | PaymentMethodData::BankRedirect(_) => Ok(None),
         _ => Ok(None),
     }
 }
@@ -677,37 +717,31 @@ fn determine_upi_flow<
         Option<String>,
         Option<String>,
     ),
-    ConnectorError,
+    IntegrationError,
 > {
-    // Based on Haskell implementation:
-    // getTxnS2SType :: Bool -> Bool -> Bool -> Bool -> Bool -> Maybe Text
-    // getTxnS2SType isTxnS2SFlow4Enabled s2sEnabled isDirectOTPTxn isEmandateRegister isDirectAuthorization
-
     match &request.payment_method_data {
         PaymentMethodData::Upi(upi_data) => {
             match upi_data {
                 UpiData::UpiCollect(collect_data) => {
                     if let Some(vpa) = &collect_data.vpa_id {
-                        // UPI Collect flow - based on Haskell implementation
-                        // For UPI Collect: pg = UPI, bankcode = UPI, VPA required
-                        // The key is that VPA must be populated for sourceObject == "UPI_COLLECT"
                         Ok((
                             Some(constants::UPI_PG.to_string()),
                             Some(constants::UPI_COLLECT_BANKCODE.to_string()),
                             Some(vpa.peek().to_string()),
-                            Some(constants::UPI_S2S_FLOW.to_string()), // UPI Collect uses S2S flow "2"
+                            Some(constants::UPI_S2S_FLOW.to_string()),
                         ))
                     } else {
-                        // Missing VPA for UPI Collect - this should be an error
                         Err(IntegrationError::MissingRequiredField {
                             field_name: "vpa_id",
-                            context: Default::default(),
+                            context: IntegrationErrorContext {
+                                suggested_action: Some("Provide a VPA (Virtual Payment Address) for UPI Collect, e.g. \"user@upi\".".to_owned()),
+                                additional_context: Some("UPI Collect requires a valid VPA to send the collect request to the customer's UPI app.".to_owned()),
+                                ..Default::default()
+                            },
                         })
                     }
                 }
                 UpiData::UpiIntent(_) | UpiData::UpiQr(_) => {
-                    // UPI Intent flow - uses S2S flow "2" for intent-based transactions
-                    // pg=UPI, bankcode=INTENT for intent flows
                     Ok((
                         Some(constants::UPI_PG.to_string()),
                         Some(constants::UPI_INTENT_BANKCODE.to_string()),
@@ -726,23 +760,82 @@ fn determine_upi_flow<
                 WalletData::CashfreeRedirect(_) => ("CASH".to_string(), "CASHFREE".to_string()),
                 WalletData::EaseBuzzRedirect(_) => ("CASH".to_string(), "EASEBUZZ".to_string()),
                 _ => {
-                    return Err(ConnectorError::NotSupported {
+                    return Err(IntegrationError::NotSupported {
                         message: "Wallet type not supported by PayU".to_string(),
-                        connector: "PayU",
+                        connector: "payu",
+                        context: IntegrationErrorContext {
+                            suggested_action: Some(
+                                "Use one of the supported wallet types: PhonePe, LazyPay, PayU, BillDesk, Cashfree, or EaseBuzz."
+                                    .to_owned(),
+                            ),
+                            additional_context: Some(
+                                "PayU only supports specific Indian wallet redirect flows."
+                                    .to_owned(),
+                            ),
+                            ..Default::default()
+                        },
                     });
                 }
             };
             Ok((Some(pg), Some(bankcode), None, None))
         }
-        PaymentMethodData::Netbanking(NetbankingData { bank_code, .. }) => {
-            Ok((Some("NB".to_string()), Some(bank_code.clone()), None, None))
+        PaymentMethodData::BankRedirect(BankRedirectData::Netbanking { issuer }) => {
+            let bankcode = map_bank_name_to_payu_code(issuer)?;
+            Ok((Some("NB".to_string()), Some(bankcode), None, None))
         }
-        _ => Err(ConnectorError::NotSupported {
+        _ => Err(IntegrationError::NotSupported {
             message: "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
                 .to_string(),
-            connector: "PayU",
+            connector: "payu",
+            context: IntegrationErrorContext {
+                suggested_action: Some(
+                    "Use UPI (Collect/Intent/QR), a supported wallet (PhonePe, LazyPay, etc.), or Netbanking."
+                        .to_owned(),
+                ),
+                doc_url: Some("https://docs.payu.in/docs/server-to-server-integration".to_owned()),
+                additional_context: None,
+            },
         }),
     }
+}
+
+// Map BankNames enum to PayU netbanking bank codes
+// Reference: https://docs.payu.in/docs/net-banking-codes
+fn map_bank_name_to_payu_code(bank: &common_enums::BankNames) -> Result<String, IntegrationError> {
+    use common_enums::BankNames;
+    let code = match bank {
+        BankNames::AxisBank => "AXIB",
+        BankNames::StateBank => "SBIB",
+        BankNames::HdfcBank => "HDFB",
+        BankNames::IciciBank => "ICIB",
+        BankNames::KotakMahindraBank => "162B",
+        BankNames::YesBank => "YESB",
+        BankNames::PunjabNationalBank => "PNBB",
+        BankNames::BankOfBaroda => "BBRB",
+        BankNames::UnionBankOfIndia => "UNIB",
+        BankNames::CanaraBank => "CABB",
+        BankNames::IndusIndBank => "INDB",
+        BankNames::FederalBank => "FDEB",
+        BankNames::IndianOverseasBank => "IOBB",
+        other => {
+            return Err(IntegrationError::NotSupported {
+                message: format!("Bank {:?} is not mapped to a PayU netbanking code", other),
+                connector: "payu",
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Use one of the supported banks: Axis, SBI, HDFC, ICICI, Kotak, Yes, PNB, BoB, Union, Canara, IndusInd, Federal, IOB."
+                            .to_owned(),
+                    ),
+                    doc_url: Some("https://docs.payu.in/docs/net-banking-codes".to_owned()),
+                    additional_context: Some(format!(
+                        "PayU netbanking requires a specific bank code; '{:?}' has no mapping.",
+                        other
+                    )),
+                },
+            });
+        }
+    };
+    Ok(code.to_string())
 }
 
 pub fn is_upi_collect_flow<
@@ -776,7 +869,7 @@ pub fn is_netbanking_redirect_flow<
 ) -> bool {
     matches!(
         request.payment_method_data,
-        PaymentMethodData::Netbanking(_)
+        PaymentMethodData::BankRedirect(BankRedirectData::Netbanking { .. })
     )
 }
 
@@ -1128,7 +1221,7 @@ pub struct PayuCaptureResponse {
 fn generate_payu_capture_hash(
     request: &PayuCaptureRequest,
     merchant_salt: &Secret<String>,
-) -> Result<String, ConnectorError> {
+) -> Result<String, IntegrationError> {
     use sha2::{Digest, Sha512};
 
     // PayU standard hash format: key|command|var1|salt
@@ -1155,7 +1248,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for PayuCaptureRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: super::PayuRouterData<
@@ -1172,7 +1265,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let connector_transaction_id = router_data
             .request
             .get_connector_transaction_id()
-            .change_context(ConnectorError::MissingConnectorTransactionID)?;
+            .change_context(IntegrationError::MissingConnectorTransactionID {
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "PayU capture requires the mihpayid (connector_transaction_id) from the original authorize response."
+                            .to_owned(),
+                    ),
+                    ..Default::default()
+                },
+            })?;
 
         // Convert amount using the amount converter
         let amount = item
@@ -1182,7 +1283,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 router_data.request.minor_amount_to_capture,
                 router_data.request.currency,
             )
-            .change_context(ConnectorError::AmountConversionFailed)?;
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "PayU capture expects amount in string major units (e.g. \"10.00\")."
+                            .to_owned(),
+                    ),
+                    ..Default::default()
+                },
+            })?;
 
         let command = "capture_transaction".to_string();
 
@@ -1323,7 +1432,7 @@ pub struct PayuVoidResponse {
 fn generate_payu_void_hash(
     request: &PayuVoidRequest,
     merchant_salt: &Secret<String>,
-) -> Result<String, ConnectorError> {
+) -> Result<String, IntegrationError> {
     use sha2::{Digest, Sha512};
 
     // PayU void hash format: key|command|var1|salt
@@ -1350,7 +1459,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for PayuVoidRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: super::PayuRouterData<
@@ -1514,7 +1623,7 @@ pub struct PayuRefundResponse {
 fn generate_payu_refund_hash(
     request: &PayuRefundRequest,
     merchant_salt: &Secret<String>,
-) -> Result<String, ConnectorError> {
+) -> Result<String, IntegrationError> {
     use sha2::{Digest, Sha512};
     let hash_string = format!(
         "{}|{}|{}|{}",
@@ -1538,7 +1647,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for PayuRefundRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: super::PayuRouterData<
@@ -1556,7 +1665,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 router_data.request.minor_refund_amount,
                 router_data.request.currency,
             )
-            .change_context(ConnectorError::AmountConversionFailed)?;
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "PayU refund expects amount in string major units (e.g. \"10.00\")."
+                            .to_owned(),
+                    ),
+                    ..Default::default()
+                },
+            })?;
         let txnid = router_data.request.refund_id.clone();
         let command = "cancel_refund_transaction".to_string();
         let mut request = Self {
@@ -1692,7 +1809,7 @@ pub struct PayuRefundSyncResponse {
 fn generate_payu_refund_sync_hash(
     request: &PayuRefundSyncRequest,
     merchant_salt: &Secret<String>,
-) -> Result<String, ConnectorError> {
+) -> Result<String, IntegrationError> {
     use sha2::{Digest, Sha512};
 
     // PayU verify hash format: key|command|var1|salt
@@ -1719,7 +1836,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for PayuRefundSyncRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: super::PayuRouterData<

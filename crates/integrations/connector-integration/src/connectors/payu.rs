@@ -16,21 +16,18 @@ use domain_types::{
         SubmitEvidence, Void, VoidPC,
     },
     connector_types::{
-        AcceptDisputeData, AccessTokenRequestData, AccessTokenResponseData,
-        ClientAuthenticationTokenRequestData, ConnectorCustomerData, ConnectorCustomerResponse,
-        ConnectorSpecifications, DisputeDefendData, DisputeFlowData, DisputeResponseData,
-        MandateRevokeRequestData, MandateRevokeResponseData, PaymentCreateOrderData,
-        PaymentCreateOrderResponse, PaymentFlowData, PaymentMethodTokenResponse,
-        PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthenticateData,
-        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
-        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSdkSessionTokenData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        RepeatPaymentData, ServerAuthenticationTokenRequestData,
-        ServerAuthenticationTokenResponseData, ServerSessionAuthenticationTokenRequestData,
-        ServerSessionAuthenticationTokenResponseData, SessionTokenRequestData,
-        SessionTokenResponseData, SetupMandateRequestData, SubmitEvidenceData,
-        SupportedPaymentMethodsExt,
+        AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
+        ConnectorCustomerResponse, ConnectorSpecifications, DisputeDefendData, DisputeFlowData,
+        DisputeResponseData, MandateRevokeRequestData, MandateRevokeResponseData,
+        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData,
+        PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
+        PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
+        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
+        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
+        ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
+        SetupMandateRequestData, SubmitEvidenceData, SupportedPaymentMethodsExt,
     },
     errors::IntegrationError,
     payment_method_data::PaymentMethodDataTypes,
@@ -307,21 +304,45 @@ macros::create_all_prerequisites!(
                 // HTML page (Content-Type: text/html) that the browser submits to complete
                 // the redirect. We must NOT attempt to JSON-deserialize this HTML.
                 //
-                // If the response bytes start with '<' (HTML), synthesize a minimal JSON
-                // payload that will deserialize as PayuPaymentResponse with status=null
-                // (falling through to the AuthenticationPending branch in TryFrom).
-                // The HTML page itself IS the redirect mechanism — a 2xx HTTP response
-                // means the redirect is pending.
-                let trimmed = bytes.iter().position(|&b| !b.is_ascii_whitespace())
-                    .map(|pos| &bytes[pos..])
+                // If the response bytes start with '<' (HTML), inspect the hidden form
+                // fields to determine whether this is a genuine redirect (pending) or a
+                // failure bounce-back from PayU.
+                let trimmed = bytes
+                    .iter()
+                    .position(|&b| !b.is_ascii_whitespace())
+                    .and_then(|pos| bytes.get(pos..))
                     .unwrap_or(&bytes[..]);
                 if trimmed.starts_with(b"<") {
-                    // HTML response — synthesize a JSON payload representing redirect pending.
-                    // PayU returns HTML when the payment requires a browser redirect.
-                    // We encode this as status="success" + result.status="pending" so that
-                    // the TryFrom implementation maps it to AttemptStatus::AuthenticationPending.
-                    let synthetic_json = br#"{"status":"success","result":{"status":"pending","mihpayid":null}}"#;
-                    Ok(bytes::Bytes::from_static(synthetic_json))
+                    let html = String::from_utf8_lossy(&bytes);
+                    // PayU embeds `name="status" value="failure"` in the redirect HTML
+                    // when the payment method is rejected at the gateway level.
+                    if html.contains(r#"name="status" value="failure""#) {
+                        // Extract error details from the HTML hidden fields
+                        let extract = |field: &str| -> String {
+                            let needle = format!(r#"name="{field}" value=""#);
+                            html.find(&needle)
+                                .and_then(|start| {
+                                    let val_start = start + needle.len();
+                                    html[val_start..].find('"').map(|end| html[val_start..val_start + end].to_string())
+                                })
+                                .unwrap_or_default()
+                        };
+                        let error_code = extract("error");
+                        let error_message = extract("field9");
+                        let mihpayid = extract("mihpayid");
+                        let synthetic = serde_json::json!({
+                            "status": "failed",
+                            "error": error_code,
+                            "message": error_message,
+                            "result": { "status": "failure", "mihpayid": mihpayid }
+                        })
+                        .to_string();
+                        Ok(bytes::Bytes::from(synthetic))
+                    } else {
+                        // Genuine redirect HTML — payment is pending customer action.
+                        let synthetic_json = br#"{"status":"success","result":{"status":"pending","mihpayid":null}}"#;
+                        Ok(bytes::Bytes::from_static(synthetic_json))
+                    }
                 } else {
                     // Not HTML — pass through as-is (may be JSON error)
                     Ok(bytes)
@@ -431,7 +452,7 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             _req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             Ok(vec![
                 ("Content-Type".to_string(), "application/x-www-form-urlencoded".into()),
                 ("Accept".to_string(), "application/json".into()),
@@ -441,7 +462,7 @@ macros::macro_connector_implementation!(
         fn get_url(
             &self,
             req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
-        ) -> CustomResult<String, ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             // PayU capture uses the same postservice endpoint as PSync
             let base_url = self.base_url(&req.resource_common_data.connectors);
             Ok(format!("{base_url}/merchant/postservice.php?form=2"))
@@ -459,7 +480,7 @@ macros::macro_connector_implementation!(
             let response: PayuCaptureResponse = res
                 .response
                 .parse_struct("PayU Capture ErrorResponse")
-                .change_context(ConnectorError::ResponseDeserializationFailed)?;
+                .change_context(crate::utils::response_handling_fail_for_connector(res.status_code, "payu"))?;
 
             Ok(ErrorResponse {
                 status_code: res.status_code,
@@ -496,7 +517,7 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             _req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             Ok(vec![
                 ("Content-Type".to_string(), "application/x-www-form-urlencoded".into()),
                 ("Accept".to_string(), "application/json".into()),
@@ -506,7 +527,7 @@ macros::macro_connector_implementation!(
         fn get_url(
             &self,
             req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
-        ) -> CustomResult<String, ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             // PayU void uses the same postservice endpoint as capture/psync
             let base_url = self.base_url(&req.resource_common_data.connectors);
             Ok(format!("{base_url}/merchant/postservice.php?form=2"))
@@ -524,7 +545,7 @@ macros::macro_connector_implementation!(
             let response: PayuVoidResponse = res
                 .response
                 .parse_struct("PayU Void ErrorResponse")
-                .change_context(ConnectorError::ResponseDeserializationFailed)?;
+                .change_context(crate::utils::response_handling_fail_for_connector(res.status_code, "payu"))?;
 
             Ok(ErrorResponse {
                 status_code: res.status_code,
@@ -561,7 +582,7 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             _req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             Ok(vec![
                 ("Content-Type".to_string(), "application/x-www-form-urlencoded".into()),
                 ("Accept".to_string(), "application/json".into()),
@@ -571,7 +592,7 @@ macros::macro_connector_implementation!(
         fn get_url(
             &self,
             req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
-        ) -> CustomResult<String, ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let base_url = self.connector_base_url_refunds(req);
             Ok(format!("{base_url}/merchant/postservice.php?form=2"))
         }
@@ -588,7 +609,7 @@ macros::macro_connector_implementation!(
             let response: PayuRefundResponse = res
                 .response
                 .parse_struct("PayU Refund ErrorResponse")
-                .change_context(ConnectorError::ResponseDeserializationFailed)?;
+                .change_context(crate::utils::response_handling_fail_for_connector(res.status_code, "payu"))?;
 
             Ok(ErrorResponse {
                 status_code: res.status_code,
@@ -625,7 +646,7 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             _req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             Ok(vec![
                 ("Content-Type".to_string(), "application/x-www-form-urlencoded".into()),
                 ("Accept".to_string(), "application/json".into()),
@@ -635,7 +656,7 @@ macros::macro_connector_implementation!(
         fn get_url(
             &self,
             req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
-        ) -> CustomResult<String, ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let base_url = self.connector_base_url_refunds(req);
             Ok(format!("{base_url}/merchant/postservice.php?form=2"))
         }
@@ -652,7 +673,7 @@ macros::macro_connector_implementation!(
             let response: PayuRefundSyncResponse = res
                 .response
                 .parse_struct("PayU RSync ErrorResponse")
-                .change_context(ConnectorError::ResponseDeserializationFailed)?;
+                .change_context(crate::utils::response_handling_fail_for_connector(res.status_code, "payu"))?;
 
             Ok(ErrorResponse {
                 status_code: res.status_code,
@@ -970,7 +991,7 @@ static PAYU_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyL
 
     // Netbanking
     payu_supported_payment_methods.add(
-        PaymentMethod::Netbanking,
+        PaymentMethod::BankRedirect,
         PaymentMethodType::Netbanking,
         PaymentMethodDetails {
             mandates: FeatureStatus::NotSupported,
