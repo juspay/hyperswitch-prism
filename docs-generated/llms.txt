@@ -450,8 +450,8 @@ examples_python: none
 connector_id: payu
 doc: docs/connectors/payu.md
 scenarios: none
-payment_methods: UpiCollect, UpiIntent, UpiQr
-flows: authorize, get
+payment_methods: none
+flows: capture, get, refund, refund_get, void
 examples_python: none
 
 ## Peachpayments
