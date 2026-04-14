@@ -267,6 +267,9 @@ pub struct WorldpayxmlWebhookResponse {
 // Type alias for RSync - reuses PSync response structure
 pub type WorldpayxmlRsyncResponse = WorldpayxmlTransactionResponse;
 
+// Type alias for SetupMandate - reuses Authorize response structure
+pub type WorldpayxmlSetupMandateResponse = WorldpayxmlAuthorizeResponse;
+
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum WorldpayxmlErrorResponse {

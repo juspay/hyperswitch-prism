@@ -318,3 +318,6 @@ pub struct WorldpayxmlOrderInquiry {
 
 // Type alias for RSync - reuses PSync request structure
 pub type WorldpayxmlRSyncRequest = WorldpayxmlPSyncRequest;
+
+// Type alias for SetupMandate - reuses Payments request structure (zero-dollar auth)
+pub type WorldpayxmlSetupMandateRequest = WorldpayxmlPaymentsRequest;
