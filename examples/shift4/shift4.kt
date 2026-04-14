@@ -19,12 +19,17 @@ import payments.PaymentServiceGetRequest
 import payments.MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest
 import payments.CustomerServiceCreateRequest
 import payments.PaymentServiceProxyAuthorizeRequest
+import payments.PaymentServiceProxySetupRecurringRequest
 import payments.RecurringPaymentServiceChargeRequest
 import payments.RefundServiceGetRequest
+import payments.PaymentServiceSetupRecurringRequest
 import payments.PaymentServiceTokenAuthorizeRequest
+import payments.PaymentServiceTokenSetupRecurringRequest
+import payments.AcceptanceType
 import payments.AuthenticationType
 import payments.CaptureMethod
 import payments.Currency
+import payments.FutureUsage
 import payments.PaymentMethodType
 import payments.ConnectorConfig
 import payments.SdkOptions
@@ -266,6 +271,37 @@ fun proxyAuthorize(txnId: String) {
     println("Status: ${response.status.name}")
 }
 
+// Flow: PaymentService.ProxySetupRecurring
+fun proxySetupRecurring(txnId: String) {
+    val client = PaymentClient(_defaultConfig)
+    val request = PaymentServiceProxySetupRecurringRequest.newBuilder().apply {
+        merchantRecurringPaymentId = "probe_proxy_mandate_001"
+        amountBuilder.apply {
+            minorAmount = 0L  // Amount in minor units (e.g., 1000 = $10.00).
+            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+        cardProxyBuilder.apply {  // Card proxy for vault-aliased payments.
+            cardNumberBuilder.value = "4111111111111111"  // Card Identification.
+            cardExpMonthBuilder.value = "03"
+            cardExpYearBuilder.value = "2030"
+            cardCvcBuilder.value = "123"
+            cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
+        }
+        addressBuilder.apply {
+            billingAddressBuilder.apply {
+            }
+        }
+        customerAcceptanceBuilder.apply {
+            acceptanceType = AcceptanceType.OFFLINE  // Type of acceptance (e.g., online, offline).
+            acceptedAt = 0L  // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
+        }
+        authType = AuthenticationType.NO_THREE_DS
+        setupFutureUsage = FutureUsage.OFF_SESSION
+    }.build()
+    val response = client.proxy_setup_recurring(request)
+    println("Status: ${response.status.name}")
+}
+
 // Flow: RecurringPaymentService.Charge
 fun recurringCharge(txnId: String) {
     val client = RecurringPaymentClient(_defaultConfig)
@@ -319,6 +355,45 @@ fun refundGet(txnId: String) {
     println("Status: ${response.status.name}")
 }
 
+// Flow: PaymentService.SetupRecurring
+fun setupRecurring(txnId: String) {
+    val client = PaymentClient(_defaultConfig)
+    val request = PaymentServiceSetupRecurringRequest.newBuilder().apply {
+        merchantRecurringPaymentId = "probe_mandate_001"  // Identification.
+        amountBuilder.apply {  // Mandate Details.
+            minorAmount = 0L  // Amount in minor units (e.g., 1000 = $10.00).
+            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+        paymentMethodBuilder.apply {
+            cardBuilder.apply {  // Generic card payment.
+                cardNumberBuilder.value = "4111111111111111"  // Card Identification.
+                cardExpMonthBuilder.value = "03"
+                cardExpYearBuilder.value = "2030"
+                cardCvcBuilder.value = "737"
+                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
+            }
+        }
+        addressBuilder.apply {  // Address Information.
+            billingAddressBuilder.apply {
+            }
+        }
+        authType = AuthenticationType.NO_THREE_DS  // Type of authentication to be used.
+        enrolledFor3Ds = false  // Indicates if the customer is enrolled for 3D Secure.
+        returnUrl = "https://example.com/mandate-return"  // URL to redirect after setup.
+        setupFutureUsage = FutureUsage.OFF_SESSION  // Indicates future usage intention.
+        requestIncrementalAuthorization = false  // Indicates if incremental authorization is requested.
+        customerAcceptanceBuilder.apply {  // Details of customer acceptance.
+            acceptanceType = AcceptanceType.OFFLINE  // Type of acceptance (e.g., online, offline).
+            acceptedAt = 0L  // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
+        }
+    }.build()
+    val response = client.setup_recurring(request)
+    when (response.status.name) {
+        "FAILED" -> throw RuntimeException("Setup failed: ${response.error.unifiedDetails.message}")
+        else     -> println("Mandate stored: ${response.connectorRecurringPaymentId}")
+    }
+}
+
 // Flow: PaymentService.TokenAuthorize
 fun tokenAuthorize(txnId: String) {
     val client = PaymentClient(_defaultConfig)
@@ -340,6 +415,42 @@ fun tokenAuthorize(txnId: String) {
     println("Status: ${response.status.name}")
 }
 
+// Flow: PaymentService.TokenSetupRecurring
+fun tokenSetupRecurring(txnId: String) {
+    val client = PaymentClient(_defaultConfig)
+    val request = PaymentServiceTokenSetupRecurringRequest.newBuilder().apply {
+        merchantRecurringPaymentId = "probe_tokenized_mandate_001"
+        amountBuilder.apply {
+            minorAmount = 0L  // Amount in minor units (e.g., 1000 = $10.00).
+            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+        connectorTokenBuilder.value = "pm_1AbcXyzStripeTestToken"
+        addressBuilder.apply {
+            billingAddressBuilder.apply {
+            }
+        }
+        customerAcceptanceBuilder.apply {
+            acceptanceType = AcceptanceType.ONLINE  // Type of acceptance (e.g., online, offline).
+            acceptedAt = 0L  // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
+            onlineMandateDetailsBuilder.apply {  // Details if the acceptance was an online mandate.
+                ipAddress = "127.0.0.1"  // IP address from which the mandate was accepted.
+                userAgent = "Mozilla/5.0"  // User agent string of the browser used for mandate acceptance.
+            }
+        }
+        setupMandateDetailsBuilder.apply {
+            mandateTypeBuilder.apply {  // Type of mandate (single_use or multi_use) with amount details.
+                multiUseBuilder.apply {  // Multi use mandate with amount details (for recurring payments).
+                    amount = 0L  // Amount.
+                    currency = Currency.USD  // Currency code (ISO 4217).
+                }
+            }
+        }
+        setupFutureUsage = FutureUsage.OFF_SESSION
+    }.build()
+    val response = client.token_setup_recurring(request)
+    println("Status: ${response.status.name}")
+}
+
 
 fun main(args: Array<String>) {
     val txnId = "order_001"
@@ -355,10 +466,13 @@ fun main(args: Array<String>) {
         "createCustomer" -> createCustomer(txnId)
         "get" -> get(txnId)
         "proxyAuthorize" -> proxyAuthorize(txnId)
+        "proxySetupRecurring" -> proxySetupRecurring(txnId)
         "recurringCharge" -> recurringCharge(txnId)
         "refund" -> refund(txnId)
         "refundGet" -> refundGet(txnId)
+        "setupRecurring" -> setupRecurring(txnId)
         "tokenAuthorize" -> tokenAuthorize(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processGetPayment, authorize, capture, createClientAuthenticationToken, createCustomer, get, proxyAuthorize, recurringCharge, refund, refundGet, tokenAuthorize")
+        "tokenSetupRecurring" -> tokenSetupRecurring(txnId)
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processGetPayment, authorize, capture, createClientAuthenticationToken, createCustomer, get, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring, tokenAuthorize, tokenSetupRecurring")
     }
 }

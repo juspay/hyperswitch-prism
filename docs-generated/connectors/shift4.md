@@ -108,7 +108,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/shift4/shift4.py#L202) · [JavaScript](../../examples/shift4/shift4.js) · [Kotlin](../../examples/shift4/shift4.kt#L104) · [Rust](../../examples/shift4/shift4.rs#L193)
+**Examples:** [Python](../../examples/shift4/shift4.py#L299) · [JavaScript](../../examples/shift4/shift4.js) · [Kotlin](../../examples/shift4/shift4.kt#L109) · [Rust](../../examples/shift4/shift4.rs#L286)
 
 ### Card Payment (Authorize + Capture)
 
@@ -122,19 +122,19 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/shift4/shift4.py#L221) · [JavaScript](../../examples/shift4/shift4.js) · [Kotlin](../../examples/shift4/shift4.kt#L120) · [Rust](../../examples/shift4/shift4.rs#L209)
+**Examples:** [Python](../../examples/shift4/shift4.py#L318) · [JavaScript](../../examples/shift4/shift4.js) · [Kotlin](../../examples/shift4/shift4.kt#L125) · [Rust](../../examples/shift4/shift4.rs#L302)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/shift4/shift4.py#L246) · [JavaScript](../../examples/shift4/shift4.js) · [Kotlin](../../examples/shift4/shift4.kt#L142) · [Rust](../../examples/shift4/shift4.rs#L232)
+**Examples:** [Python](../../examples/shift4/shift4.py#L343) · [JavaScript](../../examples/shift4/shift4.js) · [Kotlin](../../examples/shift4/shift4.kt#L147) · [Rust](../../examples/shift4/shift4.rs#L325)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/shift4/shift4.py#L271) · [JavaScript](../../examples/shift4/shift4.js) · [Kotlin](../../examples/shift4/shift4.kt#L164) · [Rust](../../examples/shift4/shift4.rs#L255)
+**Examples:** [Python](../../examples/shift4/shift4.py#L368) · [JavaScript](../../examples/shift4/shift4.js) · [Kotlin](../../examples/shift4/shift4.kt#L169) · [Rust](../../examples/shift4/shift4.rs#L348)
 
 ## API Reference
 
@@ -146,10 +146,13 @@ Retrieve current payment status from the connector.
 | [CustomerService.Create](#customerservicecreate) | Customers | `CustomerServiceCreateRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
 | [PaymentService.ProxyAuthorize](#paymentserviceproxyauthorize) | Payments | `PaymentServiceProxyAuthorizeRequest` |
+| [PaymentService.ProxySetupRecurring](#paymentserviceproxysetuprecurring) | Payments | `PaymentServiceProxySetupRecurringRequest` |
 | [RecurringPaymentService.Charge](#recurringpaymentservicecharge) | Mandates | `RecurringPaymentServiceChargeRequest` |
 | [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
 | [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
+| [PaymentService.SetupRecurring](#paymentservicesetuprecurring) | Payments | `PaymentServiceSetupRecurringRequest` |
 | [PaymentService.TokenAuthorize](#paymentservicetokenauthorize) | Payments | `PaymentServiceTokenAuthorizeRequest` |
+| [PaymentService.TokenSetupRecurring](#paymentservicetokensetuprecurring) | Payments | `PaymentServiceTokenSetupRecurringRequest` |
 
 ### Payments
 
@@ -283,7 +286,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/shift4/shift4.py#L293) · [TypeScript](../../examples/shift4/shift4.ts#L272) · [Kotlin](../../examples/shift4/shift4.kt#L182) · [Rust](../../examples/shift4/shift4.rs#L273)
+**Examples:** [Python](../../examples/shift4/shift4.py#L390) · [TypeScript](../../examples/shift4/shift4.ts#L363) · [Kotlin](../../examples/shift4/shift4.kt#L187) · [Rust](../../examples/shift4/shift4.rs#L366)
 
 #### PaymentService.Capture
 
@@ -294,7 +297,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/shift4/shift4.py#L302) · [TypeScript](../../examples/shift4/shift4.ts#L281) · [Kotlin](../../examples/shift4/shift4.kt#L194) · [Rust](../../examples/shift4/shift4.rs#L285)
+**Examples:** [Python](../../examples/shift4/shift4.py#L399) · [TypeScript](../../examples/shift4/shift4.ts#L372) · [Kotlin](../../examples/shift4/shift4.kt#L199) · [Rust](../../examples/shift4/shift4.rs#L378)
 
 #### PaymentService.Get
 
@@ -305,7 +308,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/shift4/shift4.py#L329) · [TypeScript](../../examples/shift4/shift4.ts#L308) · [Kotlin](../../examples/shift4/shift4.kt#L233) · [Rust](../../examples/shift4/shift4.rs#L306)
+**Examples:** [Python](../../examples/shift4/shift4.py#L426) · [TypeScript](../../examples/shift4/shift4.ts#L399) · [Kotlin](../../examples/shift4/shift4.kt#L238) · [Rust](../../examples/shift4/shift4.rs#L399)
 
 #### PaymentService.ProxyAuthorize
 
@@ -316,7 +319,18 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/shift4/shift4.py#L338) · [TypeScript](../../examples/shift4/shift4.ts#L317) · [Kotlin](../../examples/shift4/shift4.kt#L241) · [Rust](../../examples/shift4/shift4.rs#L313)
+**Examples:** [Python](../../examples/shift4/shift4.py#L435) · [TypeScript](../../examples/shift4/shift4.ts#L408) · [Kotlin](../../examples/shift4/shift4.kt#L246) · [Rust](../../examples/shift4/shift4.rs#L406)
+
+#### PaymentService.ProxySetupRecurring
+
+Setup recurring mandate using vault-aliased card data.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceProxySetupRecurringRequest` |
+| **Response** | `PaymentServiceSetupRecurringResponse` |
+
+**Examples:** [Python](../../examples/shift4/shift4.py#L444) · [TypeScript](../../examples/shift4/shift4.ts#L417) · [Kotlin](../../examples/shift4/shift4.kt#L275) · [Rust](../../examples/shift4/shift4.rs#L413)
 
 #### PaymentService.Refund
 
@@ -327,7 +341,18 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/shift4/shift4.py#L356) · [TypeScript](../../examples/shift4/shift4.ts#L335) · [Kotlin](../../examples/shift4/shift4.kt#L301) · [Rust](../../examples/shift4/shift4.rs#L327)
+**Examples:** [Python](../../examples/shift4/shift4.py#L462) · [TypeScript](../../examples/shift4/shift4.ts#L435) · [Kotlin](../../examples/shift4/shift4.kt#L337) · [Rust](../../examples/shift4/shift4.rs#L427)
+
+#### PaymentService.SetupRecurring
+
+Configure a payment method for recurring billing. Sets up the mandate and payment details needed for future automated charges.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceSetupRecurringRequest` |
+| **Response** | `PaymentServiceSetupRecurringResponse` |
+
+**Examples:** [Python](../../examples/shift4/shift4.py#L480) · [TypeScript](../../examples/shift4/shift4.ts#L453) · [Kotlin](../../examples/shift4/shift4.kt#L359) · [Rust](../../examples/shift4/shift4.rs#L441)
 
 #### PaymentService.TokenAuthorize
 
@@ -338,7 +363,18 @@ Authorize using a connector-issued payment method token.
 | **Request** | `PaymentServiceTokenAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/shift4/shift4.py#L374) · [TypeScript](../../examples/shift4/shift4.ts#L353) · [Kotlin](../../examples/shift4/shift4.kt#L323) · [Rust](../../examples/shift4/shift4.rs#L341)
+**Examples:** [Python](../../examples/shift4/shift4.py#L489) · [TypeScript](../../examples/shift4/shift4.ts#L462) · [Kotlin](../../examples/shift4/shift4.kt#L398) · [Rust](../../examples/shift4/shift4.rs#L451)
+
+#### PaymentService.TokenSetupRecurring
+
+Setup a recurring mandate using a connector token.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceTokenSetupRecurringRequest` |
+| **Response** | `PaymentServiceSetupRecurringResponse` |
+
+**Examples:** [Python](../../examples/shift4/shift4.py#L498) · [TypeScript](../../examples/shift4/shift4.ts#L471) · [Kotlin](../../examples/shift4/shift4.kt#L419) · [Rust](../../examples/shift4/shift4.rs#L458)
 
 ### Refunds
 
@@ -351,7 +387,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/shift4/shift4.py#L365) · [TypeScript](../../examples/shift4/shift4.ts#L344) · [Kotlin](../../examples/shift4/shift4.kt#L311) · [Rust](../../examples/shift4/shift4.rs#L334)
+**Examples:** [Python](../../examples/shift4/shift4.py#L471) · [TypeScript](../../examples/shift4/shift4.ts#L444) · [Kotlin](../../examples/shift4/shift4.kt#L347) · [Rust](../../examples/shift4/shift4.rs#L434)
 
 ### Mandates
 
@@ -364,7 +400,7 @@ Charge using an existing stored recurring payment instruction. Processes repeat 
 | **Request** | `RecurringPaymentServiceChargeRequest` |
 | **Response** | `RecurringPaymentServiceChargeResponse` |
 
-**Examples:** [Python](../../examples/shift4/shift4.py#L347) · [TypeScript](../../examples/shift4/shift4.ts#L326) · [Kotlin](../../examples/shift4/shift4.kt#L270) · [Rust](../../examples/shift4/shift4.rs#L320)
+**Examples:** [Python](../../examples/shift4/shift4.py#L453) · [TypeScript](../../examples/shift4/shift4.ts#L426) · [Kotlin](../../examples/shift4/shift4.kt#L306) · [Rust](../../examples/shift4/shift4.rs#L420)
 
 ### Customers
 
@@ -377,7 +413,7 @@ Create customer record in the payment processor system. Stores customer details 
 | **Request** | `CustomerServiceCreateRequest` |
 | **Response** | `CustomerServiceCreateResponse` |
 
-**Examples:** [Python](../../examples/shift4/shift4.py#L320) · [TypeScript](../../examples/shift4/shift4.ts#L299) · [Kotlin](../../examples/shift4/shift4.kt#L220) · [Rust](../../examples/shift4/shift4.rs#L299)
+**Examples:** [Python](../../examples/shift4/shift4.py#L417) · [TypeScript](../../examples/shift4/shift4.ts#L390) · [Kotlin](../../examples/shift4/shift4.kt#L225) · [Rust](../../examples/shift4/shift4.rs#L392)
 
 ### Authentication
 
@@ -390,4 +426,4 @@ Initialize client-facing SDK sessions for wallets, device fingerprinting, etc. R
 | **Request** | `MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/shift4/shift4.py#L311) · [TypeScript](../../examples/shift4/shift4.ts#L290) · [Kotlin](../../examples/shift4/shift4.kt#L204) · [Rust](../../examples/shift4/shift4.rs#L292)
+**Examples:** [Python](../../examples/shift4/shift4.py#L408) · [TypeScript](../../examples/shift4/shift4.ts#L381) · [Kotlin](../../examples/shift4/shift4.kt#L209) · [Rust](../../examples/shift4/shift4.rs#L385)

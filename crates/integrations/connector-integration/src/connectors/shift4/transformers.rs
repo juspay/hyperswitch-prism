@@ -1274,10 +1274,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         // Prefer caller-supplied amount, fall back to 0 for a zero-dollar
         // verification. Shift4 accepts 0-amount auth for card-on-file.
-        let amount = item
-            .request
-            .minor_amount
-            .unwrap_or(MinorUnit::new(0));
+        let amount = item.request.minor_amount.unwrap_or(MinorUnit::new(0));
 
         // captured=false for SetupMandate; we only authorize (or
         // verify) to store the card-on-file.
@@ -1299,7 +1296,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 // extracts connector_mandate_id = charge.id. For zero-amount setup, map
 // Authorized -> Charged so the flow reaches a terminal state.
 impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4SetupMandateResponse, Self>>
-    for RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>
+    for RouterDataV2<
+        SetupMandate,
+        PaymentFlowData,
+        SetupMandateRequestData<T>,
+        PaymentsResponseData,
+    >
 {
     type Error = error_stack::Report<ConnectorError>;
 
