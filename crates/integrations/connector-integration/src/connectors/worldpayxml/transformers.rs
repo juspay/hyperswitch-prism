@@ -1321,8 +1321,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                 .connector_request_reference_id
                                 .clone(),
                         )),
-                        browser: router_data.request.browser_info.as_ref().map(|browser_info| {
-                            requests::WorldpayxmlBrowser {
+                        browser: router_data
+                            .request
+                            .browser_info
+                            .as_ref()
+                            .map(|browser_info| requests::WorldpayxmlBrowser {
                                 accept_header: browser_info.accept_header.clone(),
                                 user_agent_header: browser_info.user_agent.clone(),
                                 http_accept_language: browser_info.accept_language.clone(),
@@ -1333,8 +1336,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                 browser_colour_depth: browser_info.color_depth.map(u32::from),
                                 browser_screen_height: browser_info.screen_height,
                                 browser_screen_width: browser_info.screen_width,
-                            }
-                        }),
+                            }),
                     },
                     billing_address,
                     // NOTE: <createToken> would be required here for TOKEN-SSL based
@@ -1540,7 +1542,9 @@ fn map_mit_category_to_mandate_type(
     mit_category: Option<common_enums::MitCategory>,
 ) -> requests::WorldpayxmlMandateType {
     match mit_category {
-        Some(common_enums::MitCategory::Installment) => requests::WorldpayxmlMandateType::Instalment,
+        Some(common_enums::MitCategory::Installment) => {
+            requests::WorldpayxmlMandateType::Instalment
+        }
         Some(common_enums::MitCategory::Recurring) => requests::WorldpayxmlMandateType::Recurring,
         _ => requests::WorldpayxmlMandateType::Unscheduled,
     }
@@ -1603,12 +1607,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // shopper id, and the same order_code is stored as connector_mandate_id,
         // so we echo it back here as both paymentTokenID and authenticatedShopperID.
         let authenticated_shopper_id = payment_token_id.clone();
-        let payment_method = requests::WorldpayxmlPaymentMethod::Token(
-            requests::WorldpayxmlTokenCard {
+        let payment_method =
+            requests::WorldpayxmlPaymentMethod::Token(requests::WorldpayxmlTokenCard {
                 token_scope: "shopper".to_string(),
                 payment_token_i_d: Secret::new(payment_token_id),
-            },
-        );
+            });
 
         let stored_credentials = requests::WorldpayxmlStoredCredentials {
             usage: requests::WorldpayxmlCredentialsUsage::Used,
@@ -1799,7 +1802,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .scheme_response
             .as_ref()
             .map(|scheme| scheme.transaction_identifier.clone())
-            .or_else(|| payment.authorisation_id.as_ref().map(|auth| auth.id.clone()));
+            .or_else(|| {
+                payment
+                    .authorisation_id
+                    .as_ref()
+                    .map(|auth| auth.id.clone())
+            });
 
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(order_status.order_code.clone()),

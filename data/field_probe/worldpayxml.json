@@ -588,13 +588,45 @@
             "content-type": "text/xml",
             "via": "HyperSwitch"
           },
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE paymentService PUBLIC \"-//Worldpay//DTD Worldpay PaymentService v1//EN\" \"http://dtd.worldpay.com/paymentService_v1.dtd\">\n<paymentService version=\"1.4\" merchantCode=\"probe_merchant_code\"><submit><order orderCode=\"probe_proxy_mandate_001\" captureDelay=\"OFF\"><description>Payment</description><amount value=\"0\" currencyCode=\"USD\" exponent=\"2\"/><paymentDetails action=\"AUTHORISE\"><CARD-SSL><cardNumber>4111111111111111</cardNumber><expiryDate><date month=\"03\" year=\"2030\"/></expiryDate><cardHolderName>John Doe</cardHolderName><cvc>123</cvc></CARD-SSL></paymentDetails><shopper/><billingAddress><address/></billingAddress></order></submit></paymentService>"
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE paymentService PUBLIC \"-//Worldpay//DTD Worldpay PaymentService v1//EN\" \"http://dtd.worldpay.com/paymentService_v1.dtd\">\n<paymentService version=\"1.4\" merchantCode=\"probe_merchant_code\"><submit><order orderCode=\"probe_proxy_mandate_001\" captureDelay=\"OFF\"><description>Payment</description><amount value=\"0\" currencyCode=\"USD\" exponent=\"2\"/><paymentDetails action=\"AUTHORISE\"><CARD-SSL><cardNumber>4111111111111111</cardNumber><expiryDate><date month=\"03\" year=\"2030\"/></expiryDate><cardHolderName>John Doe</cardHolderName><cvc>123</cvc></CARD-SSL></paymentDetails><shopper><authenticatedShopperID>probe_proxy_mandate_001</authenticatedShopperID></shopper><billingAddress><address/></billingAddress></order></submit></paymentService>"
         }
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "connector_recurring_payment_id": {
+            "mandate_id_type": {
+              "connector_mandate_id": {
+                "connector_mandate_id": "probe-mandate-123"
+              }
+            }
+          },
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "token": {
+              "token": "probe_pm_token"
+            }
+          },
+          "return_url": "https://example.com/recurring-return",
+          "connector_customer_id": "cust_probe_123",
+          "payment_method_type": "PAY_PAL",
+          "off_session": true
+        },
+        "sample": {
+          "url": "https://secure-test.worldpay.com/jsp/merchant/xml/paymentService.jsp",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "text/xml",
+            "via": "HyperSwitch"
+          },
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE paymentService PUBLIC \"-//Worldpay//DTD Worldpay PaymentService v1//EN\" \"http://dtd.worldpay.com/paymentService_v1.dtd\">\n<paymentService version=\"1.4\" merchantCode=\"probe_merchant_code\"><submit><order orderCode=\"\" captureDelay=\"0\"><description>Payment</description><amount value=\"1000\" currencyCode=\"USD\" exponent=\"2\"/><paymentDetails action=\"SALE\"><TOKEN-SSL tokenScope=\"shopper\"><paymentTokenID>probe-mandate-123</paymentTokenID></TOKEN-SSL><storedCredentials usage=\"USED\" cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"UNSCHEDULED\"/></paymentDetails><shopper><authenticatedShopperID>probe-mandate-123</authenticatedShopperID></shopper></order></submit></paymentService>"
+        }
       }
     },
     "recurring_revoke": {
@@ -691,7 +723,7 @@
             "content-type": "text/xml",
             "via": "HyperSwitch"
           },
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE paymentService PUBLIC \"-//Worldpay//DTD Worldpay PaymentService v1//EN\" \"http://dtd.worldpay.com/paymentService_v1.dtd\">\n<paymentService version=\"1.4\" merchantCode=\"probe_merchant_code\"><submit><order orderCode=\"probe_mandate_001\" captureDelay=\"OFF\"><description>Payment</description><amount value=\"0\" currencyCode=\"USD\" exponent=\"2\"/><paymentDetails action=\"AUTHORISE\"><CARD-SSL><cardNumber>4111111111111111</cardNumber><expiryDate><date month=\"03\" year=\"2030\"/></expiryDate><cardHolderName>John Doe</cardHolderName><cvc>737</cvc></CARD-SSL></paymentDetails><shopper/><billingAddress><address/></billingAddress></order></submit></paymentService>"
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE paymentService PUBLIC \"-//Worldpay//DTD Worldpay PaymentService v1//EN\" \"http://dtd.worldpay.com/paymentService_v1.dtd\">\n<paymentService version=\"1.4\" merchantCode=\"probe_merchant_code\"><submit><order orderCode=\"probe_mandate_001\" captureDelay=\"OFF\"><description>Payment</description><amount value=\"0\" currencyCode=\"USD\" exponent=\"2\"/><paymentDetails action=\"AUTHORISE\"><CARD-SSL><cardNumber>4111111111111111</cardNumber><expiryDate><date month=\"03\" year=\"2030\"/></expiryDate><cardHolderName>John Doe</cardHolderName><cvc>737</cvc></CARD-SSL></paymentDetails><shopper><authenticatedShopperID>probe_mandate_001</authenticatedShopperID></shopper><billingAddress><address/></billingAddress></order></submit></paymentService>"
         }
       }
     },
