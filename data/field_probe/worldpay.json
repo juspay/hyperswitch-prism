@@ -643,7 +643,42 @@
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_proxy_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          },
+          "auth_type": "NO_THREE_DS",
+          "setup_future_usage": "OFF_SESSION"
+        },
+        "sample": {
+          "url": "https://try.access.worldpay.com/api/payments",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "wp-api-version": "2024-06-01"
+          },
+          "body": "{\"transactionReference\":\"probe-proxy-mandate-001\",\"merchant\":{\"entity\":\"probe_id\"},\"instruction\":{\"method\":\"card\",\"paymentInstrument\":{\"type\":\"plain\",\"cardNumber\":\"4111111111111111\",\"expiryDate\":{\"month\":3,\"year\":2030},\"cvc\":\"123\"},\"narrative\":{\"line1\":\"Probe Merchant\"},\"value\":{\"amount\":0,\"currency\":\"USD\"},\"tokenCreation\":{\"type\":\"worldpay\"},\"customerAgreement\":{\"type\":\"subscription\",\"storedCardUsage\":\"first\"}}}"
+        }
       }
     },
     "recurring_charge": {
@@ -746,7 +781,47 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/mandate-return",
+          "setup_future_usage": "OFF_SESSION",
+          "request_incremental_authorization": false,
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          }
+        },
+        "sample": {
+          "url": "https://try.access.worldpay.com/api/payments",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "wp-api-version": "2024-06-01"
+          },
+          "body": "{\"transactionReference\":\"probe-mandate-001\",\"merchant\":{\"entity\":\"probe_id\"},\"instruction\":{\"method\":\"card\",\"paymentInstrument\":{\"type\":\"plain\",\"cardNumber\":\"4111111111111111\",\"expiryDate\":{\"month\":3,\"year\":2030},\"cvc\":\"737\"},\"narrative\":{\"line1\":\"Probe Merchant\"},\"value\":{\"amount\":0,\"currency\":\"USD\"},\"tokenCreation\":{\"type\":\"worldpay\"},\"customerAgreement\":{\"type\":\"subscription\",\"storedCardUsage\":\"first\"}}}"
+        }
       }
     },
     "token_authorize": {
@@ -757,7 +832,8 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through worldpay"
       }
     },
     "tokenize": {
