@@ -199,7 +199,13 @@ fn fetch_payment_instrument<
             | WalletDataPaymentMethod::BluecodeRedirect {}
             | WalletDataPaymentMethod::MbWay(_)
             | WalletDataPaymentMethod::Satispay(_)
-            | WalletDataPaymentMethod::Wero(_) => {
+            | WalletDataPaymentMethod::Wero(_)
+            | WalletDataPaymentMethod::LazyPayRedirect(_)
+            | WalletDataPaymentMethod::PhonePeRedirect(_)
+            | WalletDataPaymentMethod::BillDeskRedirect(_)
+            | WalletDataPaymentMethod::CashfreeRedirect(_)
+            | WalletDataPaymentMethod::PayURedirect(_)
+            | WalletDataPaymentMethod::EaseBuzzRedirect(_) => {
                 Err(IntegrationError::not_implemented(
                     utils::get_unimplemented_payment_method_error_message("worldpay"),
                 )
@@ -219,7 +225,7 @@ fn fetch_payment_instrument<
         | PaymentMethodData::CardRedirect(_)
         | PaymentMethodData::GiftCard(_)
         | PaymentMethodData::OpenBanking(_)
-        | PaymentMethodData::CardToken(_)
+        | PaymentMethodData::PaymentMethodToken(_)
         | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
         | PaymentMethodData::NetworkToken(_) => Err(IntegrationError::not_implemented(
             utils::get_unimplemented_payment_method_error_message("worldpay"),

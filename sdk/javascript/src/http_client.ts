@@ -24,6 +24,9 @@ export interface HttpResponse {
   latencyMs: number; // Flat field for cross-language parity
 }
 
+/** Optional mock intercept — set by smoke test in mock mode only. */
+export let _intercept: ((req: HttpRequest) => Promise<HttpResponse>) | null = null;
+
 /** Network error codes from proto (single source of truth). */
 export const NetworkErrorCode = types.NetworkErrorCode;
 
@@ -133,6 +136,11 @@ export async function execute(
   options: types.IHttpConfig = {},
   dispatcher?: Dispatcher // Pass the instance-owned pool here
 ): Promise<HttpResponse> {
+  // Check for mock intercept (used in smoke test mock mode)
+  if (_intercept) {
+    return _intercept(request);
+  }
+
   const { url, method, headers, body } = request;
 
   try {

@@ -484,7 +484,28 @@
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_client_session_id": "probe_sdk_session_001",
+          "domain_context": {
+            "payment": {
+              "amount": {
+                "minor_amount": 1000,
+                "currency": "USD"
+              }
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api.payload.com/access_tokens",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"type\":\"client\",\"intent\":{\"payment_form\":{\"payment\":{\"amount\":10.0,\"description\":\"probe_sdk_session_001\"}}}}"
+        }
       }
     },
     "create_customer": {
@@ -850,8 +871,37 @@
     },
     "token_authorize": {
       "default": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Payload"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_tokenized_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "connector_token": "pm_1AbcXyzStripeTestToken",
+          "address": {
+            "billing_address": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "return_url": "https://example.com/return",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api.payload.com/transactions",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "amount=10.0&type=payment&payment_method_id=pm_1AbcXyzStripeTestToken"
+        }
       }
     },
     "token_setup_recurring": {

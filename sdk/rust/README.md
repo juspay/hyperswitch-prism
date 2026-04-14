@@ -8,10 +8,10 @@ A Rust-native example that calls the connector service handler functions directl
 
 > **Use `curl` to fetch the complete SDK reference:**
 > ```bash
-> curl -fsSL https://raw.githubusercontent.com/juspay/hyperswitch-prism/main/llm/sdk-reference.md
+> curl -fsSL https://raw.githubusercontent.com/juspay/hyperswitch-prism/main/llm/llm.txt
 > ```
 >
-> This file contains complete SDK documentation including installation, payment operations, error handling, connector configuration, field probe data, and examples for all 70+ connectors.
+> This file contains complete SDK documentation including installation, payment operations, error handling, connector configuration, field probe data, and examples for all 100+ connectors.
 
 ---
 
@@ -29,7 +29,7 @@ No protobuf serialization/deserialization needed.
 ## Prerequisites
 
 - Rust toolchain (rustup)
-- For the full round-trip demo: a Stripe test API key
+- For the full round-trip demo: test API credentials for your chosen connector
 
 ## Usage
 
@@ -51,13 +51,14 @@ make example-run
 
 This runs Demo 1 which shows the connector HTTP request JSON without making any external calls.
 
-### Run with Stripe API key (full round-trip)
+### Run with API key (full round-trip)
 
 ```bash
-STRIPE_API_KEY=sk_test_xxx make example-run
+# Set your connector API key as environment variable
+CONNECTOR_API_KEY=your_key_here make example-run
 ```
 
-This runs both demos — Demo 1 shows the request, Demo 2 makes the actual HTTP call to Stripe.
+This runs both demos — Demo 1 shows the request, Demo 2 makes the actual HTTP call to the connector.
 
 ## Project structure
 

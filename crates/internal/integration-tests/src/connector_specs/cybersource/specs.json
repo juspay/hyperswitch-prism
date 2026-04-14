@@ -4,6 +4,7 @@
     "authenticate",
     "authorize",
     "capture",
+    "client_authentication_token",
     "get",
     "post_authenticate",
     "pre_authenticate",

@@ -13,7 +13,7 @@ from payments import CustomerClient
 from payments import EventClient
 from payments import RecurringPaymentClient
 from payments import RefundClient
-from payments.generated import sdk_config_pb2, payment_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),

@@ -12,4 +12,4 @@ pub use error::SdkError;
 pub use grpc_client::GrpcClient;
 pub use grpc_config::{build_connector_config, ConnectorSpecificConfig, GrpcConfig};
 pub use grpc_utils::grpc_response_err;
-pub use http_client::NetworkError;
+pub use http_client::{set_mock_http, take_last_mock_request, NetworkError};

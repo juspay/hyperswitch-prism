@@ -445,7 +445,27 @@
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_client_session_id": "probe_sdk_session_001",
+          "domain_context": {
+            "payment": {
+              "amount": {
+                "minor_amount": 1000,
+                "currency": "USD"
+              }
+            }
+          }
+        },
+        "sample": {
+          "url": "https://ppp-test.nuvei.com/ppp/api/v1/getSessionToken.do",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"clientRequestId\":\"probe_sdk_session_001\",\"timeStamp\":\"00000000000000\",\"checksum\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
+        }
       }
     },
     "create_customer": {
@@ -455,7 +475,23 @@
     },
     "create_order": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_order_id": "probe_order_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://ppp-test.nuvei.com/ppp/api/v1/openOrder.do",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"clientUniqueId\":\"probe_order_001\",\"clientRequestId\":\"probe_order_001\",\"currency\":\"USD\",\"amount\":\"10.00\",\"timeStamp\":\"00000000000000\",\"checksum\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\",\"transactionType\":\"Auth\"}"
+        }
       }
     },
     "create_server_authentication_token": {
@@ -630,8 +666,8 @@
     },
     "token_authorize": {
       "default": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "error",
+        "error": "Stuck on field: session_token — Missing required field: session_token"
       }
     },
     "token_setup_recurring": {

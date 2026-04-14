@@ -8,6 +8,7 @@
 package examples.adyen
 
 import payments.PaymentClient
+import payments.MerchantAuthenticationClient
 import payments.DisputeClient
 import payments.EventClient
 import payments.RecurringPaymentClient
@@ -15,6 +16,8 @@ import payments.PaymentServiceAuthorizeRequest
 import payments.PaymentServiceCaptureRequest
 import payments.PaymentServiceRefundRequest
 import payments.PaymentServiceVoidRequest
+import payments.MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest
+import payments.PaymentServiceCreateOrderRequest
 import payments.DisputeServiceAcceptRequest
 import payments.DisputeServiceDefendRequest
 import payments.DisputeServiceSubmitEvidenceRequest
@@ -23,6 +26,7 @@ import payments.PaymentServiceProxyAuthorizeRequest
 import payments.PaymentServiceProxySetupRecurringRequest
 import payments.RecurringPaymentServiceChargeRequest
 import payments.PaymentServiceSetupRecurringRequest
+import payments.PaymentServiceTokenAuthorizeRequest
 import payments.AcceptanceType
 import payments.AuthenticationType
 import payments.CaptureMethod
@@ -209,6 +213,36 @@ fun capture(txnId: String) {
     if (response.status.name == "FAILED")
         throw RuntimeException("Capture failed: ${response.error.unifiedDetails.message}")
     println("Done: ${response.status.name}")
+}
+
+// Flow: MerchantAuthenticationService.CreateClientAuthenticationToken
+fun createClientAuthenticationToken(txnId: String) {
+    val client = MerchantAuthenticationClient(_defaultConfig)
+    val request = MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest.newBuilder().apply {
+        merchantClientSessionId = "probe_sdk_session_001"  // Infrastructure.
+        paymentBuilder.apply {  // FrmClientAuthenticationContext frm = 5; // future: device fingerprinting PayoutClientAuthenticationContext payout = 6; // future: payout verification widget.
+            amountBuilder.apply {
+                minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
+                currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            }
+        }
+    }.build()
+    val response = client.create_client_authentication_token(request)
+    println("StatusCode: ${response.statusCode}")
+}
+
+// Flow: PaymentService.CreateOrder
+fun createOrder(txnId: String) {
+    val client = PaymentClient(_defaultConfig)
+    val request = PaymentServiceCreateOrderRequest.newBuilder().apply {
+        merchantOrderId = "probe_order_001"  // Identification.
+        amountBuilder.apply {  // Amount Information.
+            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
+            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+    }.build()
+    val response = client.create_order(request)
+    println("Order: ${response.connectorOrderId}")
 }
 
 // Flow: DisputeService.Accept
@@ -444,6 +478,27 @@ fun setupRecurring(txnId: String) {
     }
 }
 
+// Flow: PaymentService.TokenAuthorize
+fun tokenAuthorize(txnId: String) {
+    val client = PaymentClient(_defaultConfig)
+    val request = PaymentServiceTokenAuthorizeRequest.newBuilder().apply {
+        merchantTransactionId = "probe_tokenized_txn_001"
+        amountBuilder.apply {
+            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
+            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+        connectorTokenBuilder.value = "pm_1AbcXyzStripeTestToken"  // Connector-issued token. Replaces PaymentMethod entirely. Examples: Stripe pm_xxx, Adyen recurringDetailReference, Braintree nonce.
+        addressBuilder.apply {
+            billingAddressBuilder.apply {
+            }
+        }
+        captureMethod = CaptureMethod.AUTOMATIC
+        returnUrl = "https://example.com/return"
+    }.build()
+    val response = client.token_authorize(request)
+    println("Status: ${response.status.name}")
+}
+
 // Flow: PaymentService.Void
 fun void(txnId: String) {
     val client = PaymentClient(_defaultConfig)
@@ -465,6 +520,8 @@ fun main(args: Array<String>) {
         "processVoidPayment" -> processVoidPayment(txnId)
         "authorize" -> authorize(txnId)
         "capture" -> capture(txnId)
+        "createClientAuthenticationToken" -> createClientAuthenticationToken(txnId)
+        "createOrder" -> createOrder(txnId)
         "disputeAccept" -> disputeAccept(txnId)
         "disputeDefend" -> disputeDefend(txnId)
         "disputeSubmitEvidence" -> disputeSubmitEvidence(txnId)
@@ -474,7 +531,8 @@ fun main(args: Array<String>) {
         "recurringCharge" -> recurringCharge(txnId)
         "refund" -> refund(txnId)
         "setupRecurring" -> setupRecurring(txnId)
+        "tokenAuthorize" -> tokenAuthorize(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, authorize, capture, disputeAccept, disputeDefend, disputeSubmitEvidence, handleEvent, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, setupRecurring, void")
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, authorize, capture, createClientAuthenticationToken, createOrder, disputeAccept, disputeDefend, disputeSubmitEvidence, handleEvent, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, setupRecurring, tokenAuthorize, void")
     }
 }

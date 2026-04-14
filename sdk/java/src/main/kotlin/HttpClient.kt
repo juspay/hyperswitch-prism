@@ -42,6 +42,9 @@ class NetworkError(
 }
 
 object HttpClient {
+    /** Optional mock intercept — set by smoke test in mock mode only. */
+    var intercept: ((HttpRequest) -> HttpResponse)? = null
+
     /**
      * Creates a high-performance OkHttpClient. (The instance-level connection pool)
      * Infrastructure settings (Proxy) are fixed here.
@@ -151,6 +154,9 @@ object HttpClient {
      * Executes a request using the provided client, allowing per-call timeout overrides.
      */
     fun execute(request: HttpRequest, config: HttpConfig?, client: OkHttpClient): HttpResponse {
+        // Check for mock intercept (used in smoke test mock mode)
+        intercept?.let { return it(request) }
+
         val parsedUrl = request.url.toHttpUrlOrNull()
             ?: throw NetworkError("Invalid URL: ${request.url}", NetworkErrorCode.URL_PARSING_FAILED)
 

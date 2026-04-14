@@ -11,13 +11,13 @@ use common_utils::{
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund},
     connector_types::{
-        PaymentFlowData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        ResponseId as DomainResponseId,
+        MandateReference, PaymentFlowData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, ResponseId as DomainResponseId,
     },
     payment_address::PaymentAddress,
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
-    router_data::{ConnectorSpecificConfig, ErrorResponse, PaymentMethodToken},
+    router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
 };
 use error_stack::{report, ResultExt};
@@ -783,22 +783,24 @@ impl<
         let (attempt_status, error_response) =
             get_elavon_attempt_status(&response.result, http_code);
 
-        let payment_method_token = match &response.result {
-            ElavonResult::Success(payment_resp_struct) => {
-                if payment_resp_struct.ssl_token_response.as_deref() == Some("SUCCESS") {
-                    payment_resp_struct
-                        .ssl_token
-                        .clone()
-                        .map(PaymentMethodToken::Token)
-                } else {
-                    None
-                }
-            }
-            ElavonResult::Error(_) => None,
-        };
-
         let payments_response_data = match (&response.result, error_response) {
             (ElavonResult::Success(payment_resp_struct), None) => {
+                let ssl_token =
+                    if payment_resp_struct.ssl_token_response.as_deref() == Some("SUCCESS") {
+                        payment_resp_struct
+                            .ssl_token
+                            .as_ref()
+                            .map(|t| t.peek().to_string())
+                    } else {
+                        None
+                    };
+                let mandate_reference = ssl_token.map(|token| {
+                    Box::new(MandateReference {
+                        connector_mandate_id: None,
+                        payment_method_id: Some(token),
+                        connector_mandate_request_reference_id: None,
+                    })
+                });
                 Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: DomainResponseId::ConnectorTransactionId(
                         payment_resp_struct.ssl_txn_id.clone(),
@@ -808,7 +810,7 @@ impl<
                     network_txn_id: payment_resp_struct.ssl_approval_code.clone(),
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
-                    mandate_reference: None,
+                    mandate_reference,
                     status_code: http_code,
                 })
             }
@@ -833,7 +835,6 @@ impl<
             response: payments_response_data,
             resource_common_data: PaymentFlowData {
                 status: attempt_status,
-                payment_method_token,
                 ..router_data.resource_common_data
             },
             ..router_data

@@ -59,6 +59,25 @@ fn bold(t: &str) -> String {
     c("1", t)
 }
 
+// ── Scenario result tracking ─────────────────────────────────────────────────
+
+#[derive(Debug)]
+struct ScenarioResult {
+    status: &'static str, // "passed" | "skipped" | "failed"
+    #[allow(dead_code)]
+    message: Option<String>, // stored but not currently displayed
+    reason: Option<String>, // for skipped
+    error: Option<String>,
+}
+
+#[derive(Debug)]
+struct ConnectorResult {
+    connector: String,
+    status: &'static str, // "passed" | "failed" | "skipped"
+    scenarios: Vec<(String, ScenarioResult)>,
+    error: Option<String>,
+}
+
 // ── Credentials loading ───────────────────────────────────────────────────────
 
 /// Extract a string value from a creds.json field, which may be either
@@ -140,9 +159,16 @@ async fn wait_for_server(endpoint: &str, max_secs: u32) -> Result<(), String> {
 /// connector builder functions directly — no grpc_* wrappers needed.
 async fn run_grpc_scenarios(
     connector_name: &str,
-    client: &GrpcClient,
+    _client: &GrpcClient,
 ) -> Vec<(String, Result<String, Box<dyn Error>>)> {
     include!(concat!(env!("OUT_DIR"), "/grpc_scenarios.rs"))
+}
+
+fn is_transport_error(detail: &str) -> bool {
+    detail.contains("Unavailable")
+        || detail.contains("DeadlineExceeded")
+        || detail.contains("connection refused")
+        || detail.contains("transport error")
 }
 
 // ── Argument parsing ──────────────────────────────────────────────────────────
@@ -151,36 +177,38 @@ struct Args {
     creds_file: Option<String>,
     endpoint: Option<String>,
     connector: Option<String>,
-    connector_config: Option<String>,
 }
 
 fn parse_args() -> Args {
-    let raw: Vec<String> = std::env::args().skip(1).collect();
     let mut args = Args {
         creds_file: None,
         endpoint: None,
         connector: None,
-        connector_config: None,
     };
-    let mut i = 0usize;
+
+    let raw: Vec<String> = std::env::args().skip(1).collect();
+    let mut i = 0;
     while i < raw.len() {
-        macro_rules! next {
-            () => {{
-                i += 1;
-                raw.get(i).cloned().unwrap_or_default()
-            }};
-        }
         match raw[i].as_str() {
-            "--creds-file" => args.creds_file = Some(next!()),
-            "--endpoint" => args.endpoint = Some(next!()),
-            "--connector" => args.connector = Some(next!()),
-            "--connector-config" => args.connector_config = Some(next!()),
+            "--creds-file" if i + 1 < raw.len() => {
+                args.creds_file = Some(raw[i + 1].clone());
+                i += 1;
+            }
+            "--endpoint" if i + 1 < raw.len() => {
+                args.endpoint = Some(raw[i + 1].clone());
+                i += 1;
+            }
+            "--connector" if i + 1 < raw.len() => {
+                args.connector = Some(raw[i + 1].clone());
+                i += 1;
+            }
             "--help" | "-h" => {
                 println!("Usage: grpc-smoke-test [options]");
-                println!("  --creds-file <path>       JSON creds file (default: creds.json)");
-                println!("  --endpoint <url>          gRPC server endpoint");
-                println!("  --connector <name>        Connector name (e.g. stripe)");
-                println!("  --connector-config <json> Connector config JSON (format: config->ConnectorName->api_key)");
+                println!("  --creds-file <path>   JSON credentials file");
+                println!(
+                    "  --endpoint <url>      gRPC server endpoint (default: http://localhost:8000)"
+                );
+                println!("  --connector <name>    Connector name (default: stripe)");
                 std::process::exit(0);
             }
             _ => {}
@@ -192,11 +220,12 @@ fn parse_args() -> Args {
 
 fn build_config(args: Args) -> Result<GrpcConfig, String> {
     let creds_file = args.creds_file.as_deref().unwrap_or("creds.json");
-    let mut config: GrpcConfig = if std::path::Path::new(creds_file).exists() {
+    let mut config = if std::path::Path::new(creds_file).exists() {
         let text = std::fs::read_to_string(creds_file)
-            .map_err(|e| format!("Cannot read {creds_file}: {e}"))?;
+            .map_err(|e| format!("Failed to read {creds_file}: {e}"))?;
         let raw: serde_json::Value = serde_json::from_str(&text)
             .map_err(|e| format!("Invalid JSON in {creds_file}: {e}"))?;
+
         // Flat format: top-level "endpoint" and "connector" keys with "connector_config".
         if raw.get("endpoint").and_then(|v| v.as_str()).is_some() {
             let creds: FlatCreds = serde_json::from_value(raw)
@@ -252,18 +281,143 @@ fn build_config(args: Args) -> Result<GrpcConfig, String> {
     if let Some(v) = args.connector {
         config.connector = v;
     }
-    if let Some(v) = args.connector_config {
-        config.connector_config =
-            serde_json::from_str(&v).map_err(|e| format!("Invalid connector-config JSON: {e}"))?;
-    }
     Ok(config)
 }
 
-fn print_non_sensitive_config() {
+fn print_result(result: &ConnectorResult) {
+    match result.status {
+        "passed" => {
+            let passed_count = result
+                .scenarios
+                .iter()
+                .filter(|(_, s)| s.status == "passed")
+                .count();
+            let skipped_count = result
+                .scenarios
+                .iter()
+                .filter(|(_, s)| s.status == "skipped")
+                .count();
+            println!(
+                "{} ({} passed, {} skipped)",
+                green("  PASSED"),
+                passed_count,
+                skipped_count
+            );
+            for (key, detail) in &result.scenarios {
+                match detail.status {
+                    "passed" => println!("{}    {}: ✓", green(""), key),
+                    "skipped" => println!(
+                        "{}    {}: ~ skipped ({})",
+                        yellow(""),
+                        key,
+                        detail.reason.as_deref().unwrap_or("unknown")
+                    ),
+                    _ => {}
+                }
+            }
+        }
+        "skipped" => {
+            let reason = result.error.as_deref().unwrap_or("unknown");
+            println!("{}", grey(&format!("  SKIPPED ({reason})")));
+        }
+        _ => {
+            println!("{}", red("  FAILED"));
+            for (key, detail) in &result.scenarios {
+                if detail.status == "failed" {
+                    println!(
+                        "{} — {}",
+                        red(&format!("    {}: ✗ FAILED", key)),
+                        detail.error.as_deref().unwrap_or("unknown error")
+                    );
+                }
+            }
+            if let Some(e) = &result.error {
+                println!("{}", red(&format!("  Error: {e}")));
+            }
+        }
+    }
+}
+
+fn print_summary(results: &[ConnectorResult]) -> i32 {
     println!("\n{}", "=".repeat(60));
-    println!("{}", bold("Rust gRPC Smoke Test"));
-    println!("{}", "=".repeat(60));
+    println!("{}", bold("TEST SUMMARY"));
+    println!("{}\n", "=".repeat(60));
+
+    let passed = results.iter().filter(|r| r.status == "passed").count();
+    let skipped = results.iter().filter(|r| r.status == "skipped").count();
+    let failed = results.iter().filter(|r| r.status == "failed").count();
+
+    // Count per-scenario statuses
+    let mut total_flows_passed = 0;
+    let mut total_flows_skipped = 0;
+    let mut total_flows_failed = 0;
+    for r in results {
+        for (_, scenario) in &r.scenarios {
+            match scenario.status {
+                "passed" => total_flows_passed += 1,
+                "skipped" => total_flows_skipped += 1,
+                "failed" => total_flows_failed += 1,
+                _ => {}
+            }
+        }
+    }
+
+    println!("Total connectors:   {}", results.len());
+    println!("{}", green(&format!("Passed:  {passed}")));
+    println!(
+        "{}",
+        grey(&format!(
+            "Skipped: {skipped} (no examples or placeholder credentials)"
+        ))
+    );
+    let failed_str = format!("Failed:  {failed}");
+    println!(
+        "{}",
+        if failed > 0 {
+            red(&failed_str)
+        } else {
+            green(&failed_str)
+        }
+    );
     println!();
+    println!("Flow results:");
+    println!(
+        "{}",
+        green(&format!("  {} flows PASSED", total_flows_passed))
+    );
+    if total_flows_skipped > 0 {
+        println!(
+            "{}",
+            yellow(&format!(
+                "  {} flows SKIPPED (connector errors)",
+                total_flows_skipped
+            ))
+        );
+    }
+    if total_flows_failed > 0 {
+        println!("{}", red(&format!("  {} flows FAILED", total_flows_failed)));
+    }
+    println!();
+
+    if failed > 0 {
+        println!("{}", red("Failed connectors:"));
+        for r in results {
+            if r.status == "failed" {
+                let detail = r.error.as_deref().unwrap_or("see scenarios above");
+                println!("{}: {detail}", red(&format!("  - {}", r.connector)));
+            }
+        }
+        println!();
+        return 1;
+    }
+
+    if passed == 0 && skipped > 0 {
+        println!("{}", yellow("All tests skipped (no valid flows found)"));
+        return 1;
+    }
+
+    println!("{}", green("All tests completed successfully!"));
+    0
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
@@ -276,8 +430,10 @@ async fn main() {
         std::process::exit(1);
     });
 
-    // Print only non-sensitive configuration fields.
-    print_non_sensitive_config();
+    // Print header
+    println!("\n{}", "=".repeat(60));
+    println!("{}", bold("Rust gRPC Smoke Test"));
+    println!("{}\n", "=".repeat(60));
 
     // ── Wait for server ───────────────────────────────────────────────────────
     println!("Waiting for gRPC server (up to 30s)…");
@@ -299,61 +455,96 @@ async fn main() {
     println!("Running gRPC scenarios for {}…", bold(&connector_name));
     let scenario_results = run_grpc_scenarios(&connector_name, &client).await;
 
+    let mut result = ConnectorResult {
+        connector: connector_name.clone(),
+        status: "passed",
+        scenarios: vec![],
+        error: None,
+    };
+
     if scenario_results.is_empty() {
+        result.status = "skipped";
+        result.error = Some(format!(
+            "no supported gRPC flows found for {connector_name}. Add `pub fn build_*_request(...)` builder functions in examples/{connector_name}/{connector_name}.rs and ensure flows are marked as supported in data/field_probe/{connector_name}.json."
+        ));
         println!(
             "{}",
             yellow(&format!(
                 "  SKIPPED — no supported gRPC flows found for {connector_name}"
             ))
         );
-        println!("  Add `pub fn build_*_request(...)` builder functions in examples/{connector_name}/{connector_name}.rs");
-        println!(
-            "  and ensure flows are marked as supported in data/field_probe/{connector_name}.json."
-        );
-        std::process::exit(0);
-    }
+    } else {
+        for (key, scenario_result) in scenario_results {
+            print!("  [{key}] running … ");
+            use std::io::Write;
+            std::io::stdout().flush().ok();
 
-    let mut failed = false;
-    for (key, result) in &scenario_results {
-        print!("  [{key}] running … ");
-        use std::io::Write;
-        std::io::stdout().flush().ok();
-        match result {
-            Ok(msg) => println!("{} {}", green("✓ ok"), grey(&format!("— {msg}"))),
-            Err(e) => {
-                // Parse the tonic status code from the error string to decide pass vs fail.
-                // tonic::Status Display is "status: <Code>, message: <msg>"
-                let detail = e.to_string();
-                let is_transport = detail.contains("Unavailable")
-                    || detail.contains("DeadlineExceeded")
-                    || detail.contains("connection refused")
-                    || detail.contains("transport error");
-                if is_transport {
-                    println!("{} {}", red("✗ FAILED"), grey(&format!("— {detail}")));
-                    failed = true;
-                } else {
-                    println!(
-                        "{} {}",
-                        yellow("~ connector error"),
-                        grey(&format!("— {detail}"))
-                    );
+            match scenario_result {
+                Ok(msg) => {
+                    println!("{} {}", green("PASSED"), grey(&format!("— {msg}")));
+                    result.scenarios.push((
+                        key,
+                        ScenarioResult {
+                            status: "passed",
+                            message: Some(msg),
+                            reason: None,
+                            error: None,
+                        },
+                    ));
+                }
+                Err(e) => {
+                    let detail = e.to_string();
+                    if is_transport_error(&detail) {
+                        println!("{} {}", red("FAILED"), grey(&format!("— {detail}")));
+                        result.scenarios.push((
+                            key,
+                            ScenarioResult {
+                                status: "failed",
+                                message: None,
+                                reason: None,
+                                error: Some(detail),
+                            },
+                        ));
+                        result.status = "failed";
+                    } else {
+                        println!(
+                            "{} {}",
+                            yellow("SKIPPED (connector error)"),
+                            grey(&format!("— {detail}"))
+                        );
+                        result.scenarios.push((
+                            key,
+                            ScenarioResult {
+                                status: "skipped",
+                                message: Some(detail),
+                                reason: Some("connector_error".to_string()),
+                                error: None,
+                            },
+                        ));
+                    }
                 }
             }
+        }
+
+        // Update connector status based on scenarios
+        if result.status != "failed" {
+            let all_passed_or_skipped = result
+                .scenarios
+                .iter()
+                .all(|(_, s)| s.status == "passed" || s.status == "skipped");
+            result.status = if all_passed_or_skipped {
+                "passed"
+            } else {
+                "failed"
+            };
         }
     }
 
     // ── Result ────────────────────────────────────────────────────────────────
     println!();
-    if failed {
-        println!(
-            "{}",
-            red("gRPC smoke test FAILED (transport error — server unreachable or crashed)")
-        );
-        std::process::exit(1);
-    }
-    println!(
-        "{} ({} scenario(s))",
-        green("gRPC smoke test PASSED"),
-        scenario_results.len()
-    );
+    print_result(&result);
+    println!();
+
+    let exit_code = print_summary(&[result]);
+    std::process::exit(exit_code);
 }

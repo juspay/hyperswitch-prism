@@ -509,7 +509,7 @@ impl ConnectorClient {
         charge_res_handler
     );
     impl_flow_method!(
-        revoke,
+        recurring_revoke,
         RecurringPaymentServiceRevokeRequest,
         RecurringPaymentServiceRevokeResponse,
         recurring_revoke_req_handler,

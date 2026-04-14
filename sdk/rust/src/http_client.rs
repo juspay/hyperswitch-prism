@@ -2,7 +2,24 @@ use common_utils::request::Method;
 use grpc_api_types::payments::{CaCert, HttpConfig, HttpDefault, NetworkErrorCode};
 use std::collections::HashMap;
 use std::fmt;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Mutex;
 use std::time::{Duration, Instant};
+
+static MOCK_HTTP: AtomicBool = AtomicBool::new(false);
+static LAST_MOCK_REQUEST: Mutex<Option<String>> = Mutex::new(None);
+
+/// Enable HTTP mock mode. When enabled, execute() returns a 200/{} response
+/// without making a real network call. For smoke test use only.
+pub fn set_mock_http(enabled: bool) {
+    MOCK_HTTP.store(enabled, Ordering::Relaxed);
+}
+
+/// Take the last intercepted mock request string (e.g. "POST https://api.stripe.com/v1/...").
+/// Returns None if no mock request was intercepted since the last call.
+pub fn take_last_mock_request() -> Option<String> {
+    LAST_MOCK_REQUEST.lock().ok()?.take()
+}
 
 // Native options for decoupling the SDK from the Protobuf-generated transport types.
 #[derive(Clone, Debug, Default)]
@@ -211,6 +228,26 @@ impl HttpClient {
         request: HttpRequest,
         override_options: Option<HttpOptions>,
     ) -> Result<HttpResponse, NetworkError> {
+        // Check for mock mode (used in smoke test mock mode)
+        if MOCK_HTTP.load(Ordering::Relaxed) {
+            let method_str = match request.method {
+                Method::Get => "GET",
+                Method::Post => "POST",
+                Method::Put => "PUT",
+                Method::Delete => "DELETE",
+                Method::Patch => "PATCH",
+            };
+            if let Ok(mut guard) = LAST_MOCK_REQUEST.lock() {
+                *guard = Some(format!("{} {}", method_str, request.url));
+            }
+            return Ok(HttpResponse {
+                status_code: 200,
+                headers: std::collections::HashMap::new(),
+                body: b"{}".to_vec(),
+                latency_ms: 0,
+            });
+        }
+
         if reqwest::Url::parse(&request.url).is_err() {
             return Err(NetworkError {
                 code: NetworkErrorCode::UrlParsingFailed,
@@ -218,7 +255,6 @@ impl HttpClient {
                 status_code: None,
             });
         }
-
         let start_time = Instant::now();
 
         let mut req_builder = match request.method {

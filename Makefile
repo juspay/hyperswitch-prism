@@ -36,7 +36,8 @@ GRPC_PID_FILE := .grpc-server.pid
         add-flow \
         add-payment-method \
         review-pr \
-        test-grpc
+        test-grpc \
+		test-ffi
 
 # ── Standard build/lint targets ────────────────────────────────────────────────
 
@@ -259,6 +260,24 @@ GRPC_PROFILE ?= release-fast
 ## Run gRPC smoke tests for all SDKs (Rust + JS + Python) with a combined pass/fail summary
 test-grpc:
 	@$(MAKE) -C sdk test-grpc CONNECTORS=$(CONNECTORS) GRPC_PROFILE=$(GRPC_PROFILE)
+
+## Run FFI smoke tests for all SDKs (Rust + JS + Python + Kotlin) with a combined pass/fail summary
+test-ffi:
+	@$(MAKE) -C sdk test CONNECTORS=$(CONNECTORS)
+
+## Run FFI smoke tests in MOCK mode for all SDKs (no real HTTP, verifies req_transformer only)
+## Runs all SDKs in parallel and prints a combined pass/fail table.
+## Set VERBOSE=1 or V=1 to see detailed error messages
+test-ffi-mock: generate-harnesses
+	@python3 scripts/run_smoke_tests_parallel.py --connectors $(CONNECTORS) --mock $(if $(filter 1,$(VERBOSE) $(V)),--verbose)
+
+## Generate harnesses for all connectors specified in CONNECTORS
+## Used by test-ffi-mock to ensure harnesses are up to date
+generate-harnesses:
+	@echo "Generating harnesses for: $(CONNECTORS)"
+	@for connector in $(shell echo $(CONNECTORS) | tr ',' ' '); do \
+		python3 scripts/generators/code/generate_harnesses.py --connector $$connector; \
+	done
 
 ## Run field-probe to generate connector flow data
 field-probe:
