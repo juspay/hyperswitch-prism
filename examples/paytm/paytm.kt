@@ -10,6 +10,7 @@ package examples.paytm
 import payments.PaymentClient
 import payments.MerchantAuthenticationClient
 import payments.PaymentServiceAuthorizeRequest
+import payments.MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest
 import payments.MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest
 import payments.PaymentServiceGetRequest
 import payments.AuthenticationType
@@ -72,6 +73,22 @@ fun authorize(txnId: String) {
     }
 }
 
+// Flow: MerchantAuthenticationService.CreateClientAuthenticationToken
+fun createClientAuthenticationToken(txnId: String) {
+    val client = MerchantAuthenticationClient(_defaultConfig)
+    val request = MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest.newBuilder().apply {
+        merchantClientSessionId = "probe_sdk_session_001"  // Infrastructure.
+        paymentBuilder.apply {  // FrmClientAuthenticationContext frm = 5; // future: device fingerprinting PayoutClientAuthenticationContext payout = 6; // future: payout verification widget.
+            amountBuilder.apply {
+                minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
+                currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            }
+        }
+    }.build()
+    val response = client.create_client_authentication_token(request)
+    println("StatusCode: ${response.statusCode}")
+}
+
 // Flow: MerchantAuthenticationService.CreateServerSessionAuthenticationToken
 fun createServerSessionAuthenticationToken(txnId: String) {
     val client = MerchantAuthenticationClient(_defaultConfig)
@@ -101,8 +118,9 @@ fun main(args: Array<String>) {
     val flow = args.firstOrNull() ?: "authorize"
     when (flow) {
         "authorize" -> authorize(txnId)
+        "createClientAuthenticationToken" -> createClientAuthenticationToken(txnId)
         "createServerSessionAuthenticationToken" -> createServerSessionAuthenticationToken(txnId)
         "get" -> get(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: authorize, createServerSessionAuthenticationToken, get")
+        else -> System.err.println("Unknown flow: $flow. Available: authorize, createClientAuthenticationToken, createServerSessionAuthenticationToken, get")
     }
 }

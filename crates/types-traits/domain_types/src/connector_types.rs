@@ -3473,6 +3473,8 @@ pub enum ConnectorSpecificClientAuthenticationResponse {
     Nexinets(NexinetsClientAuthenticationResponse),
     /// Nexixpay SDK initialization data — security_token and hosted_page URL for HPP initialization
     Nexixpay(NexixpayClientAuthenticationResponse),
+    /// Paytm SDK initialization data — txn_token for Paytm JS Checkout SDK
+    Paytm(PaytmClientAuthenticationResponse),
 }
 
 /// Stripe's client_secret for browser-side stripe.confirmPayment()
@@ -3667,6 +3669,13 @@ pub struct NexixpayClientAuthenticationResponse {
     pub security_token: Secret<String>,
     /// The hosted payment page URL for client-side redirect
     pub hosted_page: String,
+}
+
+/// Paytm's txn_token for client-side Paytm JS Checkout SDK initialization
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaytmClientAuthenticationResponse {
+    /// The transaction token returned from Paytm's initiateTransaction API
+    pub txn_token: Secret<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

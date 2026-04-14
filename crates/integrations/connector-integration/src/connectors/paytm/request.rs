@@ -217,6 +217,15 @@ pub struct PaytmNativeProcessRequestBody {
     pub auth_mode: Option<String>, // "DEBIT_PIN"
 }
 
+// ClientAuthenticationToken flow request structure
+// Uses the same API as ServerSessionAuthenticationToken (initiateTransaction),
+// but needs a distinct type to avoid conflicting trait implementations in macros.
+#[derive(Debug, Serialize)]
+pub struct PaytmClientAuthRequest {
+    pub head: PaytmRequestHeader,
+    pub body: PaytmInitiateReqBody,
+}
+
 // PSync (Payment Sync) flow request structures
 
 #[derive(Debug, Serialize)]

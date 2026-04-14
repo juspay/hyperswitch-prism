@@ -47,6 +47,20 @@ pub fn build_authorize_request(capture_method: &str) -> PaymentServiceAuthorizeR
     })).unwrap_or_default()
 }
 
+pub fn build_create_client_authentication_token_request() -> MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest {
+    serde_json::from_value::<MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest>(serde_json::json!({
+    "merchant_client_session_id": "probe_sdk_session_001",  // Infrastructure.
+    "domain_context": {
+        "payment": {
+            "amount": {
+                "minor_amount": 1000,
+                "currency": "USD",
+            },
+        },
+    },
+    })).unwrap_or_default()
+}
+
 pub fn build_create_server_session_authentication_token_request() -> MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest {
     serde_json::from_value::<MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest>(serde_json::json!({
     "domain_context": {
@@ -84,6 +98,13 @@ pub async fn authorize(client: &ConnectorClient, _merchant_transaction_id: &str)
     }
 }
 
+// Flow: MerchantAuthenticationService.CreateClientAuthenticationToken
+#[allow(dead_code)]
+pub async fn create_client_authentication_token(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client.create_client_authentication_token(build_create_client_authentication_token_request(), &HashMap::new(), None).await?;
+    Ok(format!("status: {:?}", response.status_code))
+}
+
 // Flow: MerchantAuthenticationService.CreateServerSessionAuthenticationToken
 #[allow(dead_code)]
 pub async fn create_server_session_authentication_token(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
@@ -105,9 +126,10 @@ async fn main() {
     let flow = std::env::args().nth(1).unwrap_or_else(|| "authorize".to_string());
     let result: Result<String, Box<dyn std::error::Error>> = match flow.as_str() {
         "authorize" => authorize(&client, "order_001").await,
+        "create_client_authentication_token" => create_client_authentication_token(&client, "order_001").await,
         "create_server_session_authentication_token" => create_server_session_authentication_token(&client, "order_001").await,
         "get" => get(&client, "order_001").await,
-        _ => { eprintln!("Unknown flow: {}. Available: authorize, create_server_session_authentication_token, get", flow); return; }
+        _ => { eprintln!("Unknown flow: {}. Available: authorize, create_client_authentication_token, create_server_session_authentication_token, get", flow); return; }
     };
     match result {
         Ok(msg) => println!("✓ {msg}"),

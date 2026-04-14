@@ -10139,6 +10139,17 @@ fn convert_connector_specific_to_grpc(
                 ),
             }
         }
+                ConnectorSpecificClientAuthenticationResponse::Paytm(paytm_data) => {
+            grpc_api_types::payments::ConnectorSpecificClientAuthenticationResponse {
+                connector: Some(
+                    grpc_api_types::payments::connector_specific_client_authentication_response::Connector::Paytm(
+                        grpc_api_types::payments::PaytmClientAuthenticationResponse {
+                            txn_token: Some(paytm_data.txn_token),
+                        },
+                    ),
+                ),
+            }
+        }
     };
     grpc_api_types::payments::ClientAuthenticationTokenData {
         sdk_type: Some(

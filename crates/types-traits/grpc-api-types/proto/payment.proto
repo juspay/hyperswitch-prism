@@ -1564,6 +1564,7 @@ message ConnectorSpecificClientAuthenticationResponse {
     MultisafepayClientAuthenticationResponse multisafepay = 23;
     NexinetsClientAuthenticationResponse nexinets = 24;
     NexixpayClientAuthenticationResponse nexixpay = 25;
+    PaytmClientAuthenticationResponse paytm = 26;
   }
 }
 
@@ -1695,6 +1696,11 @@ message NexinetsClientAuthenticationResponse {
 message NexixpayClientAuthenticationResponse {
   SecretString security_token = 1;
   string hosted_page = 2;
+}
+
+// Paytm SDK initialization data — txn_token for Paytm JS Checkout SDK
+message PaytmClientAuthenticationResponse {
+  SecretString txn_token = 1;
 }
 
 // Stripe SDK initialization data — client_secret for stripe.confirmPayment()

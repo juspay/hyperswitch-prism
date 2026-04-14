@@ -42,6 +42,16 @@ function _buildAuthorizeRequest(captureMethod: CaptureMethod): PaymentServiceAut
     };
 }
 
+function _buildCreateClientAuthenticationTokenRequest(): MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest {
+    return {
+        "merchantClientSessionId": "probe_sdk_session_001",  // Infrastructure.
+        "domainContext": {
+            "minorAmount": 1000,
+            "currency": "USD"
+        }
+    };
+}
+
 function _buildCreateServerSessionAuthenticationTokenRequest(): MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest {
     return {
         "domainContext": {
@@ -73,6 +83,15 @@ async function authorize(merchantTransactionId: string, config: ConnectorConfig 
     return { status: authorizeResponse.status, transactionId: authorizeResponse.connectorTransactionId };
 }
 
+// Flow: MerchantAuthenticationService.CreateClientAuthenticationToken
+async function createClientAuthenticationToken(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse> {
+    const merchantAuthenticationClient = new MerchantAuthenticationClient(config);
+
+    const createResponse = await merchantAuthenticationClient.createClientAuthenticationToken(_buildCreateClientAuthenticationTokenRequest());
+
+    return { status: createResponse.status };
+}
+
 // Flow: MerchantAuthenticationService.CreateServerSessionAuthenticationToken
 async function createServerSessionAuthenticationToken(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse> {
     const merchantAuthenticationClient = new MerchantAuthenticationClient(config);
@@ -94,7 +113,7 @@ async function get(merchantTransactionId: string, config: ConnectorConfig = _def
 
 // Export all process* functions for the smoke test
 export {
-    authorize, createServerSessionAuthenticationToken, get, _buildAuthorizeRequest, _buildCreateServerSessionAuthenticationTokenRequest, _buildGetRequest
+    authorize, createClientAuthenticationToken, createServerSessionAuthenticationToken, get, _buildAuthorizeRequest, _buildCreateClientAuthenticationTokenRequest, _buildCreateServerSessionAuthenticationTokenRequest, _buildGetRequest
 };
 
 // CLI runner
