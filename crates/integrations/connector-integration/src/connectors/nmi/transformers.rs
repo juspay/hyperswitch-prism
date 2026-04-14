@@ -1541,7 +1541,10 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<NmiVaultResponse, Sel
 pub struct NmiSetupMandateRequest<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 > {
+    #[serde(rename = "type")]
+    transaction_type: TransactionType,
     security_key: Secret<String>,
+    orderid: String,
     customer_vault: CustomerAction,
     #[serde(flatten)]
     payment_method: NmiSetupMandatePaymentMethod<T>,
@@ -1625,6 +1628,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
+
+        // Hyperswitch parity: NMI SetupMandate (Validate) only supports zero amount.
+        if router_data.request.amount.unwrap_or(0) > 0 {
+            return Err(IntegrationError::NotSupported {
+                message: "Setup Mandate with non zero amount".to_string(),
+                connector: "NMI",
+                context: Default::default(),
+            }
+            .into());
+        }
+
         let auth = NmiAuthType::try_from(&router_data.connector_config)?;
 
         let payment_method = match &router_data.request.payment_method_data {
@@ -1674,7 +1688,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .and_then(|b| b.address.as_ref());
 
         Ok(Self {
+            transaction_type: TransactionType::Validate,
             security_key: auth.api_key,
+            orderid: router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
             customer_vault: CustomerAction::AddCustomer,
             payment_method,
             first_name: billing_address.and_then(|a| a.first_name.clone()),
