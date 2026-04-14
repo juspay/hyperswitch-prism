@@ -112,9 +112,9 @@ use common_utils::events::{Event, EventConfig, FlowName};
 // TokenData is now imported from hyperswitch_injector
 use common_utils::{consts, emit_event_with_config};
 use error_stack::{report, ResultExt};
-use hyperswitch_masking::Maskable;
 #[cfg(feature = "injector-client")]
-use hyperswitch_masking::{ErasedMaskSerialize, ExposeInterface};
+use hyperswitch_masking::ExposeInterface;
+use hyperswitch_masking::Maskable;
 #[cfg(feature = "injector-client")]
 use injector::{injector_core, HttpMethod, TokenData};
 use interfaces::connector_integration_v2::BoxedConnectorIntegrationV2;
@@ -313,47 +313,60 @@ where
 {
     let start = tokio::time::Instant::now();
     let result = match call_connector_action {
-        common_enums::CallConnectorAction::HandleResponse(res) => {
-            let body = Response {
-                headers: None,
-                response: res.into(),
-                status_code: 200,
-            };
-
-            let status_code = body.status_code;
-            tracing::Span::current().record("status_code", tracing::field::display(status_code));
-            if let Ok(response) = parse_json_with_bom_handling(&body.response) {
-                tracing::Span::current().record(
-                    "response.body",
-                    tracing::field::display(response.masked_serialize().unwrap_or(
-                        json!({ "error": "failed to mask serialize connector response"}),
-                    )),
-                );
-            }
-
-            // Set raw_connector_response BEFORE calling the transformer
-            let mut updated_router_data = router_data.clone();
-            if all_keys_required.unwrap_or(true) {
-                let raw_response_string = strip_bom_and_convert_to_string(&body.response);
-                updated_router_data
-                    .resource_common_data
-                    .set_raw_connector_response(raw_response_string.map(Into::into));
-            }
-
-            let handle_response_result =
-                connector.handle_response_v2(&updated_router_data, None, body.clone());
-
-            let response = match handle_response_result {
-                Ok(data) => {
-                    tracing::info!("Transformer completed successfully");
-                    Ok(data)
+        // handle_response removed from proto (PaymentServiceGetRequest field 5 reserved)
+        common_enums::CallConnectorAction::HandleResponse(_) => {
+            return Err(error_stack::report!(ConnectorFlowError::from(
+                IntegrationError::NotSupported {
+                    message:
+                        "The handle_response field has been removed from PaymentServiceGetRequest \
+                              (proto field 5 reserved). This flow is no longer supported."
+                            .into(),
+                    connector: "N/A",
+                    context: Default::default(),
                 }
-                Err(err) => Err(err),
-            }
-            .map_err(report_connector_response_to_flow)?;
-
-            Ok(response)
+            )));
         }
+        // common_enums::CallConnectorAction::HandleResponse(res) => {
+        //     let body = Response {
+        //         headers: None,
+        //         response: res.into(),
+        //         status_code: 200,
+        //     };
+        //
+        //     let status_code = body.status_code;
+        //     tracing::Span::current().record("status_code", tracing::field::display(status_code));
+        //     if let Ok(response) = parse_json_with_bom_handling(&body.response) {
+        //         tracing::Span::current().record(
+        //             "response.body",
+        //             tracing::field::display(response.masked_serialize().unwrap_or(
+        //                 json!({ "error": "failed to mask serialize connector response"}),
+        //             )),
+        //         );
+        //     }
+        //
+        //     // Set raw_connector_response BEFORE calling the transformer
+        //     let mut updated_router_data = router_data.clone();
+        //     if all_keys_required.unwrap_or(true) {
+        //         let raw_response_string = strip_bom_and_convert_to_string(&body.response);
+        //         updated_router_data
+        //             .resource_common_data
+        //             .set_raw_connector_response(raw_response_string.map(Into::into));
+        //     }
+        //
+        //     let handle_response_result =
+        //         connector.handle_response_v2(&updated_router_data, None, body.clone());
+        //
+        //     let response = match handle_response_result {
+        //         Ok(data) => {
+        //             tracing::info!("Transformer completed successfully");
+        //             Ok(data)
+        //         }
+        //         Err(err) => Err(err),
+        //     }
+        //     .map_err(report_connector_response_to_flow)?;
+        //
+        //     Ok(response)
+        // }
         common_enums::CallConnectorAction::Trigger => {
             let mut connector_request = connector
                 .build_request_v2(&router_data.clone())
@@ -1226,28 +1239,6 @@ fn extract_raw_connector_request(connector_request: &Request) -> String {
         "body": body_content
     })
     .to_string()
-}
-
-#[cfg(feature = "injector-client")]
-/// Helper function to parse JSON from response bytes with BOM handling
-fn parse_json_with_bom_handling(
-    response_bytes: &[u8],
-) -> Result<serde_json::Value, serde_json::Error> {
-    // Try direct parsing first (most common case)
-    match serde_json::from_slice::<serde_json::Value>(response_bytes) {
-        Ok(value) => Ok(value),
-        Err(_) => {
-            // If direct parsing fails, try after removing BOM
-            let cleaned_response = if response_bytes.starts_with(&[0xEF, 0xBB, 0xBF]) {
-                // UTF-8 BOM detected, remove it
-                #[allow(clippy::indexing_slicing)]
-                &response_bytes[3..]
-            } else {
-                response_bytes
-            };
-            serde_json::from_slice::<serde_json::Value>(cleaned_response)
-        }
-    }
 }
 
 pub(super) trait HeaderExt {
