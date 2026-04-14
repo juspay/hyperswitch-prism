@@ -18,10 +18,28 @@ interface ?= grpc
 # gRPC server settings
 # The test harness connects to localhost:50051 by default.
 # Override with: make test-connector connector=stripe GRPC_PORT=9090
-GRPC_PORT  ?= 50051
-GRPC_HOST  ?= 0.0.0.0
+GRPC_PORT    ?= 50051
+GRPC_HOST    ?= 0.0.0.0
+GRPC_PROFILE ?= release-fast
 # PID file used to track the background server process
 GRPC_PID_FILE := .grpc-server.pid
+
+# Platform detection (mirrors sdk/common.mk so all Rust binaries share the same target/ layout)
+UNAME_S := $(shell uname -s)
+UNAME_M := $(shell uname -m)
+ifeq ($(UNAME_S), Darwin)
+  ifeq ($(UNAME_M), arm64)
+    PLATFORM := aarch64-apple-darwin
+  else
+    PLATFORM := x86_64-apple-darwin
+  endif
+else
+  ifeq ($(UNAME_M), aarch64)
+    PLATFORM := aarch64-unknown-linux-gnu
+  else
+    PLATFORM := x86_64-unknown-linux-gnu
+  endif
+endif
 
 .PHONY: all fmt check clippy test nextest ci check-specs help \
         proto-format proto-generate proto-build proto-lint proto-clean \
@@ -96,11 +114,13 @@ setup-connector-tests:
 ## The server PID is written to $(GRPC_PID_FILE) so stop-grpc can kill it.
 ## You rarely need to call this directly — test-prism / test-connector /
 ## test-scenario all manage the server lifecycle automatically.
+GRPC_SERVER_BIN = ./target/$(PLATFORM)/$(GRPC_PROFILE)/grpc-server
+
 start-grpc:
-	@echo "▶ Building grpc-server…"
-	@cargo build -p grpc-server --release 2>&1
+	@echo "▶ Building grpc-server ($(GRPC_PROFILE))…"
+	@cargo build -p grpc-server --profile $(GRPC_PROFILE) --target $(PLATFORM) 2>&1
 	@echo "▶ Starting grpc-server on $(GRPC_HOST):$(GRPC_PORT)…"
-	@CS__SERVER__HOST=$(GRPC_HOST) CS__SERVER__PORT=$(GRPC_PORT) CS__COMMON__ENVIRONMENT=development ./target/release/grpc-server & echo $$! > $(GRPC_PID_FILE)
+	@CS__SERVER__HOST=$(GRPC_HOST) CS__SERVER__PORT=$(GRPC_PORT) CS__COMMON__ENVIRONMENT=development $(GRPC_SERVER_BIN) & echo $$! > $(GRPC_PID_FILE)
 	@echo "[grpc] waiting for server to be ready on port $(GRPC_PORT)…"
 	@for i in $$(seq 1 40); do \
 	  if nc -z 127.0.0.1 $(GRPC_PORT) 2>/dev/null; then \
@@ -251,13 +271,12 @@ certify-client-sanity:
 	@echo "Generating golden captures from manifest..."
 	@node sdk/tests/client_sanity/generate_golden.js
 	@echo "[CERTIFICATION]: Building test runners..."
-	@cd sdk/rust && cargo build --bin client_sanity_runner --quiet 2>/dev/null || cargo build --bin client_sanity_runner
+	@cd sdk/rust && cargo build --bin client_sanity_runner --profile release-fast --target $(PLATFORM) --quiet 2>/dev/null || cargo build --bin client_sanity_runner --profile release-fast --target $(PLATFORM)
 	@echo "[CERTIFICATION]: Running client sanity suite..."
 	@node sdk/tests/client_sanity/run_client_certification.js rust python node kotlin
 	@pkill -f "[/]echo_server\\.js"; pkill -f "[/]simple_proxy\\.js" || true
 
-CONNECTORS   ?= stripe
-GRPC_PROFILE ?= release-fast
+CONNECTORS ?= stripe
 
 ## Run gRPC smoke tests for all SDKs (Rust + JS + Python) with a combined pass/fail summary
 test-grpc:
@@ -275,26 +294,9 @@ test-ffi-mock:
 	@python3 scripts/run_smoke_tests_parallel.py --connectors $(CONNECTORS) --mock $(if $(filter 1,$(VERBOSE) $(V)),--verbose)
 
 ## Run field-probe to generate connector flow data
-# Use the same platform detection as sdk/common.mk to share build artifacts
-UNAME_S := $(shell uname -s)
-UNAME_M := $(shell uname -m)
-ifeq ($(UNAME_S), Darwin)
-  ifeq ($(UNAME_M), arm64)
-    FIELD_PROBE_TARGET := aarch64-apple-darwin
-  else
-    FIELD_PROBE_TARGET := x86_64-apple-darwin
-  endif
-else
-  ifeq ($(UNAME_M), aarch64)
-    FIELD_PROBE_TARGET := aarch64-unknown-linux-gnu
-  else
-    FIELD_PROBE_TARGET := x86_64-unknown-linux-gnu
-  endif
-endif
-
 field-probe:
 	@echo "▶ Running field-probe to generate connector flow data…"
-	-cargo run -p field-probe --target $(FIELD_PROBE_TARGET) --profile release-fast
+	-cargo run -p field-probe --target $(PLATFORM) --profile release-fast
 
 ## Run comprehensive pre-push validation (format, check, clippy, generate, docs)
 validate-pre-push:

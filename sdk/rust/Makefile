@@ -15,7 +15,7 @@ include $(SDK_ROOT)/../common.mk
 # ---------------------------------------------------------------------------
 
 build: ## Build the Rust SDK package
-	@cd $(SDK_ROOT) && cargo build --release
+	@cd $(SDK_ROOT) && cargo build --release --target $(PLATFORM)
 
 # ---------------------------------------------------------------------------
 # Package / Distribution
