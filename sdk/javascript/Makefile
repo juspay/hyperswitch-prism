@@ -219,7 +219,7 @@ test-package-mock: build-ffi-lib generate-all build-ts pack-archive
 	fi
 	@# Copy example to the location test_smoke.ts expects in mock mode
 	@mkdir -p /tmp/test-hyperswitch-js-mock/smoke-test/generated/$(CONNECTORS)
-	@cp $(SDK_ROOT)/smoke-test/generated/$(CONNECTORS)/$(CONNECTORS).ts /tmp/test-hyperswitch-js-mock/smoke-test/generated/$(CONNECTORS)/
+	@cp $(REPO_ROOT)/examples/$(CONNECTORS)/$(CONNECTORS).ts /tmp/test-hyperswitch-js-mock/smoke-test/generated/$(CONNECTORS)/
 	@cd /tmp/test-hyperswitch-js-mock && \
 		NODE_PATH=/tmp/test-hyperswitch-js-mock/node_modules npx tsx test_smoke.ts \
 		--connectors $(CONNECTORS) --creds-file creds.json --mock --examples-dir ./smoke-test/generated

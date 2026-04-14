@@ -161,7 +161,7 @@ test-package-mock: generate-all install
 	@echo "Running Kotlin smoke test in MOCK mode..."
 	@# Copy example to smoke-test source
 	@mkdir -p $(SDK_ROOT)/smoke-test/src/main/kotlin/generated/$(CONNECTORS)
-	@cp $(SDK_ROOT)/smoke-test/generated/$(CONNECTORS)/$(CONNECTORS).kt $(SDK_ROOT)/smoke-test/src/main/kotlin/generated/$(CONNECTORS)/
+	@cp $(REPO_ROOT)/examples/$(CONNECTORS)/$(CONNECTORS).kt $(SDK_ROOT)/smoke-test/src/main/kotlin/generated/$(CONNECTORS)/
 	@if [ -f $(REPO_ROOT)/creds_dummy.json ]; then \
 		cp $(REPO_ROOT)/creds_dummy.json $(SDK_ROOT)/smoke-test/creds.json; \
 	fi

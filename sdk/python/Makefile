@@ -188,7 +188,7 @@ test-package-mock: generate-all pack-archive
 	@cp $(REPO_ROOT)/sdk/generated/flows.json /tmp/test-hyperswitch-py-mock/
 	@# Copy examples to directory structure expected by smoke test
 	@mkdir -p /tmp/test-hyperswitch-py-mock/examples/$(CONNECTORS)
-	@cp $(SDK_ROOT)/smoke-test/generated/$(CONNECTORS)/$(CONNECTORS).py /tmp/test-hyperswitch-py-mock/examples/$(CONNECTORS)/
+	@cp $(REPO_ROOT)/examples/$(CONNECTORS)/$(CONNECTORS).py /tmp/test-hyperswitch-py-mock/examples/$(CONNECTORS)/
 	@cd /tmp/test-hyperswitch-py-mock && python3 test_smoke.py --connectors $(CONNECTORS) --creds-file creds.json --mock
 	@rm -rf /tmp/test-hyperswitch-py-mock
 	@echo "Package mock test passed."
