@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { getConnectorName, getPublishableKey, config } from '../config.js';
+import { getConnectorName } from '../config.js';
 import { createClientAuthToken, fetchGlobalPayAccessToken } from '../utils/auth.js';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -34,7 +34,7 @@ router.get('/sdk-session', async (req: Request, res: Response) => {
     }
 
     // Determine connector based on currency
-    const connectorName = getConnectorName(currencyStr);
+    const connectorName = getConnectorName(currencyStr, amountNum);
 
     console.log(`[SDK Session] Currency: ${currencyStr}, Connector: ${connectorName}`);
 
@@ -51,7 +51,7 @@ router.get('/sdk-session', async (req: Request, res: Response) => {
 
       const gpData = (sessionResponse as any).sessionData?.connectorSpecific?.stripe;
       const serverToken = gpData?.clientSecret?.value || '';
-      publishableKey = getPublishableKey(currencyStr);
+      publishableKey = process.env.STRIPE_PUBLISHABLE_KEY || "";
 
       console.log('[Stripe Raw Request]', sessionResponse.rawConnectorRequest?.value);
 
@@ -70,7 +70,32 @@ router.get('/sdk-session', async (req: Request, res: Response) => {
       );
       clientToken = fetchToken;
       sessionData = {};
-      publishableKey = getPublishableKey(currencyStr);
+      publishableKey = "";
+    } else if (connectorName === 'adyen') {
+      // Adyen flow - use Prism SDK to create session
+      const { sessionResponse } = await createClientAuthToken(
+        currencyStr,
+        amountNum
+      );
+
+      // Extract Adyen session data from Prism SDK response
+      // Structure: sessionData.connectorSpecific.adyen = { sessionId: string, sessionData: { value: string } }
+      const adyenData = (sessionResponse as any).sessionData?.connectorSpecific?.adyen;
+      const sessionId = adyenData?.sessionId || '';  // Direct string, not wrapped in value
+      const sessionDataValue = adyenData?.sessionData?.value || '';
+
+      console.log('[Adyen Raw Request]', sessionResponse.rawConnectorRequest?.value);
+      console.log('[Adyen Session] ID:', sessionId);
+      console.log('[Adyen Session] Data length:', sessionDataValue.length);
+
+      // Adyen uses session.id and session.sessionData
+      clientToken = sessionId;
+      sessionData = {
+        sessionData: sessionDataValue,
+        connectorSpecific: { adyen: adyenData }
+      };
+      publishableKey = process.env.ADYEN_CLIENT_KEY || "";
+
     } else {
       return res.status(400).json({
         error: `Unsupported connector: ${connectorName}`
@@ -92,9 +117,8 @@ router.get('/sdk-session', async (req: Request, res: Response) => {
       currency: currencyStr
     });
 
-  } catch (error: unknown) {
+  } catch (error: any) {
     console.error('[SDK Session Error]', error);
-
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     res.status(500).json({
       error: 'Failed to create SDK session',

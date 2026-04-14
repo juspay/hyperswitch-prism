@@ -49,14 +49,36 @@ let checkoutData = null;
 let sdkConfig = null;
 let currentConnector = null;
 
+// Test card configurations for each connector
+const TEST_CARDS = {
+  adyen: {
+    number: '4111 1111 4555 1142',
+    expiry: '03/2030',
+    cvv: '737'
+  },
+  globalpay: {
+    number: '4263 9700 0000 5262',
+    expiry: '03/2030',
+    cvv: '737'
+  },
+  stripe: {
+    number: '4242 4242 4242 4242',
+    expiry: '03/2030',
+    cvv: '737'
+  }
+};
+
 // DOM Elements
 const loadingEl = document.getElementById('loading');
 const stripeContainer = document.getElementById('stripe-checkout-container');
 const globalpayContainer = document.getElementById('globalpay-checkout-container');
+const adyenContainer = document.getElementById('adyen-checkout-container');
 const connectorInfo = document.getElementById('payment-connector-info');
 const paymentResult = document.getElementById('payment-result');
 const orderItemsEl = document.getElementById('order-items');
 const orderTotalEl = document.getElementById('order-total-amount');
+const testCardInfo = document.getElementById('test-card-info');
+const testCardNumberEl = document.getElementById('test-card-number');
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', async () => {
@@ -142,6 +164,12 @@ async function initializePayment() {
       console.log('[Checkout] Initializing GlobalPay checkout...');
       await initGlobalPayCheckout();
       console.log('[Checkout] GlobalPay checkout initialized');
+    } else if (sdkConfig.connector === 'adyen') {
+      console.log('[Checkout] Initializing Adyen checkout...');
+      await initAdyenCheckout();
+      // Adyen checkout handles its own completion, no need to hide loading here
+      console.log('[Checkout] Adyen checkout flow completed');
+      return; // Adyen handles completion via callbacks
     }
     
     // Hide loading, show form
@@ -160,7 +188,10 @@ async function initializePayment() {
  */
 async function initStripeCheckout() {
   stripeContainer.classList.remove('hidden');
-  
+
+  // Show test card info for Stripe
+  showTestCardInfo('stripe');
+
   // Use publishable key and client token from server
   await initStripe(sdkConfig.publishableKey, sdkConfig.clientToken);
 }
@@ -171,6 +202,9 @@ async function initStripeCheckout() {
  */
 async function initGlobalPayCheckout() {
   globalpayContainer.classList.remove('hidden');
+
+  // Show test card info for GlobalPay
+  showTestCardInfo('globalpay');
 
   // Use the clientToken directly (it's the access token with PMT_POST_Create_Single permission)
   const accessToken = sdkConfig.clientToken;
@@ -186,6 +220,78 @@ async function initGlobalPayCheckout() {
 }
 
 /**
+ * Initialize Adyen checkout
+ * Uses Adyen Web Components with Sessions Flow (PCI compliant)
+ * Sessions Flow handles complete payment client-side, no server authorization needed
+ */
+async function initAdyenCheckout() {
+  adyenContainer.classList.remove('hidden');
+
+  try {
+    // Extract Adyen session data from server response
+    // Server returns sessionData in the format:
+    // {
+    //   connector: 'adyen',
+    //   clientToken: '<session_id>',
+    //   sessionData: { sessionData: '<session_data>', connectorSpecific: { adyen: {...} } },
+    //   publishableKey: '<client_key>'
+    // }
+
+    const session = {
+      id: sdkConfig.clientToken,
+      sessionData: sdkConfig.sessionData?.sessionData || ''
+    };
+
+    // Show test card info for Adyen
+    showTestCardInfo('adyen');
+
+    console.log('[Checkout] Adyen session prepared:', {
+      id: session.id?.substring(0, 20) + '...',
+      sessionDataLength: session.sessionData?.length
+    });
+
+    // Derive country code from currency
+    const countryCode = checkoutData.currency === 'EUR' ? 'NL' : 'US';
+
+    // Initialize Adyen checkout
+    await initAdyen(
+      session,
+      sdkConfig.publishableKey,  // Adyen clientKey
+      {
+        amount: checkoutData.totalAmount,
+        currency: checkoutData.currency,
+        countryCode: countryCode,
+        locale: 'en-US'
+      }
+    );
+
+    // Hide loading - Adyen component is now visible with its own Pay button
+    loadingEl.classList.add('hidden');
+
+    // Wait for payment completion (handled by Adyen component via callbacks)
+    console.log('[Checkout] Waiting for Adyen payment completion...');
+    const result = await waitForPaymentCompletion();
+
+    console.log('[Checkout] Adyen payment result:', result);
+
+    // Handle result
+    if (result.success) {
+      // Payment authorized successfully
+      const transactionId = result.result?.pspReference || result.result?.merchantReference || 'adyen-payment';
+      showSuccess(transactionId);
+    } else {
+      // Payment failed
+      const errorMsg = result.error || 'Payment failed';
+      showError(errorMsg);
+    }
+
+  } catch (error) {
+    console.error('[Checkout] Adyen initialization error:', error);
+    showError('Failed to initialize Adyen checkout: ' + error.message);
+  }
+}
+
+/**
  * Setup event listeners
  */
 function setupEventListeners() {
@@ -194,18 +300,26 @@ function setupEventListeners() {
   if (stripeBtn) {
     stripeBtn.addEventListener('click', handleStripeSubmit);
   }
-  
+
   // GlobalPay submit
   const globalpayBtn = document.getElementById('globalpay-submit-btn');
   if (globalpayBtn) {
     globalpayBtn.addEventListener('click', handleGlobalPaySubmit);
   }
-  
+
   // Refund button
   const refundBtn = document.getElementById('refund-btn');
   if (refundBtn) {
     refundBtn.addEventListener('click', handleRefund);
   }
+
+  // Copy test card field buttons
+  document.querySelectorAll('.copy-field-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const field = e.currentTarget.dataset.field;
+      copyTestCardField(field);
+    });
+  });
 }
 
 /**
@@ -282,23 +396,48 @@ function showSuccess(transactionId) {
     btnText.textContent = 'Pay Now';
     btnSpinner.classList.add('hidden');
   }
-  
-  // Hide payment forms
+
+  // Hide payment forms and test card
   stripeContainer.classList.add('hidden');
   globalpayContainer.classList.add('hidden');
-  
+  adyenContainer.classList.add('hidden');
+  testCardInfo.classList.add('hidden');
+
   // Show result
   paymentResult.classList.remove('hidden');
   document.getElementById('result-icon').textContent = '✅';
   document.getElementById('result-title').textContent = 'Payment Successful!';
   document.getElementById('result-message').textContent = 'Your payment has been processed successfully.';
   document.getElementById('result-txn-id').textContent = `Transaction ID: ${transactionId}`;
-  
-  // Show refund button
-  document.getElementById('refund-btn').classList.remove('hidden');
-  
-  // Store transaction ID for refund
-  paymentResult.dataset.transactionId = transactionId;
+
+  // Clear cart - remove only the items that were purchased (matching the checkout currency)
+  clearPurchasedItemsFromCart();
+}
+
+/**
+ * Clear purchased items from cart after successful payment
+ */
+function clearPurchasedItemsFromCart() {
+  if (!checkoutData) return;
+
+  // Get current cart
+  const savedCart = localStorage.getItem('cart');
+  if (savedCart) {
+    let cart = JSON.parse(savedCart);
+    // Remove only items with the same currency as the checkout
+    cart = cart.filter(item => item.currency !== checkoutData.currency);
+
+    if (cart.length === 0) {
+      // Cart is empty, remove completely
+      localStorage.removeItem('cart');
+    } else {
+      // Save remaining items
+      localStorage.setItem('cart', JSON.stringify(cart));
+    }
+  }
+
+  // Clear checkout data
+  localStorage.removeItem('checkoutData');
 }
 
 /**
@@ -359,6 +498,58 @@ async function handleRefund() {
 }
 
 /**
+ * Show test card info for the current connector
+ */
+function showTestCardInfo(connector) {
+  const testCard = TEST_CARDS[connector];
+  if (!testCard) return;
+
+  document.getElementById('test-card-number').textContent = testCard.number;
+  document.getElementById('test-card-expiry').textContent = testCard.expiry;
+  document.getElementById('test-card-cvv').textContent = testCard.cvv;
+  testCardInfo.classList.remove('hidden');
+}
+
+/**
+ * Copy a specific test card field to clipboard
+ */
+async function copyTestCardField(field) {
+  let value = '';
+  let btn = null;
+
+  switch (field) {
+    case 'number':
+      value = document.getElementById('test-card-number').textContent.replace(/\s/g, '');
+      btn = document.querySelector('.copy-field-btn[data-field="number"]');
+      break;
+    case 'expiry':
+      value = document.getElementById('test-card-expiry').textContent;
+      btn = document.querySelector('.copy-field-btn[data-field="expiry"]');
+      break;
+    case 'cvv':
+      value = document.getElementById('test-card-cvv').textContent;
+      btn = document.querySelector('.copy-field-btn[data-field="cvv"]');
+      break;
+  }
+
+  if (!value || !btn) return;
+
+  try {
+    await navigator.clipboard.writeText(value);
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '✓';
+    btn.classList.add('copied');
+
+    setTimeout(() => {
+      btn.innerHTML = originalText;
+      btn.classList.remove('copied');
+    }, 1500);
+  } catch (err) {
+    console.error('Failed to copy:', err);
+  }
+}
+
+/**
  * Format price
  */
 function formatPrice(amount, currency) {
@@ -367,12 +558,4 @@ function formatPrice(amount, currency) {
   return `${symbol}${value.toFixed(2)}`;
 }
 
-// Clear checkout data on successful payment
-window.addEventListener('beforeunload', () => {
-  if (paymentResult.classList.contains('hidden')) {
-    // Payment not completed, keep data
-  } else {
-    // Payment completed, clear data
-    localStorage.removeItem('checkoutData');
-  }
-});
+// Note: Cart clearing is now handled in showSuccess() function after successful payment

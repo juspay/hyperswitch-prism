@@ -9,7 +9,7 @@ async function createClientAuthToken(
   currencyStr: string,
   amountNum: number
 ): Promise<{ sessionResponse: any }> {
-  const connectorConfig = getConnectorConfig(currencyStr);
+  const connectorConfig = getConnectorConfig(currencyStr, amountNum);
   const authClient = new MerchantAuthenticationClient(connectorConfig);
   const currencyEnum = currencyStr === 'EUR' ? Currency.EUR : Currency.USD;
 

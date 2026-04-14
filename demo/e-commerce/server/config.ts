@@ -29,22 +29,35 @@ export const getGlobalPayConfig = (): types.ConnectorConfig => ({
   }
 });
 
-// Routing logic: USD -> Stripe, EUR -> GlobalPay
-export const getConnectorConfig = (currency: string): types.ConnectorConfig => {
+export const getAdyenConfig = (): types.ConnectorConfig => ({
+  connectorConfig: {
+    adyen: {
+      apiKey: { value: process.env.ADYEN_API_KEY! },
+      merchantAccount: { value: process.env.ADYEN_MERCHANT_ACCOUNT! }
+    }
+  },
+  options: {
+    environment: Environment.SANDBOX
+  }
+});
+
+// Routing logic: Amount > $50.00 (5000 cents) -> Adyen, else USD -> Stripe, EUR -> GlobalPay
+export const getConnectorConfig = (currency: string, amount: number): types.ConnectorConfig => {
+  console.log(`[Routing] Amount: ${amount} cents (${(amount / 100).toFixed(2)})`);
+  if (amount > 5000) {
+    return getAdyenConfig();
+  }
   return currency === 'EUR' ? getGlobalPayConfig() : getStripeConfig();
 };
 
-export const getConnectorName = (currency: string): string => {
+export const getConnectorName = (currency: string, amount: number): string => {
+  if (amount > 5000) {
+    return 'adyen';
+  }
   return currency === 'EUR' ? 'globalpay' : 'stripe';
 };
 
-// Get publishable key for client SDK
-export const getPublishableKey = (currency: string): string => {
-  if (currency === 'EUR') {
-    return process.env.GLOBALPAY_PUBLISHABLE_KEY || '';
-  }
-  return process.env.STRIPE_PUBLISHABLE_KEY || '';
-};
+
 
 // Server configuration
 export const config = {

@@ -16,15 +16,54 @@
 
   <main class="container checkout-container">
     <div class="checkout-layout">
-      <!-- Order Summary -->
-      <div class="order-summary">
-        <h2>Order Summary</h2>
-        <div id="order-items">
-          <!-- Order items will be rendered here -->
+      <!-- Left Column: Order Summary + Test Card -->
+      <div class="left-column">
+        <!-- Order Summary -->
+        <div class="order-summary">
+          <h2>Order Summary</h2>
+          <div id="order-items">
+            <!-- Order items will be rendered here -->
+          </div>
+          <div class="order-total">
+            <span>Total:</span>
+            <span id="order-total-amount">$0.00</span>
+          </div>
         </div>
-        <div class="order-total">
-          <span>Total:</span>
-          <span id="order-total-amount">$0.00</span>
+
+        <!-- Test Card Info -->
+        <div id="test-card-info" class="test-card-section hidden">
+          <div class="test-card-header">
+            <span class="test-card-badge">TEST CARD</span>
+          </div>
+          <div class="test-card-details">
+            <div class="test-card-row">
+              <span class="test-card-label">Card Number</span>
+              <div class="test-card-value-group">
+                <span id="test-card-number" class="test-card-value"></span>
+                <button class="copy-field-btn" data-field="number" title="Copy card number">
+                  📋
+                </button>
+              </div>
+            </div>
+            <div class="test-card-row">
+              <span class="test-card-label">Expiry</span>
+              <div class="test-card-value-group">
+                <span id="test-card-expiry" class="test-card-value">03/2030</span>
+                <button class="copy-field-btn" data-field="expiry" title="Copy expiry">
+                  📋
+                </button>
+              </div>
+            </div>
+            <div class="test-card-row">
+              <span class="test-card-label">CVV</span>
+              <div class="test-card-value-group">
+                <span id="test-card-cvv" class="test-card-value">737</span>
+                <button class="copy-field-btn" data-field="cvv" title="Copy CVV">
+                  📋
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -34,7 +73,7 @@
         <div id="payment-connector-info" class="connector-info">
           <!-- Connector info will be shown here -->
         </div>
-        
+
         <!-- Loading state -->
         <div id="loading" class="loading">
           <div class="spinner"></div>
@@ -61,6 +100,13 @@
           <div id="globalpay-error" class="card-errors"></div>
         </div>
 
+        <!-- Adyen Checkout Container -->
+        <div id="adyen-checkout-container" class="checkout-container hidden">
+          <!-- Adyen Card Component mounts here -->
+          <div id="adyen-card-container"></div>
+          <div id="adyen-error" class="card-errors"></div>
+        </div>
+
         <!-- Payment Result -->
         <div id="payment-result" class="payment-result hidden">
           <div id="result-icon"></div>
@@ -68,7 +114,6 @@
           <p id="result-message"></p>
           <p id="result-txn-id" class="txn-id"></p>
           <div id="result-actions" class="result-actions">
-            <button id="refund-btn" class="refund-btn hidden">Process Refund</button>
             <a href="/" class="continue-btn">Continue Shopping</a>
           </div>
         </div>
@@ -81,9 +126,16 @@
 
   <!-- GlobalPayments SDK for Credit Card Form -->
   <script src="https://js.globalpay.com/4.1.21/globalpayments.js"></script>
-  
+
+  <!-- Adyen Web SDK v6.31.1 for Checkout Components -->
+  <script src="https://checkoutshopper-test.adyen.com/checkoutshopper/sdk/6.31.1/adyen.js"
+          crossorigin="anonymous"></script>
+  <link rel="stylesheet" href="https://checkoutshopper-test.adyen.com/checkoutshopper/sdk/6.31.1/adyen.css"
+        crossorigin="anonymous">
+
   <script src="js/stripe-sdk.js"></script>
   <script src="js/globalpay-sdk.js"></script>
+  <script src="js/adyen-sdk.js"></script>
   <script src="js/checkout.js"></script>
 </body>
 </html>

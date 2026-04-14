@@ -2,8 +2,9 @@ import { Router, Request, Response } from 'express';
 import { PaymentClient, types, IntegrationError, ConnectorError } from 'hyperswitch-prism';
 import { getConnectorConfig, getConnectorName, config } from '../config.js';
 import { createClientAuthToken } from '../utils/auth.js';
+import { getPaymentStatusText } from '../utils/payment-status.js';
 const router = Router();
-const { PaymentStatus, CaptureMethod, Currency } = types;
+const { CaptureMethod, Currency } = types;
 
 
 /**
@@ -32,9 +33,9 @@ router.post('/token-authorize', async (req: Request, res: Response) => {
 
     console.log(`[Token Authorize] Transaction: ${merchantTransactionId}, Amount: ${amountNum} ${currencyStr}`);
 
-    // Get connector config based on currency
-    const connectorConfig = getConnectorConfig(currencyStr);
-    const connectorName = getConnectorName(currencyStr);
+    // Get connector config based on currency and amount (amount > 50 uses Adyen)
+    const connectorConfig = getConnectorConfig(currencyStr, amountNum);
+    const connectorName = getConnectorName(currencyStr, amountNum);
 
     // Create Payment Client
     const paymentClient = new PaymentClient(connectorConfig);
@@ -84,47 +85,15 @@ router.post('/token-authorize', async (req: Request, res: Response) => {
       response.error?.issuerDetails?.message ||
       response.error?.connectorDetails?.message || null;
 
-    // Map PaymentStatus enum to readable string
-    const statusMap: Record<number, string> = {
-      [PaymentStatus.PAYMENT_STATUS_UNSPECIFIED]: 'UNSPECIFIED',
-      [PaymentStatus.STARTED]: 'STARTED',
-      [PaymentStatus.PAYMENT_METHOD_AWAITED]: 'PAYMENT_METHOD_AWAITED',
-      [PaymentStatus.DEVICE_DATA_COLLECTION_PENDING]: 'DEVICE_DATA_COLLECTION_PENDING',
-      [PaymentStatus.CONFIRMATION_AWAITED]: 'CONFIRMATION_AWAITED',
-      [PaymentStatus.AUTHENTICATION_PENDING]: 'AUTHENTICATION_PENDING',
-      [PaymentStatus.AUTHENTICATION_SUCCESSFUL]: 'AUTHENTICATION_SUCCESSFUL',
-      [PaymentStatus.AUTHENTICATION_FAILED]: 'AUTHENTICATION_FAILED',
-      [PaymentStatus.AUTHORIZING]: 'AUTHORIZING',
-      [PaymentStatus.AUTHORIZED]: 'AUTHORIZED',
-      [PaymentStatus.AUTHORIZATION_FAILED]: 'AUTHORIZATION_FAILED',
-      [PaymentStatus.PARTIALLY_AUTHORIZED]: 'PARTIALLY_AUTHORIZED',
-      [PaymentStatus.CHARGED]: 'CHARGED',
-      [PaymentStatus.PARTIAL_CHARGED]: 'PARTIAL_CHARGED',
-      [PaymentStatus.PARTIAL_CHARGED_AND_CHARGEABLE]: 'PARTIAL_CHARGED_AND_CHARGEABLE',
-      [PaymentStatus.AUTO_REFUNDED]: 'AUTO_REFUNDED',
-      [PaymentStatus.CAPTURE_INITIATED]: 'CAPTURE_INITIATED',
-      [PaymentStatus.CAPTURE_FAILED]: 'CAPTURE_FAILED',
-      [PaymentStatus.VOID_INITIATED]: 'VOID_INITIATED',
-      [PaymentStatus.VOIDED]: 'VOIDED',
-      [PaymentStatus.VOID_FAILED]: 'VOID_FAILED',
-      [PaymentStatus.VOIDED_POST_CAPTURE]: 'VOIDED_POST_CAPTURE',
-      [PaymentStatus.COD_INITIATED]: 'COD_INITIATED',
-      [PaymentStatus.EXPIRED]: 'EXPIRED',
-      [PaymentStatus.ROUTER_DECLINED]: 'ROUTER_DECLINED',
-      [PaymentStatus.PENDING]: 'PENDING',
-      [PaymentStatus.FAILURE]: 'FAILURE',
-      [PaymentStatus.UNRESOLVED]: 'UNRESOLVED'
-    };
-
     // Return response
     res.json({
       status: response.status,
-      statusText: statusMap[response.status] || 'UNKNOWN',
+      statusText: getPaymentStatusText(response.status),
       connectorTransactionId: response.connectorTransactionId,
       error: errorMsg
     });
 
-  } catch (error: unknown) {
+  } catch (error: any) {
     console.error('[Token Authorize Error]', error);
 
     if (error instanceof IntegrationError) {

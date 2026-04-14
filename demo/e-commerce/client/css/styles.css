@@ -340,6 +340,13 @@ main h2 {
   }
 }
 
+/* Left Column - Order Summary + Test Card */
+.left-column {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
 .order-summary {
   background: #fff;
   border-radius: 12px;
@@ -423,6 +430,106 @@ main h2 {
   padding: 12px;
   margin-bottom: 20px;
   font-size: 0.9rem;
+}
+
+/* Test Card Section */
+.test-card-section {
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+  border: 2px dashed #f59e0b;
+}
+
+.test-card-section.hidden {
+  display: none;
+}
+
+.test-card-header {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.test-card-badge {
+  background: #f59e0b;
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 20px;
+  letter-spacing: 1px;
+}
+
+.test-card-details {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.test-card-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  background: #fef3c7;
+  border-radius: 8px;
+  border: 1px solid #fcd34d;
+}
+
+.test-card-label {
+  color: #92400e;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.test-card-value-group {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.test-card-value {
+  font-family: 'Courier New', monospace;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1f2937;
+  letter-spacing: 1px;
+}
+
+.copy-field-btn {
+  background: white;
+  border: 1px solid #f59e0b;
+  color: #f59e0b;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.copy-field-btn:hover {
+  background: #f59e0b;
+  color: white;
+}
+
+.copy-field-btn.copied {
+  background: #22c55e;
+  border-color: #22c55e;
+  color: white;
+}
+
+.test-card-value {
+  color: #1f2937;
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: 0.5px;
 }
 
 .loading {
@@ -534,6 +641,12 @@ main h2 {
   margin-bottom: 25px;
 }
 
+.txn-id {
+  color: #6b7280;
+  font-size: 0.9rem;
+  margin-bottom: 40px;
+}
+
 .result-actions {
   display: flex;
   flex-direction: column;
@@ -560,10 +673,11 @@ main h2 {
   display: inline-block;
   background: #2563eb;
   color: white;
-  padding: 12px 25px;
-  border-radius: 8px;
+  padding: 10px 20px;
+  border-radius: 6px;
   text-decoration: none;
   transition: background 0.2s;
+  font-size: 0.9rem;
 }
 
 .continue-btn:hover {
