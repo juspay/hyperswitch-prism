@@ -604,7 +604,8 @@
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
       }
     },
     "recurring_charge": {
@@ -673,7 +674,8 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
       }
     },
     "token_authorize": {
@@ -684,7 +686,46 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_tokenized_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "connector_token": "pm_1AbcXyzStripeTestToken",
+          "address": {
+            "billing_address": {}
+          },
+          "customer_acceptance": {
+            "acceptance_type": "ONLINE",
+            "accepted_at": 0,
+            "online_mandate_details": {
+              "ip_address": "127.0.0.1",
+              "user_agent": "Mozilla/5.0"
+            }
+          },
+          "setup_mandate_details": {
+            "mandate_type": {
+              "multi_use": {
+                "amount": 0,
+                "currency": "USD"
+              }
+            }
+          },
+          "setup_future_usage": "OFF_SESSION"
+        },
+        "sample": {
+          "url": "https://payments.sandbox.braintree-api.com/graphql",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "braintree-version": "2019-01-01",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"query\":\"mutation vaultCreditCard($input: VaultCreditCardInput!) { vaultCreditCard(input: $input) { paymentMethod { id legacyId usage details { ... on CreditCardDetails { brandCode last4 expirationYear expirationMonth } } } verification { status processorResponse { legacyCode message } } } }\",\"variables\":{\"input\":{\"paymentMethodId\":\"pm_1AbcXyzStripeTestToken\",\"verification\":{\"merchantAccountId\":\"probe_merchant_acct\"}}}}"
+        }
       }
     },
     "tokenize": {
