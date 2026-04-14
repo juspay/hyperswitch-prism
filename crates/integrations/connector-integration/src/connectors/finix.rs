@@ -9,7 +9,7 @@ use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt, types
 use domain_types::{
     connector_flow,
     connector_flow::{
-        Authorize, Capture, CreateConnectorCustomer, PSync, PaymentMethodToken, RSync, Refund, Void,
+        Authorize, Capture, CreateConnectorCustomer, PSync, PaymentMethodToken, RSync, Refund, SetupMandate, Void,
     },
     connector_types::*,
     connector_types::{RefundFlowData, RefundSyncData, RefundsResponseData},
@@ -30,7 +30,8 @@ use transformers::{
     self as finix, FinixAuthorizeRequest, FinixAuthorizeResponse, FinixCaptureRequest,
     FinixCaptureResponse, FinixCreateIdentityRequest, FinixCreatePaymentInstrumentRequest,
     FinixIdentityResponse, FinixInstrumentResponse, FinixPSyncResponse, FinixRSyncResponse,
-    FinixRefundRequest, FinixRefundResponse, FinixVoidRequest, FinixVoidResponse,
+    FinixRefundRequest, FinixRefundResponse, FinixSetupMandateRequest, FinixSetupMandateResponse,
+    FinixVoidRequest, FinixVoidResponse,
 };
 
 use crate::{types::ResponseRouterData, with_error_response_body};
@@ -416,16 +417,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
-        connector_flow::SetupMandate,
-        PaymentFlowData,
-        SetupMandateRequestData<T>,
-        PaymentsResponseData,
-    > for Finix<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
         connector_flow::SubmitEvidence,
         DisputeFlowData,
         SubmitEvidenceData,
@@ -488,6 +479,12 @@ macros::create_all_prerequisites!(
             request_body: FinixRefundRequest,
             response_body: FinixRefundResponse,
             router_data: RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
+        ),
+        (
+            flow: SetupMandate,
+            request_body: FinixSetupMandateRequest,
+            response_body: FinixSetupMandateResponse,
+            router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -772,6 +769,38 @@ macros::macro_connector_implementation!(
         fn get_url(&self, req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>) -> CustomResult<String, IntegrationError> {
             let connector_transaction_id = req.request.connector_transaction_id.clone();
             Ok(format!("{}/transfers/{}/reversals", self.connector_base_url_refunds(req), connector_transaction_id))
+        }
+    }
+);
+
+// SetupMandate (SetupRecurring) - stores payment instrument for recurring payments
+// Finix requires an identity (connector customer) to create a payment instrument
+// The flow creates a payment instrument and returns its ID as the connector_mandate_id
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Finix,
+    curl_request: Json(FinixSetupMandateRequest),
+    curl_response: FinixSetupMandateResponse,
+    flow_name: SetupMandate,
+    resource_common_data: PaymentFlowData,
+    flow_request: SetupMandateRequestData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}/payment_instruments", self.connector_base_url_payments(req)))
         }
     }
 );

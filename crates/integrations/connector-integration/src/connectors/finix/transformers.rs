@@ -3,13 +3,14 @@ use common_enums::{AttemptStatus, Currency, RefundStatus};
 use common_utils::{pii::Email, types::MinorUnit};
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, CreateConnectorCustomer, PSync, PaymentMethodToken, RSync, Refund, Void,
+        Authorize, Capture, CreateConnectorCustomer, PSync, PaymentMethodToken, RSync, Refund, SetupMandate, Void,
     },
     connector_types::{
-        ConnectorCustomerData, ConnectorCustomerResponse, PaymentFlowData,
+        ConnectorCustomerData, ConnectorCustomerResponse, MandateReference, PaymentFlowData,
         PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
         PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
+        SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
@@ -266,6 +267,11 @@ pub struct FinixInstrumentResponse {
     pub currency: Option<Currency>,
     pub enabled: bool,
 }
+
+// SetupMandate uses the same request/response structures as PaymentMethodToken
+// Type aliases to satisfy macro system requirements (each flow needs distinct type names)
+pub type FinixSetupMandateRequest = FinixCreatePaymentInstrumentRequest;
+pub type FinixSetupMandateResponse = FinixInstrumentResponse;
 
 // AUTHORIZE FLOW - REQUEST/RESPONSE
 
@@ -1049,6 +1055,248 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let response = item.response;
         Ok(Self {
             response: Ok(PaymentMethodTokenResponse { token: response.id }),
+            ..item.router_data
+        })
+    }
+}
+
+// =============================================================================
+// SETUP MANDATE FLOW - REQUEST/RESPONSE TRANSFORMERS
+// =============================================================================
+// SetupMandate creates a payment instrument in Finix that can be used for future
+// recurring payments. The connector_mandate_id returned is the Finix Payment
+// Instrument ID (PI...) which can be passed as `source` in future authorizations.
+//
+// Prerequisites:
+// - CreateConnectorCustomer must be called first to create a Finix identity
+// - The identity ID is stored in resource_common_data.connector_customer
+//
+// Flow:
+// 1. SetupMandate receives payment method data (card, bank, wallet)
+// 2. Transformer creates FinixCreatePaymentInstrumentRequest with identity
+// 3. POST /payment_instruments creates the instrument
+// 4. Response contains the Payment Instrument ID as connector_mandate_id
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        super::FinixRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for FinixCreatePaymentInstrumentRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: super::FinixRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let mandate_data = &item.router_data.request;
+
+        // Get customer_id (Finix identity) from connector metadata stored in resource_common_data
+        // This is set by the CreateConnectorCustomer flow which must run before SetupMandate
+        let customer_id = item
+            .router_data
+            .resource_common_data
+            .connector_customer
+            .clone()
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "connector_customer_id",
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Call CreateConnectorCustomer flow first to create a Finix identity"
+                            .to_string(),
+                    ),
+                    doc_url: Some("https://docs.finix.com/api/identities".to_string()),
+                    additional_context: Some(
+                        "Finix requires an identity (connector customer) to create a payment instrument. \
+                         The identity ID (ID...) must be provided in the 'identity' field."
+                            .to_string(),
+                    ),
+                },
+            })?;
+
+        match &mandate_data.payment_method_data {
+            PaymentMethodData::Card(card) => Ok(Self {
+                instrument_type: FinixPaymentInstrumentType::PaymentCard,
+                name: card.card_holder_name.clone(),
+                number: Some(Secret::new(card.card_number.peek().to_string())),
+                security_code: Some(card.card_cvc.clone()),
+                expiration_month: Some(Secret::new(
+                    card.card_exp_month.peek().parse::<i8>().map_err(|_| {
+                        IntegrationError::InvalidDataFormat {
+                            field_name: "card_exp_month",
+                            context: Default::default(),
+                        }
+                    })?,
+                )),
+                expiration_year: Some(Secret::new(
+                    card.card_exp_year.peek().parse::<i32>().map_err(|_| {
+                        IntegrationError::InvalidDataFormat {
+                            field_name: "card_exp_year",
+                            context: Default::default(),
+                        }
+                    })?,
+                )),
+                identity: customer_id,
+                tags: None,
+                address: None,
+                merchant_identity: None,
+                third_party_token: None,
+                account_number: None,
+                bank_code: None,
+                account_type: None,
+            }),
+            PaymentMethodData::BankDebit(bank_debit_data) => {
+                match bank_debit_data {
+                    domain_types::payment_method_data::BankDebitData::AchBankDebit {
+                        account_number,
+                        routing_number,
+                        card_holder_name,
+                        bank_account_holder_name,
+                        bank_holder_type,
+                        ..
+                    } => {
+                        // Determine account holder name: prefer bank_account_holder_name, fall back to card_holder_name
+                        let name = bank_account_holder_name
+                            .clone()
+                            .or_else(|| card_holder_name.clone());
+
+                        // Map bank_holder_type to account_type (CHECKING or SAVINGS)
+                        let account_type = bank_holder_type.as_ref().map(|holder_type| {
+                            match holder_type {
+                                common_enums::BankHolderType::Personal => "CHECKING",
+                                common_enums::BankHolderType::Business => "BUSINESS_CHECKING",
+                            }
+                            .to_string()
+                        });
+
+                        Ok(Self {
+                            instrument_type: FinixPaymentInstrumentType::BankAccount,
+                            name,
+                            number: None,
+                            security_code: None,
+                            expiration_month: None,
+                            expiration_year: None,
+                            identity: customer_id,
+                            tags: None,
+                            address: None,
+                            merchant_identity: None,
+                            third_party_token: None,
+                            account_number: Some(account_number.clone()),
+                            bank_code: Some(routing_number.clone()),
+                            account_type,
+                        })
+                    }
+                    _ => Err(IntegrationError::NotImplemented(
+                        "Only ACH Bank Debit is supported for SetupMandate".to_string(),
+                        Default::default(),
+                    )
+                    .into()),
+                }
+            }
+            PaymentMethodData::Wallet(wallet_data) => {
+                match wallet_data {
+                    domain_types::payment_method_data::WalletData::GooglePay(google_pay_data) => {
+                        // Get merchant_identity_id from auth for wallet tokenization
+                        let auth = FinixAuthType::try_from(&item.router_data.connector_config)?;
+                        let merchant_identity = auth.merchant_identity_id.peek().to_string();
+
+                        // Extract the encrypted token from Google Pay
+                        let third_party_token = google_pay_data
+                            .tokenization_data
+                            .get_encrypted_google_pay_payment_data_mandatory()
+                            .change_context(IntegrationError::InvalidWalletToken {
+                                wallet_name: "Google Pay".to_string(),
+                                context: Default::default(),
+                            })?;
+
+                        Ok(Self {
+                            instrument_type: FinixPaymentInstrumentType::GooglePay,
+                            name: None,
+                            number: None,
+                            security_code: None,
+                            expiration_month: None,
+                            expiration_year: None,
+                            identity: customer_id,
+                            tags: None,
+                            address: None,
+                            merchant_identity: Some(Secret::new(merchant_identity)),
+                            third_party_token: Some(Secret::new(third_party_token.token.clone())),
+                            account_number: None,
+                            bank_code: None,
+                            account_type: None,
+                        })
+                    }
+                    _ => Err(IntegrationError::NotImplemented(
+                        "Only Google Pay wallet is supported for SetupMandate".into(),
+                        Default::default(),
+                    )
+                    .into()),
+                }
+            }
+            _ => Err(IntegrationError::NotImplemented(
+                "Only card, bank debit (ACH), and Google Pay are supported for SetupMandate".into(),
+                Default::default(),
+            )
+            .into()),
+        }
+    }
+}
+
+// SetupMandate Response Transformer
+// Returns the Payment Instrument ID as the connector_mandate_id in the MandateReference
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<FinixInstrumentResponse, Self>>
+    for RouterDataV2<
+        SetupMandate,
+        PaymentFlowData,
+        SetupMandateRequestData<T>,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<FinixInstrumentResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response;
+
+        // The Payment Instrument ID (PI...) is used as the connector_mandate_id
+        // This can be passed as the `source` field in future Authorize calls
+        let mandate_reference = Some(Box::new(MandateReference {
+            connector_mandate_id: Some(response.id.clone()),
+            payment_method_id: None,
+            connector_mandate_request_reference_id: None,
+        }));
+
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                status: AttemptStatus::Charged,
+                ..item.router_data.resource_common_data.clone()
+            },
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(response.id.clone()),
+                redirection_data: None,
+                mandate_reference,
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: Some(response.id),
+                incremental_authorization_allowed: None,
+                status_code: item.http_code,
+            }),
             ..item.router_data
         })
     }
