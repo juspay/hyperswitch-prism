@@ -812,7 +812,7 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            Ok(format!("{}/v1/payments", self.connector_base_url_payments(req)))
+            Ok(format!("{}/v1/customers", self.connector_base_url_payments(req)))
         }
     }
 );
