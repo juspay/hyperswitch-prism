@@ -45,7 +45,8 @@ use std::fmt::Debug;
 use transformers::{
     self as forte, ForteCancelRequest, ForteCancelResponse, ForteCaptureRequest,
     ForteCaptureResponse, FortePaymentsRequest, FortePaymentsResponse, FortePaymentsSyncResponse,
-    ForteRefundRequest, RefundResponse, RefundSyncResponse,
+    ForteRefundRequest, ForteSetupMandateRequest, ForteSetupMandateResponse, RefundResponse,
+    RefundSyncResponse,
 };
 
 use super::macros;
@@ -208,16 +209,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>
     for Forte<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        SetupMandate,
-        PaymentFlowData,
-        SetupMandateRequestData<T>,
-        PaymentsResponseData,
-    > for Forte<T>
 {
 }
 
@@ -392,6 +383,12 @@ macros::create_all_prerequisites!(
             request_body: ForteCancelRequest,
             response_body: ForteCancelResponse,
             router_data: RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+        ),
+        (
+            flow: SetupMandate,
+            request_body: ForteSetupMandateRequest<T>,
+            response_body: ForteSetupMandateResponse,
+            router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -619,6 +616,42 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<String, IntegrationError> {
             let auth: forte::ForteAuthType = forte::ForteAuthType::try_from(&req.connector_config)?;
             Ok(format!("{}/organizations/{}/locations/{}/transactions/{}", self.connector_base_url_payments(req), auth.organization_id.peek(),auth.location_id.peek(),req.request.connector_transaction_id))
+        }
+    }
+);
+
+// SetupMandate (SetupRecurring) Flow — uses the same /transactions endpoint
+// as Authorize but with action=verify (card verification / zero-dollar auth).
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Forte,
+    curl_request: Json(ForteSetupMandateRequest),
+    curl_response: ForteSetupMandateResponse,
+    flow_name: SetupMandate,
+    resource_common_data: PaymentFlowData,
+    flow_request: SetupMandateRequestData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            let auth: forte::ForteAuthType = forte::ForteAuthType::try_from(&req.connector_config)?;
+            Ok(format!(
+                "{}/organizations/{}/locations/{}/transactions",
+                self.base_url(&req.resource_common_data.connectors),
+                auth.organization_id.peek(),
+                auth.location_id.peek()
+            ))
         }
     }
 );
