@@ -524,6 +524,18 @@ jobs:
             echo "Using cached grpc-server: $GRPC_SERVER_BIN"
           fi
 
+      - name: Create connector credentials for SDK tests
+        shell: bash
+        env:
+          CONNECTOR_SPECIFIC_AUTH: ${{ secrets.CONNECTOR_SPECIFIC_AUTH }}
+        run: |
+          if [[ -n "${CONNECTOR_SPECIFIC_AUTH}" ]]; then
+            echo "${CONNECTOR_SPECIFIC_AUTH}" > creds.json
+            echo "Connector credentials created for SDK tests"
+          else
+            echo "No CONNECTOR_SPECIFIC_AUTH secret found, will run in dry-run mode"
+          fi
+
       - name: Run SDK Tests
         shell: bash
         run: |
