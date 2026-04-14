@@ -95,6 +95,20 @@ pub fn build_capture_request(connector_transaction_id: &str) -> PaymentServiceCa
     }
 }
 
+pub fn build_create_client_authentication_token_request() -> MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest {
+    serde_json::from_value::<MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest>(serde_json::json!({
+    "merchant_client_session_id": "probe_sdk_session_001",  // Infrastructure.
+    "domain_context": {
+        "payment": {
+            "amount": {
+                "minor_amount": 1000,
+                "currency": "USD",
+            },
+        },
+    },
+    })).unwrap_or_default()
+}
+
 pub fn build_create_order_request() -> PaymentServiceCreateOrderRequest {
     PaymentServiceCreateOrderRequest {
         merchant_order_id: Some("probe_order_001".to_string()),  // Identification.
@@ -475,6 +489,13 @@ pub async fn process_authorize(client: &ConnectorClient, _merchant_transaction_i
 pub async fn process_capture(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
     let response = client.capture(build_capture_request("probe_connector_txn_001"), &HashMap::new(), None).await?;
     Ok(format!("status: {:?}", response.status()))
+}
+
+// Flow: MerchantAuthenticationService.CreateClientAuthenticationToken
+#[allow(dead_code)]
+pub async fn create_client_authentication_token(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client.create_client_authentication_token(build_create_client_authentication_token_request(), &HashMap::new(), None).await?;
+    Ok(format!("status: {:?}", response.status_code))
 }
 
 // Flow: PaymentService.CreateOrder

@@ -200,7 +200,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    authorize, capture, get, handleEvent, recurringCharge, refund, refundGet, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildGetRequest, _buildHandleEventRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildVoidRequest
+    capture, get, handleEvent, recurringCharge, refund, refundGet, voidPayment, _buildCaptureRequest, _buildGetRequest, _buildHandleEventRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildVoidRequest
 };
 
 // CLI runner

@@ -79,6 +79,18 @@ def _build_capture_request(connector_transaction_id: str):
         ),
     )
 
+def _build_create_client_authentication_token_request():
+    return ParseDict(
+        {
+            "merchant_client_session_id": "probe_sdk_session_001",  # Infrastructure.
+            "domain_context": {
+                "minor_amount": 1000,
+                "currency": "USD"
+            }
+        },
+        payment_pb2.MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest(),
+    )
+
 def _build_create_order_request():
     return payment_pb2.PaymentServiceCreateOrderRequest(
         merchant_order_id="probe_order_001",  # Identification.

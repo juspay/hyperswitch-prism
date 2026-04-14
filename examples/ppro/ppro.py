@@ -180,7 +180,7 @@ async def process_void(merchant_transaction_id: str, config: sdk_config_pb2.Conn
     return {"status": void_response.status}
 
 if __name__ == "__main__":
-    scenario = sys.argv[1] if len(sys.argv) > 1 else "authorize"
+    scenario = sys.argv[1] if len(sys.argv) > 1 else "capture"
     fn = globals().get(f"process_{scenario}")
     if not fn:
         available = [k[8:] for k in globals() if k.startswith("process_")]
