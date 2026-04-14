@@ -427,7 +427,7 @@ connector_id: paypal
 doc: docs/connectors/paypal.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Card, Eps, Giropay, GooglePayDecrypted, Ideal, PaypalRedirect, PaypalSdk, Sofort
-flows: authorize, capture, create_order, create_server_authentication_token, get, handle_event, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, void
+flows: authorize, capture, create_client_authentication_token, create_order, create_server_authentication_token, get, handle_event, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, void
 examples_python: examples/paypal/paypal.py
 
 ## Paysafe
