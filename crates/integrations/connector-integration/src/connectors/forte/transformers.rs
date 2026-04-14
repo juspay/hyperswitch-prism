@@ -3,11 +3,11 @@ use common_enums::enums;
 use common_enums::BankType;
 use common_utils::types::FloatMajorUnit;
 use domain_types::{
-    connector_flow::{Authorize, Capture, Refund, Void},
+    connector_flow::{Authorize, Capture, Refund, SetupMandate, Void},
     connector_types::{
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId,
+        RefundsResponseData, ResponseId, SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{
@@ -937,4 +937,219 @@ pub struct ErrorResponseStatus {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct ForteErrorResponse {
     pub response: Option<ErrorResponseStatus>,
+}
+
+// ===== SETUP MANDATE (SetupRecurring) =====
+// Forte performs card verification / zero-dollar auth via the same
+// /transactions endpoint with action=verify. SetupMandate reuses the
+// Authorize request shape but pins action to Verify and defaults amount to 1.0.
+
+#[derive(Debug, Serialize)]
+pub struct ForteSetupMandateCardWrapper<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+> {
+    card: Card<T>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum ForteSetupMandatePaymentMethod<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+> {
+    Card(ForteSetupMandateCardWrapper<T>),
+    Echeck(ForteEcheckWrapper),
+}
+
+#[derive(Debug, Serialize)]
+pub struct ForteSetupMandateRequest<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+> {
+    action: ForteAction,
+    authorization_amount: FloatMajorUnit,
+    billing_address: BillingAddress,
+    #[serde(flatten)]
+    payment_method: ForteSetupMandatePaymentMethod<T>,
+}
+
+pub type ForteSetupMandateResponse = FortePaymentsResponse;
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        ForteRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for ForteSetupMandateRequest<T>
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        item: ForteRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        if item.router_data.request.currency != enums::Currency::USD {
+            return Err(IntegrationError::NotSupported {
+                message: "Only USD currency is supported by Forte".to_string(),
+                connector: "Forte",
+                context: Default::default(),
+            }
+            .into());
+        }
+        match item.router_data.request.payment_method_data {
+            PaymentMethodData::Card(ref ccard) => {
+                let card_number = ccard.card_number.peek();
+                let card_issuer = utils::get_card_issuer(card_number)?;
+                let card_type = ForteCardType::try_from(card_issuer)?;
+                let address = item
+                    .router_data
+                    .resource_common_data
+                    .get_billing_address()?;
+                let card = Card {
+                    card_type,
+                    name_on_card: item
+                        .router_data
+                        .resource_common_data
+                        .get_billing_full_name()?,
+                    account_number: ccard.card_number.clone(),
+                    expire_month: ccard.card_exp_month.clone(),
+                    expire_year: ccard.card_exp_year.clone(),
+                    card_verification_value: ccard.card_cvc.clone(),
+                };
+                let first_name = address.get_first_name()?;
+                let billing_address = BillingAddress {
+                    first_name: first_name.clone(),
+                    last_name: address.get_last_name().unwrap_or(first_name).clone(),
+                };
+                // Forte verify uses a nominal authorization_amount (1.00 USD).
+                let minor_amount = item
+                    .router_data
+                    .request
+                    .minor_amount
+                    .unwrap_or_else(|| common_utils::types::MinorUnit::new(100));
+                let authorization_amount = item
+                    .connector
+                    .amount_converter
+                    .convert(minor_amount, item.router_data.request.currency)
+                    .change_context(IntegrationError::RequestEncodingFailed {
+                        context: Default::default(),
+                    })?;
+                Ok(Self {
+                    action: ForteAction::Verify,
+                    authorization_amount,
+                    billing_address,
+                    payment_method: ForteSetupMandatePaymentMethod::Card(
+                        ForteSetupMandateCardWrapper { card },
+                    ),
+                })
+            }
+            PaymentMethodData::BankDebit(ref bank_debit_data) => match bank_debit_data {
+                BankDebitData::AchBankDebit {
+                    account_number,
+                    routing_number,
+                    bank_account_holder_name,
+                    bank_type,
+                    ..
+                } => {
+                    let account_holder = bank_account_holder_name
+                        .clone()
+                        .or(item
+                            .router_data
+                            .resource_common_data
+                            .get_billing_full_name()
+                            .ok())
+                        .ok_or(IntegrationError::MissingRequiredField {
+                            field_name: "bank_account_holder_name",
+                            context: Default::default(),
+                        })?;
+                    let account_type = bank_type.unwrap_or(BankType::Checking);
+                    let echeck = ForteEcheck {
+                        sec_code: ForteSecCode::WEB,
+                        account_type,
+                        routing_number: routing_number.clone(),
+                        account_number: account_number.clone(),
+                        account_holder,
+                    };
+                    let address = item
+                        .router_data
+                        .resource_common_data
+                        .get_billing_address()?;
+                    let first_name = address.get_first_name()?;
+                    let billing_address = BillingAddress {
+                        first_name: first_name.clone(),
+                        last_name: address.get_last_name().unwrap_or(first_name).clone(),
+                    };
+                    let minor_amount = item
+                        .router_data
+                        .request
+                        .minor_amount
+                        .unwrap_or_else(|| common_utils::types::MinorUnit::new(100));
+                    let authorization_amount = item
+                        .connector
+                        .amount_converter
+                        .convert(minor_amount, item.router_data.request.currency)
+                        .change_context(IntegrationError::RequestEncodingFailed {
+                            context: Default::default(),
+                        })?;
+                    Ok(Self {
+                        action: ForteAction::Verify,
+                        authorization_amount,
+                        billing_address,
+                        payment_method: ForteSetupMandatePaymentMethod::Echeck(
+                            ForteEcheckWrapper { echeck },
+                        ),
+                    })
+                }
+                _ => Err(IntegrationError::not_implemented(
+                    "Only ACH (US) bank debits are supported for Forte SetupMandate.".to_string(),
+                ))?,
+            },
+            _ => Err(IntegrationError::not_implemented(
+                utils::get_unimplemented_payment_method_error_message("Forte"),
+            ))?,
+        }
+    }
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<ForteSetupMandateResponse, Self>>
+    for RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<ForteSetupMandateResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response_code = item.response.response.response_code;
+        let action = item.response.action;
+        let transaction_id = &item.response.transaction_id;
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                status: get_status(response_code, action),
+                ..item.router_data.resource_common_data
+            },
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(transaction_id.to_string()),
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: Some(serde_json::json!(ForteMeta {
+                    auth_id: item.response.authorization_code
+                })),
+                network_txn_id: None,
+                connector_response_reference_id: Some(transaction_id.to_string()),
+                incremental_authorization_allowed: None,
+                status_code: item.http_code,
+            }),
+            ..item.router_data
+        })
+    }
 }
