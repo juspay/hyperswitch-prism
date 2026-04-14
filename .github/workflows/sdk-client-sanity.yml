@@ -85,6 +85,16 @@ jobs:
       - name: Install Python dependencies (SDK)
         run: pip install -r sdk/python/requirements.txt grpcio-tools protobuf
 
+      - name: Cache FFI library
+        uses: actions/cache@v4
+        with:
+          path: |
+            target/*/*/libconnector_service_ffi.so
+            target/*/*/libconnector_service_ffi.dylib
+          key: ffi-lib-${{ runner.os }}-${{ hashFiles('crates/ffi/**/*.rs', 'crates/ffi/**/Cargo.toml', 'Cargo.lock') }}
+          restore-keys: |
+            ffi-lib-${{ runner.os }}-
+
       - name: Build FFI library (UniFFI scaffolding)
         run: make -C sdk/python build-ffi-lib PROFILE=release-fast
 
