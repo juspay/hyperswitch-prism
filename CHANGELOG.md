@@ -19,6 +19,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.04.14.0
+
+### Features
+
+- **client:** Add MTLS support to client builder ([#790](https://github.com/juspay/connector-service/pull/790)) ([`a8b7b0e`](https://github.com/juspay/connector-service/commit/a8b7b0e5e09df0959e2316669a7ad90f4d14209d))
+- **connector:**
+  - Implement CreateClientAuthenticationToken for Nexinets ([#990](https://github.com/juspay/connector-service/pull/990)) ([`4f25614`](https://github.com/juspay/connector-service/commit/4f256142f4b0682113e33bd32c2c6e708d0e42eb))
+  - Implement CreateClientAuthenticationToken for Shift4 ([#978](https://github.com/juspay/connector-service/pull/978)) ([`f0ab711`](https://github.com/juspay/connector-service/commit/f0ab711ec3948a2959a76dea68314e62ba745699))
+  - Implement CreateClientAuthenticationToken for Payload ([#988](https://github.com/juspay/connector-service/pull/988)) ([`05bfbbc`](https://github.com/juspay/connector-service/commit/05bfbbc51daa3a494f77e3ba440dd6a4269f8e4b))
+  - Implement CreateClientAuthenticationToken for Mollie ([#977](https://github.com/juspay/connector-service/pull/977)) ([`151305e`](https://github.com/juspay/connector-service/commit/151305e04781ac7ba1306a975c6b36240ee03c48))
+- **connectors:** Add per-wallet Indian variants ([#891](https://github.com/juspay/connector-service/pull/891)) ([`f57ace5`](https://github.com/juspay/connector-service/commit/f57ace53f216c97720d613399bea1490c64c093e))
+
+### Bug Fixes
+
+- **ci:** Strip .rs extension from connector names ([#1033](https://github.com/juspay/connector-service/pull/1033)) ([`b2f9aa4`](https://github.com/juspay/connector-service/commit/b2f9aa426bcfa32f2c55bb6c858a298c8443fafb))
+
+### Documentation
+
+- **compliance:** Fix grammar and spelling in compliance.md ([#1041](https://github.com/juspay/connector-service/pull/1041)) ([`e63d309`](https://github.com/juspay/connector-service/commit/e63d30990b99a9851e35d7b464ccdeac76831a83))
+- **sdk:** FFI performance findings — boundary-crossing overhead across SDKs ([#1038](https://github.com/juspay/connector-service/pull/1038)) ([`801743b`](https://github.com/juspay/connector-service/commit/801743b0918f5630132d8f2e2dea9f8c77d67968))
+
+### Miscellaneous Tasks
+
+- Add skills ([#1034](https://github.com/juspay/connector-service/pull/1034)) ([`c9ee01c`](https://github.com/juspay/connector-service/commit/c9ee01c1876d7e5803407b401f33d5b067f6c024))
+- Context 7 setup ([#1035](https://github.com/juspay/connector-service/pull/1035)) ([`069178c`](https://github.com/juspay/connector-service/commit/069178cf4396ace9bb3e4b592991bdcad2c57fec))
+- Update package ([#1042](https://github.com/juspay/connector-service/pull/1042)) ([`90f79ce`](https://github.com/juspay/connector-service/commit/90f79ce8f81a88b32208fcb79066e5bafa595533))
+
+**Full Changelog:** [`2026.04.13.0...2026.04.14.0`](https://github.com/juspay/connector-service/compare/2026.04.13.0...2026.04.14.0)
+
+- - -
+
 ## 2026.04.13.0
 
 ### Features

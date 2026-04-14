@@ -3,6 +3,7 @@
   "supported_suites": [
     "authorize",
     "capture",
+    "client_authentication_token",
     "create_customer",
     "get",
     "recurring_charge",
