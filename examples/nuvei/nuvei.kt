@@ -19,10 +19,13 @@ import payments.MerchantAuthenticationServiceCreateClientAuthenticationTokenRequ
 import payments.PaymentServiceCreateOrderRequest
 import payments.MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest
 import payments.RefundServiceGetRequest
+import payments.PaymentServiceSetupRecurringRequest
+import payments.AcceptanceType
 import payments.AuthenticationType
 import payments.CaptureMethod
 import payments.CountryAlpha2
 import payments.Currency
+import payments.FutureUsage
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
@@ -319,6 +322,63 @@ fun refundGet(txnId: String) {
     println("Status: ${response.status.name}")
 }
 
+// Flow: PaymentService.SetupRecurring
+fun setupRecurring(txnId: String) {
+    val client = PaymentClient(_defaultConfig)
+    val request = PaymentServiceSetupRecurringRequest.newBuilder().apply {
+        merchantRecurringPaymentId = "probe_mandate_001"  // Identification.
+        amountBuilder.apply {  // Mandate Details.
+            minorAmount = 0L  // Amount in minor units (e.g., 1000 = $10.00).
+            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+        paymentMethodBuilder.apply {
+            cardBuilder.apply {  // Generic card payment.
+                cardNumberBuilder.value = "4111111111111111"  // Card Identification.
+                cardExpMonthBuilder.value = "03"
+                cardExpYearBuilder.value = "2030"
+                cardCvcBuilder.value = "737"
+                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
+            }
+        }
+        addressBuilder.apply {  // Address Information.
+            billingAddressBuilder.apply {
+                firstNameBuilder.value = "John"  // Personal Information.
+                lastNameBuilder.value = "Doe"
+                countryAlpha2Code = CountryAlpha2.US
+                emailBuilder.value = "test@example.com"  // Contact Information.
+            }
+        }
+        authType = AuthenticationType.NO_THREE_DS  // Type of authentication to be used.
+        enrolledFor3Ds = false  // Indicates if the customer is enrolled for 3D Secure.
+        returnUrl = "https://example.com/mandate-return"  // URL to redirect after setup.
+        sessionToken = "probe_session_token"  // Session token, if applicable.
+        setupFutureUsage = FutureUsage.OFF_SESSION  // Indicates future usage intention.
+        requestIncrementalAuthorization = false  // Indicates if incremental authorization is requested.
+        customerAcceptanceBuilder.apply {  // Details of customer acceptance.
+            acceptanceType = AcceptanceType.OFFLINE  // Type of acceptance (e.g., online, offline).
+            acceptedAt = 0L  // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
+        }
+        browserInfoBuilder.apply {  // Information about the customer's browser.
+            colorDepth = 24  // Display Information.
+            screenHeight = 900
+            screenWidth = 1440
+            javaEnabled = false  // Browser Settings.
+            javaScriptEnabled = true
+            language = "en-US"
+            timeZoneOffsetMinutes = -480
+            acceptHeader = "application/json"  // Browser Headers.
+            userAgent = "Mozilla/5.0 (probe-bot)"
+            acceptLanguage = "en-US,en;q=0.9"
+            ipAddress = "1.2.3.4"  // Device Information.
+        }
+    }.build()
+    val response = client.setup_recurring(request)
+    when (response.status.name) {
+        "FAILED" -> throw RuntimeException("Setup failed: ${response.error.unifiedDetails.message}")
+        else     -> println("Mandate stored: ${response.connectorRecurringPaymentId}")
+    }
+}
+
 // Flow: PaymentService.Void
 fun void(txnId: String) {
     val client = PaymentClient(_defaultConfig)
@@ -347,7 +407,8 @@ fun main(args: Array<String>) {
         "get" -> get(txnId)
         "refund" -> refund(txnId)
         "refundGet" -> refundGet(txnId)
+        "setupRecurring" -> setupRecurring(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createClientAuthenticationToken, createOrder, createServerSessionAuthenticationToken, get, refund, refundGet, void")
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createClientAuthenticationToken, createOrder, createServerSessionAuthenticationToken, get, refund, refundGet, setupRecurring, void")
     }
 }

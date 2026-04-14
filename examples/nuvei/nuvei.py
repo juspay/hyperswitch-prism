@@ -156,6 +156,58 @@ def _build_refund_get_request():
         payment_pb2.RefundServiceGetRequest(),
     )
 
+def _build_setup_recurring_request():
+    return ParseDict(
+        {
+            "merchant_recurring_payment_id": "probe_mandate_001",  # Identification.
+            "amount": {  # Mandate Details.
+                "minor_amount": 0,  # Amount in minor units (e.g., 1000 = $10.00).
+                "currency": "USD"  # ISO 4217 currency code (e.g., "USD", "EUR").
+            },
+            "payment_method": {
+                "card": {  # Generic card payment.
+                    "card_number": {"value": "4111111111111111"},  # Card Identification.
+                    "card_exp_month": {"value": "03"},
+                    "card_exp_year": {"value": "2030"},
+                    "card_cvc": {"value": "737"},
+                    "card_holder_name": {"value": "John Doe"}  # Cardholder Information.
+                }
+            },
+            "address": {  # Address Information.
+                "billing_address": {
+                    "first_name": {"value": "John"},  # Personal Information.
+                    "last_name": {"value": "Doe"},
+                    "country_alpha2_code": "US",
+                    "email": {"value": "test@example.com"}  # Contact Information.
+                }
+            },
+            "auth_type": "NO_THREE_DS",  # Type of authentication to be used.
+            "enrolled_for_3ds": False,  # Indicates if the customer is enrolled for 3D Secure.
+            "return_url": "https://example.com/mandate-return",  # URL to redirect after setup.
+            "session_token": "probe_session_token",  # Session token, if applicable.
+            "setup_future_usage": "OFF_SESSION",  # Indicates future usage intention.
+            "request_incremental_authorization": False,  # Indicates if incremental authorization is requested.
+            "customer_acceptance": {  # Details of customer acceptance.
+                "acceptance_type": "OFFLINE",  # Type of acceptance (e.g., online, offline).
+                "accepted_at": 0  # Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
+            },
+            "browser_info": {  # Information about the customer's browser.
+                "color_depth": 24,  # Display Information.
+                "screen_height": 900,
+                "screen_width": 1440,
+                "java_enabled": False,  # Browser Settings.
+                "java_script_enabled": True,
+                "language": "en-US",
+                "time_zone_offset_minutes": -480,
+                "accept_header": "application/json",  # Browser Headers.
+                "user_agent": "Mozilla/5.0 (probe-bot)",
+                "accept_language": "en-US,en;q=0.9",
+                "ip_address": "1.2.3.4"  # Device Information.
+            }
+        },
+        payment_pb2.PaymentServiceSetupRecurringRequest(),
+    )
+
 def _build_void_request(connector_transaction_id: str):
     return ParseDict(
         {
@@ -351,6 +403,15 @@ async def refund_get(merchant_transaction_id: str, config: sdk_config_pb2.Connec
     refund_response = await refund_client.refund_get(_build_refund_get_request())
 
     return {"status": refund_response.status}
+
+
+async def setup_recurring(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: PaymentService.SetupRecurring"""
+    payment_client = PaymentClient(config)
+
+    setup_response = await payment_client.setup_recurring(_build_setup_recurring_request())
+
+    return {"status": setup_response.status, "mandate_id": setup_response.connector_transaction_id}
 
 
 async def void(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):

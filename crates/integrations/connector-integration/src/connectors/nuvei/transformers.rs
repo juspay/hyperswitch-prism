@@ -2366,15 +2366,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Always Auth for mandate setup - we don't want to capture funds.
         let transaction_type = TransactionType::Auth;
 
-        let url_details = router_data
-            .request
-            .router_return_url
-            .as_ref()
-            .map(|url| NuveiUrlDetails {
-                success_url: url.clone(),
-                failure_url: url.clone(),
-                pending_url: url.clone(),
-            });
+        let url_details =
+            router_data
+                .request
+                .router_return_url
+                .as_ref()
+                .map(|url| NuveiUrlDetails {
+                    success_url: url.clone(),
+                    failure_url: url.clone(),
+                    pending_url: url.clone(),
+                });
 
         // Checksum: merchantId + merchantSiteId + clientRequestId + amount + currency + timeStamp + merchantSecretKey
         let checksum = auth.generate_checksum(&[
@@ -2409,7 +2410,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 // Map the Nuvei SetupMandate response onto the SetupMandate RouterDataV2.
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<ResponseRouterData<NuveiSetupMandateResponse, Self>>
-    for RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>
+    for RouterDataV2<
+        SetupMandate,
+        PaymentFlowData,
+        SetupMandateRequestData<T>,
+        PaymentsResponseData,
+    >
 {
     type Error = Report<ConnectorError>;
 
@@ -2474,8 +2480,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .ok_or_else(|| {
                 Report::new(ConnectorError::response_handling_failed_with_context(
                     item.http_code,
-                    Some("missing transaction_id and order_id in Nuvei SetupMandate response"
-                        .to_string()),
+                    Some(
+                        "missing transaction_id and order_id in Nuvei SetupMandate response"
+                            .to_string(),
+                    ),
                 ))
             })?;
 
@@ -2484,11 +2492,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .payment_option
             .as_ref()
             .and_then(|po| po.user_payment_option_id.clone())
-            .map(|id| Box::new(MandateReference {
-                connector_mandate_id: Some(id),
-                payment_method_id: None,
-                connector_mandate_request_reference_id: None,
-            }));
+            .map(|id| {
+                Box::new(MandateReference {
+                    connector_mandate_id: Some(id),
+                    payment_method_id: None,
+                    connector_mandate_request_reference_id: None,
+                })
+            });
 
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(connector_transaction_id),

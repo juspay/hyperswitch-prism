@@ -6,7 +6,7 @@
 // Run a scenario:  npx tsx nuvei.ts checkout_autocapture
 
 import { PaymentClient, MerchantAuthenticationClient, RefundClient, types } from 'hyperswitch-prism';
-const { ConnectorConfig, ConnectorSpecificConfig, SdkOptions, Environment, AuthenticationType, CaptureMethod, CountryAlpha2, Currency } = types;
+const { ConnectorConfig, ConnectorSpecificConfig, SdkOptions, Environment, AcceptanceType, AuthenticationType, CaptureMethod, CountryAlpha2, Currency, FutureUsage } = types;
 
 const _defaultConfig: ConnectorConfig = {
     options: {
@@ -132,6 +132,56 @@ function _buildRefundGetRequest(): RefundServiceGetRequest {
         "merchantRefundId": "probe_refund_001",  // Identification.
         "connectorTransactionId": "probe_connector_txn_001",
         "refundId": "probe_refund_id_001"
+    };
+}
+
+function _buildSetupRecurringRequest(): PaymentServiceSetupRecurringRequest {
+    return {
+        "merchantRecurringPaymentId": "probe_mandate_001",  // Identification.
+        "amount": {  // Mandate Details.
+            "minorAmount": 0,  // Amount in minor units (e.g., 1000 = $10.00).
+            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        },
+        "paymentMethod": {
+            "card": {  // Generic card payment.
+                "cardNumber": {"value": "4111111111111111"},  // Card Identification.
+                "cardExpMonth": {"value": "03"},
+                "cardExpYear": {"value": "2030"},
+                "cardCvc": {"value": "737"},
+                "cardHolderName": {"value": "John Doe"}  // Cardholder Information.
+            }
+        },
+        "address": {  // Address Information.
+            "billingAddress": {
+                "firstName": {"value": "John"},  // Personal Information.
+                "lastName": {"value": "Doe"},
+                "countryAlpha2Code": CountryAlpha2.US,
+                "email": {"value": "test@example.com"}  // Contact Information.
+            }
+        },
+        "authType": AuthenticationType.NO_THREE_DS,  // Type of authentication to be used.
+        "enrolledFor3Ds": false,  // Indicates if the customer is enrolled for 3D Secure.
+        "returnUrl": "https://example.com/mandate-return",  // URL to redirect after setup.
+        "sessionToken": "probe_session_token",  // Session token, if applicable.
+        "setupFutureUsage": FutureUsage.OFF_SESSION,  // Indicates future usage intention.
+        "requestIncrementalAuthorization": false,  // Indicates if incremental authorization is requested.
+        "customerAcceptance": {  // Details of customer acceptance.
+            "acceptanceType": AcceptanceType.OFFLINE,  // Type of acceptance (e.g., online, offline).
+            "acceptedAt": 0  // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
+        },
+        "browserInfo": {  // Information about the customer's browser.
+            "colorDepth": 24,  // Display Information.
+            "screenHeight": 900,
+            "screenWidth": 1440,
+            "javaEnabled": false,  // Browser Settings.
+            "javaScriptEnabled": true,
+            "language": "en-US",
+            "timeZoneOffsetMinutes": -480,
+            "acceptHeader": "application/json",  // Browser Headers.
+            "userAgent": "Mozilla/5.0 (probe-bot)",
+            "acceptLanguage": "en-US,en;q=0.9",
+            "ipAddress": "1.2.3.4"  // Device Information.
+        }
     };
 }
 
@@ -335,6 +385,15 @@ async function refundGet(merchantTransactionId: string, config: ConnectorConfig 
     return { status: refundResponse.status };
 }
 
+// Flow: PaymentService.SetupRecurring
+async function setupRecurring(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<PaymentServiceSetupRecurringResponse> {
+    const paymentClient = new PaymentClient(config);
+
+    const setupResponse = await paymentClient.setupRecurring(_buildSetupRecurringRequest());
+
+    return { status: setupResponse.status, mandateId: setupResponse.connectorTransactionId };
+}
+
 // Flow: PaymentService.Void
 async function voidPayment(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<PaymentServiceVoidResponse> {
     const paymentClient = new PaymentClient(config);
@@ -347,7 +406,7 @@ async function voidPayment(merchantTransactionId: string, config: ConnectorConfi
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createClientAuthenticationToken, createOrder, createServerSessionAuthenticationToken, get, refund, refundGet, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateClientAuthenticationTokenRequest, _buildCreateOrderRequest, _buildCreateServerSessionAuthenticationTokenRequest, _buildGetRequest, _buildRefundRequest, _buildRefundGetRequest, _buildVoidRequest
+    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createClientAuthenticationToken, createOrder, createServerSessionAuthenticationToken, get, refund, refundGet, setupRecurring, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateClientAuthenticationTokenRequest, _buildCreateOrderRequest, _buildCreateServerSessionAuthenticationTokenRequest, _buildGetRequest, _buildRefundRequest, _buildRefundGetRequest, _buildSetupRecurringRequest, _buildVoidRequest
 };
 
 // CLI runner

@@ -598,7 +598,8 @@
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Stuck on field: session_token — Missing required field: session_token"
       }
     },
     "recurring_charge": {
@@ -661,7 +662,63 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "last_name": "Doe",
+              "country_alpha2_code": "US",
+              "email": "test@example.com"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/mandate-return",
+          "session_token": "probe_session_token",
+          "setup_future_usage": "OFF_SESSION",
+          "request_incremental_authorization": false,
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          },
+          "browser_info": {
+            "color_depth": 24,
+            "screen_height": 900,
+            "screen_width": 1440,
+            "java_enabled": false,
+            "java_script_enabled": true,
+            "language": "en-US",
+            "time_zone_offset_minutes": -480,
+            "accept_header": "application/json",
+            "user_agent": "Mozilla/5.0 (probe-bot)",
+            "accept_language": "en-US,en;q=0.9",
+            "ip_address": "1.2.3.4"
+          }
+        },
+        "sample": {
+          "url": "https://ppp-test.nuvei.com/ppp/api/v1/payment.do",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"sessionToken\":\"probe_session_token\",\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"clientRequestId\":\"probe_mandate_001\",\"amount\":\"0.00\",\"currency\":\"USD\",\"clientUniqueId\":\"probe_mandate_001\",\"paymentOption\":{\"card\":{\"cardNumber\":\"4111111111111111\",\"cardHolderName\":\"John Doe\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"CVV\":\"737\"}},\"isRebilling\":\"0\",\"transactionType\":\"Auth\",\"deviceDetails\":{\"ipAddress\":\"1.2.3.4\"},\"billingAddress\":{\"email\":\"test@example.com\",\"country\":\"US\",\"firstName\":\"John\",\"lastName\":\"Doe\"},\"urlDetails\":{\"successUrl\":\"https://example.com/mandate-return\",\"failureUrl\":\"https://example.com/mandate-return\",\"pendingUrl\":\"https://example.com/mandate-return\"},\"timeStamp\":\"00000000000000\",\"checksum\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
+        }
       }
     },
     "token_authorize": {
@@ -672,7 +729,8 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "Payment method not supported for SetupMandate is not supported by nuvei"
       }
     },
     "tokenize": {
