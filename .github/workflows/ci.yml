@@ -487,15 +487,6 @@ jobs:
           cd sdk/javascript && npm ci && cd ../..
           cd sdk/tests && npm install && cd ../..
 
-      - name: Generate SDK code (flows.json)
-        shell: bash
-        run: make -C sdk generate FFI_SKIP_BUILD=1
-
-      - uses: Swatinem/rust-cache@v2.7.8
-        with:
-          cache-on-failure: true
-          key: sdk-test-${{ runner.os }}-${{ hashFiles('sdk/generated/flows.json') }}
-
       - name: Cache FFI library
         uses: actions/cache@v4
         with:
@@ -506,19 +497,7 @@ jobs:
           restore-keys: |
             ffi-lib-${{ runner.os }}-
 
-      - name: Create connector credentials for SDK tests
-        shell: bash
-        env:
-          CONNECTOR_SPECIFIC_AUTH: ${{ secrets.CONNECTOR_SPECIFIC_AUTH }}
-        run: |
-          if [[ -n "${CONNECTOR_SPECIFIC_AUTH}" ]]; then
-            echo "${CONNECTOR_SPECIFIC_AUTH}" > creds.json
-            echo "Connector credentials created for SDK tests"
-          else
-            echo "No CONNECTOR_SPECIFIC_AUTH secret found, will run in dry-run mode"
-          fi
-
-      - name: Build FFI and gRPC libraries once
+      - name: Build FFI and gRPC libraries
         run: |
           ARCH=$(uname -m)
           if [ "$ARCH" = "aarch64" ]; then
@@ -569,7 +548,7 @@ jobs:
 
       - name: Verify SDK code regeneration produces no changes
         shell: bash
-        run: make -C sdk generate FFI_SKIP_BUILD=1
+        run: make -C sdk generate FFI_SKIP_BUILD=1 PROFILE=release-fast
 
       - name: Check for uncommitted changes
         shell: bash
