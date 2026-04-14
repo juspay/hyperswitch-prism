@@ -1342,7 +1342,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .or_else(|| {
                 item.request.customer_id.as_ref().and_then(|cid| {
                     let s = cid.get_string_repr().to_string();
-                    if s.starts_with("cust_") { Some(s) } else { None }
+                    if s.starts_with("cust_") {
+                        Some(s)
+                    } else {
+                        None
+                    }
                 })
             });
 
@@ -1471,7 +1475,11 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4SetupMandateRes
             .customer
             .as_ref()
             .map(|c| c.id().to_string())
-            .or(item.router_data.resource_common_data.connector_customer.clone());
+            .or(item
+                .router_data
+                .resource_common_data
+                .connector_customer
+                .clone());
 
         Ok(Self {
             response,
