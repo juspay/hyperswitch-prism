@@ -5,7 +5,7 @@
 // Adyen — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx adyen.ts checkout_autocapture
 
-import { PaymentClient, DisputeClient, EventClient, RecurringPaymentClient, types } from 'hyperswitch-prism';
+import { PaymentClient, MerchantAuthenticationClient, DisputeClient, EventClient, RecurringPaymentClient, types } from 'hyperswitch-prism';
 const { ConnectorConfig, ConnectorSpecificConfig, SdkOptions, Environment, AcceptanceType, AuthenticationType, CaptureMethod, Currency, FutureUsage, PaymentMethodType } = types;
 
 const _defaultConfig: ConnectorConfig = {
@@ -63,6 +63,26 @@ function _buildCaptureRequest(connectorTransactionId: string): PaymentServiceCap
         "merchantCaptureId": "probe_capture_001",  // Identification.
         "connectorTransactionId": connectorTransactionId,
         "amountToCapture": {  // Capture Details.
+            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+    };
+}
+
+function _buildCreateClientAuthenticationTokenRequest(): MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest {
+    return {
+        "merchantClientSessionId": "probe_sdk_session_001",  // Infrastructure.
+        "domainContext": {
+            "minorAmount": 1000,
+            "currency": "USD"
+        }
+    };
+}
+
+function _buildCreateOrderRequest(): PaymentServiceCreateOrderRequest {
+    return {
+        "merchantOrderId": "probe_order_001",  // Identification.
+        "amount": {  // Amount Information.
             "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
             "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         }
@@ -265,6 +285,23 @@ function _buildSetupRecurringRequest(): PaymentServiceSetupRecurringRequest {
     };
 }
 
+function _buildTokenAuthorizeRequest(): PaymentServiceTokenAuthorizeRequest {
+    return {
+        "merchantTransactionId": "probe_tokenized_txn_001",
+        "amount": {
+            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        },
+        "connectorToken": {"value": "pm_1AbcXyzStripeTestToken"},  // Connector-issued token. Replaces PaymentMethod entirely. Examples: Stripe pm_xxx, Adyen recurringDetailReference, Braintree nonce.
+        "address": {
+            "billingAddress": {
+            }
+        },
+        "captureMethod": CaptureMethod.AUTOMATIC,
+        "returnUrl": "https://example.com/return"
+    };
+}
+
 function _buildVoidRequest(connectorTransactionId: string): PaymentServiceVoidRequest {
     return {
         "merchantVoidId": "probe_void_001",  // Identification.
@@ -385,6 +422,24 @@ async function capture(merchantTransactionId: string, config: ConnectorConfig = 
     return { status: captureResponse.status };
 }
 
+// Flow: MerchantAuthenticationService.CreateClientAuthenticationToken
+async function createClientAuthenticationToken(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse> {
+    const merchantAuthenticationClient = new MerchantAuthenticationClient(config);
+
+    const createResponse = await merchantAuthenticationClient.createClientAuthenticationToken(_buildCreateClientAuthenticationTokenRequest());
+
+    return { status: createResponse.status };
+}
+
+// Flow: PaymentService.CreateOrder
+async function createOrder(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<PaymentServiceCreateOrderResponse> {
+    const paymentClient = new PaymentClient(config);
+
+    const createResponse = await paymentClient.createOrder(_buildCreateOrderRequest());
+
+    return { status: createResponse.status };
+}
+
 // Flow: DisputeService.Accept
 async function disputeAccept(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<DisputeServiceAcceptResponse> {
     const disputeClient = new DisputeClient(config);
@@ -466,6 +521,15 @@ async function setupRecurring(merchantTransactionId: string, config: ConnectorCo
     return { status: setupResponse.status, mandateId: setupResponse.connectorTransactionId };
 }
 
+// Flow: PaymentService.TokenAuthorize
+async function tokenAuthorize(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<PaymentServiceAuthorizeResponse> {
+    const paymentClient = new PaymentClient(config);
+
+    const tokenResponse = await paymentClient.tokenAuthorize(_buildTokenAuthorizeRequest());
+
+    return { status: tokenResponse.status };
+}
+
 // Flow: PaymentService.Void
 async function voidPayment(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<PaymentServiceVoidResponse> {
     const paymentClient = new PaymentClient(config);
@@ -478,7 +542,7 @@ async function voidPayment(merchantTransactionId: string, config: ConnectorConfi
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, authorize, capture, disputeAccept, disputeDefend, disputeSubmitEvidence, handleEvent, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, setupRecurring, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildDisputeAcceptRequest, _buildDisputeDefendRequest, _buildDisputeSubmitEvidenceRequest, _buildHandleEventRequest, _buildProxyAuthorizeRequest, _buildProxySetupRecurringRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildSetupRecurringRequest, _buildVoidRequest
+    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, authorize, capture, createClientAuthenticationToken, createOrder, disputeAccept, disputeDefend, disputeSubmitEvidence, handleEvent, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, setupRecurring, tokenAuthorize, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateClientAuthenticationTokenRequest, _buildCreateOrderRequest, _buildDisputeAcceptRequest, _buildDisputeDefendRequest, _buildDisputeSubmitEvidenceRequest, _buildHandleEventRequest, _buildProxyAuthorizeRequest, _buildProxySetupRecurringRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildSetupRecurringRequest, _buildTokenAuthorizeRequest, _buildVoidRequest
 };
 
 // CLI runner

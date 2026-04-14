@@ -70,6 +70,33 @@ function _buildCaptureRequest(connectorTransactionId: string): PaymentServiceCap
     };
 }
 
+function _buildCreateClientAuthenticationTokenRequest(): MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest {
+    return {
+        "merchantClientSessionId": "probe_sdk_session_001",  // Infrastructure.
+        "domainContext": {
+            "minorAmount": 1000,
+            "currency": "USD"
+        }
+    };
+}
+
+function _buildCreateOrderRequest(): PaymentServiceCreateOrderRequest {
+    return {
+        "merchantOrderId": "probe_order_001",  // Identification.
+        "amount": {  // Amount Information.
+            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        },
+        "state": {  // State Information.
+            "accessToken": {  // Access token obtained from connector.
+                "token": {"value": "probe_access_token"},  // The token string.
+                "expiresInSeconds": 3600,  // Expiration timestamp (seconds since epoch).
+                "tokenType": "Bearer"  // Token type (e.g., "Bearer", "Basic").
+            }
+        }
+    };
+}
+
 function _buildCreateServerAuthenticationTokenRequest(): MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
     return {
     };
@@ -416,6 +443,24 @@ async function capture(merchantTransactionId: string, config: ConnectorConfig = 
     return { status: captureResponse.status };
 }
 
+// Flow: MerchantAuthenticationService.CreateClientAuthenticationToken
+async function createClientAuthenticationToken(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse> {
+    const merchantAuthenticationClient = new MerchantAuthenticationClient(config);
+
+    const createResponse = await merchantAuthenticationClient.createClientAuthenticationToken(_buildCreateClientAuthenticationTokenRequest());
+
+    return { status: createResponse.status };
+}
+
+// Flow: PaymentService.CreateOrder
+async function createOrder(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<PaymentServiceCreateOrderResponse> {
+    const paymentClient = new PaymentClient(config);
+
+    const createResponse = await paymentClient.createOrder(_buildCreateOrderRequest());
+
+    return { status: createResponse.status };
+}
+
 // Flow: MerchantAuthenticationService.CreateServerAuthenticationToken
 async function createServerAuthenticationToken(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse> {
     const merchantAuthenticationClient = new MerchantAuthenticationClient(config);
@@ -509,7 +554,7 @@ async function voidPayment(merchantTransactionId: string, config: ConnectorConfi
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createServerAuthenticationToken, get, handleEvent, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateServerAuthenticationTokenRequest, _buildGetRequest, _buildHandleEventRequest, _buildProxyAuthorizeRequest, _buildProxySetupRecurringRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildSetupRecurringRequest, _buildVoidRequest
+    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createClientAuthenticationToken, createOrder, createServerAuthenticationToken, get, handleEvent, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateClientAuthenticationTokenRequest, _buildCreateOrderRequest, _buildCreateServerAuthenticationTokenRequest, _buildGetRequest, _buildHandleEventRequest, _buildProxyAuthorizeRequest, _buildProxySetupRecurringRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildSetupRecurringRequest, _buildVoidRequest
 };
 
 // CLI runner

@@ -226,8 +226,7 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
+          "return_url": "https://example.com/return"
         },
         "sample": {
           "url": "https://api.stripe.com/v1/payment_intents",
@@ -238,7 +237,7 @@
             "stripe-version": "2022-11-15",
             "via": "HyperSwitch"
           },
-          "body": "amount=1000&currency=USD&metadata%5Border_id%5D=probe_txn_001&return_url=https%3A%2F%2Fexample.com%2Freturn&confirm=true&payment_method_data%5Bcard%5D%5Btoken%5D=probe_pm_token&payment_method_data%5Btype%5D=card&capture_method=automatic&expand%5B0%5D=latest_charge"
+          "body": "amount=1000&currency=USD&metadata%5Border_id%5D=probe_txn_001&return_url=https%3A%2F%2Fexample.com%2Freturn&confirm=true&pk_token=%7B%22version%22%3A%22EC_v1%22%2C%22data%22%3A%22probe%22%2C%22signature%22%3A%22probe%22%7D&pk_token_instrument_name=debit&pk_token_payment_network=Visa&pk_token_transaction_id=probe_txn_id&capture_method=automatic&expand%5B0%5D=latest_charge"
         }
       },
       "ApplePayDecrypted": {
@@ -275,8 +274,7 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
+          "return_url": "https://example.com/return"
         },
         "sample": {
           "url": "https://api.stripe.com/v1/payment_intents",
@@ -287,7 +285,7 @@
             "stripe-version": "2022-11-15",
             "via": "HyperSwitch"
           },
-          "body": "amount=1000&currency=USD&metadata%5Border_id%5D=probe_txn_001&return_url=https%3A%2F%2Fexample.com%2Freturn&confirm=true&payment_method_data%5Bcard%5D%5Btoken%5D=probe_pm_token&payment_method_data%5Btype%5D=card&capture_method=automatic&expand%5B0%5D=latest_charge"
+          "body": "amount=1000&currency=USD&metadata%5Border_id%5D=probe_txn_001&return_url=https%3A%2F%2Fexample.com%2Freturn&confirm=true&card%5Bnumber%5D=4111111111111111&card%5Bexp_year%5D=2030&card%5Bexp_month%5D=03&card%5Bcryptogram%5D=AAAAAA%3D%3D&card%5Beci%5D=05&card%5Btokenization_method%5D=apple_pay&capture_method=automatic&expand%5B0%5D=latest_charge"
         }
       },
       "ApplePayThirdPartySdk": {
@@ -1414,7 +1412,7 @@
             "stripe-version": "2022-11-15",
             "via": "HyperSwitch"
           },
-          "body": "amount=1000&currency=USD&metadata%5Border_id%5D=&return_url=https%3A%2F%2Fexample.com%2Frecurring-return&confirm=true&payment_method=probe-mandate-123&customer=cust_probe_123&capture_method=automatic&off_session=true&payment_method_types%5B0%5D=card&expand%5B0%5D=latest_charge"
+          "body": "amount=1000&currency=USD&metadata%5Border_id%5D=&return_url=https%3A%2F%2Fexample.com%2Frecurring-return&confirm=true&payment_method=probe_pm_token&customer=cust_probe_123&capture_method=automatic&off_session=true&expand%5B0%5D=latest_charge"
         }
       }
     },
@@ -1521,8 +1519,31 @@
     },
     "token_authorize": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through stripe"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_tokenized_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "connector_token": "pm_1AbcXyzStripeTestToken",
+          "address": {
+            "billing_address": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.stripe.com/v1/payment_intents",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/x-www-form-urlencoded",
+            "stripe-version": "2022-11-15",
+            "via": "HyperSwitch"
+          },
+          "body": "amount=1000&currency=USD&metadata%5Border_id%5D=probe_tokenized_txn_001&return_url=https%3A%2F%2Fexample.com%2Freturn&confirm=true&payment_method=pm_1AbcXyzStripeTestToken&capture_method=automatic&expand%5B0%5D=latest_charge"
+        }
       }
     },
     "token_setup_recurring": {
@@ -1553,7 +1574,7 @@
           }
         },
         "sample": {
-          "url": "https://api.stripe.com/v1/tokens",
+          "url": "https://api.stripe.com/v1/payment_methods",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_key",

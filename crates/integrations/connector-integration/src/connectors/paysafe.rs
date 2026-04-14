@@ -407,7 +407,12 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>,
         ) -> CustomResult<String, IntegrationError> {
-            Ok(format!("{}v1/paymenthandles", self.connector_base_url_payments(req)))
+            // Google Pay requires singleusepaymenthandles endpoint per Paysafe docs
+            let endpoint = match req.resource_common_data.payment_method {
+                PaymentMethod::Wallet => "v1/singleusepaymenthandles",
+                _ => "v1/paymenthandles",
+            };
+            Ok(format!("{}{}", self.connector_base_url_payments(req), endpoint))
         }
     }
 );

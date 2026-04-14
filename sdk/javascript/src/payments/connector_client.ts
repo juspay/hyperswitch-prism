@@ -14,7 +14,7 @@
 
 import { Dispatcher } from "undici";
 import { UniffiClient } from "./uniffi_client";
-import { execute, createDispatcher, HttpRequest, NetworkError } from "../http_client";
+import { execute, createDispatcher, HttpRequest, NetworkError, generateProxyCacheKey } from "../http_client";
 // @ts-ignore - protobuf generated files might not have types yet
 import { types } from "./generated/proto";
 
@@ -27,7 +27,8 @@ export class ConnectorClient {
   private uniffi: UniffiClient;
   private config: types.ConnectorConfig;
   private defaults: types.IRequestConfig;
-  private dispatcher: Dispatcher;
+  private baseHttpConfig: types.IHttpConfig;
+  private dispatcherCache: Map<string, Dispatcher>;
 
   /**
    * Initialize the client with mandatory config and optional request defaults.
@@ -56,8 +57,9 @@ export class ConnectorClient {
       );
     }
 
-    // Instance-level cache: create the primary connection pool at startup
-    this.dispatcher = createDispatcher(defaults.http || {});
+    // Store base HTTP config (merged with defaults)
+    this.baseHttpConfig = defaults.http || {};
+    this.dispatcherCache = new Map();
   }
 
   /**
@@ -68,16 +70,15 @@ export class ConnectorClient {
     http: types.IHttpConfig;
   } {
     const opt = overrides || {};
-    const clientHttp = this.defaults.http || {};
     const overrideHttp = opt.http || {};
 
     const http: types.IHttpConfig = {
-      totalTimeoutMs: overrideHttp.totalTimeoutMs ?? clientHttp.totalTimeoutMs,
-      connectTimeoutMs: overrideHttp.connectTimeoutMs ?? clientHttp.connectTimeoutMs,
-      responseTimeoutMs: overrideHttp.responseTimeoutMs ?? clientHttp.responseTimeoutMs,
-      keepAliveTimeoutMs: overrideHttp.keepAliveTimeoutMs ?? clientHttp.keepAliveTimeoutMs,
-      proxy: overrideHttp.proxy ?? clientHttp.proxy,
-      caCert: overrideHttp.caCert ?? clientHttp.caCert,
+      totalTimeoutMs: overrideHttp.totalTimeoutMs ?? this.baseHttpConfig.totalTimeoutMs,
+      connectTimeoutMs: overrideHttp.connectTimeoutMs ?? this.baseHttpConfig.connectTimeoutMs,
+      responseTimeoutMs: overrideHttp.responseTimeoutMs ?? this.baseHttpConfig.responseTimeoutMs,
+      keepAliveTimeoutMs: overrideHttp.keepAliveTimeoutMs ?? this.baseHttpConfig.keepAliveTimeoutMs,
+      proxy: overrideHttp.proxy ?? this.baseHttpConfig.proxy,
+      caCert: overrideHttp.caCert ?? this.baseHttpConfig.caCert,
     };
 
     const ffi = types.FfiOptions.create({
@@ -86,6 +87,24 @@ export class ConnectorClient {
     });
 
     return { ffi, http };
+  }
+
+  /**
+   * Get or create a cached dispatcher based on the effective proxy configuration.
+   */
+  private _getOrCreateDispatcher(httpConfig: types.IHttpConfig): Dispatcher {
+    const cacheKey = generateProxyCacheKey(httpConfig.proxy);
+
+    // Fast path - check cache
+    const cached = this.dispatcherCache.get(cacheKey);
+    if (cached !== undefined) {
+      return cached;
+    }
+
+    // Slow path - create new dispatcher
+    const newDispatcher = createDispatcher(httpConfig);
+    this.dispatcherCache.set(cacheKey, newDispatcher);
+    return newDispatcher;
   }
 
   /**
@@ -127,14 +146,17 @@ export class ConnectorClient {
       body: connectorReq.body ?? undefined
     };
 
-    // 4. Execute HTTP using the instance-owned connection pool
+    // 4. Get or create cached dispatcher based on effective proxy config
+    const dispatcher = this._getOrCreateDispatcher(http);
+
+    // 5. Execute HTTP using the cached connection pool
     const response = await execute(
       connectorRequest,
       http,
-      this.dispatcher
+      dispatcher
     );
 
-    // 5. Encode HTTP response for FFI
+    // 6. Encode HTTP response for FFI
     const resProto = v2.FfiConnectorHttpResponse.create({
       statusCode: response.statusCode,
       headers: response.headers,
@@ -142,7 +164,7 @@ export class ConnectorClient {
     });
     const resBytes = Buffer.from(v2.FfiConnectorHttpResponse.encode(resProto).finish());
 
-    // 6. Parse connector response via FFI and decode
+    // 7. Parse connector response via FFI and decode
     const resultBytesRes = this.uniffi.callRes(flow, resBytes, requestBytes, optionsBytes);
     // callRes returns FfiConnectorHttpResponse, extract domain response from body
     const httpResponse = v2.FfiConnectorHttpResponse.decode(resultBytesRes);

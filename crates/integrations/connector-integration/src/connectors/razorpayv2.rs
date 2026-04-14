@@ -267,12 +267,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         }
 
         let order_response = PaymentCreateOrderResponse {
-            order_id: response.id,
+            connector_order_id: response.id.clone(),
             session_data: None,
         };
 
         Ok(RouterDataV2 {
             response: Ok(order_response),
+            resource_common_data: PaymentFlowData {
+                connector_order_id: Some(response.id),
+                ..data.resource_common_data.clone()
+            },
             ..data.clone()
         })
     }
@@ -385,10 +389,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> CustomResult<Option<RequestContent>, IntegrationError> {
         let order_id = req
             .resource_common_data
-            .reference_id
+            .connector_order_id
             .as_ref()
             .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "merchant_order_id",
+                field_name: "connector_order_id",
                 context: Default::default(),
             })?
             .clone();
@@ -720,10 +724,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> CustomResult<String, IntegrationError> {
         let base_url = &req.resource_common_data.connectors.razorpayv2.base_url;
 
-        // Check if request_ref_id is provided to determine URL pattern
-        match &req.resource_common_data.reference_id {
+        // Check if connector_order_id is provided to determine URL pattern
+        match &req.resource_common_data.connector_order_id {
             Some(ref_id) => {
-                // Use orders endpoint when request_ref_id is provided
+                // Use orders endpoint when connector_order_id is provided
                 Ok(format!("{base_url}v1/orders/{ref_id}/payments"))
             }
             None => {

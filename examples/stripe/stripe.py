@@ -14,7 +14,7 @@ from payments import CustomerClient
 from payments import RecurringPaymentClient
 from payments import RefundClient
 from payments import PaymentMethodClient
-from payments.generated import sdk_config_pb2, payment_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -255,6 +255,25 @@ def _build_setup_recurring_request():
             }
         },
         payment_pb2.PaymentServiceSetupRecurringRequest(),
+    )
+
+def _build_token_authorize_request():
+    return ParseDict(
+        {
+            "merchant_transaction_id": "probe_tokenized_txn_001",
+            "amount": {
+                "minor_amount": 1000,  # Amount in minor units (e.g., 1000 = $10.00).
+                "currency": "USD"  # ISO 4217 currency code (e.g., "USD", "EUR").
+            },
+            "connector_token": {"value": "pm_1AbcXyzStripeTestToken"},  # Connector-issued token. Replaces PaymentMethod entirely. Examples: Stripe pm_xxx, Adyen recurringDetailReference, Braintree nonce.
+            "address": {
+                "billing_address": {
+                }
+            },
+            "capture_method": "AUTOMATIC",
+            "return_url": "https://example.com/return"
+        },
+        payment_pb2.PaymentServiceTokenAuthorizeRequest(),
     )
 
 def _build_tokenize_request():
@@ -508,6 +527,15 @@ async def setup_recurring(merchant_transaction_id: str, config: sdk_config_pb2.C
     setup_response = await payment_client.setup_recurring(_build_setup_recurring_request())
 
     return {"status": setup_response.status, "mandate_id": setup_response.connector_transaction_id}
+
+
+async def token_authorize(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: PaymentService.TokenAuthorize"""
+    payment_client = PaymentClient(config)
+
+    token_response = await payment_client.token_authorize(_build_token_authorize_request())
+
+    return {"status": token_response.status}
 
 
 async def tokenize(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):

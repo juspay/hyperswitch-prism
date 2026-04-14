@@ -2,12 +2,13 @@ mod requests;
 mod responses;
 pub mod transformers;
 
-use requests::*;
-use responses::*;
+use requests::{JpmorganClientAuthRequest, *};
+use responses::{JpmorganClientAuthResponse, *};
 
 use std::fmt::Debug;
 
 use base64::Engine;
+use bytes::Bytes;
 use common_enums::CurrencyUnit;
 use common_utils::{consts, errors::CustomResult, events, ext_traits::ByteSliceExt};
 use domain_types::{
@@ -220,6 +221,58 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 macros::create_amount_converter_wrapper!(connector_name: Jpmorgan, amount_type: MinorUnit);
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Jpmorgan<T> {
+    /// JPMorgan returns malformed JSON for wallet payments where expiry fields are empty
+    /// e.g. `"month": ,` instead of `"month": null`. This sanitizes those cases.
+    pub fn preprocess_response_bytes<F, FCD, Req, Res>(
+        &self,
+        _req: &RouterDataV2<F, FCD, Req, Res>,
+        response_bytes: Bytes,
+        _status_code: u16,
+    ) -> Result<Bytes, ConnectorError> {
+        let raw = String::from_utf8(response_bytes.to_vec()).map_err(|_| {
+            ConnectorError::ResponseDeserializationFailed {
+                context: Default::default(),
+            }
+        })?;
+        // Replace patterns like `": ,` and `": \r\n` (empty JSON values) with `": null`
+        let sanitized = regex_replace_empty_json_values(&raw);
+        Ok(Bytes::from(sanitized))
+    }
+}
+
+/// Replace bare empty values in JSON (e.g. `"key": ,` or `"key": \n`) with `"key": null`.
+fn regex_replace_empty_json_values(input: &str) -> String {
+    let mut result = String::with_capacity(input.len());
+    let chars: Vec<char> = input.chars().collect();
+    let len = chars.len();
+    let mut i = 0;
+    while i < len {
+        let Some(&c) = chars.get(i) else { break };
+        result.push(c);
+        // After a colon, check if the next non-whitespace char is `,` or `}`
+        if c == ':' {
+            let mut j = i + 1;
+            // consume whitespace
+            while chars
+                .get(j)
+                .is_some_and(|&ch| matches!(ch, ' ' | '\t' | '\r' | '\n'))
+            {
+                j += 1;
+            }
+            if chars.get(j).is_some_and(|&ch| ch == ',' || ch == '}') {
+                // empty value — insert null and advance past the whitespace we consumed
+                result.push_str(" null");
+                i = j; // will push chars[j] on next iteration
+                continue;
+            }
+        }
+        i += 1;
+    }
+    result
+}
+
 macros::create_all_prerequisites!(
     connector_name: Jpmorgan,
     generic_type: T,
@@ -263,6 +316,12 @@ macros::create_all_prerequisites!(
             flow: RSync,
             response_body: JpmorganRSyncResponse,
             router_data: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        ),
+        (
+            flow: ClientAuthenticationToken,
+            request_body: JpmorganClientAuthRequest,
+            response_body: JpmorganClientAuthResponse,
+            router_data: RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
         )
     ],
     amount_converters: [],
@@ -484,15 +543,74 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        ClientAuthenticationToken,
-        PaymentFlowData,
-        ClientAuthenticationTokenRequestData,
-        PaymentsResponseData,
-    > for Jpmorgan<T>
-{
-}
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_error_response_v2],
+    connector: Jpmorgan,
+    curl_request: FormUrlEncoded(JpmorganClientAuthRequest),
+    curl_response: JpmorganClientAuthResponse,
+    flow_name: ClientAuthenticationToken,
+    resource_common_data: PaymentFlowData,
+    flow_request: ClientAuthenticationTokenRequestData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_content_type(&self) -> &'static str {
+            "application/x-www-form-urlencoded"
+        }
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            // ClientAuthenticationToken flow uses Basic auth with client_id:client_secret
+            // to obtain an OAuth2 access token for client-side SDK initialization
+            let auth = jpmorgan::JpmorganAuthType::try_from(&req.connector_config)?;
+            let creds = format!("{}:{}", auth.client_id.peek(), auth.client_secret.peek());
+            let encoded_creds = BASE64_ENGINE.encode(creds);
+            let auth_string = format!("Basic {}", encoded_creds);
+
+            Ok(vec![
+                (
+                    headers::CONTENT_TYPE.to_string(),
+                    "application/x-www-form-urlencoded".to_string().into(),
+                ),
+                (
+                    headers::AUTHORIZATION.to_string(),
+                    auth_string.into_masked(),
+                ),
+            ])
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            use domain_types::errors::IntegrationErrorContext;
+            Ok(format!(
+                "{}/am/oauth2/alpha/access_token",
+                req.resource_common_data.connectors.jpmorgan.secondary_base_url.as_ref()
+                    .ok_or(IntegrationError::FailedToObtainIntegrationUrl {
+                        context: IntegrationErrorContext {
+                            suggested_action: Some(
+                                "Set the 'secondary_base_url' in the JPMorgan connector \
+                                 configuration. This URL points to the OAuth2 token endpoint."
+                                    .to_owned(),
+                            ),
+                            doc_url: Some(
+                                "https://developer.payments.jpmorgan.com/docs/commerce-solutions/online-payments/capabilities/authentication/oauth"
+                                    .to_owned(),
+                            ),
+                            additional_context: Some(
+                                "JPMorgan uses a separate base URL for the OAuth2 token \
+                                 endpoint (secondary_base_url) distinct from the payments API."
+                                    .to_owned(),
+                            ),
+                        },
+                    })?
+            ))
+        }
+    }
+);
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
@@ -573,6 +691,7 @@ macros::macro_connector_implementation!(
     flow_request: PaymentsAuthorizeData<T>,
     flow_response: PaymentsResponseData,
     http_method: Post,
+    preprocess_response: true,
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     other_functions: {

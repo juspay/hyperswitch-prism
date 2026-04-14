@@ -1,0 +1,7 @@
+{
+  "connector": "worldpayvantiv",
+  "supported_suites": [
+    "authorize",
+    "get"
+  ]
+}

@@ -370,7 +370,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://sandbox.cashfree.com/pg/orders/sessions",
@@ -382,7 +382,7 @@
             "x-client-id": "probe_id",
             "x-client-secret": "probe_key"
           },
-          "body": "{\"payment_session_id\":\"probe_order_001\",\"payment_method\":{\"upi\":{\"channel\":\"collect\",\"upi_id\":\"test@upi\"}},\"payment_surcharge\":null}"
+          "body": "{\"payment_session_id\":\"connector_order_id\",\"payment_method\":{\"upi\":{\"channel\":\"collect\",\"upi_id\":\"test@upi\"}},\"payment_surcharge\":null}"
         }
       },
       "UpiIntent": {
@@ -402,7 +402,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://sandbox.cashfree.com/pg/orders/sessions",
@@ -414,7 +414,7 @@
             "x-client-id": "probe_id",
             "x-client-secret": "probe_key"
           },
-          "body": "{\"payment_session_id\":\"probe_order_001\",\"payment_method\":{\"upi\":{\"channel\":\"link\"}},\"payment_surcharge\":null}"
+          "body": "{\"payment_session_id\":\"connector_order_id\",\"payment_method\":{\"upi\":{\"channel\":\"link\"}},\"payment_surcharge\":null}"
         }
       },
       "UpiQr": {
@@ -434,7 +434,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://sandbox.cashfree.com/pg/orders/sessions",
@@ -446,7 +446,7 @@
             "x-client-id": "probe_id",
             "x-client-secret": "probe_key"
           },
-          "body": "{\"payment_session_id\":\"probe_order_001\",\"payment_method\":{\"upi\":{\"channel\":\"link\"}},\"payment_surcharge\":null}"
+          "body": "{\"payment_session_id\":\"connector_order_id\",\"payment_method\":{\"upi\":{\"channel\":\"link\"}},\"payment_surcharge\":null}"
         }
       },
       "WeChatPayQr": {

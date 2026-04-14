@@ -65,7 +65,13 @@ message PaymentMethod {
     SamsungWallet samsung_pay = 24;                     //Samsung
     MBWay mb_way = 25;                                  // MB WAY 
     Satispay satispay = 26;                             // Satispay 
-    Wero wero = 27;                                     // Wero 
+    Wero wero = 27;                                     // Wero
+    LazyPayRedirectWallet lazypay_redirect = 28;
+    PhonePeRedirectWallet phonepe_redirect = 29;
+    BillDeskRedirectWallet billdesk_redirect = 159;
+    CashfreeRedirectWallet cashfree_redirect = 160;
+    PayURedirectWallet payu_redirect = 161;
+    EaseBuzzRedirectWallet easebuzz_redirect = 162;
 
     // UPI METHODS (30-39) - Direct variants
     UpiCollect upi_collect = 30;                        // UPI Collect
@@ -161,6 +167,9 @@ message PaymentMethod {
     FamilyMart family_mart = 151;                             // FamilyMart - Japanese convenience store payment
     Seicomart seicomart = 152;                                // Seicomart - Japanese convenience store payment
     PayEasy pay_easy = 153;                                    // Pay-easy - Japanese bill payment service
+
+    // NETBANKING - Indian net banking (bank redirect)
+    NetbankingPayment netbanking = 158;                          // Netbanking - Indian online banking (bank redirect)
   }
 }
 
@@ -520,6 +529,24 @@ message Wero {
   // Fields will be added as needed for Wero integration
 }
 
+// LazyPay - Indian BNPL/wallet service
+message LazyPayRedirectWallet {}
+
+// PhonePe - Indian digital payments platform
+message PhonePeRedirectWallet {}
+
+// BillDesk - Indian payment gateway with wallet support
+message BillDeskRedirectWallet {}
+
+// Cashfree - Indian payment gateway with wallet support
+message CashfreeRedirectWallet {}
+
+// PayU - Indian payment gateway with wallet support
+message PayURedirectWallet {}
+
+// EaseBuzz - Indian payment gateway with wallet support
+message EaseBuzzRedirectWallet {}
+
 // Apple Pay Third Party SDK - Apple Pay with token from third-party SDK
 message ApplePayThirdPartySdkWallet {
   // Payment token from third-party SDK
@@ -581,6 +608,12 @@ message UpiQr {
 
 message UpiConnectorResponse {
   optional UpiSource upi_mode = 1; // Final UPI source detected from connector response
+}
+
+// Netbanking - Indian online banking payment method (bank redirect)
+message NetbankingPayment {
+  // Bank selection for Indian netbanking
+  BankNames issuer = 1;
 }
 
 // PIX - Brazilian instant payment ecosystem
@@ -1262,6 +1295,22 @@ enum BankNames {
   Yoursafe = 144;
   N26 = 145;
   NationaleNederlanden = 146;
+  // Indian banks (Netbanking)
+  StateBank = 147;
+  HdfcBank = 148;
+  IciciBank = 149;
+  AxisBank = 150;
+  KotakMahindraBank = 151;
+  PunjabNationalBank = 152;
+  BankOfBaroda = 153;
+  UnionBankOfIndia = 154;
+  CanaraBank = 155;
+  IndusIndBank = 156;
+  YesBank = 157;
+  IdbiBank = 158;
+  FederalBank = 159;
+  IndianOverseasBank = 160;
+  CentralBankOfIndia = 161;
 }
 
 // ============================================================================

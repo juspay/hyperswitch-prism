@@ -57,368 +57,368 @@
     },
     "authorize": {
       "Ach": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "AchBankTransfer": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "Affirm": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "Afterpay": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "Alfamart": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "AliPayRedirect": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "AmazonPayRedirect": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "ApplePay": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "ApplePayDecrypted": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "ApplePayThirdPartySdk": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "Bacs": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "BacsBankTransfer": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "BancontactCard": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "BcaBankTransfer": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "Becs": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "Bizum": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "Blik": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "Bluecode": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "BniVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "Boleto": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "BriVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "Card": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "error",
+        "error": "Field 'ds_merchant_order' is too long for connector 'Redsys'"
       },
       "CashappQr": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "CimbVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "ClassicReward": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "Crypto": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "DanamonVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "DuitNow": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "EVoucher": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "Efecty": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "Eft": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "Eps": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "FamilyMart": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "Giropay": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "Givex": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "GooglePay": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "GooglePayDecrypted": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "GooglePayThirdPartySdk": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "Ideal": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "Indomaret": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "IndonesianBankTransfer": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "InstantBankTransfer": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "InstantBankTransferFinland": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "InstantBankTransferPoland": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "Interac": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "Klarna": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "Lawson": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "LocalBankRedirect": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "LocalBankTransfer": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "MandiriVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "MbWay": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "Mifinity": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "MiniStop": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "MultibancoBankTransfer": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "OnlineBankingCzechRepublic": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "OnlineBankingFinland": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "OnlineBankingFpx": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "OnlineBankingPoland": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "OnlineBankingSlovakia": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "OnlineBankingThailand": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "OpenBanking": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "OpenBankingPis": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "OpenBankingUk": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "Oxxo": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "PagoEfectivo": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "PayEasy": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "PaySafeCard": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "PaypalRedirect": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "PaypalSdk": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "Paze": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "PermataBankTransfer": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "Pix": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "Przelewy24": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "Pse": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "RedCompra": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "RedPagos": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "RevolutPay": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "SamsungPay": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "Satispay": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "Seicomart": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "Sepa": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "SepaBankTransfer": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "SepaGuaranteedDebit": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "SevenEleven": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "Sofort": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "Trustly": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "UpiCollect": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "UpiIntent": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "UpiQr": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "WeChatPayQr": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "Wero": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       }
     },
     "capture": {
@@ -567,8 +567,8 @@
     },
     "proxy_authorize": {
       "default": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "error",
+        "error": "Field 'ds_merchant_order' is too long for connector 'Redsys'"
       }
     },
     "proxy_setup_recurring": {
@@ -642,8 +642,8 @@
     },
     "token_authorize": {
       "default": {
-        "status": "not_supported",
-        "error": "Cards No3DS is not supported by Redsys"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through redsys"
       }
     },
     "token_setup_recurring": {

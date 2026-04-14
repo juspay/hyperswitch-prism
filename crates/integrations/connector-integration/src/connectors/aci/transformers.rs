@@ -217,7 +217,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | WalletData::RevolutPay(_)
             | WalletData::MbWay(_)
             | WalletData::Satispay(_)
-            | WalletData::Wero(_) => Err(IntegrationError::not_implemented(
+            | WalletData::Wero(_)
+            | WalletData::LazyPayRedirect(_)
+            | WalletData::PhonePeRedirect(_)
+            | WalletData::BillDeskRedirect(_)
+            | WalletData::CashfreeRedirect(_)
+            | WalletData::PayURedirect(_)
+            | WalletData::EaseBuzzRedirect(_) => Err(IntegrationError::not_implemented(
                 "Payment method".to_string(),
             ))?,
         };
@@ -413,7 +419,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | BankRedirectData::OnlineBankingThailand { .. }
             | BankRedirectData::LocalBankRedirect {}
             | BankRedirectData::OpenBankingUk { .. }
-            | BankRedirectData::OpenBanking {} => Err(IntegrationError::not_implemented(
+            | BankRedirectData::OpenBanking {}
+            | BankRedirectData::Netbanking { .. } => Err(IntegrationError::not_implemented(
                 "Payment method".to_string(),
             ))?,
         };
@@ -746,7 +753,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::OpenBanking(_)
-            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(IntegrationError::not_implemented(

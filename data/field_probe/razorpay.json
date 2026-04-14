@@ -9,87 +9,87 @@
     "authorize": {
       "Ach": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method BankDebit(AchBankDebit { account_number: *** alloc::string::String ***, routing_number: *** alloc::string::String ***, card_holder_name: None, bank_account_holder_name: Some(*** alloc::string::String ***), bank_name: None, bank_type: None, bank_holder_type: None }) not supported for Razorpay"
       },
       "AchBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method BankTransfer(AchBankTransfer) not supported for Razorpay"
       },
       "Affirm": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method PayLater(AffirmRedirect) not supported for Razorpay"
       },
       "Afterpay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method PayLater(AfterpayClearpayRedirect) not supported for Razorpay"
       },
       "Alfamart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method Voucher(Alfamart(AlfamartVoucherData)) not supported for Razorpay"
       },
       "AliPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method AliPayRedirect(AliPayRedirection) not supported for Razorpay"
       },
       "AmazonPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method AmazonPayRedirect(AmazonPayRedirectData) not supported for Razorpay"
       },
       "ApplePay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method ApplePay(ApplePayWalletData { payment_data: Encrypted(\"eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9\"), payment_method: ApplepayPaymentMethod { display_name: \"Visa 1111\", network: \"Visa\", pm_type: \"debit\" }, transaction_identifier: \"probe_txn_id\" }) not supported for Razorpay"
       },
       "ApplePayDecrypted": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method ApplePay(ApplePayWalletData { payment_data: Decrypted(ApplePayDecryptedData { application_primary_account_number: CardNumber(411111**********), application_expiration_month: *** alloc::string::String ***, application_expiration_year: *** alloc::string::String ***, payment_data: ApplePayCryptogramData { online_payment_cryptogram: *** alloc::string::String ***, eci_indicator: Some(\"05\") } }), payment_method: ApplepayPaymentMethod { display_name: \"Visa 1111\", network: \"Visa\", pm_type: \"debit\" }, transaction_identifier: \"probe_txn_id\" }) not supported for Razorpay"
       },
       "ApplePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method ApplePayThirdPartySdk(ApplePayThirdPartySdkData { token: Some(*** alloc::string::String ***) }) not supported for Razorpay"
       },
       "Bacs": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method BankDebit(BacsBankDebit { account_number: *** alloc::string::String ***, sort_code: *** alloc::string::String ***, bank_account_holder_name: Some(*** alloc::string::String ***) }) not supported for Razorpay"
       },
       "BacsBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method BankTransfer(BacsBankTransfer) not supported for Razorpay"
       },
       "BancontactCard": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method BankRedirect(BancontactCard { card_number: Some(CardNumber(411111**********)), card_exp_month: Some(*** alloc::string::String ***), card_exp_year: Some(*** alloc::string::String ***), card_holder_name: Some(*** alloc::string::String ***) }) not supported for Razorpay"
       },
       "BcaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method BankTransfer(BcaBankTransfer) not supported for Razorpay"
       },
       "Becs": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method BankDebit(BecsBankDebit { account_number: *** alloc::string::String ***, bsb_number: *** alloc::string::String ***, bank_account_holder_name: Some(*** alloc::string::String ***) }) not supported for Razorpay"
       },
       "Bizum": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method BankRedirect(Bizum) not supported for Razorpay"
       },
       "Blik": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method BankRedirect(Blik { blik_code: Some(\"777124\") }) not supported for Razorpay"
       },
       "Bluecode": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method BluecodeRedirect not supported for Razorpay"
       },
       "BniVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method BankTransfer(BniVaBankTransfer) not supported for Razorpay"
       },
       "Boleto": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method Voucher(Boleto(BoletoVoucherData { social_security_number: None })) not supported for Razorpay"
       },
       "BriVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method BankTransfer(BriVaBankTransfer) not supported for Razorpay"
       },
       "Card": {
         "status": "supported",
@@ -119,7 +119,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments/create/json",
@@ -127,23 +127,23 @@
           "headers": {
             "accept": "application/json",
             "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "content-type": "application/x-www-form-urlencoded",
+            "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"contact\":\"4155552671\",\"email\":\"test@example.com\",\"order_id\":\"probe_order_001\",\"method\":\"card\",\"card\":{\"number\":\"4111111111111111\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"cvv\":\"737\"},\"authentication\":{\"authentication_channel\":\"app\"},\"browser\":null,\"ip\":\"127.0.0.1\",\"referer\":\"https://example.com\",\"user_agent\":\"Mozilla/5.0\"}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"contact\":\"4155552671\",\"email\":\"test@example.com\",\"order_id\":\"connector_order_id\",\"method\":\"card\",\"card\":{\"number\":\"4111111111111111\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"cvv\":\"737\"},\"authentication\":{\"authentication_channel\":\"app\"},\"ip\":\"127.0.0.1\",\"referer\":\"https://example.com\",\"user_agent\":\"Mozilla/5.0\"}"
         }
       },
       "CashappQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method CashappQr(CashappQr) not supported for Razorpay"
       },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method BankTransfer(CimbVaBankTransfer) not supported for Razorpay"
       },
       "ClassicReward": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method Reward not supported for Razorpay"
       },
       "Crypto": {
         "status": "not_supported",
@@ -151,7 +151,7 @@
       },
       "DanamonVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method BankTransfer(DanamonVaBankTransfer) not supported for Razorpay"
       },
       "DuitNow": {
         "status": "not_supported",
@@ -159,27 +159,27 @@
       },
       "EVoucher": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method Reward not supported for Razorpay"
       },
       "Efecty": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method Voucher(Efecty) not supported for Razorpay"
       },
       "Eft": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method BankRedirect(Eft { provider: \"ozow\" }) not supported for Razorpay"
       },
       "Eps": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method BankRedirect(Eps { bank_name: None, country: None }) not supported for Razorpay"
       },
       "FamilyMart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method Voucher(FamilyMart(JCSVoucherData)) not supported for Razorpay"
       },
       "Giropay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method BankRedirect(Giropay { bank_account_bic: None, bank_account_iban: None, country: None }) not supported for Razorpay"
       },
       "Givex": {
         "status": "not_supported",
@@ -187,107 +187,107 @@
       },
       "GooglePay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method GooglePay(GooglePayWalletData { pm_type: \"CARD\", description: \"Visa 1111\", info: GooglePayPaymentMethodInfo { card_network: \"VISA\", card_details: \"1111\", assurance_details: None }, tokenization_data: Encrypted(GpayEncryptedTokenizationData { token_type: \"PAYMENT_GATEWAY\", token: \"{\\\"id\\\":\\\"tok_probe_gpay\\\",\\\"object\\\":\\\"token\\\",\\\"type\\\":\\\"card\\\"}\" }) }) not supported for Razorpay"
       },
       "GooglePayDecrypted": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method GooglePay(GooglePayWalletData { pm_type: \"CARD\", description: \"Visa 1111\", info: GooglePayPaymentMethodInfo { card_network: \"VISA\", card_details: \"1111\", assurance_details: None }, tokenization_data: Decrypted(GooglePayDecryptedData { card_exp_month: *** alloc::string::String ***, card_exp_year: *** alloc::string::String ***, application_primary_account_number: CardNumber(411111**********), cryptogram: Some(*** alloc::string::String ***), eci_indicator: Some(\"05\") }) }) not supported for Razorpay"
       },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method GooglePayThirdPartySdk(GooglePayThirdPartySdkData { token: Some(*** alloc::string::String ***) }) not supported for Razorpay"
       },
       "Ideal": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method BankRedirect(Ideal { bank_name: None }) not supported for Razorpay"
       },
       "Indomaret": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method Voucher(Indomaret(IndomaretVoucherData)) not supported for Razorpay"
       },
       "IndonesianBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method BankTransfer(IndonesianBankTransfer { bank_name: None }) not supported for Razorpay"
       },
       "InstantBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method BankTransfer(InstantBankTransfer) not supported for Razorpay"
       },
       "InstantBankTransferFinland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method BankTransfer(InstantBankTransferFinland) not supported for Razorpay"
       },
       "InstantBankTransferPoland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method BankTransfer(InstantBankTransferPoland) not supported for Razorpay"
       },
       "Interac": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method BankRedirect(Interac { country: None, email: None }) not supported for Razorpay"
       },
       "Klarna": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method PayLater(KlarnaRedirect) not supported for Razorpay"
       },
       "Lawson": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method Voucher(Lawson(JCSVoucherData)) not supported for Razorpay"
       },
       "LocalBankRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method BankRedirect(LocalBankRedirect) not supported for Razorpay"
       },
       "LocalBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method BankTransfer(LocalBankTransfer { bank_code: None }) not supported for Razorpay"
       },
       "MandiriVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method BankTransfer(MandiriVaBankTransfer) not supported for Razorpay"
       },
       "MbWay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method MbWay(MbWayData) not supported for Razorpay"
       },
       "Mifinity": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method Mifinity(MifinityData { date_of_birth: *** time::date::Date ***, language_preference: Some(\"en\") }) not supported for Razorpay"
       },
       "MiniStop": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method Voucher(MiniStop(JCSVoucherData)) not supported for Razorpay"
       },
       "MultibancoBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method BankTransfer(MultibancoBankTransfer) not supported for Razorpay"
       },
       "OnlineBankingCzechRepublic": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method BankRedirect(OnlineBankingCzechRepublic { issuer: CeskaSporitelna }) not supported for Razorpay"
       },
       "OnlineBankingFinland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method BankRedirect(OnlineBankingFinland { email: Some(Email(****@example.com)) }) not supported for Razorpay"
       },
       "OnlineBankingFpx": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method BankRedirect(OnlineBankingFpx { issuer: Maybank }) not supported for Razorpay"
       },
       "OnlineBankingPoland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method BankRedirect(OnlineBankingPoland { issuer: BankPekaoSa }) not supported for Razorpay"
       },
       "OnlineBankingSlovakia": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method BankRedirect(OnlineBankingSlovakia { issuer: TatraPay }) not supported for Razorpay"
       },
       "OnlineBankingThailand": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method BankRedirect(OnlineBankingThailand { issuer: BangkokBank }) not supported for Razorpay"
       },
       "OpenBanking": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method BankRedirect(OpenBanking) not supported for Razorpay"
       },
       "OpenBankingPis": {
         "status": "not_supported",
@@ -295,19 +295,19 @@
       },
       "OpenBankingUk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method BankRedirect(OpenBankingUk { issuer: None, country: None }) not supported for Razorpay"
       },
       "Oxxo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method Voucher(Oxxo) not supported for Razorpay"
       },
       "PagoEfectivo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method Voucher(PagoEfectivo) not supported for Razorpay"
       },
       "PayEasy": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method Voucher(PayEasy(JCSVoucherData)) not supported for Razorpay"
       },
       "PaySafeCard": {
         "status": "not_supported",
@@ -315,11 +315,11 @@
       },
       "PaypalRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method PaypalRedirect(PaypalRedirection { email: Some(Email(****@example.com)) }) not supported for Razorpay"
       },
       "PaypalSdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method PaypalSdk(PayPalWalletData { token: \"probe_paypal_sdk_token\" }) not supported for Razorpay"
       },
       "Paze": {
         "status": "not_supported",
@@ -327,67 +327,67 @@
       },
       "PermataBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method BankTransfer(PermataBankTransfer) not supported for Razorpay"
       },
       "Pix": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method BankTransfer(Pix { pix_key: None, cpf: None, cnpj: None, source_bank_account_id: None, destination_bank_account_id: None, expiry_date: None }) not supported for Razorpay"
       },
       "Przelewy24": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method BankRedirect(Przelewy24 { bank_name: None }) not supported for Razorpay"
       },
       "Pse": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method BankTransfer(Pse) not supported for Razorpay"
       },
       "RedCompra": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method Voucher(RedCompra) not supported for Razorpay"
       },
       "RedPagos": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method Voucher(RedPagos) not supported for Razorpay"
       },
       "RevolutPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method RevolutPay(RevolutPayData) not supported for Razorpay"
       },
       "SamsungPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method SamsungPay(SamsungPayWalletData { payment_credential: SamsungPayWalletCredentials { method: Some(\"3DS\"), recurring_payment: Some(false), card_brand: Visa, dpan_last_four_digits: None, card_last_four_digits: \"1234\", token_data: SamsungPayTokenData { three_ds_type: Some(\"S\"), version: \"100\", data: *** alloc::string::String *** } } }) not supported for Razorpay"
       },
       "Satispay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method Satispay(SatispayData) not supported for Razorpay"
       },
       "Seicomart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method Voucher(Seicomart(JCSVoucherData)) not supported for Razorpay"
       },
       "Sepa": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method BankDebit(SepaBankDebit { iban: *** alloc::string::String ***, bank_account_holder_name: Some(*** alloc::string::String ***) }) not supported for Razorpay"
       },
       "SepaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method BankTransfer(SepaBankTransfer) not supported for Razorpay"
       },
       "SepaGuaranteedDebit": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method BankDebit(SepaGuaranteedBankDebit { iban: *** alloc::string::String ***, bank_account_holder_name: Some(*** alloc::string::String ***) }) not supported for Razorpay"
       },
       "SevenEleven": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method Voucher(SevenEleven(JCSVoucherData)) not supported for Razorpay"
       },
       "Sofort": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method BankRedirect(Sofort { country: None, preferred_language: None }) not supported for Razorpay"
       },
       "Trustly": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method BankRedirect(Trustly { country: None }) not supported for Razorpay"
       },
       "UpiCollect": {
         "status": "supported",
@@ -408,7 +408,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments/create/upi",
@@ -419,7 +419,7 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "currency=USD&amount=1000&order_id=probe_order_001&method=upi&vpa=test%40upi&callback_url=https%3A%2F%2Fexample.com%2Freturn&ip=127.0.0.1&referer=https%3A%2F%2Fexample.com&user_agent=Mozilla%2F5.0&description="
+          "body": "currency=USD&amount=1000&order_id=connector_order_id&method=upi&vpa=test%40upi&callback_url=https%3A%2F%2Fexample.com%2Freturn&ip=127.0.0.1&referer=https%3A%2F%2Fexample.com&user_agent=Mozilla%2F5.0&description="
         }
       },
       "UpiIntent": {
@@ -439,7 +439,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments/create/upi",
@@ -450,7 +450,7 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "currency=USD&amount=1000&order_id=probe_order_001&method=upi&callback_url=https%3A%2F%2Fexample.com%2Freturn&ip=127.0.0.1&referer=https%3A%2F%2Fexample.com&user_agent=Mozilla%2F5.0&description=&flow=intent"
+          "body": "currency=USD&amount=1000&order_id=connector_order_id&method=upi&callback_url=https%3A%2F%2Fexample.com%2Freturn&ip=127.0.0.1&referer=https%3A%2F%2Fexample.com&user_agent=Mozilla%2F5.0&description=&flow=intent"
         }
       },
       "UpiQr": {
@@ -470,7 +470,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments/create/upi",
@@ -481,16 +481,16 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "currency=USD&amount=1000&order_id=probe_order_001&method=upi&callback_url=https%3A%2F%2Fexample.com%2Freturn&ip=127.0.0.1&referer=https%3A%2F%2Fexample.com&user_agent=Mozilla%2F5.0&description=&flow=intent"
+          "body": "currency=USD&amount=1000&order_id=connector_order_id&method=upi&callback_url=https%3A%2F%2Fexample.com%2Freturn&ip=127.0.0.1&referer=https%3A%2F%2Fexample.com&user_agent=Mozilla%2F5.0&description=&flow=intent"
         }
       },
       "WeChatPayQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method WeChatPayQr(WeChatPayQr) not supported for Razorpay"
       },
       "Wero": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method Wero(WeroData) not supported for Razorpay"
       }
     },
     "capture": {
@@ -654,7 +654,7 @@
           "capture_method": "AUTOMATIC",
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments/create/json",
@@ -662,10 +662,10 @@
           "headers": {
             "accept": "application/json",
             "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "content-type": "application/x-www-form-urlencoded",
+            "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"contact\":\"4155552671\",\"email\":\"test@example.com\",\"order_id\":\"probe_order_001\",\"method\":\"card\",\"card\":{\"number\":\"4111111111111111\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"cvv\":\"123\"},\"authentication\":{\"authentication_channel\":\"app\"},\"browser\":null,\"ip\":\"127.0.0.1\",\"referer\":\"https://example.com\",\"user_agent\":\"Mozilla/5.0\"}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"contact\":\"4155552671\",\"email\":\"test@example.com\",\"order_id\":\"connector_order_id\",\"method\":\"card\",\"card\":{\"number\":\"4111111111111111\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"cvv\":\"123\"},\"authentication\":{\"authentication_channel\":\"app\"},\"ip\":\"127.0.0.1\",\"referer\":\"https://example.com\",\"user_agent\":\"Mozilla/5.0\"}"
         }
       }
     },
@@ -742,7 +742,7 @@
     "token_authorize": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Payment Method PaymentMethodToken(PaymentMethodToken { token: *** alloc::string::String *** }) not supported for Razorpay"
       }
     },
     "token_setup_recurring": {

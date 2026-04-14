@@ -53,6 +53,8 @@ pub struct PproPaymentsRequest {
     pub consumer: Option<PproConsumer>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub authentication_settings: Option<Vec<PproAuthenticationSettings>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub webhooks_url: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -97,6 +99,9 @@ pub struct PproConsumer {
     pub email: Option<common_utils::pii::Email>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub country: Option<String>,
+    /// Unique consumer identifier required by PPRO for payment methods like Trustly
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub merchant_consumer_reference: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -193,19 +198,31 @@ where
                     }]
                 });
 
+        let email = router_data
+            .resource_common_data
+            .get_optional_billing_email()
+            .or_else(|| router_data.request.get_optional_email());
+
+        let merchant_consumer_reference = Some(
+            router_data
+                .resource_common_data
+                .get_connector_customer_id()?,
+        );
+
         let consumer = router_data
             .resource_common_data
             .get_billing_address()
             .ok()
             .map(|billing| PproConsumer {
                 name: billing.get_full_name().ok(),
-                email: router_data.resource_common_data.get_billing_email().ok(),
+                email,
                 country: billing.country.map(|c| c.to_string()),
+                merchant_consumer_reference,
             });
 
         Ok(Self {
             payment_method,
-            payment_medium: router_data.request.payment_channel.into(),
+            payment_medium: router_data.request.payment_channel.clone().into(),
             merchant_payment_charge_reference: router_data
                 .resource_common_data
                 .connector_request_reference_id
@@ -214,6 +231,7 @@ where
             amount,
             consumer,
             authentication_settings,
+            webhooks_url: Some(router_data.request.get_webhook_url()?),
         })
     }
 }
@@ -930,6 +948,14 @@ where
                     }]
                 });
 
+        let email = router_data.request.email.clone();
+
+        let merchant_consumer_reference = Some(
+            router_data
+                .resource_common_data
+                .get_connector_customer_id()?,
+        );
+
         let consumer = router_data
             .resource_common_data
             .get_billing_address()
@@ -942,8 +968,9 @@ where
                         .as_ref()
                         .map(|n| Secret::new(n.clone()))
                 }),
-                email: router_data.request.email.clone(),
+                email,
                 country: billing.country.map(|c| c.to_string()),
+                merchant_consumer_reference,
             });
 
         let start_date = router_data

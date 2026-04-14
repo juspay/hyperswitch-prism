@@ -359,12 +359,7 @@ debug/
 *.pdb
 
 ### VisualStudioCode ###
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
-!.vscode/*.code-snippets
+.vscode/
 
 # Local History for Visual Studio Code
 .history/
@@ -437,9 +432,22 @@ sdk/tests/client_sanity/artifacts/
 CLAUDE.md
 opencode.json
 .opencode/**
+.sisyphus/
 
 # Generated proto descriptor files
+# scripts/generators/code/services.desc
 scripts/generators/code/services.desc
+
+# Local Netlify folder
+.netlify
+
+# UCS Connector Test Runtime Artifacts
+crates/internal/integration-tests/report.json
+crates/internal/integration-tests/test_report/
+*.test.log
+/tmp/*test*.log
+.grpc-server.pid
+.env.connector-tests
 
 # Field probe manifest (generated at runtime)
 data/field_probe/manifest.json

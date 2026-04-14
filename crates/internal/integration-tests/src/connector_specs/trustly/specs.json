@@ -1,0 +1,7 @@
+{
+  "connector": "trustly",
+  "supported_suites": [
+    "authorize",
+    "refund"
+  ]
+}

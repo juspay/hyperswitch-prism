@@ -72,28 +72,25 @@ BINDGEN := $(REPO_ROOT)/target/$(PLATFORM)/$(_PROFILE_DIR)/uniffi-bindgen
 # Output: target/<PLATFORM>/$(PROFILE)/libconnector_service_ffi.<ext>
 # Using --target consistently means local builds and CI builds share the same
 # directory layout — no special-case LIBRARY= or TARGET_TRIPLE= variables needed.
+# This target is NOT .PHONY - it skips the build if the library already exists
+# to save time when running multiple SDK tests.
 # ---------------------------------------------------------------------------
-.PHONY: build-ffi-lib
 build-ffi-lib:
-	@echo "Building FFI shared library for $(PLATFORM) ($(PROFILE))..."
-	@cd $(FFI_CRATE) && cargo build --no-default-features --features uniffi \
-		--profile $(PROFILE) --target $(PLATFORM)
-	@echo "Build complete: $(LIBRARY)"
+	@if [ -f "$(LIBRARY)" ]; then \
+		echo "FFI library already exists: $(LIBRARY)"; \
+	else \
+		echo "Building FFI shared library for $(PLATFORM) ($(PROFILE))..."; \
+		cd $(FFI_CRATE) && cargo build --no-default-features --features uniffi \
+			--profile $(PROFILE) --target $(PLATFORM); \
+		echo "Build complete: $(LIBRARY)"; \
+	fi
 
 # ---------------------------------------------------------------------------
 # check-cargo
 # Verifies cargo command is installed before attempting builds.
 # ---------------------------------------------------------------------------
-# ---------------------------------------------------------------------------
-# build-grpc-ffi-lib
-# Builds the gRPC Rust FFI shared library for the auto-detected platform.
-# Output: target/<PLATFORM>/$(PROFILE)/libhyperswitch_grpc_ffi.<ext>
-# ---------------------------------------------------------------------------
-.PHONY: build-grpc-ffi-lib
-build-grpc-ffi-lib:
-	@echo "Building gRPC FFI shared library for $(PLATFORM) ($(PROFILE))..."
-	@cd $(GRPC_FFI_CRATE) && cargo build --profile $(PROFILE) --target $(PLATFORM)
-	@echo "Build complete: $(GRPC_FFI_LIBRARY)"
+.PHONY: check-cargo
+check-cargo:
 
 .PHONY: check-cargo
 check-cargo:

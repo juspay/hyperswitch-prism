@@ -46,7 +46,6 @@ pub fn build_authorize_request(capture_method: &str) -> PaymentServiceAuthorizeR
     },
     "auth_type": "NO_THREE_DS",  // Authentication Details.
     "return_url": "https://example.com/return",  // URLs for Redirection and Webhooks.
-    "merchant_order_id": "probe_order_001",
     "state": {  // State Information.
         "access_token": {  // Access token obtained from connector.
             "token": "probe_access_token",  // The token string.
@@ -54,6 +53,7 @@ pub fn build_authorize_request(capture_method: &str) -> PaymentServiceAuthorizeR
             "token_type": "Bearer",  // Token type (e.g., "Bearer", "Basic").
         },
     },
+    "connector_order_id": "connector_order_id",  // Send the connector order identifier here if an order was created before authorize.
     "order_details": []  // Order Details.
     })).unwrap_or_default()
 }
@@ -145,7 +145,7 @@ pub fn build_proxy_authorize_request() -> PaymentServiceProxyAuthorizeRequest {
             "token_type": "Bearer",  // Token type (e.g., "Bearer", "Basic").
         },
     },
-    "merchant_order_id": "probe_order_001",
+    "connector_order_id": "connector_order_id",  // Send the connector order identifier here if an order was created before authorize.
     })).unwrap_or_default()
 }
 

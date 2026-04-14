@@ -70,6 +70,16 @@ function _buildCaptureRequest(connectorTransactionId: string): PaymentServiceCap
     };
 }
 
+function _buildCreateClientAuthenticationTokenRequest(): MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest {
+    return {
+        "merchantClientSessionId": "probe_sdk_session_001",  // Infrastructure.
+        "domainContext": {
+            "minorAmount": 1000,
+            "currency": "USD"
+        }
+    };
+}
+
 function _buildCreateServerAuthenticationTokenRequest(): MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
     return {
     };
@@ -150,6 +160,30 @@ function _buildRefundGetRequest(): RefundServiceGetRequest {
         "connectorTransactionId": "probe_connector_txn_001",
         "refundId": "probe_refund_id_001",
         "state": {  // State Information.
+            "accessToken": {  // Access token obtained from connector.
+                "token": {"value": "probe_access_token"},  // The token string.
+                "expiresInSeconds": 3600,  // Expiration timestamp (seconds since epoch).
+                "tokenType": "Bearer"  // Token type (e.g., "Bearer", "Basic").
+            }
+        }
+    };
+}
+
+function _buildTokenAuthorizeRequest(): PaymentServiceTokenAuthorizeRequest {
+    return {
+        "merchantTransactionId": "probe_tokenized_txn_001",
+        "amount": {
+            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        },
+        "connectorToken": {"value": "pm_1AbcXyzStripeTestToken"},  // Connector-issued token. Replaces PaymentMethod entirely. Examples: Stripe pm_xxx, Adyen recurringDetailReference, Braintree nonce.
+        "address": {
+            "billingAddress": {
+            }
+        },
+        "captureMethod": CaptureMethod.AUTOMATIC,
+        "returnUrl": "https://example.com/return",
+        "state": {
             "accessToken": {  // Access token obtained from connector.
                 "token": {"value": "probe_access_token"},  // The token string.
                 "expiresInSeconds": 3600,  // Expiration timestamp (seconds since epoch).
@@ -308,6 +342,15 @@ async function capture(merchantTransactionId: string, config: ConnectorConfig = 
     return { status: captureResponse.status };
 }
 
+// Flow: MerchantAuthenticationService.CreateClientAuthenticationToken
+async function createClientAuthenticationToken(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse> {
+    const merchantAuthenticationClient = new MerchantAuthenticationClient(config);
+
+    const createResponse = await merchantAuthenticationClient.createClientAuthenticationToken(_buildCreateClientAuthenticationTokenRequest());
+
+    return { status: createResponse.status };
+}
+
 // Flow: MerchantAuthenticationService.CreateServerAuthenticationToken
 async function createServerAuthenticationToken(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse> {
     const merchantAuthenticationClient = new MerchantAuthenticationClient(config);
@@ -353,6 +396,15 @@ async function refundGet(merchantTransactionId: string, config: ConnectorConfig 
     return { status: refundResponse.status };
 }
 
+// Flow: PaymentService.TokenAuthorize
+async function tokenAuthorize(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<PaymentServiceAuthorizeResponse> {
+    const paymentClient = new PaymentClient(config);
+
+    const tokenResponse = await paymentClient.tokenAuthorize(_buildTokenAuthorizeRequest());
+
+    return { status: tokenResponse.status };
+}
+
 // Flow: PaymentService.Void
 async function voidPayment(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<PaymentServiceVoidResponse> {
     const paymentClient = new PaymentClient(config);
@@ -365,7 +417,7 @@ async function voidPayment(merchantTransactionId: string, config: ConnectorConfi
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createServerAuthenticationToken, get, proxyAuthorize, refund, refundGet, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateServerAuthenticationTokenRequest, _buildGetRequest, _buildProxyAuthorizeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildVoidRequest
+    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createClientAuthenticationToken, createServerAuthenticationToken, get, proxyAuthorize, refund, refundGet, tokenAuthorize, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateClientAuthenticationTokenRequest, _buildCreateServerAuthenticationTokenRequest, _buildGetRequest, _buildProxyAuthorizeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildTokenAuthorizeRequest, _buildVoidRequest
 };
 
 // CLI runner

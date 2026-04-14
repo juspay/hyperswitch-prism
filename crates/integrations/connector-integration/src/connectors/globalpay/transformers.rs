@@ -6,8 +6,14 @@ use common_enums::{AttemptStatus, RefundStatus};
 use common_utils::request::Method;
 use common_utils::types::StringMinorUnit;
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund, ServerAuthenticationToken, Void},
+    connector_flow::{
+        Authorize, Capture, ClientAuthenticationToken, PSync, RSync, Refund,
+        ServerAuthenticationToken, Void,
+    },
     connector_types::{
+        ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
+        ConnectorSpecificClientAuthenticationResponse,
+        GlobalpayClientAuthenticationResponse as GlobalpayClientAuthenticationResponseDomain,
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
         RefundsResponseData, ResponseId, ServerAuthenticationTokenRequestData,
@@ -356,6 +362,11 @@ pub struct GlobalpayPaymentMethod<T: PaymentMethodDataTypes> {
     pub card: Option<GlobalpayCard<T>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub apm: Option<GlobalpayApm>,
+    /// Connector-issued token reference (e.g. from GlobalPayments.js hosted fields).
+    /// When set, GlobalPay looks up the tokenized card by this ID instead of
+    /// requiring raw card data in the request body.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -422,6 +433,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         cvv_indicator,
                     }),
                     apm: None,
+                    id: None,
                 }
             }
             PaymentMethodData::BankRedirect(bank_redirect) => {
@@ -442,6 +454,19 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     apm: Some(GlobalpayApm {
                         provider: apm_provider,
                     }),
+                    id: None,
+                }
+            }
+
+            PaymentMethodData::PaymentMethodToken(t) => {
+                let token = t.token.clone();
+
+                GlobalpayPaymentMethod {
+                    name: item.request.customer_name.clone().map(Secret::new),
+                    entry_mode: constants::ENTRY_MODE_ECOM.to_string(),
+                    card: None,
+                    apm: None,
+                    id: Some(token),
                 }
             }
             _ => {
@@ -1036,6 +1061,124 @@ impl TryFrom<ResponseRouterData<GlobalpayPaymentsResponse, Self>>
                 status,
                 ..item.router_data.resource_common_data
             },
+            ..item.router_data
+        })
+    }
+}
+
+// ===== CLIENT AUTHENTICATION TOKEN FLOW STRUCTURES =====
+
+/// Request to obtain an access token for client-side SDK initialization.
+/// Uses the same /accesstoken endpoint as the ServerAuthenticationToken flow,
+/// but returns the token in a client-auth-specific format.
+#[derive(Debug, Serialize)]
+pub struct GlobalpayClientAuthRequest {
+    pub app_id: Secret<String>,
+    pub nonce: Secret<String>,
+    pub secret: Secret<String>,
+    pub grant_type: String,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        GlobalpayRouterData<
+            RouterDataV2<
+                ClientAuthenticationToken,
+                PaymentFlowData,
+                ClientAuthenticationTokenRequestData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for GlobalpayClientAuthRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        wrapper: GlobalpayRouterData<
+            RouterDataV2<
+                ClientAuthenticationToken,
+                PaymentFlowData,
+                ClientAuthenticationTokenRequestData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let item = &wrapper.router_data;
+        if let ConnectorSpecificConfig::Globalpay {
+            app_id, app_key, ..
+        } = &item.connector_config
+        {
+            use sha2::{Digest, Sha512};
+
+            // Generate random alphanumeric nonce
+            let nonce =
+                rand::distributions::Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
+
+            // Create secret: SHA512(nonce + app_key)
+            let secret_input = format!("{}{}", nonce, app_key.peek());
+
+            let mut hasher = Sha512::new();
+            hasher.update(secret_input.as_bytes());
+            let result = hasher.finalize();
+            let secret_hex = hex::encode(result);
+
+            Ok(Self {
+                app_id: app_id.clone(),
+                nonce: Secret::new(nonce),
+                secret: Secret::new(secret_hex),
+                grant_type: "client_credentials".to_string(),
+            })
+        } else {
+            Err(error_stack::report!(
+                IntegrationError::FailedToObtainAuthType {
+                    context: Default::default()
+                }
+            ))
+        }
+    }
+}
+
+/// Response from the /accesstoken endpoint for client-side SDK use.
+#[derive(Debug, Deserialize, Serialize)]
+pub struct GlobalpayClientAuthResponse {
+    pub token: String,
+    #[serde(rename = "type")]
+    pub type_: String,
+    pub seconds_to_expire: i64,
+}
+
+impl TryFrom<ResponseRouterData<GlobalpayClientAuthResponse, Self>>
+    for RouterDataV2<
+        ClientAuthenticationToken,
+        PaymentFlowData,
+        ClientAuthenticationTokenRequestData,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<GlobalpayClientAuthResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response;
+
+        let session_data = ClientAuthenticationTokenData::ConnectorSpecific(Box::new(
+            ConnectorSpecificClientAuthenticationResponse::Globalpay(
+                GlobalpayClientAuthenticationResponseDomain {
+                    access_token: Secret::new(response.token),
+                    token_type: Some(response.type_),
+                    expires_in: Some(response.seconds_to_expire),
+                },
+            ),
+        ));
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::ClientAuthenticationTokenResponse {
+                session_data,
+                status_code: item.http_code,
+            }),
             ..item.router_data
         })
     }

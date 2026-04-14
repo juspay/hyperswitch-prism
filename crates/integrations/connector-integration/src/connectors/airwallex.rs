@@ -323,9 +323,9 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<String, IntegrationError> {
             // 2-step flow: Authorize always confirms the payment intent created by CreateOrder
             // Get order_id from reference_id (stored after CreateOrder via set_order_reference_id)
-            let order_id = req.resource_common_data.reference_id
+            let order_id = req.resource_common_data.connector_order_id
                 .as_ref()
-                .ok_or(IntegrationError::MissingRequiredField { field_name: "merchant_order_id", context: Default::default() })?;
+                .ok_or(IntegrationError::MissingRequiredField { field_name: "connector_order_id", context: Default::default() })?;
             Ok(format!(
                 "{}/pa/payment_intents/{}/confirm",
                 &req.resource_common_data.connectors.airwallex.base_url,

@@ -9,10 +9,11 @@ import asyncio
 import sys
 from google.protobuf.json_format import ParseDict
 from payments import PaymentClient
+from payments import MerchantAuthenticationClient
 from payments import DisputeClient
 from payments import EventClient
 from payments import RecurringPaymentClient
-from payments.generated import sdk_config_pb2, payment_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -77,6 +78,30 @@ def _build_capture_request(connector_transaction_id: str):
             }
         },
         payment_pb2.PaymentServiceCaptureRequest(),
+    )
+
+def _build_create_client_authentication_token_request():
+    return ParseDict(
+        {
+            "merchant_client_session_id": "probe_sdk_session_001",  # Infrastructure.
+            "domain_context": {
+                "minor_amount": 1000,
+                "currency": "USD"
+            }
+        },
+        payment_pb2.MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest(),
+    )
+
+def _build_create_order_request():
+    return ParseDict(
+        {
+            "merchant_order_id": "probe_order_001",  # Identification.
+            "amount": {  # Amount Information.
+                "minor_amount": 1000,  # Amount in minor units (e.g., 1000 = $10.00).
+                "currency": "USD"  # ISO 4217 currency code (e.g., "USD", "EUR").
+            }
+        },
+        payment_pb2.PaymentServiceCreateOrderRequest(),
     )
 
 def _build_dispute_accept_request():
@@ -293,6 +318,25 @@ def _build_setup_recurring_request():
         payment_pb2.PaymentServiceSetupRecurringRequest(),
     )
 
+def _build_token_authorize_request():
+    return ParseDict(
+        {
+            "merchant_transaction_id": "probe_tokenized_txn_001",
+            "amount": {
+                "minor_amount": 1000,  # Amount in minor units (e.g., 1000 = $10.00).
+                "currency": "USD"  # ISO 4217 currency code (e.g., "USD", "EUR").
+            },
+            "connector_token": {"value": "pm_1AbcXyzStripeTestToken"},  # Connector-issued token. Replaces PaymentMethod entirely. Examples: Stripe pm_xxx, Adyen recurringDetailReference, Braintree nonce.
+            "address": {
+                "billing_address": {
+                }
+            },
+            "capture_method": "AUTOMATIC",
+            "return_url": "https://example.com/return"
+        },
+        payment_pb2.PaymentServiceTokenAuthorizeRequest(),
+    )
+
 def _build_void_request(connector_transaction_id: str):
     return ParseDict(
         {
@@ -410,6 +454,24 @@ async def capture(merchant_transaction_id: str, config: sdk_config_pb2.Connector
     return {"status": capture_response.status}
 
 
+async def create_client_authentication_token(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: MerchantAuthenticationService.CreateClientAuthenticationToken"""
+    merchantauthentication_client = MerchantAuthenticationClient(config)
+
+    create_response = await merchantauthentication_client.create_client_authentication_token(_build_create_client_authentication_token_request())
+
+    return {"status": create_response.status}
+
+
+async def create_order(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: PaymentService.CreateOrder"""
+    payment_client = PaymentClient(config)
+
+    create_response = await payment_client.create_order(_build_create_order_request())
+
+    return {"status": create_response.status}
+
+
 async def dispute_accept(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """Flow: DisputeService.Accept"""
     dispute_client = DisputeClient(config)
@@ -489,6 +551,15 @@ async def setup_recurring(merchant_transaction_id: str, config: sdk_config_pb2.C
     setup_response = await payment_client.setup_recurring(_build_setup_recurring_request())
 
     return {"status": setup_response.status, "mandate_id": setup_response.connector_transaction_id}
+
+
+async def token_authorize(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: PaymentService.TokenAuthorize"""
+    payment_client = PaymentClient(config)
+
+    token_response = await payment_client.token_authorize(_build_token_authorize_request())
+
+    return {"status": token_response.status}
 
 
 async def void(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):

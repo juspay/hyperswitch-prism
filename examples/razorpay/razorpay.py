@@ -11,7 +11,7 @@ from google.protobuf.json_format import ParseDict
 from payments import PaymentClient
 from payments import EventClient
 from payments import RefundClient
-from payments.generated import sdk_config_pb2, payment_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -52,7 +52,7 @@ def _build_authorize_request(capture_method: str):
             },
             "auth_type": "NO_THREE_DS",  # Authentication Details.
             "return_url": "https://example.com/return",  # URLs for Redirection and Webhooks.
-            "merchant_order_id": "probe_order_001"
+            "connector_order_id": "connector_order_id"  # Send the connector order identifier here if an order was created before authorize.
         },
         payment_pb2.PaymentServiceAuthorizeRequest(),
     )
@@ -128,7 +128,7 @@ def _build_proxy_authorize_request():
             "capture_method": "AUTOMATIC",
             "auth_type": "NO_THREE_DS",
             "return_url": "https://example.com/return",
-            "merchant_order_id": "probe_order_001"
+            "connector_order_id": "connector_order_id"  # Send the connector order identifier here if an order was created before authorize.
         },
         payment_pb2.PaymentServiceProxyAuthorizeRequest(),
     )

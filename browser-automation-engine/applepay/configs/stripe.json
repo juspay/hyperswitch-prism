@@ -1,0 +1,12 @@
+{
+  "merchantId": "merchant.com.example",
+  "merchantName": "stripe",
+  "amount": "1.00",
+  "currency": "USD",
+  "countryCode": "US",
+  "supportedNetworks": ["visa", "masterCard", "amex", "discover"],
+  "merchantCapabilities": ["supports3DS"],
+  "initiativeContext": "hyperswitch-demo-store.netlify.app",
+  "certPath": "/path/to/merchant.pem",
+  "keyPath": "/path/to/merchant.key"
+}

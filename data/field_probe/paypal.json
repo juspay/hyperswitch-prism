@@ -266,11 +266,62 @@
       },
       "GooglePay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "error": "This feature is not implemented: PayPal GooglePay encrypted flow"
       },
       "GooglePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay": {
+              "type": "CARD",
+              "description": "Visa 1111",
+              "info": {
+                "card_network": "VISA",
+                "card_details": "1111"
+              },
+              "tokenization_data": {
+                "decrypted_data": {
+                  "card_exp_month": "03",
+                  "card_exp_year": "2030",
+                  "application_primary_account_number": "4111111111111111",
+                  "cryptogram": "AAAAAA==",
+                  "eci_indicator": "05"
+                }
+              }
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api-m.sandbox.paypal.com/v2/checkout/orders",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "paypal-partner-attribution-id": "HyperSwitchlegacy_Ecom",
+            "paypal-request-id": "probe_txn_001",
+            "prefer": "return=representation",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"intent\":\"CAPTURE\",\"purchase_units\":[{\"reference_id\":\"probe_txn_001\",\"invoice_id\":\"probe_txn_001\",\"custom_id\":null,\"amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\",\"breakdown\":{\"item_total\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax_total\":null,\"shipping\":{\"currency_code\":\"USD\",\"value\":\"0.00\"}}},\"shipping\":{\"address\":null,\"name\":{\"full_name\":null}},\"items\":[{\"name\":\"Payment for invoice probe_txn_001\",\"quantity\":1,\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax\":null}]}],\"payment_source\":{\"google_pay\":{\"decrypted_token\":{\"message_id\":\"00000000-0000-0000-0000-000000000000\",\"message_expiration\":\"0000000000000\",\"payment_method\":\"CARD\",\"authentication_method\":\"CRYPTOGRAM_3DS\",\"cryptogram\":\"AAAAAA==\",\"eci_indicator\":\"05\",\"card\":{\"number\":\"4111111111111111\",\"expiry\":\"2030-03\"}}}}}"
+        }
       },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
@@ -674,7 +725,28 @@
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_client_session_id": "probe_sdk_session_001",
+          "domain_context": {
+            "payment": {
+              "amount": {
+                "minor_amount": 1000,
+                "currency": "USD"
+              }
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api-m.sandbox.paypal.com/v1/identity/generate-token",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfaWQ6cHJvYmVfc2VjcmV0",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{}"
+        }
       }
     },
     "create_customer": {
@@ -684,7 +756,34 @@
     },
     "create_order": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_order_id": "probe_order_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api-m.sandbox.paypal.com/v2/checkout/orders",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "paypal-partner-attribution-id": "HyperSwitchlegacy_Ecom",
+            "paypal-request-id": "probe_order_001",
+            "prefer": "return=representation",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"intent\":\"AUTHORIZE\",\"purchase_units\":[{\"reference_id\":\"probe_order_001\",\"invoice_id\":\"probe_order_001\",\"amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\"}}]}"
+        }
       }
     },
     "create_server_authentication_token": {

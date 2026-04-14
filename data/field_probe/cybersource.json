@@ -719,7 +719,8 @@
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Stuck on field: return_url. Cybersource Flex Microform requires a return_url to set target_origins for the session — Missing required field: return_url. Cybersource Flex Microform requires a return_url to set target_origins for the session"
       }
     },
     "create_customer": {
@@ -1070,8 +1071,38 @@
     },
     "token_authorize": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_tokenized_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "connector_token": "pm_1AbcXyzStripeTestToken",
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://apitest.cybersource.com/pts/v2/payments/",
+          "method": "Post",
+          "headers": {
+            "accept": "application/hal+json;charset=utf-8",
+            "content-type": "application/json;charset=utf-8",
+            "date": "2020-01-01T00:00:00+00:00",
+            "digest": "SHA-256=cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "host": "apitest.cybersource.com",
+            "signature": "keyid=\"probe_key\", algorithm=\"HmacSHA256\", headers=\"host date (request-target) digest v-c-merchant-id\", signature=\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"",
+            "v-c-merchant-id": "probe_merchant",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"processingInformation\":{\"actionList\":null,\"actionTokenTypes\":null,\"authorizationOptions\":{\"initiator\":null,\"merchantInitiatedTransaction\":null,\"ignoreAvsResult\":null,\"ignoreCvResult\":null},\"commerceIndicator\":\"internet\",\"capture\":true,\"captureOptions\":null,\"paymentSolution\":null},\"paymentInformation\":{},\"orderInformation\":{\"amountDetails\":{\"totalAmount\":\"10.00\",\"currency\":\"USD\"},\"billTo\":{\"firstName\":null,\"lastName\":null,\"address1\":null,\"locality\":null,\"country\":null,\"email\":\"test@example.com\"}},\"clientReferenceInformation\":{\"code\":\"probe_tokenized_txn_001\"},\"tokenInformation\":{\"transientTokenJwt\":\"pm_1AbcXyzStripeTestToken\"}}"
+        }
       }
     },
     "token_setup_recurring": {

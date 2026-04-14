@@ -224,6 +224,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    ConnectorIntegrationV2<
+        MandateRevoke,
+        PaymentFlowData,
+        MandateRevokeRequestData,
+        MandateRevokeResponseData,
+    > for Stripe<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::MandateRevokeV2 for Stripe<T>
 {
 }
@@ -605,19 +615,11 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>,
         ) -> CustomResult<String, IntegrationError> {
-            if matches!(
-                req.request.split_payments,
-                Some(domain_types::connector_types::SplitPaymentsRequest::StripeSplitPayment(_))
-            ) {
-                Ok(format!(
-                    "{}{}",
-                    self.connector_base_url_payments(req),
-                    "v1/payment_methods"
-                ))
-            }
-            else {
-                Ok(format!("{}{}", self.connector_base_url_payments(req), "v1/tokens"))
-            }
+            Ok(format!(
+                "{}{}",
+                self.connector_base_url_payments(req),
+                "v1/payment_methods"
+            ))
         }
     }
 );
@@ -1096,13 +1098,4 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        MandateRevoke,
-        PaymentFlowData,
-        MandateRevokeRequestData,
-        MandateRevokeResponseData,
-    > for Stripe<T>
-{
-}
 // SourceVerification implementations for all flows

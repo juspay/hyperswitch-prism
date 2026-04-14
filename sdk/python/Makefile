@@ -1,5 +1,6 @@
 .PHONY: install-deps install-codegen-deps generate-bindings generate-proto generate-all \
-        generate-flows pack-archive install test-package test-composite test-grpc test-grpc-no-server dist publish clean
+        generate-flows pack-archive install test-package test-composite test-grpc test-grpc-no-server dist publish clean \
+        publish-check-auth publish-check-version publish-check-dry-run publish-check
 
 # SDK-specific paths (define BEFORE including common.mk)
 MAKEFILE_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
@@ -121,6 +122,7 @@ generate-flows: install-codegen-deps
 pack-archive:
 	@mkdir -p $(PACKAGE_DIR)
 	@rm -f $(PACKAGE_DIR)/$(subst -,_,$(PACKAGE_NAME))-*.whl
+	@rm -rf $(SDK_ROOT)/build
 	@cd $(SDK_ROOT) && python3 -m pip wheel . --no-deps --wheel-dir $(PACKAGE_DIR)/
 	@echo "Wheel built: $(WHEEL_FILE)"
 
@@ -155,12 +157,41 @@ test-package: generate-all pack-archive
 		--target /tmp/test-hyperswitch-py \
 		$(WHEEL_FILE) \
 		--force-reinstall
+	@cp $(REPO_ROOT)/sdk/generated/flows.json /tmp/test-hyperswitch-py/
 	@cd /tmp/test-hyperswitch-py && python3 test_smoke.py --connectors $(CONNECTORS) --examples-dir $(REPO_ROOT)/examples
 	@echo "Running composite flow test..."
 	@cp $(SDK_ROOT)/smoke-test/test_smoke_composite.py /tmp/test-hyperswitch-py/
 	@cd /tmp/test-hyperswitch-py && python3 test_smoke_composite.py --creds-file creds.json
 	@rm -rf /tmp/test-hyperswitch-py
 	@echo "Package test passed."
+
+# ---------------------------------------------------------------------------
+# test-package-mock
+# Same as test-package but runs in MOCK mode (no real HTTP calls).
+# Uses generated harnesses instead of examples and verifies req_transformer only.
+# ---------------------------------------------------------------------------
+test-package-mock: generate-all pack-archive
+	@echo "Testing packed wheel in MOCK mode (no real HTTP)..."
+	@rm -rf /tmp/test-hyperswitch-py-mock
+	@mkdir -p /tmp/test-hyperswitch-py-mock
+	@cp $(SDK_ROOT)/smoke-test/test_smoke.py /tmp/test-hyperswitch-py-mock/
+	@# Copy mock credentials file
+	@if [ -f $(REPO_ROOT)/creds_dummy.json ]; then \
+		cp $(REPO_ROOT)/creds_dummy.json /tmp/test-hyperswitch-py-mock/creds.json; \
+	else \
+		echo "  Note: creds_dummy.json not found, test will use placeholder credentials"; \
+	fi
+	@python3 -m pip install \
+		--target /tmp/test-hyperswitch-py-mock \
+		$(WHEEL_FILE) \
+		--force-reinstall
+	@cp $(REPO_ROOT)/sdk/generated/flows.json /tmp/test-hyperswitch-py-mock/
+	@# Copy generated harnesses to examples directory structure expected by smoke test
+	@mkdir -p /tmp/test-hyperswitch-py-mock/examples/$(CONNECTORS)
+	@cp $(SDK_ROOT)/smoke-test/generated/$(CONNECTORS)/$(CONNECTORS).py /tmp/test-hyperswitch-py-mock/examples/$(CONNECTORS)/
+	@cd /tmp/test-hyperswitch-py-mock && python3 test_smoke.py --connectors $(CONNECTORS) --creds-file creds.json --mock
+	@rm -rf /tmp/test-hyperswitch-py-mock
+	@echo "Package mock test passed."
 
 # ---------------------------------------------------------------------------
 # test-composite
@@ -203,6 +234,7 @@ test-grpc-no-server: build-ffi-lib build-grpc-ffi-lib generate-all pack-archive
 		--force-reinstall
 	@cp -f $(GRPC_FFI_LIBRARY) /tmp/test-hyperswitch-py-grpc/payments/generated/
 	@cp $(SDK_ROOT)/smoke-test/test_smoke_grpc.py /tmp/test-hyperswitch-py-grpc/
+	@cp $(REPO_ROOT)/sdk/generated/flows.json /tmp/test-hyperswitch-py-grpc/
 	@if [ -f $(REPO_ROOT)/creds.json ]; then \
 		cp $(REPO_ROOT)/creds.json /tmp/test-hyperswitch-py-grpc/; \
 	else \
@@ -279,6 +311,52 @@ publish: pack-archive
 	@python3 -m pip install twine --quiet
 	@python3 -m twine upload $(WHEEL_FILE)
 	@echo "Published hyperswitch-prism to PyPI."
+
+# ---------------------------------------------------------------------------
+# Pre-publish checks
+# ---------------------------------------------------------------------------
+
+# publish-check-auth
+# Verifies that TWINE_USERNAME and TWINE_PASSWORD environment variables are set.
+publish-check-auth:
+	@if [ -z "$(TWINE_USERNAME)" ]; then \
+		echo "Error: TWINE_USERNAME is not set"; \
+		exit 1; \
+	fi
+	@if [ -z "$(TWINE_PASSWORD)" ]; then \
+		echo "Error: TWINE_PASSWORD is not set"; \
+		exit 1; \
+	fi
+	@echo "PyPI authentication credentials are configured."
+
+# publish-check-version
+# Checks if $(PACKAGE_VERSION) already exists on PyPI.
+# Exits with error if version already exists (prevents accidental republish).
+publish-check-version:
+	@echo "Checking if hyperswitch-prism $(PACKAGE_VERSION) exists on PyPI..."
+	@if curl -s https://pypi.org/pypi/hyperswitch-prism/json | \
+		python3 -c "import sys, json; data=json.load(sys.stdin); versions=list(data.get('releases', {}).keys()); exit(0 if '$(PACKAGE_VERSION)' in versions else 1)" 2>/dev/null; then \
+		echo "Error: Version $(PACKAGE_VERSION) already exists on PyPI"; \
+		echo "Increment the version in pyproject.toml before publishing."; \
+		exit 1; \
+	fi
+	@echo "Version $(PACKAGE_VERSION) does not exist on PyPI - OK to publish."
+
+# publish-check-dry-run
+# Validates the distribution package without publishing.
+# Uses twine check to verify wheel metadata and lists wheel contents.
+publish-check-dry-run: pack-archive
+	@echo "Validating wheel package..."
+	@python3 -m pip install twine --quiet 2>/dev/null || true
+	@python3 -m twine check $(WHEEL_FILE)
+	@echo "Wheel contents:"
+	@python3 -m zipfile -l $(WHEEL_FILE) | head -20
+	@echo "Dry-run validation passed."
+
+# publish-check
+# Runs all pre-publish checks in sequence.
+publish-check: publish-check-auth publish-check-version publish-check-dry-run
+	@echo "All Python pre-publish checks passed."
 
 clean:
 	@rm -rf $(GENERATED_OUT)

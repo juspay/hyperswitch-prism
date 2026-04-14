@@ -27,6 +27,11 @@ patches = [
   { path = "address.billing_address.phone_country_code", type = "string",        value = "+1" },
 ]
 
+[connector_order_id]
+aliases = ["connector_order_id"]
+type = "string"
+value = "connector_order_id"
+
 [[multi]]
 # Some connectors emit a combined "first_name or last_name" error when either
 # name field is absent. Patch both simultaneously.

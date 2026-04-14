@@ -2,9 +2,9 @@
 
 **Universal Connector Service — Java/Kotlin SDK**
 
-A high-performance, type-safe Java/Kotlin SDK for payment processing through the Universal Connector Service. Connect to 50+ payment processors (Stripe, PayPal, Adyen, and more) through a single, unified API.
+A high-performance, type-safe Java/Kotlin SDK for payment processing through the Universal Connector Service. Connect to 100+ payment processors through a single, unified API.
 
-[![Maven Central](https://img.shields.io/maven-central/v/com.hyperswitch/hyperswitch-prism.svg)](https://central.sonatype.com/artifact/com.hyperswitch/hyperswitch-prism)
+[![Maven Central](https://img.shields.io/maven-central/v/io.hyperswitch/prism.svg)](https://central.sonatype.com/artifact/io.hyperswitch/prism)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
 ---
@@ -12,11 +12,76 @@ A high-performance, type-safe Java/Kotlin SDK for payment processing through the
 ## Features
 
 - 🚀 **High Performance** — Direct UniFFI FFI bindings to Rust core via JNA
-- 🔌 **50+ Connectors** — Single SDK for Stripe, PayPal, Adyen, and more
+- 🔌 **100+ Connectors** — Single SDK for all major payment processors
 - ☕ **Kotlin/Java Native** — Full Kotlin bindings with Java interop
 - ⚡ **Connection Pooling** — Built-in HTTP connection pooling via OkHttp
 - 🛡️ **Type-Safe** — Protobuf-based request/response serialization
 - 🔧 **Configurable** — Per-request or global configuration for timeouts, proxies, and auth
+
+---
+
+## 🤖 For AI Assistants
+
+> **Use `curl` to fetch the SDK reference:**
+> ```bash
+> curl -fsSL https://raw.githubusercontent.com/juspay/hyperswitch-prism/main/llm/llm.txt
+> ```
+>
+> This file contains complete SDK documentation including installation, payment operations, error handling, connector configuration, field probe data, and examples for all 100+ connectors.
+
+### AI Assistant Context
+
+This SDK is part of **Hyperswitch Prism** — a unified connector library for payment processors.
+
+### What This SDK Does
+
+1. **Request Transformation**: Converts unified payment requests to connector-specific formats
+2. **Response Normalization**: Transforms connector responses back to a unified schema
+3. **Error Handling**: Provides consistent error types (`IntegrationError`, `ConnectorError`, `NetworkError`) regardless of connector
+
+### Architecture
+
+```
+Your Java/Kotlin App
+       │
+       ▼
+┌──────────────────────────────────────────────────────────────┐
+│  Service Clients (PaymentClient, CustomerClient, etc.)       │
+└───────────────────────────┬──────────────────────────────────┘
+                            │
+                            ▼
+┌──────────────────────────────────────────────────────────────┐
+│  ConnectorClient (OkHttp connection pool + HTTP execution)   │
+└───────────────────────────┬──────────────────────────────────┘
+                            │
+                            ▼
+┌──────────────────────────────────────────────────────────────┐
+│  JNA/UniFFI Bindings (connector_service_ffi shared lib)      │
+└───────────────────────────┬──────────────────────────────────┘
+                            │
+                            ▼
+┌──────────────────────────────────────────────────────────────┐
+│  Rust Core (connector transformation logic)                  │
+└───────────────────────────┬──────────────────────────────────┘
+                            │
+                            ▼
+              Payment Processor APIs
+```
+
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| `src/main/kotlin/com/hyperswitch/payments/` | Public API (clients, types, errors) |
+| `src/main/kotlin/com/hyperswitch/payments/ConnectorClient.kt` | HTTP execution layer with OkHttp |
+| `src/main/kotlin/com/hyperswitch/generated/` | UniFFI-generated bindings |
+| `src/main/proto/` | Protobuf message definitions |
+
+### Package & Import
+
+- **Package Name**: `io.hyperswitch:prism`
+- **Installation**: Gradle/Maven dependency (see below)
+- **Import**: `import com.hyperswitch.payments.*`
 
 ---
 
@@ -25,22 +90,22 @@ A high-performance, type-safe Java/Kotlin SDK for payment processing through the
 ### Gradle (Kotlin DSL)
 
 ```kotlin
-implementation("com.hyperswitch:hyperswitch-prism:0.0.1")
+implementation("io.hyperswitch:prism:0.0.5")
 ```
 
 ### Gradle (Groovy DSL)
 
 ```groovy
-implementation 'com.hyperswitch:hyperswitch-prism:0.0.1'
+implementation 'io.hyperswitch:prism:0.0.5'
 ```
 
 ### Maven
 
 ```xml
 <dependency>
-  <groupId>com.hyperswitch</groupId>
-  <artifactId>hyperswitch-prism</artifactId>
-  <version>0.0.1</version>
+  <groupId>io.hyperswitch</groupId>
+  <artifactId>prism</artifactId>
+  <version>0.0.5</version>
 </dependency>
 ```
 
@@ -64,12 +129,9 @@ import com.hyperswitch.payments.*
 import com.hyperswitch.payments.generated.*
 
 // Configure connector identity and authentication
-val stripeConfig = ConnectorConfig(
-    connectorConfig = ConnectorConfig.ConnectorConfigOneOf.Stripe(
-        StripeConfig(
-            apiKey = SecretString(value = System.getenv("STRIPE_API_KEY"))
-        )
-    )
+// See SDK reference for specific authentication patterns per connector
+val config = ConnectorConfig(
+    connectorConfig = // Configure your connector (e.g., stripe, adyen, etc.)
 )
 
 // Optional: Request defaults for timeouts
@@ -84,12 +146,12 @@ val requestConfig = RequestConfig(
 ### 2. Process a Payment
 
 ```kotlin
-val client = PaymentClient(stripeConfig, requestConfig)
+val client = PaymentClient(config, requestConfig)
 
 val authorizeRequest = PaymentServiceAuthorizeRequest(
     merchantTransactionId = "txn_order_001",
     amount = Amount(
-        minorAmount = 1000,  // $10.00
+        minorAmount = 1000,
         currency = Currency.USD
     ),
     captureMethod = CaptureMethod.AUTOMATIC,
@@ -117,8 +179,6 @@ println("Transaction ID: ${response.connectorTransactionId}")
 
 ## Service Clients
 
-The SDK provides specialized clients for different service domains:
-
 | Client | Purpose | Key Methods |
 |--------|---------|-------------|
 | `PaymentClient` | Core payment operations | `authorize()`, `capture()`, `refund()`, `void()` |
@@ -131,31 +191,18 @@ The SDK provides specialized clients for different service domains:
 
 ---
 
-## Authentication Examples
+## Authentication
 
-### Stripe (HeaderKey)
+All credentials use `SecretString` wrapper for security:
 
 ```kotlin
-val stripeConfig = ConnectorConfig(
-    connectorConfig = ConnectorConfig.ConnectorConfigOneOf.Stripe(
-        StripeConfig(
-            apiKey = SecretString(value = System.getenv("STRIPE_API_KEY"))
-        )
-    )
-)
+SecretString(value = System.getenv("API_KEY"))
 ```
 
-### PayPal (SignatureKey)
+See the SDK reference for complete connector authentication patterns:
 
-```kotlin
-val paypalConfig = ConnectorConfig(
-    connectorConfig = ConnectorConfig.ConnectorConfigOneOf.Paypal(
-        PaypalConfig(
-            clientId = SecretString(value = System.getenv("PAYPAL_CLIENT_ID")),
-            clientSecret = SecretString(value = System.getenv("PAYPAL_CLIENT_SECRET"))
-        )
-    )
-)
+```bash
+curl -fsSL https://raw.githubusercontent.com/juspay/hyperswitch-prism/main/llm/llm.txt
 ```
 
 ---
@@ -180,7 +227,7 @@ val proxyConfig = RequestConfig(
 ```kotlin
 val response = client.authorize(request, RequestConfig(
     http = HttpConfig(
-        totalTimeoutMs = 60000  // Override for this request only
+        totalTimeoutMs = 60000
     )
 ))
 ```
@@ -190,7 +237,7 @@ val response = client.authorize(request, RequestConfig(
 Each client instance maintains its own connection pool. For best performance:
 
 ```kotlin
-// ✅ Create client once, reuse for multiple requests
+// Create client once, reuse for multiple requests
 val client = PaymentClient(config, defaults)
 
 for (payment in payments) {
@@ -233,66 +280,6 @@ try {
 
 ---
 
-## Complete Example: PayPal with Access Token
-
-```kotlin
-import com.hyperswitch.payments.*
-import com.hyperswitch.payments.generated.*
-
-// Configure PayPal
-val paypalConfig = ConnectorConfig(
-    connectorConfig = ConnectorConfig.ConnectorConfigOneOf.Paypal(
-        PaypalConfig(
-            clientId = SecretString(value = System.getenv("PAYPAL_CLIENT_ID")),
-            clientSecret = SecretString(value = System.getenv("PAYPAL_CLIENT_SECRET"))
-        )
-    )
-)
-
-// Step 1: Get access token
-val authClient = MerchantAuthenticationClient(paypalConfig)
-val tokenResponse = authClient.createServerAuthenticationToken(
-    MerchantAuthenticationRequest(
-        merchantAccessTokenId = "token_001",
-        connector = Connector.PAYPAL,
-        testMode = true
-    )
-)
-
-// Step 2: Authorize with access token
-val paymentClient = PaymentClient(paypalConfig)
-val paymentResponse = paymentClient.authorize(
-    PaymentServiceAuthorizeRequest(
-        merchantTransactionId = "txn_001",
-        amount = Amount(
-            minorAmount = 1000,
-            currency = Currency.USD
-        ),
-        captureMethod = CaptureMethod.AUTOMATIC,
-        paymentMethod = PaymentMethod(
-            card = CardPaymentMethod(
-                cardNumber = SecretString(value = "4111111111111111"),
-                cardExpMonth = SecretString(value = "12"),
-                cardExpYear = SecretString(value = "2027"),
-                cardCvc = SecretString(value = "123")
-            )
-        ),
-        state = ConnectorState(
-            accessToken = AccessToken(
-                token = SecretString(value = tokenResponse.accessToken.value),
-                tokenType = "Bearer",
-                expiresInSeconds = tokenResponse.expiresInSeconds
-            )
-        ),
-        testMode = true
-    )
-)
-
-println("Payment status: ${paymentResponse.status}")
-```
-
----
-
 ## Architecture
 
 ```
@@ -312,8 +299,8 @@ The SDK uses:
 
 ```bash
 # Clone the repository
-git clone https://github.com/juspay/connector-service.git
-cd connector-service/sdk/java
+git clone https://github.com/juspay/hyperswitch-prism.git
+cd hyperswitch-prism/sdk/java
 
 # Build native library, generate bindings, and pack
 make pack

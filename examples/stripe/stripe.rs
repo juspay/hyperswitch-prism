@@ -255,6 +255,24 @@ pub fn build_setup_recurring_request() -> PaymentServiceSetupRecurringRequest {
     .unwrap_or_default()
 }
 
+pub fn build_token_authorize_request() -> PaymentServiceTokenAuthorizeRequest {
+    serde_json::from_value::<PaymentServiceTokenAuthorizeRequest>(serde_json::json!({
+    "merchant_transaction_id": "probe_tokenized_txn_001",
+    "amount": {
+        "minor_amount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+        "currency": "USD",  // ISO 4217 currency code (e.g., "USD", "EUR").
+    },
+    "connector_token": "pm_1AbcXyzStripeTestToken",  // Connector-issued token. Replaces PaymentMethod entirely. Examples: Stripe pm_xxx, Adyen recurringDetailReference, Braintree nonce.
+    "address": {
+        "billing_address": {
+        },
+    },
+    "capture_method": "AUTOMATIC",
+    "return_url": "https://example.com/return",
+    }))
+    .unwrap_or_default()
+}
+
 pub fn build_tokenize_request() -> PaymentMethodServiceTokenizeRequest {
     serde_json::from_value::<PaymentMethodServiceTokenizeRequest>(serde_json::json!({
     "amount": {  // Payment Information.
@@ -662,6 +680,18 @@ pub async fn setup_recurring(
     ))
 }
 
+// Flow: PaymentService.TokenAuthorize
+#[allow(dead_code)]
+pub async fn token_authorize(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .token_authorize(build_token_authorize_request(), &HashMap::new(), None)
+        .await?;
+    Ok(format!("status: {:?}", response.status()))
+}
+
 // Flow: PaymentMethodService.Tokenize
 #[allow(dead_code)]
 pub async fn tokenize(
@@ -717,10 +747,11 @@ async fn main() {
         "refund" => refund(&client, "order_001").await,
         "refund_get" => refund_get(&client, "order_001").await,
         "setup_recurring" => setup_recurring(&client, "order_001").await,
+        "token_authorize" => token_authorize(&client, "order_001").await,
         "tokenize" => tokenize(&client, "order_001").await,
         "void" => void(&client, "order_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, authorize, capture, create_client_authentication_token, create_customer, get, incremental_authorization, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, tokenize, void", flow);
+            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, authorize, capture, create_client_authentication_token, create_customer, get, incremental_authorization, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, token_authorize, tokenize, void", flow);
             return;
         }
     };

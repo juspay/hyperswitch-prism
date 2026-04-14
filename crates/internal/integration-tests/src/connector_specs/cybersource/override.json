@@ -1,0 +1,134 @@
+{
+  "pre_authenticate": {
+    "threeds_card_pre_authenticate": {
+      "grpc_req": {
+        "connector_feature_data": {
+          "value": "{\"disable_avs\":false,\"disable_cvn\":false}"
+        },
+        "metadata": {
+          "value": "{}"
+        },
+        "browser_info": {
+          "ip_address": "127.0.0.1",
+          "accept_header": "application/json",
+          "user_agent": "Mozilla/5.0 (integration-tests)",
+          "accept_language": "en-US"
+        }
+      }
+    }
+  },
+  "authenticate": {
+    "threeds_card_authenticate": {
+      "grpc_req": {
+        "connector_feature_data": {
+          "value": "{\"disable_avs\":false,\"disable_cvn\":false}"
+        },
+        "metadata": {
+          "value": "{}"
+        },
+        "browser_info": {
+          "ip_address": "127.0.0.1",
+          "accept_header": "application/json",
+          "user_agent": "Mozilla/5.0 (integration-tests)",
+          "accept_language": "en-US"
+        }
+      }
+    }
+  },
+  "post_authenticate": {
+    "threeds_card_post_authenticate": {
+      "grpc_req": {
+        "connector_feature_data": {
+          "value": "{\"disable_avs\":false,\"disable_cvn\":false}"
+        },
+        "metadata": {
+          "value": "{}"
+        },
+        "browser_info": {
+          "ip_address": "127.0.0.1",
+          "accept_header": "application/json",
+          "user_agent": "Mozilla/5.0 (integration-tests)",
+          "accept_language": "en-US"
+        }
+      }
+    }
+  },
+  "authorize": {
+    "no3ds_auto_capture_google_pay_encrypted": {
+      "grpc_req": {
+        "connector_feature_data": {
+          "value": "{\"disable_avs\":false,\"disable_cvn\":false}"
+        },
+        "metadata": {
+          "value": "{}"
+        }
+      }
+    },
+    "no3ds_auto_capture_credit_card": {
+      "grpc_req": {
+        "connector_feature_data": {
+          "value": "{\"disable_avs\":false,\"disable_cvn\":false}"
+        },
+        "metadata": {
+          "value": "{}"
+        }
+      }
+    },
+    "no3ds_auto_capture_debit_card": {
+      "grpc_req": {
+        "connector_feature_data": {
+          "value": "{\"disable_avs\":false,\"disable_cvn\":false}"
+        },
+        "metadata": {
+          "value": "{}"
+        }
+      }
+    },
+    "no3ds_manual_capture_credit_card": {
+      "grpc_req": {
+        "connector_feature_data": {
+          "value": "{\"disable_avs\":false,\"disable_cvn\":false}"
+        },
+        "metadata": {
+          "value": "{}"
+        }
+      }
+    },
+    "no3ds_manual_capture_debit_card": {
+      "grpc_req": {
+        "connector_feature_data": {
+          "value": "{\"disable_avs\":false,\"disable_cvn\":false}"
+        },
+        "metadata": {
+          "value": "{}"
+        }
+      }
+    },
+    "threeds_manual_capture_credit_card": {
+      "grpc_req": {
+        "connector_feature_data": {
+          "value": "{\"disable_avs\":false,\"disable_cvn\":false}"
+        },
+        "metadata": {
+          "value": "{}"
+        },
+        "browser_info": {
+          "ip_address": "127.0.0.1",
+          "accept_header": "application/json",
+          "user_agent": "Mozilla/5.0 (integration-tests)",
+          "accept_language": "en-US"
+        }
+      }
+    },
+    "no3ds_fail_payment": {
+      "grpc_req": {
+        "connector_feature_data": {
+          "value": "{\"disable_avs\":false,\"disable_cvn\":false}"
+        },
+        "metadata": {
+          "value": "{}"
+        }
+      }
+    }
+  }
+}

@@ -8,7 +8,9 @@ use domain_types::{
         PaymentsResponseData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
         RepeatPaymentData, ResponseId,
     },
-    payment_method_data::{BankDebitData, PaymentMethodData, PaymentMethodDataTypes},
+    payment_method_data::{
+        BankDebitData, GpayTokenizationData, PaymentMethodData, PaymentMethodDataTypes, WalletData,
+    },
     router_data::{ConnectorSpecificConfig, PaysafePaymentMethodDetails},
     router_data_v2::RouterDataV2,
 };
@@ -19,7 +21,7 @@ use serde::{Deserialize, Serialize};
 use crate::connectors::paysafe::PaysafeRouterData;
 use crate::types::ResponseRouterData;
 use domain_types::errors::ConnectorError;
-use domain_types::errors::IntegrationError;
+use domain_types::errors::{IntegrationError, IntegrationErrorContext};
 
 pub use super::requests::*;
 pub use super::responses::*;
@@ -277,10 +279,112 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         account_id,
                     )
                 }
+                PaymentMethodData::Wallet(WalletData::GooglePay(google_pay_data)) => {
+                    let decrypted_data = match &google_pay_data.tokenization_data {
+                        GpayTokenizationData::Decrypted(d) => d,
+                        GpayTokenizationData::Encrypted(_) => {
+                            return Err(IntegrationError::MissingRequiredField {
+                                field_name: "google_pay.tokenization_data (decrypted)",
+                                context: Default::default(),
+                            }
+                            .into())
+                        }
+                    };
+
+                    let expiration_month = decrypted_data
+                        .get_expiry_month()
+                        .change_context(IntegrationError::MissingRequiredField {
+                            field_name: "google_pay_decrypted_data.card_exp_month",
+                            context: Default::default(),
+                        })?
+                        .peek()
+                        .parse::<u8>()
+                        .map_err(|_| {
+                            IntegrationError::InvalidDataFormat {
+                                field_name: "google_pay_decrypted_data.card_exp_month",
+                                context: Default::default(),
+                            }
+                        })?;
+
+                    let expiration_year = decrypted_data
+                        .get_four_digit_expiry_year()
+                        .change_context(IntegrationError::MissingRequiredField {
+                            field_name: "google_pay_decrypted_data.card_exp_year",
+                            context: Default::default(),
+                        })?
+                        .peek()
+                        .parse::<u16>()
+                        .map_err(|_| {
+                            IntegrationError::InvalidDataFormat {
+                                field_name: "google_pay_decrypted_data.card_exp_year",
+                                context: Default::default(),
+                            }
+                        })?;
+
+                    let pan = Secret::new(
+                        decrypted_data
+                            .application_primary_account_number
+                            .get_card_no(),
+                    );
+
+                    let auth_method = if decrypted_data.cryptogram.is_some() {
+                        PaysafeGooglePayAuthMethod::Cryptogram3Ds
+                    } else {
+                        PaysafeGooglePayAuthMethod::PanOnly
+                    };
+
+                    let payment_method_details = PaysafeGooglePayPaymentMethodDetails {
+                        auth_method,
+                        pan,
+                        expiration_month,
+                        expiration_year,
+                        cryptogram: decrypted_data.cryptogram.clone(),
+                    };
+
+                    // TODO(https://github.com/juspay/hyperswitch/issues/11684): HS parses
+                    // message_id and message_expiration from the decrypted GPay payload
+                    // internally but drops them before forwarding to UCS via GPayPredecryptData.
+                    // Until HS propagates these fields, we fall back to a random UUID for
+                    // message_id (losing Paysafe's replay-detection guarantee) and a far-future
+                    // placeholder for message_expiration.
+                    let decrypted_token = PaysafeGooglePayDecryptedToken {
+                        message_id: uuid::Uuid::new_v4().to_string(),
+                        message_expiration: "9999999999999".to_string(),
+                        payment_method_details,
+                    };
+
+                    let google_pay_payment_token = PaysafeGooglePayPaymentToken {
+                        api_version: 2,
+                        api_version_minor: 0,
+                        payment_method_data: PaysafeGooglePayPaymentMethodData {
+                            pm_type: "CARD".to_string(),
+                            description: google_pay_data.description.clone(),
+                            info: PaysafeGooglePayCardInfo {
+                                card_network: google_pay_data.info.card_network.clone(),
+                                card_details: google_pay_data.info.card_details.clone(),
+                            },
+                            tokenization_data: PaysafeGooglePayTokenizationData {
+                                token_type: "PAYMENT_GATEWAY".to_string(),
+                                decrypted_token,
+                            },
+                        },
+                    };
+
+                    let account_id = account_id.get_no_three_ds_account_id(currency)?;
+                    (
+                        PaysafePaymentMethod::GooglePay {
+                            google_pay: PaysafeGooglePay {
+                                google_pay_payment_token,
+                            },
+                        },
+                        PaysafePaymentType::Card,
+                        account_id,
+                    )
+                }
                 _ => {
                     return Err(IntegrationError::NotSupported {
                         message:
-                            "Only card and ACH payment methods are supported for PaymentMethodToken"
+                            "Only card, ACH, and GooglePay payment methods are supported for PaymentMethodToken"
                                 .to_string(),
                         connector: "Paysafe",
                         context: Default::default(),
@@ -290,6 +394,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             };
 
         // For ACH payments, Paysafe requires settleWithAuth to be true
+        // For Card (including GooglePay which maps to Card), settle based on capture_method
         let settle_with_auth = match payment_type {
             PaysafePaymentType::Ach => true,
             PaysafePaymentType::Card => matches!(
@@ -418,30 +523,28 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 context: Default::default(),
             })?;
 
-        let payment_handle_token: Secret<String> = router_data
-            .resource_common_data
-            .payment_method_token
-            .as_ref()
-            .map(|token| match token {
-                domain_types::router_data::PaymentMethodToken::Token(t) => t.clone(),
-            })
-            .or_else(|| {
-                router_data
-                    .resource_common_data
-                    .connector_feature_data
-                    .as_ref()
-                    .and_then(|metadata_value| {
-                        metadata_value
-                            .clone()
-                            .parse_value::<PaysafeMeta>("PaysafeMeta")
-                            .ok()
-                            .map(|meta| meta.payment_handle_token)
-                    })
-            })
-            .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "payment_method_token",
-                context: Default::default(),
-            })?;
+        let payment_handle_token: Secret<String> = match &router_data.request.payment_method_data {
+            PaymentMethodData::PaymentMethodToken(t) => t.token.clone(),
+            _ => router_data
+                .resource_common_data
+                .connector_feature_data
+                .as_ref()
+                .and_then(|metadata_value| {
+                    metadata_value
+                        .clone()
+                        .parse_value::<PaysafeMeta>("PaysafeMeta")
+                        .ok()
+                        .map(|meta| meta.payment_handle_token)
+                })
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "payment_method_token",
+                    context: IntegrationErrorContext {
+                        suggested_action: Some("Obtain a Paysafe payment_handle_token via PaymentMethodService.Tokenize before authorizing.".to_string()),
+                        doc_url: Some("https://developer.paysafe.com/en/payments/payment-handles/create-payment-handle/".to_string()),
+                        additional_context: Some("Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata.".to_string()),
+                    },
+                })?,
+        };
 
         let customer_ip = router_data
             .request
@@ -466,13 +569,23 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             )
         };
 
-        // For ACH, use the ach account_id; for cards, use card account_id
+        // For ACH, use the ach account_id; for wallets (GooglePay), always use no_three_ds
+        // because the PaymentMethodToken (payment handle) was created under the no_three_ds
+        // account. For cards, branch on is_three_ds().
+        let is_wallet = matches!(
+            router_data.resource_common_data.payment_method,
+            enums::PaymentMethod::Wallet
+        );
+
         let account_id = Some(if is_ach {
             account_id.get_ach_account_id(router_data.request.currency)?
-        } else if router_data.resource_common_data.is_three_ds() {
-            account_id.get_three_ds_account_id(router_data.request.currency)?
-        } else {
+        } else if is_wallet || !router_data.resource_common_data.is_three_ds() {
+            // Wallets (GooglePay) always use no_three_ds account because the payment handle
+            // (created in PaymentMethodToken flow) uses no_three_ds account.
+            // Non-3DS card payments also use no_three_ds.
             account_id.get_no_three_ds_account_id(router_data.request.currency)?
+        } else {
+            account_id.get_three_ds_account_id(router_data.request.currency)?
         });
 
         Ok(Self {

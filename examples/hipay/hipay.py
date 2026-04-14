@@ -11,7 +11,7 @@ from google.protobuf.json_format import ParseDict
 from payments import PaymentClient
 from payments import RefundClient
 from payments import PaymentMethodClient
-from payments.generated import sdk_config_pb2, payment_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),

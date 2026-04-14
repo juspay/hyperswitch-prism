@@ -28,7 +28,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -38,7 +38,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "AchBankTransfer": {
@@ -58,7 +58,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -68,7 +68,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "Affirm": {
@@ -88,7 +88,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -98,7 +98,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "Afterpay": {
@@ -118,7 +118,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -128,7 +128,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "Alfamart": {
@@ -148,7 +148,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -158,7 +158,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "AliPayRedirect": {
@@ -178,7 +178,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -188,7 +188,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "AmazonPayRedirect": {
@@ -208,7 +208,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -218,7 +218,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "ApplePay": {
@@ -248,7 +248,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -258,7 +258,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "ApplePayDecrypted": {
@@ -296,7 +296,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -306,7 +306,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "ApplePayThirdPartySdk": {
@@ -328,7 +328,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -338,7 +338,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "Bacs": {
@@ -362,7 +362,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -372,7 +372,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "BacsBankTransfer": {
@@ -392,7 +392,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -402,7 +402,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "BancontactCard": {
@@ -427,7 +427,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -437,7 +437,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "BcaBankTransfer": {
@@ -457,7 +457,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -467,7 +467,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "Becs": {
@@ -491,7 +491,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -501,7 +501,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "Bizum": {
@@ -521,7 +521,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -531,7 +531,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "Blik": {
@@ -553,7 +553,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -563,7 +563,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "Bluecode": {
@@ -583,7 +583,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -593,7 +593,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "BniVaBankTransfer": {
@@ -613,7 +613,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -623,7 +623,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "Boleto": {
@@ -643,7 +643,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -653,7 +653,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "BriVaBankTransfer": {
@@ -673,7 +673,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -683,7 +683,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "Card": {
@@ -709,7 +709,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -719,7 +719,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "CashappQr": {
@@ -739,7 +739,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -749,7 +749,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "CimbVaBankTransfer": {
@@ -769,7 +769,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -779,7 +779,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "ClassicReward": {
@@ -799,7 +799,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -809,7 +809,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "Crypto": {
@@ -833,7 +833,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -843,7 +843,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "DuitNow": {
@@ -867,7 +867,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -877,7 +877,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "Efecty": {
@@ -897,7 +897,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -907,7 +907,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "Eft": {
@@ -929,7 +929,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -939,7 +939,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "Eps": {
@@ -959,7 +959,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -969,7 +969,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "FamilyMart": {
@@ -989,7 +989,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -999,7 +999,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "Giropay": {
@@ -1019,7 +1019,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -1029,7 +1029,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "Givex": {
@@ -1066,7 +1066,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -1076,7 +1076,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "GooglePayDecrypted": {
@@ -1112,7 +1112,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -1122,7 +1122,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "GooglePayThirdPartySdk": {
@@ -1144,7 +1144,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -1154,7 +1154,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "Ideal": {
@@ -1174,7 +1174,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -1184,7 +1184,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "Indomaret": {
@@ -1204,7 +1204,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -1214,7 +1214,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "IndonesianBankTransfer": {
@@ -1234,7 +1234,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -1244,7 +1244,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "InstantBankTransfer": {
@@ -1264,7 +1264,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -1274,7 +1274,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "InstantBankTransferFinland": {
@@ -1294,7 +1294,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -1304,7 +1304,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "InstantBankTransferPoland": {
@@ -1324,7 +1324,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -1334,7 +1334,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "Interac": {
@@ -1354,7 +1354,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -1364,7 +1364,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "Klarna": {
@@ -1384,7 +1384,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -1394,7 +1394,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "Lawson": {
@@ -1414,7 +1414,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -1424,7 +1424,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "LocalBankRedirect": {
@@ -1444,7 +1444,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -1454,7 +1454,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "LocalBankTransfer": {
@@ -1474,7 +1474,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -1484,7 +1484,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "MandiriVaBankTransfer": {
@@ -1504,7 +1504,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -1514,7 +1514,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "MbWay": {
@@ -1534,7 +1534,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -1544,7 +1544,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "Mifinity": {
@@ -1567,7 +1567,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -1577,7 +1577,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "MiniStop": {
@@ -1597,7 +1597,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -1607,7 +1607,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "MultibancoBankTransfer": {
@@ -1627,7 +1627,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -1637,7 +1637,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "OnlineBankingCzechRepublic": {
@@ -1659,7 +1659,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -1669,7 +1669,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "OnlineBankingFinland": {
@@ -1691,7 +1691,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -1701,7 +1701,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "OnlineBankingFpx": {
@@ -1723,7 +1723,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -1733,7 +1733,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "OnlineBankingPoland": {
@@ -1755,7 +1755,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -1765,7 +1765,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "OnlineBankingSlovakia": {
@@ -1787,7 +1787,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -1797,7 +1797,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "OnlineBankingThailand": {
@@ -1819,7 +1819,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -1829,7 +1829,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "OpenBanking": {
@@ -1849,7 +1849,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -1859,7 +1859,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "OpenBankingPis": {
@@ -1883,7 +1883,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -1893,7 +1893,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "Oxxo": {
@@ -1913,7 +1913,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -1923,7 +1923,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "PagoEfectivo": {
@@ -1943,7 +1943,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -1953,7 +1953,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "PayEasy": {
@@ -1973,7 +1973,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -1983,7 +1983,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "PaySafeCard": {
@@ -2009,7 +2009,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -2019,7 +2019,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "PaypalSdk": {
@@ -2041,7 +2041,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -2051,7 +2051,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "Paze": {
@@ -2075,7 +2075,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -2085,7 +2085,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "Pix": {
@@ -2105,7 +2105,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -2115,7 +2115,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "Przelewy24": {
@@ -2135,7 +2135,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -2145,7 +2145,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "Pse": {
@@ -2165,7 +2165,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -2175,7 +2175,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "RedCompra": {
@@ -2195,7 +2195,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -2205,7 +2205,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "RedPagos": {
@@ -2225,7 +2225,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -2235,7 +2235,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "RevolutPay": {
@@ -2255,7 +2255,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -2265,7 +2265,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "SamsungPay": {
@@ -2297,7 +2297,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -2307,7 +2307,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "Satispay": {
@@ -2327,7 +2327,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -2337,7 +2337,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "Seicomart": {
@@ -2357,7 +2357,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -2367,7 +2367,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "Sepa": {
@@ -2390,7 +2390,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -2400,7 +2400,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "SepaBankTransfer": {
@@ -2420,7 +2420,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -2430,7 +2430,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "SepaGuaranteedDebit": {
@@ -2453,7 +2453,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -2463,7 +2463,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "SevenEleven": {
@@ -2483,7 +2483,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -2493,7 +2493,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "Sofort": {
@@ -2513,7 +2513,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -2523,7 +2523,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "Trustly": {
@@ -2543,7 +2543,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -2553,7 +2553,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "UpiCollect": {
@@ -2575,7 +2575,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments/create/upi",
@@ -2585,7 +2585,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":{\"flow\":\"collect\",\"vpa\":\"test@upi\",\"expiry_time\":15},\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":{\"flow\":\"collect\",\"vpa\":\"test@upi\",\"expiry_time\":15},\"save\":false}"
         }
       },
       "UpiIntent": {
@@ -2605,7 +2605,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments/create/upi",
@@ -2615,7 +2615,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":{\"flow\":\"intent\",\"expiry_time\":15},\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":{\"flow\":\"intent\",\"expiry_time\":15},\"save\":false}"
         }
       },
       "UpiQr": {
@@ -2635,7 +2635,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments/create/upi",
@@ -2645,7 +2645,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":{\"flow\":\"intent\",\"expiry_time\":15},\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":{\"flow\":\"intent\",\"expiry_time\":15},\"save\":false}"
         }
       },
       "WeChatPayQr": {
@@ -2665,7 +2665,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -2675,7 +2675,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       },
       "Wero": {
@@ -2695,7 +2695,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -2705,7 +2705,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       }
     },
@@ -2846,7 +2846,7 @@
           "capture_method": "AUTOMATIC",
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -2856,7 +2856,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       }
     },
@@ -2945,7 +2945,7 @@
           },
           "capture_method": "AUTOMATIC",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://api.razorpay.com/v1/payments",
@@ -2955,7 +2955,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
         }
       }
     },

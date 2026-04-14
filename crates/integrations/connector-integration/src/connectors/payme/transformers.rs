@@ -177,13 +177,13 @@ fn create_payment_request_from_router_data<T: PaymentMethodDataTypes>(
         PaymentsResponseData,
     >,
 ) -> Result<PaymePaymentRequest<T>, error_stack::Report<IntegrationError>> {
-    // Get payme_sale_id from CreateOrder (stored in reference_id)
+    // Get payme_sale_id from CreateOrder (stored in connector_order_id)
     let payme_sale_id = router_data
         .resource_common_data
-        .reference_id
+        .connector_order_id
         .as_ref()
         .ok_or(IntegrationError::MissingRequiredField {
-            field_name: "reference_id (payme_sale_id from CreateOrder)",
+            field_name: "connector_order_id (payme_sale_id from CreateOrder)",
             context: Default::default(),
         })?
         .clone();
@@ -1195,14 +1195,15 @@ impl TryFrom<ResponseRouterData<PaymeGenerateSaleResponse, Self>>
         } else {
             // Success response
             let order_response = PaymentCreateOrderResponse {
-                order_id: response.payme_sale_id.clone(),
+                connector_order_id: response.payme_sale_id.clone(),
                 session_data: None,
             };
 
             Ok(Self {
                 resource_common_data: PaymentFlowData {
                     status: AttemptStatus::Pending,
-                    reference_id: Some(response.payme_sale_id), // Store payme_sale_id for subsequent Authorize call
+                    reference_id: Some(response.payme_sale_id.clone()), // Store payme_sale_id for subsequent Authorize call
+                    connector_order_id: Some(response.payme_sale_id), // Store payme_sale_id for subsequent Authorize call
                     ..item.router_data.resource_common_data.clone()
                 },
                 response: Ok(order_response),

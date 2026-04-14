@@ -11,17 +11,16 @@ import payments.PaymentClient
 import payments.RecurringPaymentClient
 import payments.RefundClient
 import payments.PaymentMethodClient
-import payments.PaymentServiceAuthorizeRequest
 import payments.PaymentServiceCaptureRequest
-import payments.PaymentServiceRefundRequest
-import payments.PaymentServiceVoidRequest
 import payments.PaymentServiceGetRequest
 import payments.RecurringPaymentServiceChargeRequest
+import payments.PaymentServiceRefundRequest
 import payments.RefundServiceGetRequest
-import payments.PaymentServiceSetupRecurringRequest
+import payments.PaymentServiceTokenAuthorizeRequest
+import payments.PaymentServiceTokenSetupRecurringRequest
 import payments.PaymentMethodServiceTokenizeRequest
+import payments.PaymentServiceVoidRequest
 import payments.AcceptanceType
-import payments.AuthenticationType
 import payments.CaptureMethod
 import payments.Currency
 import payments.FutureUsage
@@ -30,33 +29,6 @@ import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
 
-
-private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAuthorizeRequest {
-    return PaymentServiceAuthorizeRequest.newBuilder().apply {
-        merchantTransactionId = "probe_txn_001"  // Identification.
-        amountBuilder.apply {  // The amount for the payment.
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        }
-        paymentMethodBuilder.apply {  // Payment method to be used.
-            cardBuilder.apply {  // Generic card payment.
-                cardNumberBuilder.value = "4111111111111111"  // Card Identification.
-                cardExpMonthBuilder.value = "03"
-                cardExpYearBuilder.value = "2030"
-                cardCvcBuilder.value = "737"
-                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
-            }
-        }
-        captureMethod = CaptureMethod.valueOf(captureMethodStr)  // Method for capturing the payment.
-        addressBuilder.apply {  // Address Information.
-            billingAddressBuilder.apply {
-            }
-        }
-        authType = AuthenticationType.NO_THREE_DS  // Authentication Details.
-        returnUrl = "https://example.com/return"  // URLs for Redirection and Webhooks.
-        paymentMethodTokenBuilder.value = "probe_pm_token"  // Payment Method Token.
-    }.build()
-}
 
 private fun buildCaptureRequest(connectorTransactionIdStr: String): PaymentServiceCaptureRequest {
     return PaymentServiceCaptureRequest.newBuilder().apply {
@@ -106,116 +78,6 @@ val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     // .setConnectorConfig(...) — set your connector config here
     .build()
 
-
-// Scenario: One-step Payment (Authorize + Capture)
-// Simple payment that authorizes and captures in one call. Use for immediate charges.
-fun processCheckoutAutocapture(txnId: String, config: ConnectorConfig = _defaultConfig): Map<String, Any?> {
-    val paymentClient = PaymentClient(config)
-
-    // Step 1: Authorize — reserve funds on the payment method
-    val authorizeResponse = paymentClient.authorize(buildAuthorizeRequest("AUTOMATIC"))
-
-    when (authorizeResponse.status.name) {
-        "FAILED"  -> throw RuntimeException("Payment failed: ${authorizeResponse.error.unifiedDetails.message}")
-        "PENDING" -> return mapOf("status" to "PENDING")  // await webhook before proceeding
-    }
-
-    return mapOf("status" to authorizeResponse.status.name, "transactionId" to authorizeResponse.connectorTransactionId, "error" to authorizeResponse.error)
-}
-
-// Scenario: Card Payment (Authorize + Capture)
-// Two-step card payment. First authorize, then capture. Use when you need to verify funds before finalizing.
-fun processCheckoutCard(txnId: String, config: ConnectorConfig = _defaultConfig): Map<String, Any?> {
-    val paymentClient = PaymentClient(config)
-
-    // Step 1: Authorize — reserve funds on the payment method
-    val authorizeResponse = paymentClient.authorize(buildAuthorizeRequest("MANUAL"))
-
-    when (authorizeResponse.status.name) {
-        "FAILED"  -> throw RuntimeException("Payment failed: ${authorizeResponse.error.unifiedDetails.message}")
-        "PENDING" -> return mapOf("status" to "PENDING")  // await webhook before proceeding
-    }
-
-    // Step 2: Capture — settle the reserved funds
-    val captureResponse = paymentClient.capture(buildCaptureRequest(authorizeResponse.connectorTransactionId ?: ""))
-
-    if (captureResponse.status.name == "FAILED")
-        throw RuntimeException("Capture failed: ${captureResponse.error.unifiedDetails.message}")
-
-    return mapOf("status" to captureResponse.status.name, "transactionId" to authorizeResponse.connectorTransactionId, "error" to authorizeResponse.error)
-}
-
-// Scenario: Refund
-// Return funds to the customer for a completed payment.
-fun processRefund(txnId: String, config: ConnectorConfig = _defaultConfig): Map<String, Any?> {
-    val paymentClient = PaymentClient(config)
-
-    // Step 1: Authorize — reserve funds on the payment method
-    val authorizeResponse = paymentClient.authorize(buildAuthorizeRequest("AUTOMATIC"))
-
-    when (authorizeResponse.status.name) {
-        "FAILED"  -> throw RuntimeException("Payment failed: ${authorizeResponse.error.unifiedDetails.message}")
-        "PENDING" -> return mapOf("status" to "PENDING")  // await webhook before proceeding
-    }
-
-    // Step 2: Refund — return funds to the customer
-    val refundResponse = paymentClient.refund(buildRefundRequest(authorizeResponse.connectorTransactionId ?: ""))
-
-    if (refundResponse.status.name == "FAILED")
-        throw RuntimeException("Refund failed: ${refundResponse.error.unifiedDetails.message}")
-
-    return mapOf("status" to refundResponse.status.name, "error" to refundResponse.error)
-}
-
-// Scenario: Void Payment
-// Cancel an authorized but not-yet-captured payment.
-fun processVoidPayment(txnId: String, config: ConnectorConfig = _defaultConfig): Map<String, Any?> {
-    val paymentClient = PaymentClient(config)
-
-    // Step 1: Authorize — reserve funds on the payment method
-    val authorizeResponse = paymentClient.authorize(buildAuthorizeRequest("MANUAL"))
-
-    when (authorizeResponse.status.name) {
-        "FAILED"  -> throw RuntimeException("Payment failed: ${authorizeResponse.error.unifiedDetails.message}")
-        "PENDING" -> return mapOf("status" to "PENDING")  // await webhook before proceeding
-    }
-
-    // Step 2: Void — release reserved funds (cancel authorization)
-    val voidResponse = paymentClient.void(buildVoidRequest(authorizeResponse.connectorTransactionId ?: ""))
-
-    return mapOf("status" to voidResponse.status.name, "transactionId" to authorizeResponse.connectorTransactionId, "error" to voidResponse.error)
-}
-
-// Scenario: Get Payment Status
-// Retrieve current payment status from the connector.
-fun processGetPayment(txnId: String, config: ConnectorConfig = _defaultConfig): Map<String, Any?> {
-    val paymentClient = PaymentClient(config)
-
-    // Step 1: Authorize — reserve funds on the payment method
-    val authorizeResponse = paymentClient.authorize(buildAuthorizeRequest("MANUAL"))
-
-    when (authorizeResponse.status.name) {
-        "FAILED"  -> throw RuntimeException("Payment failed: ${authorizeResponse.error.unifiedDetails.message}")
-        "PENDING" -> return mapOf("status" to "PENDING")  // await webhook before proceeding
-    }
-
-    // Step 2: Get — retrieve current payment status from the connector
-    val getResponse = paymentClient.get(buildGetRequest(authorizeResponse.connectorTransactionId ?: ""))
-
-    return mapOf("status" to getResponse.status.name, "transactionId" to getResponse.connectorTransactionId, "error" to getResponse.error)
-}
-
-// Flow: PaymentService.Authorize (Card)
-fun authorize(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
-    val request = buildAuthorizeRequest("AUTOMATIC")
-    val response = client.authorize(request)
-    when (response.status.name) {
-        "FAILED"  -> throw RuntimeException("Authorize failed: ${response.error.unifiedDetails.message}")
-        "PENDING" -> println("Pending — await webhook before proceeding")
-        else      -> println("Authorized: ${response.connectorTransactionId}")
-    }
-}
 
 // Flow: PaymentService.Capture
 fun capture(txnId: String) {
@@ -288,44 +150,61 @@ fun refundGet(txnId: String) {
     println("Status: ${response.status.name}")
 }
 
-// Flow: PaymentService.SetupRecurring
-fun setupRecurring(txnId: String) {
+// Flow: PaymentService.TokenAuthorize
+fun tokenAuthorize(txnId: String) {
     val client = PaymentClient(_defaultConfig)
-    val request = PaymentServiceSetupRecurringRequest.newBuilder().apply {
-        merchantRecurringPaymentId = "probe_mandate_001"  // Identification.
-        amountBuilder.apply {  // Mandate Details.
-            minorAmount = 0L  // Amount in minor units (e.g., 1000 = $10.00).
+    val request = PaymentServiceTokenAuthorizeRequest.newBuilder().apply {
+        merchantTransactionId = "probe_tokenized_txn_001"
+        amountBuilder.apply {
+            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
             currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         }
-        paymentMethodBuilder.apply {
-            cardBuilder.apply {  // Generic card payment.
-                cardNumberBuilder.value = "4111111111111111"  // Card Identification.
-                cardExpMonthBuilder.value = "03"
-                cardExpYearBuilder.value = "2030"
-                cardCvcBuilder.value = "737"
-                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
-            }
-        }
-        addressBuilder.apply {  // Address Information.
+        connectorTokenBuilder.value = "pm_1AbcXyzStripeTestToken"  // Connector-issued token. Replaces PaymentMethod entirely. Examples: Stripe pm_xxx, Adyen recurringDetailReference, Braintree nonce.
+        addressBuilder.apply {
             billingAddressBuilder.apply {
             }
         }
-        authType = AuthenticationType.NO_THREE_DS  // Type of authentication to be used.
-        enrolledFor3Ds = false  // Indicates if the customer is enrolled for 3D Secure.
-        returnUrl = "https://example.com/mandate-return"  // URL to redirect after setup.
-        setupFutureUsage = FutureUsage.OFF_SESSION  // Indicates future usage intention.
-        requestIncrementalAuthorization = false  // Indicates if incremental authorization is requested.
-        customerAcceptanceBuilder.apply {  // Details of customer acceptance.
-            acceptanceType = AcceptanceType.OFFLINE  // Type of acceptance (e.g., online, offline).
-            acceptedAt = 0L  // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
-        }
-        paymentMethodTokenBuilder.value = "probe_pm_token"  // Payment Method Token.
+        captureMethod = CaptureMethod.AUTOMATIC
+        returnUrl = "https://example.com/return"
     }.build()
-    val response = client.setup_recurring(request)
-    when (response.status.name) {
-        "FAILED" -> throw RuntimeException("Setup failed: ${response.error.unifiedDetails.message}")
-        else     -> println("Mandate stored: ${response.connectorRecurringPaymentId}")
-    }
+    val response = client.token_authorize(request)
+    println("Status: ${response.status.name}")
+}
+
+// Flow: PaymentService.TokenSetupRecurring
+fun tokenSetupRecurring(txnId: String) {
+    val client = PaymentClient(_defaultConfig)
+    val request = PaymentServiceTokenSetupRecurringRequest.newBuilder().apply {
+        merchantRecurringPaymentId = "probe_tokenized_mandate_001"
+        amountBuilder.apply {
+            minorAmount = 0L  // Amount in minor units (e.g., 1000 = $10.00).
+            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+        connectorTokenBuilder.value = "pm_1AbcXyzStripeTestToken"
+        addressBuilder.apply {
+            billingAddressBuilder.apply {
+            }
+        }
+        customerAcceptanceBuilder.apply {
+            acceptanceType = AcceptanceType.ONLINE  // Type of acceptance (e.g., online, offline).
+            acceptedAt = 0L  // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
+            onlineMandateDetailsBuilder.apply {  // Details if the acceptance was an online mandate.
+                ipAddress = "127.0.0.1"  // IP address from which the mandate was accepted.
+                userAgent = "Mozilla/5.0"  // User agent string of the browser used for mandate acceptance.
+            }
+        }
+        setupMandateDetailsBuilder.apply {
+            mandateTypeBuilder.apply {  // Type of mandate (single_use or multi_use) with amount details.
+                multiUseBuilder.apply {  // Multi use mandate with amount details (for recurring payments).
+                    amount = 0L  // Amount.
+                    currency = Currency.USD  // Currency code (ISO 4217).
+                }
+            }
+        }
+        setupFutureUsage = FutureUsage.OFF_SESSION
+    }.build()
+    val response = client.token_setup_recurring(request)
+    println("Status: ${response.status.name}")
 }
 
 // Flow: PaymentMethodService.Tokenize
@@ -367,22 +246,17 @@ fun void(txnId: String) {
 
 fun main(args: Array<String>) {
     val txnId = "order_001"
-    val flow = args.firstOrNull() ?: "processCheckoutAutocapture"
+    val flow = args.firstOrNull() ?: "capture"
     when (flow) {
-        "processCheckoutAutocapture" -> processCheckoutAutocapture(txnId)
-        "processCheckoutCard" -> processCheckoutCard(txnId)
-        "processRefund" -> processRefund(txnId)
-        "processVoidPayment" -> processVoidPayment(txnId)
-        "processGetPayment" -> processGetPayment(txnId)
-        "authorize" -> authorize(txnId)
         "capture" -> capture(txnId)
         "get" -> get(txnId)
         "recurringCharge" -> recurringCharge(txnId)
         "refund" -> refund(txnId)
         "refundGet" -> refundGet(txnId)
-        "setupRecurring" -> setupRecurring(txnId)
+        "tokenAuthorize" -> tokenAuthorize(txnId)
+        "tokenSetupRecurring" -> tokenSetupRecurring(txnId)
         "tokenize" -> tokenize(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, get, recurringCharge, refund, refundGet, setupRecurring, tokenize, void")
+        else -> System.err.println("Unknown flow: $flow. Available: capture, get, recurringCharge, refund, refundGet, tokenAuthorize, tokenSetupRecurring, tokenize, void")
     }
 }

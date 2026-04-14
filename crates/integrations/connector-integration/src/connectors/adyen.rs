@@ -66,11 +66,12 @@ use interfaces::{
 };
 use serde::Serialize;
 use transformers::{
-    self as adyen, AdyenCaptureRequest, AdyenCaptureResponse, AdyenDefendDisputeRequest,
-    AdyenDefendDisputeResponse, AdyenDisputeAcceptRequest, AdyenDisputeAcceptResponse,
-    AdyenDisputeSubmitEvidenceRequest, AdyenNotificationRequestItemWH, AdyenPSyncResponse,
-    AdyenPaymentRequest, AdyenPaymentResponse, AdyenRedirectRequest, AdyenRefundRequest,
-    AdyenRefundResponse, AdyenRepeatPaymentRequest, AdyenRepeatPaymentResponse,
+    self as adyen, AdyenCaptureRequest, AdyenCaptureResponse, AdyenClientAuthRequest,
+    AdyenClientAuthResponse, AdyenDefendDisputeRequest, AdyenDefendDisputeResponse,
+    AdyenDisputeAcceptRequest, AdyenDisputeAcceptResponse, AdyenDisputeSubmitEvidenceRequest,
+    AdyenNotificationRequestItemWH, AdyenOrderCreateRequest, AdyenOrderCreateResponse,
+    AdyenPSyncResponse, AdyenPaymentRequest, AdyenPaymentResponse, AdyenRedirectRequest,
+    AdyenRefundRequest, AdyenRefundResponse, AdyenRepeatPaymentRequest, AdyenRepeatPaymentResponse,
     AdyenSubmitEvidenceResponse, AdyenVoidRequest, AdyenVoidResponse, SetupMandateRequest,
     SetupMandateResponse,
 };
@@ -292,6 +293,18 @@ macros::create_all_prerequisites!(
             request_body: AdyenDefendDisputeRequest,
             response_body: AdyenDefendDisputeResponse,
             router_data: RouterDataV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>,
+        ),
+        (
+            flow: ClientAuthenticationToken,
+            request_body: AdyenClientAuthRequest,
+            response_body: AdyenClientAuthResponse,
+            router_data: RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ),
+        (
+            flow: CreateOrder,
+            request_body: AdyenOrderCreateRequest,
+            response_body: AdyenOrderCreateResponse,
+            router_data: RouterDataV2<CreateOrder, PaymentFlowData, PaymentCreateOrderData, PaymentCreateOrderResponse>,
         )
     ],
     amount_converters: [
@@ -491,6 +504,33 @@ macros::macro_connector_implementation!(
             )?;
             Ok(format!("{endpoint}{ADYEN_API_VERSION}/payments/details"))
         }
+        fn build_request_v2(
+            &self,
+            req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
+        ) -> CustomResult<Option<common_utils::request::Request>, IntegrationError> {
+            // For wallet redirects, encoded_data may be None
+            // In such cases, gracefully skip the psync request
+            if req.request.encoded_data.clone().is_some() {
+                // Build the request normally if encoded_data is present
+                let url = self.get_url(req)?;
+                let headers = self.get_headers(req)?;
+                let body = ConnectorIntegrationV2::<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>::get_request_body(self, req)?;
+
+                Ok(Some(
+                    common_utils::request::RequestBuilder::new()
+                        .method(common_utils::request::Method::Post)
+                        .url(&url)
+                        .attach_default_headers()
+                        .headers(headers)
+                        .set_optional_body(body)
+                        .build(),
+                ))
+            } else {
+                // For wallet redirects without encoded_data, return None
+                // This allows the system to rely on webhooks for payment status
+                Ok(None)
+            }
+        }
     }
 );
 
@@ -545,15 +585,38 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        CreateOrder,
-        PaymentFlowData,
-        PaymentCreateOrderData,
-        PaymentCreateOrderResponse,
-    > for Adyen<T>
-{
-}
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Adyen,
+    curl_request: Json(AdyenOrderCreateRequest),
+    curl_response: AdyenOrderCreateResponse,
+    flow_name: CreateOrder,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentCreateOrderData,
+    flow_response: PaymentCreateOrderResponse,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<CreateOrder, PaymentFlowData, PaymentCreateOrderData, PaymentCreateOrderResponse>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<CreateOrder, PaymentFlowData, PaymentCreateOrderData, PaymentCreateOrderResponse>,
+        ) -> CustomResult<String, IntegrationError> {
+            let endpoint = build_env_specific_endpoint(
+                self.connector_base_url_payments(req),
+                req.resource_common_data.test_mode,
+                &req.connector_config,
+            )?;
+            Ok(format!("{endpoint}{ADYEN_API_VERSION}/orders"))
+        }
+    }
+);
 
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
@@ -688,16 +751,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PostAuthenticate,
         PaymentFlowData,
         PaymentsPostAuthenticateData<T>,
-        PaymentsResponseData,
-    > for Adyen<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        ClientAuthenticationToken,
-        PaymentFlowData,
-        ClientAuthenticationTokenRequestData,
         PaymentsResponseData,
     > for Adyen<T>
 {
@@ -1127,6 +1180,39 @@ macros::macro_connector_implementation!(
                 &req.connector_config,
             )?;
             Ok(format!("{endpoint}{ADYEN_API_VERSION}/payments"))
+        }
+    }
+);
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Adyen,
+    curl_request: Json(AdyenClientAuthRequest),
+    curl_response: AdyenClientAuthResponse,
+    flow_name: ClientAuthenticationToken,
+    resource_common_data: PaymentFlowData,
+    flow_request: ClientAuthenticationTokenRequestData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            let endpoint = build_env_specific_endpoint(
+                self.connector_base_url_payments(req),
+                req.resource_common_data.test_mode,
+                &req.connector_config,
+            )?;
+            Ok(format!("{endpoint}{ADYEN_API_VERSION}/sessions"))
         }
     }
 );

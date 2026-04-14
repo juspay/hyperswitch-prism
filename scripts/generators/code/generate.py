@@ -377,6 +377,7 @@ def grpc_method_path(service: str, rpc_name: str) -> str:
 _FLOW_NAME_OVERRIDES: dict[tuple[str, str], str] = {
     ("CustomerService", "Create"): "create_customer",
     ("RecurringPaymentService", "Charge"): "recurring_charge",
+    ("RecurringPaymentService", "Revoke"): "recurring_revoke",
     ("RefundService", "Get"): "refund_get",
     ("PayoutService", "Get"): "payout_get",
     ("PayoutService", "Create"): "payout_create",
@@ -811,6 +812,84 @@ def gen_rust_grpc_client(desc_set=None) -> None:
         print(f"  warning: rustfmt failed: {result.stderr.strip()}")
 
 
+# ── Flow manifest generator ──────────────────────────────────────────────────
+
+FLOW_MANIFEST_OUT = SDK_ROOT / "generated" / "flows.json"
+
+
+def emit_flow_manifest(flows: list[dict], single_flows: list[dict]) -> None:
+    """
+    Writes sdk/generated/flows.json with the canonical list of implemented flows.
+    Called after all flow discovery is complete.
+    
+    A flow appears in flows.json ONLY if generate.py finds both:
+      (a) a matching RPC in services.proto, AND
+      (b) a *_req_transformer implementation in crates/ffi/ffi/src/services/*.rs
+    
+    Also includes flow_to_example_fn mapping for smoke tests to know which
+    example function to call for each flow (since examples use scenario-based
+    naming like 'checkout_card' instead of flow-based naming like 'authorize').
+    """
+    import json
+    
+    # Combine standard flows and single-step flows
+    all_flow_names = sorted(set(f["name"] for f in flows) | set(f["name"] for f in single_flows))
+    
+    # Mapping from flow name to example function name
+    # Examples use scenario-based naming (e.g., checkout_card) not flow-based (e.g., authorize)
+    flow_to_example_fn = {
+        "accept": None,  # Not implemented in examples
+        "authenticate": None,
+        "authorize": "checkout_card",  # Primary card-based authorize example
+        "capture": "checkout_card",    # Part of checkout_card scenario
+        "charge": None,
+        "create": None,
+        "create_client_authentication_token": None,
+        "create_order": None,
+        "create_server_authentication_token": None,
+        "create_server_session_authentication_token": None,
+        "defend": None,
+        "get": "get_payment",
+        "handle_event": None,
+        "incremental_authorization": None,
+        "payout_create": None,
+        "payout_create_link": None,
+        "payout_create_recipient": None,
+        "payout_enroll_disburse_account": None,
+        "payout_get": None,
+        "payout_stage": None,
+        "payout_transfer": None,
+        "payout_void": None,
+        "post_authenticate": None,
+        "pre_authenticate": None,
+        "proxy_authorize": None,
+        "proxy_setup_recurring": None,
+        "recurring_revoke": None,
+        "refund": "refund",
+        "refund_get": None,
+        "reverse": None,
+        "setup_recurring": None,
+        "submit_evidence": None,
+        "token_authorize": None,
+        "token_setup_recurring": None,
+        "tokenize": None,
+        "verify_redirect_response": None,
+        "void": "void_payment",
+    }
+    
+    manifest = {
+        "schema_version": 2,
+        "generated_from": "services.proto",
+        "flows": all_flow_names,
+        "flow_to_example_fn": flow_to_example_fn,
+        "note": "flow_to_example_fn maps flow names to example function names. Null means no example implementation.",
+    }
+    
+    FLOW_MANIFEST_OUT.parent.mkdir(parents=True, exist_ok=True)
+    FLOW_MANIFEST_OUT.write_text(json.dumps(manifest, indent=2) + "\n")
+    print(f"  Wrote {FLOW_MANIFEST_OUT.relative_to(REPO_ROOT)} ({len(all_flow_names)} flows)")
+
+
 # ── Entry point ──────────────────────────────────────────────────────────────
 
 def main() -> None:
@@ -833,6 +912,11 @@ def main() -> None:
 
     desc_set = build_descriptor_set()
     flows, single_flows = discover_flows(desc_set)
+    
+    # Generate flow manifest for smoke test coverage
+    print("Generating flow manifest...")
+    emit_flow_manifest(flows, single_flows)
+    print()
 
     print(f"Discovered {len(flows)} flows: {[f['name'] for f in flows]}")
     if single_flows:

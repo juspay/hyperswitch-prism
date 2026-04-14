@@ -46,7 +46,7 @@ function _buildAuthorizeRequest(captureMethod: CaptureMethod): PaymentServiceAut
         },
         "authType": AuthenticationType.NO_THREE_DS,  // Authentication Details.
         "returnUrl": "https://example.com/return",  // URLs for Redirection and Webhooks.
-        "merchantOrderId": "probe_order_001"
+        "connectorOrderId": "connector_order_id"  // Send the connector order identifier here if an order was created before authorize.
     };
 }
 
@@ -107,7 +107,7 @@ function _buildProxyAuthorizeRequest(): PaymentServiceProxyAuthorizeRequest {
         "captureMethod": CaptureMethod.AUTOMATIC,
         "authType": AuthenticationType.NO_THREE_DS,
         "returnUrl": "https://example.com/return",
-        "merchantOrderId": "probe_order_001"
+        "connectorOrderId": "connector_order_id"  // Send the connector order identifier here if an order was created before authorize.
     };
 }
 

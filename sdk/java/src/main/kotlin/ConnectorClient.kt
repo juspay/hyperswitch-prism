@@ -16,6 +16,7 @@ package payments
 import com.google.protobuf.ByteString
 import com.google.protobuf.MessageLite
 import com.google.protobuf.Parser
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Exception raised when req_transformer fails (integration error).
@@ -41,12 +42,13 @@ open class ConnectorClient(
     val defaults: RequestConfig = RequestConfig.getDefaultInstance(),
     libPath: String? = null
 ) {
-    private val httpClient: okhttp3.OkHttpClient
+    private val baseHttpConfig: HttpConfig
+    private val clientCache: ConcurrentHashMap<String, okhttp3.OkHttpClient>
 
     init {
-        // Instance-level cache: create the primary connection pool at startup
-        val httpConfig = if (defaults.hasHttp()) defaults.http else null
-        this.httpClient = HttpClient.createClient(httpConfig)
+        // Store base HTTP config (merged with defaults)
+        this.baseHttpConfig = if (defaults.hasHttp()) defaults.http else HttpConfig.getDefaultInstance()
+        this.clientCache = ConcurrentHashMap()
     }
 
     /**
@@ -62,20 +64,30 @@ open class ConnectorClient(
     /**
      * Merges request-level HTTP overrides with client defaults.
      */
-    private fun resolveHttpConfig(overrides: RequestConfig?): HttpConfig? {
-        val clientHttp = if (defaults.hasHttp()) defaults.http else null
+    private fun resolveHttpConfig(overrides: RequestConfig?): HttpConfig {
         val overrideHttp = if (overrides != null && overrides.hasHttp()) overrides.http else null
 
-        if (overrideHttp == null) return clientHttp
-        
+        if (overrideHttp == null) return baseHttpConfig
+
         // Merge: Field-level override > Client default
         val builder = HttpConfig.newBuilder()
-        if (clientHttp != null) {
-            builder.mergeFrom(clientHttp)
-        }
+        builder.mergeFrom(baseHttpConfig)
         builder.mergeFrom(overrideHttp)
-        
+
         return builder.build()
+    }
+
+    /**
+     * Get or create a cached HTTP client based on the effective proxy configuration.
+     */
+    private fun getOrCreateClient(httpConfig: HttpConfig): okhttp3.OkHttpClient {
+        val proxy = if (httpConfig.hasProxy()) httpConfig.proxy else null
+        val cacheKey = HttpClient.generateProxyCacheKey(proxy)
+
+        // ConcurrentHashMap.computeIfAbsent is atomic and thread-safe
+        return clientCache.computeIfAbsent(cacheKey) {
+            HttpClient.createClient(httpConfig)
+        }
     }
 
     /**
@@ -139,7 +151,7 @@ open class ConnectorClient(
         // 1. Resolve final configuration (Pattern-based merging)
         val ffiOptions = resolveFfiOptions(options)
         val optionsBytes = ffiOptions.toByteArray()
-        val httpConfig = resolveHttpConfig(options)
+        val effectiveHttpConfig = resolveHttpConfig(options)
 
         // 2. Build connector HTTP request via FFI
         val connectorRequestBytes = reqTransformer(requestBytes, optionsBytes)
@@ -152,10 +164,13 @@ open class ConnectorClient(
             body = if (connectorRequest.hasBody()) connectorRequest.body.toByteArray() else null
         )
 
-        // 3. Execute HTTP request via standardized HttpClient using the connection pool
-        val response = HttpClient.execute(httpRequest, httpConfig, this.httpClient)
+        // 3. Get or create cached HTTP client based on effective proxy config
+        val httpClient = getOrCreateClient(effectiveHttpConfig)
 
-        // 4. Encode HTTP response as FfiConnectorHttpResponse protobuf bytes
+        // 4. Execute HTTP request via standardized HttpClient using the cached connection pool
+        val response = HttpClient.execute(httpRequest, effectiveHttpConfig, httpClient)
+
+        // 5. Encode HTTP response as FfiConnectorHttpResponse protobuf bytes
         val ffiResponseBytes = FfiConnectorHttpResponse.newBuilder()
             .setStatusCode(response.statusCode)
             .putAllHeaders(response.headers)
@@ -163,7 +178,7 @@ open class ConnectorClient(
             .build()
             .toByteArray()
 
-        // 5. Parse connector response via FFI
+        // 6. Parse connector response via FFI
         val resultBytes = resTransformer(
             ffiResponseBytes,
             requestBytes,

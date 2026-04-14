@@ -92,17 +92,17 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001",
           "state": {
             "access_token": {
               "token": "probe_access_token",
               "expires_in_seconds": 3600,
               "token_type": "Bearer"
             }
-          }
+          },
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
-          "url": "https://api-demo.airwallex.com/api/v1/pa/payment_intents/probe_order_001/confirm",
+          "url": "https://api-demo.airwallex.com/api/v1/pa/payment_intents/connector_order_id/confirm",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_access_token",
@@ -151,17 +151,17 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001",
           "state": {
             "access_token": {
               "token": "probe_access_token",
               "expires_in_seconds": 3600,
               "token_type": "Bearer"
             }
-          }
+          },
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
-          "url": "https://api-demo.airwallex.com/api/v1/pa/payment_intents/probe_order_001/confirm",
+          "url": "https://api-demo.airwallex.com/api/v1/pa/payment_intents/connector_order_id/confirm",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_access_token",
@@ -252,17 +252,17 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001",
           "state": {
             "access_token": {
               "token": "probe_access_token",
               "expires_in_seconds": 3600,
               "token_type": "Bearer"
             }
-          }
+          },
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
-          "url": "https://api-demo.airwallex.com/api/v1/pa/payment_intents/probe_order_001/confirm",
+          "url": "https://api-demo.airwallex.com/api/v1/pa/payment_intents/connector_order_id/confirm",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_access_token",
@@ -476,17 +476,17 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001",
           "state": {
             "access_token": {
               "token": "probe_access_token",
               "expires_in_seconds": 3600,
               "token_type": "Bearer"
             }
-          }
+          },
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
-          "url": "https://api-demo.airwallex.com/api/v1/pa/payment_intents/probe_order_001/confirm",
+          "url": "https://api-demo.airwallex.com/api/v1/pa/payment_intents/connector_order_id/confirm",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_access_token",
@@ -712,10 +712,10 @@
               "token_type": "Bearer"
             }
           },
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
-          "url": "https://api-demo.airwallex.com/api/v1/pa/payment_intents/probe_order_001/confirm",
+          "url": "https://api-demo.airwallex.com/api/v1/pa/payment_intents/connector_order_id/confirm",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_access_token",

@@ -118,7 +118,7 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://sandbox.payme.io/api//pay-sale",
@@ -127,7 +127,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"buyer_name\":\"John Doe\",\"buyer_email\":\"test@example.com\",\"payme_sale_id\":\"probe_order_001\",\"credit_card_number\":\"4111111111111111\",\"credit_card_exp\":\"0330\",\"credit_card_cvv\":\"737\",\"language\":\"en\"}"
+          "body": "{\"buyer_name\":\"John Doe\",\"buyer_email\":\"test@example.com\",\"payme_sale_id\":\"connector_order_id\",\"credit_card_number\":\"4111111111111111\",\"credit_card_exp\":\"0330\",\"credit_card_cvv\":\"737\",\"language\":\"en\"}"
         }
       },
       "CashappQr": {
@@ -563,7 +563,7 @@
           "capture_method": "AUTOMATIC",
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001"
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://sandbox.payme.io/api//pay-sale",
@@ -572,7 +572,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"buyer_name\":\"John Doe\",\"buyer_email\":\"test@example.com\",\"payme_sale_id\":\"probe_order_001\",\"credit_card_number\":\"4111111111111111\",\"credit_card_exp\":\"0330\",\"credit_card_cvv\":\"123\",\"language\":\"en\"}"
+          "body": "{\"buyer_name\":\"John Doe\",\"buyer_email\":\"test@example.com\",\"payme_sale_id\":\"connector_order_id\",\"credit_card_number\":\"4111111111111111\",\"credit_card_exp\":\"0330\",\"credit_card_cvv\":\"123\",\"language\":\"en\"}"
         }
       }
     },

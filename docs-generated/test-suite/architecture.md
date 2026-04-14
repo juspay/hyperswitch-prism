@@ -3,7 +3,7 @@
 title: Test Suite Architecture
 description: System design and core components of the Connector Service test framework
 last_updated: 2026-03-12
-generated_from: backend/ucs-connector-tests/src/harness/
+generated_from: backend/integration-tests/src/harness/
 auto_generated: false
 reviewed_by: engineering
 reviewed_at: 2026-03-12
@@ -215,7 +215,7 @@ Generates dynamic test data for `auto_generate` placeholders.
 ## Directory Structure
 
 ```
-backend/ucs-connector-tests/
+backend/integration-tests/
 ├── src/
 │   ├── bin/
 │   │   ├── run_test.rs          # Single test runner

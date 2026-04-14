@@ -504,13 +504,36 @@ impl ErrorSwitch<grpc_api_types::payments::ConnectorError> for ConnectorError {
     fn switch(&self) -> grpc_api_types::payments::ConnectorError {
         match self {
             Self::ConnectorErrorResponse(error_response) => {
-                let error_message = combine_error_message_with_context(
-                    &error_response.message,
-                    error_response.reason.as_deref(),
-                );
+                // Pack all fields that cannot be surfaced in proto into error_message,
+                // since proto ConnectorError has no dedicated fields for them.
+                // Format: "<message> | code:<connector_code> | txn:<id> | network_decline:<code> | network_advice:<code>"
+                let mut parts = vec![error_response.message.clone()];
+                if let Some(reason) = &error_response.reason {
+                    if reason != &error_response.message {
+                        parts.push(reason.clone());
+                    }
+                }
+                if error_response.code != common_utils::consts::NO_ERROR_CODE {
+                    parts.push(format!("code:{}", error_response.code));
+                }
+                if let Some(txn_id) = &error_response.connector_transaction_id {
+                    parts.push(format!("txn:{}", txn_id));
+                }
+                if let Some(network_decline) = &error_response.network_decline_code {
+                    parts.push(format!("network_decline:{}", network_decline));
+                }
+                if let Some(network_advice) = &error_response.network_advice_code {
+                    parts.push(format!("network_advice:{}", network_advice));
+                }
+                if let Some(network_error) = &error_response.network_error_message {
+                    parts.push(format!("network_error:{}", network_error));
+                }
+                if let Some(attempt_status) = &error_response.attempt_status {
+                    parts.push(format!("attempt_status:{:?}", attempt_status));
+                }
                 grpc_api_types::payments::ConnectorError {
-                    error_message,
-                    error_code: error_response.code.clone(),
+                    error_message: parts.join(" | "),
+                    error_code: self.error_code().to_string(),
                     http_status_code: Some(error_response.status_code as u32),
                 }
             }

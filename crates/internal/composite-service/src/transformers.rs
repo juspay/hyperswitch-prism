@@ -135,8 +135,8 @@ impl
             threeds_completion_indicator: item.threeds_completion_indicator,
             redirection_response: item.redirection_response.clone(),
             continue_redirection_url: item.continue_redirection_url.clone(),
-            payment_method_token: item.payment_method_token.clone(),
             l2_l3_data: item.l2_l3_data.clone(),
+            connector_order_id: item.connector_order_id.clone(),
         }
     }
 }

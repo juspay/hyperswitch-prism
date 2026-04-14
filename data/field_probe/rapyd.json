@@ -956,7 +956,31 @@
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_client_session_id": "probe_sdk_session_001",
+          "domain_context": {
+            "payment": {
+              "amount": {
+                "minor_amount": 1000,
+                "currency": "USD"
+              }
+            }
+          }
+        },
+        "sample": {
+          "url": "https://sandboxapi.rapyd.net/v1/checkout",
+          "method": "Post",
+          "headers": {
+            "access_key": "probe_key",
+            "content-type": "application/json",
+            "salt": "probeSaltVal0001",
+            "signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "timestamp": "0000000000",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"merchant_reference_id\":\"probe_sdk_session_001\"}"
+        }
       }
     },
     "create_customer": {
@@ -966,7 +990,8 @@
     },
     "create_order": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Stuck on field: billing_country or connector_feature_data.country — Missing required field: billing_country or connector_feature_data.country"
       }
     },
     "create_server_authentication_token": {
@@ -1166,8 +1191,33 @@
     },
     "token_authorize": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_tokenized_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "connector_token": "pm_1AbcXyzStripeTestToken",
+          "address": {
+            "billing_address": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://sandboxapi.rapyd.net/v1/payments",
+          "method": "Post",
+          "headers": {
+            "access_key": "probe_key",
+            "content-type": "application/json",
+            "salt": "probeSaltVal0001",
+            "signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "timestamp": "0000000000",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":\"pm_1AbcXyzStripeTestToken\",\"payment_method_options\":null,\"merchant_reference_id\":\"probe_tokenized_txn_001\",\"capture\":null,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
+        }
       }
     },
     "token_setup_recurring": {

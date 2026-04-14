@@ -120,41 +120,8 @@
         "error": "This feature is not implemented: Selected payment method through braintree"
       },
       "Card": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "card": {
-              "card_number": "4111111111111111",
-              "card_exp_month": "03",
-              "card_exp_year": "2030",
-              "card_cvc": "737",
-              "card_holder_name": "John Doe"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
-        },
-        "sample": {
-          "url": "https://payments.sandbox.braintree-api.com/graphql",
-          "method": "Post",
-          "headers": {
-            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "braintree-version": "2019-01-01",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"query\":\"mutation ChargeCreditCard($input: ChargeCreditCardInput!) { chargeCreditCard(input: $input) { transaction { id legacyId createdAt amount { value currencyCode } status } } }\",\"variables\":{\"input\":{\"paymentMethodId\":\"probe_pm_token\",\"transaction\":{\"amount\":\"10.00\",\"merchantAccountId\":\"probe_merchant_acct\",\"channel\":\"HyperSwitchBT_Ecom\",\"orderId\":\"probe_txn_001\"}}}}"
-        }
+        "status": "error",
+        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
       },
       "CashappQr": {
         "status": "not_implemented",

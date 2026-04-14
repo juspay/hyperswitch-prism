@@ -1,7 +1,0 @@
-{
-  "connector": "bluecode",
-  "supported_suites": [
-    "authorize",
-    "get"
-  ]
-}

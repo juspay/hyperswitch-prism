@@ -5,9 +5,15 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.Headers.Companion.toHeaders
 import okhttp3.RequestBody.Companion.toRequestBody
+import java.io.ByteArrayInputStream
 import java.io.IOException
 import java.net.SocketTimeoutException
+import java.security.KeyStore
+import java.security.cert.CertificateFactory
 import java.util.concurrent.TimeUnit
+import javax.net.ssl.SSLContext
+import javax.net.ssl.TrustManagerFactory
+import javax.net.ssl.X509TrustManager
 
 data class HttpRequest(
     val url: String,
@@ -36,6 +42,9 @@ class NetworkError(
 }
 
 object HttpClient {
+    /** Optional mock intercept — set by smoke test in mock mode only. */
+    var intercept: ((HttpRequest) -> HttpResponse)? = null
+
     /**
      * Creates a high-performance OkHttpClient. (The instance-level connection pool)
      * Infrastructure settings (Proxy) are fixed here.
@@ -60,6 +69,32 @@ object HttpClient {
                 TimeUnit.MILLISECONDS
             )
 
+            // Configure custom CA cert (Client Level)
+            if (config?.hasCaCert() == true) {
+                val ca = config.caCert
+                val pemBytes: ByteArray? = when {
+                    ca.hasPem() -> ca.pem.toByteArray(Charsets.UTF_8)
+                    ca.hasDer() -> ca.der.toByteArray()
+                    else -> null
+                }
+                if (pemBytes != null) {
+                    val cf = CertificateFactory.getInstance("X.509")
+                    val cert = cf.generateCertificate(ByteArrayInputStream(pemBytes))
+                    val ks = KeyStore.getInstance(KeyStore.getDefaultType()).apply {
+                        load(null, null)
+                        setCertificateEntry("mitmproxy", cert)
+                    }
+                    val tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm()).apply {
+                        init(ks)
+                    }
+                    val sslCtx = SSLContext.getInstance("TLS").apply {
+                        init(null, tmf.trustManagers, null)
+                    }
+                    val tm = tmf.trustManagers.first() as X509TrustManager
+                    builder.sslSocketFactory(sslCtx.socketFactory, tm)
+                }
+            }
+
             // Configure Proxy (Client Level)
             if (config?.hasProxy() == true) {
                 configureProxy(builder, config.proxy)
@@ -80,11 +115,11 @@ object HttpClient {
 
         val url = proxyUrl.toHttpUrlOrNull()
             ?: throw NetworkError("Unsupported or malformed proxy URL: $proxyUrl", NetworkErrorCode.INVALID_PROXY_CONFIGURATION)
-        
+
         // Standard Java Proxy
         val proxy = java.net.Proxy(java.net.Proxy.Type.HTTP, java.net.InetSocketAddress(url.host, url.port))
         builder.proxy(proxy)
-        
+
         // Bypass logic (Selector)
         if (p.bypassUrlsCount > 0) {
             val bypassList = p.bypassUrlsList
@@ -102,9 +137,26 @@ object HttpClient {
     }
 
     /**
+     * Generate a cache key from proxy configuration for HTTP client caching.
+     * Returns empty string when no proxy is configured.
+     */
+    fun generateProxyCacheKey(proxy: ProxyOptions?): String {
+        if (proxy == null) return ""
+
+        val httpUrl = proxy.httpUrl ?: ""
+        val httpsUrl = proxy.httpsUrl ?: ""
+        val bypassUrls = proxy.bypassUrlsList.sorted().joinToString(",")
+
+        return "$httpUrl|$httpsUrl|$bypassUrls"
+    }
+
+    /**
      * Executes a request using the provided client, allowing per-call timeout overrides.
      */
     fun execute(request: HttpRequest, config: HttpConfig?, client: OkHttpClient): HttpResponse {
+        // Check for mock intercept (used in smoke test mock mode)
+        intercept?.let { return it(request) }
+
         val parsedUrl = request.url.toHttpUrlOrNull()
             ?: throw NetworkError("Invalid URL: ${request.url}", NetworkErrorCode.URL_PARSING_FAILED)
 

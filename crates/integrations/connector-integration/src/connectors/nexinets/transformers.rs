@@ -2,11 +2,14 @@ use base64::Engine;
 use common_enums::{enums, AttemptStatus};
 use common_utils::{errors::CustomResult, request::Method};
 use domain_types::{
-    connector_flow::{Authorize, Capture, Void},
+    connector_flow::{Authorize, Capture, ClientAuthenticationToken, Void},
     connector_types::{
-        MandateReference, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
-        PaymentsCaptureData, PaymentsResponseData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId,
+        ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
+        ConnectorSpecificClientAuthenticationResponse, MandateReference,
+        NexinetsClientAuthenticationResponse as NexinetsClientAuthenticationResponseDomain,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsResponseData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
+        ResponseId,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{
@@ -720,7 +723,8 @@ fn get_payment_details_and_product<
             | BankRedirectData::OnlineBankingFpx { .. }
             | BankRedirectData::OnlineBankingThailand { .. }
             | BankRedirectData::LocalBankRedirect {}
-            | BankRedirectData::OpenBanking {} => Err(IntegrationError::not_implemented(
+            | BankRedirectData::OpenBanking {}
+            | BankRedirectData::Netbanking { .. } => Err(IntegrationError::not_implemented(
                 utils::get_unimplemented_payment_method_error_message("nexinets"),
             ))?,
         },
@@ -737,7 +741,7 @@ fn get_payment_details_and_product<
         | PaymentMethodData::Voucher(_)
         | PaymentMethodData::GiftCard(_)
         | PaymentMethodData::OpenBanking(_)
-        | PaymentMethodData::CardToken(_)
+        | PaymentMethodData::PaymentMethodToken(_)
         | PaymentMethodData::NetworkToken(_)
         | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
         | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
@@ -857,7 +861,13 @@ fn get_wallet_details<
         | WalletData::RevolutPay(_)
         | WalletData::MbWay(_)
         | WalletData::Satispay(_)
-        | WalletData::Wero(_) => Err(IntegrationError::not_implemented(
+        | WalletData::Wero(_)
+        | WalletData::LazyPayRedirect(_)
+        | WalletData::PhonePeRedirect(_)
+        | WalletData::BillDeskRedirect(_)
+        | WalletData::CashfreeRedirect(_)
+        | WalletData::PayURedirect(_)
+        | WalletData::EaseBuzzRedirect(_) => Err(IntegrationError::not_implemented(
             utils::get_unimplemented_payment_method_error_message("nexinets"),
         ))?,
     }
@@ -899,4 +909,102 @@ fn is_mandate_payment<
             .as_ref()
             .and_then(|mandate_ids| mandate_ids.mandate_reference_id.as_ref())
             .is_some()
+}
+
+// ===== CLIENT AUTHENTICATION TOKEN FLOW STRUCTURES =====
+
+/// Request to create a Nexinets order for client-side hosted payment page initialization.
+/// Returns an orderId that serves as a client authentication token.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NexinetsClientAuthRequest {
+    pub initial_amount: i64,
+    pub currency: enums::Currency,
+    pub channel: NexinetsChannel,
+    pub transaction_type: NexinetsTransactionType,
+    #[serde(rename = "async")]
+    pub nexinets_async: NexinetsAsyncDetails,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        NexinetsRouterData<
+            RouterDataV2<
+                ClientAuthenticationToken,
+                PaymentFlowData,
+                ClientAuthenticationTokenRequestData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for NexinetsClientAuthRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        item: NexinetsRouterData<
+            RouterDataV2<
+                ClientAuthenticationToken,
+                PaymentFlowData,
+                ClientAuthenticationTokenRequestData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let return_url = router_data.resource_common_data.return_url.clone();
+        let nexinets_async = NexinetsAsyncDetails {
+            success_url: return_url.clone(),
+            cancel_url: return_url.clone(),
+            failure_url: return_url,
+        };
+
+        Ok(Self {
+            initial_amount: router_data.request.amount.get_amount_as_i64(),
+            currency: router_data.request.currency,
+            channel: NexinetsChannel::Ecom,
+            transaction_type: NexinetsTransactionType::Preauth,
+            nexinets_async,
+        })
+    }
+}
+
+/// Nexinets order creation response — contains the orderId
+/// used as a client authentication token for hosted checkout.
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NexinetsClientAuthResponse {
+    pub order_id: String,
+}
+
+impl TryFrom<ResponseRouterData<NexinetsClientAuthResponse, Self>>
+    for RouterDataV2<
+        ClientAuthenticationToken,
+        PaymentFlowData,
+        ClientAuthenticationTokenRequestData,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<NexinetsClientAuthResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response;
+
+        let session_data = ClientAuthenticationTokenData::ConnectorSpecific(Box::new(
+            ConnectorSpecificClientAuthenticationResponse::Nexinets(
+                NexinetsClientAuthenticationResponseDomain {
+                    order_id: response.order_id,
+                },
+            ),
+        ));
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::ClientAuthenticationTokenResponse {
+                session_data,
+                status_code: item.http_code,
+            }),
+            ..item.router_data
+        })
+    }
 }

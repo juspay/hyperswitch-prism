@@ -1,0 +1,13 @@
+{
+  "connector": "rapyd",
+  "supported_suites": [
+    "authorize",
+    "capture",
+    "client_authentication_token",
+    "create_order",                                                                                                                                                                                                                                                               
+    "get",
+    "refund",
+    "refund_sync",
+    "void"
+  ]
+}

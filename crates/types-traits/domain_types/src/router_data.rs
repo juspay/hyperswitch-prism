@@ -3047,10 +3047,11 @@ pub struct PazeDynamicData {
     pub dynamic_data_expiration: Option<String>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
-pub enum PaymentMethodToken {
-    Token(Secret<String>),
-}
+// Dead code: nothing populates this after PaymentFlowData.payment_method_token was removed.
+// #[derive(Debug, Clone, serde::Deserialize)]
+// pub enum PaymentMethodToken {
+//     Token(Secret<String>),
+// }
 
 #[derive(Debug, Default, Clone)]
 pub struct RecurringMandatePaymentData {

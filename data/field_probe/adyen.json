@@ -1793,7 +1793,28 @@
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_client_session_id": "probe_sdk_session_001",
+          "domain_context": {
+            "payment": {
+              "amount": {
+                "minor_amount": 1000,
+                "currency": "USD"
+              }
+            }
+          }
+        },
+        "sample": {
+          "url": "https://checkout-test.adyen.com/v68/sessions",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"reference\":\"probe_sdk_session_001\",\"returnUrl\":\"https://hyperswitch.io\"}"
+        }
       }
     },
     "create_customer": {
@@ -1803,7 +1824,24 @@
     },
     "create_order": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_order_id": "probe_order_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://checkout-test.adyen.com/v68/orders",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"merchantAccount\":\"probe_merchant\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"reference\":\"probe_order_001\"}"
+        }
       }
     },
     "create_server_authentication_token": {
@@ -1919,8 +1957,7 @@
     },
     "get": {
       "default": {
-        "status": "error",
-        "error": "Failed to encode connector request"
+        "status": "not_implemented"
       }
     },
     "handle_event": {
@@ -2184,8 +2221,30 @@
     },
     "token_authorize": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: payment method"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_tokenized_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "connector_token": "pm_1AbcXyzStripeTestToken",
+          "address": {
+            "billing_address": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://checkout-test.adyen.com/v68/payments",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"scheme\",\"storedPaymentMethodId\":\"pm_1AbcXyzStripeTestToken\",\"holderName\":null},\"reference\":\"probe_tokenized_txn_001\",\"returnUrl\":\"https://example.com/return\",\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"},\"shopperName\":{}}"
+        }
       }
     },
     "token_setup_recurring": {

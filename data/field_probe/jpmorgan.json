@@ -67,23 +67,23 @@
       },
       "AliPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "error": "This feature is not implemented: Wallet not supported"
       },
       "AmazonPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "error": "This feature is not implemented: Wallet not supported"
       },
       "ApplePay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "error": "This feature is not implemented: Wallet not supported"
       },
       "ApplePayDecrypted": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "error": "This feature is not implemented: Wallet not supported"
       },
       "ApplePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "error": "This feature is not implemented: Wallet not supported"
       },
       "Bacs": {
         "status": "not_implemented",
@@ -115,7 +115,7 @@
       },
       "Bluecode": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "error": "This feature is not implemented: Wallet not supported"
       },
       "BniVaBankTransfer": {
         "status": "not_implemented",
@@ -170,12 +170,12 @@
             "request-id": "probe_txn_001",
             "via": "HyperSwitch"
           },
-          "body": "{\"captureMethod\":\"NOW\",\"amount\":1000,\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"card\":{\"accountNumber\":\"4111111111111111\",\"expiry\":{\"month\":3,\"year\":2030}}},\"accountHolder\":{\"firstName\":\"NA\",\"lastName\":\"NA\"},\"statementDescriptor\":\"Statement Descriptor\"}"
+          "body": "{\"captureMethod\":\"NOW\",\"amount\":1000,\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"card\":{\"accountNumber\":\"4111111111111111\",\"expiry\":{\"month\":3,\"year\":2030}}}}"
         }
       },
       "CashappQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "error": "This feature is not implemented: Wallet not supported"
       },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
@@ -226,16 +226,16 @@
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "GooglePay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "error",
+        "error": "Failed to encode connector request"
       },
       "GooglePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Decrypted Google Pay token is not supported for JPMorgan; use encrypted flow is not supported by jpmorgan"
       },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "error": "This feature is not implemented: Wallet not supported"
       },
       "Ideal": {
         "status": "not_implemented",
@@ -287,11 +287,11 @@
       },
       "MbWay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "error": "This feature is not implemented: Wallet not supported"
       },
       "Mifinity": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "error": "This feature is not implemented: Wallet not supported"
       },
       "MiniStop": {
         "status": "not_implemented",
@@ -355,11 +355,11 @@
       },
       "PaypalRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "error": "This feature is not implemented: Wallet not supported"
       },
       "PaypalSdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "error": "This feature is not implemented: Wallet not supported"
       },
       "Paze": {
         "status": "not_supported",
@@ -391,15 +391,15 @@
       },
       "RevolutPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "error": "This feature is not implemented: Wallet not supported"
       },
       "SamsungPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "error": "This feature is not implemented: Wallet not supported"
       },
       "Satispay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "error": "This feature is not implemented: Wallet not supported"
       },
       "Seicomart": {
         "status": "not_implemented",
@@ -443,11 +443,11 @@
       },
       "WeChatPayQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "error": "This feature is not implemented: Wallet not supported"
       },
       "Wero": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "error": "This feature is not implemented: Wallet not supported"
       }
     },
     "capture": {
@@ -484,7 +484,28 @@
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_client_session_id": "probe_sdk_session_001",
+          "domain_context": {
+            "payment": {
+              "amount": {
+                "minor_amount": 1000,
+                "currency": "USD"
+              }
+            }
+          }
+        },
+        "sample": {
+          "url": "https://id.payments.jpmorgan.com/am/oauth2/alpha/access_token",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfaWQ6cHJvYmVfc2VjcmV0",
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "grant_type=client_credentials&scope=jpm%3Apayments%3Asandbox"
+        }
       }
     },
     "create_customer": {
@@ -635,7 +656,7 @@
             "request-id": "probe_proxy_txn_001",
             "via": "HyperSwitch"
           },
-          "body": "{\"captureMethod\":\"NOW\",\"amount\":1000,\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"card\":{\"accountNumber\":\"4111111111111111\",\"expiry\":{\"month\":3,\"year\":2030}}},\"accountHolder\":{\"firstName\":\"NA\",\"lastName\":\"NA\"},\"statementDescriptor\":\"Statement Descriptor\"}"
+          "body": "{\"captureMethod\":\"NOW\",\"amount\":1000,\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"card\":{\"accountNumber\":\"4111111111111111\",\"expiry\":{\"month\":3,\"year\":2030}}}}"
         }
       }
     },
@@ -729,8 +750,39 @@
     },
     "token_authorize": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_tokenized_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "connector_token": "pm_1AbcXyzStripeTestToken",
+          "address": {
+            "billing_address": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "return_url": "https://example.com/return",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api-mock.payments.jpmorgan.com/api/v2/payments",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "merchant-id": "DefaultMerchantId",
+            "request-id": "probe_tokenized_txn_001",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"captureMethod\":\"NOW\",\"amount\":1000,\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"token\":\"pm_1AbcXyzStripeTestToken\"},\"accountHolder\":{\"firstName\":\"NA\",\"lastName\":\"NA\"},\"statementDescriptor\":\"Statement Descriptor\"}"
+        }
       }
     },
     "token_setup_recurring": {

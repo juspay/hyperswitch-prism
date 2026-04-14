@@ -1337,14 +1337,15 @@ impl TryFrom<ResponseRouterData<AirwallexIntentResponse, Self>>
         };
 
         router_data.response = Ok(domain_types::connector_types::PaymentCreateOrderResponse {
-            order_id: item.response.id.clone(),
+            connector_order_id: item.response.id.clone(),
             session_data: None,
         });
 
         // Update the flow data with the new status and store payment intent ID as reference_id (like Razorpay V2)
         router_data.resource_common_data = PaymentFlowData {
             status,
-            reference_id: Some(item.response.id), // Store payment intent ID for subsequent Authorize call
+            reference_id: Some(item.response.id.clone()), // Store payment intent ID for subsequent Authorize call
+            connector_order_id: Some(item.response.id), // Store payment intent ID for subsequent Authorize call
             ..router_data.resource_common_data
         };
 

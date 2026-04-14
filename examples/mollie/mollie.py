@@ -9,8 +9,9 @@ import asyncio
 import sys
 from google.protobuf.json_format import ParseDict
 from payments import PaymentClient
+from payments import MerchantAuthenticationClient
 from payments import RefundClient
-from payments.generated import sdk_config_pb2, payment_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -50,6 +51,18 @@ def _build_authorize_request(capture_method: str):
             "description": "Probe payment"
         },
         payment_pb2.PaymentServiceAuthorizeRequest(),
+    )
+
+def _build_create_client_authentication_token_request():
+    return ParseDict(
+        {
+            "merchant_client_session_id": "probe_sdk_session_001",  # Infrastructure.
+            "domain_context": {
+                "minor_amount": 1000,
+                "currency": "USD"
+            }
+        },
+        payment_pb2.MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest(),
     )
 
 def _build_get_request(connector_transaction_id: str):
@@ -115,6 +128,26 @@ def _build_refund_get_request():
             "refund_id": "probe_refund_id_001"
         },
         payment_pb2.RefundServiceGetRequest(),
+    )
+
+def _build_token_authorize_request():
+    return ParseDict(
+        {
+            "merchant_transaction_id": "probe_tokenized_txn_001",
+            "amount": {
+                "minor_amount": 1000,  # Amount in minor units (e.g., 1000 = $10.00).
+                "currency": "USD"  # ISO 4217 currency code (e.g., "USD", "EUR").
+            },
+            "connector_token": {"value": "pm_1AbcXyzStripeTestToken"},  # Connector-issued token. Replaces PaymentMethod entirely. Examples: Stripe pm_xxx, Adyen recurringDetailReference, Braintree nonce.
+            "address": {
+                "billing_address": {
+                }
+            },
+            "capture_method": "AUTOMATIC",
+            "return_url": "https://example.com/return",
+            "description": "Probe payment"
+        },
+        payment_pb2.PaymentServiceTokenAuthorizeRequest(),
     )
 
 def _build_void_request(connector_transaction_id: str):
@@ -222,6 +255,15 @@ async def authorize(merchant_transaction_id: str, config: sdk_config_pb2.Connect
     return {"status": authorize_response.status, "transaction_id": authorize_response.connector_transaction_id}
 
 
+async def create_client_authentication_token(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: MerchantAuthenticationService.CreateClientAuthenticationToken"""
+    merchantauthentication_client = MerchantAuthenticationClient(config)
+
+    create_response = await merchantauthentication_client.create_client_authentication_token(_build_create_client_authentication_token_request())
+
+    return {"status": create_response.status}
+
+
 async def get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """Flow: PaymentService.Get"""
     payment_client = PaymentClient(config)
@@ -256,6 +298,15 @@ async def refund_get(merchant_transaction_id: str, config: sdk_config_pb2.Connec
     refund_response = await refund_client.refund_get(_build_refund_get_request())
 
     return {"status": refund_response.status}
+
+
+async def token_authorize(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: PaymentService.TokenAuthorize"""
+    payment_client = PaymentClient(config)
+
+    token_response = await payment_client.token_authorize(_build_token_authorize_request())
+
+    return {"status": token_response.status}
 
 
 async def void(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):

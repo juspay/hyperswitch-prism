@@ -1,0 +1,200 @@
+{
+  "create_customer": {
+    "create_customer": {
+      "grpc_req": {
+        "address": {
+          "shipping_address": {
+            "country_alpha2_code": "ID"
+          },
+          "billing_address": {
+            "country_alpha2_code": "ID"
+          }
+        }
+      }
+    }
+  },
+  "authorize": {
+    "no3ds_auto_capture_credit_card": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 1500000,
+          "currency": "IDR"
+        },
+        "address": {
+          "shipping_address": {
+            "country_alpha2_code": "ID"
+          },
+          "billing_address": {
+            "country_alpha2_code": "ID"
+          }
+        }
+      },
+      "assert": {
+        "status": {
+          "one_of": ["CHARGED", "AUTHORIZED", "PENDING"]
+        }
+      }
+    },
+    "no3ds_auto_capture_debit_card": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 1500000,
+          "currency": "IDR"
+        },
+        "address": {
+          "shipping_address": {
+            "country_alpha2_code": "ID"
+          },
+          "billing_address": {
+            "country_alpha2_code": "ID"
+          }
+        }
+      },
+      "assert": {
+        "status": {
+          "one_of": ["CHARGED", "AUTHORIZED", "PENDING"]
+        }
+      }
+    },
+    "no3ds_manual_capture_credit_card": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 1500000,
+          "currency": "IDR"
+        },
+        "address": {
+          "shipping_address": {
+            "country_alpha2_code": "ID"
+          },
+          "billing_address": {
+            "country_alpha2_code": "ID"
+          }
+        }
+      },
+      "assert": {
+        "status": {
+          "one_of": ["AUTHORIZED", "PENDING"]
+        }
+      }
+    },
+    "no3ds_manual_capture_debit_card": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 1500000,
+          "currency": "IDR"
+        },
+        "address": {
+          "shipping_address": {
+            "country_alpha2_code": "ID"
+          },
+          "billing_address": {
+            "country_alpha2_code": "ID"
+          }
+        }
+      },
+      "assert": {
+        "status": {
+          "one_of": ["AUTHORIZED", "PENDING"]
+        }
+      }
+    },
+    "no3ds_fail_payment": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 100,
+          "currency": "IDR"
+        },
+        "address": {
+          "shipping_address": {
+            "country_alpha2_code": "ID"
+          },
+          "billing_address": {
+            "country_alpha2_code": "ID"
+          }
+        }
+      },
+      "assert": {
+        "status": null,
+        "error.connector_details.message": {
+          "contains": "minimum"
+        }
+      }
+    },
+    "threeds_manual_capture_credit_card": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 1500000,
+          "currency": "IDR"
+        },
+        "address": {
+          "shipping_address": {
+            "country_alpha2_code": "ID"
+          },
+          "billing_address": {
+            "country_alpha2_code": "ID"
+          }
+        }
+      },
+      "assert": {
+        "status": {
+          "one_of": ["AUTHENTICATION_PENDING", "PENDING", "AUTHORIZED"]
+        }
+      }
+    }
+  },
+  "capture": {
+    "capture_full_amount": {
+      "grpc_req": {
+        "amount_to_capture": {
+          "minor_amount": 1500000,
+          "currency": "IDR"
+        }
+      }
+    },
+    "capture_partial_amount": {
+      "grpc_req": {
+        "amount_to_capture": {
+          "minor_amount": 750000,
+          "currency": "IDR"
+        }
+      }
+    },
+    "capture_with_merchant_order_id": {
+      "grpc_req": {
+        "amount_to_capture": {
+          "minor_amount": 1500000,
+          "currency": "IDR"
+        }
+      }
+    }
+  },
+  "refund": {
+    "refund_full_amount": {
+      "grpc_req": {
+        "payment_amount": 1500000,
+        "refund_amount": {
+          "minor_amount": 1500000,
+          "currency": "IDR"
+        }
+      }
+    },
+    "refund_partial_amount": {
+      "grpc_req": {
+        "payment_amount": 1500000,
+        "refund_amount": {
+          "minor_amount": 750000,
+          "currency": "IDR"
+        }
+      }
+    },
+    "refund_with_reason": {
+      "grpc_req": {
+        "payment_amount": 1500000,
+        "refund_amount": {
+          "minor_amount": 1500000,
+          "currency": "IDR"
+        }
+      }
+    }
+  }
+}

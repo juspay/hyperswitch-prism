@@ -697,7 +697,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             connector_metadata: None,
             mandate_reference: None,
             network_txn_id: None,
-            connector_response_reference_id: data.resource_common_data.reference_id.clone(),
+            connector_response_reference_id: data.resource_common_data.connector_order_id.clone(),
             incremental_authorization_allowed: None,
             status_code: _status_code,
         };
@@ -738,7 +738,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             connector_metadata: None,
             mandate_reference: None,
             network_txn_id: None,
-            connector_response_reference_id: data.resource_common_data.reference_id.clone(),
+            connector_response_reference_id: data.resource_common_data.connector_order_id.clone(),
             incremental_authorization_allowed: None,
             status_code: _status_code,
         };

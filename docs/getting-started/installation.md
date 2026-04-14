@@ -91,8 +91,8 @@ adyen_client = PaymentClient(adyen_config)
 {% code title="pom.xml" overflow="wrap" %}
 ```xml
 <dependency>
-    <groupId>com.juspay.hyperswitch</groupId>
-    <artifactId>hyperswitch-prism</artifactId>
+    <groupId>io.hyperswitch</groupId>
+    <artifactId>prism</artifactId>
     <version>1.0.0</version>
 </dependency>
 ```

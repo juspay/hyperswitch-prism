@@ -179,12 +179,53 @@
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "GooglePay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "error",
+        "error": "Stuck on field: payment_method_token — Failed to parse Google Pay wallet token"
       },
       "GooglePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay": {
+              "type": "CARD",
+              "description": "Visa 1111",
+              "info": {
+                "card_network": "VISA",
+                "card_details": "1111"
+              },
+              "tokenization_data": {
+                "decrypted_data": {
+                  "card_exp_month": "03",
+                  "card_exp_year": "2030",
+                  "application_primary_account_number": "4111111111111111",
+                  "cryptogram": "AAAAAA==",
+                  "eci_indicator": "05"
+                }
+              }
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://webservices.securetrading.net/json/",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"alias\":\"probe_user\",\"version\":\"1.00\",\"request\":[{\"accounttypedescription\":\"ECOM\",\"baseamount\":\"1000\",\"credentialsonfile\":\"1\",\"currencyiso3a\":\"USD\",\"orderreference\":\"probe_txn_001\",\"requesttypedescriptions\":[\"AUTH\"],\"sitereference\":\"probe_site_ref\",\"settlestatus\":\"0\",\"pan\":\"4111111111111111\",\"expirydate\":\"03/2030\",\"tavv\":\"AAAAAA==\",\"eci\":\"05\",\"tokenisedpayment\":\"1\",\"tokentype\":\"GOOGLEPAY\",\"walletsource\":\"GOOGLEPAY\"}]}"
+        }
       },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",

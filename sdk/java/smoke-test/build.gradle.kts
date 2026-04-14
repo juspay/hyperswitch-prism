@@ -14,7 +14,7 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
     // Depend on published SDK to avoid Gradle circular dependency (root :jar -> :classes -> :compileKotlin).
     // CI and Makefile run publishToMavenLocal (or equivalent) before running smoke-test.
-    implementation("com.hyperswitch:hyperswitch-prism:0.0.1")
+    implementation("io.hyperswitch:prism:0.0.5")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }
 

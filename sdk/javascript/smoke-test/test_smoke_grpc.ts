@@ -19,11 +19,11 @@ import * as path from "path";
 // ── ANSI color helpers ──────────────────────────────────────────────────────
 const _NO_COLOR = (!process.stdout.isTTY && !process.env["FORCE_COLOR"]) || !!process.env["NO_COLOR"];
 function _c(code: string, text: string): string { return _NO_COLOR ? text : `\x1b[${code}m${text}\x1b[0m`; }
-function _green (t: string): string { return _c("32", t); }
-function _red   (t: string): string { return _c("31", t); }
+function _green(t: string): string { return _c("32", t); }
+function _red(t: string): string { return _c("31", t); }
 function _yellow(t: string): string { return _c("33", t); }
-function _grey  (t: string): string { return _c("90", t); }
-function _bold  (t: string): string { return _c("1",  t); }
+function _grey(t: string): string { return _c("90", t); }
+function _bold(t: string): string { return _c("1", t); }
 
 // ── Probe request normalization ───────────────────────────────────────────────
 // Field-probe data uses snake_case keys; protobufjs fromObject expects camelCase.
@@ -41,6 +41,33 @@ function _deepCamel(obj: unknown): unknown {
     );
   }
   return obj;
+}
+
+// ── Flow manifest ─────────────────────────────────────────────────────────────
+
+function loadFlowManifest(sdkRoot: string): string[] {
+  // Try multiple locations for flows.json
+  const locations = [
+    path.join(sdkRoot, "generated", "flows.json"),
+    path.join(process.cwd(), "flows.json"),
+  ];
+  
+  // Check environment variable
+  if (process.env.FLOWS_JSON_PATH) {
+    locations.unshift(process.env.FLOWS_JSON_PATH);
+  }
+  
+  for (const manifestPath of locations) {
+    if (fs.existsSync(manifestPath)) {
+      const data = JSON.parse(fs.readFileSync(manifestPath, "utf-8")) as { flows: string[] };
+      return data.flows;
+    }
+  }
+  
+  const searched = locations.join("\n  - ");
+  throw new Error(
+    `flows.json not found. Searched:\n  - ${searched}\nRun: make generate`
+  );
 }
 
 // ── Field-probe support filtering ────────────────────────────────────────────
@@ -98,103 +125,68 @@ const FLOW_META: [string, FlowMeta][] = [
   ["tokenize",                 { field: "paymentMethod",    method: "tokenize",              builder: "_buildTokenizeRequest",             arg: "none"      }],
   ["setup_recurring",          { field: "payment",          method: "setupRecurring",        builder: "_buildSetupRecurringRequest",       arg: "none"      }],
   ["recurring_charge",         { field: "recurringPayment", method: "charge",                builder: "_buildRecurringChargeRequest",      arg: "mandateId" }],
-  ["pre_authenticate",         { field: "paymentMethodAuthentication", method: "preAuthenticate",  builder: "_buildPreAuthenticateRequest",      arg: "none"      }],
-  ["authenticate",             { field: "paymentMethodAuthentication", method: "authenticate",   builder: "_buildAuthenticateRequest",         arg: "none"      }],
-  ["post_authenticate",        { field: "paymentMethodAuthentication", method: "postAuthenticate", builder: "_buildPostAuthenticateRequest",    arg: "none"      }],
+  ["pre_authenticate",         { field: "paymentMethodAuth", method: "preAuthenticate",       builder: "_buildPreAuthenticateRequest",      arg: "none"      }],
+  ["authenticate",             { field: "paymentMethodAuth", method: "authenticate",          builder: "_buildAuthenticateRequest",         arg: "none"      }],
+  ["post_authenticate",        { field: "paymentMethodAuth", method: "postAuthenticate",      builder: "_buildPostAuthenticateRequest",    arg: "none"      }],
   ["handle_event",             { field: "event",            method: "handleEvent",           builder: "_buildHandleEventRequest",          arg: "none"      }],
-  ["create_server_authentication_token",      { field: "merchantAuthentication", method: "createServerAuthenticationToken",  builder: "_buildCreateServerAuthenticationTokenRequest",    arg: "none"      }],
-  ["create_server_session_authentication_token",     { field: "merchantAuthentication", method: "createServerSessionAuthenticationToken", builder: "_buildCreateServerSessionAuthenticationTokenRequest",   arg: "none"      }],
-  ["create_client_authentication_token", { field: "merchantAuthentication", method: "createClientAuthenticationToken", builder: "_buildCreateClientAuthenticationTokenRequest", arg: "none"    }],
+  ["create_access_token",      { field: "payment",          method: "createAccessToken",     builder: "_buildCreateAccessTokenRequest",    arg: "none"      }],
+  ["create_session_token",     { field: "payment",          method: "createSessionToken",    builder: "_buildCreateSessionTokenRequest",   arg: "none"      }],
+  ["create_sdk_session_token", { field: "payment",          method: "createSdkSessionToken", builder: "_buildCreateSdkSessionTokenRequest", arg: "none"      }],
 ];
-const FLOW_META_MAP = new Map<string, FlowMeta>(FLOW_META);
 
-// Flows that need a MANUAL authorize inline before calling (capture method mismatch).
+const FLOW_META_MAP = new Map<string, FlowMeta>(FLOW_META);
+const TXN_ID_FLOWS    = new Set(["capture", "void", "get", "refund", "reverse"]);
 const SELF_AUTH_FLOWS = new Set(["capture", "void"]);
-// Flows that receive the connector txn_id from the shared AUTOMATIC pre-run authorize.
-const TXN_ID_FLOWS    = new Set(["get", "refund", "reverse"]);
-// Flows that receive the mandate_id from the setup_recurring pre-run.
 const MANDATE_ID_FLOWS = new Set(["recurring_charge"]);
 
-// ── CLI args ─────────────────────────────────────────────────────────────────
+// ── Credentials ───────────────────────────────────────────────────────────────
 
-function parseArgs(): { connectors: string[]; examplesDir: string } {
-  const args = process.argv.slice(2);
-  let connectors: string[] = ["stripe"];
-  let examplesDir = path.join(__dirname, "../../../examples");
-  for (let i = 0; i < args.length; i++) {
-    if (args[i] === "--connectors" && args[i + 1]) {
-      connectors = args[++i].split(",").map((s) => s.trim());
-    } else if (args[i] === "--examples-dir" && args[i + 1]) {
-      examplesDir = args[++i];
-    }
-  }
-  return { connectors, examplesDir };
-}
+type CredEntry = Record<string, string | { value?: string } | undefined>;
 
-// ── Credentials ──────────────────────────────────────────────────────────────
-
-type CredEntry = Record<string, unknown>;
-
-function loadCreds(credsFile: string): Record<string, CredEntry | CredEntry[]> {
-  if (!fs.existsSync(credsFile)) return {};
-  const raw: CredEntry = JSON.parse(fs.readFileSync(credsFile, "utf-8"));
-  if (typeof raw["connector"] === "string" && typeof raw["endpoint"] === "string") {
-    return { [raw["connector"] as string]: raw };
-  }
-  return raw as unknown as Record<string, CredEntry | CredEntry[]>;
-}
-
-function credStr(cred: CredEntry, ...keys: string[]): string | undefined {
-  for (const key of keys) {
-    const val = cred[key];
-    if (typeof val === "string" && val) return val;
-    if (val !== null && typeof val === "object") {
-      const inner = (val as Record<string, unknown>)["value"];
-      if (typeof inner === "string" && inner) return inner;
+function extractCredsValue(entry: CredEntry, keys: string[]): string | undefined {
+  for (const k of keys) {
+    const v = entry[k];
+    if (typeof v === "string" && v) return v;
+    if (v && typeof v === "object" && "value" in v && typeof v.value === "string" && v.value) {
+      return v.value;
     }
   }
   return undefined;
 }
 
 function buildGrpcConfig(connector: string, cred: CredEntry): GrpcConfig {
-  // Capitalize first letter of connector name for the config key
+  const apiKey      = extractCredsValue(cred, ["api_key", "apiKey"]) || "placeholder";
+  const apiSecret   = extractCredsValue(cred, ["api_secret", "apiSecret"]);
+  const key1        = extractCredsValue(cred, ["key1"]);
+  const merchantId  = extractCredsValue(cred, ["merchant_account", "merchant_id", "merchantId"]);
+  const tenantId    = extractCredsValue(cred, ["tenant_id", "tenantId"]);
+
   const connectorVariant = connector.charAt(0).toUpperCase() + connector.slice(1);
-  
-  const apiKey = credStr(cred, "api_key", "apiKey") ?? "placeholder";
-  const apiSecret = credStr(cred, "api_secret", "apiSecret");
-  const key1 = credStr(cred, "key1");
-  const merchantId = credStr(cred, "merchant_id", "merchantId");
-  const tenantId = credStr(cred, "tenant_id", "tenantId");
-  
-  // Build the connector-specific config object
-  const connectorSpecificConfig: Record<string, unknown> = { api_key: apiKey };
-  if (apiSecret) connectorSpecificConfig.api_secret = apiSecret;
-  if (key1) connectorSpecificConfig.key1 = key1;
-  if (merchantId) connectorSpecificConfig.merchant_id = merchantId;
-  if (tenantId) connectorSpecificConfig.tenant_id = tenantId;
-  
-  // Build the full x-connector-config format
-  const connectorConfig: Record<string, unknown> = {
-    config: {
-      [connectorVariant]: connectorSpecificConfig
-    }
-  };
-  
+
+  const connectorSpecific: Record<string, string> = { api_key: apiKey };
+  if (apiSecret) connectorSpecific.api_secret = apiSecret;
+  if (key1) connectorSpecific.key1 = key1;
+  if (merchantId) connectorSpecific.merchant_id = merchantId;
+  if (tenantId) connectorSpecific.tenant_id = tenantId;
+
   return {
-    endpoint: credStr(cred, "endpoint") ?? "http://localhost:8000",
+    endpoint: extractCredsValue(cred, ["endpoint"]) || "http://localhost:8000",
     connector,
-    connector_config: connectorConfig,
-  };
+    connector_config: {
+      config: {
+        [connectorVariant]: connectorSpecific,
+      },
+    },
+  } as GrpcConfig;
 }
 
-// ── Request building ──────────────────────────────────────────────────────────
+function loadCreds(credsPath: string): Record<string, CredEntry | CredEntry[]> {
+  if (!fs.existsSync(credsPath)) return {};
+  return JSON.parse(fs.readFileSync(credsPath, "utf-8")) as Record<string, CredEntry | CredEntry[]>;
+}
 
-/**
- * Build a proto request using the connector's _build*Request() exported function.
- * Falls back to the field_probe proto_request for the flow if the builder is not exported,
- * or {} as a last resort.
- * `arg` is forwarded as the builder's first argument (capture_method or txn_id).
- */
+// ── Builder dispatch ──────────────────────────────────────────────────────────
+
 function buildRequest(
   mod: Record<string, unknown>,
   flow: string,
@@ -215,17 +207,49 @@ function extractTxnId(connectorTransactionId: string | undefined): string {
   return connectorTransactionId ?? "probe_connector_txn_001";
 }
 
+// ── Scenario result tracking ─────────────────────────────────────────────────
+
+interface ScenarioResult {
+  status: "passed" | "skipped" | "failed";
+  message?: string;
+  reason?: string;
+  error?: string;
+}
+
+interface ConnectorResult {
+  connector: string;
+  status: "passed" | "failed" | "skipped";
+  scenarios: Map<string, ScenarioResult>;
+  error?: string;
+}
+
+function isTransportError(msg: string): boolean {
+  return /unavailable|deadlineexceeded|connection refused|transport error|dns error|connection reset/i.test(msg);
+}
+
 // ── Main ─────────────────────────────────────────────────────────────────────
 
 async function runConnector(
   connectorName: string,
   examplesDir:   string,
   cred:          CredEntry,
-): Promise<boolean> {
-  const jsFile = path.join(examplesDir, connectorName, `${connectorName}.js`);
+): Promise<ConnectorResult> {
+  const result: ConnectorResult = {
+    connector: connectorName,
+    status: "passed",
+    scenarios: new Map(),
+  };
+  
+  // Try both .js and .ts file extensions
+  let jsFile = path.join(examplesDir, connectorName, `${connectorName}.js`);
   if (!fs.existsSync(jsFile)) {
-    console.log(_grey(`  [${connectorName}] No JavaScript file found at ${jsFile}, skipping.`));
-    return true;
+    jsFile = path.join(examplesDir, connectorName, `${connectorName}.ts`);
+  }
+  if (!fs.existsSync(jsFile)) {
+    result.status = "skipped";
+    result.error = `No JavaScript/TypeScript file found for ${connectorName}`;
+    console.log(_grey(`  [${connectorName}] No JavaScript/TypeScript file found at ${examplesDir}/${connectorName}/, skipping.`));
+    return result;
   }
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const mod: Record<string, unknown> = require(jsFile);
@@ -245,8 +269,10 @@ async function runConnector(
     .filter((flow) => fieldProbe === null || fieldProbe.supportedFlows.has(flow));
 
   if (presentFlows.length === 0) {
+    result.status = "skipped";
+    result.error = "No flows to run";
     console.log(_grey(`  [${connectorName}] No flows to run, skipping.`));
-    return true;
+    return result;
   }
 
   const txnId = `probe_js_grpc_${Date.now()}`;
@@ -259,7 +285,6 @@ async function runConnector(
   const hasMandateDependents = presentFlows.some((f) => MANDATE_ID_FLOWS.has(f));
 
   // Pre-run AUTOMATIC authorize to get a real connector txn_id for get/refund/reverse.
-  let preRunFailed = false;
   if (hasAuthorize && hasDependents) {
     process.stdout.write(`  [authorize] running … `);
     try {
@@ -267,22 +292,23 @@ async function runConnector(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const res = await (client as any).payment.authorize(req) as { connectorTransactionId?: string; statusCode: number };
       authorizeTxnId = extractTxnId(res.connectorTransactionId);
-      const result = `txn_id: ${res.connectorTransactionId ?? "-"}, status_code: ${res.statusCode}`;
+      const resultStr = `txn_id: ${res.connectorTransactionId ?? "-"}, status_code: ${res.statusCode}`;
       if (res.statusCode >= 400) {
-        console.log(_yellow("~ connector error"), _grey(`— ${result}`));
-        preRunFailed = true;
+        console.log(_yellow("SKIPPED (connector error)"), _grey(`— ${resultStr}`));
+        result.scenarios.set("authorize", { status: "skipped", reason: "connector_error", message: resultStr });
       } else {
-        console.log(_green("✓ ok"), _grey(`— ${result}`));
+        console.log(_green("PASSED"), _grey(`— ${resultStr}`));
+        result.scenarios.set("authorize", { status: "passed", message: resultStr });
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      const isTransport = /unavailable|deadlineexceeded|connection refused|transport error|dns error|connection reset/i.test(msg);
-      if (isTransport) {
-        console.log(_red("✗ FAILED"), _grey(`— ${msg}`));
-        preRunFailed = true;
+      if (isTransportError(msg)) {
+        console.log(_red("FAILED"), _grey(`— ${msg}`));
+        result.scenarios.set("authorize", { status: "failed", error: msg });
+        result.status = "failed";
       } else {
-        console.log(_yellow("~ connector error"), _grey(`— ${msg}`));
-        preRunFailed = true;
+        console.log(_yellow("SKIPPED (connector error)"), _grey(`— ${msg}`));
+        result.scenarios.set("authorize", { status: "skipped", reason: "connector_error", message: msg });
       }
     }
   }
@@ -298,19 +324,20 @@ async function runConnector(
         statusCode: number 
       };
       mandateId = res.mandateReference?.connectorMandateId?.connectorMandateId;
-      const result = `mandate_id: ${mandateId ?? "-"}, status_code: ${res.statusCode}`;
+      const resultStr = `mandate_id: ${mandateId ?? "-"}, status_code: ${res.statusCode}`;
       if (res.statusCode >= 400) {
-        console.log(_yellow("~ connector error"), _grey(`— ${result}`));
+        console.log(_yellow("SKIPPED (connector error)"), _grey(`— ${resultStr}`));
+        result.scenarios.set("setup_recurring", { status: "skipped", reason: "connector_error", message: resultStr });
       } else {
-        console.log(_green("✓ ok"), _grey(`— ${result}`));
+        console.log(_green("PASSED"), _grey(`— ${resultStr}`));
+        result.scenarios.set("setup_recurring", { status: "passed", message: resultStr });
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      console.log(_yellow("~ connector error"), _grey(`— ${msg}`));
+      console.log(_yellow("SKIPPED (connector error)"), _grey(`— ${msg}`));
+      result.scenarios.set("setup_recurring", { status: "skipped", reason: "connector_error", message: msg });
     }
   }
-
-  let allPassed = true;
 
   for (const flow of presentFlows) {
     const meta = FLOW_META_MAP.get(flow)!;
@@ -328,7 +355,7 @@ async function runConnector(
     process.stdout.write(`  [${flow}] running … `);
 
     try {
-      let result: string;
+      let resultStr: string;
 
       if (SELF_AUTH_FLOWS.has(flow)) {
         // capture / void: do a MANUAL authorize inline (AUTOMATIC txn_id can't be captured).
@@ -342,36 +369,133 @@ async function runConnector(
         const req = buildRequest(mod, flow, selfTxnId, probeRequests);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const res = await (client as any)[meta.field][meta.method](req) as { connectorTransactionId?: string; statusCode: number };
-        result = `txn_id: ${res.connectorTransactionId ?? "-"}, status_code: ${res.statusCode}`;
+        resultStr = `txn_id: ${res.connectorTransactionId ?? "-"}, status_code: ${res.statusCode}`;
       } else if (MANDATE_ID_FLOWS.has(flow)) {
         // recurring_charge: use mandateId from setup_recurring pre-run.
         const arg = mandateId ?? txnId;
         const req = buildRequest(mod, flow, arg, probeRequests);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const res = await (client as any)[meta.field][meta.method](req) as Record<string, unknown>;
-        result = `status_code: ${res["statusCode"] ?? "?"}`;
-      } else {
-        const arg = TXN_ID_FLOWS.has(flow) ? authorizeTxnId : txnId;
-        const req = buildRequest(mod, flow, arg, probeRequests);
+        resultStr = `status_code: ${res["statusCode"] ?? "?"}`;
+      } else if (TXN_ID_FLOWS.has(flow)) {
+        const req = buildRequest(mod, flow, authorizeTxnId, probeRequests);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const res = await (client as any)[meta.field][meta.method](req) as Record<string, unknown>;
-        result = `status_code: ${res["statusCode"] ?? "?"}`;
+        resultStr = `status_code: ${res["statusCode"] ?? "?"}`;
+      } else {
+        const req = buildRequest(mod, flow, txnId, probeRequests);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const res = await (client as any)[meta.field][meta.method](req) as Record<string, unknown>;
+        resultStr = `status_code: ${res["statusCode"] ?? "?"}`;
       }
 
-      console.log(_green("✓ ok"), _grey(`— ${result}`));
+      console.log(_green("PASSED"), _grey(`— ${resultStr}`));
+      result.scenarios.set(flow, { status: "passed", message: resultStr });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
-      const isTransport = /unavailable|deadlineexceeded|connection refused|transport error|dns error|connection reset/i.test(msg);
-      if (isTransport) {
-        console.log(_red("✗ FAILED"), _grey(`— ${msg}`));
-        allPassed = false;
+      if (isTransportError(msg)) {
+        console.log(_red("FAILED"), _grey(`— ${msg}`));
+        result.scenarios.set(flow, { status: "failed", error: msg });
+        result.status = "failed";
       } else {
-        console.log(_yellow("~ connector error"), _grey(`— ${msg}`));
+        console.log(_yellow("SKIPPED (connector error)"), _grey(`— ${msg}`));
+        result.scenarios.set(flow, { status: "skipped", reason: "connector_error", message: msg });
       }
     }
   }
 
-  return allPassed;
+  // Update connector status based on scenarios
+  if (result.status !== "failed") {
+    const allPassedOrSkipped = Array.from(result.scenarios.values()).every(
+      s => s.status === "passed" || s.status === "skipped"
+    );
+    result.status = allPassedOrSkipped ? "passed" : "failed";
+  }
+
+  return result;
+}
+
+function printResult(result: ConnectorResult): void {
+  if (result.status === "passed") {
+    const passedCount = Array.from(result.scenarios.values()).filter(s => s.status === "passed").length;
+    const skippedCount = Array.from(result.scenarios.values()).filter(s => s.status === "skipped").length;
+    console.log(_green(`  PASSED`) + ` (${passedCount} passed, ${skippedCount} skipped)`);
+    for (const [key, scenario] of result.scenarios) {
+      if (scenario.status === "passed") {
+        console.log(_green(`    ${key}: ✓`));
+      } else if (scenario.status === "skipped") {
+        console.log(_yellow(`    ${key}: ~ skipped (${scenario.reason})`));
+      }
+    }
+  } else if (result.status === "skipped") {
+    console.log(_grey(`  SKIPPED (${result.error || "unknown"})`));
+  } else {
+    console.log(_red(`  FAILED`));
+    for (const [key, scenario] of result.scenarios) {
+      if (scenario.status === "failed") {
+        console.log(_red(`    ${key}: ✗ FAILED — ${scenario.error}`));
+      }
+    }
+    if (result.error) {
+      console.log(_red(`  Error: ${result.error}`));
+    }
+  }
+}
+
+function printSummary(results: ConnectorResult[]): number {
+  console.log(`\n${"=".repeat(60)}`);
+  console.log(_bold("TEST SUMMARY"));
+  console.log(`${"=".repeat(60)}\n`);
+
+  const passed = results.filter(r => r.status === "passed").length;
+  const skipped = results.filter(r => r.status === "skipped").length;
+  const failed = results.filter(r => r.status === "failed").length;
+
+  // Count per-scenario statuses
+  let totalFlowsPassed = 0;
+  let totalFlowsSkipped = 0;
+  let totalFlowsFailed = 0;
+  for (const r of results) {
+    for (const scenario of r.scenarios.values()) {
+      if (scenario.status === "passed") totalFlowsPassed++;
+      else if (scenario.status === "skipped") totalFlowsSkipped++;
+      else if (scenario.status === "failed") totalFlowsFailed++;
+    }
+  }
+
+  console.log(`Total connectors:   ${results.length}`);
+  console.log(_green(`Passed:  ${passed}`));
+  console.log(_grey(`Skipped: ${skipped} (no examples or placeholder credentials)`));
+  console.log((failed > 0 ? _red : _green)(`Failed:  ${failed}`));
+  console.log();
+  console.log(`Flow results:`);
+  console.log(_green(`  ${totalFlowsPassed} flows PASSED`));
+  if (totalFlowsSkipped > 0) {
+    console.log(_yellow(`  ${totalFlowsSkipped} flows SKIPPED (connector errors)`));
+  }
+  if (totalFlowsFailed > 0) {
+    console.log(_red(`  ${totalFlowsFailed} flows FAILED`));
+  }
+  console.log();
+
+  if (failed > 0) {
+    console.log(_red("Failed connectors:"));
+    for (const result of results) {
+      if (result.status === "failed") {
+        console.log(_red(`  - ${result.connector}: ${result.error || "see scenarios above"}`));
+      }
+    }
+    console.log();
+    return 1;
+  }
+
+  if (passed === 0 && skipped > 0) {
+    console.log(_yellow("All tests skipped (no valid flows found)"));
+    return 1;
+  }
+
+  console.log(_green("All tests completed successfully!"));
+  return 0;
 }
 
 async function main(): Promise<void> {
@@ -380,11 +504,21 @@ async function main(): Promise<void> {
   const credsFile = path.join(process.cwd(), "creds.json");
   const allCreds  = loadCreds(credsFile);
 
+  // Load flow manifest
+  const sdkRoot = path.join(__dirname, "..");
+  let manifest: string[];
+  try {
+    manifest = loadFlowManifest(sdkRoot);
+  } catch (e) {
+    console.error(_red(`MANIFEST ERROR: ${e instanceof Error ? e.message : String(e)}`));
+    process.exit(1);
+  }
+
   console.log(_bold("Javascript gRPC smoke test"));
   console.log(_grey(`connectors: ${connectors.join(", ")}`));
   console.log();
 
-  let anyFailed = false;
+  const results: ConnectorResult[] = [];
 
   for (const connector of connectors) {
     console.log(_bold(`── ${connector} ──`));
@@ -393,18 +527,31 @@ async function main(): Promise<void> {
     const creds: CredEntry[] = Array.isArray(raw) ? raw : raw ? [raw] : [{}];
 
     for (const cred of creds) {
-      const passed = await runConnector(connector, examplesDir, cred);
-      if (!passed) anyFailed = true;
+      const result = await runConnector(connector, examplesDir, cred);
+      results.push(result);
+      printResult(result);
     }
     console.log();
   }
 
-  if (anyFailed) {
-    console.error(_red("Some gRPC tests FAILED."));
-    process.exit(1);
-  } else {
-    console.log(_green("All gRPC tests passed."));
-  }
+  const exitCode = printSummary(results);
+  process.exit(exitCode);
 }
 
-main().catch((e) => { console.error(e); process.exit(1); });
+function parseArgs(): { connectors: string[]; examplesDir: string } {
+  const args = process.argv.slice(2);
+  let connectors: string[] = ["stripe"];
+  let examplesDir = path.join(__dirname, "../../../examples");
+
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === "--connectors" && i + 1 < args.length) {
+      connectors = args[++i].split(",").map((c) => c.trim());
+    } else if (args[i] === "--examples-dir" && i + 1 < args.length) {
+      examplesDir = args[++i];
+    }
+  }
+
+  return { connectors, examplesDir };
+}
+
+main();

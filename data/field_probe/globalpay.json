@@ -510,7 +510,28 @@
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_client_session_id": "probe_sdk_session_001",
+          "domain_context": {
+            "payment": {
+              "amount": {
+                "minor_amount": 1000,
+                "currency": "USD"
+              }
+            }
+          }
+        },
+        "sample": {
+          "url": "https://apis.sandbox.globalpay.com/ucp/accesstoken",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-gp-version": "2021-03-22"
+          },
+          "body": "{\"app_id\":\"probe_id\",\"nonce\":\"probeNonceVal001\",\"secret\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\",\"grant_type\":\"client_credentials\"}"
+        }
       }
     },
     "create_customer": {
@@ -749,8 +770,38 @@
     },
     "token_authorize": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_tokenized_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "connector_token": "pm_1AbcXyzStripeTestToken",
+          "address": {
+            "billing_address": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "return_url": "https://example.com/return",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://apis.sandbox.globalpay.com/ucp/transactions",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-gp-version": "2021-03-22"
+          },
+          "body": "{\"account_name\":\"transaction_processing\",\"channel\":\"CNP\",\"amount\":\"1000\",\"currency\":\"USD\",\"reference\":\"probe_tokenized_txn_001\",\"country\":\"US\",\"capture_mode\":\"AUTO\",\"payment_method\":{\"entry_mode\":\"ECOM\",\"id\":\"pm_1AbcXyzStripeTestToken\"}}"
+        }
       }
     },
     "token_setup_recurring": {

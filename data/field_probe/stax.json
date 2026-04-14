@@ -8,38 +8,8 @@
     },
     "authorize": {
       "Ach": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "ach": {
-              "account_number": "000123456789",
-              "routing_number": "110000000",
-              "bank_account_holder_name": "John Doe"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
-        },
-        "sample": {
-          "url": "https://apiprod.fattlabs.com/charge",
-          "method": "Post",
-          "headers": {
-            "authorization": "Bearer probe_key",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"total\":10.0,\"payment_method_id\":\"probe_pm_token\",\"is_refundable\":true,\"pre_auth\":false,\"meta\":{\"tax\":0},\"idempotency_id\":\"probe_txn_001\"}"
-        }
+        "status": "error",
+        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token (from PaymentMethodToken flow) or connector_mandate_id (for saved payment methods)"
       },
       "AchBankTransfer": {
         "status": "not_implemented",
@@ -78,38 +48,8 @@
         "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
       },
       "Bacs": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "bacs": {
-              "account_number": "55779911",
-              "sort_code": "200000",
-              "bank_account_holder_name": "John Doe"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
-        },
-        "sample": {
-          "url": "https://apiprod.fattlabs.com/charge",
-          "method": "Post",
-          "headers": {
-            "authorization": "Bearer probe_key",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"total\":10.0,\"payment_method_id\":\"probe_pm_token\",\"is_refundable\":true,\"pre_auth\":false,\"meta\":{\"tax\":0},\"idempotency_id\":\"probe_txn_001\"}"
-        }
+        "status": "error",
+        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token (from PaymentMethodToken flow) or connector_mandate_id (for saved payment methods)"
       },
       "BacsBankTransfer": {
         "status": "not_implemented",
@@ -124,38 +64,8 @@
         "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
       },
       "Becs": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "becs": {
-              "account_number": "000123456",
-              "bsb_number": "000000",
-              "bank_account_holder_name": "John Doe"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
-        },
-        "sample": {
-          "url": "https://apiprod.fattlabs.com/charge",
-          "method": "Post",
-          "headers": {
-            "authorization": "Bearer probe_key",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"total\":10.0,\"payment_method_id\":\"probe_pm_token\",\"is_refundable\":true,\"pre_auth\":false,\"meta\":{\"tax\":0},\"idempotency_id\":\"probe_txn_001\"}"
-        }
+        "status": "error",
+        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token (from PaymentMethodToken flow) or connector_mandate_id (for saved payment methods)"
       },
       "Bizum": {
         "status": "not_implemented",
@@ -182,40 +92,8 @@
         "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
       },
       "Card": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "card": {
-              "card_number": "4111111111111111",
-              "card_exp_month": "03",
-              "card_exp_year": "2030",
-              "card_cvc": "737",
-              "card_holder_name": "John Doe"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
-        },
-        "sample": {
-          "url": "https://apiprod.fattlabs.com/charge",
-          "method": "Post",
-          "headers": {
-            "authorization": "Bearer probe_key",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"total\":10.0,\"payment_method_id\":\"probe_pm_token\",\"is_refundable\":true,\"pre_auth\":false,\"meta\":{\"tax\":0},\"idempotency_id\":\"probe_txn_001\"}"
-        }
+        "status": "error",
+        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token (from PaymentMethodToken flow) or connector_mandate_id (for saved payment methods)"
       },
       "CashappQr": {
         "status": "not_implemented",
@@ -450,74 +328,16 @@
         "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
       },
       "Sepa": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "sepa": {
-              "iban": "DE89370400440532013000",
-              "bank_account_holder_name": "John Doe"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
-        },
-        "sample": {
-          "url": "https://apiprod.fattlabs.com/charge",
-          "method": "Post",
-          "headers": {
-            "authorization": "Bearer probe_key",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"total\":10.0,\"payment_method_id\":\"probe_pm_token\",\"is_refundable\":true,\"pre_auth\":false,\"meta\":{\"tax\":0},\"idempotency_id\":\"probe_txn_001\"}"
-        }
+        "status": "error",
+        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token (from PaymentMethodToken flow) or connector_mandate_id (for saved payment methods)"
       },
       "SepaBankTransfer": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
       },
       "SepaGuaranteedDebit": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "sepa_guaranteed_debit": {
-              "iban": "DE89370400440532013000",
-              "bank_account_holder_name": "John Doe"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
-        },
-        "sample": {
-          "url": "https://apiprod.fattlabs.com/charge",
-          "method": "Post",
-          "headers": {
-            "authorization": "Bearer probe_key",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"total\":10.0,\"payment_method_id\":\"probe_pm_token\",\"is_refundable\":true,\"pre_auth\":false,\"meta\":{\"tax\":0},\"idempotency_id\":\"probe_txn_001\"}"
-        }
+        "status": "error",
+        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token (from PaymentMethodToken flow) or connector_mandate_id (for saved payment methods)"
       },
       "SevenEleven": {
         "status": "not_implemented",
@@ -760,8 +580,30 @@
     },
     "token_authorize": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_tokenized_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "connector_token": "pm_1AbcXyzStripeTestToken",
+          "address": {
+            "billing_address": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://apiprod.fattlabs.com/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"total\":10.0,\"payment_method_id\":\"pm_1AbcXyzStripeTestToken\",\"is_refundable\":true,\"pre_auth\":false,\"meta\":{\"tax\":0},\"idempotency_id\":\"probe_tokenized_txn_001\"}"
+        }
       }
     },
     "token_setup_recurring": {

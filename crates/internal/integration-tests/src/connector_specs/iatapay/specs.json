@@ -1,0 +1,10 @@
+{
+  "connector": "iatapay",
+  "supported_suites": [
+    "authorize",
+    "get",
+    "refund",
+    "refund_sync",
+    "server_authentication_token"
+  ]
+}
