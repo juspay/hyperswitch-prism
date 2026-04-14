@@ -57,7 +57,13 @@ option go_package = "github.com/juspay/connector-service/crates/types-traits/grp
 // All amounts are in minor units (e.g., cents for USD)
 message Money {
   int64 minor_amount = 1; // Amount in minor units (e.g., 1000 = $10.00)
-  Currency currency = 2;  // ISO 4217 currency code (e.g., "USD", "EUR")
+  Currency currency = 2; // ISO 4217 currency code (e.g., "USD", "EUR")
+}
+
+// StringArray wraps a repeated string field to allow optional presence
+// Used for fields like permissions where absence is semantically different from empty
+message StringArray {
+  repeated string values = 1;
 }
 
 // ErrorInfo provides structured error information for API responses
@@ -2301,6 +2307,10 @@ message MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest {
     // FrmClientAuthenticationContext frm = 5;      // future: device fingerprinting
     // PayoutClientAuthenticationContext payout = 6; // future: payout verification widget
   }
+
+  // Connector-specific permissions for client authentication token
+  // e.g., ["PMT_POST_Create_Single"] for GlobalPay hosted fields
+  optional StringArray permissions = 7;
 }
 
 // Payment-specific context for client authentication token creation

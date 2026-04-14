@@ -1069,14 +1069,16 @@ impl TryFrom<ResponseRouterData<GlobalpayPaymentsResponse, Self>>
 // ===== CLIENT AUTHENTICATION TOKEN FLOW STRUCTURES =====
 
 /// Request to obtain an access token for client-side SDK initialization.
-/// Uses the same /accesstoken endpoint as the ServerAuthenticationToken flow,
-/// but returns the token in a client-auth-specific format.
+/// Uses the /accesstoken endpoint with merchant credentials and permissions
+/// for hosted fields integration.
 #[derive(Debug, Serialize)]
 pub struct GlobalpayClientAuthRequest {
     pub app_id: Secret<String>,
     pub nonce: Secret<String>,
     pub secret: Secret<String>,
     pub grant_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub permissions: Option<Vec<String>>,
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -1124,11 +1126,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             let result = hasher.finalize();
             let secret_hex = hex::encode(result);
 
+            let permissions = wrapper.router_data.request.permissions.clone();
+
             Ok(Self {
                 app_id: app_id.clone(),
                 nonce: Secret::new(nonce),
                 secret: Secret::new(secret_hex),
                 grant_type: "client_credentials".to_string(),
+                permissions,
             })
         } else {
             Err(error_stack::report!(

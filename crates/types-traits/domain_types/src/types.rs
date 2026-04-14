@@ -6878,6 +6878,7 @@ impl ForeignTryFrom<MerchantAuthenticationServiceCreateClientAuthenticationToken
                 .shipping_cost
                 .map(common_utils::types::MinorUnit::new),
             payment_method_type,
+            permissions: value.permissions.map(|p| p.values),
         })
     }
 }
