@@ -568,6 +568,7 @@ fn main() {
                     .map(|(k, v)| (k.as_str(), v.as_str()))
                     .collect();
                 code.push_str(&format!("    \"{name}\" => {{\n"));
+                code.push_str("        #[allow(unused_mut)]\n");
                 code.push_str("        let mut results = vec![];\n");
                 // Include ALL flows from manifest, using flow_to_example_fn mapping
                 for flow in manifest {
@@ -676,6 +677,7 @@ fn main() {
                 let has_dependents = flows.iter().any(|&(_, _, _, _, needs_txn, _)| needs_txn);
 
                 code.push_str(&format!("    \"{name}\" => {{\n"));
+                code.push_str("        #[allow(unused_mut)]\n");
                 code.push_str("        let mut results = vec![];\n");
 
                 // If connector has needs_txn flows but no authorize, emit a placeholder txn_id
