@@ -1119,7 +1119,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // payment_end_date (30 years from now).
         let now = time::OffsetDateTime::now_utc();
         let date_fmt = time::macros::format_description!("[year]-[month]-[day]");
-        let start_date = now.format(&date_fmt).unwrap_or_else(|_| "2024-01-01".to_string());
+        let start_date = now
+            .format(&date_fmt)
+            .unwrap_or_else(|_| "2024-01-01".to_string());
         let end_date = (now + time::Duration::days(365 * 30))
             .format(&date_fmt)
             .unwrap_or_else(|_| "2054-01-01".to_string());
@@ -1220,7 +1222,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 // reference_id / txn_id / token, mirroring the Authorize response shape.
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<ResponseRouterData<PayuSetupMandateResponse, Self>>
-    for RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>
+    for RouterDataV2<
+        SetupMandate,
+        PaymentFlowData,
+        SetupMandateRequestData<T>,
+        PaymentsResponseData,
+    >
 {
     type Error = error_stack::Report<ConnectorError>;
 
@@ -1367,10 +1374,9 @@ fn determine_setup_mandate_upi_app_name<
     match &request.payment_method_data {
         PaymentMethodData::Upi(upi_data) => match upi_data {
             UpiData::UpiIntent(_) | UpiData::UpiQr(_) => Ok(None),
-            UpiData::UpiCollect(collect_data) => Ok(collect_data
-                .vpa_id
-                .clone()
-                .map(|vpa| vpa.expose())),
+            UpiData::UpiCollect(collect_data) => {
+                Ok(collect_data.vpa_id.clone().map(|vpa| vpa.expose()))
+            }
         },
         _ => Ok(None),
     }
