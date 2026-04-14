@@ -47,6 +47,7 @@ use transformers::{
     PowertranzCaptureRequest, PowertranzCaptureResponse, PowertranzPaymentsRequest,
     PowertranzPaymentsResponse, PowertranzPaymentsResponse as PowertranzPaymentsSyncResponse,
     PowertranzRSyncResponse, PowertranzRefundRequest, PowertranzRefundResponse,
+    PowertranzRepeatPaymentRequest, PowertranzRepeatPaymentResponse,
     PowertranzSetupMandateRequest, PowertranzSetupMandateResponse, PowertranzVoidRequest,
     PowertranzVoidResponse,
 };
@@ -240,16 +241,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
-        RepeatPayment,
-        PaymentFlowData,
-        RepeatPaymentData<T>,
-        PaymentsResponseData,
-    > for Powertranz<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
         MandateRevoke,
         PaymentFlowData,
         MandateRevokeRequestData,
@@ -422,6 +413,12 @@ macros::create_all_prerequisites!(
             request_body: PowertranzSetupMandateRequest<T>,
             response_body: PowertranzSetupMandateResponse,
             router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: RepeatPayment,
+            request_body: PowertranzRepeatPaymentRequest<T>,
+            response_body: PowertranzRepeatPaymentResponse,
+            router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [],
@@ -786,6 +783,38 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}/auth", self.connector_base_url_payments(req)))
+        }
+    }
+);
+
+// RepeatPayment (MIT) flow. PowerTranz has no native stored-credential
+// endpoint; each MIT replay is a fresh `/sale` request against the same
+// card, with the original mandate transaction_identifier replayed as the
+// OrderIdentifier.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Powertranz,
+    curl_request: Json(PowertranzRepeatPaymentRequest<T>),
+    curl_response: PowertranzRepeatPaymentResponse,
+    flow_name: RepeatPayment,
+    resource_common_data: PaymentFlowData,
+    flow_request: RepeatPaymentData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}/sale", self.connector_base_url_payments(req)))
         }
     }
 );
