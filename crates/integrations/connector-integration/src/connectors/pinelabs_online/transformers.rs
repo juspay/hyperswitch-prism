@@ -368,10 +368,16 @@ pub struct PinelabsOnlineAccessTokenResponse {
 }
 
 /// Error response from the token endpoint
+/// Pinelabs returns two different error formats:
+/// - OAuth error: {"error": "...", "error_description": "..."}
+/// - API error:   {"status": 401, "type": "", "message": "...", "traceId": "..."}
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PinelabsOnlineAccessTokenErrorResponse {
-    pub error: String,
+    pub error: Option<String>,
     pub error_description: Option<String>,
+    pub message: Option<String>,
+    #[serde(alias = "traceId")]
+    pub trace_id: Option<String>,
 }
 
 // ========== TryFrom: AccessToken Request ==========
