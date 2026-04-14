@@ -27,7 +27,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.PaypalConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "create_order", "create_server_authentication_token", "get", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "void")
+val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "create_client_authentication_token", "create_order", "create_server_authentication_token", "get", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -269,8 +269,8 @@ fun capture(txnId: String, config: ConnectorConfig = _defaultConfig) {
 }
 
 // Flow: MerchantAuthenticationService.CreateClientAuthenticationToken
-fun createClientAuthenticationToken(txnId: String) {
-    val client = MerchantAuthenticationClient(_defaultConfig)
+fun createClientAuthenticationToken(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = MerchantAuthenticationClient(config)
     val request = MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest.newBuilder().apply {
         merchantClientSessionId = "probe_sdk_session_001"  // Infrastructure.
         paymentBuilder.apply {  // FrmClientAuthenticationContext frm = 5; // future: device fingerprinting PayoutClientAuthenticationContext payout = 6; // future: payout verification widget.
