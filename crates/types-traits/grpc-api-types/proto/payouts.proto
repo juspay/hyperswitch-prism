@@ -124,11 +124,13 @@ message PixBankTransferPayout {
   // The branch office of the bank
   optional string bank_branch = 2;
   // The bank account number
-  SecretString bank_account_number = 3;
+  optional SecretString bank_account_number = 3;
   // The PIX key (e.g., CPF, CNPJ, Email, Phone, or Random Key)
-  SecretString pix_key = 4;
+  optional SecretString pix_key = 4;
   // The tax identification number (CPF for individuals, CNPJ for companies)
   optional SecretString tax_id = 5;
+  // EMV data for pix
+  optional SecretString pix_emv = 6;
 }
 
 message ApplePayDecrypt {

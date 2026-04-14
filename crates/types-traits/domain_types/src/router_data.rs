@@ -709,6 +709,8 @@ pub enum ConnectorSpecificConfig {
     Itaubank {
         client_id: Secret<String>,
         client_secret: Secret<String>,
+        certificates: Option<Secret<String>>,
+        private_key: Option<Secret<String>>,
         base_url: Option<String>,
     },
 }
@@ -1895,6 +1897,8 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
             AuthType::Itaubank(itaubank) => Ok(Self::Itaubank {
                 client_secret: itaubank.client_secret.ok_or_else(err)?,
                 client_id: itaubank.client_id.ok_or_else(err)?,
+                certificates: itaubank.certificates,
+                private_key: itaubank.private_key,
                 base_url: itaubank.base_url,
             }),
             AuthType::Ppro(ppro) => Ok(Self::Ppro {
@@ -2892,6 +2896,20 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorEnum)>
                 ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Itaubank {
                     client_id: api_key.clone(),
                     client_secret: key1.clone(),
+                    certificates: None,
+                    private_key: None,
+                    base_url: None,
+                }),
+                ConnectorAuthType::MultiAuthKey {
+                    api_key,
+                    key1,
+                    api_secret,
+                    key2,
+                } => Ok(Self::Itaubank {
+                    client_id: api_key.clone(),
+                    client_secret: key1.clone(),
+                    certificates: Some(api_secret.clone()),
+                    private_key: Some(key2.clone()),
                     base_url: None,
                 }),
                 _ => Err(err().into()),

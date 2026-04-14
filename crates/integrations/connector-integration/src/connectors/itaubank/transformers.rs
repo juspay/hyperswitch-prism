@@ -21,6 +21,8 @@ use common_utils::types::{AmountConvertor, StringMajorUnit, StringMajorUnitForCo
 pub struct ItaubankAuthType {
     pub client_id: Secret<String>,
     pub client_secret: Secret<String>,
+    pub certificates: Option<Secret<String>>,
+    pub private_key: Option<Secret<String>>,
 }
 
 impl TryFrom<&ConnectorSpecificConfig> for ItaubankAuthType {
@@ -31,10 +33,14 @@ impl TryFrom<&ConnectorSpecificConfig> for ItaubankAuthType {
             ConnectorSpecificConfig::Itaubank {
                 client_id,
                 client_secret,
+                certificates,
+                private_key,
                 ..
             } => Ok(Self {
                 client_id: client_id.clone(),
                 client_secret: client_secret.clone(),
+                certificates: certificates.clone(),
+                private_key: private_key.clone(),
             }),
             _ => Err(IntegrationError::FailedToObtainAuthType {
                 context: Default::default(),
@@ -202,7 +208,7 @@ impl
                     banco: bank_name.map(|bank| bank.to_string()),
                     tipo_conta: Some(ItaubankAccountType::Checking),
                     agencia,
-                    conta: Some(bank_account_number),
+                    conta: bank_account_number,
                     tipo_pessoa,
                     documento: tax_id,
                 })

@@ -27,8 +27,8 @@ use interfaces::{
 use serde::Serialize;
 
 use self::transformers::{
-    ItaubankAccessTokenRequest, ItaubankAccessTokenResponse, ItaubankErrorResponse,
-    ItaubankTransferRequest, ItaubankTransferResponse,
+    ItaubankAccessTokenRequest, ItaubankAccessTokenResponse, ItaubankAuthType,
+    ItaubankErrorResponse, ItaubankTransferRequest, ItaubankTransferResponse,
 };
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
@@ -174,6 +174,32 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         "application/x-www-form-urlencoded"
     }
 
+    fn get_certificate(
+        &self,
+        req: &RouterDataV2<
+            ServerAuthenticationToken,
+            PaymentFlowData,
+            ServerAuthenticationTokenRequestData,
+            ServerAuthenticationTokenResponseData,
+        >,
+    ) -> CustomResult<Option<hyperswitch_masking::Secret<String>>, errors::IntegrationError> {
+        let auth = ItaubankAuthType::try_from(&req.connector_config)?;
+        Ok(auth.certificates)
+    }
+
+    fn get_certificate_key(
+        &self,
+        req: &RouterDataV2<
+            ServerAuthenticationToken,
+            PaymentFlowData,
+            ServerAuthenticationTokenRequestData,
+            ServerAuthenticationTokenResponseData,
+        >,
+    ) -> CustomResult<Option<hyperswitch_masking::Secret<String>>, errors::IntegrationError> {
+        let auth = ItaubankAuthType::try_from(&req.connector_config)?;
+        Ok(auth.private_key)
+    }
+
     fn get_url(
         &self,
         req: &RouterDataV2<
@@ -303,6 +329,32 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
     fn get_content_type(&self) -> &'static str {
         "application/json"
+    }
+
+    fn get_certificate(
+        &self,
+        req: &RouterDataV2<
+            PayoutTransfer,
+            PayoutFlowData,
+            PayoutTransferRequest,
+            PayoutTransferResponse,
+        >,
+    ) -> CustomResult<Option<hyperswitch_masking::Secret<String>>, errors::IntegrationError> {
+        let auth = ItaubankAuthType::try_from(&req.connector_config)?;
+        Ok(auth.certificates)
+    }
+
+    fn get_certificate_key(
+        &self,
+        req: &RouterDataV2<
+            PayoutTransfer,
+            PayoutFlowData,
+            PayoutTransferRequest,
+            PayoutTransferResponse,
+        >,
+    ) -> CustomResult<Option<hyperswitch_masking::Secret<String>>, errors::IntegrationError> {
+        let auth = ItaubankAuthType::try_from(&req.connector_config)?;
+        Ok(auth.private_key)
     }
 
     fn get_url(
