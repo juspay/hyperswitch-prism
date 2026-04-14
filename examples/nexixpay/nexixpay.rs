@@ -90,6 +90,40 @@ pub fn build_refund_get_request() -> RefundServiceGetRequest {
     })).unwrap_or_default()
 }
 
+pub fn build_setup_recurring_request() -> PaymentServiceSetupRecurringRequest {
+    serde_json::from_value::<PaymentServiceSetupRecurringRequest>(serde_json::json!({
+    "merchant_recurring_payment_id": "probe_mandate_001",  // Identification.
+    "amount": {  // Mandate Details.
+        "minor_amount": 0,  // Amount in minor units (e.g., 1000 = $10.00).
+        "currency": "USD",  // ISO 4217 currency code (e.g., "USD", "EUR").
+    },
+    "payment_method": {
+        "payment_method": {
+            "card": {  // Generic card payment.
+                "card_number": "4111111111111111",  // Card Identification.
+                "card_exp_month": "03",
+                "card_exp_year": "2030",
+                "card_cvc": "737",
+                "card_holder_name": "John Doe",  // Cardholder Information.
+            },
+        }
+    },
+    "address": {  // Address Information.
+        "billing_address": {
+        },
+    },
+    "auth_type": "NO_THREE_DS",  // Type of authentication to be used.
+    "enrolled_for_3ds": false,  // Indicates if the customer is enrolled for 3D Secure.
+    "return_url": "https://example.com/mandate-return",  // URL to redirect after setup.
+    "setup_future_usage": "OFF_SESSION",  // Indicates future usage intention.
+    "request_incremental_authorization": false,  // Indicates if incremental authorization is requested.
+    "customer_acceptance": {  // Details of customer acceptance.
+        "acceptance_type": "OFFLINE",  // Type of acceptance (e.g., online, offline).
+        "accepted_at": 0,  // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
+    },
+    })).unwrap_or_default()
+}
+
 pub fn build_void_request(connector_transaction_id: &str) -> PaymentServiceVoidRequest {
     serde_json::from_value::<PaymentServiceVoidRequest>(serde_json::json!({
     "merchant_void_id": "probe_void_001",  // Identification.
@@ -137,6 +171,16 @@ pub async fn refund_get(client: &ConnectorClient, _merchant_transaction_id: &str
     Ok(format!("status: {:?}", response.status()))
 }
 
+// Flow: PaymentService.SetupRecurring
+#[allow(dead_code)]
+pub async fn setup_recurring(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client.setup_recurring(build_setup_recurring_request(), &HashMap::new(), None).await?;
+    if response.status() == PaymentStatus::Failure {
+        return Err(format!("Setup failed: {:?}", response.error).into());
+    }
+    Ok(format!("Mandate: {}", response.connector_recurring_payment_id.as_deref().unwrap_or("")))
+}
+
 // Flow: PaymentService.Void
 #[allow(dead_code)]
 pub async fn void(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
@@ -155,8 +199,9 @@ async fn main() {
         "pre_authenticate" => pre_authenticate(&client, "order_001").await,
         "refund" => refund(&client, "order_001").await,
         "refund_get" => refund_get(&client, "order_001").await,
+        "setup_recurring" => setup_recurring(&client, "order_001").await,
         "void" => void(&client, "order_001").await,
-        _ => { eprintln!("Unknown flow: {}. Available: capture, get, pre_authenticate, refund, refund_get, void", flow); return; }
+        _ => { eprintln!("Unknown flow: {}. Available: capture, get, pre_authenticate, refund, refund_get, setup_recurring, void", flow); return; }
     };
     match result {
         Ok(msg) => println!("✓ {msg}"),

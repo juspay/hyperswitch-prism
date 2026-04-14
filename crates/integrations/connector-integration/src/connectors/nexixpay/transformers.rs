@@ -1950,9 +1950,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             })?;
 
         let order = NexixpayPreAuthOrder {
-            order_id: get_nexi_order_id(
-                &item.resource_common_data.connector_request_reference_id,
-            )?,
+            order_id: get_nexi_order_id(&item.resource_common_data.connector_request_reference_id)?,
             amount: order_amount,
             currency: item.request.currency,
             customer_info,
