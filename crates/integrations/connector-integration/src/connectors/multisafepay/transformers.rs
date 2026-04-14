@@ -1156,7 +1156,7 @@ impl TryFrom<ResponseRouterData<MultisafepayClientAuthResponse, Self>>
 
 /// MultiSafepay recurring model types
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "lowercase")]
 pub enum RecurringModel {
     CardOnFile,
     Subscription,
@@ -1180,7 +1180,8 @@ pub struct MultisafepaySetupMandateRequest<T: PaymentMethodDataTypes> {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub gateway_info: Option<MultisafepayGatewayInfo<T>>,
     pub recurring_model: RecurringModel,
-    pub recurring_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub recurring_id: Option<String>,
 }
 
 /// SetupMandate response reuses the standard payments response
@@ -1275,8 +1276,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             payment_options,
             customer,
             gateway_info,
-            recurring_model: RecurringModel::CardOnFile,
-            recurring_id,
+            recurring_model: RecurringModel::Unscheduled,
+            recurring_id: None,
         })
     }
 }
