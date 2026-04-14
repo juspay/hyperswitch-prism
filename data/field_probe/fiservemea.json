@@ -568,7 +568,43 @@
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_proxy_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          },
+          "auth_type": "NO_THREE_DS",
+          "setup_future_usage": "OFF_SESSION"
+        },
+        "sample": {
+          "url": "https://prod.emea.api.fiservapps.com/sandbox/ipp/payments-gateway/v2/payments",
+          "method": "Post",
+          "headers": {
+            "api-key": "probe_key",
+            "client-request-id": "00000000-0000-0000-0000-000000000000",
+            "content-type": "application/json",
+            "message-signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "timestamp": "0000000000",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"requestType\":\"PaymentCardPreAuthTransaction\",\"merchantTransactionId\":\"probe_proxy_mandate_001\",\"transactionAmount\":{\"total\":\"0.00\",\"currency\":\"USD\"},\"order\":{\"orderId\":\"probe_proxy_mandate_001\"},\"paymentMethod\":{\"paymentCard\":{\"number\":\"4111111111111111\",\"expiryDate\":{\"month\":\"03\",\"year\":\"30\"},\"securityCode\":\"123\"}}}"
+        }
       }
     },
     "recurring_charge": {
@@ -639,7 +675,48 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/mandate-return",
+          "setup_future_usage": "OFF_SESSION",
+          "request_incremental_authorization": false,
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          }
+        },
+        "sample": {
+          "url": "https://prod.emea.api.fiservapps.com/sandbox/ipp/payments-gateway/v2/payments",
+          "method": "Post",
+          "headers": {
+            "api-key": "probe_key",
+            "client-request-id": "00000000-0000-0000-0000-000000000000",
+            "content-type": "application/json",
+            "message-signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "timestamp": "0000000000",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"requestType\":\"PaymentCardPreAuthTransaction\",\"merchantTransactionId\":\"probe_mandate_001\",\"transactionAmount\":{\"total\":\"0.00\",\"currency\":\"USD\"},\"order\":{\"orderId\":\"probe_mandate_001\"},\"paymentMethod\":{\"paymentCard\":{\"number\":\"4111111111111111\",\"expiryDate\":{\"month\":\"03\",\"year\":\"30\"},\"securityCode\":\"737\"}}}"
+        }
       }
     },
     "token_authorize": {
@@ -650,7 +727,8 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported"
       }
     },
     "tokenize": {

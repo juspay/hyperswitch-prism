@@ -1104,7 +1104,12 @@ impl TryFrom<ResponseRouterData<FiservemeaPaymentsResponse, Self>>
 
 // Response conversion for SetupMandate / SetupRecurring flow
 impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<FiservemeaPaymentsResponse, Self>>
-    for RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>
+    for RouterDataV2<
+        SetupMandate,
+        PaymentFlowData,
+        SetupMandateRequestData<T>,
+        PaymentsResponseData,
+    >
 {
     type Error = error_stack::Report<ConnectorError>;
 
