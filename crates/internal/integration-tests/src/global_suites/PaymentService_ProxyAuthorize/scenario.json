@@ -23,7 +23,18 @@
       },
       "capture_method": "AUTOMATIC",
       "customer": {
-        "id": "auto_generate"
+        "id": "auto_generate",
+        "connector_customer_id": ""
+      },
+      "state": {
+        "access_token": {
+          "token": {
+            "value": ""
+          },
+          "token_type": "",
+          "expires_in_seconds": 0
+        },
+        "connector_customer_id": ""
       },
       "auth_type": "NO_THREE_DS",
       "test_mode": true

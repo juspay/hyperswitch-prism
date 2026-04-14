@@ -258,16 +258,24 @@ pub fn add_context(
 }
 
 fn prepare_context_placeholders(suite: &str, _connector: &str, current_grpc_req: &mut Value) {
-    // Ensure metadata target exists for flows that need dependency-carried connector metadata.
-    if matches!(
+    // Ensure a `connector_feature_data.value` leaf exists so that `add_context`
+    // can fill it from dependency responses.  Almost every proto request type
+    // carries this optional field; injecting a placeholder is harmless because
+    // `prune_empty_context_wrappers` removes it if nothing fills it.
+    //
+    // We skip root suites that never depend on another flow (auth-token flows,
+    // CustomerService/Create) since they have no dependency to source from.
+    let is_root_only_suite = matches!(
         suite,
-        "PaymentService/Capture"
-            | "PaymentService/Void"
-            | "PaymentService/Refund"
-            | "PaymentService/Get"
-            | "RefundService/Get"
-    ) && lookup_json_path_with_case_fallback(current_grpc_req, "connector_feature_data.value")
-        .is_none()
+        "MerchantAuthenticationService/CreateServerAuthenticationToken"
+            | "MerchantAuthenticationService/CreateServerSessionAuthenticationToken"
+            | "MerchantAuthenticationService/CreateClientAuthenticationToken"
+            | "CustomerService/Create"
+    );
+
+    if !is_root_only_suite
+        && lookup_json_path_with_case_fallback(current_grpc_req, "connector_feature_data.value")
+            .is_none()
     {
         let _ = deep_set_json_path(
             current_grpc_req,
