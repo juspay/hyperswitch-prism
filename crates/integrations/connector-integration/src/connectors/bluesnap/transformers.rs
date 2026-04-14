@@ -21,7 +21,8 @@ use serde::{Deserialize, Serialize};
 use super::{requests, responses};
 use crate::types::ResponseRouterData;
 use domain_types::errors::{
-    ConnectorError, IntegrationError, ResponseTransformationErrorContext, WebhookError,
+    ConnectorError, IntegrationError, IntegrationErrorContext, ResponseTransformationErrorContext,
+    WebhookError,
 };
 
 // Wallet type constants
@@ -116,7 +117,19 @@ fn map_ecp_account_type(
             return Err(error_stack::report!(IntegrationError::NotSupported {
                 message: format!("Bank type {unsupported:?} is not supported by BlueSnap"),
                 connector: "bluesnap",
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Use `BankType::Checking` or `BankType::Savings`".to_owned(),
+                    ),
+                    doc_url: None,
+                    additional_context: Some(
+                        format!(
+                            "Received BankType::{unsupported:?}, which does not map to any \
+                             BlueSnap ECP account type. Only `Checking` and `Savings` are \
+                             accepted by the BlueSnap."
+                        ),
+                    ),
+                },
             }))
         }
     };

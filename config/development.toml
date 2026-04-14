@@ -183,6 +183,7 @@ brokers = ["localhost:9092"]
 acks = "all"
 request_timeout_ms = 30000
 message_timeout_ms = 30000
+enqueue_timeout_ms = 5000
 # security_protocol = "SASL_SSL"
 # sasl_mechanism = "PLAIN"
 # sasl_username = ""

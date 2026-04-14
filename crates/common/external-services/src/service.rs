@@ -439,52 +439,6 @@ where
                 req
             });
 
-            let headers = connector_request
-                .as_ref()
-                .map(|connector_request| connector_request.headers.clone())
-                .unwrap_or_default();
-            tracing::info!(?headers, "headers of connector request");
-
-            let event_headers: HashMap<String, String> = headers
-                .iter()
-                .map(|(k, v)| (k.clone(), format!("{v:?}")))
-                .collect();
-
-            let masked_headers = headers
-                .iter()
-                .fold(serde_json::Map::new(), |mut acc, (k, v)| {
-                    let value = match v {
-                        Maskable::Masked(_) => {
-                            serde_json::Value::String("*** alloc::string::String ***".to_string())
-                        }
-                        Maskable::Normal(iv) => serde_json::Value::String(iv.to_owned()),
-                    };
-                    acc.insert(k.clone(), value);
-                    acc
-                });
-            let headers = serde_json::Value::Object(masked_headers);
-            tracing::Span::current().record("request.headers", tracing::field::display(&headers));
-
-            let req = connector_request.as_ref().map(|connector_request| {
-                let masked_request = match connector_request.body.as_ref() {
-                    Some(request) => match request {
-                        RequestContent::Json(i)
-                        | RequestContent::FormUrlEncoded(i)
-                        | RequestContent::Xml(i) => (**i).masked_serialize().unwrap_or(
-                            json!({ "error": "failed to mask serialize connector request"}),
-                        ),
-                        RequestContent::FormData(_) => json!({"request_type": "FORM_DATA"}),
-                        RequestContent::RawBytes(_) => json!({"request_type": "RAW_BYTES"}),
-                    },
-                    None => serde_json::Value::Null,
-                };
-                tracing::info!(request=?masked_request, "request of connector");
-                tracing::Span::current()
-                    .record("request.body", tracing::field::display(&masked_request));
-
-                masked_request
-            });
-
             match connector_request {
                 Some(request) => {
                     let url = request.url.clone();
@@ -500,7 +454,16 @@ where
                     tracing::Span::current().record("request.url", tracing::field::display(&url));
                     tracing::Span::current()
                         .record("request.method", tracing::field::display(method));
-                    let request_id = event_params.request_id.to_string();
+
+                    let masked_headers = request.headers.clone();
+                    tracing::info!(headers=?masked_headers, "headers of connector request");
+                    tracing::Span::current()
+                        .record("request.headers", tracing::field::debug(&masked_headers));
+
+                    let masked_request = mask_connector_request(&request.body);
+                    tracing::info!(request=?masked_request, "request of connector");
+                    tracing::Span::current()
+                        .record("request.body", tracing::field::display(&masked_request));
 
                     let response = if let Some(token_data) = token_data {
                         tracing::debug!(
@@ -631,34 +594,18 @@ where
                         Ok(body) | Err(body) => i32::from(body.status_code),
                     });
 
-                    // Construct masked request for event
-                    let masked_request_data = req.as_ref().and_then(|r| {
-                        MaskedSerdeValue::from_masked_optional(r, "connector_request")
-                    });
-
                     let latency =
                         u64::try_from(external_service_elapsed.as_millis()).unwrap_or(u64::MAX);
 
                     // Create single event (response_data will be set by connector)
-                    let mut event = Event {
-                        request_id: request_id.to_string(),
-                        timestamp: chrono::Utc::now().timestamp().into(),
-                        flow_type: event_params.flow_name,
-                        connector: event_params.connector_name.to_string(),
-                        url: Some(url.clone()),
-                        stage: EventStage::ConnectorCall,
-                        latency_ms: Some(latency),
+                    let mut event = create_event(
+                        &event_params,
+                        Some(url.clone()),
+                        Some(latency),
+                        &masked_headers,
                         status_code,
-                        request_data: masked_request_data,
-                        response_data: None, // Will be set by connector via set_response_body
-                        headers: event_headers,
-                        additional_fields: HashMap::new(),
-                        lineage_ids: event_params.lineage_ids.to_owned(),
-                    };
-                    event.add_reference_id(event_params.reference_id.as_deref());
-                    event.add_resource_id(event_params.resource_id.as_deref());
-                    event.add_service_type(event_params.service_type);
-                    event.add_service_name(event_params.service_name);
+                        &masked_request,
+                    );
 
                     let result = handle_connector_response(
                         response.change_context(
@@ -669,7 +616,7 @@ where
                         Some(&mut event),
                         all_keys_required,
                         &method.to_string(),
-                        url.clone(),
+                        url,
                         Some(&event_params),
                     )
                     .map_err(report_connector_response_to_flow);
@@ -699,32 +646,15 @@ where
                     let topic = record.topic.clone();
                     tracing::Span::current().record("request.url", tracing::field::display(&topic));
 
-                    tracing::info!(?record.headers, "headers of connector request");
+                    let masked_headers = record.headers.clone();
+                    tracing::info!(headers=?masked_headers, "headers of connector request");
                     tracing::Span::current()
                         .record("request.headers", tracing::field::debug(&record.headers));
 
-                    let masked_request = match &record.payload {
-                        Some(request) => match request {
-                            RequestContent::Json(i)
-                            | RequestContent::FormUrlEncoded(i)
-                            | RequestContent::Xml(i) => (**i).masked_serialize().unwrap_or(
-                                json!({ "error": "failed to mask serialize connector request"}),
-                            ),
-                            RequestContent::FormData(_) => json!({"request_type": "FORM_DATA"}),
-                            RequestContent::RawBytes(_) => json!({"request_type": "RAW_BYTES"}),
-                        },
-                        None => serde_json::Value::Null,
-                    };
+                    let masked_request = mask_connector_request(&record.payload);
                     tracing::info!(request=?masked_request, "request of connector");
                     tracing::Span::current()
                         .record("request.body", tracing::field::display(&masked_request));
-
-                    let request_id = event_params.request_id.to_string();
-                    let event_headers: HashMap<String, String> = record
-                        .headers
-                        .iter()
-                        .map(|(k, v)| (k.clone(), format!("{v:?}")))
-                        .collect();
 
                     let response = publish_to_kafka(record)
                         .await
@@ -733,7 +663,7 @@ where
                             info_log(
                                 "NETWORK_ERROR",
                                 &json!(format!(
-                                    "Failed getting response from connector. Error: {:?}",
+                                    "Failed to publish connector message to Kafka. Error: {:?}",
                                     err
                                 )),
                             );
@@ -758,28 +688,14 @@ where
                         u64::try_from(external_service_elapsed.as_millis()).unwrap_or(u64::MAX);
 
                     // Create single event (response_data will be set by connector)
-                    let mut event = Event {
-                        request_id: request_id.to_string(),
-                        timestamp: chrono::Utc::now().timestamp().into(),
-                        flow_type: event_params.flow_name,
-                        connector: event_params.connector_name.to_string(),
-                        url: Some(topic.clone()),
-                        stage: EventStage::ConnectorCall,
-                        latency_ms: Some(latency),
+                    let mut event = create_event(
+                        &event_params,
+                        Some(topic.clone()),
+                        Some(latency),
+                        &masked_headers,
                         status_code,
-                        request_data: MaskedSerdeValue::from_masked_optional(
-                            &masked_request,
-                            "connector_request",
-                        ),
-                        response_data: None, // Will be set by connector via set_response_body
-                        headers: event_headers,
-                        additional_fields: HashMap::new(),
-                        lineage_ids: event_params.lineage_ids.to_owned(),
-                    };
-                    event.add_reference_id(event_params.reference_id.as_deref());
-                    event.add_resource_id(event_params.resource_id.as_deref());
-                    event.add_service_type(event_params.service_type);
-                    event.add_service_name(event_params.service_name);
+                        &masked_request,
+                    );
 
                     let result = handle_connector_response(
                         response.change_context(
@@ -790,7 +706,7 @@ where
                         Some(&mut event),
                         all_keys_required,
                         "PUBLISH",
-                        topic.clone(),
+                        topic,
                         Some(&event_params),
                     )
                     .map_err(report_connector_response_to_flow);
@@ -828,6 +744,59 @@ where
     tracing::Span::current().record("latency", elapsed);
     tracing::info!(tag = ?Tag::OutgoingApi, log_type = "api", "Outgoing Request completed");
     result_with_integrity_check
+}
+
+fn mask_connector_request(request_content: &Option<RequestContent>) -> serde_json::Value {
+    match request_content {
+        Some(request) => match request {
+            RequestContent::Json(i)
+            | RequestContent::FormUrlEncoded(i)
+            | RequestContent::Xml(i) => (**i)
+                .masked_serialize()
+                .unwrap_or(json!({ "error": "failed to mask serialize connector request"})),
+            RequestContent::FormData(_) => json!({"request_type": "FORM_DATA"}),
+            RequestContent::RawBytes(_) => json!({"request_type": "RAW_BYTES"}),
+        },
+        None => serde_json::Value::Null,
+    }
+}
+
+fn create_event(
+    event_params: &EventProcessingParams<'_>,
+    url: Option<String>,
+    latency_ms: Option<u64>,
+    headers: &Headers,
+    status_code: Option<i32>,
+    masked_request: &serde_json::Value,
+) -> Event {
+    let request_id = event_params.request_id.to_string();
+    let event_headers = headers
+        .iter()
+        .map(|(k, v)| (k.clone(), format!("{v:?}")))
+        .collect();
+
+    let mut event = Event {
+        request_id: request_id.to_string(),
+        timestamp: chrono::Utc::now().timestamp().into(),
+        flow_type: event_params.flow_name,
+        connector: event_params.connector_name.to_string(),
+        url,
+        stage: EventStage::ConnectorCall,
+        latency_ms,
+        status_code,
+        request_data: MaskedSerdeValue::from_masked_optional(masked_request, "connector_request"),
+        response_data: None, // Will be set by connector via set_response_body
+        headers: event_headers,
+        additional_fields: HashMap::new(),
+        lineage_ids: event_params.lineage_ids.to_owned(),
+    };
+
+    event.add_reference_id(event_params.reference_id.as_deref());
+    event.add_resource_id(event_params.resource_id.as_deref());
+    event.add_service_type(event_params.service_type);
+    event.add_service_name(event_params.service_name);
+
+    event
 }
 
 pub enum ApplicationResponse<R> {

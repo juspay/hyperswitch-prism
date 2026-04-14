@@ -33,6 +33,11 @@ pub struct ConnectorRequestKafkaConfig {
     /// SASL password. Maps to `sasl.password`.
     #[serde(default)]
     pub sasl_password: Option<String>,
+    /// Timeout (ms) for enqueuing a message into the producer's internal queue.
+    /// This is the `queue_timeout` passed to `FutureProducer::send`.
+    /// If the queue is full for this long, the send fails.
+    #[serde(default)]
+    pub enqueue_timeout_ms: u64,
 }
 
 impl Default for ConnectorRequestKafkaConfig {
@@ -47,6 +52,7 @@ impl Default for ConnectorRequestKafkaConfig {
             sasl_mechanism: None,
             sasl_username: None,
             sasl_password: None,
+            enqueue_timeout_ms: 5_000,
         }
     }
 }

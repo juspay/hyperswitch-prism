@@ -18,7 +18,12 @@ use serde_json::json;
 use std::sync::Arc;
 use std::time::Duration;
 
-static KAFKA_PRODUCER: OnceCell<Arc<FutureProducer>> = OnceCell::new();
+struct KafkaProducer {
+    producer: FutureProducer,
+    enqueue_timeout: Duration,
+}
+
+static KAFKA_PRODUCER: OnceCell<Arc<KafkaProducer>> = OnceCell::new();
 
 pub fn init_kafka_producer(
     config: &ConnectorRequestKafkaConfig,
@@ -65,7 +70,10 @@ pub fn init_kafka_producer(
         .fetch_metadata(None, Duration::from_secs(5))
         .change_context(KafkaClientError::MetadataFetchFailed)?;
 
-    let _ = KAFKA_PRODUCER.set(Arc::new(producer));
+    let _ = KAFKA_PRODUCER.set(Arc::new(KafkaProducer {
+        producer,
+        enqueue_timeout: Duration::from_millis(config.enqueue_timeout_ms),
+    }));
 
     tracing::info!(brokers = %config.brokers.join(","), "Kafka producer for publishing connector requests initialized successfully");
 
@@ -75,7 +83,7 @@ pub fn init_kafka_producer(
 pub async fn publish_to_kafka(
     kafka_record: KafkaRecord,
 ) -> error_stack::Result<Result<Response, Response>, KafkaClientError> {
-    let producer = KAFKA_PRODUCER
+    let state = KAFKA_PRODUCER
         .get()
         .ok_or(KafkaClientError::ProducerNotInitialized)?;
 
@@ -102,26 +110,27 @@ pub async fn publish_to_kafka(
         None => Vec::new(),
     };
 
-    let timeout = Duration::from_secs(5);
     let delivery_result = match kafka_record.key.as_deref() {
         Some(key) => {
-            producer
+            state
+                .producer
                 .send(
                     FutureRecord::to(&kafka_record.topic)
                         .payload(&payload_bytes)
                         .key(key)
                         .headers(owned_headers),
-                    timeout,
+                    state.enqueue_timeout,
                 )
                 .await
         }
         None => {
-            producer
+            state
+                .producer
                 .send(
                     FutureRecord::<(), _>::to(&kafka_record.topic)
                         .payload(&payload_bytes)
                         .headers(owned_headers),
-                    timeout,
+                    state.enqueue_timeout,
                 )
                 .await
         }
