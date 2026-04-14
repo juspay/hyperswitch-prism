@@ -254,7 +254,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Red Pagos | ⚠ |
 | Alfamart | ⚠ |
 | Indomaret | ⚠ |
-| Oxxo | ⚠ |
+| Oxxo | ✓ |
 | 7-Eleven | ⚠ |
 | Lawson | ⚠ |
 | Mini Stop | ⚠ |

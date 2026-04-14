@@ -46,6 +46,8 @@ pub struct ThreeDSecureReqData {
 pub enum PaymentMethodId {
     #[default]
     Card,
+    #[serde(rename = "OX")]
+    Oxxo,
     #[serde(untagged)]
     Other(String),
 }
@@ -143,7 +145,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     payer: Payer {
                         name,
                         email,
-                        // [#589]: Allow securely collecting PII from customer in payments request
                         document: get_doc_from_currency(country.to_string()),
                     },
                     card: Some(Card {
@@ -191,6 +192,32 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 };
                 Ok(payment_request)
             }
+            PaymentMethodData::Voucher(ref voucher_data) => match voucher_data {
+                payment_method_data::VoucherData::Oxxo => {
+                    let payment_request = Self {
+                        amount,
+                        currency: item.router_data.request.currency,
+                        payment_method_id: PaymentMethodId::Oxxo,
+                        payment_method_flow: PaymentMethodFlow::Direct,
+                        country,
+                        payer: Payer {
+                            name,
+                            email,
+                            document: get_doc_from_currency(country.to_string()),
+                        },
+                        card: None,
+                        order_id,
+                        three_dsecure: None,
+                        callback_url,
+                        description,
+                        notification_url: item.router_data.request.webhook_url.clone(),
+                    };
+                    Ok(payment_request)
+                }
+                _ => Err(IntegrationError::not_implemented(
+                    crate::utils::get_unimplemented_payment_method_error_message("Dlocal"),
+                ))?,
+            },
             PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::Wallet(_)
             | PaymentMethodData::PayLater(_)
@@ -202,7 +229,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::RealTimePayment(_)
             | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Upi(_)
-            | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::PaymentMethodToken(_)

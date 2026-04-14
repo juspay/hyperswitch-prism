@@ -186,7 +186,7 @@ examples_python: examples/datatrans/datatrans.py
 connector_id: dlocal
 doc: docs/connectors/dlocal.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
-payment_methods: Card
+payment_methods: Card, Oxxo
 flows: authorize, capture, get, proxy_authorize, recurring_charge, refund, refund_get, void
 examples_python: examples/dlocal/dlocal.py
 
