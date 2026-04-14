@@ -979,7 +979,8 @@
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Stuck on field: billing.address.city — Missing required field: billing.address.city"
       }
     },
     "recurring_charge": {
@@ -1058,7 +1059,8 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Stuck on field: billing.address.city — Missing required field: billing.address.city"
       }
     },
     "token_authorize": {
@@ -1069,7 +1071,8 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through trustpay SetupMandate"
       }
     },
     "tokenize": {
