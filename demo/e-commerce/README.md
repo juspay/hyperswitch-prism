@@ -1,12 +1,12 @@
 # E-Commerce Payment Demo
 
-A simple e-commerce website demonstrating the **hyperswitch-prism** payment library with Stripe (USD) and GlobalPay (EUR) connectors.
+A simple e-commerce website demonstrating the **hyperswitch-prism** payment library with Stripe (USD), GlobalPay (EUR), and Adyen (high-value payments) connectors.
 
 ## Features
 
 - 🛒 Product catalog with cart functionality
 - 💳 Embedded checkout (no redirects)
-- 🔄 Currency-based routing: USD → Stripe, EUR → GlobalPay
+- 🔄 Smart routing: High-value (> $50) → Adyen, USD → Stripe, EUR → GlobalPay
 - 💸 Payment authorization and refunds
 - 🎨 Modern, responsive UI
 - 🐳 Docker support with docker-compose
@@ -18,6 +18,7 @@ A simple e-commerce website demonstrating the **hyperswitch-prism** payment libr
 - Docker and docker-compose (optional)
 - Stripe test account
 - GlobalPay test account
+- Adyen test account (optional, for high-value payments)
 
 ## Quick Start
 

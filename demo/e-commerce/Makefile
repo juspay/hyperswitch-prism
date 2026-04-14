@@ -1,4 +1,4 @@
-.PHONY: help install dev dev-stop build start stop restart logs clean up docker-up docker-down docker-logs
+.PHONY: help install dev dev-stop build start logs clean up down restart
 
 # Default target
 help:
@@ -13,15 +13,12 @@ help:
 	@echo ""
 	@echo "  Docker:"
 	@echo "    up            Build and start containers (docker-compose up --build)"
-	@echo "    docker-up     Start containers (docker-compose up)"
-	@echo "    docker-down   Stop containers (docker-compose down)"
-	@echo "    docker-logs   View container logs"
+	@echo "    down          Stop and remove containers (docker-compose down)"
+	@echo "    logs          View container logs (follow mode)"
 	@echo ""
 	@echo "  Utility:"
+	@echo "    restart       Restart containers (down + up)"
 	@echo "    clean         Remove node_modules and dist"
-	@echo "    restart       Restart docker containers"
-	@echo "    logs          View docker logs (follow mode)"
-	@echo "    stop          Stop docker containers"
 	@echo ""
 
 # Local Development
@@ -43,7 +40,11 @@ start:
 # Docker Commands
 up:
 	docker-compose up --build -d
-
+	@echo ""
+	@echo "E-Commerce Payment Demo is running!"
+	@echo "  App: http://localhost:3000"
+	@echo "  Health: http://localhost:3000/health"
+	@echo ""
 
 down:
 	docker-compose down
@@ -52,11 +53,7 @@ logs:
 	docker-compose logs -f
 
 # Convenience aliases
-stop: docker-down
-
-restart: docker-down docker-up
-
-logs: docker-logs
+restart: down up
 
 # Cleanup
 clean:

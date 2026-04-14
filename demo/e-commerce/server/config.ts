@@ -57,8 +57,6 @@ export const getConnectorName = (currency: string, amount: number): string => {
   return currency === 'EUR' ? 'globalpay' : 'stripe';
 };
 
-
-
 // Server configuration
 export const config = {
   port: parseInt(process.env.PORT || '3000', 10),

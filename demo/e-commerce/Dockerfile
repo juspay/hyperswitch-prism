@@ -46,8 +46,9 @@ RUN apk del cmake make g++ python3
 # Copy built files from builder
 COPY --from=builder /app/demo/e-commerce/dist ./dist
 
-# Copy client files
+# Copy client files to both locations (for compatibility)
 COPY demo/e-commerce/client ./client
+COPY demo/e-commerce/client ./dist/client
 
 # Expose port
 EXPOSE 3000
@@ -57,4 +58,4 @@ ENV NODE_ENV=production
 ENV PORT=3000
 
 # Start server
-CMD ["node", "dist/server/index.js"]
+CMD ["node", "dist/index.js"]

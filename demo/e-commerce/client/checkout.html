@@ -73,24 +73,8 @@
       <div class="payment-section">
         <h2>Payment Details</h2>
 
+        <div id="payment-connector-info" class="connector-info"></div>
 
-        <!-- Integration Pending -->
-
-        <!-- <div style="display: flex; justify-content: center;">
-          <div style="text-align: center; margin-top: 60px;">
-            <div></div>
-            <p style="font-weight: bold; margin: 0;">Integration pending</p>
-          </div>
-        </div> -->
-
-
-        <!-- Show After integration -->
-
-        <div id="payment-connector-info" class="connector-info">
-
-        </div>
-
-       
         <div id="loading" class="loading">
           <div class="spinner"></div>
           <p>Initializing payment...</p>
@@ -98,7 +82,6 @@
 
         <!-- Stripe Checkout Container -->
         <div id="stripe-checkout-container" class="checkout-container hidden">
-
           <div id="payment-element"></div>
           <button id="stripe-submit-btn" class="submit-btn">
             <span id="btn-text">Pay Now</span>
@@ -111,7 +94,6 @@
 
         <!-- GlobalPay Checkout Container -->
         <div id="globalpay-checkout-container" class="checkout-container hidden">
-
           <div id="credit-card"></div>
           <div id="globalpay-error" class="card-errors"></div>
         </div>
@@ -121,7 +103,6 @@
           <div id="adyen-card-container"></div>
           <div id="adyen-error" class="card-errors"></div>
         </div>
-
 
         <!-- Payment Result -->
         <div id="payment-result" class="payment-result hidden">

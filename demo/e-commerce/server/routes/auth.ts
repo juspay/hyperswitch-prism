@@ -1,10 +1,135 @@
 import { Router, Request, Response } from 'express';
+import { types, IntegrationError, ConnectorError } from 'hyperswitch-prism';
 import { getConnectorName } from '../config.js';
 import { createClientAuthToken, fetchGlobalPayAccessToken } from '../utils/auth.js';
 import { v4 as uuidv4 } from 'uuid';
 
-
 const router = Router();
+
+interface SessionResponse {
+  connector: string;
+  clientToken: string;
+  publishableKey: string;
+  sessionData: Record<string, unknown>;
+  merchantTransactionId: string;
+  amount: number;
+  currency: string;
+}
+
+/**
+ * Validates query parameters for SDK session request
+ */
+function validateSessionParams(req: Request): { currency: string; amount: number } | null {
+  const { currency, amount } = req.query;
+
+  if (!currency || !amount) {
+    return null;
+  }
+
+  const currencyStr = String(currency).toUpperCase();
+  const amountNum = parseInt(String(amount), 10);
+
+  if (isNaN(amountNum) || amountNum <= 0) {
+    return null;
+  }
+
+  return { currency: currencyStr, amount: amountNum };
+}
+
+/**
+ * Creates Stripe SDK session
+ */
+async function createStripeSession(
+  currency: string,
+  amount: number
+): Promise<{ clientToken: string; publishableKey: string; sessionData: Record<string, unknown> }> {
+  const { sessionResponse } = await createClientAuthToken(currency, amount);
+
+  const stripeData = (sessionResponse as types.MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse).sessionData?.connectorSpecific?.stripe;
+  const clientToken = stripeData?.clientSecret?.value || '';
+  const publishableKey = process.env.STRIPE_PUBLISHABLE_KEY || '';
+
+  return {
+    clientToken,
+    publishableKey,
+    sessionData: sessionResponse as unknown as Record<string, unknown>
+  };
+}
+
+/**
+ * Creates GlobalPay SDK session
+ */
+async function createGlobalPaySession(): Promise<{ clientToken: string; publishableKey: string; sessionData: Record<string, unknown> }> {
+  const appId = process.env.GLOBALPAY_APP_ID!;
+  const appKey = process.env.GLOBALPAY_APP_KEY!;
+
+  const clientToken = await fetchGlobalPayAccessToken(
+    appId,
+    appKey,
+    ['PMT_POST_Create_Single']
+  );
+
+  return {
+    clientToken,
+    publishableKey: '',
+    sessionData: {}
+  };
+}
+
+/**
+ * Creates Adyen SDK session
+ */
+async function createAdyenSession(
+  currency: string,
+  amount: number
+): Promise<{ clientToken: string; publishableKey: string; sessionData: Record<string, unknown> }> {
+  const { sessionResponse } = await createClientAuthToken(currency, amount);
+
+  const adyenData = (sessionResponse as any).sessionData?.connectorSpecific?.adyen;
+  const sessionId = adyenData?.sessionId || '';
+  const sessionDataValue = adyenData?.sessionData?.value || '';
+
+  return {
+    clientToken: sessionId,
+    publishableKey: process.env.ADYEN_CLIENT_KEY || '',
+    sessionData: {
+      sessionData: sessionDataValue,
+      connectorSpecific: { adyen: adyenData }
+    }
+  };
+}
+
+/**
+ * Handles errors and sends appropriate response
+ */
+function handleError(res: Response, error: unknown): void {
+  console.error('[SDK Session Error]', error);
+
+  if (error instanceof IntegrationError) {
+    res.status(400).json({
+      error: 'Integration error',
+      code: error.errorCode,
+      message: error.message
+    });
+    return;
+  }
+
+  if (error instanceof ConnectorError) {
+    res.status(502).json({
+      error: 'Connector error',
+      code: error.errorCode,
+      message: error.message
+    });
+    return;
+  }
+
+  const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+  res.status(500).json({
+    error: 'Failed to create SDK session',
+    details: errorMessage
+  });
+}
+
 /**
  * GET /api/auth/sdk-session
  * Creates an SDK session for client-side payment tokenization
@@ -15,115 +140,46 @@ const router = Router();
  */
 router.get('/sdk-session', async (req: Request, res: Response) => {
   try {
-    const { currency, amount } = req.query;
+    const params = validateSessionParams(req);
 
-    // Validate inputs
-    if (!currency || !amount) {
+    if (!params) {
       return res.status(400).json({
-        error: 'Missing required query parameters: currency and amount'
+        error: 'Missing or invalid query parameters: currency and amount (positive number)'
       });
     }
 
-    const currencyStr = String(currency).toUpperCase();
-    const amountNum = parseInt(String(amount), 10);
+    const { currency, amount } = params;
+    const connectorName = getConnectorName(currency, amount);
 
-    if (isNaN(amountNum) || amountNum <= 0) {
-      return res.status(400).json({
-        error: 'Invalid amount. Must be a positive number.'
-      });
+    let sessionResult: { clientToken: string; publishableKey: string; sessionData: Record<string, unknown> };
+
+    switch (connectorName) {
+      case 'stripe':
+        sessionResult = await createStripeSession(currency, amount);
+        break;
+      case 'globalpay':
+        sessionResult = await createGlobalPaySession();
+        break;
+      case 'adyen':
+        sessionResult = await createAdyenSession(currency, amount);
+        break;
+      default:
+        return res.status(400).json({
+          error: `Unsupported connector: ${connectorName}`
+        });
     }
 
-    // Determine connector based on currency
-    const connectorName = getConnectorName(currencyStr, amountNum);
-
-    console.log(`[SDK Session] Currency: ${currencyStr}, Connector: ${connectorName}`);
-
-    let clientToken: string;
-    let publishableKey: string;
-    let sessionData: Record<string, unknown>;
-
-    if (connectorName === 'stripe') {
-      // Stripe flow - use SDK
-      const { sessionResponse } = await createClientAuthToken(
-        currencyStr,
-        amountNum
-      );
-
-      const gpData = (sessionResponse as any).sessionData?.connectorSpecific?.stripe;
-      const serverToken = gpData?.clientSecret?.value || '';
-      publishableKey = process.env.STRIPE_PUBLISHABLE_KEY || "";
-
-      console.log('[Stripe Raw Request]', sessionResponse.rawConnectorRequest?.value);
-
-      // Extract Stripe client secret
-      clientToken = serverToken;
-      sessionData = sessionResponse as unknown as Record<string, unknown>;
-
-    } else if (connectorName === 'globalpay') {
-
-      const appId = process.env.GLOBALPAY_APP_ID!;
-      const appKey = process.env.GLOBALPAY_APP_KEY!;
-      const fetchToken = await fetchGlobalPayAccessToken(
-        appId,
-        appKey,
-        ["PMT_POST_Create_Single"],
-      );
-      clientToken = fetchToken;
-      sessionData = {};
-      publishableKey = "";
-    } else if (connectorName === 'adyen') {
-      // Adyen flow - use Prism SDK to create session
-      const { sessionResponse } = await createClientAuthToken(
-        currencyStr,
-        amountNum
-      );
-
-      // Extract Adyen session data from Prism SDK response
-      // Structure: sessionData.connectorSpecific.adyen = { sessionId: string, sessionData: { value: string } }
-      const adyenData = (sessionResponse as any).sessionData?.connectorSpecific?.adyen;
-      const sessionId = adyenData?.sessionId || '';  // Direct string, not wrapped in value
-      const sessionDataValue = adyenData?.sessionData?.value || '';
-
-      console.log('[Adyen Raw Request]', sessionResponse.rawConnectorRequest?.value);
-      console.log('[Adyen Session] ID:', sessionId);
-      console.log('[Adyen Session] Data length:', sessionDataValue.length);
-
-      // Adyen uses session.id and session.sessionData
-      clientToken = sessionId;
-      sessionData = {
-        sessionData: sessionDataValue,
-        connectorSpecific: { adyen: adyenData }
-      };
-      publishableKey = process.env.ADYEN_CLIENT_KEY || "";
-
-    } else {
-      return res.status(400).json({
-        error: `Unsupported connector: ${connectorName}`
-      });
-    }
-
-    const merchantTransactionId = `txn_${uuidv4().replace(/-/g, '').substring(0, 16)}`;
-
-    console.log(`[SDK Session] Session created successfully for ${connectorName}`);
-
-    // Return unified response
-    res.json({
+    const response: SessionResponse = {
       connector: connectorName,
-      clientToken,
-      publishableKey,
-      sessionData,
-      merchantTransactionId,
-      amount: amountNum,
-      currency: currencyStr
-    });
+      ...sessionResult,
+      merchantTransactionId: `txn_${uuidv4().replace(/-/g, '').substring(0, 16)}`,
+      amount,
+      currency
+    };
 
-  } catch (error: any) {
-    console.error('[SDK Session Error]', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    res.status(500).json({
-      error: 'Failed to create SDK session',
-      details: errorMessage
-    });
+    res.json(response);
+  } catch (error) {
+    handleError(res, error);
   }
 });
 

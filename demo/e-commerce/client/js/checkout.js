@@ -98,7 +98,6 @@ function loadCheckoutData() {
     return;
   }
   checkoutData = JSON.parse(data);
-  console.log('[Checkout] Data loaded:', checkoutData);
 }
 
 /**
@@ -146,9 +145,7 @@ async function initializePayment() {
     
     sdkConfig = await response.json();
     currentConnector = sdkConfig.connector;
-    
-    console.log('[Checkout] SDK config received:', sdkConfig);
-    
+
     // Show connector info
     connectorInfo.innerHTML = `
       <strong>Payment Processor:</strong> ${sdkConfig.connector.toUpperCase()}<br>
@@ -157,25 +154,16 @@ async function initializePayment() {
     
     // Step 2: Initialize appropriate SDK
     if (sdkConfig.connector === 'stripe') {
-      console.log('[Checkout] Initializing Stripe checkout...');
       await initStripeCheckout();
-      console.log('[Checkout] Stripe checkout initialized');
     } else if (sdkConfig.connector === 'globalpay') {
-      console.log('[Checkout] Initializing GlobalPay checkout...');
       await initGlobalPayCheckout();
-      console.log('[Checkout] GlobalPay checkout initialized');
     } else if (sdkConfig.connector === 'adyen') {
-      console.log('[Checkout] Initializing Adyen checkout...');
       await initAdyenCheckout();
-      // Adyen checkout handles its own completion, no need to hide loading here
-      console.log('[Checkout] Adyen checkout flow completed');
       return; // Adyen handles completion via callbacks
     }
-    
+
     // Hide loading, show form
-    console.log('[Checkout] Hiding loading indicator');
     loadingEl.classList.add('hidden');
-    console.log('[Checkout] Loading hidden, form should be visible');
     
   } catch (error) {
     console.error('[Checkout] Init error:', error);
@@ -214,7 +202,6 @@ async function initGlobalPayCheckout() {
 
   // Setup handlers - form auto-submits when user presses Enter
   setupGlobalPayHandlers(async (token) => {
-    console.log('[Checkout] GlobalPay token received, authorizing...');
     await authorizePayment(token);
   });
 }
@@ -245,11 +232,6 @@ async function initAdyenCheckout() {
     // Show test card info for Adyen
     showTestCardInfo('adyen');
 
-    console.log('[Checkout] Adyen session prepared:', {
-      id: session.id?.substring(0, 20) + '...',
-      sessionDataLength: session.sessionData?.length
-    });
-
     // Derive country code from currency
     const countryCode = checkoutData.currency === 'EUR' ? 'NL' : 'US';
 
@@ -269,10 +251,7 @@ async function initAdyenCheckout() {
     loadingEl.classList.add('hidden');
 
     // Wait for payment completion (handled by Adyen component via callbacks)
-    console.log('[Checkout] Waiting for Adyen payment completion...');
     const result = await waitForPaymentCompletion();
-
-    console.log('[Checkout] Adyen payment result:', result);
 
     // Handle result
     if (result.success) {

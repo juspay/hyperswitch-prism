@@ -3,14 +3,164 @@ import { PaymentClient, types, IntegrationError, ConnectorError } from 'hyperswi
 import { getConnectorConfig, getConnectorName, config } from '../config.js';
 import { createClientAuthToken } from '../utils/auth.js';
 import { getPaymentStatusText } from '../utils/payment-status.js';
-const router = Router();
-const { CaptureMethod, Currency } = types;
 
+const router = Router();
+const { Currency, CaptureMethod } = types;
+
+interface AuthorizeRequestBody {
+  token: string;
+  merchantTransactionId: string;
+  amount: number;
+  currency: string;
+}
+
+interface AuthorizeResponse {
+  status: number;
+  statusText: string;
+  connectorTransactionId?: string | null;
+  error: string | null;
+}
+
+/**
+ * Validates the token authorize request body
+ */
+function validateAuthorizeRequest(body: any): AuthorizeRequestBody | null {
+  const { token, merchantTransactionId, amount, currency } = body;
+
+  if (!token || !merchantTransactionId || !amount || !currency) {
+    return null;
+  }
+
+  const amountNum = parseInt(String(amount), 10);
+  if (isNaN(amountNum) || amountNum <= 0) {
+    return null;
+  }
+
+  return {
+    token,
+    merchantTransactionId,
+    amount: amountNum,
+    currency: String(currency).toUpperCase()
+  };
+}
+
+/**
+ * Builds the authorize request object for the payment client
+ */
+function buildAuthorizeRequest(
+  params: AuthorizeRequestBody,
+  serverToken?: string
+): types.PaymentServiceTokenAuthorizeRequest {
+  const currencyEnum = params.currency === 'EUR' ? Currency.EUR : Currency.USD;
+
+  const request: types.PaymentServiceTokenAuthorizeRequest = {
+    merchantTransactionId: params.merchantTransactionId,
+    amount: {
+      minorAmount: params.amount,
+      currency: currencyEnum
+    },
+    connectorToken: { value: params.token },
+    captureMethod: CaptureMethod.AUTOMATIC,
+    returnUrl: `${config.baseUrl}/checkout/return`,
+    address: {}
+  };
+
+  // For GlobalPay, add server access token in state
+  if (serverToken) {
+    request.state = {
+      accessToken: {
+        token: { value: serverToken },
+        tokenType: 'Bearer'
+      }
+    };
+  }
+
+  return request;
+}
+
+/**
+ * Fetches GlobalPay server access token for authorization
+ */
+async function fetchGlobalPayServerToken(
+  currency: string,
+  amount: number
+): Promise<string> {
+  const { sessionResponse } = await createClientAuthToken(currency, amount);
+
+  const gpData = (sessionResponse as types.MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse)
+    .sessionData?.connectorSpecific?.globalpay;
+
+  return gpData?.accessToken?.value || '';
+}
+
+/**
+ * Processes payment authorization
+ */
+async function processAuthorization(
+  params: AuthorizeRequestBody
+): Promise<AuthorizeResponse> {
+  const connectorConfig = getConnectorConfig(params.currency, params.amount);
+  const connectorName = getConnectorName(params.currency, params.amount);
+
+  const paymentClient = new PaymentClient(connectorConfig);
+
+  // Fetch server token for GlobalPay if needed
+  let serverToken: string | undefined;
+  if (connectorName === 'globalpay') {
+    serverToken = await fetchGlobalPayServerToken(params.currency, params.amount);
+  }
+
+  const authorizeRequest = buildAuthorizeRequest(params, serverToken);
+  const response: types.PaymentServiceAuthorizeResponse = await paymentClient.tokenAuthorize(authorizeRequest);
+
+  // Extract error message if present
+  const errorMsg = response.error?.unifiedDetails?.message ||
+    response.error?.issuerDetails?.message ||
+    response.error?.connectorDetails?.message || null;
+
+  return {
+    status: response.status,
+    statusText: getPaymentStatusText(response.status),
+    connectorTransactionId: response.connectorTransactionId,
+    error: errorMsg
+  };
+}
+
+/**
+ * Handles errors and sends appropriate response
+ */
+function handleAuthorizeError(res: Response, error: unknown): void {
+  console.error('[Token Authorize Error]', error);
+
+  if (error instanceof IntegrationError) {
+    res.status(400).json({
+      error: 'Integration error',
+      code: error.errorCode,
+      message: error.message
+    });
+    return;
+  }
+
+  if (error instanceof ConnectorError) {
+    res.status(502).json({
+      error: 'Connector error',
+      code: error.errorCode,
+      message: error.message
+    });
+    return;
+  }
+
+  const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+  res.status(500).json({
+    error: 'Failed to authorize payment',
+    details: errorMessage
+  });
+}
 
 /**
  * POST /api/payments/token-authorize
  * Authorizes a payment using a token from the client SDK
- * 
+ *
  * Request body:
  * - token: Payment method token from client SDK (pm_xxx for Stripe, etc.)
  * - merchantTransactionId: Unique transaction ID
@@ -19,103 +169,18 @@ const { CaptureMethod, Currency } = types;
  */
 router.post('/token-authorize', async (req: Request, res: Response) => {
   try {
-    const { token, merchantTransactionId, amount, currency } = req.body;
+    const params = validateAuthorizeRequest(req.body);
 
-    // Validate inputs
-    if (!token || !merchantTransactionId || !amount || !currency) {
+    if (!params) {
       return res.status(400).json({
-        error: 'Missing required fields: token, merchantTransactionId, amount, currency'
+        error: 'Missing or invalid required fields: token, merchantTransactionId, amount (positive number), currency'
       });
     }
 
-    const currencyStr = String(currency).toUpperCase();
-    const amountNum = parseInt(String(amount), 10);
-
-    console.log(`[Token Authorize] Transaction: ${merchantTransactionId}, Amount: ${amountNum} ${currencyStr}`);
-
-    // Get connector config based on currency and amount (amount > 50 uses Adyen)
-    const connectorConfig = getConnectorConfig(currencyStr, amountNum);
-    const connectorName = getConnectorName(currencyStr, amountNum);
-
-    // Create Payment Client
-    const paymentClient = new PaymentClient(connectorConfig);
-
-    // Map currency string to Currency enum
-    const currencyEnum = currencyStr === 'EUR' ? Currency.EUR : Currency.USD;
-
-    // Prepare authorize request
-    const authorizeRequest: any = {
-      merchantTransactionId,
-      amount: {
-        minorAmount: amountNum,
-        currency: currencyEnum
-      },
-      connectorToken: { value: token },
-      captureMethod: CaptureMethod.AUTOMATIC,
-      returnUrl: `${config.baseUrl}/checkout/return`,
-      address: {}
-    };
-
-    // For GlobalPay, we need to pass a server access token in state
-    if (connectorName === 'globalpay') {
-      const { sessionResponse } = await createClientAuthToken(
-        currencyStr,
-        amountNum
-      );
-      const gpData = (sessionResponse as any).sessionData?.connectorSpecific?.globalpay;
-      const serverToken = gpData?.accessToken?.value || '';
-      // Add state with server token (as shown in transformer.js)
-      authorizeRequest.state = {
-        accessToken: {
-          token: { value: serverToken },
-          tokenType: 'Bearer'
-        }
-      };
-
-      console.log('[Token Authorize] Added server token (via SDK) to GlobalPay request');
-    }
-
-    // Authorize payment using token
-    const response = await paymentClient.tokenAuthorize(authorizeRequest);
-
-    console.log(`[Token Authorize] Status: ${response.status}, Transaction ID: ${response.connectorTransactionId}`);
-
-    // Get error message if present
-    const errorMsg = response.error?.unifiedDetails?.message ||
-      response.error?.issuerDetails?.message ||
-      response.error?.connectorDetails?.message || null;
-
-    // Return response
-    res.json({
-      status: response.status,
-      statusText: getPaymentStatusText(response.status),
-      connectorTransactionId: response.connectorTransactionId,
-      error: errorMsg
-    });
-
-  } catch (error: any) {
-    console.error('[Token Authorize Error]', error);
-
-    if (error instanceof IntegrationError) {
-      return res.status(400).json({
-        error: 'Integration error',
-        code: error.errorCode,
-        message: error.message
-      });
-    }
-
-    if (error instanceof ConnectorError) {
-      return res.status(502).json({
-        error: 'Connector error',
-        code: error.errorCode,
-        message: error.message
-      });
-    }
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    res.status(500).json({
-      error: 'Failed to authorize payment',
-      details: errorMessage
-    });
+    const result = await processAuthorization(params);
+    res.json(result);
+  } catch (error) {
+    handleAuthorizeError(res, error);
   }
 });
 

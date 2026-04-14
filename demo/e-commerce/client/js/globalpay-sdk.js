@@ -13,14 +13,10 @@ let cardForm = null;
  */
 async function initGlobalPay(accessToken) {
   try {
-    console.log('[GlobalPay] Initializing Credit Card Form');
-
     // Check if GlobalPayments is loaded
     if (typeof GlobalPayments === 'undefined') {
       throw new Error('GlobalPayments SDK not loaded');
     }
-
-    console.log('[GlobalPay] Using access token:', accessToken?.substring(0, 15) + '...');
 
     // Configure GlobalPayments
     GlobalPayments.configure({
@@ -32,12 +28,6 @@ async function initGlobalPay(accessToken) {
     // This creates hosted fields for card number, expiry, and CVV
     cardForm = GlobalPayments.creditCard.form('#credit-card');
 
-    // Handle form ready
-    cardForm.ready(() => {
-      console.log('[GlobalPay] Credit Card Form ready');
-    });
-
-    console.log('[GlobalPay] Credit Card Form initialized');
     return true;
   } catch (error) {
     console.error('[GlobalPay] Init error:', error);
@@ -59,8 +49,7 @@ function setupGlobalPayHandlers(onTokenSuccess) {
   // Handle token success - auto-submitted when user presses Enter or form validates
   cardForm.on('token-success', (resp) => {
     const token = resp.paymentReference;
-    console.log('[GlobalPay] Token created:', token);
-    
+
     if (token) {
       onTokenSuccess(token);
     } else {

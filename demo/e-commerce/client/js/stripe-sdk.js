@@ -15,10 +15,6 @@ let currentClientSecret = null;
  */
 async function initStripe(publishableKey, clientSecret) {
   try {
-    console.log('[Stripe] Initializing Payment Element');
-    console.log('[Stripe] Publishable key:', publishableKey?.substring(0, 10) + '...');
-    console.log('[Stripe] Client secret:', clientSecret?.substring(0, 20) + '...');
-    
     if (!publishableKey || !clientSecret) {
       throw new Error('Missing publishable key or client secret');
     }
@@ -56,16 +52,11 @@ async function initStripe(publishableKey, clientSecret) {
     
     paymentElement.mount('#payment-element');
     
-    // Handle when element is ready
-    paymentElement.on('ready', () => {
-      console.log('[Stripe] Payment Element ready');
-    });
-    
     // Handle load errors
     paymentElement.on('loaderror', (event) => {
       console.error('[Stripe] Element load error:', event);
     });
-    
+
     // Handle real-time validation errors
     paymentElement.on('change', (event) => {
       const errorElement = document.getElementById('stripe-error');
@@ -75,8 +66,7 @@ async function initStripe(publishableKey, clientSecret) {
         errorElement.textContent = '';
       }
     });
-    
-    console.log('[Stripe] Payment Element mounted successfully');
+
     return true;
   } catch (error) {
     console.error('[Stripe] Init error:', error);
@@ -119,9 +109,7 @@ async function submitStripePayment() {
     if (createError) {
       throw createError;
     }
-    
-    console.log('[Stripe] Payment method created:', paymentMethod);
-    
+
     // Don't reset button here - let authorizePayment handle it
     return {
       success: true,

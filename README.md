@@ -112,6 +112,8 @@ The Prism library is compliant for payment processing by design. It is:
 > | **Python** | [sdk/python/README.md](./sdk/python/README.md) |
 > | **Node.js** | [sdk/javascript/README.md](./sdk/javascript/README.md) |
 > | **Rust** | [sdk/rust](./sdk/rust) |
+>
+> **Demo Application**: See the [E-Commerce Demo](./demo/e-commerce) for a complete working example with Stripe and Adyen integration.
 
 ---
 
