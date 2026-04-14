@@ -22,7 +22,7 @@ use domain_types::{
     router_response_types::RedirectForm,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeOptionInterface, Secret};
+use hyperswitch_masking::{ExposeOptionInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -396,6 +396,37 @@ pub struct Shift4PaymentsResponse {
     pub captured: bool,
     pub refunded: bool,
     pub flow: Option<FlowResponse>,
+    /// Nested stored-card object — Shift4 returns this on any /charges
+    /// success. Its `id` (e.g., `card_xxx`) is the token used for
+    /// subsequent RepeatPayment / MIT calls.
+    #[serde(default)]
+    pub card: Option<Shift4ResponseCard>,
+    /// Nested customer object — present when a customerId was supplied
+    /// or created during the charge. Required alongside a stored card
+    /// id for MIT charges.
+    #[serde(default)]
+    pub customer: Option<Shift4ResponseCustomer>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct Shift4ResponseCard {
+    pub id: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum Shift4ResponseCustomer {
+    Id(String),
+    Object { id: String },
+}
+
+impl Shift4ResponseCustomer {
+    pub fn id(&self) -> &str {
+        match self {
+            Shift4ResponseCustomer::Id(s) => s.as_str(),
+            Shift4ResponseCustomer::Object { id } => id.as_str(),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -1192,12 +1223,28 @@ pub struct Shift4SetupMandateRequest<T: PaymentMethodDataTypes> {
     pub description: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub metadata: Option<serde_json::Value>,
-    /// Customer ID — optional; Shift4 will associate the stored card to
-    /// this customer when supplied.
+    /// Existing Shift4 customer id (format `cust_xxx`). Only set when the
+    /// caller has already provisioned the customer on Shift4.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub customer_id: Option<String>,
+    /// Embedded customer payload — when no pre-existing `customer_id` is
+    /// known, Shift4 will auto-create a customer from this object and
+    /// return its id + the stored-card id, which are both required for
+    /// subsequent MIT / RepeatPayment calls.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub customer: Option<Shift4EmbeddedCustomer>,
     #[serde(flatten)]
     pub payment_method: Shift4PaymentMethod<T>,
+}
+
+/// Minimal embedded customer object accepted by Shift4 `/charges`.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Shift4EmbeddedCustomer {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
 }
 
 /// SetupMandate response — reuses Shift4's standard charge response.
@@ -1277,8 +1324,27 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item.request.minor_amount.unwrap_or(MinorUnit::new(0));
 
         // captured=false for SetupMandate; we only authorize (or
-        // verify) to store the card-on-file.
-        let customer_id = item.resource_common_data.connector_customer.clone();
+        // verify) to store the card-on-file. Pass customerId only when
+        // the caller has pre-provisioned a Shift4 customer (via
+        // CreateConnectorCustomer); Shift4 rejects embedded customer
+        // objects on /charges.
+        //
+        // Resolution order for the Shift4 customerId:
+        //   1. `connector_customer` on the flow (populated by the
+        //      orchestrator after CreateConnectorCustomer).
+        //   2. `request.customer_id` when it looks like a Shift4 cust id
+        //      (`cust_...`) — allows bare grpcurl callers to pass an
+        //      existing Shift4 customer via the request's `customer.id`.
+        let customer_id = item
+            .resource_common_data
+            .connector_customer
+            .clone()
+            .or_else(|| {
+                item.request.customer_id.as_ref().and_then(|cid| {
+                    let s = cid.get_string_repr().to_string();
+                    if s.starts_with("cust_") { Some(s) } else { None }
+                })
+            });
 
         Ok(Self {
             amount,
@@ -1287,6 +1353,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             description: item.resource_common_data.description.clone(),
             metadata: item.request.metadata.clone().expose_option(),
             customer_id,
+            customer: None,
             payment_method,
         })
     }
@@ -1364,10 +1431,20 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4SetupMandateRes
                 network_error_message: None,
             }),
             _ => {
-                // The Shift4 charge.id IS the connector_mandate_id used
-                // for subsequent RepeatPayment calls.
+                // For MIT/RepeatPayment, Shift4 requires `card: <card_id>`
+                // (the stored-card token from the charge response), not
+                // the charge id itself. Prefer `card.id` as the
+                // connector_mandate_id; fall back to charge id only if
+                // the card object is absent (e.g., alternative payment
+                // methods).
+                let mandate_id = item
+                    .response
+                    .card
+                    .as_ref()
+                    .map(|c| c.id.clone())
+                    .unwrap_or_else(|| item.response.id.clone());
                 let mandate_reference = Some(Box::new(MandateReference {
-                    connector_mandate_id: Some(item.response.id.clone()),
+                    connector_mandate_id: Some(mandate_id),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,
                 }));
@@ -1385,10 +1462,22 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4SetupMandateRes
             }
         };
 
+        // Propagate the customer id returned by Shift4 so that the
+        // subsequent RepeatPayment (MIT) call can pass `customerId`
+        // alongside the stored card token — required by Shift4 when
+        // charging a stored card.
+        let connector_customer = item
+            .response
+            .customer
+            .as_ref()
+            .map(|c| c.id().to_string())
+            .or(item.router_data.resource_common_data.connector_customer.clone());
+
         Ok(Self {
             response,
             resource_common_data: PaymentFlowData {
                 status,
+                connector_customer,
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
