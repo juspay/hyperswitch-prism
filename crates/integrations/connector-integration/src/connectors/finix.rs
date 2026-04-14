@@ -9,7 +9,8 @@ use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt, types
 use domain_types::{
     connector_flow,
     connector_flow::{
-        Authorize, Capture, CreateConnectorCustomer, PSync, PaymentMethodToken, RSync, Refund, SetupMandate, Void,
+        Authorize, Capture, CreateConnectorCustomer, PSync, PaymentMethodToken, RSync, Refund,
+        SetupMandate, Void,
     },
     connector_types::*,
     connector_types::{RefundFlowData, RefundSyncData, RefundsResponseData},
