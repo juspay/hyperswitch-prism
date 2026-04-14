@@ -212,8 +212,8 @@
         "error": "Payment method not supported is not supported by Phonepe"
       },
       "Mifinity": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "error",
+        "error": "Stuck on field: billing.phone.number. PhonePe wallet debit requires a mobile number — Missing required field: billing.phone.number. PhonePe wallet debit requires a mobile number"
       },
       "MiniStop": {
         "status": "not_supported",
@@ -463,7 +463,26 @@
     },
     "capture": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_capture_id": "probe_capture_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount_to_capture": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://api-preprod.phonepe.com/apis/hermes/v3/auth/capture",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-verify": "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3###1"
+          },
+          "body": "{\"request\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"}"
+        }
       }
     },
     "create_client_authentication_token": {
@@ -543,7 +562,7 @@
     },
     "handle_event": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported"
       }
     },
     "incremental_authorization": {
@@ -584,12 +603,49 @@
     },
     "refund": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "payment_amount": 1000,
+          "refund_amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "reason": "customer_request"
+        },
+        "sample": {
+          "url": "https://api-preprod.phonepe.com/apis/hermes/v3/credit/backToSource",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-verify": "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3###1"
+          },
+          "body": "{\"request\":\"eyJtZXJjaGFudElkIjoicHJvYmVfbWVyY2hhbnQiLCJvcmlnaW5hbFRyYW5zYWN0aW9uSWQiOiJwcm9iZV9jb25uZWN0b3JfdHhuXzAwMSIsIm1lcmNoYW50VHJhbnNhY3Rpb25JZCI6InByb2JlX3JlZnVuZF8wMDEiLCJhbW91bnQiOjEwMDB9\"}"
+        }
       }
     },
     "refund_get": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "refund_id": "probe_refund_id_001"
+        },
+        "sample": {
+          "url": "https://api-preprod.phonepe.com/apis/hermes/v3/transaction/probe_merchant/probe_refund_id_001/status",
+          "method": "Get",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-merchant-id": "probe_merchant",
+            "x-verify": "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3###1"
+          },
+          "body": "{}"
+        }
       }
     },
     "reverse": {
@@ -625,7 +681,22 @@
     },
     "void": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_void_id": "probe_void_001",
+          "connector_transaction_id": "probe_connector_txn_001"
+        },
+        "sample": {
+          "url": "https://api-preprod.phonepe.com/apis/hermes/v3/auth/cancel",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-verify": "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3###1"
+          },
+          "body": "{\"request\":\"eyJtZXJjaGFudElkIjoicHJvYmVfbWVyY2hhbnQiLCJvcmlnaW5hbFRyYW5zYWN0aW9uSWQiOiJwcm9iZV9jb25uZWN0b3JfdHhuXzAwMSJ9\"}"
+        }
       }
     }
   }
