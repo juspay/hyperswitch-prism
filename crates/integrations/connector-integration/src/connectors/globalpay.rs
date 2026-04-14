@@ -46,7 +46,8 @@ use transformers::{
     GlobalpayAuthorizeResponse, GlobalpayCaptureRequest, GlobalpayCaptureResponse,
     GlobalpayClientAuthRequest, GlobalpayClientAuthResponse, GlobalpayPSyncResponse,
     GlobalpayPaymentsRequest, GlobalpayRSyncResponse, GlobalpayRefundRequest,
-    GlobalpayRefundResponse, GlobalpayVoidRequest, GlobalpayVoidResponse,
+    GlobalpayRefundResponse, GlobalpaySetupMandateRequest, GlobalpaySetupMandateResponse,
+    GlobalpayVoidRequest, GlobalpayVoidResponse,
 };
 
 use crate::connectors::macros;
@@ -108,6 +109,12 @@ macros::create_all_prerequisites!(
             request_body: GlobalpayClientAuthRequest,
             response_body: GlobalpayClientAuthResponse,
             router_data: RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ),
+        (
+            flow: SetupMandate,
+            request_body: GlobalpaySetupMandateRequest<T>,
+            response_body: GlobalpaySetupMandateResponse,
+            router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -600,16 +607,34 @@ macros::macro_connector_implementation!(
     }
 );
 
-// Setup Mandate
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        SetupMandate,
-        PaymentFlowData,
-        SetupMandateRequestData<T>,
-        PaymentsResponseData,
-    > for Globalpay<T>
-{
-}
+// Setup Mandate flow implementation using macro
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Globalpay,
+    curl_request: Json(GlobalpaySetupMandateRequest<T>),
+    curl_response: GlobalpaySetupMandateResponse,
+    flow_name: SetupMandate,
+    resource_common_data: PaymentFlowData,
+    flow_request: SetupMandateRequestData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_payment_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}/transactions", self.connector_base_url_payments(req)))
+        }
+    }
+);
 
 // Repeat Payment
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
