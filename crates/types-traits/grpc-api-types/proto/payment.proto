@@ -3086,8 +3086,8 @@ message PaymentServiceIncrementalAuthorizationResponse {
 
 // Request message for triggering OTP in wallet payment flows
 message PaymentServiceTriggerOtpForWalletRequest {
-  // Phone number of the customer
-  optional string phone_number = 1;
+  // Phone number of the customer (required for PhonePe wallet OTP)
+  string phone_number = 1;
 
   // Payment identification
   optional string payment_id = 2;
@@ -3177,11 +3177,11 @@ message PaymentServiceResendOtpForWalletResponse {
 
 // Request message for verifying OTP in wallet payment flows
 message PaymentServiceVerifyOtpForWalletRequest {
-  // The OTP entered by the customer
-  optional string otp = 1;
+  // The OTP entered by the customer (required)
+  string otp = 1;
 
-  // OTP token from the previous OTP trigger
-  optional string otp_token = 2;
+  // OTP token from the previous OTP trigger (required)
+  string otp_token = 2;
 
   // Payment identification
   optional string payment_id = 3;

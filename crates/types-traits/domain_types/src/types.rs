@@ -12030,8 +12030,8 @@ impl ForeignTryFrom<PaymentServiceVerifyOtpForWalletRequest> for VerifyOtpForWal
         value: PaymentServiceVerifyOtpForWalletRequest,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         Ok(Self {
-            otp: value.otp,
-            otp_token: value.otp_token,
+            otp: Some(value.otp),
+            otp_token: Some(value.otp_token),
             payment_id: value.payment_id,
             connector_transaction_id: value.connector_transaction_id,
         })
@@ -12172,7 +12172,7 @@ impl ForeignTryFrom<PaymentServiceTriggerOtpForWalletRequest> for TriggerOtpForW
         value: PaymentServiceTriggerOtpForWalletRequest,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         Ok(Self {
-            phone_number: value.phone_number,
+            phone_number: Some(value.phone_number),
             payment_id: value.payment_id,
             connector_transaction_id: value.connector_transaction_id,
         })

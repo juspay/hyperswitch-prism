@@ -3,9 +3,7 @@ pub mod headers;
 pub mod transformers;
 
 use common_enums as enums;
-use common_utils::{
-    errors::CustomResult, events, ext_traits::BytesExt, types::MinorUnit,
-};
+use common_utils::{errors::CustomResult, events, ext_traits::BytesExt, types::MinorUnit};
 use domain_types::{
     connector_flow::{
         Accept, Authenticate, Authorize, Capture, ClientAuthenticationToken,

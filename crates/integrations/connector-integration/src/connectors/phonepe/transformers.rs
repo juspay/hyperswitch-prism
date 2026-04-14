@@ -31,8 +31,8 @@ pub enum NextActionData {
 
 use super::constants;
 use crate::{connectors::phonepe::PhonepeRouterData, types::ResponseRouterData};
-use domain_types::errors::ConnectorError;
-use domain_types::errors::IntegrationError;
+use common_utils::pii::Email;
+use domain_types::errors::{ConnectorError, IntegrationError, IntegrationErrorContext};
 
 type Error = error_stack::Report<IntegrationError>;
 type ResponseError = error_stack::Report<ConnectorError>;
@@ -1157,7 +1157,9 @@ fn extract_bin_from_masked_account_number(masked_account_number: Option<&str>) -
 
 // ===== TRIGGER OTP FOR WALLET =====
 
-/// Outer request wrapper for PhonePe OTP trigger (sent as JSON body)
+/// Outer request wrapper for PhonePe OTP trigger (sent as JSON body).
+/// `checksum` is computed for the X-VERIFY header and excluded from the
+/// serialized JSON body via `#[serde(skip)]`.
 #[derive(Debug, Serialize)]
 pub struct PhonepeTriggerOtpRequest {
     request: String,
@@ -1169,13 +1171,13 @@ pub struct PhonepeTriggerOtpRequest {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct PhonepeTriggerOtpInnerRequest {
-    merchant_id: String,
-    mobile_number: String,
+    merchant_id: Secret<String>,
+    mobile_number: Secret<String>,
     request_type: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    email: Option<String>,
+    email: Option<Email>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    short_name: Option<String>,
+    short_name: Option<Secret<String>>,
 }
 
 /// Success response from PhonePe trigger OTP
@@ -1190,7 +1192,7 @@ pub struct PhonepeTriggerOtpResponse {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PhonepeTriggerOtpData {
-    pub merchant_id: Option<String>,
+    pub merchant_id: Option<Secret<String>>,
     pub otp_token: Option<String>,
 }
 
@@ -1230,20 +1232,37 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .clone()
                 .ok_or(IntegrationError::MissingRequiredField {
                     field_name: "phone_number",
-                    context: Default::default(),
+                    context: IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Provide the customer's phone number in the `phone_number` field \
+                             of the TriggerOtpForWallet request."
+                                .to_owned(),
+                        ),
+                        additional_context: Some(
+                            "PhonePe requires a mobile number to send the wallet OTP.".to_owned(),
+                        ),
+                        ..Default::default()
+                    },
                 })?;
 
         let inner = PhonepeTriggerOtpInnerRequest {
-            merchant_id: auth.merchant_id.peek().to_string(),
-            mobile_number: phone_number,
-            request_type: "WALLET".to_string(),
+            merchant_id: auth.merchant_id.clone(),
+            mobile_number: Secret::new(phone_number),
+            // PhonePe OTP trigger always uses "WALLET" as the request type
+            request_type: constants::WALLET_REQUEST_TYPE.to_string(),
             email: None,
             short_name: None,
         };
 
         let json_payload = Encode::encode_to_string_of_json(&inner).change_context(
             IntegrationError::RequestEncodingFailed {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to serialize PhonePe TriggerOtp inner request payload to JSON."
+                            .to_owned(),
+                    ),
+                    ..Default::default()
+                },
             },
         )?;
 
@@ -1296,20 +1315,36 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .clone()
                 .ok_or(IntegrationError::MissingRequiredField {
                     field_name: "phone_number",
-                    context: Default::default(),
+                    context: IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Provide the customer's phone number in the `phone_number` field \
+                             of the TriggerOtpForWallet request."
+                                .to_owned(),
+                        ),
+                        additional_context: Some(
+                            "PhonePe requires a mobile number to send the wallet OTP.".to_owned(),
+                        ),
+                        ..Default::default()
+                    },
                 })?;
 
         let inner = PhonepeTriggerOtpInnerRequest {
-            merchant_id: auth.merchant_id.peek().to_string(),
-            mobile_number: phone_number,
-            request_type: "WALLET".to_string(),
+            merchant_id: auth.merchant_id.clone(),
+            mobile_number: Secret::new(phone_number),
+            request_type: constants::WALLET_REQUEST_TYPE.to_string(),
             email: None,
             short_name: None,
         };
 
         let json_payload = Encode::encode_to_string_of_json(&inner).change_context(
             IntegrationError::RequestEncodingFailed {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to serialize PhonePe TriggerOtp inner request payload to JSON."
+                            .to_owned(),
+                    ),
+                    ..Default::default()
+                },
             },
         )?;
 
@@ -1374,7 +1409,9 @@ impl TryFrom<ResponseRouterData<PhonepeTriggerOtpResponse, Self>>
 
 // ===== VERIFY OTP FOR WALLET =====
 
-/// Outer request wrapper for PhonePe OTP verify (sent as JSON body)
+/// Outer request wrapper for PhonePe OTP verify (sent as JSON body).
+/// `checksum` is computed for the X-VERIFY header and excluded from the
+/// serialized JSON body via `#[serde(skip)]`.
 #[derive(Debug, Serialize)]
 pub struct PhonepeVerifyOtpRequest {
     request: String,
@@ -1386,9 +1423,9 @@ pub struct PhonepeVerifyOtpRequest {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct PhonepeVerifyOtpInnerRequest {
-    merchant_id: String,
-    otp_token: String,
-    otp: String,
+    merchant_id: Secret<String>,
+    otp_token: Secret<String>,
+    otp: Secret<String>,
 }
 
 /// Success response from PhonePe verify OTP
@@ -1403,8 +1440,8 @@ pub struct PhonepeVerifyOtpResponse {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PhonepeVerifyOtpData {
-    pub merchant_id: Option<String>,
-    pub user_auth_token: Option<String>,
+    pub merchant_id: Option<Secret<String>>,
+    pub user_auth_token: Option<Secret<String>>,
 }
 
 // TryFrom implementation for owned PhonepeRouterData wrapper (verify OTP)
@@ -1443,7 +1480,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .clone()
             .ok_or(IntegrationError::MissingRequiredField {
                 field_name: "otp",
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Provide the OTP entered by the customer in the `otp` field \
+                         of the VerifyOtpForWallet request."
+                            .to_owned(),
+                    ),
+                    additional_context: Some(
+                        "PhonePe requires the OTP to verify the wallet payment.".to_owned(),
+                    ),
+                    ..Default::default()
+                },
             })?;
 
         let otp_token =
@@ -1452,18 +1499,36 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .clone()
                 .ok_or(IntegrationError::MissingRequiredField {
                     field_name: "otp_token",
-                    context: Default::default(),
+                    context: IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Provide the `otp_token` returned by the TriggerOtpForWallet \
+                             response in the `otp_token` field."
+                                .to_owned(),
+                        ),
+                        additional_context: Some(
+                            "PhonePe requires the OTP token from the trigger step to \
+                             correlate the verification."
+                                .to_owned(),
+                        ),
+                        ..Default::default()
+                    },
                 })?;
 
         let inner = PhonepeVerifyOtpInnerRequest {
-            merchant_id: auth.merchant_id.peek().to_string(),
-            otp_token,
-            otp,
+            merchant_id: auth.merchant_id.clone(),
+            otp_token: Secret::new(otp_token),
+            otp: Secret::new(otp),
         };
 
         let json_payload = Encode::encode_to_string_of_json(&inner).change_context(
             IntegrationError::RequestEncodingFailed {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to serialize PhonePe VerifyOtp inner request payload to JSON."
+                            .to_owned(),
+                    ),
+                    ..Default::default()
+                },
             },
         )?;
 
@@ -1516,7 +1581,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .clone()
             .ok_or(IntegrationError::MissingRequiredField {
                 field_name: "otp",
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Provide the OTP entered by the customer in the `otp` field.".to_owned(),
+                    ),
+                    ..Default::default()
+                },
             })?;
 
         let otp_token =
@@ -1525,18 +1595,30 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .clone()
                 .ok_or(IntegrationError::MissingRequiredField {
                     field_name: "otp_token",
-                    context: Default::default(),
+                    context: IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Provide the `otp_token` from the TriggerOtpForWallet response."
+                                .to_owned(),
+                        ),
+                        ..Default::default()
+                    },
                 })?;
 
         let inner = PhonepeVerifyOtpInnerRequest {
-            merchant_id: auth.merchant_id.peek().to_string(),
-            otp_token,
-            otp,
+            merchant_id: auth.merchant_id.clone(),
+            otp_token: Secret::new(otp_token),
+            otp: Secret::new(otp),
         };
 
         let json_payload = Encode::encode_to_string_of_json(&inner).change_context(
             IntegrationError::RequestEncodingFailed {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to serialize PhonePe VerifyOtp inner request payload to JSON."
+                            .to_owned(),
+                    ),
+                    ..Default::default()
+                },
             },
         )?;
 
@@ -1572,7 +1654,7 @@ impl TryFrom<ResponseRouterData<PhonepeVerifyOtpResponse, Self>>
             let user_auth_token = response
                 .data
                 .as_ref()
-                .and_then(|d| d.user_auth_token.clone());
+                .and_then(|d| d.user_auth_token.as_ref().map(|t| t.peek().to_string()));
 
             Ok(Self {
                 response: Ok(VerifyOtpForWalletResponseData {

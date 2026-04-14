@@ -1898,7 +1898,7 @@ pub fn json_value_to_string(value: &serde_json::Value) -> String {
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Serialize)]
 pub struct RazorpayResendOtpRequest {
-    pub account_id: Option<String>,
+    pub account_id: Option<Secret<String>>,
 }
 
 /// Successful response body — V1 variant where `next` is `Vec<String>`.
@@ -1958,7 +1958,11 @@ impl
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            account_id: item.request.connector_transaction_id.clone(),
+            account_id: item
+                .request
+                .connector_transaction_id
+                .clone()
+                .map(Secret::new),
         })
     }
 }
