@@ -1376,8 +1376,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 }
 
 // SetupMandate response transformation - reuses GlobalpayPaymentsResponse
-impl<T: PaymentMethodDataTypes>
-    TryFrom<ResponseRouterData<GlobalpayPaymentsResponse, Self>>
+impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<GlobalpayPaymentsResponse, Self>>
     for RouterDataV2<
         SetupMandate,
         PaymentFlowData,
