@@ -5,8 +5,10 @@
     "capture",
     "client_authentication_token",
     "get",
+    "create_customer",
     "refund",
     "refund_sync",
+    "setup_recurring",
     "tokenize_payment_method",
     "void"
   ]
