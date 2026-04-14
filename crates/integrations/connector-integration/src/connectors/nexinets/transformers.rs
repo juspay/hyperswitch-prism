@@ -1361,14 +1361,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             crate::utils::response_handling_fail_for_connector(http_code, "nexinets"),
         )?;
 
-        let mandate_reference = response
-            .payment_instrument
-            .payment_instrument_id
-            .map(|id| MandateReference {
-                connector_mandate_id: Some(id.expose()),
-                payment_method_id: None,
-                connector_mandate_request_reference_id: None,
-            });
+        let mandate_reference =
+            response
+                .payment_instrument
+                .payment_instrument_id
+                .map(|id| MandateReference {
+                    connector_mandate_id: Some(id.expose()),
+                    payment_method_id: None,
+                    connector_mandate_request_reference_id: None,
+                });
 
         let status = get_status(
             transaction.status.clone(),
