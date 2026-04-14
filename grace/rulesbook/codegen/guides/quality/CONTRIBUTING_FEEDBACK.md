@@ -769,7 +769,7 @@ fn convert_amount(
     amount: MinorUnit,
     currency: Currency,
     unit: CurrencyUnit,
-) -> CustomResult<String, errors::ConnectorError> {
+) -> CustomResult<String, errors::IntegrationError> {
     match unit {
         CurrencyUnit::Base => utils::to_currency_base_unit(amount, currency),
         CurrencyUnit::Minor => Ok(amount.to_string()),

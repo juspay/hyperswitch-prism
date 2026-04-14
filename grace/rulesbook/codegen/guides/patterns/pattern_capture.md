@@ -67,7 +67,7 @@ if item.amount.get_amount_as_i64() <= 0 { ... } // Already validated upstream
 // Purpose: API requires original transaction reference for capture
 let transaction_id = router_data.request.connector_transaction_id
     .as_ref()
-    .ok_or_else(|| ConnectorError::MissingConnectorTransactionID)?;
+    .ok_or_else(|| IntegrationError::MissingConnectorTransactionID)?;
 ```
 
 ## Table of Contents
@@ -175,7 +175,7 @@ Based on your analysis, choose the appropriate implementation approach:
 #### For Single Endpoint APIs (Pattern A)
 ```rust
 // Use standard single-endpoint pattern from this guide
-fn get_url(&self, req: &RouterDataV2<...>) -> CustomResult<String, ConnectorError> {
+fn get_url(&self, req: &RouterDataV2<...>) -> CustomResult<String, IntegrationError> {
     Ok(format!("{}/api/payments/{}/capture", base_url, transaction_id))
 }
 ```
@@ -183,7 +183,7 @@ fn get_url(&self, req: &RouterDataV2<...>) -> CustomResult<String, ConnectorErro
 #### For Dual Endpoint APIs (Pattern B)
 ```rust
 // Implement conditional endpoint selection
-fn get_url(&self, req: &RouterDataV2<...>) -> CustomResult<String, ConnectorError> {
+fn get_url(&self, req: &RouterDataV2<...>) -> CustomResult<String, IntegrationError> {
     let base_url = self.connector_base_url_payments(req);
     let transaction_id = req.request.get_connector_transaction_id()?;
     
@@ -199,7 +199,7 @@ fn get_url(&self, req: &RouterDataV2<...>) -> CustomResult<String, ConnectorErro
 #### For Multiple Endpoint APIs (Pattern C)
 ```rust
 // Implement multi-endpoint selection logic
-fn get_url(&self, req: &RouterDataV2<...>) -> CustomResult<String, ConnectorError> {
+fn get_url(&self, req: &RouterDataV2<...>) -> CustomResult<String, IntegrationError> {
     match determine_capture_method(&req.request) {
         CaptureMethod::Immediate => format!("{}/api/payments/{}/capture", base_url, transaction_id),
         CaptureMethod::Settlement => format!("{}/api/payments/{}/settle", base_url, transaction_id),
@@ -344,7 +344,7 @@ macros::create_all_prerequisites!(
         pub fn build_headers<F, FCD, Req, Res>(
             &self,
             req: &RouterDataV2<F, FCD, Req, Res>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let mut header = vec![(
                 headers::CONTENT_TYPE.to_string(),
                 "{content_type}".to_string().into(),
@@ -380,18 +380,18 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
         
         fn get_url(
             &self,
             req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
-        ) -> CustomResult<String, ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             // Extract transaction ID from connector_transaction_id
             let transaction_id = match &req.request.connector_transaction_id {
                 Some(id) => id,
-                None => return Err(errors::ConnectorError::MissingConnectorTransactionID.into()),
+                None => return Err(errors::IntegrationError::MissingConnectorTransactionID.into()),
             };
             
             let base_url = self.connector_base_url_payments(req);
@@ -571,7 +571,7 @@ impl From<{ConnectorName}CaptureStatus> for common_enums::AttemptStatus {
 impl TryFrom<{ConnectorName}RouterData<RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>>>
     for {ConnectorName}CaptureRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: {ConnectorName}RouterData<RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>>,
@@ -583,7 +583,7 @@ impl TryFrom<{ConnectorName}RouterData<RouterDataV2<Capture, PaymentFlowData, Pa
             .request
             .connector_transaction_id
             .as_ref()
-            .ok_or_else(|| ConnectorError::MissingConnectorTransactionID)?;
+            .ok_or_else(|| IntegrationError::MissingConnectorTransactionID)?;
 
         Ok(Self {
             amount: item.amount, // Converted amount from RouterData
@@ -602,7 +602,7 @@ impl TryFrom<{ConnectorName}RouterData<RouterDataV2<Capture, PaymentFlowData, Pa
 impl TryFrom<{ConnectorName}RouterData<RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>>>
     for {ConnectorName}CaptureRequestWrapper
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: {ConnectorName}RouterData<RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>>,
@@ -613,7 +613,7 @@ impl TryFrom<{ConnectorName}RouterData<RouterDataV2<Capture, PaymentFlowData, Pa
             .request
             .connector_transaction_id
             .as_ref()
-            .ok_or_else(|| ConnectorError::MissingConnectorTransactionID)?;
+            .ok_or_else(|| IntegrationError::MissingConnectorTransactionID)?;
 
         let auth = {ConnectorName}AuthType::try_from(&router_data.connector_auth_type)?;
 
@@ -699,7 +699,7 @@ pub struct {ConnectorName}RouterData<T> {
 }
 
 impl<T> TryFrom<({AmountType}, T)> for {ConnectorName}RouterData<T> {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from((amount, router_data): ({AmountType}, T)) -> Result<Self, Self::Error> {
         Ok(Self {
@@ -877,7 +877,7 @@ Always explain WHY each validation exists:
 impl TryFrom<{ConnectorName}RouterData<RouterDataV2<Capture, ...>>>
     for {ConnectorName}CaptureRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(item: {ConnectorName}RouterData<...>) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
@@ -889,7 +889,7 @@ impl TryFrom<{ConnectorName}RouterData<RouterDataV2<Capture, ...>>>
             .request
             .connector_transaction_id
             .as_ref()
-            .ok_or_else(|| ConnectorError::MissingConnectorTransactionID)?;
+            .ok_or_else(|| IntegrationError::MissingConnectorTransactionID)?;
 
         // Validation 2: Capture amount must not exceed authorized amount
         // Purpose: API enforces this constraint and rejects over-captures
@@ -898,7 +898,7 @@ impl TryFrom<{ConnectorName}RouterData<RouterDataV2<Capture, ...>>>
             .unwrap_or(router_data.request.payment_amount);
 
         if capture_amount > router_data.request.payment_amount {
-            return Err(ConnectorError::InvalidRequestData {
+            return Err(IntegrationError::InvalidRequestData {
                 message: "Capture amount cannot exceed authorized amount".to_string(),
             }.into());
         }
@@ -918,14 +918,14 @@ impl TryFrom<{ConnectorName}RouterData<RouterDataV2<Capture, ...>>>
 ```rust
 // AVOID: Unnecessary validation - currency is already validated upstream
 if router_data.request.currency.to_string().len() != 3 {
-    return Err(ConnectorError::InvalidRequestData {
+    return Err(IntegrationError::InvalidRequestData {
         message: "Currency must be 3 characters".to_string(),
     }.into());
 }
 
 // AVOID: Unnecessary validation - amount is already validated upstream
 if item.amount.get_amount_as_i64() <= 0 {
-    return Err(ConnectorError::InvalidRequestData {
+    return Err(IntegrationError::InvalidRequestData {
         message: "Amount must be positive".to_string(),
     }.into());
 }
@@ -936,7 +936,7 @@ if item.amount.get_amount_as_i64() <= 0 {
 // GOOD: API-specific validation required by connector
 if router_data.request.currency != Currency::USD
     && router_data.request.currency != Currency::EUR {
-    return Err(ConnectorError::InvalidRequestData {
+    return Err(IntegrationError::InvalidRequestData {
         message: "Connector only supports USD and EUR for captures".to_string(),
     }.into());
 }
@@ -965,7 +965,7 @@ Most traditional payment APIs use a single endpoint that handles all capture sce
 **Implementation:**
 ```rust
 // Single URL pattern - standard approach
-fn get_url(&self, req: &RouterDataV2<Capture, ...>) -> CustomResult<String, ConnectorError> {
+fn get_url(&self, req: &RouterDataV2<Capture, ...>) -> CustomResult<String, IntegrationError> {
     let transaction_id = req.request.get_connector_transaction_id()?;
     let base_url = self.connector_base_url_payments(req);
     Ok(format!("{}/api/payments/{}/capture", base_url, transaction_id))
@@ -991,7 +991,7 @@ APIs that provide separate endpoints for full vs partial captures, often with di
 **Implementation:**
 ```rust
 // Conditional endpoint selection based on capture type
-fn get_url(&self, req: &RouterDataV2<Capture, ...>) -> CustomResult<String, ConnectorError> {
+fn get_url(&self, req: &RouterDataV2<Capture, ...>) -> CustomResult<String, IntegrationError> {
     let transaction_id = req.request.get_connector_transaction_id()?;
     let base_url = self.connector_base_url_payments(req);
     
@@ -1048,7 +1048,7 @@ APIs with multiple capture endpoints for different capture methods or scenarios.
 **Implementation:**
 ```rust
 // Multi-endpoint selection based on capture method
-fn get_url(&self, req: &RouterDataV2<Capture, ...>) -> CustomResult<String, ConnectorError> {
+fn get_url(&self, req: &RouterDataV2<Capture, ...>) -> CustomResult<String, IntegrationError> {
     let transaction_id = req.request.get_connector_transaction_id()?;
     let base_url = self.connector_base_url_payments(req);
     
@@ -1084,7 +1084,7 @@ pub enum CaptureMethod {
     BatchSettle, // Batch processing
 }
 
-fn determine_capture_method(request: &PaymentsCaptureData) -> Result<CaptureMethod, ConnectorError> {
+fn determine_capture_method(request: &PaymentsCaptureData) -> Result<CaptureMethod, IntegrationError> {
     // Logic to determine method based on:
     // - Capture amount vs original amount
     // - Timing requirements
@@ -1384,7 +1384,7 @@ pub enum CaptureRequest {
 }
 
 impl TryFrom<CaptureRouterData> for CaptureRequest {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     
     fn try_from(item: CaptureRouterData) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
@@ -1461,7 +1461,7 @@ pub struct ConditionalCaptureRequest {
 }
 
 impl TryFrom<CaptureRouterData> for ConditionalCaptureRequest {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     
     fn try_from(item: CaptureRouterData) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
@@ -1483,7 +1483,7 @@ impl TryFrom<CaptureRouterData> for ConditionalCaptureRequest {
                 transaction_id: Some(
                     router_data.request.connector_transaction_id
                         .as_ref()
-                        .ok_or(ConnectorError::MissingConnectorTransactionID)?
+                        .ok_or(IntegrationError::MissingConnectorTransactionID)?
                         .clone()
                 ),
                 amount: Some(item.amount.get_amount_as_i64()),
@@ -1551,7 +1551,7 @@ fn should_skip_sequence(sequence: &Option<Value>) -> bool {
 }
 
 impl TryFrom<CaptureRouterData> for NullAwareCaptureRequest {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     
     fn try_from(item: CaptureRouterData) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
@@ -1618,7 +1618,7 @@ impl DynamicCaptureRequestBuilder {
 }
 
 impl TryFrom<CaptureRouterData> for Value {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     
     fn try_from(item: CaptureRouterData) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
@@ -1764,10 +1764,10 @@ Most modern connectors use RESTful patterns with transaction IDs in the URL path
 fn get_url(
     &self,
     req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
-) -> CustomResult<String, ConnectorError> {
+) -> CustomResult<String, IntegrationError> {
     let transaction_id = req.request.connector_transaction_id
         .as_ref()
-        .ok_or(ConnectorError::MissingConnectorTransactionID)?;
+        .ok_or(IntegrationError::MissingConnectorTransactionID)?;
     
     let base_url = self.connector_base_url_payments(req);
     
@@ -1787,7 +1787,7 @@ Some connectors use the same endpoint for all operations, distinguishing by requ
 fn get_url(
     &self,
     req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
-) -> CustomResult<String, ConnectorError> {
+) -> CustomResult<String, IntegrationError> {
     // Authorizedotnet, PayU style
     Ok(self.connector_base_url_payments(req).to_string())
 }
@@ -1800,7 +1800,7 @@ Some connectors have specific capture-only endpoints:
 fn get_url(
     &self,
     req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
-) -> CustomResult<String, ConnectorError> {
+) -> CustomResult<String, IntegrationError> {
     let base_url = self.connector_base_url_payments(req);
     
     // Examples:
@@ -1818,7 +1818,7 @@ Advanced pattern for APIs with different endpoints based on capture type or cond
 fn get_url(
     &self,
     req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
-) -> CustomResult<String, ConnectorError> {
+) -> CustomResult<String, IntegrationError> {
     let transaction_id = req.request.get_connector_transaction_id()?;
     let base_url = self.connector_base_url_payments(req);
     
@@ -1853,7 +1853,7 @@ enum CaptureEndpoint {
     BatchCapture,
 }
 
-fn determine_capture_endpoint(request: &PaymentsCaptureData) -> Result<CaptureEndpoint, ConnectorError> {
+fn determine_capture_endpoint(request: &PaymentsCaptureData) -> Result<CaptureEndpoint, IntegrationError> {
     // Logic to determine the appropriate endpoint
     let is_full_capture = request.amount_to_capture.is_none() || 
         request.amount_to_capture == Some(request.payment_amount);
@@ -1926,7 +1926,7 @@ pub struct ComplexCaptureRequest {
 }
 
 impl TryFrom<CaptureRouterData> for ConditionalCaptureRequest {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     
     fn try_from(item: CaptureRouterData) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
@@ -1973,7 +1973,7 @@ enum ComplexityLevel {
     Complex,
 }
 
-fn analyze_capture_context(router_data: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>) -> Result<CaptureContext, ConnectorError> {
+fn analyze_capture_context(router_data: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>) -> Result<CaptureContext, IntegrationError> {
     let is_partial = router_data.request.amount_to_capture.is_some() &&
         router_data.request.amount_to_capture != Some(router_data.request.payment_amount);
     
@@ -2038,7 +2038,7 @@ pub enum RequestType {
 }
 
 impl CaptureConfiguration {
-    pub fn determine(router_data: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>) -> Result<Self, ConnectorError> {
+    pub fn determine(router_data: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>) -> Result<Self, IntegrationError> {
         let capture_context = analyze_capture_context(router_data)?;
         
         let (endpoint, request_type) = match (
@@ -2091,7 +2091,7 @@ fn get_api_capabilities(router_data: &RouterDataV2<Capture, PaymentFlowData, Pay
     ApiCapabilities::Settlement // Default implementation
 }
 
-fn generate_headers_for_configuration(endpoint: &CaptureEndpoint, request_type: &RequestType) -> Result<Vec<(String, String)>, ConnectorError> {
+fn generate_headers_for_configuration(endpoint: &CaptureEndpoint, request_type: &RequestType) -> Result<Vec<(String, String)>, IntegrationError> {
     let mut headers = vec![
         ("Content-Type".to_string(), "application/json".to_string()),
     ];
@@ -2127,7 +2127,7 @@ fn generate_headers_for_configuration(endpoint: &CaptureEndpoint, request_type: 
 fn get_url(
     &self,
     req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
-) -> CustomResult<String, ConnectorError> {
+) -> CustomResult<String, IntegrationError> {
     let config = CaptureConfiguration::determine(req)?;
     let transaction_id = req.request.get_connector_transaction_id()?;
     let base_url = self.connector_base_url_payments(req);
@@ -2203,10 +2203,10 @@ impl TryFrom<ResponseRouterData<Value, RouterDataV2<Capture, PaymentFlowData, Pa
     }
 }
 
-fn parse_settlement_response(response: &Value) -> Result<(AttemptStatus, String, Option<String>), ConnectorError> {
+fn parse_settlement_response(response: &Value) -> Result<(AttemptStatus, String, Option<String>), IntegrationError> {
     let outcome = response.get("outcome")
         .and_then(|v| v.as_str())
-        .ok_or(ConnectorError::ResponseDeserializationFailed)?;
+        .ok_or(ConnectorError::ResponseDeserializationFailed { context: Default::default() })?;
     
     let status = match outcome {
         "sentForSettlement" => AttemptStatus::Charged,
@@ -2227,10 +2227,10 @@ fn parse_settlement_response(response: &Value) -> Result<(AttemptStatus, String,
     Ok((status, transaction_id, None))
 }
 
-fn parse_partial_settlement_response(response: &Value) -> Result<(AttemptStatus, String, Option<String>), ConnectorError> {
+fn parse_partial_settlement_response(response: &Value) -> Result<(AttemptStatus, String, Option<String>), IntegrationError> {
     let outcome = response.get("outcome")
         .and_then(|v| v.as_str())
-        .ok_or(ConnectorError::ResponseDeserializationFailed)?;
+        .ok_or(ConnectorError::ResponseDeserializationFailed { context: Default::default() })?;
     
     let status = match outcome {
         "sentForSettlement" => AttemptStatus::PartialCharged,
@@ -2248,10 +2248,10 @@ fn parse_partial_settlement_response(response: &Value) -> Result<(AttemptStatus,
     Ok((status, transaction_id, reference))
 }
 
-fn parse_immediate_capture_response(response: &Value) -> Result<(AttemptStatus, String, Option<String>), ConnectorError> {
+fn parse_immediate_capture_response(response: &Value) -> Result<(AttemptStatus, String, Option<String>), IntegrationError> {
     let status_str = response.get("status")
         .and_then(|v| v.as_str())
-        .ok_or(ConnectorError::ResponseDeserializationFailed)?;
+        .ok_or(ConnectorError::ResponseDeserializationFailed { context: Default::default() })?;
     
     let status = match status_str {
         "captured" | "success" => AttemptStatus::Charged,
@@ -2271,10 +2271,10 @@ fn parse_immediate_capture_response(response: &Value) -> Result<(AttemptStatus, 
     Ok((status, transaction_id, reference))
 }
 
-fn parse_batch_capture_response(response: &Value) -> Result<(AttemptStatus, String, Option<String>), ConnectorError> {
+fn parse_batch_capture_response(response: &Value) -> Result<(AttemptStatus, String, Option<String>), IntegrationError> {
     let batch_status = response.get("batchStatus")
         .and_then(|v| v.as_str())
-        .ok_or(ConnectorError::ResponseDeserializationFailed)?;
+        .ok_or(ConnectorError::ResponseDeserializationFailed { context: Default::default() })?;
     
     let status = match batch_status {
         "processed" => AttemptStatus::Charged,
@@ -2412,7 +2412,7 @@ impl TryFrom<{ConnectorName}RouterData<RouterDataV2<Capture, ...>>> for {Connect
         // Validate currency matches original authorization
         if let Some(original_currency) = &router_data.request.currency {
             if original_currency != &router_data.request.currency {
-                return Err(ConnectorError::InvalidRequestData {
+                return Err(IntegrationError::InvalidRequestData {
                     message: "Capture currency must match authorization currency".to_string(),
                 }.into());
             }
@@ -2442,9 +2442,9 @@ impl TryFrom<{ConnectorName}RouterData<RouterDataV2<Capture, ...>>> for {Connect
             .connector_transaction_id
             .as_ref()
             .ok_or_else(|| {
-                ConnectorError::MissingRequiredField {
+                IntegrationError::MissingRequiredField {
                     field_name: "connector_transaction_id",
-                }
+                , context: Default::default() }
             })?;
         
         // Continue with request building...

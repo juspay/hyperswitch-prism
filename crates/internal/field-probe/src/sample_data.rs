@@ -94,6 +94,7 @@ pub(crate) fn becs_payment_method() -> PaymentMethod {
 
 pub(crate) fn google_pay_decrypted_method() -> PaymentMethod {
     use proto::google_wallet::{tokenization_data::TokenizationData as TD, TokenizationData};
+    // Decrypted format - provides card data directly for connectors that support it
     PaymentMethod {
         payment_method: Some(PmVariant::GooglePay(proto::GoogleWallet {
             r#type: "CARD".to_string(),
@@ -224,7 +225,19 @@ pub(crate) fn affirm_payment_method() -> PaymentMethod {
 }
 
 pub(crate) fn samsung_pay_payment_method() -> PaymentMethod {
+    use base64::Engine;
     use proto::samsung_wallet::{payment_credential::TokenData, PaymentCredential};
+
+    // SamsungPay token data must be a valid JWT with header containing "kid" field
+    // Format: base64url(header).base64url(payload).signature (no padding)
+    // Header: {"alg":"RS256","typ":"JWT","kid":"samsung_probe_key_123"}
+    let jwt_header = base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .encode(r#"{"alg":"RS256","typ":"JWT","kid":"samsung_probe_key_123"}"#);
+    let jwt_payload = base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .encode(r#"{"paymentMethodToken":"probe_samsung_token"}"#);
+    let jwt_signature = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode("dummy_signature");
+    let jwt_token = format!("{}.{}.{}", jwt_header, jwt_payload, jwt_signature);
+
     PaymentMethod {
         payment_method: Some(PmVariant::SamsungPay(proto::SamsungWallet {
             payment_credential: Some(PaymentCredential {
@@ -236,10 +249,543 @@ pub(crate) fn samsung_pay_payment_method() -> PaymentMethod {
                 token_data: Some(TokenData {
                     r#type: Some("S".to_string()),
                     version: "100".to_string(),
-                    data: Some(Secret::new("probe_samsung_token_data".to_string())),
+                    data: Some(Secret::new(jwt_token)),
                 }),
             }),
         })),
+    }
+}
+
+pub(crate) fn bancontact_card_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::BancontactCard(proto::BancontactCard {
+            card_number: Some(
+                cards::CardNumber::from_str("4111111111111111").expect("static test card"),
+            ),
+            card_exp_month: Some(Secret::new("03".to_string())),
+            card_exp_year: Some(Secret::new("2030".to_string())),
+            card_holder_name: Some(Secret::new("John Doe".to_string())),
+        })),
+    }
+}
+
+pub(crate) fn apple_pay_third_party_sdk_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::ApplePayThirdPartySdk(
+            proto::ApplePayThirdPartySdkWallet {
+                token: Some(Secret::new("probe_apple_pay_third_party_token".to_string())),
+            },
+        )),
+    }
+}
+
+pub(crate) fn google_pay_third_party_sdk_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::GooglePayThirdPartySdk(
+            proto::GooglePayThirdPartySdkWallet {
+                token: Some(Secret::new(
+                    "probe_google_pay_third_party_token".to_string(),
+                )),
+            },
+        )),
+    }
+}
+
+pub(crate) fn paypal_sdk_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::PaypalSdk(proto::PaypalSdkWallet {
+            token: Some(Secret::new("probe_paypal_sdk_token".to_string())),
+        })),
+    }
+}
+
+pub(crate) fn amazon_pay_redirect_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::AmazonPayRedirect(
+            proto::AmazonPayRedirectWallet::default(),
+        )),
+    }
+}
+
+pub(crate) fn cashapp_qr_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::CashappQr(proto::CashappQrWallet::default())),
+    }
+}
+
+pub(crate) fn we_chat_pay_qr_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::WeChatPayQr(proto::WeChatPayQrWallet::default())),
+    }
+}
+
+pub(crate) fn ali_pay_redirect_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::AliPayRedirect(
+            proto::AliPayRedirectWallet::default(),
+        )),
+    }
+}
+
+pub(crate) fn revolut_pay_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::RevolutPay(proto::RevolutPayWallet::default())),
+    }
+}
+
+pub(crate) fn mifinity_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::Mifinity(proto::MifinityWallet {
+            date_of_birth: Some(Secret::new("1990-01-01".to_string())),
+            language_preference: Some("en".to_string()),
+        })),
+    }
+}
+
+pub(crate) fn bluecode_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::Bluecode(proto::Bluecode::default())),
+    }
+}
+
+pub(crate) fn paze_method() -> PaymentMethod {
+    use proto::paze_wallet::PazeData;
+    PaymentMethod {
+        payment_method: Some(PmVariant::Paze(proto::PazeWallet {
+            paze_data: Some(PazeData::CompleteResponse(Secret::new(
+                "probe_paze_complete_response".to_string(),
+            ))),
+        })),
+    }
+}
+
+pub(crate) fn mb_way_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::MbWay(proto::MbWay::default())),
+    }
+}
+
+pub(crate) fn satispay_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::Satispay(proto::Satispay::default())),
+    }
+}
+
+pub(crate) fn wero_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::Wero(proto::Wero::default())),
+    }
+}
+
+pub(crate) fn upi_intent_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::UpiIntent(proto::UpiIntent::default())),
+    }
+}
+
+pub(crate) fn upi_qr_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::UpiQr(proto::UpiQr::default())),
+    }
+}
+
+pub(crate) fn online_banking_thailand_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::OnlineBankingThailand(
+            proto::OnlineBankingThailand {
+                issuer: proto::BankNames::BangkokBank as i32,
+            },
+        )),
+    }
+}
+
+pub(crate) fn online_banking_czech_republic_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::OnlineBankingCzechRepublic(
+            proto::OnlineBankingCzechRepublic {
+                issuer: proto::BankNames::CeskaSporitelna as i32,
+            },
+        )),
+    }
+}
+
+pub(crate) fn online_banking_finland_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::OnlineBankingFinland(
+            proto::OnlineBankingFinland {
+                email: Some(Secret::new("test@example.com".to_string())),
+            },
+        )),
+    }
+}
+
+pub(crate) fn online_banking_fpx_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::OnlineBankingFpx(proto::OnlineBankingFpx {
+            issuer: proto::BankNames::Maybank as i32,
+        })),
+    }
+}
+
+pub(crate) fn online_banking_poland_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::OnlineBankingPoland(proto::OnlineBankingPoland {
+            issuer: proto::BankNames::BankPekaoSa as i32,
+        })),
+    }
+}
+
+pub(crate) fn online_banking_slovakia_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::OnlineBankingSlovakia(
+            proto::OnlineBankingSlovakia {
+                issuer: proto::BankNames::TatraPay as i32,
+            },
+        )),
+    }
+}
+
+pub(crate) fn open_banking_uk_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::OpenBankingUk(proto::OpenBankingUk::default())),
+    }
+}
+
+pub(crate) fn open_banking_pis_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::OpenBankingPis(proto::OpenBankingPis::default())),
+    }
+}
+
+pub(crate) fn open_banking_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::OpenBanking(proto::OpenBanking::default())),
+    }
+}
+
+pub(crate) fn local_bank_redirect_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::LocalBankRedirect(
+            proto::LocalBankRedirect::default(),
+        )),
+    }
+}
+
+pub(crate) fn sofort_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::Sofort(proto::Sofort::default())),
+    }
+}
+
+pub(crate) fn trustly_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::Trustly(proto::Trustly::default())),
+    }
+}
+
+pub(crate) fn giropay_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::Giropay(proto::Giropay::default())),
+    }
+}
+
+pub(crate) fn eps_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::Eps(proto::Eps::default())),
+    }
+}
+
+pub(crate) fn przelewy24_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::Przelewy24(proto::Przelewy24::default())),
+    }
+}
+
+pub(crate) fn pse_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::Pse(proto::Pse::default())),
+    }
+}
+
+pub(crate) fn interac_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::Interac(proto::Interac::default())),
+    }
+}
+
+pub(crate) fn bizum_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::Bizum(proto::Bizum::default())),
+    }
+}
+
+pub(crate) fn eft_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::Eft(proto::Eft {
+            provider: "ozow".to_string(),
+        })),
+    }
+}
+
+pub(crate) fn duit_now_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::DuitNow(proto::DuitNow::default())),
+    }
+}
+
+pub(crate) fn ach_bank_transfer_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::AchBankTransfer(proto::AchBankTransfer::default())),
+    }
+}
+
+pub(crate) fn sepa_bank_transfer_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::SepaBankTransfer(
+            proto::SepaBankTransfer::default(),
+        )),
+    }
+}
+
+pub(crate) fn bacs_bank_transfer_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::BacsBankTransfer(
+            proto::BacsBankTransfer::default(),
+        )),
+    }
+}
+
+pub(crate) fn multibanco_bank_transfer_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::MultibancoBankTransfer(
+            proto::MultibancoBankTransfer::default(),
+        )),
+    }
+}
+
+pub(crate) fn instant_bank_transfer_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::InstantBankTransfer(
+            proto::InstantBankTransfer::default(),
+        )),
+    }
+}
+
+pub(crate) fn instant_bank_transfer_finland_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::InstantBankTransferFinland(
+            proto::InstantBankTransferFinland::default(),
+        )),
+    }
+}
+
+pub(crate) fn instant_bank_transfer_poland_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::InstantBankTransferPoland(
+            proto::InstantBankTransferPoland::default(),
+        )),
+    }
+}
+
+pub(crate) fn pix_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::Pix(proto::PixPayment::default())),
+    }
+}
+
+pub(crate) fn permata_bank_transfer_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::PermataBankTransfer(
+            proto::PermataBankTransfer::default(),
+        )),
+    }
+}
+
+pub(crate) fn bca_bank_transfer_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::BcaBankTransfer(proto::BcaBankTransfer::default())),
+    }
+}
+
+pub(crate) fn bni_va_bank_transfer_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::BniVaBankTransfer(
+            proto::BniVaBankTransfer::default(),
+        )),
+    }
+}
+
+pub(crate) fn bri_va_bank_transfer_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::BriVaBankTransfer(
+            proto::BriVaBankTransfer::default(),
+        )),
+    }
+}
+
+pub(crate) fn cimb_va_bank_transfer_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::CimbVaBankTransfer(
+            proto::CimbVaBankTransfer::default(),
+        )),
+    }
+}
+
+pub(crate) fn danamon_va_bank_transfer_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::DanamonVaBankTransfer(
+            proto::DanamonVaBankTransfer::default(),
+        )),
+    }
+}
+
+pub(crate) fn mandiri_va_bank_transfer_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::MandiriVaBankTransfer(
+            proto::MandiriVaBankTransfer::default(),
+        )),
+    }
+}
+
+pub(crate) fn local_bank_transfer_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::LocalBankTransfer(
+            proto::LocalBankTransfer::default(),
+        )),
+    }
+}
+
+pub(crate) fn indonesian_bank_transfer_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::IndonesianBankTransfer(
+            proto::IndonesianBankTransfer::default(),
+        )),
+    }
+}
+
+pub(crate) fn sepa_guaranteed_debit_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::SepaGuaranteedDebit(proto::SepaGuaranteedDebit {
+            iban: Some(Secret::new("DE89370400440532013000".to_string())),
+            bank_account_holder_name: Some(Secret::new("John Doe".to_string())),
+        })),
+    }
+}
+
+pub(crate) fn crypto_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::Crypto(proto::CryptoCurrency::default())),
+    }
+}
+
+pub(crate) fn classic_reward_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::ClassicReward(proto::ClassicReward::default())),
+    }
+}
+
+pub(crate) fn givex_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::Givex(proto::Givex {
+            number: Some(Secret::new("6006491000011234".to_string())),
+            cvc: Some(Secret::new("7100".to_string())),
+        })),
+    }
+}
+
+pub(crate) fn pay_safe_card_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::PaySafeCard(proto::PaySafeCard::default())),
+    }
+}
+
+pub(crate) fn e_voucher_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::EVoucher(proto::EVoucher::default())),
+    }
+}
+
+pub(crate) fn boleto_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::Boleto(proto::Boleto::default())),
+    }
+}
+
+pub(crate) fn efecty_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::Efecty(proto::Efecty::default())),
+    }
+}
+
+pub(crate) fn pago_efectivo_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::PagoEfectivo(proto::PagoEfectivo::default())),
+    }
+}
+
+pub(crate) fn red_compra_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::RedCompra(proto::RedCompra::default())),
+    }
+}
+
+pub(crate) fn red_pagos_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::RedPagos(proto::RedPagos::default())),
+    }
+}
+
+pub(crate) fn alfamart_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::Alfamart(proto::Alfamart::default())),
+    }
+}
+
+pub(crate) fn indomaret_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::Indomaret(proto::Indomaret::default())),
+    }
+}
+
+pub(crate) fn oxxo_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::Oxxo(proto::Oxxo::default())),
+    }
+}
+
+pub(crate) fn seven_eleven_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::SevenEleven(proto::SevenEleven::default())),
+    }
+}
+
+pub(crate) fn lawson_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::Lawson(proto::Lawson::default())),
+    }
+}
+
+pub(crate) fn mini_stop_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::MiniStop(proto::MiniStop::default())),
+    }
+}
+
+pub(crate) fn family_mart_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::FamilyMart(proto::FamilyMart::default())),
+    }
+}
+
+pub(crate) fn seicomart_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::Seicomart(proto::Seicomart::default())),
+    }
+}
+
+pub(crate) fn pay_easy_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::PayEasy(proto::PayEasy::default())),
     }
 }
 

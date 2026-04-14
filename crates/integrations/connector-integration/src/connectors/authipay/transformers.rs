@@ -15,7 +15,6 @@ use domain_types::{
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
         RefundsResponseData, ResponseId,
     },
-    errors,
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
@@ -43,7 +42,7 @@ impl AuthipayAuthType {
         client_request_id: &str,
         timestamp: &str,
         request_body: &str,
-    ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+    ) -> Result<String, error_stack::Report<IntegrationError>> {
         // Raw signature: apiKey + ClientRequestId + time + requestBody
         let raw_signature = format!("{api_key}{client_request_id}{timestamp}{request_body}");
 
@@ -53,7 +52,9 @@ impl AuthipayAuthType {
                 self.api_secret.clone().expose().as_bytes(),
                 raw_signature.as_bytes(),
             )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?;
 
         // Base64 encode the result
         Ok(general_purpose::STANDARD.encode(signature))
@@ -75,7 +76,7 @@ impl AuthipayAuthType {
 }
 
 impl TryFrom<&ConnectorSpecificConfig> for AuthipayAuthType {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(auth_type: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         match auth_type {
@@ -88,7 +89,9 @@ impl TryFrom<&ConnectorSpecificConfig> for AuthipayAuthType {
                 api_secret: api_secret.to_owned(),
             }),
             _ => Err(error_stack::report!(
-                errors::ConnectorError::FailedToObtainAuthType
+                IntegrationError::FailedToObtainAuthType {
+                    context: Default::default()
+                }
             )),
         }
     }
@@ -189,7 +192,7 @@ impl<T: PaymentMethodDataTypes>
         &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
     > for AuthipayPaymentsRequest<T>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: &RouterDataV2<
@@ -203,7 +206,9 @@ impl<T: PaymentMethodDataTypes>
         let converter = FloatMajorUnitForConnector;
         let amount_major = converter
             .convert(item.request.minor_amount, item.request.currency)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?;
 
         let transaction_amount = TransactionAmount {
             total: amount_major,
@@ -228,11 +233,9 @@ impl<T: PaymentMethodDataTypes>
                 PaymentMethod { payment_card }
             }
             _ => {
-                return Err(error_stack::report!(
-                    errors::ConnectorError::NotImplemented(
-                        "Only card payments are supported".to_string()
-                    )
-                ))
+                return Err(error_stack::report!(IntegrationError::not_implemented(
+                    "Only card payments are supported".to_string()
+                )))
             }
         };
 
@@ -288,7 +291,7 @@ pub struct AuthipayCaptureRequest {
 impl TryFrom<&RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>>
     for AuthipayCaptureRequest
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
@@ -304,7 +307,9 @@ impl TryFrom<&RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, Paymen
         let converter = FloatMajorUnitForConnector;
         let amount_major = converter
             .convert(capture_amount, item.request.currency)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?;
 
         let transaction_amount = TransactionAmount {
             total: amount_major,
@@ -583,7 +588,7 @@ fn map_status(
 impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<AuthipayPaymentsResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<AuthipayPaymentsResponse, Self>,
@@ -634,7 +639,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<AuthipayPaymentsRespo
 impl TryFrom<ResponseRouterData<AuthipayPaymentsResponse, Self>>
     for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<AuthipayPaymentsResponse, Self>,
@@ -685,7 +690,7 @@ impl TryFrom<ResponseRouterData<AuthipayPaymentsResponse, Self>>
 impl TryFrom<ResponseRouterData<AuthipayPaymentsResponse, Self>>
     for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<AuthipayPaymentsResponse, Self>,
@@ -745,7 +750,7 @@ pub struct AuthipayRefundRequest {
 impl TryFrom<&RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>>
     for AuthipayRefundRequest
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
@@ -754,7 +759,9 @@ impl TryFrom<&RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseD
         let converter = FloatMajorUnitForConnector;
         let amount_major = converter
             .convert(item.request.minor_refund_amount, item.request.currency)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?;
 
         let transaction_amount = TransactionAmount {
             total: amount_major,
@@ -784,7 +791,7 @@ pub struct AuthipayVoidRequest {
 impl TryFrom<&RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>>
     for AuthipayVoidRequest
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
@@ -884,7 +891,7 @@ fn map_refund_status(
 impl TryFrom<ResponseRouterData<AuthipayPaymentsResponse, Self>>
     for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<AuthipayPaymentsResponse, Self>,
@@ -914,7 +921,7 @@ impl TryFrom<ResponseRouterData<AuthipayPaymentsResponse, Self>>
 impl TryFrom<ResponseRouterData<AuthipayPaymentsResponse, Self>>
     for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<AuthipayPaymentsResponse, Self>,
@@ -1013,7 +1020,7 @@ fn map_void_status(
 impl TryFrom<ResponseRouterData<AuthipayPaymentsResponse, Self>>
     for RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<AuthipayPaymentsResponse, Self>,
@@ -1066,6 +1073,7 @@ pub type AuthipayRefundSyncResponse = AuthipayPaymentsResponse;
 // These delegate to the existing TryFrom<&RouterDataV2> implementations
 
 use crate::connectors::authipay::AuthipayRouterData;
+use domain_types::errors::{ConnectorError, IntegrationError};
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
@@ -1080,7 +1088,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for AuthipayPaymentsRequest<T>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: AuthipayRouterData<
@@ -1105,7 +1113,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for AuthipayVoidRequest
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: AuthipayRouterData<
@@ -1125,7 +1133,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for AuthipayCaptureRequest
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: AuthipayRouterData<
@@ -1145,7 +1153,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for AuthipayRefundRequest
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: AuthipayRouterData<

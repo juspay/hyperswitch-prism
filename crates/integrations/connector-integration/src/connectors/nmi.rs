@@ -6,25 +6,25 @@ use common_enums::CurrencyUnit;
 use common_utils::{errors::CustomResult, events, types::FloatMajorUnit};
 use domain_types::{
     connector_flow::{
-        Accept, Authenticate, Authorize, Capture, CreateAccessToken, CreateOrder,
-        CreateSessionToken, DefendDispute, IncrementalAuthorization, MandateRevoke, PSync,
-        PaymentMethodToken, PostAuthenticate, PreAuthenticate, RSync, Refund, RepeatPayment,
-        SdkSessionToken, SetupMandate, SubmitEvidence, Void, VoidPC,
+        Accept, Authenticate, Authorize, Capture, ClientAuthenticationToken, CreateOrder,
+        DefendDispute, IncrementalAuthorization, MandateRevoke, PSync, PaymentMethodToken,
+        PostAuthenticate, PreAuthenticate, RSync, Refund, RepeatPayment, ServerAuthenticationToken,
+        ServerSessionAuthenticationToken, SetupMandate, SubmitEvidence, Void, VoidPC,
     },
     connector_types::{
-        AcceptDisputeData, AccessTokenRequestData, AccessTokenResponseData, ConnectorCustomerData,
+        AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
         ConnectorCustomerResponse, DisputeDefendData, DisputeFlowData, DisputeResponseData,
         MandateRevokeRequestData, MandateRevokeResponseData, PaymentCreateOrderData,
         PaymentCreateOrderResponse, PaymentFlowData, PaymentMethodTokenResponse,
         PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthenticateData,
         PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
-        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSdkSessionTokenData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        RepeatPaymentData, SessionTokenRequestData, SessionTokenResponseData,
+        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
+        ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
         SetupMandateRequestData, SubmitEvidenceData,
     },
-    errors::{self},
     payment_method_data::PaymentMethodDataTypes,
     router_data::ErrorResponse,
     router_data_v2::RouterDataV2,
@@ -40,7 +40,7 @@ use interfaces::{
 use serde::Serialize;
 use transformers::{
     NmiCaptureRequest, NmiPaymentsRequest, NmiRefundRequest, NmiRefundSyncRequest, NmiSyncRequest,
-    NmiVoidRequest, StandardResponse, SyncResponse,
+    NmiVaultRequest, NmiVaultResponse, NmiVoidRequest, StandardResponse, SyncResponse,
 };
 
 // Type aliases to avoid duplicate templating in macros
@@ -49,10 +49,12 @@ pub type NmiVoidResponse = StandardResponse;
 pub type NmiRefundResponse = StandardResponse;
 pub type NmiPSyncResponse = SyncResponse;
 pub type NmiRSyncResponse = SyncResponse;
+pub type NmiPreAuthenticateResponse = NmiVaultResponse;
 
 use super::macros;
-use crate::types::ResponseRouterData;
-use crate::with_error_response_body;
+use crate::{
+    types::ResponseRouterData, with_error_response_body, ConnectorError, IntegrationError,
+};
 
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
@@ -76,9 +78,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::SdkSessionTokenV2 for Nmi<T>
+    connector_types::ClientAuthentication for Nmi<T>
 {
 }
+
+macros::macro_connector_payout_implementation!(
+    connector: Nmi,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize]
+);
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Nmi<T>
@@ -125,7 +133,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentSessionToken for Nmi<T>
+    connector_types::ServerSessionAuthentication for Nmi<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -133,7 +141,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentAccessToken for Nmi<T>
+    connector_types::ServerAuthentication for Nmi<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -232,6 +240,12 @@ macros::create_all_prerequisites!(
             request_body: NmiRefundSyncRequest,
             response_body: NmiRSyncResponse,
             router_data: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        ),
+        (
+            flow: PreAuthenticate,
+            request_body: NmiVaultRequest<T>,
+            response_body: NmiPreAuthenticateResponse,
+            router_data: RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -242,33 +256,45 @@ macros::create_all_prerequisites!(
             &self,
             _req: &RouterDataV2<F, FCD, Req, Res>,
             bytes: bytes::Bytes,
-        ) -> CustomResult<bytes::Bytes, errors::ConnectorError> {
+            _status_code: u16,
+        ) -> CustomResult<bytes::Bytes, IntegrationError> {
             // NMI returns different response formats:
             // - XML for query endpoints (PSync/RSync)
             // - URL-encoded for transact endpoints (Authorize/Capture/Refund/Void)
             let response_str = std::str::from_utf8(&bytes)
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+                .change_context(IntegrationError::RequestEncodingFailed {
+                    context: Default::default(),
+                })
+                .attach_printable("Failed to decode NMI response as UTF-8")?;
 
             // Check if response is XML (PSync/RSync return XML)
             if response_str.trim().starts_with("<?xml") || response_str.trim().starts_with("<") {
                 // Parse XML to struct, then serialize back to JSON
                 let xml_response: SyncResponse = quick_xml::de::from_str(response_str)
-                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+                    .change_context(IntegrationError::BodySerializationFailed {
+                        context: Default::default(),
+                    })
                     .attach_printable("Failed to parse XML response from NMI query endpoint")?;
 
                 let json_bytes = serde_json::to_vec(&xml_response)
-                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+                    .change_context(IntegrationError::BodySerializationFailed {
+                        context: Default::default(),
+                    })
                     .attach_printable("Failed to convert XML response to JSON")?;
 
                 Ok(bytes::Bytes::from(json_bytes))
             } else {
                 // URL-encoded response - parse and convert to JSON
                 let url_encoded_response: StandardResponse = serde_urlencoded::from_bytes(&bytes)
-                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+                    .change_context(IntegrationError::BodySerializationFailed {
+                        context: Default::default(),
+                    })
                     .attach_printable("Failed to parse URL-encoded response from NMI transact endpoint")?;
 
                 let json_bytes = serde_json::to_vec(&url_encoded_response)
-                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+                    .change_context(IntegrationError::BodySerializationFailed {
+                        context: Default::default(),
+                    })
                     .attach_printable("Failed to convert URL-encoded response to JSON")?;
 
                 Ok(bytes::Bytes::from(json_bytes))
@@ -316,10 +342,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         // Parse URL-encoded error response
         let response: StandardResponse = serde_urlencoded::from_bytes(&res.response)
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            .change_context(
+                crate::utils::response_deserialization_fail(
+                    res.status_code,
+                "nmi: response body did not match the expected format; confirm API version and connector documentation."),
+            )?;
 
         with_error_response_body!(event_builder, response);
 
@@ -356,7 +386,7 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             _req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             Ok(vec![(
                 headers::CONTENT_TYPE.to_string(),
                 "application/x-www-form-urlencoded".to_string().into(),
@@ -365,7 +395,7 @@ macros::macro_connector_implementation!(
         fn get_url(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}{}", self.connector_base_url_payments(req), endpoints::TRANSACT))
         }
     }
@@ -389,7 +419,7 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             _req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             Ok(vec![(
                 headers::CONTENT_TYPE.to_string(),
                 "application/x-www-form-urlencoded".to_string().into(),
@@ -398,7 +428,7 @@ macros::macro_connector_implementation!(
         fn get_url(
             &self,
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}{}", self.connector_base_url_payments(req), endpoints::QUERY))
         }
     }
@@ -422,7 +452,7 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             _req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             Ok(vec![(
                 headers::CONTENT_TYPE.to_string(),
                 "application/x-www-form-urlencoded".to_string().into(),
@@ -431,7 +461,7 @@ macros::macro_connector_implementation!(
         fn get_url(
             &self,
             req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}{}", self.connector_base_url_payments(req), endpoints::TRANSACT))
         }
     }
@@ -455,7 +485,7 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             _req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             Ok(vec![(
                 headers::CONTENT_TYPE.to_string(),
                 "application/x-www-form-urlencoded".to_string().into(),
@@ -464,7 +494,7 @@ macros::macro_connector_implementation!(
         fn get_url(
             &self,
             req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}{}", self.connector_base_url_payments(req), endpoints::TRANSACT))
         }
     }
@@ -488,7 +518,7 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             _req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             Ok(vec![(
                 headers::CONTENT_TYPE.to_string(),
                 "application/x-www-form-urlencoded".to_string().into(),
@@ -497,7 +527,7 @@ macros::macro_connector_implementation!(
         fn get_url(
             &self,
             req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}{}", self.connector_base_url_refunds(req), endpoints::TRANSACT))
         }
     }
@@ -521,7 +551,7 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             _req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             Ok(vec![(
                 headers::CONTENT_TYPE.to_string(),
                 "application/x-www-form-urlencoded".to_string().into(),
@@ -530,8 +560,40 @@ macros::macro_connector_implementation!(
         fn get_url(
             &self,
             req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}{}", self.connector_base_url_refunds(req), endpoints::QUERY))
+        }
+    }
+);
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Nmi,
+    curl_request: FormUrlEncoded(NmiVaultRequest),
+    curl_response: NmiPreAuthenticateResponse,
+    flow_name: PreAuthenticate,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsPreAuthenticateData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    preprocess_response: true,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            _req: &RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            Ok(vec![(
+                headers::CONTENT_TYPE.to_string(),
+                "application/x-www-form-urlencoded".to_string().into(),
+            )])
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}{}", self.connector_base_url_payments(req), endpoints::TRANSACT))
         }
     }
 );
@@ -579,20 +641,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
-        CreateSessionToken,
+        ServerSessionAuthenticationToken,
         PaymentFlowData,
-        SessionTokenRequestData,
-        SessionTokenResponseData,
+        ServerSessionAuthenticationTokenRequestData,
+        ServerSessionAuthenticationTokenResponseData,
     > for Nmi<T>
 {
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
-        CreateAccessToken,
+        ServerAuthenticationToken,
         PaymentFlowData,
-        AccessTokenRequestData,
-        AccessTokenResponseData,
+        ServerAuthenticationTokenRequestData,
+        ServerAuthenticationTokenResponseData,
     > for Nmi<T>
 {
 }
@@ -603,16 +665,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentFlowData,
         PaymentMethodTokenizationData<T>,
         PaymentMethodTokenResponse,
-    > for Nmi<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        PreAuthenticate,
-        PaymentFlowData,
-        PaymentsPreAuthenticateData<T>,
-        PaymentsResponseData,
     > for Nmi<T>
 {
 }
@@ -667,9 +719,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
-        SdkSessionToken,
+        ClientAuthenticationToken,
         PaymentFlowData,
-        PaymentsSdkSessionTokenData,
+        ClientAuthenticationTokenRequestData,
         PaymentsResponseData,
     > for Nmi<T>
 {
@@ -684,5 +736,3 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     > for Nmi<T>
 {
 }
-
-// ===== SOURCE VERIFICATION IMPLEMENTATIONS =====

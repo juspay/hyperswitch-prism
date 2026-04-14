@@ -11,11 +11,27 @@
         "status": "not_supported",
         "error": "Payment method  is not supported by mollie"
       },
+      "AchBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
       "Affirm": {
         "status": "not_supported",
         "error": "Payment method  is not supported by mollie"
       },
       "Afterpay": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "Alfamart": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "AliPayRedirect": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "AmazonPayRedirect": {
         "status": "not_supported",
         "error": "Payment method  is not supported by mollie"
       },
@@ -27,7 +43,23 @@
         "status": "not_supported",
         "error": "Payment method  is not supported by mollie"
       },
+      "ApplePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
       "Bacs": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "BacsBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "BancontactCard": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "BcaBankTransfer": {
         "status": "not_supported",
         "error": "Payment method  is not supported by mollie"
       },
@@ -35,7 +67,27 @@
         "status": "not_supported",
         "error": "Payment method  is not supported by mollie"
       },
+      "Bizum": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
       "Blik": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "Bluecode": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "Boleto": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "BriVaBankTransfer": {
         "status": "not_supported",
         "error": "Payment method  is not supported by mollie"
       },
@@ -75,6 +127,58 @@
           "body": "{\"amount\":{\"currency\":\"USD\",\"value\":\"10.00\"},\"description\":\"Probe payment\",\"redirectUrl\":\"https://example.com/return\",\"webhookUrl\":\"\",\"metadata\":{\"orderId\":\"probe_txn_001\"},\"method\":\"creditcard\",\"cardToken\":null,\"billingAddress\":null,\"shippingAddress\":null,\"sequenceType\":\"oneoff\",\"captureMode\":\"automatic\",\"locale\":null,\"cancelUrl\":null,\"customerId\":null}"
         }
       },
+      "CashappQr": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "ClassicReward": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "EVoucher": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "Efecty": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "Eft": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "Eps": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "FamilyMart": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "Giropay": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
       "GooglePay": {
         "status": "not_supported",
         "error": "Payment method  is not supported by mollie"
@@ -83,7 +187,35 @@
         "status": "not_supported",
         "error": "Payment method  is not supported by mollie"
       },
+      "GooglePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
       "Ideal": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "Indomaret": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "InstantBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "Interac": {
         "status": "not_supported",
         "error": "Payment method  is not supported by mollie"
       },
@@ -91,7 +223,127 @@
         "status": "not_supported",
         "error": "Payment method  is not supported by mollie"
       },
+      "Lawson": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "LocalBankRedirect": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "LocalBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "MbWay": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "Mifinity": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "MiniStop": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "OpenBanking": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "OpenBankingUk": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "Oxxo": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "PagoEfectivo": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "PayEasy": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "PaySafeCard": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
       "PaypalRedirect": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "PaypalSdk": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "PermataBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "Pix": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "Przelewy24": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "Pse": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "RedCompra": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "RedPagos": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "RevolutPay": {
         "status": "not_supported",
         "error": "Payment method  is not supported by mollie"
       },
@@ -99,11 +351,55 @@
         "status": "not_supported",
         "error": "Payment method  is not supported by mollie"
       },
+      "Satispay": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "Seicomart": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
       "Sepa": {
         "status": "not_supported",
         "error": "Payment method  is not supported by mollie"
       },
+      "SepaBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "SevenEleven": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "Sofort": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "Trustly": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
       "UpiCollect": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "UpiIntent": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "UpiQr": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "WeChatPayQr": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by mollie"
+      },
+      "Wero": {
         "status": "not_supported",
         "error": "Payment method  is not supported by mollie"
       }
@@ -114,9 +410,30 @@
         "error": "Stuck on field: description — Missing required field: description"
       }
     },
-    "create_access_token": {
+    "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_client_session_id": "probe_sdk_session_001",
+          "domain_context": {
+            "payment": {
+              "amount": {
+                "minor_amount": 1000,
+                "currency": "USD"
+              }
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api.mollie.com/v2/payments",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":\"10.00\"},\"description\":\"Payment probe_sdk_session_001\",\"redirectUrl\":\"https://example.com/return\",\"metadata\":{\"orderId\":\"probe_sdk_session_001\"}}"
+        }
       }
     },
     "create_customer": {
@@ -129,7 +446,12 @@
         "status": "not_implemented"
       }
     },
-    "create_session_token": {
+    "create_server_authentication_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_server_session_authentication_token": {
       "default": {
         "status": "not_implemented"
       }
@@ -144,7 +466,17 @@
         "status": "not_implemented"
       }
     },
+    "dispute_get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "eligibility": {
       "default": {
         "status": "not_implemented"
       }
@@ -172,6 +504,16 @@
         }
       }
     },
+    "handle_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "post_authenticate": {
       "default": {
         "status": "not_implemented"
@@ -182,7 +524,53 @@
         "status": "not_implemented"
       }
     },
+    "proxy_authorize": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_proxy_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "description": "Probe payment"
+        },
+        "sample": {
+          "url": "https://api.mollie.com/v2/payments",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":\"10.00\"},\"description\":\"Probe payment\",\"redirectUrl\":\"https://example.com/return\",\"webhookUrl\":\"\",\"metadata\":{\"orderId\":\"probe_proxy_txn_001\"},\"method\":\"creditcard\",\"cardToken\":null,\"billingAddress\":null,\"shippingAddress\":null,\"sequenceType\":\"oneoff\",\"captureMode\":\"automatic\",\"locale\":null,\"cancelUrl\":null,\"customerId\":null}"
+        }
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "recurring_charge": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "recurring_revoke": {
       "default": {
         "status": "not_implemented"
       }
@@ -212,6 +600,26 @@
         }
       }
     },
+    "refund_get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "refund_id": "probe_refund_id_001"
+        },
+        "sample": {
+          "url": "https://api.mollie.com/v2/payments/probe_connector_txn_001/refunds/probe_refund_id_001",
+          "method": "Get",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": null
+        }
+      }
+    },
     "reverse": {
       "default": {
         "status": "not_implemented"
@@ -222,10 +630,49 @@
         "status": "not_implemented"
       }
     },
+    "token_authorize": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_tokenized_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "connector_token": "pm_1AbcXyzStripeTestToken",
+          "address": {
+            "billing_address": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "return_url": "https://example.com/return",
+          "description": "Probe payment"
+        },
+        "sample": {
+          "url": "https://api.mollie.com/v2/payments",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":\"10.00\"},\"description\":\"Probe payment\",\"redirectUrl\":\"https://example.com/return\",\"webhookUrl\":\"\",\"metadata\":{\"orderId\":\"probe_tokenized_txn_001\"},\"method\":\"creditcard\",\"cardToken\":\"pm_1AbcXyzStripeTestToken\",\"billingAddress\":null,\"shippingAddress\":null,\"sequenceType\":\"oneoff\",\"captureMode\":\"automatic\",\"locale\":null,\"cancelUrl\":null,\"customerId\":null}"
+        }
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "tokenize": {
       "default": {
         "status": "error",
-        "error": "Invalid Configuration: profile_token"
+        "error": "Invalid connector configuration: profile_token"
+      }
+    },
+    "verify_redirect": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "void": {

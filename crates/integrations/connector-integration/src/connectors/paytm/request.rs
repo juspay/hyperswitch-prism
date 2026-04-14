@@ -3,7 +3,7 @@ use common_utils::{types::StringMajorUnit, CustomerId, Email};
 use hyperswitch_masking::Secret;
 use serde::Serialize;
 
-// Request structures for CreateSessionToken flow (Paytm initiate)
+// Request structures for ServerSessionAuthenticationToken flow (Paytm initiate)
 
 #[derive(Debug, Serialize)]
 pub struct PaytmInitiateTxnRequest {
@@ -163,7 +163,7 @@ pub struct PaytmProcessHeadTypes {
     #[serde(rename = "channelId")]
     pub channel_id: Option<String>,
     #[serde(rename = "txnToken")]
-    pub txn_token: Secret<String>, // From CreateSessionToken
+    pub txn_token: Secret<String>, // From ServerSessionAuthenticationToken
 }
 
 #[derive(Debug, Serialize)]
@@ -193,7 +193,7 @@ pub struct PaytmNativeProcessTxnRequest {
 #[derive(Debug, Serialize)]
 pub struct PaytmTxnTokenType {
     #[serde(rename = "txnToken")]
-    pub txn_token: Secret<String>, // From CreateSessionToken
+    pub txn_token: Secret<String>, // From ServerSessionAuthenticationToken
 }
 
 #[derive(Debug, Serialize)]
@@ -212,7 +212,7 @@ pub struct PaytmNativeProcessRequestBody {
     #[serde(rename = "channelId")]
     pub channel_id: String, // "WEB"
     #[serde(rename = "txnToken")]
-    pub txn_token: Secret<String>, // From CreateSessionToken
+    pub txn_token: Secret<String>, // From ServerSessionAuthenticationToken
     #[serde(rename = "authMode")]
     pub auth_mode: Option<String>, // "DEBIT_PIN"
 }

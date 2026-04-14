@@ -13,7 +13,7 @@ use crate::{
     utils::{missing_field_err, ForeignTryFrom},
 };
 
-pub type Error = error_stack::Report<errors::ConnectorError>;
+pub type Error = error_stack::Report<errors::IntegrationError>;
 
 #[derive(Default, Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(tag = "auth_type")]
@@ -163,39 +163,42 @@ impl PaysafePaymentMethodDetails {
     pub fn get_no_three_ds_account_id(
         &self,
         currency: common_enums::enums::Currency,
-    ) -> Result<Secret<String>, errors::ConnectorError> {
+    ) -> Result<Secret<String>, errors::IntegrationError> {
         self.card
             .as_ref()
             .and_then(|cards| cards.get(&currency))
             .and_then(|card| card.no_three_ds.clone())
-            .ok_or(errors::ConnectorError::InvalidConnectorConfig {
+            .ok_or(errors::IntegrationError::InvalidConnectorConfig {
                 config: "Missing no_3ds account_id",
+                context: Default::default(),
             })
     }
 
     pub fn get_three_ds_account_id(
         &self,
         currency: common_enums::enums::Currency,
-    ) -> Result<Secret<String>, errors::ConnectorError> {
+    ) -> Result<Secret<String>, errors::IntegrationError> {
         self.card
             .as_ref()
             .and_then(|cards| cards.get(&currency))
             .and_then(|card| card.three_ds.clone())
-            .ok_or(errors::ConnectorError::InvalidConnectorConfig {
+            .ok_or(errors::IntegrationError::InvalidConnectorConfig {
                 config: "Missing 3ds account_id",
+                context: Default::default(),
             })
     }
 
     pub fn get_ach_account_id(
         &self,
         currency: common_enums::enums::Currency,
-    ) -> Result<Secret<String>, errors::ConnectorError> {
+    ) -> Result<Secret<String>, errors::IntegrationError> {
         self.ach
             .as_ref()
             .and_then(|ach| ach.get(&currency))
             .and_then(|ach| ach.account_id.clone())
-            .ok_or(errors::ConnectorError::InvalidConnectorConfig {
+            .ok_or(errors::IntegrationError::InvalidConnectorConfig {
                 config: "Missing ach account_id",
+                context: Default::default(),
             })
     }
 }
@@ -222,6 +225,8 @@ pub enum ConnectorSpecificConfig {
     Mifinity {
         key: Secret<String>,
         base_url: Option<String>,
+        brand_id: Option<Secret<String>>,
+        destination_account_number: Option<Secret<String>>,
     },
     Multisafepay {
         api_key: Secret<String>,
@@ -399,6 +404,8 @@ pub enum ConnectorSpecificConfig {
         api_key: Secret<String>,
         tenant_id: Secret<String>,
         base_url: Option<String>,
+        client_merchant_reference_id: Option<Secret<String>>,
+        merchant_payment_method_route_id: Option<Secret<String>>,
     },
     Braintree {
         public_key: Secret<String>,
@@ -406,10 +413,23 @@ pub enum ConnectorSpecificConfig {
         base_url: Option<String>,
         merchant_account_id: Option<Secret<String>>,
         merchant_config_currency: Option<String>,
+        apple_pay_supported_networks: Vec<String>,
+        apple_pay_merchant_capabilities: Vec<String>,
+        apple_pay_label: Option<String>,
+        gpay_merchant_name: Option<String>,
+        gpay_merchant_id: Option<String>,
+        gpay_allowed_auth_methods: Vec<String>,
+        gpay_allowed_card_networks: Vec<String>,
+        paypal_client_id: Option<String>,
+        gpay_gateway_merchant_id: Option<String>,
     },
     Truelayer {
         client_id: Secret<String>,
         client_secret: Secret<String>,
+        merchant_account_id: Option<Secret<String>>,
+        account_holder_name: Option<Secret<String>>,
+        private_key: Option<Secret<String>>,
+        kid: Option<Secret<String>>,
         base_url: Option<String>,
         secondary_base_url: Option<String>,
     },
@@ -420,6 +440,12 @@ pub enum ConnectorSpecificConfig {
         base_url: Option<String>,
         merchant_name: Option<Secret<String>>,
     },
+    Trustly {
+        username: Secret<String>,
+        password: Secret<String>,
+        private_key: Secret<String>,
+        base_url: Option<String>,
+    },
 
     // --- Three-field connectors ---
     Adyen {
@@ -428,6 +454,7 @@ pub enum ConnectorSpecificConfig {
         review_key: Option<Secret<String>>,
         base_url: Option<String>,
         dispute_base_url: Option<String>,
+        endpoint_prefix: Option<String>,
     },
     BankOfAmerica {
         api_key: Secret<String>,
@@ -498,6 +525,7 @@ pub enum ConnectorSpecificConfig {
         access_token: Secret<String>,
         campaign_id: Secret<String>,
         base_url: Option<String>,
+        site: Option<String>,
     },
     Hyperpg {
         username: Secret<String>,
@@ -676,6 +704,11 @@ pub enum ConnectorSpecificConfig {
         secret: Secret<String>,
         merchant_id: Secret<String>,
         terminal_id: Secret<String>,
+        base_url: Option<String>,
+    },
+    Itaubank {
+        client_id: Secret<String>,
+        client_secret: Secret<String>,
         base_url: Option<String>,
     },
 }
@@ -969,6 +1002,15 @@ impl ConnectorSpecificConfig {
                 merchant_id,
                 terminal_id
             },
+            Trustly {
+                username,
+                password,
+                private_key
+            },
+            Itaubank {
+                client_id,
+                client_secret
+            }
         )
     }
 
@@ -1347,6 +1389,15 @@ impl ConnectorSpecificConfig {
                     secret,
                     merchant_id,
                     terminal_id
+                },
+                Trustly {
+                    username,
+                    password,
+                    private_key
+                },
+                Itaubank {
+                    client_id,
+                    client_secret
                 }
             ),
             serde_json::Value::Object(connector_patch),
@@ -1363,14 +1414,16 @@ impl ConnectorSpecificConfig {
 }
 
 impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for ConnectorSpecificConfig {
-    type Error = errors::ConnectorError;
+    type Error = errors::IntegrationError;
 
     fn foreign_try_from(
         auth: grpc_api_types::payments::ConnectorSpecificConfig,
     ) -> Result<Self, Error> {
         use grpc_api_types::payments::connector_specific_config::Config as AuthType;
 
-        let err = || errors::ConnectorError::FailedToObtainAuthType;
+        let err = || errors::IntegrationError::FailedToObtainAuthType {
+            context: Default::default(),
+        };
         let auth_type = auth.config.ok_or_else(err)?;
 
         match auth_type {
@@ -1380,6 +1433,7 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 review_key: adyen.review_key,
                 base_url: adyen.base_url,
                 dispute_base_url: adyen.dispute_base_url,
+                endpoint_prefix: adyen.endpoint_prefix,
             }),
             AuthType::Airwallex(airwallex) => Ok(Self::Airwallex {
                 api_key: airwallex.api_key.ok_or_else(err)?,
@@ -1414,11 +1468,22 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 base_url: braintree.base_url,
                 merchant_account_id: braintree.merchant_account_id,
                 merchant_config_currency: braintree.merchant_config_currency,
+                apple_pay_supported_networks: braintree.apple_pay_supported_networks,
+                apple_pay_merchant_capabilities: braintree.apple_pay_merchant_capabilities,
+                apple_pay_label: braintree.apple_pay_label,
+                gpay_merchant_name: braintree.gpay_merchant_name,
+                gpay_merchant_id: braintree.gpay_merchant_id,
+                gpay_allowed_auth_methods: braintree.gpay_allowed_auth_methods,
+                gpay_allowed_card_networks: braintree.gpay_allowed_card_networks,
+                paypal_client_id: braintree.paypal_client_id,
+                gpay_gateway_merchant_id: braintree.gpay_gateway_merchant_id,
             }),
             AuthType::Cashtocode(cashtocode) => Ok(Self::Cashtocode {
                 auth_key_map: serde_json::to_value(cashtocode.auth_key_map)
                     .and_then(serde_json::from_value)
-                    .map_err(|_| errors::ConnectorError::FailedToObtainAuthType)?,
+                    .map_err(|_| errors::IntegrationError::FailedToObtainAuthType {
+                        context: Default::default(),
+                    })?,
                 base_url: cashtocode.base_url,
             }),
             AuthType::Cryptopay(cryptopay) => Ok(Self::Cryptopay {
@@ -1511,6 +1576,8 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
             AuthType::Mifinity(mifinity) => Ok(Self::Mifinity {
                 key: mifinity.key.ok_or_else(err)?,
                 base_url: mifinity.base_url,
+                brand_id: mifinity.brand_id,
+                destination_account_number: mifinity.destination_account_number,
             }),
             AuthType::Mollie(mollie) => Ok(Self::Mollie {
                 api_key: mollie.api_key.ok_or_else(err)?,
@@ -1671,7 +1738,9 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
             AuthType::Payload(payload) => Ok(Self::Payload {
                 auth_key_map: serde_json::to_value(payload.auth_key_map)
                     .and_then(serde_json::from_value)
-                    .map_err(|_| errors::ConnectorError::FailedToObtainAuthType)?,
+                    .map_err(|_| errors::IntegrationError::FailedToObtainAuthType {
+                        context: Default::default(),
+                    })?,
                 base_url: payload.base_url,
             }),
             AuthType::Authipay(authipay) => Ok(Self::Authipay {
@@ -1704,7 +1773,9 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                     .map(|account_id| {
                         serde_json::to_value(account_id)
                             .and_then(serde_json::from_value)
-                            .map_err(|_| errors::ConnectorError::FailedToObtainAuthType)
+                            .map_err(|_| errors::IntegrationError::FailedToObtainAuthType {
+                                context: Default::default(),
+                            })
                     })
                     .transpose()?,
             }),
@@ -1735,6 +1806,7 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 access_token: gigadat.access_token.ok_or_else(err)?,
                 campaign_id: gigadat.campaign_id.ok_or_else(err)?,
                 base_url: gigadat.base_url,
+                site: gigadat.site,
             }),
             AuthType::Hyperpg(hyperpg) => Ok(Self::Hyperpg {
                 username: hyperpg.username.ok_or_else(err)?,
@@ -1788,12 +1860,47 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 api_key: peachpayments.api_key.ok_or_else(err)?,
                 tenant_id: peachpayments.tenant_id.ok_or_else(err)?,
                 base_url: peachpayments.base_url,
+                client_merchant_reference_id: peachpayments.client_merchant_reference_id,
+                merchant_payment_method_route_id: peachpayments.merchant_payment_method_route_id,
             }),
             AuthType::Paypal(paypal) => Ok(Self::Paypal {
                 client_id: paypal.client_id.ok_or_else(err)?,
                 client_secret: paypal.client_secret.ok_or_else(err)?,
                 payer_id: paypal.payer_id,
                 base_url: paypal.base_url,
+            }),
+            AuthType::Trustly(trustly) => Ok(Self::Trustly {
+                username: trustly.username.ok_or_else(err)?,
+                password: trustly.password.ok_or_else(err)?,
+                private_key: trustly.private_key.ok_or_else(err)?,
+                base_url: trustly.base_url,
+            }),
+            AuthType::Truelayer(truelayer) => Ok(Self::Truelayer {
+                client_id: truelayer.client_id.ok_or_else(err)?,
+                client_secret: truelayer.client_secret.ok_or_else(err)?,
+                merchant_account_id: truelayer.merchant_account_id,
+                account_holder_name: truelayer.account_holder_name,
+                private_key: truelayer.private_key,
+                kid: truelayer.kid,
+                base_url: truelayer.base_url,
+                secondary_base_url: truelayer.secondary_base_url,
+            }),
+            AuthType::Fiservcommercehub(fiservcommercehub) => Ok(Self::Fiservcommercehub {
+                api_key: fiservcommercehub.api_key.ok_or_else(err)?,
+                secret: fiservcommercehub.secret.ok_or_else(err)?,
+                merchant_id: fiservcommercehub.merchant_id.ok_or_else(err)?,
+                terminal_id: fiservcommercehub.terminal_id.ok_or_else(err)?,
+                base_url: fiservcommercehub.base_url,
+            }),
+            AuthType::Itaubank(itaubank) => Ok(Self::Itaubank {
+                client_secret: itaubank.client_secret.ok_or_else(err)?,
+                client_id: itaubank.client_id.ok_or_else(err)?,
+                base_url: itaubank.base_url,
+            }),
+            AuthType::Ppro(ppro) => Ok(Self::Ppro {
+                api_key: ppro.api_key.ok_or_else(err)?,
+                merchant_id: ppro.merchant_id.ok_or_else(err)?,
+                base_url: ppro.base_url,
             }),
         }
     }
@@ -1802,14 +1909,16 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
 impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorEnum)>
     for ConnectorSpecificConfig
 {
-    type Error = errors::ConnectorError;
+    type Error = errors::IntegrationError;
 
     fn foreign_try_from(
         (auth, connector): (&ConnectorAuthType, &connector_types::ConnectorEnum),
     ) -> Result<Self, Error> {
         use connector_types::ConnectorEnum;
 
-        let err = || errors::ConnectorError::FailedToObtainAuthType;
+        let err = || errors::IntegrationError::FailedToObtainAuthType {
+            context: Default::default(),
+        };
 
         match connector {
             // --- HeaderKey connectors ---
@@ -1845,6 +1954,8 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorEnum)>
                 ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Mifinity {
                     key: api_key.clone(),
                     base_url: None,
+                    brand_id: None,
+                    destination_account_number: None,
                 }),
                 _ => Err(err().into()),
             },
@@ -2086,6 +2197,10 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorEnum)>
                 ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Truelayer {
                     client_id: api_key.clone(),
                     client_secret: key1.clone(),
+                    account_holder_name: None,
+                    merchant_account_id: None,
+                    private_key: None,
+                    kid: None,
                     base_url: None,
                     secondary_base_url: None,
                 }),
@@ -2100,6 +2215,7 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorEnum)>
                     review_key: None,
                     base_url: None,
                     dispute_base_url: None,
+                    endpoint_prefix: None,
                 }),
                 ConnectorAuthType::SignatureKey {
                     api_key,
@@ -2111,6 +2227,7 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorEnum)>
                     review_key: Some(api_secret.clone()),
                     base_url: None,
                     dispute_base_url: None,
+                    endpoint_prefix: None,
                 }),
                 _ => Err(err().into()),
             },
@@ -2244,6 +2361,15 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorEnum)>
                     base_url: None,
                     merchant_account_id: None,
                     merchant_config_currency: None,
+                    apple_pay_supported_networks: vec![],
+                    apple_pay_merchant_capabilities: vec![],
+                    apple_pay_label: None,
+                    gpay_merchant_name: None,
+                    gpay_merchant_id: None,
+                    gpay_allowed_auth_methods: vec![],
+                    gpay_allowed_card_networks: vec![],
+                    paypal_client_id: None,
+                    gpay_gateway_merchant_id: None,
                 }),
                 _ => Err(err().into()),
             },
@@ -2352,6 +2478,7 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorEnum)>
                     access_token: api_key.clone(),
                     campaign_id: key1.clone(),
                     base_url: None,
+                    site: None,
                 }),
                 _ => Err(err().into()),
             },
@@ -2582,6 +2709,19 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorEnum)>
                 }),
                 _ => Err(err().into()),
             },
+            ConnectorEnum::Trustly => match auth {
+                ConnectorAuthType::SignatureKey {
+                    api_key,
+                    key1,
+                    api_secret,
+                } => Ok(Self::Trustly {
+                    username: api_key.clone(),
+                    password: key1.clone(),
+                    private_key: api_secret.clone(),
+                    base_url: None,
+                }),
+                _ => Err(err().into()),
+            },
 
             // --- Paypal (BodyKey or SignatureKey) ---
             ConnectorEnum::Paypal => match auth {
@@ -2705,6 +2845,8 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorEnum)>
                     api_key: api_key.clone(),
                     tenant_id: key1.clone(),
                     base_url: None,
+                    client_merchant_reference_id: None,
+                    merchant_payment_method_route_id: None,
                 }),
                 _ => Err(err().into()),
             },
@@ -2717,8 +2859,8 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorEnum)>
                 } => Ok(Self::Finix {
                     finix_user_name: api_key.clone(),
                     finix_password: api_secret.clone(),
-                    merchant_identity_id: key1.clone(),
-                    merchant_id: key2.clone(),
+                    merchant_id: key1.clone(),
+                    merchant_identity_id: key2.clone(),
                     base_url: None,
                 }),
                 _ => Err(err().into()),
@@ -2742,6 +2884,14 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorEnum)>
                     secret: api_secret.clone(),
                     merchant_id: key1.clone(),
                     terminal_id: key2.clone(),
+                    base_url: None,
+                }),
+                _ => Err(err().into()),
+            },
+            ConnectorEnum::Itaubank => match auth {
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Itaubank {
+                    client_id: api_key.clone(),
+                    client_secret: key1.clone(),
                     base_url: None,
                 }),
                 _ => Err(err().into()),
@@ -2884,10 +3034,11 @@ pub struct PazeDynamicData {
     pub dynamic_data_expiration: Option<String>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
-pub enum PaymentMethodToken {
-    Token(Secret<String>),
-}
+// Dead code: nothing populates this after PaymentFlowData.payment_method_token was removed.
+// #[derive(Debug, Clone, serde::Deserialize)]
+// pub enum PaymentMethodToken {
+//     Token(Secret<String>),
+// }
 
 #[derive(Debug, Default, Clone)]
 pub struct RecurringMandatePaymentData {

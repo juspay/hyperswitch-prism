@@ -12,6 +12,9 @@ use grpc_api_types::{
         recurring_payment_service_client::RecurringPaymentServiceClient,
         refund_service_client::RefundServiceClient,
     },
+    payouts::{
+        payout_service_client::PayoutServiceClient, payout_service_server::PayoutServiceServer,
+    },
 };
 use http::Uri;
 use hyper_util::rt::TokioIo; // Add this import
@@ -97,6 +100,12 @@ impl AutoClient for PaymentMethodAuthenticationServiceClient<Channel> {
     }
 }
 
+impl AutoClient for PayoutServiceClient<Channel> {
+    fn new(channel: Channel) -> Self {
+        Self::new(channel)
+    }
+}
+
 /// Builds a gRPC server with all services registered.
 fn build_server(
     service: grpc_server::app::Service,
@@ -151,6 +160,12 @@ fn build_server(
         .add_service(
             grpc_api_types::payments::payment_method_authentication_service_server::PaymentMethodAuthenticationServiceServer::with_interceptor(
                 service.payment_method_authentication_service,
+                interceptor.clone(),
+            ),
+        )
+        .add_service(
+            PayoutServiceServer::with_interceptor(
+                service.payouts_service,
                 interceptor,
             ),
         )

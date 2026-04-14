@@ -457,7 +457,7 @@ mod tests {
         let result = connector.verify_webhook_source(request, None, None);
         assert!(
             result.is_err(),
-            "missing connector_webhook_secret should return Err(WebhookSourceVerificationFailed)"
+            "missing connector_webhook_secret should return Err(IntegrationError::not_implemented(\"webhook source verification failed\".to_string()))"
         );
     }
 

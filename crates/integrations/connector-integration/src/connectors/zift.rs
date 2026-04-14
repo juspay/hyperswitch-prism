@@ -12,27 +12,29 @@ use std::{
 };
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 
+use domain_types::errors::ConnectorError;
+use domain_types::errors::IntegrationError;
 use domain_types::{
     connector_flow::{
-        Accept, Authenticate, Authorize, Capture, CreateAccessToken, CreateOrder,
-        CreateSessionToken, DefendDispute, IncrementalAuthorization, MandateRevoke, PSync,
-        PaymentMethodToken, PostAuthenticate, PreAuthenticate, RSync, Refund, RepeatPayment,
-        SdkSessionToken, SetupMandate, SubmitEvidence, Void, VoidPC,
+        Accept, Authenticate, Authorize, Capture, ClientAuthenticationToken, CreateOrder,
+        DefendDispute, IncrementalAuthorization, MandateRevoke, PSync, PaymentMethodToken,
+        PostAuthenticate, PreAuthenticate, RSync, Refund, RepeatPayment, ServerAuthenticationToken,
+        ServerSessionAuthenticationToken, SetupMandate, SubmitEvidence, Void, VoidPC,
     },
     connector_types::{
-        AcceptDisputeData, AccessTokenRequestData, AccessTokenResponseData, ConnectorCustomerData,
+        AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
         ConnectorCustomerResponse, ConnectorSpecifications, DisputeDefendData, DisputeFlowData,
         DisputeResponseData, MandateRevokeRequestData, MandateRevokeResponseData,
         PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData,
         PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
         PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
         PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
-        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSdkSessionTokenData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        RepeatPaymentData, SessionTokenRequestData, SessionTokenResponseData,
+        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
+        ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
         SetupMandateRequestData, SubmitEvidenceData, SupportedPaymentMethodsExt,
     },
-    errors,
     payment_method_data::{DefaultPCIHolder, PaymentMethodData, PaymentMethodDataTypes},
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -74,9 +76,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::SdkSessionTokenV2 for Zift<T>
+    connector_types::ClientAuthentication for Zift<T>
 {
 }
+
+macros::macro_connector_payout_implementation!(
+    connector: Zift,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize]
+);
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Zift<T>
@@ -139,12 +147,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentSessionToken for Zift<T>
+    connector_types::ServerSessionAuthentication for Zift<T>
 {
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentAccessToken for Zift<T>
+    connector_types::ServerAuthentication for Zift<T>
 {
 }
 
@@ -245,10 +253,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
-        CreateSessionToken,
+        ServerSessionAuthenticationToken,
         PaymentFlowData,
-        SessionTokenRequestData,
-        SessionTokenResponseData,
+        ServerSessionAuthenticationTokenRequestData,
+        ServerSessionAuthenticationTokenResponseData,
     > for Zift<T>
 {
 }
@@ -273,10 +281,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
-        CreateAccessToken,
+        ServerAuthenticationToken,
         PaymentFlowData,
-        AccessTokenRequestData,
-        AccessTokenResponseData,
+        ServerAuthenticationTokenRequestData,
+        ServerAuthenticationTokenResponseData,
     > for Zift<T>
 {
 }
@@ -333,9 +341,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
-        SdkSessionToken,
+        ClientAuthenticationToken,
         PaymentFlowData,
-        PaymentsSdkSessionTokenData,
+        ClientAuthenticationTokenRequestData,
         PaymentsResponseData,
     > for Zift<T>
 {
@@ -409,21 +417,24 @@ macros::create_all_prerequisites!(
             &self,
             _req: &RouterDataV2<F, FCD, Req, Res>,
             bytes: bytes::Bytes,
-        ) -> CustomResult<bytes::Bytes, errors::ConnectorError> {
+            status_code: u16,
+        ) -> CustomResult<bytes::Bytes, ConnectorError> {
             let url_encoded_response: Value = serde_urlencoded::from_bytes(&bytes)
-                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)
-                    .attach_printable("Failed to parse URL-encoded response from Zift")?;
+                    .change_context(crate::utils::response_deserialization_fail(status_code, "zift: response body did not match the expected format; confirm API version and connector documentation."))
+                    .attach_printable("Failed to parse URL-encoded response from Zift")
+                    ?;
 
             let json_bytes = serde_json::to_vec(&url_encoded_response)
-                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)
-                    .attach_printable("Failed to convert URL-encoded response to JSON")?;
+                    .change_context(crate::utils::response_deserialization_fail(status_code, "zift: response body did not match the expected format; confirm API version and connector documentation."))
+                    .attach_printable("Failed to convert URL-encoded response to JSON")
+                    ?;
 
                 Ok(bytes::Bytes::from(json_bytes))
         }
         pub fn build_headers<F, FCD, Req, Res>(
             &self,
             _req: &RouterDataV2<F, FCD, Req, Res>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             Ok(vec![(
             headers::CONTENT_TYPE.to_string(),
             "application/x-www-form-urlencoded".to_string().into(),
@@ -468,7 +479,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     fn get_auth_header(
         &self,
         _auth_type: &ConnectorSpecificConfig,
-    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
         Ok(vec![])
     }
 
@@ -476,9 +487,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: ZiftErrorResponse = serde_urlencoded::from_bytes(&res.response)
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            .change_context(
+                crate::utils::response_deserialization_fail(
+                    res.status_code,
+                "zift: response body did not match the expected format; confirm API version and connector documentation."),
+            )?;
 
         with_error_response_body!(event_builder, response);
 
@@ -561,13 +576,14 @@ impl ConnectorValidation for Zift<DefaultPCIHolder> {
         &self,
         _pm_type: Option<PaymentMethodType>,
         pm_data: PaymentMethodData<DefaultPCIHolder>,
-    ) -> CustomResult<(), errors::ConnectorError> {
+    ) -> CustomResult<(), IntegrationError> {
         let connector = self.id();
         match pm_data {
             PaymentMethodData::Card(_) => Ok(()),
-            _ => Err(errors::ConnectorError::NotSupported {
+            _ => Err(IntegrationError::NotSupported {
                 message: " mandate payment".to_string(),
                 connector,
+                context: Default::default(),
             }
             .into()),
         }
@@ -579,7 +595,7 @@ impl ConnectorValidation for Zift<DefaultPCIHolder> {
         _is_three_ds: bool,
         _status: common_enums::AttemptStatus,
         _connector_meta_data: Option<common_utils::pii::SecretSerdeValue>,
-    ) -> CustomResult<(), errors::ConnectorError> {
+    ) -> CustomResult<(), IntegrationError> {
         Ok(())
     }
 }
@@ -601,13 +617,13 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
         fn get_url(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}gates/xurl", self.connector_base_url_payments(req)))
         }
     }
@@ -630,14 +646,14 @@ macros::macro_connector_implementation!(
         fn get_headers(
         &self,
         req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
-    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
         self.build_headers(req)
     }
 
     fn get_url(
         &self,
         req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
-    ) -> CustomResult<String, errors::ConnectorError> {
+    ) -> CustomResult<String, IntegrationError> {
         Ok(format!("{}gates/xurl", self.connector_base_url_payments(req)))
     }
 
@@ -661,13 +677,13 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
         fn get_url(
             &self,
             req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}gates/xurl", self.connector_base_url_payments(req)))
         }
     }
@@ -690,14 +706,14 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
 
         fn get_url(
             &self,
             req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}gates/xurl", self.connector_base_url_payments(req)))
         }
     }
@@ -720,13 +736,13 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
         fn get_url(
             &self,
             req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}gates/xurl", self.connector_base_url_payments(req)))
         }
     }
@@ -749,13 +765,13 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
         fn get_url(
             &self,
             req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}gates/xurl", self.connector_base_url_refunds(req)))
         }
     }
@@ -778,13 +794,13 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>,errors::ConnectorError>{
+        ) -> CustomResult<Vec<(String, Maskable<String>)>,IntegrationError>{
             self.build_headers(req)
         }
         fn get_url(
             &self,
             req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}gates/xurl", self.connector_base_url_payments(req)))
         }
     }

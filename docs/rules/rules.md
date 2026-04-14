@@ -8,6 +8,8 @@ These rules govern how API reference documentation is generated and validated. T
 |---------|-------------|--------------|
 | [API Reference Overview](#api-reference-overview-rules) | Service-level index describing all operations | `services/payment-service/README.md` |
 | [API Reference Operation](#api-reference-operation-rules) | Individual RPC documentation | `services/payment-service/authorize.md` |
+| [SDK Reference Overview](#sdk-reference-overview-rules) | Service-level SDK index with language-specific examples | `sdks/node/payment-service/README.md` |
+| [SDK Reference Operation](#sdk-reference-operation-rules) | Individual SDK operation documentation | `sdks/node/payment-service/authorize.md` |
 | [Domain Types Overview](#domain-types-overview-rules) | Message/enum index for a domain | `messages/payment/README.md` |
 | [Domain Types Reference](#domain-types-reference-rules) | Individual message/enum documentation | `messages/payment/money.md` |
 | [Connectors Overview](#connectors-overview-rules) | Connector integration status matrix | `connectors/README.md` |
@@ -708,6 +710,240 @@ When adding a new operation:
 1. Add the operation column to the relevant service table
 2. Mark the status for each connector that implements it
 3. Update the status legend if introducing a new status type
+
+---
+
+# SDK Reference Overview Rules
+
+For service-level SDK README files that replicate the API Reference Overview with language-specific examples.
+
+## SO1: Output Path
+
+**Format:** `sdks/{language}/{service}/README.md`
+
+**Variables:**
+- `{language}`: SDK language identifier (`node`, `python`, `kotlin`, `rust`, etc.)
+- `{service}`: Service name in kebab-case (`payment-service`, `refund-service`, etc.)
+
+**Examples:**
+- `sdks/node/payment-service/README.md`
+- `sdks/python/customer-service/README.md`
+- `sdks/rust/refund-service/README.md`
+
+## SO2: Content Replication
+
+**Requirement:** Replicate the content from API Reference Overview **word for word**.
+
+**Source:** `docs-generated/api-reference/services/{service}/README.md`
+
+**Replicated Content (exact copy):**
+- Title and front matter
+- Overview section text
+- Business Use Cases bullet points
+- Operations table (descriptions and Use When column)
+- Common Patterns mermaid sequence diagrams
+- Flow explanation text (steps 1, 2, 3...)
+- Next Steps section
+
+**Modified Content:**
+- Operations table links: Point to SDK operation files (e.g., `./authorize.md` instead of API reference paths)
+- Next Steps links: Point to SDK service files (e.g., `../payment-service/README.md`)
+
+## SO3: Operations Table Links
+
+**Format:** Same as API Reference Overview, but link to SDK operation files.
+
+```markdown
+| Operation | Description | Use When |
+|-----------|-------------|----------|
+| [Authorize](./authorize.md) | Reserve funds without capturing | Two-step payment flow |
+| [Capture](./capture.md) | Finalize and transfer funds | Order shipped/service delivered |
+```
+
+---
+
+# SDK Reference Operation Rules
+
+For individual SDK operation documentation with language-specific code examples.
+
+## SP1: Output Path
+
+**Format:** `sdks/{language}/{service}/{operation}.md`
+
+**Variables:**
+- `{language}`: SDK language identifier (`node`, `python`, `kotlin`, `rust`, etc.)
+- `{service}`: Service name in kebab-case (`payment-service`, `refund-service`, etc.)
+- `{operation}`: Operation name in kebab-case (`authorize`, `capture`, `get`, etc.)
+
+**Examples:**
+- `sdks/node/payment-service/authorize.md`
+- `sdks/python/customer-service/create.md`
+- `sdks/rust/refund-service/get.md`
+
+## SP2: Content Replication
+
+**Requirement:** Replicate the content from API Reference Operation **word for word**, except for the Example section.
+
+**Source:** `docs-generated/api-reference/services/{service}/{operation}.md`
+
+**Replicated Content (exact copy):**
+- Title and front matter
+- Overview section
+- Purpose section with scenario table
+- Request Fields table (keep field names as-is from API reference)
+- Response Fields table
+- Next Steps section
+
+**Modified Content:**
+- Example section: Replace grpcurl with SDK language-specific code
+
+## SP3: Example Section Format
+
+**Requirement:** Replace the gRPC/grpcurl example with SDK language-specific code.
+
+**Structure:**
+1. `### SDK Setup` - Client initialization with connector configuration
+2. `### Request` - Language-specific request construction and API call
+3. `### Response` - Language-specific response object
+
+### SP3.1: SDK Setup
+
+**Library Name:** Always use `hyperswitch-prism` as the library name.
+
+**Example (JavaScript/Node):**
+```javascript
+const { PaymentClient } = require('hyperswitch-prism');
+
+const paymentClient = new PaymentClient({
+    connector: 'stripe',
+    apiKey: 'YOUR_API_KEY'
+});
+```
+
+**Example (Python):**
+```python
+from hyperswitch_prism import PaymentClient
+
+payment_client = PaymentClient(
+    connector='stripe',
+    api_key='YOUR_API_KEY'
+)
+```
+
+### SP3.2: Request Construction
+
+**Source:** `/examples/stripe/{language}/stripe.{ext}`
+
+**Field Name Convention:**
+- JavaScript/Node: `camelCase` (convert from proto `snake_case`)
+- Python: `snake_case` (same as proto)
+- Kotlin: `camelCase` (convert from proto `snake_case`)
+- Rust: `snake_case` (same as proto)
+
+**Example (JavaScript/Node):**
+```javascript
+const request = {
+    merchantTransactionId: "txn_order_001",
+    amount: {
+        minorAmount: 1000,
+        currency: "USD"
+    },
+    paymentMethod: {
+        card: {
+            cardNumber: { value: "4242424242424242" },
+            cardExpMonth: { value: "12" },
+            cardExpYear: { value: "2027" },
+            cardCvc: { value: "123" }
+        }
+    },
+    authType: "NO_THREE_DS",
+    captureMethod: "MANUAL"
+};
+
+const response = await paymentClient.authorize(request);
+```
+
+### SP3.3: Response Construction
+
+**Source:** Proto response message definition in `backend/grpc-api-types/proto/payment.proto`
+
+**Field Name Convention:** Apply same conversion as SP3.2.
+
+**Example (JavaScript/Node):**
+```javascript
+{
+    merchantTransactionId: "txn_order_001",
+    connectorTransactionId: "pi_3Oxxx...",
+    status: "AUTHORIZED",
+    statusCode: 200
+}
+```
+
+## SP4: Field Name Conversion Table
+
+| Proto (snake_case) | JavaScript/Node | Python | Kotlin | Rust |
+|--------------------|-----------------|--------|--------|------|
+| `merchant_transaction_id` | `merchantTransactionId` | `merchant_transaction_id` | `merchantTransactionId` | `merchant_transaction_id` |
+| `connector_transaction_id` | `connectorTransactionId` | `connector_transaction_id` | `connectorTransactionId` | `connector_transaction_id` |
+| `minor_amount` | `minorAmount` | `minor_amount` | `minorAmount` | `minor_amount` |
+| `card_number` | `cardNumber` | `card_number` | `cardNumber` | `card_number` |
+| `card_exp_month` | `cardExpMonth` | `card_exp_month` | `cardExpMonth` | `card_exp_month` |
+| `card_exp_year` | `cardExpYear` | `card_exp_year` | `cardExpYear` | `card_exp_year` |
+| `capture_method` | `captureMethod` | `capture_method` | `captureMethod` | `capture_method` |
+| `auth_type` | `authType` | `auth_type` | `authType` | `auth_type` |
+| `payment_method` | `paymentMethod` | `payment_method` | `paymentMethod` | `payment_method` |
+| `status_code` | `statusCode` | `status_code` | `statusCode` | `status_code` |
+
+## SP5: Clients by Service
+
+| Service | Client Class |
+|---------|-------------|
+| Payment Service | `PaymentClient` |
+| Refund Service | `PaymentClient` (refund methods) |
+| Recurring Payment Service | `RecurringPaymentClient` |
+| Customer Service | `CustomerClient` |
+| Payment Method Service | `PaymentMethodClient` |
+| Dispute Service | `DisputeClient` |
+| Event Service | `EventClient` |
+
+## SP6: Terminology
+
+**Requirement:** Replace "RPC" with "method" in SDK documentation.
+
+**Replacements:**
+
+| API Reference Term | SDK Reference Term | Example |
+|-------------------|-------------------|---------|
+| `{Operation} RPC` | `{Operation} Method` or just `{Operation}` | `# Get RPC` → `# Get Method` |
+| `call the {Operation} RPC` | `call the {Operation} method` | `call the Get RPC` → `call the get method` |
+| `the {Operation} RPC with` | `the {Operation} method with` | `the Get RPC with` → `the get method with` |
+| `Call the {Service}'s {Operation} RPC` | `Call the {Service} {Operation} method` | `Call the Refund Service's Get RPC` → `Call the Refund Service get method` |
+
+**Note:** In SDK context, operation names use lowercase (e.g., `get` instead of `Get` when referring to the method call).
+
+## SP7: Front Matter
+
+**Requirement:** Use same front matter as API Reference (see [C1: Front Matter Format](#c1-front-matter-format)).
+
+**Additional Fields:**
+- `sdk_language`: The language identifier (`node`, `python`, `kotlin`, `rust`)
+
+**Example:**
+```markdown
+<!--
+---
+title: Authorize (Node SDK)
+description: Authorize a payment using the Node.js SDK
+last_updated: 2026-03-21
+generated_from: backend/grpc-api-types/proto/services.proto
+auto_generated: true
+reviewed_by: ''
+reviewed_at: ''
+approved: false
+sdk_language: node
+---
+-->
+```
 
 ---
 

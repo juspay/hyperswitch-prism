@@ -17,6 +17,7 @@ common_enums = { path = "../../common/common_enums", package = "ucs_common_enums
 ucs_env = { path = "../../common/ucs_env" }
 cards = { path = "../../types-traits/cards", package = "ucs_cards" }
 hyperswitch_masking = { version = "0.0.1", default-features = false, features = ["alloc", "serde", "time"] }
+strum = { version = "0.26", features = ["derive"] }
 
 # Third-party
 serde = { workspace = true }
@@ -24,6 +25,7 @@ serde_json = { workspace = true }
 tonic = { workspace = true }
 rayon = "1.10"
 toml = "0.8"
+base64 = "0.21"
 
 [lints]
 workspace = true

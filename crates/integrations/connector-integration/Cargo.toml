@@ -8,7 +8,7 @@ domain_types = { path = "../../types-traits/domain_types" }
 grpc-api-types = { path = "../../types-traits/grpc-api-types" }
 base64 = "0.21"
 common_enums = { path = "../../common/common_enums", package = "ucs_common_enums" }
-common_utils = { path = "../../common/common_utils", package = "ucs_common_utils" }
+common_utils = { path = "../../common/common_utils", package = "ucs_common_utils", features = ["superposition"] }
 interfaces = { path = "../../types-traits/interfaces" }
 hyperswitch_masking = { version = "0.0.1", default-features = false, features = ["alloc", "serde", "time"] }
 serde = { workspace = true }

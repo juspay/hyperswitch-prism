@@ -3,6 +3,7 @@
 # Format:
 #   [path] - flow-agnostic rule (applies to all flows)
 #   [flow.path] - flow-specific rule (e.g. [capture.amount_to_capture])
+#   [[multi]] - one alias patches multiple fields simultaneously (checked first)
 #
 # Flow-specific rules take priority over flow-agnostic ones.
 #
@@ -10,6 +11,35 @@
 #   aliases - error strings the connector may emit
 #   type    - value type (secret_string, string, bool, i32, country_us, etc.)
 #   value   - literal value (for string/bool/i32 types)
+
+# ── Multi-field rules ──────────────────────────────────────────────────────────
+# When a connector reports one error that requires multiple fields to be set
+# together (e.g. phone number + country code), list all patches under [[multi]].
+# These are checked before single-field rules.
+
+[[multi]]
+# Some connectors (e.g. gigadat) call get_phone_with_country_code() and emit a
+# single "billing_address.phone" error when either field is absent.
+# Patch both number and country code simultaneously.
+aliases = ["billing_address.phone", "billing.phone", "billing.phone_number"]
+patches = [
+  { path = "address.billing_address.phone_number",       type = "secret_string", value = "4155552671" },
+  { path = "address.billing_address.phone_country_code", type = "string",        value = "+1" },
+]
+
+[connector_order_id]
+aliases = ["connector_order_id"]
+type = "string"
+value = "connector_order_id"
+
+[[multi]]
+# Some connectors emit a combined "first_name or last_name" error when either
+# name field is absent. Patch both simultaneously.
+aliases = ["billing_address.first_name or billing_address.last_name", "billing_address.first_name and billing_address.last_name or customer_name", "billing.full_name"]
+patches = [
+  { path = "address.billing_address.first_name", type = "secret_string", value = "John" },
+  { path = "address.billing_address.last_name",  type = "secret_string", value = "Doe" },
+]
 
 ["address.billing_address.city"]
 aliases = [
@@ -25,16 +55,21 @@ aliases = [
   "address.country",
   "address.country_code",
   "billing_address.country",
+  "billing.country",
   "billing_address.country_code",
   "payment_method_data.billing.address.country",
+  "country_code",
 ]
 type = "country_us"
 
 ["address.billing_address.email"]
 aliases = [
   "billing_address.email",
+  "billing.email",
+  "billing.address",
   "billing_email",
   "payment_method_data.billing.email",
+  "billing_address.email or email",
 ]
 type = "secret_string"
 value = "test@example.com"
@@ -45,7 +80,7 @@ aliases = [
   "billing.first_name",
   "billing_address.first_name",
   "payment_method_data.billing.address.first_name",
-  "billing_address.full_name"
+  "billing_address.full_name",
 ]
 type = "secret_string"
 value = "John"
@@ -57,7 +92,6 @@ aliases = [
   "billing_address.last_name",
   "payment_method_data.billing.address.last_name",
   "billing.first_name or customer_name",
-  "billing_address.first_name and billing_address.last_name or customer_name"
 ]
 type = "secret_string"
 value = "Doe"
@@ -72,18 +106,23 @@ type = "secret_string"
 value = "123 Main St"
 
 ["address.billing_address.phone_number"]
-aliases = ["payment_method_data.billing.phone", "contact"]
+aliases = [
+  "payment_method_data.billing.phone",
+  "contact",
+  "phone",
+]
 type = "secret_string"
 value = "4155552671"
 
 ["address.billing_address.phone_country_code"]
-aliases = ["billing.phone.country_code"]
+aliases = ["billing.phone.country_code", "phone.country_code"]
 type = "secret_string"
 value = "+1"
 
 ["address.billing_address.state"]
 aliases = [
   "address.state",
+  "billing.address.state",
   "billing_address.state",
   "payment_method_data.billing.address.state",
 ]
@@ -94,6 +133,7 @@ value = "WA"
 aliases = [
   "address.postal_code",
   "address.zip",
+  "billing.address.zip",
   "billing_address.postal_code",
   "billing_address.zip",
   "billing_address.zip_code",
@@ -114,7 +154,7 @@ aliases = [
   "shipping.address.country",
   "shipping_address.country",
   "shipping_address.country_code",
-  "shipping.address"
+  "shipping.address",
 ]
 type = "country_us"
 
@@ -213,6 +253,11 @@ aliases = ["connector_feature_data"]
 type = "secret_string"
 value = "{}"
 
+["customer.id"]
+aliases = ["client_reference"]
+type = "string"
+value = "cust_probe_123"
+
 ["customer.connector_customer_id"]
 aliases = ["customer.id", "customer_id"]
 type = "string"
@@ -229,7 +274,7 @@ aliases = [
   "company_name",
   "customer.name",
   "customer_name",
-  "shopper_name",
+  "shopper_name"
 ]
 type = "string"
 value = "John Doe"
@@ -248,6 +293,21 @@ value = "Probe payment"
 aliases = ["mandate_metadata"]
 type = "secret_string"
 value = "{\"mandate_metadata\":{\"mandate_type\":\"single_use\"}}"
+
+[merchant_account_id]
+aliases = ["merchant_account_id"]
+type = "secret_string"
+value = "probe_merchant_account"
+
+["authorize.merchant_account_id"]
+aliases = ["merchant_account_id"]
+type = "secret_string"
+value = "probe_merchant_account"
+
+[client_merchant_reference_id]
+aliases = ["client_merchant_reference_id"]
+type = "string"
+value = "probe_merchant_ref_001"
 
 [merchant_order_id]
 aliases = [
@@ -268,9 +328,10 @@ aliases = [
   "connector_request_id",
   "connector_transaction_id",
   "metadata",
+  "Invalid Configuration",
 ]
 type = "secret_string"
-value = "{\"reference_id\":\"probe_ref_001\",\"connector_request_id\":\"probe_req_001\",\"transaction_id\":\"probe_txn_001\"}"
+value = "{\"reference_id\":\"probe_ref_001\",\"connector_request_id\":\"probe_req_001\",\"transaction_id\":\"probe_txn_001\",\"site\":\"probe_site\"}"
 
 [order_category]
 aliases = ["order_category", "order_category in metadata"]
@@ -314,9 +375,41 @@ aliases = ["webhook_url"]
 type = "string"
 value = "https://example.com/webhook"
 
+[authentication_data]
+aliases = [
+  "authentication_data",
+  "authentication_data (must be present for 3DS flow)",
+  "authentication_data.threeds_server_transaction_id",
+  "authentication_data.message_version",
+]
+type = "secret_json"
+value = "{\"threeds_server_transaction_id\":\"probe-3ds-txn-001\",\"eci\":\"05\",\"cavv\":\"AAAAAAAAAA==\",\"message_version\":\"2.1.0\",\"ds_transaction_id\":\"probe-ds-txn-001\"}"
+
+[redirect_response]
+aliases = ["redirect_response"]
+type = "redirection_response"
+
 ["payment_method.payment_method.ideal.bank_name"]
 aliases = ["ideal.bank_name"]
 type = "bank_names_ing"
+
+["payment_method.payment_method.eps.bank_name"]
+aliases = ["eps.bank_name"]
+type = "bank_names_ing"
+
+["proxy_setup_recurring.customer.id"]
+aliases = ["customer_id", "customer.id"]
+type = "string"
+value = "probe_customer_001"
+
+["proxy_setup_recurring.browser_info"]
+aliases = ["browser_info", "browser_info.ip_address", "ip_address"]
+type = "full_browser_info"
+
+["proxy_setup_recurring.customer.connector_customer_id"]
+aliases = ["connector_customer_id", "connector_customer_id is missing"]
+type = "string"
+value = "cust_probe_123"
 
 
 # ── capture flow ───────────────────────────────────────────────────────────────
@@ -338,6 +431,8 @@ value = "{}"
 aliases = ["description"]
 type = "secret_string"
 value = "{\"description\":\"Probe payment\",\"reference_id\":\"probe_ref_001\"}"
+
+
 
 # ── get flow ───────────────────────────────────────────────────────────────
 
@@ -410,6 +505,11 @@ value = "https://example.com/webhook"
 aliases = ["connector_feature_data"]
 type = "secret_string"
 value = "{}"
+
+["refund.merchant_account_id"]
+aliases = ["merchant_account_id"]
+type = "string"
+value = "probe_merchant_account"
 
 ["refund.customer_id"]
 aliases = ["customer_id"]
@@ -485,12 +585,20 @@ value = "cust_probe_123"
 # ── void flow ───────────────────────────────────────────────────────────────
 
 ["void.amount"]
-aliases = ["Amount", "amount", "amount for void operation", "currency"]
+aliases = [
+  "Amount",
+  "amount",
+  "amount for void operation",
+  "currency",
+  "amount or minor_amount_authorized",
+]
 type = "usd_money"
 
 ["void.browser_info"]
 aliases = ["browser_info", "browser_info.ip_address"]
 type = "full_browser_info"
+
+# ── Common missing fields ───────────────────────────────────────────────────
 
 ["void.cancellation_reason"]
 aliases = ["Cancellation Reason", "cancellation_reason"]
@@ -506,3 +614,48 @@ value = "{}"
 aliases = ["connector_meta_data", "connector_metadata", "connector_request_id"]
 type = "secret_string"
 value = "{\"reference_id\":\"probe_ref_001\",\"connector_request_id\":\"probe_req_001\",\"transaction_id\":\"probe_txn_001\"}"
+
+# ── proxy_setup_recurring flow ───────────────────────────────────────────────
+
+["proxy_setup_recurring.metadata"]
+aliases = ["order_category in metadata"]
+type = "string"
+value = "{\"order_category\":\"mobile\",\"description\":\"purchase desc\"}"
+
+# ── redirection_response for 3DS flows ─────────────────────────────────────
+["authenticate.redirection_response"]
+aliases = ["redirect_response"]
+type = "secret_json"
+value = "{\"params\":\"probe_redirect_params\",\"payload\":{\"TransactionId\":\"probe_txn_123\"}}"
+
+["authenticate.continue_redirection_url"]
+aliases = ["continue_redirection_url"]
+type = "string"
+value = "https://example.com/3ds-continue"
+
+["post_authenticate.redirection_response"]
+aliases = ["redirect_response"]
+type = "secret_json"
+value = "{\"params\":\"probe_redirect_params\",\"payload\":{\"TransactionId\":\"probe_txn_123\"}}"
+
+["post_authenticate.continue_redirection_url"]
+aliases = ["continue_redirection_url"]
+type = "string"
+value = "https://example.com/3ds-continue"
+
+
+# ── refund_get flow ───────────────────────────────────────────────────────────
+
+# Nexinets RSync reads refund_connector_metadata (proto field: refund_metadata)
+# to extract order_id for building the GET URL. The metadata must be a JSON object
+# matching NexinetsPaymentsMetadata: {"transaction_id": ..., "order_id": ...}
+["refund_get.refund_metadata"]
+aliases = ["connector_meta_data"]
+type = "secret_string"
+value = "{\"transaction_id\":\"probe_txn_001\",\"order_id\":\"probe_order_001\"}"
+
+
+# Note: ppro/worldpay token_authorize requires payment_method_type but
+# PaymentServiceTokenAuthorizeRequest has no such proto field — not fixable via
+# probe config.
+

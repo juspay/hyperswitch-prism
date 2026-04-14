@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{str::FromStr, sync::LazyLock};
 
 use crate::{
     connectors::redsys::{RedsysAmountConvertor, RedsysRouterData},
@@ -21,25 +21,63 @@ use domain_types::{
         PaymentsCaptureData, PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData,
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
-    errors,
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
     router_response_types,
 };
-use error_stack::ResultExt;
+use error_stack::{Report, ResultExt};
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use super::{requests, responses};
+use domain_types::errors::ConnectorError;
+use domain_types::errors::IntegrationError;
 
 pub const SIGNATURE_VERSION: &str = "HMAC_SHA256_V1";
 pub const DS_VERSION: &str = "0.0";
 pub const XMLNS_WEB_URL: &str = "http://webservices.apl02.redsys.es";
 pub const REDSYS_SOAP_ACTION: &str = "consultaOperaciones";
+pub const REDSYS_ORDER_ID_METADATA_KEY: &str = "order_id";
+pub const REDSYS_ORDER_ID_MAX_LENGTH: usize = 12;
 
-type Error = error_stack::Report<errors::ConnectorError>;
+static LWV_THRESHOLD: LazyLock<common_utils::types::MinorUnit> =
+    LazyLock::new(|| common_utils::types::MinorUnit::new(3000)); // €30
 
+type Error = Report<IntegrationError>;
+type ResponseError = Report<ConnectorError>;
+
+fn get_redsys_order_id_from_metadata(
+    metadata: Option<&Secret<serde_json::Value>>,
+) -> Option<String> {
+    metadata
+        .and_then(|meta| meta.peek().as_object())
+        .and_then(|obj| obj.get(REDSYS_ORDER_ID_METADATA_KEY))
+        .and_then(|value| value.as_str())
+        .map(|s| s.to_string())
+        .filter(|s| s.len() <= REDSYS_ORDER_ID_MAX_LENGTH)
+}
+
+fn get_ds_merchant_order(
+    connector_request_reference_id: String,
+    metadata: Option<&Secret<serde_json::Value>>,
+) -> Result<String, Error> {
+    if connector_request_reference_id.len() <= REDSYS_ORDER_ID_MAX_LENGTH {
+        return Ok(connector_request_reference_id);
+    }
+
+    Ok(get_redsys_order_id_from_metadata(metadata).ok_or_else(|| {
+        IntegrationError::MaxFieldLengthViolated {
+            connector: "Redsys".to_string(),
+            field_name: "ds_merchant_order".to_string(),
+            max_length: REDSYS_ORDER_ID_MAX_LENGTH,
+            received_length: connector_request_reference_id.len(),
+            context: Default::default(),
+        }
+    })?)
+}
+
+// Specifies the type of transaction for XML requests
 // Specifies the type of transaction for XML requests
 pub mod transaction_type {
     pub const PAYMENT: &str = "0";
@@ -244,10 +282,11 @@ where
             | Some(PaymentMethodData::MobilePayment(..))
             | Some(PaymentMethodData::Upi(..))
             | Some(PaymentMethodData::OpenBanking(_))
-            | Some(PaymentMethodData::CardToken(..))
+            | Some(PaymentMethodData::PaymentMethodToken(..))
             | Some(PaymentMethodData::NetworkToken(..))
             | Some(PaymentMethodData::CardDetailsForNetworkTransactionId(_))
-            | None => Err(errors::ConnectorError::NotImplemented(
+            | Some(PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_))
+            | None => Err(IntegrationError::not_implemented(
                 domain_types::utils::get_unimplemented_payment_method_error_message("redsys"),
             )
             .into()),
@@ -271,33 +310,41 @@ impl TryFrom<&ConnectorSpecificConfig> for RedsysAuthType {
                 sha256_pwd: sha256_pwd.to_owned(),
             })
         } else {
-            Err(errors::ConnectorError::FailedToObtainAuthType)?
+            Err(IntegrationError::FailedToObtainAuthType {
+                context: Default::default(),
+            }
+            .into())
         }
     }
 }
 
-fn des_encrypt(
-    message: &str,
-    key: &str,
-) -> Result<Vec<u8>, error_stack::Report<errors::ConnectorError>> {
+fn des_encrypt(message: &str, key: &str) -> Result<Vec<u8>, Report<IntegrationError>> {
     let iv_array = [0u8; crypto::TripleDesEde3CBC::TRIPLE_DES_IV_LENGTH];
     let iv = iv_array.to_vec();
     let key_bytes = BASE64_ENGINE
         .decode(key)
-        .change_context(errors::ConnectorError::RequestEncodingFailed)
+        .change_context(IntegrationError::RequestEncodingFailed {
+            context: Default::default(),
+        })
         .attach_printable("Base64 decoding failed")?;
     let triple_des =
         crypto::TripleDesEde3CBC::new(Some(common_enums::CryptoPadding::ZeroPadding), iv)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })
             .attach_printable("Triple DES encryption failed")?;
     let encrypted = triple_des
         .encode_message(&key_bytes, message.as_bytes())
-        .change_context(errors::ConnectorError::RequestEncodingFailed)
+        .change_context(IntegrationError::RequestEncodingFailed {
+            context: Default::default(),
+        })
         .attach_printable("Triple DES encryption failed")?;
     let expected_len = encrypted.len() - crypto::TripleDesEde3CBC::TRIPLE_DES_IV_LENGTH;
     let encrypted_trimmed = encrypted
         .get(..expected_len)
-        .ok_or(errors::ConnectorError::RequestEncodingFailed)
+        .ok_or(IntegrationError::RequestEncodingFailed {
+            context: Default::default(),
+        })
         .attach_printable("Failed to trim encrypted data to the expected length")?;
     Ok(encrypted_trimmed.to_vec())
 }
@@ -307,11 +354,13 @@ fn get_signature(
     order_id: &str,
     params: &str,
     key: &str,
-) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+) -> Result<String, Report<IntegrationError>> {
     let secret_ko = des_encrypt(order_id, key)?;
     let result =
         crypto::HmacSha256::sign_message(&crypto::HmacSha256, &secret_ko, params.as_bytes())
-            .map_err(|_| errors::ConnectorError::RequestEncodingFailed)?;
+            .map_err(|_| IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?;
     let encoded = BASE64_ENGINE.encode(result);
     Ok(encoded)
 }
@@ -325,7 +374,9 @@ pub trait SignatureCalculationData {
 impl SignatureCalculationData for requests::RedsysPaymentRequest {
     fn get_merchant_parameters(&self) -> Result<String, Error> {
         self.encode_to_string_of_json()
-            .change_context(errors::ConnectorError::RequestEncodingFailed)
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })
     }
 
     fn get_order_id(&self) -> String {
@@ -336,7 +387,9 @@ impl SignatureCalculationData for requests::RedsysPaymentRequest {
 impl SignatureCalculationData for requests::RedsysOperationRequest {
     fn get_merchant_parameters(&self) -> Result<String, Error> {
         self.encode_to_string_of_json()
-            .change_context(errors::ConnectorError::RequestEncodingFailed)
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })
     }
 
     fn get_order_id(&self) -> String {
@@ -367,7 +420,9 @@ where
 fn get_redsys_attempt_status(
     ds_response: responses::DsResponse,
     capture_method: Option<enums::CaptureMethod>,
-) -> Result<common_enums::AttemptStatus, error_stack::Report<errors::ConnectorError>> {
+    is_three_ds: bool,
+    http_status: u16,
+) -> Result<common_enums::AttemptStatus, ResponseError> {
     // Redsys consistently provides a 4-digit response code, where numbers ranging from 0000 to 0099 indicate successful transactions
 
     if ds_response.0.starts_with("00") && ds_response.0.as_str() != "0002" {
@@ -376,14 +431,29 @@ fn get_redsys_attempt_status(
                 Ok(common_enums::AttemptStatus::Charged)
             }
             Some(enums::CaptureMethod::Manual) => Ok(common_enums::AttemptStatus::Authorized),
-            _ => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
+            _ => Err(Report::new(
+                ConnectorError::response_handling_failed_with_context(
+                    http_status,
+                    Some("capture method not supported".to_string()),
+                ),
+            )),
         }
     } else {
         match ds_response.0.as_str() {
             "0900" => Ok(common_enums::AttemptStatus::Charged),
             "0400" | "0481" | "0940" | "9915" => Ok(common_enums::AttemptStatus::Voided),
             "0950" => Ok(common_enums::AttemptStatus::VoidFailed),
-            "0112" | "0195" | "8210" | "8220" | "9998" | "9999" => {
+            "0195" => {
+                // 0195 = Soft decline (issuer requests authentication)
+                // If 3DS was requested → pending (issuer wants auth, flow continues)
+                // If no 3DS was requested → failed (issuer rejected because they want 3DS)
+                if is_three_ds {
+                    Ok(common_enums::AttemptStatus::AuthenticationPending)
+                } else {
+                    Ok(common_enums::AttemptStatus::AuthenticationFailed)
+                }
+            }
+            "0112" | "8210" | "8220" | "9998" | "9999" => {
                 Ok(common_enums::AttemptStatus::AuthenticationPending)
             }
             "0129" | "0184" | "9256" | "9257" => {
@@ -398,51 +468,62 @@ fn get_redsys_attempt_status(
             | "9093" | "9094" | "9104" | "9218" | "9253" | "9261" | "9997" | "0002" => {
                 Ok(common_enums::AttemptStatus::Failure)
             }
-            error => Err(errors::ConnectorError::ResponseHandlingFailed)
-                .attach_printable(format!("Received Unknown Status:{error}"))?,
+            error => Err(Report::from(utils::response_handling_fail_for_connector(
+                http_status,
+                "redsys",
+            ))
+            .attach_printable(format!("Received Unknown Status:{error}"))),
         }
     }
 }
 
-impl TryFrom<responses::DsResponse> for common_enums::RefundStatus {
-    type Error = Error;
-    fn try_from(ds_response: responses::DsResponse) -> Result<Self, Self::Error> {
-        match ds_response.0.as_str() {
-            "0900" => Ok(Self::Success),
-            "9999" => Ok(Self::Pending),
-            "0950" | "0172" | "174" => Ok(Self::Failure),
-            unknown_status => Err(errors::ConnectorError::ResponseHandlingFailed)
-                .attach_printable(format!("Received unknown refund status:{unknown_status}"))?,
-        }
+fn refund_status_from_ds_response(
+    ds_response: responses::DsResponse,
+    http_status: u16,
+) -> Result<common_enums::RefundStatus, ResponseError> {
+    match ds_response.0.as_str() {
+        "0900" => Ok(common_enums::RefundStatus::Success),
+        "9999" => Ok(common_enums::RefundStatus::Pending),
+        "0950" | "0172" | "174" => Ok(common_enums::RefundStatus::Failure),
+        unknown_status => Err(Report::from(utils::response_handling_fail_for_connector(
+            http_status,
+            "redsys",
+        ))
+        .attach_printable(format!("Received unknown refund status:{unknown_status}"))),
     }
 }
 
-fn to_connector_response_data<T>(connector_response: &str) -> Result<T, Error>
+fn to_connector_response_data<T>(
+    connector_response: &str,
+    http_status: u16,
+) -> Result<T, ResponseError>
 where
     T: serde::de::DeserializeOwned,
 {
     let decoded_bytes = utils::safe_base64_decode(connector_response.to_string())
-        .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+        .change_context(
+            utils::response_deserialization_fail(http_status, "redsys: response body did not match the expected format; confirm API version and connector documentation."),
+        )
         .attach_printable("Failed to decode Base64")?;
 
-    let response_data: T = serde_json::from_slice(&decoded_bytes)
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+    let response_data: T = serde_json::from_slice(&decoded_bytes).change_context(
+        utils::response_deserialization_fail(http_status, "redsys: response body did not match the expected format; confirm API version and connector documentation."),
+    )?;
 
     Ok(response_data)
 }
 
 fn build_threeds_form(
     ds_emv3ds: &responses::RedsysEmv3DSResponseData,
-) -> Result<router_response_types::RedirectForm, Error> {
-    let creq = ds_emv3ds
-        .creq
-        .clone()
-        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
+    http_status: u16,
+) -> Result<router_response_types::RedirectForm, ResponseError> {
+    let creq = ds_emv3ds.creq.clone().ok_or(
+        utils::response_deserialization_fail(http_status, "redsys: response body did not match the expected format; confirm API version and connector documentation."),
+    )?;
 
-    let endpoint = ds_emv3ds
-        .acs_u_r_l
-        .clone()
-        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
+    let endpoint = ds_emv3ds.acs_u_r_l.clone().ok_or(
+        utils::response_deserialization_fail(http_status, "redsys: response body did not match the expected format; confirm API version and connector documentation."),
+    )?;
 
     let mut form_fields = std::collections::HashMap::new();
     form_fields.insert("creq".to_string(), creq);
@@ -458,7 +539,8 @@ fn get_preauthenticate_response(
     response_data: &responses::RedsysPaymentsResponse,
     continue_redirection_url: Option<&url::Url>,
     existing_connector_meta: Option<Secret<serde_json::Value>>,
-) -> Result<responses::PreAuthenticateResponseData, Error> {
+    http_status: u16,
+) -> Result<responses::PreAuthenticateResponseData, ResponseError> {
     let emv3ds = match &response_data.ds_emv3ds {
         Some(emv3ds) => emv3ds,
         None => {
@@ -471,14 +553,15 @@ fn get_preauthenticate_response(
         }
     };
 
-    let three_d_s_server_trans_i_d = emv3ds
-        .three_d_s_server_trans_i_d
-        .clone()
-        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
+    let three_d_s_server_trans_i_d = emv3ds.three_d_s_server_trans_i_d.clone().ok_or(
+        utils::response_deserialization_fail(http_status, "redsys: response body did not match the expected format; confirm API version and connector documentation."),
+    )?;
 
     let message_version = &emv3ds.protocol_version;
     let semantic_version = common_utils::types::SemanticVersion::from_str(message_version)
-        .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+        .change_context(
+            utils::response_deserialization_fail(http_status, "redsys: response body did not match the expected format; confirm API version and connector documentation."),
+        )
         .attach_printable("Failed to parse message_version as SemanticVersion")?;
 
     let authentication_data = Some(domain_types::router_request_types::AuthenticationData {
@@ -502,6 +585,7 @@ fn get_preauthenticate_response(
             three_ds_method_url,
             continue_redirection_url,
             semantic_version,
+            http_status,
         ),
         None => build_threeds_exempt_response(response_data, authentication_data),
     }
@@ -513,12 +597,16 @@ fn build_threeds_invoke_response(
     three_ds_method_url: &str,
     continue_redirection_url: Option<&url::Url>,
     protocol_version: common_utils::types::SemanticVersion,
-) -> Result<responses::PreAuthenticateResponseData, Error> {
-    let notification_url = continue_redirection_url.map(|url| url.to_string()).ok_or(
-        errors::ConnectorError::MissingRequiredField {
-            field_name: "continue_redirection_url",
-        },
-    )?;
+    http_status: u16,
+) -> Result<responses::PreAuthenticateResponseData, ResponseError> {
+    let notification_url = continue_redirection_url
+        .map(|url| url.to_string())
+        .ok_or_else(|| {
+            Report::new(ConnectorError::response_handling_failed_with_context(
+                http_status,
+                Some("continue_redirection_url missing for 3DS method URL".to_string()),
+            ))
+        })?;
 
     let threeds_invoke_request = requests::RedsysThreedsInvokeRequest {
         three_d_s_method_notification_u_r_l: notification_url,
@@ -527,7 +615,10 @@ fn build_threeds_invoke_response(
 
     let three_ds_data_string = threeds_invoke_request
         .encode_to_string_of_json()
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        .change_context(utils::response_handling_fail_for_connector(
+            http_status,
+            "redsys",
+        ))?;
 
     let three_ds_method_data = BASE64_ENGINE.encode(&three_ds_data_string);
 
@@ -540,10 +631,13 @@ fn build_threeds_invoke_response(
     };
 
     // Serialize to JSON, then deserialize to HashMap<String, String>
-    let json = serde_json::to_value(&three_ds_invoke_data)
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-    let form_fields: std::collections::HashMap<String, String> = serde_json::from_value(json)
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+    let json = serde_json::to_value(&three_ds_invoke_data).change_context(
+        utils::response_handling_fail_for_connector(http_status, "redsys"),
+    )?;
+    let form_fields: std::collections::HashMap<String, String> =
+        serde_json::from_value(json).change_context(
+            utils::response_handling_fail_for_connector(http_status, "redsys"),
+        )?;
 
     let redirect_form = Some(Box::new(router_response_types::RedirectForm::Form {
         endpoint: three_ds_method_url.to_string(),
@@ -562,7 +656,7 @@ fn build_threeds_invoke_response(
 fn build_threeds_exempt_response(
     response_data: &responses::RedsysPaymentsResponse,
     authentication_data: Option<domain_types::router_request_types::AuthenticationData>,
-) -> Result<responses::PreAuthenticateResponseData, Error> {
+) -> Result<responses::PreAuthenticateResponseData, ResponseError> {
     Ok(responses::PreAuthenticateResponseData {
         redirection_data: None,
         connector_meta_data: None,
@@ -575,6 +669,7 @@ fn get_payments_response(
     redsys_payments_response: responses::RedsysPaymentsResponse,
     capture_method: Option<enums::CaptureMethod>,
     authentication_data: Option<domain_types::router_request_types::AuthenticationData>,
+    is_three_ds: bool,
     http_code: u16,
     use_transaction_response: bool,
 ) -> Result<
@@ -583,7 +678,7 @@ fn get_payments_response(
         common_enums::AttemptStatus,
         String,
     ),
-    Error,
+    ResponseError,
 > {
     let authentication_data = Some(domain_types::router_request_types::AuthenticationData {
         threeds_server_transaction_id: authentication_data
@@ -608,13 +703,19 @@ fn get_payments_response(
     let ds_order = redsys_payments_response.ds_order.clone();
 
     if let Some(ds_response) = redsys_payments_response.ds_response {
-        let status = get_redsys_attempt_status(ds_response.clone(), capture_method)?;
+        let status =
+            get_redsys_attempt_status(ds_response.clone(), capture_method, is_three_ds, http_code)?;
 
         let response = if domain_types::utils::is_payment_failure(status) {
+            let error_message = redsys_payments_response
+                .ds_response_description
+                .clone()
+                .unwrap_or_else(|| ds_response.0.clone());
+
             Err(domain_types::router_data::ErrorResponse {
                 code: ds_response.0.clone(),
-                message: ds_response.0.clone(),
-                reason: Some(ds_response.0.clone()),
+                message: error_message.clone(),
+                reason: Some(error_message),
                 status_code: http_code,
                 attempt_status: None,
                 connector_transaction_id: Some(redsys_payments_response.ds_order.clone()),
@@ -651,7 +752,7 @@ fn get_payments_response(
     } else {
         let redirection_form = redsys_payments_response
             .ds_emv3ds
-            .map(|ds_emv3ds| build_threeds_form(&ds_emv3ds))
+            .map(|ds_emv3ds| build_threeds_form(&ds_emv3ds, http_code))
             .transpose()?;
 
         let response = if use_transaction_response {
@@ -739,8 +840,9 @@ where
             router_data
                 .request
                 .currency
-                .ok_or(errors::ConnectorError::MissingRequiredField {
+                .ok_or(IntegrationError::MissingRequiredField {
                     field_name: "currency",
+                    context: Default::default(),
                 })?,
         )?;
 
@@ -758,24 +860,16 @@ where
             .connector_request_reference_id
             .clone();
 
-        let ds_merchant_order = if connector_request_reference_id.len() <= 12 {
-            Ok(connector_request_reference_id)
-        } else {
-            Err(errors::ConnectorError::MaxFieldLengthViolated {
-                connector: "Redsys".to_string(),
-                field_name: "ds_merchant_order".to_string(),
-                max_length: 12,
-                received_length: connector_request_reference_id.len(),
-            })
-        }?;
+        let ds_merchant_order = get_ds_merchant_order(connector_request_reference_id, None)?;
 
         let payment_request = requests::RedsysPaymentRequest {
             ds_merchant_amount: amount,
             ds_merchant_currency: router_data
                 .request
                 .currency
-                .ok_or(errors::ConnectorError::MissingRequiredField {
+                .ok_or(IntegrationError::MissingRequiredField {
                     field_name: "currency",
+                    context: Default::default(),
                 })?
                 .iso_4217()
                 .to_owned(),
@@ -785,10 +879,14 @@ where
             ds_merchant_merchantcode: auth.merchant_id.clone(),
             ds_merchant_order,
             ds_merchant_pan: cards::CardNumber::try_from(card_data.card_number.peek().to_string())
-                .change_context(errors::ConnectorError::RequestEncodingFailed)
+                .change_context(IntegrationError::RequestEncodingFailed {
+                    context: Default::default(),
+                })
                 .attach_printable("Invalid card number")?,
             ds_merchant_terminal: auth.terminal_id.clone(),
             ds_merchant_transactiontype,
+            ds_merchant_excep_sca: None,
+            ds_merchant_directpayment: None,
         };
 
         let transaction = Self::try_from((&payment_request, &auth))?;
@@ -804,7 +902,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<responses::RedsysResp
         PaymentsResponseData,
     >
 {
-    type Error = Error;
+    type Error = ResponseError;
 
     fn try_from(
         item: ResponseRouterData<responses::RedsysResponse, Self>,
@@ -813,6 +911,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<responses::RedsysResp
             responses::RedsysResponse::RedsysResponse(ref transaction) => {
                 let response_data: responses::RedsysPaymentsResponse = to_connector_response_data(
                     &transaction.ds_merchant_parameters.clone().expose(),
+                    item.http_code,
                 )?;
 
                 let responses::PreAuthenticateResponseData {
@@ -827,6 +926,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<responses::RedsysResp
                         .resource_common_data
                         .connector_feature_data
                         .clone(),
+                    item.http_code,
                 )?;
 
                 Ok(Self {
@@ -853,7 +953,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<responses::RedsysResp
                 response: Err(domain_types::router_data::ErrorResponse {
                     code: err.error_code.clone(),
                     message: err.error_code_description.clone(),
-                    reason: Some(err.error_code.clone()),
+                    reason: Some(err.error_code_description.clone()),
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
@@ -923,14 +1023,16 @@ where
         let three_d_s_server_trans_i_d = auth_data
             .and_then(|auth| auth.threeds_server_transaction_id.clone())
             .or_else(|| router_data.resource_common_data.reference_id.clone())
-            .ok_or(errors::ConnectorError::MissingRequiredField {
+            .ok_or(IntegrationError::MissingRequiredField {
                 field_name: "authentication_data.threeds_server_transaction_id",
+                context: Default::default(),
             })?;
 
         let message_version = auth_data
             .and_then(|auth| auth.message_version.as_ref().map(|v| v.to_string()))
-            .ok_or(errors::ConnectorError::MissingRequiredField {
+            .ok_or(IntegrationError::MissingRequiredField {
                 field_name: "authentication_data.message_version",
+                context: Default::default(),
             })?;
 
         let emv3ds_data = requests::RedsysEmvThreeDsRequestData::new(
@@ -947,17 +1049,20 @@ where
         let payment_request = requests::RedsysPaymentRequest {
             ds_merchant_amount: RedsysAmountConvertor::convert(
                 router_data.request.amount,
-                router_data.request.currency.ok_or(
-                    errors::ConnectorError::MissingRequiredField {
+                router_data
+                    .request
+                    .currency
+                    .ok_or(IntegrationError::MissingRequiredField {
                         field_name: "currency",
-                    },
-                )?,
+                        context: Default::default(),
+                    })?,
             )?,
             ds_merchant_currency: router_data
                 .request
                 .currency
-                .ok_or(errors::ConnectorError::MissingRequiredField {
+                .ok_or(IntegrationError::MissingRequiredField {
                     field_name: "currency",
+                    context: Default::default(),
                 })?
                 .iso_4217()
                 .to_owned(),
@@ -967,10 +1072,14 @@ where
             ds_merchant_merchantcode: auth.merchant_id.clone(),
             ds_merchant_order,
             ds_merchant_pan: cards::CardNumber::try_from(card_data.card_number.peek().to_string())
-                .change_context(errors::ConnectorError::RequestEncodingFailed)
+                .change_context(IntegrationError::RequestEncodingFailed {
+                    context: Default::default(),
+                })
                 .attach_printable("Invalid card number")?,
             ds_merchant_terminal: auth.terminal_id.clone(),
             ds_merchant_transactiontype,
+            ds_merchant_excep_sca: None,
+            ds_merchant_directpayment: None,
         };
 
         let transaction = Self::try_from((&payment_request, &auth))?;
@@ -986,7 +1095,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<responses::RedsysResp
         PaymentsResponseData,
     >
 {
-    type Error = Error;
+    type Error = ResponseError;
 
     fn try_from(
         item: ResponseRouterData<responses::RedsysResponse, Self>,
@@ -995,14 +1104,17 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<responses::RedsysResp
             responses::RedsysResponse::RedsysResponse(ref transaction) => {
                 let response_data: responses::RedsysPaymentsResponse = to_connector_response_data(
                     &transaction.ds_merchant_parameters.clone().expose(),
+                    item.http_code,
                 )?;
 
                 let auth_data = item.router_data.request.authentication_data.clone();
+                let is_three_ds = item.router_data.resource_common_data.is_three_ds();
 
                 let (authenticate_response, status, ds_order) = get_payments_response(
                     response_data,
                     item.router_data.request.capture_method,
                     auth_data,
+                    is_three_ds,
                     item.http_code,
                     false,
                 )?;
@@ -1030,7 +1142,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<responses::RedsysResp
                 response: Err(domain_types::router_data::ErrorResponse {
                     code: err.error_code.clone(),
                     message: err.error_code_description.clone(),
-                    reason: Some(err.error_code.clone()),
+                    reason: Some(err.error_code_description.clone()),
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
@@ -1045,6 +1157,71 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<responses::RedsysResp
 }
 
 // Authorize
+
+fn determine_exemption<T: PaymentMethodDataTypes>(
+    router_data: &RouterDataV2<
+        Authorize,
+        PaymentFlowData,
+        PaymentsAuthorizeData<T>,
+        PaymentsResponseData,
+    >,
+) -> Result<requests::RedsysStrongCustomerAuthenticationException, Error> {
+    let request = &router_data.request;
+    // 1. Explicit exemption requested
+    if let Some(indicator) = request
+        .authentication_data
+        .as_ref()
+        .and_then(|auth| auth.exemption_indicator.as_ref())
+    {
+        return Ok(map_exemption_indicator(
+            indicator,
+            request.amount <= *LWV_THRESHOLD,
+        ));
+    }
+    // 2. Auto-detect: MIT for stored credential payments
+    let is_connector_mandate = request.connector_mandate_id().is_some();
+    let is_off_session = request.off_session.unwrap_or(false);
+    let is_setup_future = request.setup_future_usage == Some(common_enums::FutureUsage::OffSession);
+    if is_connector_mandate || (is_off_session && !is_setup_future) {
+        return Ok(requests::RedsysStrongCustomerAuthenticationException::Mit);
+    }
+    // 3. First payment in recurring series
+    if is_setup_future {
+        return Ok(requests::RedsysStrongCustomerAuthenticationException::Tra);
+    }
+    // 4. Default: amount-based
+    // For Redsys, both LWV and TRA are capped at €30
+    if request.amount <= *LWV_THRESHOLD {
+        Ok(requests::RedsysStrongCustomerAuthenticationException::Lwv)
+    } else {
+        Ok(requests::RedsysStrongCustomerAuthenticationException::Tra)
+    }
+}
+fn map_exemption_indicator(
+    indicator: &common_enums::ExemptionIndicator,
+    is_low_value: bool,
+) -> requests::RedsysStrongCustomerAuthenticationException {
+    match indicator {
+        common_enums::ExemptionIndicator::LowValue => {
+            requests::RedsysStrongCustomerAuthenticationException::Lwv
+        }
+        common_enums::ExemptionIndicator::SecureCorporatePayment => {
+            requests::RedsysStrongCustomerAuthenticationException::Cor
+        }
+        common_enums::ExemptionIndicator::ScaDelegation => {
+            requests::RedsysStrongCustomerAuthenticationException::Atd
+        }
+        common_enums::ExemptionIndicator::TransactionRiskAssessment => {
+            requests::RedsysStrongCustomerAuthenticationException::Tra
+        }
+        common_enums::ExemptionIndicator::RecurringOperation => {
+            requests::RedsysStrongCustomerAuthenticationException::Mit
+        }
+        // Unmapped: fall back to amount-based
+        _ if is_low_value => requests::RedsysStrongCustomerAuthenticationException::Lwv,
+        _ => requests::RedsysStrongCustomerAuthenticationException::Tra,
+    }
+}
 
 impl<T>
     TryFrom<
@@ -1077,127 +1254,134 @@ where
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
 
-        if !item.router_data.resource_common_data.is_three_ds() {
-            Err(errors::ConnectorError::NotSupported {
-                message: "Cards No3DS".to_string(),
-                connector: "Redsys",
-            })?
-        }
-
         let card_data = requests::RedsysCardData::try_from(&Some(
             item.router_data.request.payment_method_data.clone(),
         ))?;
         let auth = RedsysAuthType::try_from(&router_data.connector_config)?;
 
-        let redirect_response = router_data.request.redirect_response.as_ref().ok_or(
-            errors::ConnectorError::MissingRequiredField {
-                field_name: "redirect_response",
-            },
-        )?;
-
-        let redirect_payload_value: Option<responses::RedsysThreedsChallengeResponse> =
-            redirect_response.payload.as_ref().and_then(|secret| {
-                let payload_data = secret.peek();
-                serde_json::from_value::<responses::RedsysThreedsChallengeResponse>(
-                    payload_data.clone(),
-                )
-                .ok()
-            });
-
         let billing_data = router_data.resource_common_data.get_optional_billing();
         let shipping_data = router_data.resource_common_data.get_optional_shipping();
 
-        // Get authentication data from the request
-        let auth_data = router_data.request.authentication_data.as_ref().ok_or(
-            errors::ConnectorError::MissingRequiredField {
-                field_name: "authentication_data",
-            },
-        )?;
+        let (ds_merchant_excep_sca, ds_merchant_directpayment, ds_merchant_emv3ds) =
+                    // Redsys does not really support no 3ds flow. The exemptions requested in the requests in which the
+                    // EMV3DS data have not been reported, will be marked in the authorization. If this exemption is not
+                    // accepted by the issuer, a denial will be made with Ds_Response = 0195 ("soft-decline" requires SCA).
+                    // In this case, the merchant can decide to start the operation again with EMV3DS data (3DS transaction),
+                    // but a new request must be sent.
+                    if !item.router_data.resource_common_data.is_three_ds() {
+                        let exemption = determine_exemption(router_data)?;
 
-        let three_d_s_server_trans_i_d = auth_data.threeds_server_transaction_id.clone().ok_or(
-            errors::ConnectorError::MissingRequiredField {
-                field_name: "authentication_data.threeds_server_transaction_id",
-            },
-        )?;
+                        (Some(exemption), Some(true), None)
+                    } else {
+                        // Get authentication data from the request
+                        let auth_data = router_data.request.authentication_data.as_ref().ok_or(
+                            IntegrationError::MissingRequiredField {
+                                field_name: "authentication_data",
+                                context: Default::default(),
+                            },
+                        )?;
 
-        let message_version = auth_data
-            .message_version
-            .as_ref()
-            .map(|v| v.to_string())
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "authentication_data.message_version",
-            })?;
+                        let three_d_s_server_trans_i_d = auth_data
+                            .threeds_server_transaction_id
+                            .clone()
+                            .ok_or(IntegrationError::MissingRequiredField {
+                                field_name: "authentication_data.threeds_server_transaction_id",
+                                context: Default::default(),
+                            })?;
+                        let message_version = auth_data
+                                            .message_version
+                                            .as_ref()
+                                            .map(|v| v.to_string())
+                                            .ok_or(IntegrationError::MissingRequiredField {
+                                                field_name: "authentication_data.message_version",
+                                                context: Default::default(),
+                                            })?;
 
-        // Determine if this is invoke case based on threeds_completion_indicator:
-        // - Success/Failure means 3DS method was invoked (invoke case)
-        // - NotAvailable means no 3DS method URL was present (exempt case)
-        let threeds_completion_indicator = router_data.request.threeds_method_comp_ind.clone();
+                                        // Determine if this is invoke case based on threeds_completion_indicator:
+                                        // - Success/Failure means 3DS method was invoked (invoke case)
+                                        // - NotAvailable means no 3DS method URL was present (exempt case)
+                                        let threeds_completion_indicator =
+                                            router_data.request.threeds_method_comp_ind.clone();
 
-        let emv3ds_data = match redirect_payload_value {
-            Some(payload) => requests::RedsysEmvThreeDsRequestData::new(
-                requests::RedsysThreeDsInfo::ChallengeResponse,
-            )
-            .set_protocol_version(message_version)
-            .set_three_d_s_cres(payload.cres)
-            .set_billing_data(billing_data)?
-            .set_shipping_data(shipping_data)?,
-            None => match threeds_completion_indicator {
-                Some(comp_ind) => {
-                    let three_d_s_comp_ind = requests::RedsysThreeDSCompInd::from(comp_ind);
-                    let browser_info = router_data.request.browser_info.clone().ok_or(
-                        errors::ConnectorError::MissingRequiredField {
-                            field_name: "browser_info",
-                        },
-                    )?;
-                    let continue_redirection_url = router_data
-                        .request
-                        .continue_redirection_url
-                        .as_ref()
-                        .ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "continue_redirection_url",
-                        })?;
+                                        let redirect_response = router_data.request.redirect_response.as_ref().ok_or(
+                                            IntegrationError::MissingRequiredField {
+                                                field_name: "redirect_response",
+                                                context: Default::default(),
+                                            },
+                                        )?;
 
-                    requests::RedsysEmvThreeDsRequestData::new(
-                        requests::RedsysThreeDsInfo::AuthenticationData,
-                    )
-                    .set_three_d_s_server_trans_i_d(three_d_s_server_trans_i_d)
-                    .set_protocol_version(message_version)
-                    .set_three_d_s_comp_ind(three_d_s_comp_ind)
-                    .add_browser_data(browser_info)?
-                    .set_notification_u_r_l(continue_redirection_url.clone())
-                    .set_billing_data(billing_data)?
-                    .set_shipping_data(shipping_data)?
-                }
-                None => {
-                    return Err(errors::ConnectorError::MissingRequiredField {
-                        field_name: "threeds_completion_indicator",
-                    })?;
-                }
-            },
-        };
+                                        let redirect_payload_value: Option<responses::RedsysThreedsChallengeResponse> =
+                                            redirect_response.payload.as_ref().and_then(|secret| {
+                                                let payload_data = secret.peek();
+                                                serde_json::from_value::<responses::RedsysThreedsChallengeResponse>(
+                                                                            payload_data.clone(),
+                                                                        )
+                                                                        .ok()
+                                                                    });
 
-        let is_auto_capture = router_data.request.is_auto_capture()?;
+                                                                let emv3ds_data = match redirect_payload_value {
+                                                                    Some(payload) => requests::RedsysEmvThreeDsRequestData::new(
+                                                                        requests::RedsysThreeDsInfo::ChallengeResponse,
+                                                                    )
+                                                                    .set_protocol_version(message_version)
+                                                                    .set_three_d_s_cres(payload.cres)
+                                                                    .set_billing_data(billing_data)?
+                                                                    .set_shipping_data(shipping_data)?,
+                                                                    None => match threeds_completion_indicator {
+                                                                        Some(comp_ind) => {
+                                                                                                    let three_d_s_comp_ind = requests::RedsysThreeDSCompInd::from(comp_ind);
+                                                                                                    let browser_info = router_data.request.browser_info.clone().ok_or(
+                                                                                                        IntegrationError::MissingRequiredField {
+                                                                                                            field_name: "browser_info",
+                                                                                                            context: Default::default(),
+                                                                                                        },
+                                                                                                    )?;
+                                                                                                    let continue_redirection_url = router_data
+                                                                                                        .request
+                                                                                                        .continue_redirection_url
+                                                                                                        .as_ref()
+                                                                                                        .ok_or(IntegrationError::MissingRequiredField {
+                                                                                                            field_name: "continue_redirection_url",
+                                                                                                            context: Default::default(),
+                                                                                                        })?;
+
+                                                                                                    requests::RedsysEmvThreeDsRequestData::new(
+                                                                                                        requests::RedsysThreeDsInfo::AuthenticationData,
+                                                                                                    )
+                                                                                                    .set_three_d_s_server_trans_i_d(three_d_s_server_trans_i_d)
+                                                                                                    .set_protocol_version(message_version)
+                                                                                                    .set_three_d_s_comp_ind(three_d_s_comp_ind)
+                                                                                                    .add_browser_data(browser_info)?
+                                                                                                    .set_notification_u_r_l(continue_redirection_url.clone())
+                                                                                                    .set_billing_data(billing_data)?
+                                                                                                    .set_shipping_data(shipping_data)?
+                                                                                                }
+                                                                                                None => {
+                                                                                                    return Err(IntegrationError::MissingRequiredField {
+                                                                                                        field_name: "threeds_completion_indicator",
+                                                                                                        context: Default::default(),
+                                                                                                    })?;
+                                                                                                }
+                                                                                            },
+                                                                                        };
+
+                                                                                        (None, None, Some(emv3ds_data))
+                                                                                    };
+
+        let is_auto_capture = router_data.request.is_auto_capture();
         let ds_merchant_transactiontype = if is_auto_capture {
             requests::RedsysTransactionType::Payment
         } else {
             requests::RedsysTransactionType::Preauthorization
         };
 
-        let ds_merchant_order = if router_data
-            .resource_common_data
-            .connector_request_reference_id
-            .len()
-            <= 12
-        {
-            Ok(router_data
+        let ds_merchant_order = get_ds_merchant_order(
+            router_data
                 .resource_common_data
                 .connector_request_reference_id
-                .clone())
-        } else {
-            Err(errors::ConnectorError::RequestEncodingFailed).attach_printable(
-                "connector_request_reference_id length should be less than or equal to 12",
-            )
-        }?;
+                .clone(),
+            router_data.request.metadata.as_ref(),
+        )?;
 
         let payment_request = requests::RedsysPaymentRequest {
             ds_merchant_amount: RedsysAmountConvertor::convert(
@@ -1206,15 +1390,19 @@ where
             )?,
             ds_merchant_currency: router_data.request.currency.iso_4217().to_owned(),
             ds_merchant_cvv2: card_data.cvv2,
-            ds_merchant_emv3ds: Some(emv3ds_data),
+            ds_merchant_emv3ds,
             ds_merchant_expirydate: card_data.expiry_date,
             ds_merchant_merchantcode: auth.merchant_id.clone(),
             ds_merchant_order,
             ds_merchant_pan: cards::CardNumber::try_from(card_data.card_number.peek().to_string())
-                .change_context(errors::ConnectorError::RequestEncodingFailed)
+                .change_context(IntegrationError::RequestEncodingFailed {
+                    context: Default::default(),
+                })
                 .attach_printable("Invalid card number")?,
             ds_merchant_terminal: auth.terminal_id.clone(),
             ds_merchant_transactiontype,
+            ds_merchant_directpayment,
+            ds_merchant_excep_sca,
         };
 
         let transaction = Self::try_from((&payment_request, &auth))?;
@@ -1225,7 +1413,7 @@ where
 impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<responses::RedsysResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = Error;
+    type Error = ResponseError;
 
     fn try_from(
         item: ResponseRouterData<responses::RedsysResponse, Self>,
@@ -1234,14 +1422,17 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<responses::RedsysResp
             responses::RedsysResponse::RedsysResponse(ref transaction) => {
                 let response_data: responses::RedsysPaymentsResponse = to_connector_response_data(
                     &transaction.ds_merchant_parameters.clone().expose(),
+                    item.http_code,
                 )?;
 
                 let auth_data = item.router_data.request.authentication_data.clone();
+                let is_three_ds = item.router_data.resource_common_data.is_three_ds();
 
                 let (authenticate_response, status, ds_order) = get_payments_response(
                     response_data,
                     item.router_data.request.capture_method,
                     auth_data,
+                    is_three_ds,
                     item.http_code,
                     true,
                 )?;
@@ -1269,7 +1460,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<responses::RedsysResp
                 response: Err(domain_types::router_data::ErrorResponse {
                     code: err.error_code.clone(),
                     message: err.error_code_description.clone(),
-                    reason: Some(err.error_code.clone()),
+                    reason: Some(err.error_code_description.clone()),
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
@@ -1307,7 +1498,9 @@ where
         let auth = RedsysAuthType::try_from(&router_data.connector_config)?;
         let connector_transaction_id = match &router_data.request.connector_transaction_id {
             ResponseId::ConnectorTransactionId(id) => Ok(id.clone()),
-            _ => Err(errors::ConnectorError::MissingConnectorTransactionID),
+            _ => Err(IntegrationError::MissingConnectorTransactionID {
+                context: Default::default(),
+            }),
         }?;
 
         let amount_to_capture =
@@ -1333,7 +1526,7 @@ where
 impl TryFrom<ResponseRouterData<responses::RedsysResponse, Self>>
     for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
-    type Error = Error;
+    type Error = ResponseError;
 
     fn try_from(
         item: ResponseRouterData<responses::RedsysResponse, Self>,
@@ -1343,11 +1536,14 @@ impl TryFrom<ResponseRouterData<responses::RedsysResponse, Self>>
                 let response_data: responses::RedsysOperationsResponse =
                     to_connector_response_data(
                         &transaction.ds_merchant_parameters.clone().expose(),
+                        item.http_code,
                     )?;
 
                 let attempt_status = get_redsys_attempt_status(
                     response_data.ds_response.clone(),
                     item.router_data.request.capture_method,
+                    false,
+                    item.http_code,
                 )?;
 
                 Ok(Self {
@@ -1378,7 +1574,7 @@ impl TryFrom<ResponseRouterData<responses::RedsysResponse, Self>>
                 response: Err(domain_types::router_data::ErrorResponse {
                     code: err.error_code.clone(),
                     message: err.error_code_description.clone(),
-                    reason: Some(err.error_code.clone()),
+                    reason: Some(err.error_code_description.clone()),
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
@@ -1419,16 +1615,17 @@ where
             router_data
                 .request
                 .currency
-                .ok_or(errors::ConnectorError::MissingRequiredField {
+                .ok_or(IntegrationError::MissingRequiredField {
                     field_name: "currency",
+                    context: Default::default(),
                 })?;
-        let amount =
-            router_data
-                .request
-                .amount
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "amount",
-                })?;
+        let amount = router_data
+            .request
+            .amount
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "amount",
+                context: Default::default(),
+            })?;
 
         let void_request = requests::RedsysOperationRequest {
             ds_merchant_amount: RedsysAmountConvertor::convert(amount, currency)?,
@@ -1447,7 +1644,7 @@ where
 impl TryFrom<ResponseRouterData<responses::RedsysResponse, Self>>
     for RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
 {
-    type Error = Error;
+    type Error = ResponseError;
 
     fn try_from(
         item: ResponseRouterData<responses::RedsysResponse, Self>,
@@ -1457,10 +1654,15 @@ impl TryFrom<ResponseRouterData<responses::RedsysResponse, Self>>
                 let response_data: responses::RedsysOperationsResponse =
                     to_connector_response_data(
                         &transaction.ds_merchant_parameters.clone().expose(),
+                        item.http_code,
                     )?;
 
-                let attempt_status =
-                    get_redsys_attempt_status(response_data.ds_response.clone(), None)?;
+                let attempt_status = get_redsys_attempt_status(
+                    response_data.ds_response.clone(),
+                    None,
+                    false,
+                    item.http_code,
+                )?;
 
                 Ok(Self {
                     resource_common_data: PaymentFlowData {
@@ -1489,8 +1691,8 @@ impl TryFrom<ResponseRouterData<responses::RedsysResponse, Self>>
                 },
                 response: Err(domain_types::router_data::ErrorResponse {
                     code: err.error_code.clone(),
-                    message: err.error_code.clone(),
-                    reason: Some(err.error_code.clone()),
+                    message: err.error_code_description.clone(),
+                    reason: Some(err.error_code_description.clone()),
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
@@ -1546,8 +1748,9 @@ pub fn construct_sync_request(
                 ds_terminal: auth.terminal_id,
                 ds_order: order_id.clone(),
                 ds_transaction_type: transaction_type.ok_or(
-                    errors::ConnectorError::MissingRequiredField {
+                    IntegrationError::MissingRequiredField {
                         field_name: "transaction_type",
+                        context: Default::default(),
                     },
                 )?,
             }),
@@ -1567,8 +1770,11 @@ pub fn construct_sync_request(
         message: sync_message,
     };
 
-    let version_data = quick_xml::se::to_string(&version)
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+    let version_data = quick_xml::se::to_string(&version).change_context(
+        IntegrationError::RequestEncodingFailed {
+            context: Default::default(),
+        },
+    )?;
 
     let signature = get_signature(&order_id, &version_data, auth.sha256_pwd.peek())?;
 
@@ -1578,8 +1784,11 @@ pub fn construct_sync_request(
         signature_version: SIGNATURE_VERSION.to_owned(),
     };
 
-    let cdata = quick_xml::se::to_string(&messages)
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+    let cdata = quick_xml::se::to_string(&messages).change_context(
+        IntegrationError::RequestEncodingFailed {
+            context: Default::default(),
+        },
+    )?;
 
     let body = format!(
         r#"<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:web="{}"><soapenv:Header/><soapenv:Body><web:consultaOperaciones><cadenaXML><![CDATA[{}]]></cadenaXML></web:consultaOperaciones></soapenv:Body></soapenv:Envelope>"#,
@@ -1592,7 +1801,7 @@ pub fn construct_sync_request(
 impl TryFrom<ResponseRouterData<responses::RedsysSyncResponse, Self>>
     for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = Error;
+    type Error = ResponseError;
 
     fn try_from(
         item: ResponseRouterData<responses::RedsysSyncResponse, Self>,
@@ -1613,6 +1822,8 @@ impl TryFrom<ResponseRouterData<responses::RedsysSyncResponse, Self>>
                         let attempt_status = get_redsys_attempt_status(
                             ds_response.clone(),
                             item.router_data.request.capture_method,
+                            false,
+                            item.http_code,
                         )?;
                         let payment_response = Ok(PaymentsResponseData::TransactionResponse {
                             resource_id: ResponseId::ConnectorTransactionId(
@@ -1698,9 +1909,10 @@ impl TryFrom<ResponseRouterData<responses::RedsysSyncResponse, Self>>
                 });
                 (item.router_data.resource_common_data.status, response)
             }
-            (Some(_), Some(_)) | (None, None) => {
-                Err(errors::ConnectorError::ResponseHandlingFailed)?
-            }
+            (Some(_), Some(_)) | (None, None) => Err(utils::response_handling_fail_for_connector(
+                item.http_code,
+                "redsys",
+            ))?,
         };
 
         Ok(Self {
@@ -1755,7 +1967,7 @@ where
 impl TryFrom<ResponseRouterData<responses::RedsysResponse, Self>>
     for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = Error;
+    type Error = ResponseError;
 
     fn try_from(
         item: ResponseRouterData<responses::RedsysResponse, Self>,
@@ -1765,10 +1977,13 @@ impl TryFrom<ResponseRouterData<responses::RedsysResponse, Self>>
                 let response_data: responses::RedsysOperationsResponse =
                     to_connector_response_data(
                         &transaction.ds_merchant_parameters.clone().expose(),
+                        item.http_code,
                     )?;
 
-                let refund_status =
-                    common_enums::RefundStatus::try_from(response_data.ds_response.clone())?;
+                let refund_status = refund_status_from_ds_response(
+                    response_data.ds_response.clone(),
+                    item.http_code,
+                )?;
 
                 Ok(RefundsResponseData {
                     connector_refund_id: response_data.ds_order,
@@ -1780,7 +1995,7 @@ impl TryFrom<ResponseRouterData<responses::RedsysResponse, Self>>
                 Err(domain_types::router_data::ErrorResponse {
                     code: err.error_code.clone(),
                     message: err.error_code_description.clone(),
-                    reason: Some(err.error_code.clone()),
+                    reason: Some(err.error_code_description.clone()),
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
@@ -1803,7 +2018,7 @@ impl TryFrom<ResponseRouterData<responses::RedsysResponse, Self>>
 impl TryFrom<ResponseRouterData<responses::RedsysSyncResponse, Self>>
     for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
-    type Error = Error;
+    type Error = ResponseError;
 
     fn try_from(
         item: ResponseRouterData<responses::RedsysSyncResponse, Self>,
@@ -1823,7 +2038,7 @@ impl TryFrom<ResponseRouterData<responses::RedsysSyncResponse, Self>>
                 if let Some(latest_response) = find_latest_response(responses) {
                     if let Some(ds_response) = latest_response.ds_response {
                         let refund_status =
-                            common_enums::RefundStatus::try_from(ds_response.clone())?;
+                            refund_status_from_ds_response(ds_response.clone(), item.http_code)?;
                         Ok(RefundsResponseData {
                             connector_refund_id: latest_response.ds_order,
                             refund_status,
@@ -1867,9 +2082,10 @@ impl TryFrom<ResponseRouterData<responses::RedsysSyncResponse, Self>>
                     network_error_message: None,
                 })
             }
-            (Some(_), Some(_)) | (None, None) => {
-                Err(errors::ConnectorError::ResponseHandlingFailed)?
-            }
+            (Some(_), Some(_)) | (None, None) => Err(utils::response_handling_fail_for_connector(
+                item.http_code,
+                "redsys",
+            ))?,
         };
 
         Ok(Self {

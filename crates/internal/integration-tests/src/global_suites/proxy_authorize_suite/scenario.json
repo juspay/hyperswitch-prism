@@ -1,0 +1,42 @@
+{
+  "proxy_auto_capture_card": {
+    "grpc_req": {
+      "merchant_transaction_id": "auto_generate",
+      "amount": {
+        "minor_amount": 6000,
+        "currency": "USD"
+      },
+      "card_proxy": {
+        "card_number": {
+          "value": "4111111111111111"
+        },
+        "card_exp_month": {
+          "value": "08"
+        },
+        "card_exp_year": {
+          "value": "30"
+        },
+        "card_cvc": {
+          "value": "999"
+        },
+        "card_type": "credit"
+      },
+      "capture_method": "AUTOMATIC",
+      "customer": {
+        "id": "auto_generate"
+      },
+      "auth_type": "NO_THREE_DS",
+      "test_mode": true
+    },
+    "assert": {
+      "status": {
+        "one_of": ["CHARGED", "AUTHORIZED"]
+      },
+      "connector_transaction_id": {
+        "must_exist": true
+      }
+    },
+    "is_default": true,
+    "display_name": "Proxy Payment | Auto Capture"
+  }
+}

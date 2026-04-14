@@ -8,6 +8,11 @@ from .generated import sdk_config_pb2
 # Centralized defaults from Protobuf Single Source of Truth
 Defaults = sdk_config_pb2.HttpDefault
 
+# Optional mock intercept — set by smoke test in mock mode only.
+# Signature: async (request: HttpRequest) -> HttpResponse
+# When None (default), real HTTP is used.
+_intercept: Optional[callable] = None
+
 # Type alias for proto-generated HttpConfig and sub-configs
 HttpConfig = sdk_config_pb2.HttpConfig
 
@@ -49,7 +54,7 @@ class NetworkError(Exception):
 
     @property
     def error_code(self) -> str:
-        """String error code for parity with IntegrationError/ConnectorResponseTransformationError (e.g. 'CONNECT_TIMEOUT')."""
+        """String error code for parity with IntegrationError/ConnectorError (e.g. 'CONNECT_TIMEOUT')."""
         names = {
             sdk_config_pb2.NetworkErrorCode.CONNECT_TIMEOUT_EXCEEDED: "CONNECT_TIMEOUT_EXCEEDED",
             sdk_config_pb2.NetworkErrorCode.RESPONSE_TIMEOUT_EXCEEDED: "RESPONSE_TIMEOUT_EXCEEDED",
@@ -81,7 +86,7 @@ def resolve_proxies(proxy_options: Optional[ProxyOptions]) -> Optional[Dict[str,
     """
     if not proxy_options:
         return None
-        
+
     proxy_url = proxy_options.https_url or proxy_options.http_url
     if not proxy_url:
         return None
@@ -91,8 +96,22 @@ def resolve_proxies(proxy_options: Optional[ProxyOptions]) -> Optional[Dict[str,
         clean_domain = bypass.replace("http://", "").replace("https://", "").split("/")[0]
         if clean_domain:
             proxies[f"all://{clean_domain}"] = None
-        
+
     return proxies
+
+def generate_proxy_cache_key(proxy_options: Optional[ProxyOptions]) -> str:
+    """
+    Generate a cache key from proxy configuration for HTTP client caching.
+    Returns empty string when no proxy is configured.
+    """
+    if not proxy_options:
+        return ""
+
+    http_url = proxy_options.http_url or ""
+    https_url = proxy_options.https_url or ""
+    bypass_urls = sorted(proxy_options.bypass_urls) if proxy_options.bypass_urls else []
+
+    return f"{http_url}|{https_url}|{','.join(bypass_urls)}"
 
 def create_client(http_config: Optional[HttpConfig] = None) -> httpx.AsyncClient:
     """
@@ -118,7 +137,7 @@ def create_client(http_config: Optional[HttpConfig] = None) -> httpx.AsyncClient
     if merged.HasField("proxy"):
         proxies = resolve_proxies(merged.proxy)
         if proxies:
-            mounts = {k: httpx.AsyncHTTPTransport(proxy=v) if v else None for k, v in proxies.items()}
+            mounts = {k: httpx.AsyncHTTPTransport(proxy=v, verify=verify) if v else None for k, v in proxies.items()}
 
     try:
         client = httpx.AsyncClient(
@@ -145,6 +164,10 @@ async def execute(
     resolved_timeouts_ms: (total_ms, connect_ms, read_ms) — matches proto; convert to sec internally.
     When None, uses client default.
     """
+    # Check for mock intercept (used in smoke test mock mode)
+    if _intercept is not None:
+        return await _intercept(request)
+
     # Validate URL: httpx.URL() does not raise for missing scheme (e.g. "not-a-valid-url").
     try:
         parsed_url = httpx.URL(request.url)

@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use common_utils::Method;
+use grpc_api_types::payments::Money;
 
 #[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
 pub enum RedirectForm {
@@ -36,11 +37,11 @@ pub enum RedirectForm {
         acs_url: String,
     },
     Nmi {
-        amount: String,
-        currency: common_enums::Currency,
+        amount: Money,
         public_key: hyperswitch_masking::Secret<String>,
         customer_vault_id: String,
         order_id: String,
+        continue_redirection_url: String,
     },
     Mifinity {
         initialization_token: String,

@@ -95,7 +95,7 @@ make publish
 
 ## 4. Rust SDK — Dry-Run Only
 
-Path dependencies (`ffi = { path = "../../backend/ffi" }`) prevent real publish.
+Path dependencies (`ffi = { path = "../../crates/ffi/ffi" }`) prevent real publish.
 
 ### File: `sdk/rust/Cargo.toml`
 - Change `name` → `test-potif-789`

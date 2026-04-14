@@ -615,7 +615,7 @@ You are a Payment Method Implementation Subagent responsible for adding ONE spec
 
 ```rust
 impl<T: PaymentMethodDataTypes + ...> TryFrom<...> for {ConnectorName}AuthorizeRequest<T> {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(item: ...) -> Result<Self, Self::Error> {
         let router_data = item.router_data;
@@ -634,9 +634,10 @@ impl<T: PaymentMethodDataTypes + ...> TryFrom<...> for {ConnectorName}AuthorizeR
                     // NEW: Google Pay handling
                     Self::build_google_pay_request(item, google_pay)
                 }
-                other => Err(ConnectorError::NotSupported {
+                other => Err(IntegrationError::NotSupported {
                     message: format!("{:?} is not supported", other),
                     connector: "{connector_name}",
+                    context: Default::default(),
                 }.into()),
             }
             PaymentMethodData::BankTransfer(bank_transfer) => {
@@ -644,8 +645,9 @@ impl<T: PaymentMethodDataTypes + ...> TryFrom<...> for {ConnectorName}AuthorizeR
                 Self::build_bank_transfer_request(item, bank_transfer)
             }
             // ... other existing PMs
-            _ => Err(ConnectorError::NotImplemented(
-                get_unimplemented_payment_method_error_message("{connector_name}")
+            _ => Err(IntegrationError::NotImplemented(
+                get_unimplemented_payment_method_error_message("{connector_name}"),
+                Default::default(),
             ).into()),
         }
     }
@@ -660,7 +662,7 @@ impl<T: PaymentMethodDataTypes + ...> {ConnectorName}AuthorizeRequest<T> {
     fn build_apple_pay_request(
         item: {ConnectorName}RouterData<...>,
         apple_pay: &ApplePayWalletData,
-    ) -> Result<Self, ConnectorError> {
+    ) -> Result<Self, IntegrationError> {
         // Build Apple Pay specific request
         // Extract payment token, display name, etc.
         Ok(Self {
@@ -676,7 +678,7 @@ impl<T: PaymentMethodDataTypes + ...> {ConnectorName}AuthorizeRequest<T> {
     fn build_google_pay_request(
         item: {ConnectorName}RouterData<...>,
         google_pay: &GooglePayWalletData,
-    ) -> Result<Self, ConnectorError> {
+    ) -> Result<Self, IntegrationError> {
         // Build Google Pay specific request
         Ok(Self {
             amount: item.amount,
@@ -758,7 +760,7 @@ For Refund flow (and other flows that need this PM):
 // For most refunds, PM-specific data may not be needed
 // Just pass the reference to the original payment
 impl TryFrom<...> for {ConnectorName}RefundRequest {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(item: ...) -> Result<Self, Self::Error> {
         // Refunds typically use reference ID, not PM data

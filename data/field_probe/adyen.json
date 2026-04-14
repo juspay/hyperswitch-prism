@@ -42,6 +42,10 @@
           "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"ach\",\"bankAccountNumber\":\"000123456789\",\"bankLocationId\":\"110000000\",\"ownerName\":\"John\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"}}"
         }
       },
+      "AchBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Adyen"
+      },
       "Affirm": {
         "status": "supported",
         "proto_request": {
@@ -57,6 +61,7 @@
           "address": {
             "billing_address": {
               "first_name": "John",
+              "last_name": "Doe",
               "email": "test@example.com",
               "phone_number": "4155552671",
               "phone_country_code": "+1"
@@ -73,7 +78,7 @@
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
-          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"affirm\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"},\"shopperName\":{\"firstName\":\"John\"},\"shopperEmail\":\"test@example.com\",\"telephoneNumber\":\"+14155552671\",\"lineItems\":[{\"amountExcludingTax\":1000,\"amountIncludingTax\":1000,\"id\":\"Items #1\",\"quantity\":1}]}"
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"affirm\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"},\"shopperName\":{\"firstName\":\"John\",\"lastName\":\"Doe\"},\"shopperEmail\":\"test@example.com\",\"telephoneNumber\":\"+14155552671\",\"lineItems\":[{\"amountExcludingTax\":1000,\"amountIncludingTax\":1000,\"id\":\"Items #1\",\"quantity\":1}]}"
         }
       },
       "Afterpay": {
@@ -94,6 +99,7 @@
             },
             "billing_address": {
               "first_name": "John",
+              "last_name": "Doe",
               "country_alpha2_code": "US",
               "email": "test@example.com"
             }
@@ -109,8 +115,48 @@
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
-          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"afterpaytouch\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"},\"shopperName\":{\"firstName\":\"John\"},\"shopperEmail\":\"test@example.com\",\"countryCode\":\"US\",\"lineItems\":[{\"amountExcludingTax\":1000,\"amountIncludingTax\":1000,\"id\":\"Items #1\",\"quantity\":1}]}"
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"afterpaytouch\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"},\"shopperName\":{\"firstName\":\"John\",\"lastName\":\"Doe\"},\"shopperEmail\":\"test@example.com\",\"countryCode\":\"US\",\"lineItems\":[{\"amountExcludingTax\":1000,\"amountIncludingTax\":1000,\"id\":\"Items #1\",\"quantity\":1}]}"
         }
+      },
+      "Alfamart": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "alfamart": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "email": "test@example.com"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://checkout-test.adyen.com/v68/payments",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"doku_alfamart\",\"firstName\":\"John\",\"lastName\":null,\"shopperEmail\":\"test@example.com\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"},\"shopperName\":{\"firstName\":\"John\"},\"shopperEmail\":\"test@example.com\"}"
+        }
+      },
+      "AliPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method"
+      },
+      "AmazonPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method"
       },
       "ApplePay": {
         "status": "supported",
@@ -198,6 +244,10 @@
           "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"scheme\",\"number\":\"4111111111111111\",\"expiryMonth\":\"03\",\"expiryYear\":\"2030\",\"brand\":\"Visa\"},\"mpiData\":{\"directoryResponse\":\"Y\",\"authenticationResponse\":\"Y\",\"cavv\":\"AAAAAA==\",\"eci\":\"05\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"},\"shopperName\":{}}"
         }
       },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method"
+      },
       "Bacs": {
         "status": "supported",
         "proto_request": {
@@ -233,9 +283,134 @@
           "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"directdebit_GB\",\"bankAccountNumber\":\"55779911\",\"bankLocationId\":\"200000\",\"holderName\":\"John\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"}}"
         }
       },
+      "BacsBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Adyen"
+      },
+      "BancontactCard": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "bancontact_card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "browser_info": {
+            "color_depth": 24,
+            "screen_height": 900,
+            "screen_width": 1440,
+            "java_enabled": false,
+            "java_script_enabled": true,
+            "language": "en-US",
+            "time_zone_offset_minutes": -480,
+            "accept_header": "application/json",
+            "user_agent": "Mozilla/5.0 (probe-bot)",
+            "accept_language": "en-US,en;q=0.9",
+            "ip_address": "1.2.3.4"
+          }
+        },
+        "sample": {
+          "url": "https://checkout-test.adyen.com/v68/payments",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"scheme\",\"number\":\"4111111111111111\",\"expiryMonth\":\"03\",\"expiryYear\":\"2030\",\"brand\":\"bcmc\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"browserInfo\":{\"userAgent\":\"Mozilla/5.0 (probe-bot)\",\"acceptHeader\":\"application/json\",\"language\":\"en-US\",\"colorDepth\":24,\"screenHeight\":900,\"screenWidth\":1440,\"timeZoneOffset\":-480,\"javaEnabled\":false},\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"},\"shopperIP\":\"1.2.3.4\",\"lineItems\":[{\"amountExcludingTax\":1000,\"amountIncludingTax\":1000,\"id\":\"Items #1\",\"quantity\":1}]}"
+        }
+      },
+      "BcaBankTransfer": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "bca_bank_transfer": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "email": "test@example.com"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://checkout-test.adyen.com/v68/payments",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"doku_bca_va\",\"firstName\":\"John\",\"lastName\":null,\"shopperEmail\":\"test@example.com\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"shopperInteraction\":\"Ecommerce\",\"shopperEmail\":\"test@example.com\"}"
+        }
+      },
       "Becs": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through Adyen"
+        "error": "This feature is not implemented: Selected payment method through Adyen"
+      },
+      "Bizum": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "bizum": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "browser_info": {
+            "color_depth": 24,
+            "screen_height": 900,
+            "screen_width": 1440,
+            "java_enabled": false,
+            "java_script_enabled": true,
+            "language": "en-US",
+            "time_zone_offset_minutes": -480,
+            "accept_header": "application/json",
+            "user_agent": "Mozilla/5.0 (probe-bot)",
+            "accept_language": "en-US,en;q=0.9",
+            "ip_address": "1.2.3.4"
+          }
+        },
+        "sample": {
+          "url": "https://checkout-test.adyen.com/v68/payments",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"bizum\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"browserInfo\":{\"userAgent\":\"Mozilla/5.0 (probe-bot)\",\"acceptHeader\":\"application/json\",\"language\":\"en-US\",\"colorDepth\":24,\"screenHeight\":900,\"screenWidth\":1440,\"timeZoneOffset\":-480,\"javaEnabled\":false},\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"},\"shopperIP\":\"1.2.3.4\",\"lineItems\":[{\"amountExcludingTax\":1000,\"amountIncludingTax\":1000,\"id\":\"Items #1\",\"quantity\":1}]}"
+        }
       },
       "Blik": {
         "status": "supported",
@@ -279,6 +454,103 @@
             "x-api-key": "probe_key"
           },
           "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"blik\",\"blikCode\":\"777124\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"browserInfo\":{\"userAgent\":\"Mozilla/5.0 (probe-bot)\",\"acceptHeader\":\"application/json\",\"language\":\"en-US\",\"colorDepth\":24,\"screenHeight\":900,\"screenWidth\":1440,\"timeZoneOffset\":-480,\"javaEnabled\":false},\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"},\"shopperIP\":\"1.2.3.4\",\"lineItems\":[{\"amountExcludingTax\":1000,\"amountIncludingTax\":1000,\"id\":\"Items #1\",\"quantity\":1}]}"
+        }
+      },
+      "Bluecode": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method"
+      },
+      "BniVaBankTransfer": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "bni_va_bank_transfer": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "email": "test@example.com"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://checkout-test.adyen.com/v68/payments",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"doku_bni_va\",\"firstName\":\"John\",\"lastName\":null,\"shopperEmail\":\"test@example.com\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"shopperInteraction\":\"Ecommerce\",\"shopperEmail\":\"test@example.com\"}"
+        }
+      },
+      "Boleto": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "boleto": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://checkout-test.adyen.com/v68/payments",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"boletobancario\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"},\"shopperName\":{}}"
+        }
+      },
+      "BriVaBankTransfer": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "bri_va_bank_transfer": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "email": "test@example.com"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://checkout-test.adyen.com/v68/payments",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"doku_bri_va\",\"firstName\":\"John\",\"lastName\":null,\"shopperEmail\":\"test@example.com\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"shopperInteraction\":\"Ecommerce\",\"shopperEmail\":\"test@example.com\"}"
         }
       },
       "Card": {
@@ -328,6 +600,184 @@
           },
           "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"scheme\",\"number\":\"4111111111111111\",\"expiryMonth\":\"03\",\"expiryYear\":\"2030\",\"cvc\":\"737\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"browserInfo\":{\"userAgent\":\"Mozilla/5.0 (probe-bot)\",\"acceptHeader\":\"application/json\",\"language\":\"en-US\",\"colorDepth\":24,\"screenHeight\":900,\"screenWidth\":1440,\"timeZoneOffset\":-480,\"javaEnabled\":false},\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"},\"shopperName\":{},\"shopperIP\":\"1.2.3.4\"}"
         }
+      },
+      "CashappQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method"
+      },
+      "CimbVaBankTransfer": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "cimb_va_bank_transfer": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "email": "test@example.com"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://checkout-test.adyen.com/v68/payments",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"doku_cimb_va\",\"firstName\":\"John\",\"lastName\":null,\"shopperEmail\":\"test@example.com\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"shopperInteraction\":\"Ecommerce\",\"shopperEmail\":\"test@example.com\"}"
+        }
+      },
+      "ClassicReward": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment method"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "danamon_va_bank_transfer": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "email": "test@example.com"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://checkout-test.adyen.com/v68/payments",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"doku_danamon_va\",\"firstName\":\"John\",\"lastName\":null,\"shopperEmail\":\"test@example.com\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"shopperInteraction\":\"Ecommerce\",\"shopperEmail\":\"test@example.com\"}"
+        }
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "EVoucher": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment method"
+      },
+      "Efecty": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Adyen"
+      },
+      "Eft": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Adyen"
+      },
+      "Eps": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "eps": {
+              "bank_name": "Ing"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "browser_info": {
+            "color_depth": 24,
+            "screen_height": 900,
+            "screen_width": 1440,
+            "java_enabled": false,
+            "java_script_enabled": true,
+            "language": "en-US",
+            "time_zone_offset_minutes": -480,
+            "accept_header": "application/json",
+            "user_agent": "Mozilla/5.0 (probe-bot)",
+            "accept_language": "en-US,en;q=0.9",
+            "ip_address": "1.2.3.4"
+          }
+        },
+        "sample": {
+          "url": "https://checkout-test.adyen.com/v68/payments",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"eps\",\"issuer\":\"1154\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"browserInfo\":{\"userAgent\":\"Mozilla/5.0 (probe-bot)\",\"acceptHeader\":\"application/json\",\"language\":\"en-US\",\"colorDepth\":24,\"screenHeight\":900,\"screenWidth\":1440,\"timeZoneOffset\":-480,\"javaEnabled\":false},\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"},\"shopperIP\":\"1.2.3.4\",\"lineItems\":[{\"amountExcludingTax\":1000,\"amountIncludingTax\":1000,\"id\":\"Items #1\",\"quantity\":1}]}"
+        }
+      },
+      "FamilyMart": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "family_mart": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "email": "test@example.com",
+              "phone_number": "4155552671",
+              "phone_country_code": "+1"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://checkout-test.adyen.com/v68/payments",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"econtext_stores\",\"firstName\":\"John\",\"lastName\":null,\"shopperEmail\":\"test@example.com\",\"telephoneNumber\":\"+14155552671\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"},\"shopperName\":{\"firstName\":\"John\"},\"shopperEmail\":\"test@example.com\",\"telephoneNumber\":\"4155552671\"}"
+        }
+      },
+      "Giropay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Adyen"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "GooglePay": {
         "status": "supported",
@@ -442,6 +892,10 @@
           "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"scheme\",\"number\":\"4111111111111111\",\"expiryMonth\":\"03\",\"expiryYear\":\"2030\",\"brand\":\"googlepay\"},\"mpiData\":{\"directoryResponse\":\"Y\",\"authenticationResponse\":\"Y\",\"cavv\":\"AAAAAA==\",\"eci\":\"05\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"browserInfo\":{\"userAgent\":\"Mozilla/5.0 (probe-bot)\",\"acceptHeader\":\"application/json\",\"language\":\"en-US\",\"colorDepth\":24,\"screenHeight\":900,\"screenWidth\":1440,\"timeZoneOffset\":-480,\"javaEnabled\":false},\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"},\"shopperName\":{},\"shopperIP\":\"1.2.3.4\"}"
         }
       },
+      "GooglePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method"
+      },
       "Ideal": {
         "status": "supported",
         "proto_request": {
@@ -484,6 +938,58 @@
           "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"ideal\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"browserInfo\":{\"userAgent\":\"Mozilla/5.0 (probe-bot)\",\"acceptHeader\":\"application/json\",\"language\":\"en-US\",\"colorDepth\":24,\"screenHeight\":900,\"screenWidth\":1440,\"timeZoneOffset\":-480,\"javaEnabled\":false},\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"},\"shopperIP\":\"1.2.3.4\",\"lineItems\":[{\"amountExcludingTax\":1000,\"amountIncludingTax\":1000,\"id\":\"Items #1\",\"quantity\":1}]}"
         }
       },
+      "Indomaret": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "indomaret": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "email": "test@example.com"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://checkout-test.adyen.com/v68/payments",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"doku_indomaret\",\"firstName\":\"John\",\"lastName\":null,\"shopperEmail\":\"test@example.com\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"},\"shopperName\":{\"firstName\":\"John\"},\"shopperEmail\":\"test@example.com\"}"
+        }
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Adyen"
+      },
+      "InstantBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Adyen"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Adyen"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Adyen"
+      },
+      "Interac": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Adyen"
+      },
       "Klarna": {
         "status": "supported",
         "proto_request": {
@@ -519,13 +1025,605 @@
           "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"klarna\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"},\"shopperReference\":\"cust_probe_123\",\"shopperName\":{},\"shopperEmail\":\"test@example.com\",\"countryCode\":\"US\",\"lineItems\":[{\"amountExcludingTax\":1000,\"amountIncludingTax\":1000,\"id\":\"Items #1\",\"quantity\":1}]}"
         }
       },
+      "Lawson": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "lawson": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "email": "test@example.com",
+              "phone_number": "4155552671",
+              "phone_country_code": "+1"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://checkout-test.adyen.com/v68/payments",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"econtext_stores\",\"firstName\":\"John\",\"lastName\":null,\"shopperEmail\":\"test@example.com\",\"telephoneNumber\":\"+14155552671\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"},\"shopperName\":{\"firstName\":\"John\"},\"shopperEmail\":\"test@example.com\",\"telephoneNumber\":\"4155552671\"}"
+        }
+      },
+      "LocalBankRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Adyen"
+      },
+      "LocalBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Adyen"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "mandiri_va_bank_transfer": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "email": "test@example.com"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://checkout-test.adyen.com/v68/payments",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"doku_mandiri_va\",\"firstName\":\"John\",\"lastName\":null,\"shopperEmail\":\"test@example.com\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"shopperInteraction\":\"Ecommerce\",\"shopperEmail\":\"test@example.com\"}"
+        }
+      },
+      "MbWay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method"
+      },
+      "Mifinity": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method"
+      },
+      "MiniStop": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "mini_stop": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "email": "test@example.com",
+              "phone_number": "4155552671",
+              "phone_country_code": "+1"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://checkout-test.adyen.com/v68/payments",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"econtext_stores\",\"firstName\":\"John\",\"lastName\":null,\"shopperEmail\":\"test@example.com\",\"telephoneNumber\":\"+14155552671\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"},\"shopperName\":{\"firstName\":\"John\"},\"shopperEmail\":\"test@example.com\",\"telephoneNumber\":\"4155552671\"}"
+        }
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Adyen"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "online_banking_czech_republic": {
+              "issuer": "CeskaSporitelna"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "browser_info": {
+            "color_depth": 24,
+            "screen_height": 900,
+            "screen_width": 1440,
+            "java_enabled": false,
+            "java_script_enabled": true,
+            "language": "en-US",
+            "time_zone_offset_minutes": -480,
+            "accept_header": "application/json",
+            "user_agent": "Mozilla/5.0 (probe-bot)",
+            "accept_language": "en-US,en;q=0.9",
+            "ip_address": "1.2.3.4"
+          }
+        },
+        "sample": {
+          "url": "https://checkout-test.adyen.com/v68/payments",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"onlineBanking_CZ\",\"issuer\":\"cs\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"browserInfo\":{\"userAgent\":\"Mozilla/5.0 (probe-bot)\",\"acceptHeader\":\"application/json\",\"language\":\"en-US\",\"colorDepth\":24,\"screenHeight\":900,\"screenWidth\":1440,\"timeZoneOffset\":-480,\"javaEnabled\":false},\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"},\"shopperIP\":\"1.2.3.4\",\"lineItems\":[{\"amountExcludingTax\":1000,\"amountIncludingTax\":1000,\"id\":\"Items #1\",\"quantity\":1}]}"
+        }
+      },
+      "OnlineBankingFinland": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "online_banking_finland": {
+              "email": "test@example.com"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "browser_info": {
+            "color_depth": 24,
+            "screen_height": 900,
+            "screen_width": 1440,
+            "java_enabled": false,
+            "java_script_enabled": true,
+            "language": "en-US",
+            "time_zone_offset_minutes": -480,
+            "accept_header": "application/json",
+            "user_agent": "Mozilla/5.0 (probe-bot)",
+            "accept_language": "en-US,en;q=0.9",
+            "ip_address": "1.2.3.4"
+          }
+        },
+        "sample": {
+          "url": "https://checkout-test.adyen.com/v68/payments",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"ebanking_FI\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"browserInfo\":{\"userAgent\":\"Mozilla/5.0 (probe-bot)\",\"acceptHeader\":\"application/json\",\"language\":\"en-US\",\"colorDepth\":24,\"screenHeight\":900,\"screenWidth\":1440,\"timeZoneOffset\":-480,\"javaEnabled\":false},\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"},\"shopperIP\":\"1.2.3.4\",\"lineItems\":[{\"amountExcludingTax\":1000,\"amountIncludingTax\":1000,\"id\":\"Items #1\",\"quantity\":1}]}"
+        }
+      },
+      "OnlineBankingFpx": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "online_banking_fpx": {
+              "issuer": "Maybank"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "browser_info": {
+            "color_depth": 24,
+            "screen_height": 900,
+            "screen_width": 1440,
+            "java_enabled": false,
+            "java_script_enabled": true,
+            "language": "en-US",
+            "time_zone_offset_minutes": -480,
+            "accept_header": "application/json",
+            "user_agent": "Mozilla/5.0 (probe-bot)",
+            "accept_language": "en-US,en;q=0.9",
+            "ip_address": "1.2.3.4"
+          }
+        },
+        "sample": {
+          "url": "https://checkout-test.adyen.com/v68/payments",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"molpay_ebanking_fpx_MY\",\"issuer\":\"fpxMb2u\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"browserInfo\":{\"userAgent\":\"Mozilla/5.0 (probe-bot)\",\"acceptHeader\":\"application/json\",\"language\":\"en-US\",\"colorDepth\":24,\"screenHeight\":900,\"screenWidth\":1440,\"timeZoneOffset\":-480,\"javaEnabled\":false},\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"},\"shopperIP\":\"1.2.3.4\",\"lineItems\":[{\"amountExcludingTax\":1000,\"amountIncludingTax\":1000,\"id\":\"Items #1\",\"quantity\":1}]}"
+        }
+      },
+      "OnlineBankingPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment method"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "online_banking_slovakia": {
+              "issuer": "TatraPay"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "browser_info": {
+            "color_depth": 24,
+            "screen_height": 900,
+            "screen_width": 1440,
+            "java_enabled": false,
+            "java_script_enabled": true,
+            "language": "en-US",
+            "time_zone_offset_minutes": -480,
+            "accept_header": "application/json",
+            "user_agent": "Mozilla/5.0 (probe-bot)",
+            "accept_language": "en-US,en;q=0.9",
+            "ip_address": "1.2.3.4"
+          }
+        },
+        "sample": {
+          "url": "https://checkout-test.adyen.com/v68/payments",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"onlineBanking_SK\",\"issuer\":\"tatra\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"browserInfo\":{\"userAgent\":\"Mozilla/5.0 (probe-bot)\",\"acceptHeader\":\"application/json\",\"language\":\"en-US\",\"colorDepth\":24,\"screenHeight\":900,\"screenWidth\":1440,\"timeZoneOffset\":-480,\"javaEnabled\":false},\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"},\"shopperIP\":\"1.2.3.4\",\"lineItems\":[{\"amountExcludingTax\":1000,\"amountIncludingTax\":1000,\"id\":\"Items #1\",\"quantity\":1}]}"
+        }
+      },
+      "OnlineBankingThailand": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "online_banking_thailand": {
+              "issuer": "BangkokBank"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "browser_info": {
+            "color_depth": 24,
+            "screen_height": 900,
+            "screen_width": 1440,
+            "java_enabled": false,
+            "java_script_enabled": true,
+            "language": "en-US",
+            "time_zone_offset_minutes": -480,
+            "accept_header": "application/json",
+            "user_agent": "Mozilla/5.0 (probe-bot)",
+            "accept_language": "en-US,en;q=0.9",
+            "ip_address": "1.2.3.4"
+          }
+        },
+        "sample": {
+          "url": "https://checkout-test.adyen.com/v68/payments",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"molpay_ebanking_TH\",\"issuer\":\"molpay_bangkokbank\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"browserInfo\":{\"userAgent\":\"Mozilla/5.0 (probe-bot)\",\"acceptHeader\":\"application/json\",\"language\":\"en-US\",\"colorDepth\":24,\"screenHeight\":900,\"screenWidth\":1440,\"timeZoneOffset\":-480,\"javaEnabled\":false},\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"},\"shopperIP\":\"1.2.3.4\",\"lineItems\":[{\"amountExcludingTax\":1000,\"amountIncludingTax\":1000,\"id\":\"Items #1\",\"quantity\":1}]}"
+        }
+      },
+      "OpenBanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Adyen"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "OpenBankingUk": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "open_banking_uk": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "browser_info": {
+            "color_depth": 24,
+            "screen_height": 900,
+            "screen_width": 1440,
+            "java_enabled": false,
+            "java_script_enabled": true,
+            "language": "en-US",
+            "time_zone_offset_minutes": -480,
+            "accept_header": "application/json",
+            "user_agent": "Mozilla/5.0 (probe-bot)",
+            "accept_language": "en-US,en;q=0.9",
+            "ip_address": "1.2.3.4"
+          }
+        },
+        "sample": {
+          "url": "https://checkout-test.adyen.com/v68/payments",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"paybybank\",\"issuer\":null},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"browserInfo\":{\"userAgent\":\"Mozilla/5.0 (probe-bot)\",\"acceptHeader\":\"application/json\",\"language\":\"en-US\",\"colorDepth\":24,\"screenHeight\":900,\"screenWidth\":1440,\"timeZoneOffset\":-480,\"javaEnabled\":false},\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"},\"shopperIP\":\"1.2.3.4\",\"shopperLocale\":\"en-US\",\"lineItems\":[{\"amountExcludingTax\":1000,\"amountIncludingTax\":1000,\"id\":\"Items #1\",\"quantity\":1}]}"
+        }
+      },
+      "Oxxo": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "oxxo": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://checkout-test.adyen.com/v68/payments",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"oxxo\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"},\"shopperName\":{}}"
+        }
+      },
+      "PagoEfectivo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Adyen"
+      },
+      "PayEasy": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "pay_easy": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "email": "test@example.com",
+              "phone_number": "4155552671",
+              "phone_country_code": "+1"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://checkout-test.adyen.com/v68/payments",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"econtext_stores\",\"firstName\":\"John\",\"lastName\":null,\"shopperEmail\":\"test@example.com\",\"telephoneNumber\":\"+14155552671\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"},\"shopperName\":{\"firstName\":\"John\"},\"shopperEmail\":\"test@example.com\",\"telephoneNumber\":\"4155552671\"}"
+        }
+      },
+      "PaySafeCard": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
       "PaypalRedirect": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: payment_method"
+        "error": "This feature is not implemented: payment_method"
+      },
+      "PaypalSdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "PermataBankTransfer": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "permata_bank_transfer": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "email": "test@example.com"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://checkout-test.adyen.com/v68/payments",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"doku_permata_lite_atm\",\"firstName\":\"John\",\"lastName\":null,\"shopperEmail\":\"test@example.com\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"shopperInteraction\":\"Ecommerce\",\"shopperEmail\":\"test@example.com\"}"
+        }
+      },
+      "Pix": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "pix": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://checkout-test.adyen.com/v68/payments",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"pix\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"shopperInteraction\":\"Ecommerce\"}"
+        }
+      },
+      "Przelewy24": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Adyen"
+      },
+      "Pse": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Adyen"
+      },
+      "RedCompra": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Adyen"
+      },
+      "RedPagos": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Adyen"
+      },
+      "RevolutPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method"
       },
       "SamsungPay": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: payment_method"
+        "error": "This feature is not implemented: payment_method"
+      },
+      "Satispay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method"
+      },
+      "Seicomart": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "seicomart": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "email": "test@example.com",
+              "phone_number": "4155552671",
+              "phone_country_code": "+1"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://checkout-test.adyen.com/v68/payments",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"econtext_stores\",\"firstName\":\"John\",\"lastName\":null,\"shopperEmail\":\"test@example.com\",\"telephoneNumber\":\"+14155552671\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"},\"shopperName\":{\"firstName\":\"John\"},\"shopperEmail\":\"test@example.com\",\"telephoneNumber\":\"4155552671\"}"
+        }
       },
       "Sepa": {
         "status": "supported",
@@ -561,9 +1659,113 @@
           "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"sepadirectdebit\",\"sepa.ownerName\":\"John\",\"sepa.ibanNumber\":\"DE89370400440532013000\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"}}"
         }
       },
+      "SepaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Adyen"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Adyen"
+      },
+      "SevenEleven": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "seven_eleven": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "email": "test@example.com",
+              "phone_number": "4155552671",
+              "phone_country_code": "+1"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://checkout-test.adyen.com/v68/payments",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"econtext_seven_eleven\",\"firstName\":\"John\",\"lastName\":null,\"shopperEmail\":\"test@example.com\",\"telephoneNumber\":\"+14155552671\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"},\"shopperName\":{\"firstName\":\"John\"},\"shopperEmail\":\"test@example.com\",\"telephoneNumber\":\"4155552671\"}"
+        }
+      },
+      "Sofort": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Adyen"
+      },
+      "Trustly": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "trustly": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "browser_info": {
+            "color_depth": 24,
+            "screen_height": 900,
+            "screen_width": 1440,
+            "java_enabled": false,
+            "java_script_enabled": true,
+            "language": "en-US",
+            "time_zone_offset_minutes": -480,
+            "accept_header": "application/json",
+            "user_agent": "Mozilla/5.0 (probe-bot)",
+            "accept_language": "en-US,en;q=0.9",
+            "ip_address": "1.2.3.4"
+          }
+        },
+        "sample": {
+          "url": "https://checkout-test.adyen.com/v68/payments",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"trustly\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"browserInfo\":{\"userAgent\":\"Mozilla/5.0 (probe-bot)\",\"acceptHeader\":\"application/json\",\"language\":\"en-US\",\"colorDepth\":24,\"screenHeight\":900,\"screenWidth\":1440,\"timeZoneOffset\":-480,\"javaEnabled\":false},\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"},\"shopperIP\":\"1.2.3.4\",\"shopperLocale\":\"en-US\",\"lineItems\":[{\"amountExcludingTax\":1000,\"amountIncludingTax\":1000,\"id\":\"Items #1\",\"quantity\":1}]}"
+        }
+      },
       "UpiCollect": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: payment method"
+        "error": "This feature is not implemented: payment method"
+      },
+      "UpiIntent": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment method"
+      },
+      "UpiQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment method"
+      },
+      "WeChatPayQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method"
+      },
+      "Wero": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method"
       }
     },
     "capture": {
@@ -589,9 +1791,30 @@
         }
       }
     },
-    "create_access_token": {
+    "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_client_session_id": "probe_sdk_session_001",
+          "domain_context": {
+            "payment": {
+              "amount": {
+                "minor_amount": 1000,
+                "currency": "USD"
+              }
+            }
+          }
+        },
+        "sample": {
+          "url": "https://checkout-test.adyen.com/v68/sessions",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"reference\":\"probe_sdk_session_001\",\"returnUrl\":\"https://hyperswitch.io\"}"
+        }
       }
     },
     "create_customer": {
@@ -601,10 +1824,32 @@
     },
     "create_order": {
       "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_order_id": "probe_order_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://checkout-test.adyen.com/v68/orders",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"merchantAccount\":\"probe_merchant\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"reference\":\"probe_order_001\"}"
+        }
+      }
+    },
+    "create_server_authentication_token": {
+      "default": {
         "status": "not_implemented"
       }
     },
-    "create_session_token": {
+    "create_server_session_authentication_token": {
       "default": {
         "status": "not_implemented"
       }
@@ -648,6 +1893,11 @@
           },
           "body": "{\"disputePspReference\":\"probe_dispute_id_001\",\"merchantAccountCode\":\"probe_merchant\",\"defenseReasonCode\":\"probe_reason\"}"
         }
+      }
+    },
+    "dispute_get": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "dispute_submit_evidence": {
@@ -700,10 +1950,25 @@
         }
       }
     },
+    "eligibility": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "get": {
       "default": {
         "status": "error",
-        "error": "Failed to deserialize connector response"
+        "error": "Failed to encode connector request"
+      }
+    },
+    "handle_event": {
+      "default": {
+        "status": "supported"
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "post_authenticate": {
@@ -716,13 +1981,118 @@
         "status": "not_implemented"
       }
     },
+    "proxy_authorize": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_proxy_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "browser_info": {
+            "color_depth": 24,
+            "screen_height": 900,
+            "screen_width": 1440,
+            "java_enabled": false,
+            "java_script_enabled": true,
+            "language": "en-US",
+            "time_zone_offset_minutes": -480,
+            "accept_header": "application/json",
+            "user_agent": "Mozilla/5.0 (probe-bot)",
+            "accept_language": "en-US,en;q=0.9",
+            "ip_address": "1.2.3.4"
+          }
+        },
+        "sample": {
+          "url": "https://checkout-test.adyen.com/v68/payments",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"scheme\",\"number\":\"4111111111111111\",\"expiryMonth\":\"03\",\"expiryYear\":\"2030\",\"cvc\":\"123\"},\"reference\":\"probe_proxy_txn_001\",\"returnUrl\":\"https://example.com/return\",\"browserInfo\":{\"userAgent\":\"Mozilla/5.0 (probe-bot)\",\"acceptHeader\":\"application/json\",\"language\":\"en-US\",\"colorDepth\":24,\"screenHeight\":900,\"screenWidth\":1440,\"timeZoneOffset\":-480,\"javaEnabled\":false},\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"},\"shopperName\":{},\"shopperIP\":\"1.2.3.4\"}"
+        }
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_proxy_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe"
+          },
+          "customer": {
+            "id": "probe_customer_001"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "return_url": "https://example.com/return",
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          },
+          "auth_type": "NO_THREE_DS",
+          "setup_future_usage": "OFF_SESSION",
+          "browser_info": {
+            "color_depth": 24,
+            "screen_height": 900,
+            "screen_width": 1440,
+            "java_enabled": false,
+            "java_script_enabled": true,
+            "language": "en-US",
+            "time_zone_offset_minutes": -480,
+            "accept_header": "application/json",
+            "user_agent": "Mozilla/5.0 (probe-bot)",
+            "accept_language": "en-US,en;q=0.9",
+            "ip_address": "1.2.3.4"
+          }
+        },
+        "sample": {
+          "url": "https://checkout-test.adyen.com/v68/payments",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":0},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"scheme\",\"number\":\"4111111111111111\",\"expiryMonth\":\"03\",\"expiryYear\":\"2030\",\"cvc\":\"123\"},\"reference\":\"probe_proxy_mandate_001\",\"returnUrl\":\"https://example.com/return\",\"browserInfo\":{\"userAgent\":\"Mozilla/5.0 (probe-bot)\",\"acceptHeader\":\"application/json\",\"language\":\"en-US\",\"colorDepth\":24,\"screenHeight\":900,\"screenWidth\":1440,\"timeZoneOffset\":-480,\"javaEnabled\":false},\"shopperInteraction\":\"Ecommerce\",\"recurringProcessingModel\":\"UnscheduledCardOnFile\",\"additionalData\":{\"executeThreeD\":\"false\"},\"shopperReference\":\"DefaultMerchantId_probe_customer_001\",\"storePaymentMethod\":true,\"shopperName\":{},\"shopperIP\":\"1.2.3.4\"}"
+        }
+      }
+    },
     "recurring_charge": {
       "default": {
         "status": "supported",
         "proto_request": {
           "connector_recurring_payment_id": {
             "mandate_id_type": {
-              "connector_mandate_id": "probe-mandate-123"
+              "connector_mandate_id": {
+                "connector_mandate_id": "probe-mandate-123"
+              }
             }
           },
           "amount": {
@@ -730,7 +2100,9 @@
             "currency": "USD"
           },
           "payment_method": {
-            "token": "probe_pm_token"
+            "token": {
+              "token": "probe_pm_token"
+            }
           },
           "return_url": "https://example.com/recurring-return",
           "connector_customer_id": "cust_probe_123",
@@ -747,6 +2119,11 @@
           },
           "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"paypal\",\"storedPaymentMethodId\":\"probe-mandate-123\",\"holderName\":null},\"reference\":\"\",\"returnUrl\":\"https://example.com/recurring-return\",\"shopperInteraction\":\"ContAuth\",\"recurringProcessingModel\":\"UnscheduledCardOnFile\",\"additionalData\":{\"executeThreeD\":\"false\"},\"shopperReference\":\"cust_probe_123\"}"
         }
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "refund": {
@@ -772,6 +2149,11 @@
           },
           "body": "{\"merchantAccount\":\"probe_merchant\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantRefundReason\":\"customer_request\",\"reference\":\"probe_refund_001\"}"
         }
+      }
+    },
+    "refund_get": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "reverse": {
@@ -838,7 +2220,46 @@
         }
       }
     },
+    "token_authorize": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_tokenized_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "connector_token": "pm_1AbcXyzStripeTestToken",
+          "address": {
+            "billing_address": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://checkout-test.adyen.com/v68/payments",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"scheme\",\"storedPaymentMethodId\":\"pm_1AbcXyzStripeTestToken\",\"holderName\":null},\"reference\":\"probe_tokenized_txn_001\",\"returnUrl\":\"https://example.com/return\",\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"},\"shopperName\":{}}"
+        }
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment method"
+      }
+    },
     "tokenize": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "verify_redirect": {
       "default": {
         "status": "not_implemented"
       }

@@ -7,11 +7,17 @@
     "node": ">= 10"
   },
   "keywords": [
+    "hyperswitch",
+    "prism",
+    "payments",
+    "payment-processing",
+    "credit-cards",
+    "juspay",
     "connector-service",
     "ffi",
     "napi",
-    "payments",
-    "native"
+    "native",
+    "payment-gateway"
   ],
   "author": "",
   "license": "MIT",

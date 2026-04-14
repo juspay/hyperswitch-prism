@@ -81,10 +81,10 @@ fn get_url(
     &self,
     req: &RouterDataV2<IncrementalAuthorization, PaymentFlowData,
                        PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
-) -> CustomResult<String, ConnectorError> {
+) -> CustomResult<String, IntegrationError> {
     let original_payment_id = req.request.connector_transaction_id
         .get_connector_transaction_id()
-        .change_context(ConnectorError::MissingConnectorTransactionID)?;
+        .change_context(IntegrationError::MissingConnectorTransactionID)?;
 
     Ok(format!(
         "{}{}",
@@ -100,7 +100,7 @@ fn get_url(
 
 ### Stripe: Bearer Token
 ```rust
-fn get_auth_header(&self, auth_type: &ConnectorAuthType) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+fn get_auth_header(&self, auth_type: &ConnectorAuthType) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
     let auth = stripe::StripeAuthType::try_from(auth_type)?;
     Ok(vec![
         ("Authorization".to_string(),
@@ -112,7 +112,7 @@ fn get_auth_header(&self, auth_type: &ConnectorAuthType) -> CustomResult<Vec<(St
 
 ### PayPal: OAuth 2.0
 ```rust
-fn get_auth_header(&self, auth_type: &ConnectorAuthType) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+fn get_auth_header(&self, auth_type: &ConnectorAuthType) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
     let auth = paypal::PaypalAuthType::try_from(auth_type)?;
     let credentials = format!("{}:{}", auth.api_key.peek(), auth.key1.peek());
     let encoded = BASE64_ENGINE.encode(credentials);
@@ -137,7 +137,7 @@ fn generate_cybersource_headers(
     payload: &str,
     endpoint: &str,
     method: &str,
-) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
     let date = OffsetDateTime::now_utc().format(&Rfc2822)?;
     let host = "api.cybersource.com";
     let digest = sha256_hash(payload);
@@ -201,7 +201,7 @@ fn handle_response(
     let response: ConnectorIncrementalAuthResponse = res
         .response
         .parse_struct("IncrementalAuthResponse")
-        .change_context(ConnectorError::ResponseDeserializationFailed)?;
+        .change_context(ConnectorError::ResponseDeserializationFailed { context: Default::default() })?;
 
     event_builder.map(|event| event.set_response_body(&response));
 
@@ -235,7 +235,7 @@ fn get_error_response(
     let response = res
         .response
         .parse_struct("ErrorResponse")
-        .change_context(ConnectorError::ResponseDeserializationFailed)?;
+        .change_context(ConnectorError::ResponseDeserializationFailed { context: Default::default() })?;
 
     event_builder.map(|event| event.set_error_response_body(&response));
 
@@ -270,20 +270,20 @@ fn get_error_response(
 fn validate_incremental_auth_request(
     data: &PaymentsIncrementalAuthorizationData,
     original_payment: &PaymentAttempt,
-) -> CustomResult<(), ConnectorError> {
+) -> CustomResult<(), IntegrationError> {
     // Check amount is positive
     if data.minor_amount <= MinorUnit::zero() {
-        return Err(ConnectorError::InvalidRequestBody)?;
+        return Err(IntegrationError::InvalidRequestBody)?;
     }
 
     // Check connector_transaction_id exists
     if data.connector_transaction_id.is_none() {
-        return Err(ConnectorError::MissingConnectorTransactionID)?;
+        return Err(IntegrationError::MissingConnectorTransactionID)?;
     }
 
     // Check payment state
     if original_payment.status != AttemptStatus::Authorized {
-        return Err(ConnectorError::PaymentNotAuthorized)?;
+        return Err(IntegrationError::PaymentNotAuthorized)?;
     }
 
     // Check amount limit (115% rule)
@@ -294,7 +294,7 @@ fn validate_incremental_auth_request(
     let new_total = original_payment.authorized_amount + data.minor_amount;
 
     if new_total > max_allowed {
-        return Err(ConnectorError::AmountTooLarge)?;
+        return Err(IntegrationError::AmountTooLarge)?;
     }
 
     Ok(())
@@ -322,14 +322,14 @@ macros::macro_connector_implementation!(
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     other_functions: {
-        fn get_headers(&self, req: &RouterDataV2<...>) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+        fn get_headers(&self, req: &RouterDataV2<...>) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_auth_headers(req)
         }
 
-        fn get_url(&self, req: &RouterDataV2<...>) -> CustomResult<String, ConnectorError> {
+        fn get_url(&self, req: &RouterDataV2<...>) -> CustomResult<String, IntegrationError> {
             let payment_id = req.request.connector_transaction_id
                 .get_connector_transaction_id()
-                .change_context(ConnectorError::MissingConnectorTransactionID)?;
+                .change_context(IntegrationError::MissingConnectorTransactionID)?;
             Ok(format!(
                 "{}v1/payment_intents/{}/increment_authorization",
                 self.connector_base_url_payments(req),
@@ -340,7 +340,7 @@ macros::macro_connector_implementation!(
         fn get_request_body(
             &self,
             req: &RouterDataV2<...>,
-        ) -> CustomResult<RequestContent, ConnectorError> {
+        ) -> CustomResult<RequestContent, IntegrationError> {
             let request = IncrementalAuthRequest::try_from(&req.request)?;
             Ok(RequestContent::FormUrlEncoded(request))
         }

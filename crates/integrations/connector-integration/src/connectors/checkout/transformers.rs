@@ -12,7 +12,7 @@ use domain_types::{
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
         ResponseId, SetupMandateRequestData,
     },
-    errors::ConnectorError,
+    errors::{ConnectorError, IntegrationError},
     payment_method_data::{
         BankDebitData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData,
     },
@@ -154,6 +154,18 @@ pub enum PaymentSource<
     MandatePayment(MandateSource),
     GooglePayPredecrypt(Box<GooglePayPredecrypt>),
     AchBankDebit(AchBankDebitSource),
+    DecryptedWalletToken(DecryptedWalletToken),
+}
+
+#[derive(Debug, Serialize)]
+pub struct DecryptedWalletToken {
+    #[serde(rename = "type")]
+    decrypt_type: String,
+    token: cards::NetworkToken,
+    token_type: String,
+    expiry_month: Secret<String>,
+    expiry_year: Secret<String>,
+    pub billing_address: Option<CheckoutAddress>,
 }
 
 #[derive(Debug, Serialize)]
@@ -187,6 +199,7 @@ pub struct ApplePayPredecrypt {
 pub enum CheckoutSourceTypes {
     Card,
     Token,
+    NetworkToken,
     #[serde(rename = "id")]
     SourceId,
 }
@@ -338,7 +351,7 @@ pub struct CheckoutThreeDS {
 }
 
 impl TryFrom<&ConnectorSpecificConfig> for CheckoutAuthType {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(auth_type: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         if let ConnectorSpecificConfig::Checkout {
             api_key,
@@ -353,7 +366,10 @@ impl TryFrom<&ConnectorSpecificConfig> for CheckoutAuthType {
                 processing_channel_id: processing_channel_id.to_owned(),
             })
         } else {
-            Err(ConnectorError::FailedToObtainAuthType.into())
+            Err(IntegrationError::FailedToObtainAuthType {
+                context: Default::default(),
+            }
+            .into())
         }
     }
 }
@@ -409,7 +425,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for PaymentsRequest<T>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(
         item: CheckoutRouterData<
             RouterDataV2<
@@ -512,14 +528,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
                             let expiry_month = google_pay_decrypted_data
                                 .get_expiry_month()
-                                .change_context(ConnectorError::InvalidDataFormat {
+                                .change_context(IntegrationError::InvalidDataFormat {
                                     field_name: "google_pay_decrypted_data.card_exp_month",
+                                    context: Default::default(),
                                 })?;
 
                             let expiry_year = google_pay_decrypted_data
                                 .get_four_digit_expiry_year()
-                                .change_context(ConnectorError::InvalidDataFormat {
+                                .change_context(IntegrationError::InvalidDataFormat {
                                     field_name: "google_pay_decrypted_data.card_exp_year",
+                                    context: Default::default(),
                                 })?;
 
                             let cryptogram = google_pay_decrypted_data.cryptogram.clone();
@@ -539,8 +557,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             Ok((p_source, None, Some(false), store_for_future_use))
                         }
                         domain_types::payment_method_data::GpayTokenizationData::Encrypted(_) => {
-                            Err(ConnectorError::MissingRequiredField {
+                            Err(IntegrationError::MissingRequiredField {
                                 field_name: "google_pay_decrypted_data",
+                                context: Default::default(),
                             })
                         }
                     }
@@ -572,12 +591,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 }));
                             Ok((p_source, None, Some(false), store_for_future_use))
                         }
-                        None => Err(ConnectorError::NotImplemented(
+                        None => Err(IntegrationError::not_implemented(
                             utils::get_unimplemented_payment_method_error_message("checkout"),
                         )),
                     }
                 }
-                _ => Err(ConnectorError::NotImplemented(
+                _ => Err(IntegrationError::not_implemented(
                     utils::get_unimplemented_payment_method_error_message("checkout"),
                 )),
             },
@@ -636,7 +655,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 };
                 Ok((payment_source, None, Some(false), store_for_future))
             }
-            _ => Err(ConnectorError::NotImplemented(
+            _ => Err(IntegrationError::not_implemented(
                 utils::get_unimplemented_payment_method_error_message("checkout"),
             )),
         }?;
@@ -806,7 +825,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for PaymentsRequest<T>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(
         item: CheckoutRouterData<
             RouterDataV2<
@@ -914,12 +933,62 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             None,
                         ))
                     }
-                    _ => Err(ConnectorError::NotImplemented(
+                    PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(
+                        ref network_token_data,
+                    ) => {
+                        let p_type = match item.router_data.request.mit_category {
+                            Some(common_enums::MitCategory::Installment) => {
+                                CheckoutPaymentType::Installment
+                            }
+                            Some(common_enums::MitCategory::Recurring) => {
+                                CheckoutPaymentType::Recurring
+                            }
+                            Some(common_enums::MitCategory::Unscheduled) | None => {
+                                CheckoutPaymentType::Unscheduled
+                            }
+                            _ => CheckoutPaymentType::Unscheduled,
+                        };
+
+                        let token_type = match network_token_data.token_source {
+                            Some(domain_types::payment_method_data::TokenSource::ApplePay) => {
+                                "applepay".to_string()
+                            }
+                            Some(domain_types::payment_method_data::TokenSource::GooglePay) => {
+                                "googlepay".to_string()
+                            }
+                            None => Err(IntegrationError::MissingRequiredField {
+                                field_name: "token_source",
+                                context: Default::default(),
+                            })?,
+                        };
+
+                        let exp_month = network_token_data.token_exp_month.clone();
+                        let expiry_year_4_digit = network_token_data.get_expiry_year_4_digit();
+
+                        let payment_source =
+                            PaymentSource::DecryptedWalletToken(DecryptedWalletToken {
+                                token: network_token_data.decrypted_token.clone(),
+                                decrypt_type: "network_token".to_string(),
+                                token_type,
+                                expiry_month: exp_month,
+                                expiry_year: expiry_year_4_digit,
+                                billing_address: billing_details,
+                            });
+
+                        Ok((
+                            payment_source,
+                            Some(network_transaction_id.clone()),
+                            Some(true),
+                            p_type,
+                            None,
+                        ))
+                    }
+                    _ => Err(IntegrationError::not_implemented(
                         utils::get_unimplemented_payment_method_error_message("checkout"),
                     )),
                 }
             }
-            _ => Err(ConnectorError::NotImplemented(
+            _ => Err(IntegrationError::not_implemented(
                 utils::get_unimplemented_payment_method_error_message("checkout"),
             )),
         }?;
@@ -1072,7 +1141,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for PaymentsRequest<T>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(
         item: CheckoutRouterData<
             RouterDataV2<
@@ -1196,7 +1265,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 });
                 Ok((payment_source, None, Some(false), payment_type, Some(true)))
             }
-            _ => Err(ConnectorError::NotImplemented(
+            _ => Err(IntegrationError::not_implemented(
                 utils::get_unimplemented_payment_method_error_message("checkout"),
             )),
         }?;
@@ -1511,19 +1580,20 @@ pub struct Balances {
 
 fn get_connector_meta(
     capture_method: common_enums::CaptureMethod,
+    http_status: u16,
 ) -> CustomResult<serde_json::Value, ConnectorError> {
     match capture_method {
         common_enums::CaptureMethod::Automatic
         | common_enums::CaptureMethod::SequentialAutomatic => Ok(serde_json::json!(CheckoutMeta {
-            psync_flow: CheckoutPaymentIntent::Capture,
+            psync_flow: CheckoutPaymentIntent::Capture
         })),
         common_enums::CaptureMethod::Manual | common_enums::CaptureMethod::ManualMultiple => {
             Ok(serde_json::json!(CheckoutMeta {
-                psync_flow: CheckoutPaymentIntent::Authorize,
+                psync_flow: CheckoutPaymentIntent::Authorize
             }))
         }
         common_enums::CaptureMethod::Scheduled => {
-            Err(ConnectorError::CaptureMethodNotSupported.into())
+            Err(crate::utils::unexpected_response_fail(http_status, "checkout: unexpected response for this operation; retry with idempotency keys and check connector status.").into())
         }
     }
 }
@@ -1569,8 +1639,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             });
         }
 
-        let connector_meta =
-            get_connector_meta(item.router_data.request.capture_method.unwrap_or_default())?;
+        let connector_meta = get_connector_meta(
+            item.router_data.request.capture_method.unwrap_or_default(),
+            item.http_code,
+        )?;
 
         let redirection_data = item
             .response
@@ -1683,6 +1755,7 @@ impl<
             _ => {
                 let connector_meta = get_connector_meta(
                     item.router_data.request.capture_method.unwrap_or_default(),
+                    item.http_code,
                 )?;
 
                 let redirection_data = item
@@ -1765,8 +1838,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<PaymentsResponse, Self>) -> Result<Self, Self::Error> {
-        let connector_meta =
-            get_connector_meta(item.router_data.request.capture_method.unwrap_or_default())?;
+        let connector_meta = get_connector_meta(
+            item.router_data.request.capture_method.unwrap_or_default(),
+            item.http_code,
+        )?;
         let redirection_data = item
             .response
             .links
@@ -1855,22 +1930,29 @@ impl<F> TryFrom<ResponseRouterData<PaymentsResponse, Self>>
             .redirect
             .map(|href| RedirectForm::from((href.redirection_url, Method::Get)));
 
-        let checkout_meta: CheckoutMeta = match item.router_data.request.capture_method {
+        let checkout_meta = match item.router_data.request.capture_method {
             Some(common_enums::CaptureMethod::Automatic)
-            | Some(common_enums::CaptureMethod::SequentialAutomatic) => Ok(CheckoutMeta {
+            | Some(common_enums::CaptureMethod::SequentialAutomatic) => CheckoutMeta {
                 psync_flow: CheckoutPaymentIntent::Capture,
-            }),
+            },
             Some(common_enums::CaptureMethod::Manual)
-            | Some(common_enums::CaptureMethod::ManualMultiple) => Ok(CheckoutMeta {
+            | Some(common_enums::CaptureMethod::ManualMultiple) => CheckoutMeta {
                 psync_flow: CheckoutPaymentIntent::Authorize,
-            }),
+            },
             Some(common_enums::CaptureMethod::Scheduled) => {
-                Err(ConnectorError::CaptureMethodNotSupported)
+                return Err(
+                    crate::utils::unexpected_response_fail(item.http_code, "checkout: unexpected response for this operation; retry with idempotency keys and check connector status.")
+                        .into(),
+                );
             }
-            None => Err(ConnectorError::MissingRequiredField {
-                field_name: "capture_method",
-            }),
-        }?;
+            None => {
+                return Err(ConnectorError::response_handling_failed_with_context(
+                    item.http_code,
+                    Some("Checkout PSync: capture_method absent on payment intent".to_string()),
+                )
+                .into());
+            }
+        };
 
         let status = get_attempt_status_intent((item.response.status, checkout_meta.psync_flow));
         let error_response = if status == common_enums::AttemptStatus::Failure {
@@ -2016,7 +2098,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for PaymentVoidRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(
         item: CheckoutRouterData<
             RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
@@ -2051,7 +2133,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for PaymentCaptureRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(
         item: CheckoutRouterData<
             RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
@@ -2096,7 +2178,7 @@ impl<F> TryFrom<ResponseRouterData<PaymentCaptureResponse, Self>>
         item: ResponseRouterData<PaymentCaptureResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let connector_meta = serde_json::json!(CheckoutMeta {
-            psync_flow: CheckoutPaymentIntent::Capture,
+            psync_flow: CheckoutPaymentIntent::Capture
         });
         let (status, amount_captured) = if item.http_code == 202 {
             (
@@ -2112,10 +2194,16 @@ impl<F> TryFrom<ResponseRouterData<PaymentCaptureResponse, Self>>
         let resource_id = if item.router_data.request.is_multiple_capture() {
             item.response.action_id
         } else {
-            item.router_data
-                .request
-                .get_connector_transaction_id()?
-                .to_owned()
+            match item.router_data.request.get_connector_transaction_id() {
+                Ok(id) => id.to_owned(),
+                Err(_) => {
+                    return Err(crate::utils::response_handling_fail_for_connector(
+                        item.http_code,
+                        "checkout",
+                    )
+                    .into());
+                }
+            }
         };
 
         Ok(Self {
@@ -2150,7 +2238,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
         CheckoutRouterData<RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>, T>,
     > for RefundRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(
         item: CheckoutRouterData<
             RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>,
@@ -2309,7 +2397,10 @@ impl<F> TryFrom<ResponseRouterData<RSyncResponse, Self>>
             .response
             .iter()
             .find(|&x| x.action_id.clone() == refund_action_id)
-            .ok_or(ConnectorError::ResponseHandlingFailed)?;
+            .ok_or(crate::utils::response_handling_fail_for_connector(
+                item.http_code,
+                "checkout",
+            ))?;
         let refund_status = common_enums::RefundStatus::from(action_response);
         Ok(Self {
             response: Ok(RefundsResponseData {
@@ -2350,8 +2441,8 @@ fn convert_to_additional_payment_method_connector_response(
 ) -> Option<AdditionalPaymentMethodConnectorResponse> {
     source.map(|code| {
         let payment_checks = serde_json::json!({
-            "avs_result": code.avs_check,
-            "card_validation_result": code.cvv_check,
+                    "avs_result": code.avs_check,
+                    "card_validation_result": code.cvv_check
         });
         AdditionalPaymentMethodConnectorResponse::Card {
             authentication_data: None,

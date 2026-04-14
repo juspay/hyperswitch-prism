@@ -1,12 +1,12 @@
 use common_utils::{
-    consts::{self, X_SHADOW_MODE},
+    consts::{self, X_ENVIRONMENT, X_SHADOW_MODE},
     errors::CustomResult,
     fp_utils,
     lineage::LineageIds,
 };
 use domain_types::{
     connector_types,
-    errors::{ApiError, ApplicationErrorResponse},
+    errors::{IntegrationError, IntegrationErrorContext},
     router_data::ConnectorSpecificConfig,
 };
 use error_stack::Report;
@@ -37,12 +37,14 @@ pub struct MetadataPayload {
     pub reference_id: Option<String>,
     pub shadow_mode: bool,
     pub resource_id: Option<String>,
+    /// Environment dimension for superposition config resolution (e.g., "production", "sandbox")
+    pub environment: Option<String>,
 }
 
 pub fn get_metadata_payload(
     metadata: &metadata::MetadataMap,
     server_config: Arc<configs::Config>,
-) -> CustomResult<MetadataPayload, ApplicationErrorResponse> {
+) -> CustomResult<MetadataPayload, IntegrationError> {
     // Resolve connector and config: try x-connector-config header first,
     // then fall back to legacy x-connector and x-auth headers.
     let (connector, connector_config) = connector_and_config_from_metadata(metadata)?;
@@ -54,6 +56,7 @@ pub fn get_metadata_payload(
     let reference_id = reference_id_from_metadata(metadata)?;
     let resource_id = resource_id_from_metadata(metadata)?;
     let shadow_mode = shadow_mode_from_metadata(metadata);
+    let environment = environment_from_metadata(metadata);
 
     Ok(MetadataPayload {
         tenant_id,
@@ -65,6 +68,7 @@ pub fn get_metadata_payload(
         reference_id,
         shadow_mode,
         resource_id,
+        environment,
     })
 }
 
@@ -101,22 +105,23 @@ pub fn extract_lineage_fields_from_metadata(
 
 pub fn connector_from_metadata(
     metadata: &metadata::MetadataMap,
-) -> CustomResult<connector_types::ConnectorEnum, ApplicationErrorResponse> {
+) -> CustomResult<connector_types::ConnectorEnum, IntegrationError> {
     parse_metadata(metadata, consts::X_CONNECTOR_NAME).and_then(|inner| {
         connector_types::ConnectorEnum::from_str(inner).map_err(|e| {
-            Report::new(ApplicationErrorResponse::BadRequest(ApiError {
-                sub_code: "INVALID_CONNECTOR".to_string(),
-                error_identifier: 400,
-                error_message: format!("Invalid connector: {e}"),
-                error_object: None,
-            }))
+            Report::new(IntegrationError::InvalidDataFormat {
+                field_name: "x-connector",
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!("Invalid connector: {e}")),
+                    ..Default::default()
+                },
+            })
         })
     })
 }
 
 pub fn merchant_id_from_metadata(
     metadata: &metadata::MetadataMap,
-) -> CustomResult<String, ApplicationErrorResponse> {
+) -> CustomResult<String, IntegrationError> {
     Ok(common_utils::metadata::merchant_id_or_default(
         metadata
             .get(consts::X_MERCHANT_ID)
@@ -126,7 +131,7 @@ pub fn merchant_id_from_metadata(
 
 pub fn request_id_from_metadata(
     metadata: &metadata::MetadataMap,
-) -> CustomResult<String, ApplicationErrorResponse> {
+) -> CustomResult<String, IntegrationError> {
     parse_metadata(metadata, consts::X_REQUEST_ID)
         .map(|inner| inner.to_string())
         .or_else(|_| {
@@ -141,7 +146,7 @@ pub fn request_id_from_metadata(
 
 pub fn tenant_id_from_metadata(
     metadata: &metadata::MetadataMap,
-) -> CustomResult<String, ApplicationErrorResponse> {
+) -> CustomResult<String, IntegrationError> {
     parse_metadata(metadata, consts::X_TENANT_ID)
         .map(|s| s.to_string())
         .or_else(|_| Ok("DefaultTenantId".to_string()))
@@ -149,13 +154,13 @@ pub fn tenant_id_from_metadata(
 
 pub fn reference_id_from_metadata(
     metadata: &metadata::MetadataMap,
-) -> CustomResult<Option<String>, ApplicationErrorResponse> {
+) -> CustomResult<Option<String>, IntegrationError> {
     parse_optional_metadata(metadata, consts::X_REFERENCE_ID).map(|s| s.map(|s| s.to_string()))
 }
 
 pub fn resource_id_from_metadata(
     metadata: &metadata::MetadataMap,
-) -> CustomResult<Option<String>, ApplicationErrorResponse> {
+) -> CustomResult<Option<String>, IntegrationError> {
     parse_optional_metadata(metadata, consts::X_RESOURCE_ID).map(|s| s.map(|s| s.to_string()))
 }
 
@@ -167,47 +172,55 @@ pub fn shadow_mode_from_metadata(metadata: &metadata::MetadataMap) -> bool {
         .unwrap_or(false)
 }
 
+/// Extracts environment from the x-environment header for superposition config resolution.
+pub fn environment_from_metadata(metadata: &metadata::MetadataMap) -> Option<String> {
+    parse_optional_metadata(metadata, X_ENVIRONMENT)
+        .ok()
+        .flatten()
+        .map(|s| s.to_string())
+}
+
 pub fn parse_metadata<'a>(
     metadata: &'a metadata::MetadataMap,
-    key: &str,
-) -> CustomResult<&'a str, ApplicationErrorResponse> {
+    key: &'static str,
+) -> CustomResult<&'a str, IntegrationError> {
     metadata
         .get(key)
         .ok_or_else(|| {
-            Report::new(ApplicationErrorResponse::BadRequest(ApiError {
-                sub_code: "MISSING_METADATA".to_string(),
-                error_identifier: 400,
-                error_message: format!("Missing {key} in request metadata"),
-                error_object: None,
-            }))
+            Report::new(IntegrationError::MissingRequiredField {
+                field_name: key,
+                context: IntegrationErrorContext::default(),
+            })
         })
         .and_then(|value| {
             value.to_str().map_err(|e| {
-                Report::new(ApplicationErrorResponse::BadRequest(ApiError {
-                    sub_code: "INVALID_METADATA".to_string(),
-                    error_identifier: 400,
-                    error_message: format!("Invalid {key} in request metadata: {e}"),
-                    error_object: None,
-                }))
+                Report::new(IntegrationError::InvalidDataFormat {
+                    field_name: key,
+                    context: IntegrationErrorContext {
+                        additional_context: Some(format!("Invalid {key} in request metadata: {e}")),
+                        ..Default::default()
+                    },
+                })
             })
         })
 }
 
 pub fn parse_optional_metadata<'a>(
     metadata: &'a metadata::MetadataMap,
-    key: &str,
-) -> CustomResult<Option<&'a str>, ApplicationErrorResponse> {
+    key: &'static str,
+) -> CustomResult<Option<&'a str>, IntegrationError> {
     metadata
         .get(key)
         .map(|value| value.to_str())
         .transpose()
         .map_err(|e| {
-            Report::new(ApplicationErrorResponse::BadRequest(ApiError {
-                sub_code: "INVALID_METADATA".to_string(),
-                error_identifier: 400,
-                error_message: format!("Invalid {key} in request metadata: {e}"),
-                error_object: None,
-            }))
+            Report::new(IntegrationError::InvalidDataFormat {
+                field_name: key,
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!("Invalid {key} in request metadata: {e}")),
+                    ..Default::default()
+                },
+            })
         })
 }
 #[cfg(test)]

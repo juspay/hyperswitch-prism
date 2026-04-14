@@ -15,13 +15,14 @@ members = [
   "crates/types-traits/cards",
   "sdk/rust",
   "sdk/rust/smoke-test",
+  "sdk/grpc-ffi",
   "crates/internal/composite-service",
   "crates/common/ucs_env",
   "crates/types-traits/ucs_interface_common",
   "crates/ffi/ffi",
   "crates/internal/uniffi-bindgen",
   "crates/internal/field-probe",
-  "crates/internal/ucs-connector-tests"
+  "crates/internal/integration-tests"
 ]
 exclude = [
   "examples/example-rs",
@@ -68,12 +69,15 @@ tonic       = "0.14"
 tonic-build = "0.14"
 prost       = "0.14"
 prost-build = "0.14"
-serde       = { version = "1.0.219", features = ["derive"] }
+serde       = { version = "1.0.228", features = ["derive"] }
 serde_json  = "1.0.107"
 thiserror   = "1"
 tracing     = "0.1"
 bytes       = "1"
-tonic-prost = "0.14" 
+tonic-prost = "0.14"
+superposition_core = { git = "https://github.com/juspay/superposition", branch = "main" }
+uuid = "=1.20.0"
+vergen = "=9.0.6"
 
 
 [workspace.lints.rust]

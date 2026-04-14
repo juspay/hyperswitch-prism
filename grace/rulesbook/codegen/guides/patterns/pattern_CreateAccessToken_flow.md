@@ -127,7 +127,7 @@ pub struct VoltAuthType {
 }
 
 impl TryFrom<&ConnectorAuthType> for VoltAuthType {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<errors::IntegrationError>;
 
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         if let ConnectorAuthType::SignatureKey {
@@ -145,7 +145,7 @@ impl TryFrom<&ConnectorAuthType> for VoltAuthType {
             })
         } else {
             Err(error_stack::report!(
-                errors::ConnectorError::FailedToObtainAuthType
+                errors::IntegrationError::FailedToObtainAuthType { context: Default::default() }
             ))
         }
     }
@@ -164,7 +164,7 @@ pub struct VoltAuthUpdateRequest {
 }
 
 impl TryFrom<&ConnectorAuthType> for VoltAuthUpdateRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<errors::IntegrationError>;
 
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         let auth = VoltAuthType::try_from(auth_type)?;
@@ -192,7 +192,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for VoltAuthUpdateRequest
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<errors::IntegrationError>;
 
     fn try_from(
         item: VoltRouterData<...>,
@@ -279,7 +279,7 @@ pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::genera
 fn auth_headers(
     client_id: &Secret<String>,
     client_secret: &Secret<String>,
-) -> CustomResult<String, ConnectorError> {
+) -> CustomResult<String, IntegrationError> {
     let auth = format!(
         "{}:{}",
         client_id.expose(),
@@ -343,13 +343,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 ```rust
 // Failed to obtain auth type
 Err(error_stack::report!(
-    errors::ConnectorError::FailedToObtainAuthType
+    errors::IntegrationError::FailedToObtainAuthType { context: Default::default() }
 ))
 
 // Missing required fields
-Err(errors::ConnectorError::MissingRequiredField {
+Err(errors::IntegrationError::MissingRequiredField {
     field_name: "client_id",
-})
+, context: Default::default() })
 .into())
 ```
 
@@ -392,7 +392,7 @@ fn get_url(
     &self,
     _req: &RouterDataV2<CreateAccessToken, PaymentFlowData, AccessTokenRequestData, AccessTokenResponseData>,
     _connectors: &Connectors,
-) -> CustomResult<String, errors::ConnectorError> {
+) -> CustomResult<String, errors::IntegrationError> {
     let base_url = self.base_url(_connectors);
     Ok(format!("{}/oauth/token", base_url))
 }
@@ -423,7 +423,7 @@ pub fn get_headers(
     &self,
     req: &RouterDataV2<CreateAccessToken, PaymentFlowData, AccessTokenRequestData, AccessTokenResponseData>,
     _connectors: &Connectors,
-) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
     let auth = ConnectorAuthType::try_from(&req.connector_auth_type)?;
     let credentials = format!("{}:{}", auth.client_id.expose(), auth.client_secret.expose());
     let encoded = BASE64_ENGINE.encode(credentials);
@@ -528,7 +528,7 @@ if let ConnectorAuthType::BodyKey { ... } = auth_type { ... }
 match auth_type {
     ConnectorAuthType::BodyKey { ... } => Ok(...),
     _ => Err(error_stack::report!(
-        errors::ConnectorError::FailedToObtainAuthType
+        errors::IntegrationError::FailedToObtainAuthType { context: Default::default() }
     )),
 }
 ```

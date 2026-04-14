@@ -4,6 +4,7 @@ use domain_types::{
         PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData, ResponseId,
         WebhookDetailsResponse,
     },
+    errors::{ConnectorError, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
 };
 
@@ -21,10 +22,9 @@ use domain_types::{
     utils::{get_unimplemented_payment_method_error_message, is_payment_failure},
 };
 
-use domain_types::errors::ConnectorError;
-
 use common_utils::consts;
 
+use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
 use hyperswitch_masking::Secret;
@@ -56,7 +56,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for CryptopayPaymentsRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(
         item: CryptopayRouterData<
             RouterDataV2<
@@ -107,10 +107,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
-            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(ConnectorError::NotImplemented(
+                Err(IntegrationError::not_implemented(
                     get_unimplemented_payment_method_error_message("CryptoPay"),
                 ))
             }
@@ -126,7 +127,7 @@ pub struct CryptopayAuthType {
 }
 
 impl TryFrom<&ConnectorSpecificConfig> for CryptopayAuthType {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
     fn try_from(auth_type: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         if let ConnectorSpecificConfig::Cryptopay {
             api_key,
@@ -139,7 +140,10 @@ impl TryFrom<&ConnectorSpecificConfig> for CryptopayAuthType {
                 api_secret: api_secret.to_owned(),
             })
         } else {
-            Err(ConnectorError::FailedToObtainAuthType.into())
+            Err(IntegrationError::FailedToObtainAuthType {
+                context: Default::default(),
+            }
+            .into())
         }
     }
 }
@@ -225,10 +229,15 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
             })
         };
         let amount_captured_in_minor_units = match cryptopay_response.data.price_amount {
-            Some(ref amount) => Some(CryptopayAmountConvertor::convert_back(
-                amount.clone(),
-                router_data.request.currency,
-            )?),
+            Some(ref amount) => Some(
+                CryptopayAmountConvertor::convert_back(
+                    amount.clone(),
+                    router_data.request.currency,
+                )
+                .change_context(
+                    crate::utils::response_handling_fail_for_connector(http_code, "cryptopay"),
+                )?,
+            ),
             None => None,
         };
         match (amount_captured_in_minor_units, status) {
@@ -363,10 +372,15 @@ impl<F> TryFrom<ResponseRouterData<CryptopayPaymentsResponse, Self>>
             })
         };
         let amount_captured_in_minor_units = match cryptopay_response.data.price_amount {
-            Some(ref amount) => Some(CryptopayAmountConvertor::convert_back(
-                amount.clone(),
-                router_data.request.currency,
-            )?),
+            Some(ref amount) => Some(
+                CryptopayAmountConvertor::convert_back(
+                    amount.clone(),
+                    router_data.request.currency,
+                )
+                .change_context(
+                    crate::utils::response_handling_fail_for_connector(http_code, "cryptopay"),
+                )?,
+            ),
             None => None,
         };
         match (amount_captured_in_minor_units, status) {
@@ -396,7 +410,7 @@ impl<F> TryFrom<ResponseRouterData<CryptopayPaymentsResponse, Self>>
 }
 
 impl TryFrom<CryptopayWebhookDetails> for WebhookDetailsResponse {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(notif: CryptopayWebhookDetails) -> Result<Self, Self::Error> {
         let status = common_enums::AttemptStatus::from(notif.data.status.clone());
@@ -428,13 +442,18 @@ impl TryFrom<CryptopayWebhookDetails> for WebhookDetailsResponse {
                 minor_amount_captured: None,
                 amount_captured: None,
                 network_txn_id: None,
+                payment_method_update: None,
             })
         } else {
             let amount_captured_in_minor_units =
                 match (notif.data.price_amount, notif.data.price_currency) {
-                    (Some(amount), Some(currency)) => {
-                        Some(CryptopayAmountConvertor::convert_back(amount, currency)?)
-                    }
+                    (Some(amount), Some(currency)) => Some(
+                        CryptopayAmountConvertor::convert_back(amount, currency).change_context(
+                            IntegrationError::AmountConversionFailed {
+                                context: Default::default(),
+                            },
+                        )?,
+                    ),
                     _ => None,
                 };
             match (amount_captured_in_minor_units, status) {
@@ -459,6 +478,7 @@ impl TryFrom<CryptopayWebhookDetails> for WebhookDetailsResponse {
                         raw_connector_response: None,
                         response_headers: None,
                         network_txn_id: None,
+                        payment_method_update: None,
                         transformation_status: common_enums::WebhookTransformationStatus::Complete,
                     })
                 }
@@ -476,6 +496,7 @@ impl TryFrom<CryptopayWebhookDetails> for WebhookDetailsResponse {
                     amount_captured: None,
                     error_reason: None,
                     network_txn_id: None,
+                    payment_method_update: None,
                     transformation_status: common_enums::WebhookTransformationStatus::Complete,
                 }),
             }

@@ -11,11 +11,27 @@
         "status": "not_supported",
         "error": "Only UPI payment methods are supported is not supported by Paytm"
       },
+      "AchBankTransfer": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
       "Affirm": {
         "status": "not_supported",
         "error": "Only UPI payment methods are supported is not supported by Paytm"
       },
       "Afterpay": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "Alfamart": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "AliPayRedirect": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "AmazonPayRedirect": {
         "status": "not_supported",
         "error": "Only UPI payment methods are supported is not supported by Paytm"
       },
@@ -27,7 +43,23 @@
         "status": "not_supported",
         "error": "Only UPI payment methods are supported is not supported by Paytm"
       },
+      "ApplePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
       "Bacs": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "BacsBankTransfer": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "BancontactCard": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "BcaBankTransfer": {
         "status": "not_supported",
         "error": "Only UPI payment methods are supported is not supported by Paytm"
       },
@@ -35,13 +67,85 @@
         "status": "not_supported",
         "error": "Only UPI payment methods are supported is not supported by Paytm"
       },
+      "Bizum": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
       "Blik": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "Bluecode": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "Boleto": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "BriVaBankTransfer": {
         "status": "not_supported",
         "error": "Only UPI payment methods are supported is not supported by Paytm"
       },
       "Card": {
         "status": "not_supported",
         "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "CashappQr": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "ClassicReward": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "EVoucher": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "Efecty": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "Eft": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "Eps": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "FamilyMart": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "Giropay": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "GooglePay": {
         "status": "not_supported",
@@ -51,7 +155,35 @@
         "status": "not_supported",
         "error": "Only UPI payment methods are supported is not supported by Paytm"
       },
+      "GooglePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
       "Ideal": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "Indomaret": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "InstantBankTransfer": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "Interac": {
         "status": "not_supported",
         "error": "Only UPI payment methods are supported is not supported by Paytm"
       },
@@ -59,7 +191,127 @@
         "status": "not_supported",
         "error": "Only UPI payment methods are supported is not supported by Paytm"
       },
+      "Lawson": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "LocalBankRedirect": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "LocalBankTransfer": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "MbWay": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "Mifinity": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "MiniStop": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "OpenBanking": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "OpenBankingUk": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "Oxxo": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "PagoEfectivo": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "PayEasy": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "PaySafeCard": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
       "PaypalRedirect": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "PaypalSdk": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "PermataBankTransfer": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "Pix": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "Przelewy24": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "Pse": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "RedCompra": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "RedPagos": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "RevolutPay": {
         "status": "not_supported",
         "error": "Only UPI payment methods are supported is not supported by Paytm"
       },
@@ -67,7 +319,35 @@
         "status": "not_supported",
         "error": "Only UPI payment methods are supported is not supported by Paytm"
       },
+      "Satispay": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "Seicomart": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
       "Sepa": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "SepaBankTransfer": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "SevenEleven": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "Sofort": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "Trustly": {
         "status": "not_supported",
         "error": "Only UPI payment methods are supported is not supported by Paytm"
       },
@@ -101,6 +381,72 @@
           },
           "body": "{\"head\":{\"txnToken\":\"probe_session_token\"},\"body\":{\"requestType\":\"NATIVE\",\"mid\":\"probe_merchant\",\"orderId\":\"probe_txn_001\",\"paymentMode\":\"UPI\",\"payerAccount\":\"test@upi\",\"channelCode\":\"\",\"channelId\":\"WEB\",\"txnToken\":\"probe_session_token\",\"authMode\":null}}"
         }
+      },
+      "UpiIntent": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "upi_intent": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://securestage.paytmpayments.com/theia/api/v1/processTransaction?mid=probe_merchant&orderId=probe_txn_001",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"head\":{\"version\":\"v1\",\"requestTimestamp\":\"0000000000\",\"channelId\":null,\"txnToken\":\"probe_session_token\"},\"body\":{\"mid\":\"probe_merchant\",\"orderId\":\"probe_txn_001\",\"requestType\":\"NATIVE\",\"paymentMode\":\"UPI_INTENT\",\"paymentFlow\":\"NONE\"}}"
+        }
+      },
+      "UpiQr": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "upi_qr": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://securestage.paytmpayments.com/theia/api/v1/processTransaction?mid=probe_merchant&orderId=probe_txn_001",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"head\":{\"version\":\"v1\",\"requestTimestamp\":\"0000000000\",\"channelId\":null,\"txnToken\":\"probe_session_token\"},\"body\":{\"mid\":\"probe_merchant\",\"orderId\":\"probe_txn_001\",\"requestType\":\"NATIVE\",\"paymentMode\":\"UPI_INTENT\",\"paymentFlow\":\"NONE\"}}"
+        }
+      },
+      "WeChatPayQr": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
+      },
+      "Wero": {
+        "status": "not_supported",
+        "error": "Only UPI payment methods are supported is not supported by Paytm"
       }
     },
     "capture": {
@@ -108,7 +454,7 @@
         "status": "not_implemented"
       }
     },
-    "create_access_token": {
+    "create_client_authentication_token": {
       "default": {
         "status": "not_implemented"
       }
@@ -123,13 +469,22 @@
         "status": "not_implemented"
       }
     },
-    "create_session_token": {
+    "create_server_authentication_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_server_session_authentication_token": {
       "default": {
         "status": "supported",
         "proto_request": {
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
+          "domain_context": {
+            "payment": {
+              "amount": {
+                "minor_amount": 1000,
+                "currency": "USD"
+              }
+            }
           }
         },
         "sample": {
@@ -153,7 +508,17 @@
         "status": "not_implemented"
       }
     },
+    "dispute_get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "eligibility": {
       "default": {
         "status": "not_implemented"
       }
@@ -180,6 +545,16 @@
         }
       }
     },
+    "handle_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "post_authenticate": {
       "default": {
         "status": "not_implemented"
@@ -190,12 +565,33 @@
         "status": "not_implemented"
       }
     },
+    "proxy_authorize": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: session_token — Missing required field: session_token"
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "recurring_charge": {
       "default": {
         "status": "not_implemented"
       }
     },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "refund": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "refund_get": {
       "default": {
         "status": "not_implemented"
       }
@@ -210,7 +606,23 @@
         "status": "not_implemented"
       }
     },
+    "token_authorize": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: session_token — Missing required field: session_token"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "tokenize": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "verify_redirect": {
       "default": {
         "status": "not_implemented"
       }

@@ -11,13 +11,14 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Accept, Authenticate, Authorize, Capture, CreateAccessToken, CreateConnectorCustomer,
-        CreateOrder, CreateSessionToken, DefendDispute, IncrementalAuthorization, MandateRevoke,
-        PSync, PaymentMethodToken, PostAuthenticate, PreAuthenticate, RSync, Refund, RepeatPayment,
-        SdkSessionToken, SetupMandate, SubmitEvidence, Void, VoidPC,
+        Accept, Authenticate, Authorize, Capture, ClientAuthenticationToken,
+        CreateConnectorCustomer, CreateOrder, DefendDispute, IncrementalAuthorization,
+        MandateRevoke, PSync, PaymentMethodToken, PostAuthenticate, PreAuthenticate, RSync, Refund,
+        RepeatPayment, ServerAuthenticationToken, ServerSessionAuthenticationToken, SetupMandate,
+        SubmitEvidence, Void, VoidPC,
     },
     connector_types::{
-        AcceptDisputeData, AccessTokenRequestData, AccessTokenResponseData, ConnectorCustomerData,
+        AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
         ConnectorCustomerResponse, ConnectorSpecifications, ConnectorWebhookSecrets,
         DisputeDefendData, DisputeFlowData, DisputeResponseData, EventType,
         MandateRevokeRequestData, MandateRevokeResponseData, PaymentCreateOrderData,
@@ -25,12 +26,12 @@ use domain_types::{
         PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthenticateData,
         PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
-        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSdkSessionTokenData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        RepeatPaymentData, RequestDetails, SessionTokenRequestData, SessionTokenResponseData,
+        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData, RequestDetails,
+        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
+        ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
         SetupMandateRequestData, SubmitEvidenceData,
     },
-    errors,
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -44,7 +45,7 @@ use interfaces::{
 };
 use serde::Serialize;
 pub mod transformers;
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 
 use transformers::{
@@ -59,6 +60,8 @@ use transformers::{
 
 use super::macros;
 use crate::{types::ResponseRouterData, with_error_response_body};
+use domain_types::errors::ConnectorError;
+use domain_types::errors::{IntegrationError, WebhookError};
 
 // Local headers module
 mod headers {
@@ -169,16 +172,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: &RequestDetails,
         _connector_webhook_secret: &ConnectorWebhookSecrets,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+    ) -> Result<Vec<u8>, error_stack::Report<WebhookError>> {
         let webhook_body: noon::NoonWebhookSignature = request
             .body
             .parse_struct("NoonWebhookSignature")
-            .change_context(errors::ConnectorError::WebhookSignatureNotFound)
+            .change_context(WebhookError::WebhookSignatureNotFound)
             .attach_printable("Missing incoming webhook signature for noon")?;
         let signature = webhook_body.signature;
         BASE64_ENGINE
             .decode(signature)
-            .change_context(errors::ConnectorError::WebhookSignatureNotFound)
+            .change_context(WebhookError::WebhookSignatureNotFound)
             .attach_printable("Missing incoming webhook signature for noon")
     }
 
@@ -186,11 +189,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: &RequestDetails,
         _connector_webhook_secrets: &ConnectorWebhookSecrets,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+    ) -> Result<Vec<u8>, error_stack::Report<WebhookError>> {
         let webhook_body: noon::NoonWebhookBody = request
             .body
             .parse_struct("NoonWebhookBody")
-            .change_context(errors::ConnectorError::WebhookSignatureNotFound)
+            .change_context(WebhookError::WebhookSignatureNotFound)
             .attach_printable("Missing incoming webhook signature for noon")?;
         let message = format!(
             "{},{},{},{},{}",
@@ -208,26 +211,29 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         request: RequestDetails,
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
-    ) -> Result<EventType, error_stack::Report<errors::ConnectorError>> {
+    ) -> Result<EventType, error_stack::Report<WebhookError>> {
         let details: noon::NoonWebhookEvent = request
             .body
             .parse_struct("NoonWebhookEvent")
-            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)
+            .change_context(WebhookError::WebhookBodyDecodingFailed)
             .attach_printable("Failed to parse webhook event type from Noon webhook body")?;
 
-        Ok(match &details.event_type {
+        match &details.event_type {
             noon::NoonWebhookEventTypes::Sale | noon::NoonWebhookEventTypes::Capture => {
                 match &details.order_status {
-                    noon::NoonPaymentStatus::Captured => EventType::PaymentIntentSuccess,
-                    _ => Err(errors::ConnectorError::WebhookEventTypeNotFound)?,
+                    noon::NoonPaymentStatus::Captured => Ok(EventType::PaymentIntentSuccess),
+                    _ => Err(report!(WebhookError::WebhookEventTypeNotFound)
+                        .attach_printable("Unexpected order status for sale/capture Noon webhook")),
                 }
             }
-            noon::NoonWebhookEventTypes::Fail => EventType::PaymentIntentFailure,
+            noon::NoonWebhookEventTypes::Fail => Ok(EventType::PaymentIntentFailure),
             noon::NoonWebhookEventTypes::Authorize
             | noon::NoonWebhookEventTypes::Authenticate
             | noon::NoonWebhookEventTypes::Refund
-            | noon::NoonWebhookEventTypes::Unknown => EventType::IncomingWebhookEventUnspecified,
-        })
+            | noon::NoonWebhookEventTypes::Unknown => {
+                Ok(EventType::IncomingWebhookEventUnspecified)
+            }
+        }
     }
 
     fn verify_webhook_source(
@@ -235,12 +241,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         request: RequestDetails,
         connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
-    ) -> Result<bool, error_stack::Report<errors::ConnectorError>> {
+    ) -> Result<bool, error_stack::Report<WebhookError>> {
         let algorithm = crypto::HmacSha512;
 
         let connector_webhook_secrets = match connector_webhook_secret {
             Some(secrets) => secrets,
-            None => Err(errors::ConnectorError::WebhookSourceVerificationFailed)?,
+            None => {
+                return Err(report!(WebhookError::WebhookVerificationSecretNotFound));
+            }
         };
 
         let signature =
@@ -251,7 +259,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         algorithm
             .verify_signature(&connector_webhook_secrets.secret, &signature, &message)
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
+            .change_context(WebhookError::WebhookSourceVerificationFailed)
             .attach_printable("Noon webhook signature verification failed")
     }
 
@@ -262,7 +270,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<
         domain_types::connector_types::WebhookDetailsResponse,
-        error_stack::Report<errors::ConnectorError>,
+        error_stack::Report<WebhookError>,
     > {
         Ok(domain_types::connector_types::WebhookDetailsResponse {
             resource_id: None,
@@ -278,6 +286,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             minor_amount_captured: None,
             error_reason: None,
             network_txn_id: None,
+            payment_method_update: None,
             transformation_status: common_enums::WebhookTransformationStatus::Incomplete,
         })
     }
@@ -285,23 +294,25 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn get_webhook_resource_object(
         &self,
         request: RequestDetails,
-    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    ) -> Result<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, error_stack::Report<WebhookError>>
     {
-        let resource: noon::NoonWebhookObject = request
+        let webhook_object: noon::NoonWebhookObject = request
             .body
             .parse_struct("NoonWebhookObject")
-            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)
+            .change_context(WebhookError::WebhookResourceObjectNotFound)
             .attach_printable("Failed to parse webhook resource object from Noon webhook body")?;
 
-        Ok(Box::new(NoonPaymentsResponse::from(resource)))
+        let resource: Box<dyn hyperswitch_masking::ErasedMaskSerialize> =
+            Box::new(NoonPaymentsResponse::from(webhook_object));
+        Ok(resource)
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentSessionToken for Noon<T>
+    connector_types::ServerSessionAuthentication for Noon<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentAccessToken for Noon<T>
+    connector_types::ServerAuthentication for Noon<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -326,9 +337,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::SdkSessionTokenV2 for Noon<T>
+    connector_types::ClientAuthentication for Noon<T>
 {
 }
+
+macros::macro_connector_payout_implementation!(
+    connector: Noon,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize]
+);
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::MandateRevokeV2 for Noon<T>
 {
@@ -399,7 +417,7 @@ macros::create_all_prerequisites!(
         pub fn build_headers<F, FCD, Req, Res>(
             &self,
             req: &RouterDataV2<F, FCD, Req, Res>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError>
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError>
         where
             Self: ConnectorIntegrationV2<F, FCD, Req, Res>,
         {
@@ -429,7 +447,7 @@ macros::create_all_prerequisites!(
         pub fn get_auth_header(
             &self,
             auth_type: &ConnectorSpecificConfig,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let auth = NoonAuthType::try_from(auth_type)?;
 
             let encoded_api_key = auth
@@ -469,11 +487,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: NoonErrorResponse = res
-            .response
-            .parse_struct("NoonErrorResponse")
-            .map_err(|_| errors::ConnectorError::ResponseDeserializationFailed)?;
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
+        let response: NoonErrorResponse =
+            res.response
+                .parse_struct("NoonErrorResponse")
+                .map_err(|_| {
+                    crate::utils::response_deserialization_fail(
+                        res.status_code,
+                    "noon: response body did not match the expected format; confirm API version and connector documentation.")
+                })?;
 
         with_error_response_body!(event_builder, response);
 
@@ -514,13 +536,13 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
         fn get_url(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}payment/v1/order", self.connector_base_url_payments(req)))
         }
     }
@@ -542,14 +564,14 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
 
         fn get_url(
             &self,
             req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}payment/v1/order", self.connector_base_url_payments(req)))
         }
     }
@@ -570,13 +592,13 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
         fn get_url(
             &self,
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
         Ok(format!(
             "{}payment/v1/order/getbyreference/{}",
             self.connector_base_url_payments(req),
@@ -602,13 +624,13 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
         fn get_url(
             &self,
             req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}payment/v1/order", self.connector_base_url_payments(req)))
         }
     }
@@ -631,13 +653,13 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
         fn get_url(
             &self,
             req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
              Ok(format!("{}payment/v1/order", self.connector_base_url_payments(req),))
         }
     }
@@ -660,13 +682,13 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
         fn get_url(
             &self,
             req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}payment/v1/order", self.connector_base_url_refunds(req)))
         }
     }
@@ -688,13 +710,13 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
         fn get_url(
             &self,
             req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
         let request_ref_id = req.resource_common_data.connector_request_reference_id.clone();
         Ok(format!(
             "{}payment/v1/order/getbyreference/{}",
@@ -721,13 +743,13 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<MandateRevoke, PaymentFlowData, MandateRevokeRequestData, MandateRevokeResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
         fn get_url(
             &self,
             req: &RouterDataV2<MandateRevoke, PaymentFlowData, MandateRevokeRequestData, MandateRevokeResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
              Ok(format!("{}payment/v1/order", self.connector_base_url_payments(req)))
         }
     }
@@ -749,13 +771,13 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
         fn get_url(
             &self,
             req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}payment/v1/order", self.connector_base_url_payments(req)))
         }
     }
@@ -788,20 +810,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
-        CreateSessionToken,
+        ServerSessionAuthenticationToken,
         PaymentFlowData,
-        SessionTokenRequestData,
-        SessionTokenResponseData,
+        ServerSessionAuthenticationTokenRequestData,
+        ServerSessionAuthenticationTokenResponseData,
     > for Noon<T>
 {
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
-        CreateAccessToken,
+        ServerAuthenticationToken,
         PaymentFlowData,
-        AccessTokenRequestData,
-        AccessTokenResponseData,
+        ServerAuthenticationTokenRequestData,
+        ServerAuthenticationTokenResponseData,
     > for Noon<T>
 {
 }
@@ -868,9 +890,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
-        SdkSessionToken,
+        ClientAuthenticationToken,
         PaymentFlowData,
-        PaymentsSdkSessionTokenData,
+        ClientAuthenticationTokenRequestData,
         PaymentsResponseData,
     > for Noon<T>
 {

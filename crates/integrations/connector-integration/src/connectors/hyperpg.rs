@@ -11,25 +11,26 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Accept, Authenticate, Authorize, Capture, CreateAccessToken, CreateConnectorCustomer,
-        CreateOrder, CreateSessionToken, DefendDispute, IncrementalAuthorization, MandateRevoke,
-        PSync, PaymentMethodToken, PostAuthenticate, PreAuthenticate, RSync, Refund, RepeatPayment,
-        SdkSessionToken, SetupMandate, SubmitEvidence, Void, VoidPC,
+        Accept, Authenticate, Authorize, Capture, ClientAuthenticationToken,
+        CreateConnectorCustomer, CreateOrder, DefendDispute, IncrementalAuthorization,
+        MandateRevoke, PSync, PaymentMethodToken, PostAuthenticate, PreAuthenticate, RSync, Refund,
+        RepeatPayment, ServerAuthenticationToken, ServerSessionAuthenticationToken, SetupMandate,
+        SubmitEvidence, Void, VoidPC,
     },
     connector_types::{
-        AcceptDisputeData, AccessTokenRequestData, AccessTokenResponseData, ConnectorCustomerData,
+        AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
         ConnectorCustomerResponse, ConnectorSpecifications, DisputeDefendData, DisputeFlowData,
         DisputeResponseData, MandateRevokeRequestData, MandateRevokeResponseData,
         PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData,
         PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
         PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
         PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
-        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSdkSessionTokenData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        RepeatPaymentData, SessionTokenRequestData, SessionTokenResponseData,
+        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
+        ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
         SetupMandateRequestData, SubmitEvidenceData, SupportedPaymentMethodsExt,
     },
-    errors::{self},
     payment_method_data::PaymentMethodDataTypes,
     router_data::ErrorResponse,
     router_data_v2::RouterDataV2,
@@ -56,6 +57,8 @@ use transformers::{
 use super::macros;
 use crate::types::ResponseRouterData;
 use crate::with_error_response_body;
+use domain_types::errors::ConnectorError;
+use domain_types::errors::IntegrationError;
 
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
@@ -94,7 +97,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentSessionToken for Hyperpg<T>
+    connector_types::ServerSessionAuthentication for Hyperpg<T>
 {
 }
 
@@ -104,7 +107,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentAccessToken for Hyperpg<T>
+    connector_types::ServerAuthentication for Hyperpg<T>
 {
 }
 
@@ -154,9 +157,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::SdkSessionTokenV2 for Hyperpg<T>
+    connector_types::ClientAuthentication for Hyperpg<T>
 {
 }
+
+macros::macro_connector_payout_implementation!(
+    connector: Hyperpg,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize]
+);
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::MandateRevokeV2 for Hyperpg<T>
@@ -297,11 +306,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: hyperpg::HyperpgErrorResponse = res
             .response
             .parse_struct("HyperpgErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+            .change_context(
+                crate::utils::response_deserialization_fail(
+                    res.status_code,
+                "hyperpg: response body did not match the expected format; confirm API version and connector documentation."),
+            )
             .attach_printable("Failed to deserialize Hyperpg error response")?;
 
         with_error_response_body!(event_builder, response);
@@ -356,16 +369,16 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let auth = hyperpg::HyperpgAuthType::try_from(&req.connector_config)
-                .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+                .change_context(IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
             Ok(self.build_headers(&auth))
         }
 
         fn get_url(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}/txns", self.connector_base_url_payments(req)))
         }
     }
@@ -386,16 +399,16 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let auth = hyperpg::HyperpgAuthType::try_from(&req.connector_config)
-                .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+                .change_context(IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
             Ok(self.build_headers(&auth))
         }
 
         fn get_url(
             &self,
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let order_id = req.resource_common_data.get_reference_id()?;
             Ok(format!("{}/orders/{}", self.connector_base_url_payments(req), order_id))
         }
@@ -418,30 +431,34 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let auth = hyperpg::HyperpgAuthType::try_from(&req.connector_config)
-                .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+                .change_context(IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
             Ok(self.build_headers(&auth))
         }
 
         fn get_url(
             &self,
             req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let connector_meta = req.request.get_connector_feature_data()?;
 
+            let hyperpg_meta: hyperpg::HyperpgMeta = connector_meta
+                .parse_value("HyperpgMeta")
+                .change_context(IntegrationError::RequestEncodingFailed { context: Default::default() })?;
 
-    let hyperpg_meta: hyperpg::HyperpgMeta = connector_meta
-        .parse_value("HyperpgMeta")
-        .change_context(errors::ConnectorError::ParsingFailed)?;
+            let order_id = hyperpg_meta.order_id.ok_or(
+                IntegrationError::MissingRequiredField {
+                    field_name: "order_id",
+                    context: Default::default()
+},
+            )?;
 
-
-    let order_id = hyperpg_meta.order_id.ok_or(
-        errors::ConnectorError::MissingRequiredField { field_name: "order_id"},
-    )?;
-
-
-            Ok(format!("{}/orders/{}/refunds", self.connector_base_url_refunds(req), order_id))
+            Ok(format!(
+                "{}/orders/{}/refunds",
+                self.connector_base_url_refunds(req),
+                order_id
+            ))
         }
     }
 );
@@ -461,16 +478,16 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let auth = hyperpg::HyperpgAuthType::try_from(&req.connector_config)
-                .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+                .change_context(IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
             Ok(self.build_headers(&auth))
         }
 
         fn get_url(
             &self,
             req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let order_id = req.request.connector_refund_id.clone();
             Ok(format!("{}/orders/{}", self.connector_base_url_refunds(req), order_id))
         }
@@ -519,8 +536,8 @@ static HYPERPG_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = {
 static HYPERPG_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         display_name: "Hyperpg",
         description: "Hyperpg is your trusted payment gateway solution. Seamlessly manage transactions, enhance security, and empower your business to thrive in the digital age.",
-        connector_type: PaymentConnectorCategory::PaymentGateway,
-    };
+        connector_type: PaymentConnectorCategory::PaymentGateway
+};
 
 static HYPERPG_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
 
@@ -593,10 +610,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
-        CreateSessionToken,
+        ServerSessionAuthenticationToken,
         PaymentFlowData,
-        SessionTokenRequestData,
-        SessionTokenResponseData,
+        ServerSessionAuthenticationTokenRequestData,
+        ServerSessionAuthenticationTokenResponseData,
     > for Hyperpg<T>
 {
 }
@@ -661,9 +678,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
-        SdkSessionToken,
+        ClientAuthenticationToken,
         PaymentFlowData,
-        PaymentsSdkSessionTokenData,
+        ClientAuthenticationTokenRequestData,
         PaymentsResponseData,
     > for Hyperpg<T>
 {
@@ -671,10 +688,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
-        CreateAccessToken,
+        ServerAuthenticationToken,
         PaymentFlowData,
-        AccessTokenRequestData,
-        AccessTokenResponseData,
+        ServerAuthenticationTokenRequestData,
+        ServerAuthenticationTokenResponseData,
     > for Hyperpg<T>
 {
 }

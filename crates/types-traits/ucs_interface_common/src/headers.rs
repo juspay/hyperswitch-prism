@@ -41,6 +41,7 @@ const HEADERS: &[&str] = &[
     consts::X_SHADOW_MODE,
     consts::X_CONNECTOR_CONFIG,
     consts::X_RESOURCE_ID,
+    consts::X_ENVIRONMENT,
 ];
 
 fn to_metadata_value(key: &str, value: &str) -> Result<MetadataValue<Ascii>, InterfaceError> {

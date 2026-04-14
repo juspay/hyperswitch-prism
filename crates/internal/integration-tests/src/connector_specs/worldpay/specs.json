@@ -1,0 +1,14 @@
+{
+  "connector": "worldpay",
+  "supported_suites": [
+    "authorize",
+    "capture",
+    "get",
+    "post_authenticate",
+    "pre_authenticate",
+    "recurring_charge",
+    "refund",
+    "refund_sync",
+    "void"
+  ]
+}

@@ -80,13 +80,18 @@ pub(crate) fn flatten_oneof_wrappers(value: &serde_json::Value) -> serde_json::V
             for (k, v) in map {
                 let v = flatten_oneof_wrappers(v);
                 // Collapse the oneof wrapper: {"k": {"k": inner}} → {"k": inner}
+                // Only when `inner` is itself an object — scalar inner values (e.g.
+                // TokenPaymentMethodType where field name == parent field name) must
+                // NOT be collapsed, or we lose the message nesting.
                 if let serde_json::Value::Object(inner_map) = &v {
                     if inner_map.len() == 1
                         && inner_map.keys().next().map(|ik| ik == k).unwrap_or(false)
                     {
                         let inner_value = inner_map.values().next().unwrap();
-                        result.insert(k.clone(), flatten_oneof_wrappers(inner_value));
-                        continue;
+                        if inner_value.is_object() || inner_value.is_array() {
+                            result.insert(k.clone(), flatten_oneof_wrappers(inner_value));
+                            continue;
+                        }
                     }
                 }
                 result.insert(k.clone(), v);

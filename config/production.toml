@@ -108,11 +108,13 @@ worldpayxml.base_url = "https://secure.worldpay.com/jsp/merchant/xml/paymentServ
 tsys.base_url = "https://gateway.transit-pass.com/"
 bankofamerica.base_url = "https://apitest.merchant-services.bankofamerica.com/"
 powertranz.base_url = "https://staging.ptranz.com/api"
-revolut.base_url = "https://oba-auth.revolut.com/"
+revolut.base_url = "https://merchant.revolut.com/"
 wellsfargo.base_url = "https://api.cybersource.com/"
 zift.base_url = "https://secure.zift.io/"
 truelayer.base_url = "https://api.truelayer.com"
 truelayer.secondary_base_url = "https://auth.truelayer.com"
+trustly.base_url = "https://api.trustly.com/1"
+itaubank.base_url = "https://api.itau.com.br"
 
 # Generic Events Configuration
 [events]
@@ -126,4 +128,4 @@ keys = ["x-request-id","x-merchant-id","x-lineage-ids","x-reference-id","x-conne
 
 # Connectors that require an external API call for webhook source verification
 [webhook_source_verification_call] # comma-separated list of connector names (case-insensitive)
-connectors_with_webhook_source_verification_call = "paypal, truelayer" 
+connectors_with_webhook_source_verification_call = "paypal, truelayer"

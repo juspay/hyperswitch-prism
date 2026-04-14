@@ -1,4 +1,3 @@
-use crate::flow_metadata::{FlowMetadata, MessageSchema};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -50,20 +49,6 @@ pub(crate) struct FlowResult {
 pub(crate) struct ConnectorResult {
     pub(crate) connector: String,
     pub(crate) flows: BTreeMap<String, BTreeMap<String, FlowResult>>,
-}
-
-/// Top-level output structure for the manifest file
-#[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct ProbeManifest {
-    /// Flow metadata for all probed flows (generated from services.proto)
-    pub(crate) flow_metadata: Vec<FlowMetadata>,
-    /// List of connector names that were probed
-    pub(crate) connectors: Vec<String>,
-    /// Proto message schemas: field comments and nested message types.
-    /// Key is the message name (e.g. "PaymentServiceAuthorizeRequest").
-    pub(crate) message_schemas: BTreeMap<String, MessageSchema>,
-    /// Schema version for future compatibility
-    pub(crate) schema_version: String,
 }
 
 /// Compact flow result that omits null fields and not_supported status

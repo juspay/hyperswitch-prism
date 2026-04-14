@@ -9,15 +9,31 @@
     "authorize": {
       "Ach": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through nexinets"
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "AchBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
       },
       "Affirm": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through nexinets"
+        "error": "This feature is not implemented: Selected payment method through nexinets"
       },
       "Afterpay": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through nexinets"
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "Alfamart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "AliPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "AmazonPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
       },
       "ApplePay": {
         "status": "supported",
@@ -62,17 +78,53 @@
         "status": "error",
         "error": "Stuck on field: Apple pay encrypted data — Missing required field: Apple pay encrypted data"
       },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
       "Bacs": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through nexinets"
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "BacsBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "BancontactCard": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "BcaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
       },
       "Becs": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through nexinets"
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "Bizum": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
       },
       "Blik": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through nexinets"
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "Bluecode": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "Boleto": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "BriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
       },
       "Card": {
         "status": "supported",
@@ -109,13 +161,119 @@
           "body": "{\"initialAmount\":1000,\"currency\":\"USD\",\"channel\":\"ECOM\",\"product\":\"creditcard\",\"payment\":{\"cardNumber\":\"4111111111111111\",\"expiryMonth\":\"03\",\"expiryYear\":\"2030\",\"verification\":\"737\",\"cofContract\":null},\"async\":{\"successUrl\":\"https://example.com/return\",\"cancelUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\"},\"merchantOrderId\":\"probe_txn_001\"}"
         }
       },
+      "CashappQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "ClassicReward": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "EVoucher": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "Efecty": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "Eft": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "Eps": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "eps": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://apitest.payengine.de/v1/orders/debit",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfbWVyY2hhbnQ6cHJvYmVfa2V5",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"initialAmount\":1000,\"currency\":\"USD\",\"channel\":\"ECOM\",\"product\":\"eps\",\"payment\":null,\"async\":{\"successUrl\":\"https://example.com/return\",\"cancelUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\"},\"merchantOrderId\":null}"
+        }
+      },
+      "FamilyMart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "Giropay": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "giropay": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://apitest.payengine.de/v1/orders/debit",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfbWVyY2hhbnQ6cHJvYmVfa2V5",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"initialAmount\":1000,\"currency\":\"USD\",\"channel\":\"ECOM\",\"product\":\"giropay\",\"payment\":null,\"async\":{\"successUrl\":\"https://example.com/return\",\"cancelUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\"},\"merchantOrderId\":null}"
+        }
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
       "GooglePay": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through nexinets"
+        "error": "This feature is not implemented: Selected payment method through nexinets"
       },
       "GooglePayDecrypted": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through nexinets"
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
       },
       "Ideal": {
         "status": "supported",
@@ -146,9 +304,117 @@
           "body": "{\"initialAmount\":1000,\"currency\":\"USD\",\"channel\":\"ECOM\",\"product\":\"ideal\",\"payment\":{\"bic\":null},\"async\":{\"successUrl\":\"https://example.com/return\",\"cancelUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\"},\"merchantOrderId\":null}"
         }
       },
+      "Indomaret": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "InstantBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "Interac": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
       "Klarna": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through nexinets"
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "Lawson": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "LocalBankRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "LocalBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "MbWay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "Mifinity": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "MiniStop": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "OpenBanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "OpenBankingUk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "Oxxo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "PagoEfectivo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "PayEasy": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "PaySafeCard": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "PaypalRedirect": {
         "status": "supported",
@@ -181,28 +447,154 @@
           "body": "{\"initialAmount\":1000,\"currency\":\"USD\",\"channel\":\"ECOM\",\"product\":\"paypal\",\"payment\":null,\"async\":{\"successUrl\":\"https://example.com/return\",\"cancelUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\"},\"merchantOrderId\":null}"
         }
       },
+      "PaypalSdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "PermataBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "Pix": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "Przelewy24": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "Pse": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "RedCompra": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "RedPagos": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "RevolutPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
       "SamsungPay": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through nexinets"
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "Satispay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "Seicomart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
       },
       "Sepa": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through nexinets"
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "SepaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "SevenEleven": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "Sofort": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "sofort": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://apitest.payengine.de/v1/orders/debit",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfbWVyY2hhbnQ6cHJvYmVfa2V5",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"initialAmount\":1000,\"currency\":\"USD\",\"channel\":\"ECOM\",\"product\":\"sofort\",\"payment\":null,\"async\":{\"successUrl\":\"https://example.com/return\",\"cancelUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\"},\"merchantOrderId\":null}"
+        }
+      },
+      "Trustly": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
       },
       "UpiCollect": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through nexinets"
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "UpiIntent": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "UpiQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "WeChatPayQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
+      "Wero": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
       }
     },
     "capture": {
       "default": {
         "status": "error",
-        "error": "Parsing failed"
+        "error": "Invalid data format: connector_integration::connectors::nexinets::transformers::NexinetsPaymentsMetadata"
       }
     },
-    "create_access_token": {
+    "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_client_session_id": "probe_sdk_session_001",
+          "domain_context": {
+            "payment": {
+              "amount": {
+                "minor_amount": 1000,
+                "currency": "USD"
+              }
+            }
+          }
+        },
+        "sample": {
+          "url": "https://apitest.payengine.de/v1/orders",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfbWVyY2hhbnQ6cHJvYmVfa2V5",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"initialAmount\":1000,\"currency\":\"USD\",\"channel\":\"ECOM\",\"transactionType\":\"PREAUTH\",\"async\":{\"successUrl\":null,\"cancelUrl\":null,\"failureUrl\":null}}"
+        }
       }
     },
     "create_customer": {
@@ -215,7 +607,12 @@
         "status": "not_implemented"
       }
     },
-    "create_session_token": {
+    "create_server_authentication_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_server_session_authentication_token": {
       "default": {
         "status": "not_implemented"
       }
@@ -230,7 +627,17 @@
         "status": "not_implemented"
       }
     },
+    "dispute_get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "eligibility": {
       "default": {
         "status": "not_implemented"
       }
@@ -258,6 +665,16 @@
         }
       }
     },
+    "handle_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "post_authenticate": {
       "default": {
         "status": "not_implemented"
@@ -268,7 +685,52 @@
         "status": "not_implemented"
       }
     },
+    "proxy_authorize": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_proxy_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://apitest.payengine.de/v1/orders/debit",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfbWVyY2hhbnQ6cHJvYmVfa2V5",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"initialAmount\":1000,\"currency\":\"USD\",\"channel\":\"ECOM\",\"product\":\"creditcard\",\"payment\":{\"cardNumber\":\"4111111111111111\",\"expiryMonth\":\"03\",\"expiryYear\":\"2030\",\"verification\":\"123\",\"cofContract\":null},\"async\":{\"successUrl\":\"https://example.com/return\",\"cancelUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\"},\"merchantOrderId\":\"probe_proxy_txn_001\"}"
+        }
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "recurring_charge": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "recurring_revoke": {
       "default": {
         "status": "not_implemented"
       }
@@ -298,6 +760,12 @@
         }
       }
     },
+    "refund_get": {
+      "default": {
+        "status": "error",
+        "error": "Invalid data format: connector_integration::connectors::nexinets::transformers::NexinetsPaymentsMetadata"
+      }
+    },
     "reverse": {
       "default": {
         "status": "not_implemented"
@@ -308,7 +776,23 @@
         "status": "not_implemented"
       }
     },
+    "token_authorize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "tokenize": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "verify_redirect": {
       "default": {
         "status": "not_implemented"
       }
@@ -316,7 +800,7 @@
     "void": {
       "default": {
         "status": "error",
-        "error": "Parsing failed"
+        "error": "Invalid data format: connector_integration::connectors::nexinets::transformers::NexinetsPaymentsMetadata"
       }
     }
   }

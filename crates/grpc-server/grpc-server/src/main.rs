@@ -1,3 +1,6 @@
+use std::sync::Arc;
+
+use common_utils::SuperpositionConfig;
 use grpc_server::{self, app};
 use ucs_env::{configs, logger};
 
@@ -7,7 +10,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(debug_assertions)]
     verify_other_config_files();
     #[allow(clippy::expect_used)]
-    let config = configs::Config::new().expect("Failed while parsing config");
+    let mut config = configs::Config::new().expect("Failed while parsing config");
+
+    // Load superposition.toml for connector URL resolution
+    let superposition_config_path = format!(
+        "{}/config/superposition.toml",
+        configs::workspace_path().display()
+    );
+    match SuperpositionConfig::from_file(&superposition_config_path) {
+        Ok(sp_config) => {
+            tracing::info!(
+                "Successfully loaded superposition.toml from {}",
+                superposition_config_path
+            );
+            config.superposition_config = Some(Arc::new(sp_config));
+        }
+        Err(e) => {
+            tracing::warn!(
+                "Failed to load superposition.toml from {}: {}. Connector URLs will use defaults from sandbox.toml",
+                superposition_config_path,
+                e
+            );
+        }
+    }
+
     let _guard = logger::setup(
         &config.log,
         ucs_env::service_name!(),

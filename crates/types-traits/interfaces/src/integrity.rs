@@ -4,21 +4,33 @@
 //! It ensures that request and response data remain consistent across connector interactions
 //! by comparing critical fields like amounts, currencies, and transaction identifiers.
 use common_utils::errors::IntegrityCheckError;
-use domain_types::router_request_types::SdkSessionTokenIntegrityObject;
+use domain_types::router_request_types::ClientAuthenticationTokenIntegrityObject;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 // Domain type imports
 use domain_types::connector_types::{
-    AcceptDisputeData, AccessTokenRequestData, ConnectorCustomerData, DisputeDefendData,
-    MandateRevokeRequestData, PaymentCreateOrderData, PaymentMethodTokenizationData,
-    PaymentVoidData, PaymentsAuthenticateData, PaymentsAuthorizeData,
-    PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
-    PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsSdkSessionTokenData,
-    PaymentsSyncData, RefundSyncData, RefundsData, RepeatPaymentData, SessionTokenRequestData,
+    AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
+    DisputeDefendData, MandateRevokeRequestData, PaymentCreateOrderData,
+    PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthenticateData,
+    PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
+    PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
+    PaymentsPreAuthenticateData, PaymentsSyncData, RefundSyncData, RefundsData, RepeatPaymentData,
+    ServerAuthenticationTokenRequestData, ServerSessionAuthenticationTokenRequestData,
     SetupMandateRequestData, SubmitEvidenceData,
+};
+use domain_types::payouts::payouts_types::{
+    PayoutCreateLinkRequest, PayoutCreateRecipientRequest, PayoutCreateRequest,
+    PayoutEnrollDisburseAccountRequest, PayoutGetRequest, PayoutStageRequest,
+    PayoutTransferRequest, PayoutVoidRequest,
 };
 use domain_types::router_request_types::VerifyWebhookSourceRequestData;
 use domain_types::{
     payment_method_data::PaymentMethodDataTypes,
+    payouts::router_request_types::{
+        PayoutCreateIntegrityObject, PayoutCreateLinkIntegrityObject,
+        PayoutCreateRecipientIntegrityObject, PayoutEnrollDisburseAccountIntegrityObject,
+        PayoutGetIntegrityObject, PayoutStageIntegrityObject, PayoutTransferIntegrityObject,
+        PayoutVoidIntegrityObject,
+    },
     router_request_types::{
         AcceptDisputeIntegrityObject, AccessTokenIntegrityObject, AuthenticateIntegrityObject,
         AuthoriseIntegrityObject, CaptureIntegrityObject, CreateConnectorCustomerIntegrityObject,
@@ -160,8 +172,8 @@ impl_check_integrity!(PaymentsCaptureData);
 impl_check_integrity!(AcceptDisputeData);
 impl_check_integrity!(DisputeDefendData);
 impl_check_integrity!(RefundSyncData);
-impl_check_integrity!(SessionTokenRequestData);
-impl_check_integrity!(AccessTokenRequestData);
+impl_check_integrity!(ServerSessionAuthenticationTokenRequestData);
+impl_check_integrity!(ServerAuthenticationTokenRequestData);
 impl_check_integrity!(PaymentMethodTokenizationData<S>);
 impl_check_integrity!(SubmitEvidenceData);
 impl_check_integrity!(RepeatPaymentData<S>);
@@ -169,10 +181,18 @@ impl_check_integrity!(PaymentsAuthenticateData<S>);
 impl_check_integrity!(PaymentsPostAuthenticateData<S>);
 impl_check_integrity!(PaymentsPreAuthenticateData<S>);
 impl_check_integrity!(ConnectorCustomerData);
-impl_check_integrity!(PaymentsSdkSessionTokenData);
+impl_check_integrity!(ClientAuthenticationTokenRequestData);
 impl_check_integrity!(PaymentsIncrementalAuthorizationData);
 impl_check_integrity!(MandateRevokeRequestData);
 impl_check_integrity!(VerifyWebhookSourceRequestData);
+impl_check_integrity!(PayoutCreateRequest);
+impl_check_integrity!(PayoutTransferRequest);
+impl_check_integrity!(PayoutStageRequest);
+impl_check_integrity!(PayoutCreateLinkRequest);
+impl_check_integrity!(PayoutCreateRecipientRequest);
+impl_check_integrity!(PayoutEnrollDisburseAccountRequest);
+impl_check_integrity!(PayoutGetRequest);
+impl_check_integrity!(PayoutVoidRequest);
 
 // ========================================================================
 // GET INTEGRITY OBJECT IMPLEMENTATIONS
@@ -388,7 +408,9 @@ impl GetIntegrityObject<VerifyWebhookSourceIntegrityObject> for VerifyWebhookSou
     }
 }
 
-impl GetIntegrityObject<SessionTokenIntegrityObject> for SessionTokenRequestData {
+impl GetIntegrityObject<SessionTokenIntegrityObject>
+    for ServerSessionAuthenticationTokenRequestData
+{
     fn get_response_integrity_object(&self) -> Option<SessionTokenIntegrityObject> {
         None // Session token responses don't have integrity objects
     }
@@ -401,7 +423,7 @@ impl GetIntegrityObject<SessionTokenIntegrityObject> for SessionTokenRequestData
     }
 }
 
-impl GetIntegrityObject<AccessTokenIntegrityObject> for AccessTokenRequestData {
+impl GetIntegrityObject<AccessTokenIntegrityObject> for ServerAuthenticationTokenRequestData {
     fn get_response_integrity_object(&self) -> Option<AccessTokenIntegrityObject> {
         None
     }
@@ -413,13 +435,15 @@ impl GetIntegrityObject<AccessTokenIntegrityObject> for AccessTokenRequestData {
     }
 }
 
-impl GetIntegrityObject<SdkSessionTokenIntegrityObject> for PaymentsSdkSessionTokenData {
-    fn get_response_integrity_object(&self) -> Option<SdkSessionTokenIntegrityObject> {
+impl GetIntegrityObject<ClientAuthenticationTokenIntegrityObject>
+    for ClientAuthenticationTokenRequestData
+{
+    fn get_response_integrity_object(&self) -> Option<ClientAuthenticationTokenIntegrityObject> {
         None // Sdk session token responses don't have integrity objects
     }
 
-    fn get_request_integrity_object(&self) -> SdkSessionTokenIntegrityObject {
-        SdkSessionTokenIntegrityObject {}
+    fn get_request_integrity_object(&self) -> ClientAuthenticationTokenIntegrityObject {
+        ClientAuthenticationTokenIntegrityObject {}
     }
 }
 
@@ -507,6 +531,19 @@ impl GetIntegrityObject<CreateConnectorCustomerIntegrityObject> for ConnectorCus
                 let email_inner = e.peek().clone().expose();
                 Secret::new(email_inner.expose())
             }),
+        }
+    }
+}
+
+impl GetIntegrityObject<PayoutCreateIntegrityObject> for PayoutCreateRequest {
+    fn get_response_integrity_object(&self) -> Option<PayoutCreateIntegrityObject> {
+        None
+    }
+
+    fn get_request_integrity_object(&self) -> PayoutCreateIntegrityObject {
+        PayoutCreateIntegrityObject {
+            amount: self.amount,
+            currency: self.source_currency,
         }
     }
 }
@@ -968,7 +1005,7 @@ impl FlowIntegrity for SessionTokenIntegrityObject {
     }
 }
 
-impl FlowIntegrity for SdkSessionTokenIntegrityObject {
+impl FlowIntegrity for ClientAuthenticationTokenIntegrityObject {
     type IntegrityObject = Self;
 
     fn compare(
@@ -1206,5 +1243,332 @@ fn check_integrity_result(
             field_names,
             connector_transaction_id,
         })
+    }
+}
+
+impl FlowIntegrity for PayoutCreateIntegrityObject {
+    type IntegrityObject = Self;
+
+    fn compare(
+        req_integrity_object: Self,
+        res_integrity_object: Self,
+        connector_transaction_id: Option<String>,
+    ) -> Result<(), IntegrityCheckError> {
+        let mut mismatched_fields = Vec::new();
+
+        if req_integrity_object.amount != res_integrity_object.amount {
+            mismatched_fields.push(format_mismatch(
+                "amount",
+                &req_integrity_object.amount.to_string(),
+                &res_integrity_object.amount.to_string(),
+            ));
+        }
+
+        if req_integrity_object.currency != res_integrity_object.currency {
+            mismatched_fields.push(format_mismatch(
+                "currency",
+                &req_integrity_object.currency.to_string(),
+                &res_integrity_object.currency.to_string(),
+            ));
+        }
+
+        check_integrity_result(mismatched_fields, connector_transaction_id)
+    }
+}
+
+// --- GENERATED GET INTEGRITY IMPLEMENTATIONS ---
+
+impl GetIntegrityObject<PayoutTransferIntegrityObject> for PayoutTransferRequest {
+    fn get_response_integrity_object(&self) -> Option<PayoutTransferIntegrityObject> {
+        None
+    }
+
+    fn get_request_integrity_object(&self) -> PayoutTransferIntegrityObject {
+        PayoutTransferIntegrityObject {
+            amount: self.amount,
+            currency: self.source_currency,
+        }
+    }
+}
+
+impl GetIntegrityObject<PayoutStageIntegrityObject> for PayoutStageRequest {
+    fn get_response_integrity_object(&self) -> Option<PayoutStageIntegrityObject> {
+        None
+    }
+
+    fn get_request_integrity_object(&self) -> PayoutStageIntegrityObject {
+        PayoutStageIntegrityObject {
+            amount: self.amount,
+            currency: self.source_currency,
+        }
+    }
+}
+
+impl GetIntegrityObject<PayoutCreateLinkIntegrityObject> for PayoutCreateLinkRequest {
+    fn get_response_integrity_object(&self) -> Option<PayoutCreateLinkIntegrityObject> {
+        None
+    }
+
+    fn get_request_integrity_object(&self) -> PayoutCreateLinkIntegrityObject {
+        PayoutCreateLinkIntegrityObject {
+            amount: self.amount,
+            currency: self.source_currency,
+        }
+    }
+}
+
+impl GetIntegrityObject<PayoutCreateRecipientIntegrityObject> for PayoutCreateRecipientRequest {
+    fn get_response_integrity_object(&self) -> Option<PayoutCreateRecipientIntegrityObject> {
+        None
+    }
+
+    fn get_request_integrity_object(&self) -> PayoutCreateRecipientIntegrityObject {
+        PayoutCreateRecipientIntegrityObject {
+            amount: self.amount,
+            currency: self.source_currency,
+        }
+    }
+}
+
+impl GetIntegrityObject<PayoutEnrollDisburseAccountIntegrityObject>
+    for PayoutEnrollDisburseAccountRequest
+{
+    fn get_response_integrity_object(&self) -> Option<PayoutEnrollDisburseAccountIntegrityObject> {
+        None
+    }
+
+    fn get_request_integrity_object(&self) -> PayoutEnrollDisburseAccountIntegrityObject {
+        PayoutEnrollDisburseAccountIntegrityObject {
+            amount: self.amount,
+            currency: self.source_currency,
+        }
+    }
+}
+
+impl GetIntegrityObject<PayoutGetIntegrityObject> for PayoutGetRequest {
+    fn get_response_integrity_object(&self) -> Option<PayoutGetIntegrityObject> {
+        None
+    }
+
+    fn get_request_integrity_object(&self) -> PayoutGetIntegrityObject {
+        PayoutGetIntegrityObject {
+            merchant_payout_id: self.merchant_payout_id.clone(),
+            connector_payout_id: self.connector_payout_id.clone(),
+        }
+    }
+}
+
+impl GetIntegrityObject<PayoutVoidIntegrityObject> for PayoutVoidRequest {
+    fn get_response_integrity_object(&self) -> Option<PayoutVoidIntegrityObject> {
+        None
+    }
+
+    fn get_request_integrity_object(&self) -> PayoutVoidIntegrityObject {
+        PayoutVoidIntegrityObject {
+            merchant_payout_id: self.merchant_payout_id.clone(),
+            connector_payout_id: self.connector_payout_id.clone(),
+        }
+    }
+}
+
+// --- GENERATED FLOW INTEGRITY IMPLEMENTATIONS ---
+
+impl FlowIntegrity for PayoutTransferIntegrityObject {
+    type IntegrityObject = Self;
+
+    fn compare(
+        req_integrity_object: Self,
+        res_integrity_object: Self,
+        connector_transaction_id: Option<String>,
+    ) -> Result<(), IntegrityCheckError> {
+        let mut mismatched_fields = Vec::new();
+
+        if req_integrity_object.amount != res_integrity_object.amount {
+            mismatched_fields.push(format_mismatch(
+                "amount",
+                &req_integrity_object.amount.to_string(),
+                &res_integrity_object.amount.to_string(),
+            ));
+        }
+
+        if req_integrity_object.currency != res_integrity_object.currency {
+            mismatched_fields.push(format_mismatch(
+                "currency",
+                &req_integrity_object.currency.to_string(),
+                &res_integrity_object.currency.to_string(),
+            ));
+        }
+
+        check_integrity_result(mismatched_fields, connector_transaction_id)
+    }
+}
+
+impl FlowIntegrity for PayoutStageIntegrityObject {
+    type IntegrityObject = Self;
+
+    fn compare(
+        req_integrity_object: Self,
+        res_integrity_object: Self,
+        connector_transaction_id: Option<String>,
+    ) -> Result<(), IntegrityCheckError> {
+        let mut mismatched_fields = Vec::new();
+
+        if req_integrity_object.amount != res_integrity_object.amount {
+            mismatched_fields.push(format_mismatch(
+                "amount",
+                &req_integrity_object.amount.to_string(),
+                &res_integrity_object.amount.to_string(),
+            ));
+        }
+
+        if req_integrity_object.currency != res_integrity_object.currency {
+            mismatched_fields.push(format_mismatch(
+                "currency",
+                &req_integrity_object.currency.to_string(),
+                &res_integrity_object.currency.to_string(),
+            ));
+        }
+
+        check_integrity_result(mismatched_fields, connector_transaction_id)
+    }
+}
+
+impl FlowIntegrity for PayoutCreateLinkIntegrityObject {
+    type IntegrityObject = Self;
+
+    fn compare(
+        req_integrity_object: Self,
+        res_integrity_object: Self,
+        connector_transaction_id: Option<String>,
+    ) -> Result<(), IntegrityCheckError> {
+        let mut mismatched_fields = Vec::new();
+
+        if req_integrity_object.amount != res_integrity_object.amount {
+            mismatched_fields.push(format_mismatch(
+                "amount",
+                &req_integrity_object.amount.to_string(),
+                &res_integrity_object.amount.to_string(),
+            ));
+        }
+
+        if req_integrity_object.currency != res_integrity_object.currency {
+            mismatched_fields.push(format_mismatch(
+                "currency",
+                &req_integrity_object.currency.to_string(),
+                &res_integrity_object.currency.to_string(),
+            ));
+        }
+
+        check_integrity_result(mismatched_fields, connector_transaction_id)
+    }
+}
+
+impl FlowIntegrity for PayoutCreateRecipientIntegrityObject {
+    type IntegrityObject = Self;
+
+    fn compare(
+        req_integrity_object: Self,
+        res_integrity_object: Self,
+        connector_transaction_id: Option<String>,
+    ) -> Result<(), IntegrityCheckError> {
+        let mut mismatched_fields = Vec::new();
+
+        if req_integrity_object.amount != res_integrity_object.amount {
+            mismatched_fields.push(format_mismatch(
+                "amount",
+                &req_integrity_object.amount.to_string(),
+                &res_integrity_object.amount.to_string(),
+            ));
+        }
+
+        if req_integrity_object.currency != res_integrity_object.currency {
+            mismatched_fields.push(format_mismatch(
+                "currency",
+                &req_integrity_object.currency.to_string(),
+                &res_integrity_object.currency.to_string(),
+            ));
+        }
+
+        check_integrity_result(mismatched_fields, connector_transaction_id)
+    }
+}
+
+impl FlowIntegrity for PayoutEnrollDisburseAccountIntegrityObject {
+    type IntegrityObject = Self;
+
+    fn compare(
+        req_integrity_object: Self,
+        res_integrity_object: Self,
+        connector_transaction_id: Option<String>,
+    ) -> Result<(), IntegrityCheckError> {
+        let mut mismatched_fields = Vec::new();
+
+        if req_integrity_object.amount != res_integrity_object.amount {
+            mismatched_fields.push(format_mismatch(
+                "amount",
+                &req_integrity_object.amount.to_string(),
+                &res_integrity_object.amount.to_string(),
+            ));
+        }
+
+        if req_integrity_object.currency != res_integrity_object.currency {
+            mismatched_fields.push(format_mismatch(
+                "currency",
+                &req_integrity_object.currency.to_string(),
+                &res_integrity_object.currency.to_string(),
+            ));
+        }
+
+        check_integrity_result(mismatched_fields, connector_transaction_id)
+    }
+}
+
+impl FlowIntegrity for PayoutGetIntegrityObject {
+    type IntegrityObject = Self;
+
+    fn compare(
+        req_integrity_object: Self,
+        res_integrity_object: Self,
+        connector_transaction_id: Option<String>,
+    ) -> Result<(), IntegrityCheckError> {
+        let mut mismatched_fields = Vec::new();
+
+        if req_integrity_object.merchant_payout_id != res_integrity_object.merchant_payout_id {
+            mismatched_fields.push(format_mismatch(
+                "merchant_payout_id",
+                &req_integrity_object
+                    .merchant_payout_id
+                    .clone()
+                    .unwrap_or_default(),
+                &res_integrity_object.merchant_payout_id.unwrap_or_default(),
+            ));
+        }
+
+        check_integrity_result(mismatched_fields, connector_transaction_id)
+    }
+}
+
+impl FlowIntegrity for PayoutVoidIntegrityObject {
+    type IntegrityObject = Self;
+
+    fn compare(
+        req_integrity_object: Self,
+        res_integrity_object: Self,
+        connector_transaction_id: Option<String>,
+    ) -> Result<(), IntegrityCheckError> {
+        let mut mismatched_fields = Vec::new();
+
+        if req_integrity_object.merchant_payout_id != res_integrity_object.merchant_payout_id {
+            mismatched_fields.push(format_mismatch(
+                "merchant_payout_id",
+                &req_integrity_object
+                    .merchant_payout_id
+                    .clone()
+                    .unwrap_or_default(),
+                &res_integrity_object.merchant_payout_id.unwrap_or_default(),
+            ));
+        }
+
+        check_integrity_result(mismatched_fields, connector_transaction_id)
     }
 }

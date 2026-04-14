@@ -1,12 +1,12 @@
 use common_enums::enums;
 use common_utils::types::FloatMajorUnit;
+use domain_types::errors::{ConnectorError, IntegrationError};
 use domain_types::{
     connector_types::{
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
         RefundsResponseData, ResponseId,
     },
-    errors,
     payment_method_data::{PaymentMethodDataTypes, RawCardNumber},
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
@@ -31,7 +31,7 @@ pub struct PowertranzAuthType {
 }
 
 impl TryFrom<&ConnectorSpecificConfig> for PowertranzAuthType {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(auth_type: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         match auth_type {
@@ -43,7 +43,10 @@ impl TryFrom<&ConnectorSpecificConfig> for PowertranzAuthType {
                 power_tranz_id: power_tranz_id.clone(),
                 power_tranz_password: power_tranz_password.clone(),
             }),
-            _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
+            _ => Err(IntegrationError::FailedToObtainAuthType {
+                context: Default::default(),
+            }
+            .into()),
         }
     }
 }
@@ -315,7 +318,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for PowertranzPaymentsRequest<T>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: PowertranzRouterData<
@@ -338,7 +341,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             domain_types::payment_method_data::PaymentMethodData::Card(card_data) => {
                 let card_expiration = card_data
                     .get_card_expiry_year_month_2_digit_with_delimiter(String::new())
-                    .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+                    .change_context(IntegrationError::RequestEncodingFailed {
+                        context: Default::default(),
+                    })?;
 
                 Ok(Self {
                     transaction_identifier: uuid::Uuid::new_v4().to_string(),
@@ -347,8 +352,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     three_d_secure: Some(false),
                     source: PowertranzSource {
                         cardholder_name: card_data.card_holder_name.clone().ok_or(
-                            errors::ConnectorError::MissingRequiredField {
+                            IntegrationError::MissingRequiredField {
                                 field_name: "payment_method.card.card_holder_name",
+                                context: Default::default(),
                             },
                         )?,
                         card_pan: card_data.card_number.clone(),
@@ -363,9 +369,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     extended_data: None,
                 })
             }
-            _ => Err(errors::ConnectorError::NotSupported {
+            _ => Err(IntegrationError::NotSupported {
                 message: "Payment method".to_string(),
                 connector: "powertranz",
+                context: Default::default(),
             }
             .into()),
         }
@@ -385,7 +392,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for PowertranzCaptureRequest
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: PowertranzRouterData<
@@ -409,7 +416,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 transaction_identifier: request_data
                     .connector_transaction_id
                     .get_connector_transaction_id()
-                    .change_context(errors::ConnectorError::MissingConnectorTransactionID)?,
+                    .change_context(IntegrationError::MissingConnectorTransactionID {
+                        context: Default::default(),
+                    })?,
                 total_amount: Some(amount),
                 refund: None,
             },
@@ -430,7 +439,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for PowertranzVoidRequest
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: PowertranzRouterData<
@@ -466,7 +475,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for PowertranzRefundRequest
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: PowertranzRouterData<
@@ -502,7 +511,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl<T: PaymentMethodDataTypes, F> TryFrom<ResponseRouterData<PowertranzPaymentsResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<PowertranzPaymentsResponse, Self>,
@@ -543,7 +552,7 @@ impl<T: PaymentMethodDataTypes, F> TryFrom<ResponseRouterData<PowertranzPayments
 impl<F> TryFrom<ResponseRouterData<PowertranzPaymentsSyncResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<PowertranzPaymentsSyncResponse, Self>,
@@ -584,7 +593,7 @@ impl<F> TryFrom<ResponseRouterData<PowertranzPaymentsSyncResponse, Self>>
 impl<F> TryFrom<ResponseRouterData<PowertranzCaptureResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<PowertranzCaptureResponse, Self>,
@@ -625,7 +634,7 @@ impl<F> TryFrom<ResponseRouterData<PowertranzCaptureResponse, Self>>
 impl<F> TryFrom<ResponseRouterData<PowertranzVoidResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<PowertranzVoidResponse, Self>,
@@ -666,7 +675,7 @@ impl<F> TryFrom<ResponseRouterData<PowertranzVoidResponse, Self>>
 impl<F> TryFrom<ResponseRouterData<PowertranzRefundResponse, Self>>
     for RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<PowertranzRefundResponse, Self>,
@@ -700,7 +709,7 @@ impl<F> TryFrom<ResponseRouterData<PowertranzRefundResponse, Self>>
 impl<F> TryFrom<ResponseRouterData<PowertranzRSyncResponse, Self>>
     for RouterDataV2<F, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<PowertranzRSyncResponse, Self>,

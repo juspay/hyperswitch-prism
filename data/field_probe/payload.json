@@ -8,6 +8,46 @@
     },
     "authorize": {
       "Ach": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "ach": {
+              "account_number": "000123456789",
+              "routing_number": "110000000",
+              "bank_account_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api.payload.com/transactions",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "amount=10.0&payment_method%5Bbank_account%5D%5Baccount_number%5D=000123456789&payment_method%5Bbank_account%5D%5Brouting_number%5D=110000000&payment_method%5Bbank_account%5D%5Baccount_type%5D=checking&type=payment&payment_method%5Btype%5D=bank_account&payment_method%5Baccount_holder%5D=John+Doe&payment_method%5Bkeep_active%5D=false"
+        }
+      },
+      "AchBankTransfer": {
         "status": "not_supported",
         "error": "Payment method is not supported by Payload"
       },
@@ -19,19 +59,51 @@
         "status": "not_supported",
         "error": "Payment method is not supported by Payload"
       },
+      "Alfamart": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "AliPayRedirect": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by Payload"
+      },
+      "AmazonPayRedirect": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by Payload"
+      },
       "ApplePay": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Payment method"
+        "error": "This feature is not implemented: Payment method"
       },
       "ApplePayDecrypted": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Payment method"
+        "error": "This feature is not implemented: Payment method"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by Payload"
       },
       "Bacs": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Payload"
+      },
+      "BacsBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "BancontactCard": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "BcaBankTransfer": {
         "status": "not_supported",
         "error": "Payment method is not supported by Payload"
       },
       "Becs": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Payload"
+      },
+      "Bizum": {
         "status": "not_supported",
         "error": "Payment method is not supported by Payload"
       },
@@ -39,19 +111,159 @@
         "status": "not_supported",
         "error": "Payment method is not supported by Payload"
       },
+      "Bluecode": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by Payload"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "Boleto": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "BriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
       "Card": {
-        "status": "error",
-        "error": "Stuck on field: billing.address.zip — Missing required field: billing.address.zip"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "line1": "123 Main St",
+              "city": "Seattle",
+              "state": "WA",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api.payload.com/transactions",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "amount=10.0&payment_method%5Bcard%5D%5Bcard_number%5D=4111111111111111&payment_method%5Bcard%5D%5Bexpiry%5D=03%2F30&payment_method%5Bcard%5D%5Bcard_code%5D=737&type=payment&payment_method%5Btype%5D=card&payment_method%5Bbilling_address%5D%5Bcity%5D=Seattle&payment_method%5Bbilling_address%5D%5Bcountry_code%5D=US&payment_method%5Bbilling_address%5D%5Bpostal_code%5D=98101&payment_method%5Bbilling_address%5D%5Bstate_province%5D=WA&payment_method%5Bbilling_address%5D%5Bstreet_address%5D=123+Main+St&payment_method%5Bkeep_active%5D=false"
+        }
+      },
+      "CashappQr": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by Payload"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "ClassicReward": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "EVoucher": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "Efecty": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "Eft": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "Eps": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "FamilyMart": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "Giropay": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "GooglePay": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Payment method"
+        "error": "This feature is not implemented: Payment method"
       },
       "GooglePayDecrypted": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Payment method"
+        "error": "This feature is not implemented: Payment method"
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by Payload"
       },
       "Ideal": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "Indomaret": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "InstantBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "Interac": {
         "status": "not_supported",
         "error": "Payment method is not supported by Payload"
       },
@@ -59,7 +271,127 @@
         "status": "not_supported",
         "error": "Payment method is not supported by Payload"
       },
+      "Lawson": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "LocalBankRedirect": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "LocalBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "MbWay": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by Payload"
+      },
+      "Mifinity": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by Payload"
+      },
+      "MiniStop": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "OpenBanking": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "OpenBankingUk": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "Oxxo": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "PagoEfectivo": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "PayEasy": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "PaySafeCard": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
       "PaypalRedirect": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by Payload"
+      },
+      "PaypalSdk": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by Payload"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "PermataBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "Pix": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "Przelewy24": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "Pse": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "RedCompra": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "RedPagos": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "RevolutPay": {
         "status": "not_supported",
         "error": "Wallet is not supported by Payload"
       },
@@ -67,13 +399,57 @@
         "status": "not_supported",
         "error": "Wallet is not supported by Payload"
       },
+      "Satispay": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by Payload"
+      },
+      "Seicomart": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
       "Sepa": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Payload"
+      },
+      "SepaBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Payload"
+      },
+      "SevenEleven": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "Sofort": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "Trustly": {
         "status": "not_supported",
         "error": "Payment method is not supported by Payload"
       },
       "UpiCollect": {
         "status": "not_supported",
         "error": "Payment method is not supported by Payload"
+      },
+      "UpiIntent": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "UpiQr": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "WeChatPayQr": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by Payload"
+      },
+      "Wero": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by Payload"
       }
     },
     "capture": {
@@ -106,9 +482,30 @@
         }
       }
     },
-    "create_access_token": {
+    "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_client_session_id": "probe_sdk_session_001",
+          "domain_context": {
+            "payment": {
+              "amount": {
+                "minor_amount": 1000,
+                "currency": "USD"
+              }
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api.payload.com/access_tokens",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"type\":\"client\",\"intent\":{\"payment_form\":{\"payment\":{\"amount\":10.0,\"description\":\"probe_sdk_session_001\"}}}}"
+        }
       }
     },
     "create_customer": {
@@ -121,7 +518,12 @@
         "status": "not_implemented"
       }
     },
-    "create_session_token": {
+    "create_server_authentication_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_server_session_authentication_token": {
       "default": {
         "status": "not_implemented"
       }
@@ -136,7 +538,17 @@
         "status": "not_implemented"
       }
     },
+    "dispute_get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "eligibility": {
       "default": {
         "status": "not_implemented"
       }
@@ -170,6 +582,16 @@
         }
       }
     },
+    "handle_event": {
+      "default": {
+        "status": "supported"
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "post_authenticate": {
       "default": {
         "status": "not_implemented"
@@ -180,13 +602,114 @@
         "status": "not_implemented"
       }
     },
+    "proxy_authorize": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_proxy_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe"
+          },
+          "address": {
+            "billing_address": {
+              "line1": "123 Main St",
+              "city": "Seattle",
+              "state": "WA",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api.payload.com/transactions",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "amount=10.0&payment_method%5Bcard%5D%5Bcard_number%5D=4111111111111111&payment_method%5Bcard%5D%5Bexpiry%5D=03%2F30&payment_method%5Bcard%5D%5Bcard_code%5D=123&type=payment&payment_method%5Btype%5D=card&payment_method%5Bbilling_address%5D%5Bcity%5D=Seattle&payment_method%5Bbilling_address%5D%5Bcountry_code%5D=US&payment_method%5Bbilling_address%5D%5Bpostal_code%5D=98101&payment_method%5Bbilling_address%5D%5Bstate_province%5D=WA&payment_method%5Bbilling_address%5D%5Bstreet_address%5D=123+Main+St&payment_method%5Bkeep_active%5D=false"
+        }
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_proxy_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe"
+          },
+          "address": {
+            "billing_address": {
+              "line1": "123 Main St",
+              "city": "Seattle",
+              "state": "WA",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            }
+          },
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          },
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          },
+          "auth_type": "NO_THREE_DS",
+          "setup_future_usage": "OFF_SESSION"
+        },
+        "sample": {
+          "url": "https://api.payload.com/transactions",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "amount=0.0&payment_method%5Bcard%5D%5Bcard_number%5D=4111111111111111&payment_method%5Bcard%5D%5Bexpiry%5D=03%2F30&payment_method%5Bcard%5D%5Bcard_code%5D=123&type=payment&payment_method%5Btype%5D=card&payment_method%5Bbilling_address%5D%5Bcity%5D=Seattle&payment_method%5Bbilling_address%5D%5Bcountry_code%5D=US&payment_method%5Bbilling_address%5D%5Bpostal_code%5D=98101&payment_method%5Bbilling_address%5D%5Bstate_province%5D=WA&payment_method%5Bbilling_address%5D%5Bstreet_address%5D=123+Main+St&payment_method%5Bkeep_active%5D=true"
+        }
+      }
+    },
     "recurring_charge": {
       "default": {
         "status": "supported",
         "proto_request": {
           "connector_recurring_payment_id": {
             "mandate_id_type": {
-              "connector_mandate_id": "probe-mandate-123"
+              "connector_mandate_id": {
+                "connector_mandate_id": "probe-mandate-123"
+              }
             }
           },
           "amount": {
@@ -194,7 +717,9 @@
             "currency": "USD"
           },
           "payment_method": {
-            "token": "probe_pm_token"
+            "token": {
+              "token": "probe_pm_token"
+            }
           },
           "return_url": "https://example.com/recurring-return",
           "connector_customer_id": "cust_probe_123",
@@ -218,6 +743,11 @@
           },
           "body": "amount=10.0&type=payment&payment_method_id=probe-mandate-123"
         }
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "refund": {
@@ -252,6 +782,32 @@
         }
       }
     },
+    "refund_get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "refund_id": "probe_refund_id_001",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api.payload.com/transactions/probe_refund_id_001",
+          "method": "Get",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "via": "HyperSwitch"
+          },
+          "body": null
+        }
+      }
+    },
     "reverse": {
       "default": {
         "status": "not_implemented"
@@ -259,11 +815,107 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: billing.address.zip — Missing required field: billing.address.zip"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {
+              "line1": "123 Main St",
+              "city": "Seattle",
+              "state": "WA",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/mandate-return",
+          "setup_future_usage": "OFF_SESSION",
+          "request_incremental_authorization": false,
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          },
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api.payload.com/transactions",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "amount=0.0&payment_method%5Bcard%5D%5Bcard_number%5D=4111111111111111&payment_method%5Bcard%5D%5Bexpiry%5D=03%2F30&payment_method%5Bcard%5D%5Bcard_code%5D=737&type=payment&payment_method%5Btype%5D=card&payment_method%5Bbilling_address%5D%5Bcity%5D=Seattle&payment_method%5Bbilling_address%5D%5Bcountry_code%5D=US&payment_method%5Bbilling_address%5D%5Bpostal_code%5D=98101&payment_method%5Bbilling_address%5D%5Bstate_province%5D=WA&payment_method%5Bbilling_address%5D%5Bstreet_address%5D=123+Main+St&payment_method%5Bkeep_active%5D=true"
+        }
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_tokenized_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "connector_token": "pm_1AbcXyzStripeTestToken",
+          "address": {
+            "billing_address": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "return_url": "https://example.com/return",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api.payload.com/transactions",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "amount=10.0&type=payment&payment_method_id=pm_1AbcXyzStripeTestToken"
+        }
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
       }
     },
     "tokenize": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "verify_redirect": {
       "default": {
         "status": "not_implemented"
       }

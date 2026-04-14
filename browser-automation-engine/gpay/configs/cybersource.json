@@ -1,0 +1,10 @@
+{
+  "gateway": "cybersource",
+  "gatewayMerchantId": "YOUR_CYBERSOURCE_MERCHANT_ID",
+  "merchantName": "Test Merchant",
+  "amount": "10.00",
+  "currency": "USD",
+  "countryCode": "US",
+  "cardNetworks": ["VISA", "MASTERCARD", "AMEX", "DISCOVER", "INTERAC", "JCB"],
+  "authMethods": ["PAN_ONLY", "CRYPTOGRAM_3DS"]
+}

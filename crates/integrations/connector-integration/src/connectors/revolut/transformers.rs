@@ -6,7 +6,7 @@ use domain_types::{
         PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
         ResponseId, WebhookDetailsResponse,
     },
-    errors::ConnectorError,
+    errors::{ConnectorError, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
@@ -15,7 +15,10 @@ use domain_types::{
 
 use crate::types::ResponseRouterData;
 use common_enums::AttemptStatus;
-use common_utils::{custom_serde, types::MinorUnit};
+use common_utils::{
+    custom_serde,
+    types::{MinorUnit, Money},
+};
 use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
@@ -449,7 +452,7 @@ pub struct RevolutThreeDsFingerprintChallenge {
 }
 
 impl TryFrom<&ConnectorSpecificConfig> for RevolutAuthType {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(auth_type: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         match auth_type {
@@ -461,7 +464,10 @@ impl TryFrom<&ConnectorSpecificConfig> for RevolutAuthType {
                 secret_api_key: secret_api_key.to_owned(),
                 signing_secret: signing_secret.to_owned(),
             }),
-            _ => Err(ConnectorError::FailedToObtainAuthType.into()),
+            _ => Err(IntegrationError::FailedToObtainAuthType {
+                context: Default::default(),
+            }
+            .into()),
         }
     }
 }
@@ -479,7 +485,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     > for RevolutOrderCreateRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: RevolutRouterData<
@@ -639,6 +645,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .as_ref()
             .map(|url| Box::new(RedirectForm::Uri { uri: url.clone() }));
 
+        let merchant_reference = response
+            .merchant_order_data
+            .as_ref()
+            .and_then(|m| m.reference.clone());
+
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(response.id.clone()),
@@ -646,7 +657,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: Some(response.id),
+                connector_response_reference_id: merchant_reference,
                 incremental_authorization_allowed: None,
                 status_code: 200,
             }),
@@ -669,30 +680,37 @@ impl TryFrom<ResponseRouterData<RevolutOrderCreateResponse, Self>>
     ) -> Result<Self, Self::Error> {
         let response = item.response;
 
-        let (status, payment_id) = match &response.payments {
+        let status = match &response.payments {
             Some(payments) => match payments.first() {
-                Some(first_payment) => {
-                    let status = match first_payment.state {
-                        RevolutPaymentState::Authorised => AttemptStatus::Authorized,
-                        RevolutPaymentState::Captured | RevolutPaymentState::Completed => {
-                            AttemptStatus::Charged
-                        }
-                        RevolutPaymentState::Failed | RevolutPaymentState::Declined => {
-                            AttemptStatus::Failure
-                        }
-                        RevolutPaymentState::Cancelled => AttemptStatus::Voided,
-                        RevolutPaymentState::Pending => AttemptStatus::Pending,
-                        RevolutPaymentState::AuthenticationChallenge => {
-                            AttemptStatus::AuthenticationPending
-                        }
-                        _ => AttemptStatus::Pending,
-                    };
-                    (status, Some(first_payment.id.clone()))
-                }
-                None => (map_order_state(response.state), None),
+                Some(first_payment) => match first_payment.state {
+                    RevolutPaymentState::Authorised => AttemptStatus::Authorized,
+                    RevolutPaymentState::Captured | RevolutPaymentState::Completed => {
+                        AttemptStatus::Charged
+                    }
+                    RevolutPaymentState::Failed | RevolutPaymentState::Declined => {
+                        AttemptStatus::Failure
+                    }
+                    RevolutPaymentState::Cancelled => AttemptStatus::Voided,
+                    RevolutPaymentState::Pending => AttemptStatus::Pending,
+                    RevolutPaymentState::AuthenticationChallenge => {
+                        AttemptStatus::AuthenticationPending
+                    }
+                    _ => AttemptStatus::Pending,
+                },
+                None => map_order_state(response.state),
             },
-            None => (map_order_state(response.state), None),
+            None => map_order_state(response.state),
         };
+
+        let amount = Some(Money {
+            amount: response.amount,
+            currency: response.currency,
+        });
+
+        let merchant_reference = response
+            .merchant_order_data
+            .as_ref()
+            .and_then(|m| m.reference.clone());
 
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -701,12 +719,13 @@ impl TryFrom<ResponseRouterData<RevolutOrderCreateResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: payment_id.or_else(|| Some(response.id.clone())),
+                connector_response_reference_id: merchant_reference,
                 incremental_authorization_allowed: None,
                 status_code: 200,
             }),
             resource_common_data: PaymentFlowData {
                 status,
+                amount,
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
@@ -781,7 +800,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     > for RevolutRefundRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: RevolutRouterData<
@@ -872,7 +891,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     > for RevolutCaptureRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: RevolutRouterData<
@@ -915,13 +934,18 @@ impl<F> TryFrom<ResponseRouterData<RevolutOrderCreateResponse, Self>>
             .and_then(|payments| payments.first().map(|p| p.id.clone()))
             .unwrap_or_else(|| response.id.clone());
 
+        let merchant_reference = response
+            .merchant_order_data
+            .as_ref()
+            .and_then(|m| m.reference.clone());
+
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(connector_transaction_id),
                 redirection_data: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: Some(response.id),
+                connector_response_reference_id: merchant_reference,
                 incremental_authorization_allowed: None,
                 mandate_reference: None,
                 status_code: http_code,
@@ -966,18 +990,20 @@ pub enum RevolutWebhookEvent {
 /// Maps Revolut webhook event to AttemptStatus for webhook processing
 fn map_webhook_event_to_attempt_status(
     event: RevolutWebhookEvent,
-) -> Result<AttemptStatus, ConnectorError> {
+) -> Result<AttemptStatus, IntegrationError> {
     match event {
         RevolutWebhookEvent::OrderCompleted => Ok(AttemptStatus::Charged),
         RevolutWebhookEvent::OrderAuthorised => Ok(AttemptStatus::Authorized),
         RevolutWebhookEvent::OrderCancelled => Ok(AttemptStatus::Voided),
         RevolutWebhookEvent::OrderFailed => Ok(AttemptStatus::Failure),
-        _ => Err(ConnectorError::WebhookEventTypeNotFound),
+        _ => Err(IntegrationError::not_implemented(
+            "webhook event type not found".to_string(),
+        )),
     }
 }
 
 impl TryFrom<RevolutWebhookBody> for WebhookDetailsResponse {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(webhook_body: RevolutWebhookBody) -> Result<Self, Self::Error> {
         let status = map_webhook_event_to_attempt_status(webhook_body.event)?;
@@ -999,6 +1025,7 @@ impl TryFrom<RevolutWebhookBody> for WebhookDetailsResponse {
             minor_amount_captured: None,
             amount_captured: None,
             network_txn_id: None,
+            payment_method_update: None,
         })
     }
 }

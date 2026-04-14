@@ -5,7 +5,7 @@ set -e
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 # Build release binary
-cd "$PROJECT_ROOT/backend/ffi"
+cd "$PROJECT_ROOT/crates/ffi/ffi"
 # cargo build --release --features napi
 # cargo build --features napi
 npm i && npm run build:debug

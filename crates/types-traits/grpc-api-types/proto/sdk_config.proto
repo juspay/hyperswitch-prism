@@ -14,7 +14,7 @@ package types;
 
 import "payment.proto";
 
-option go_package = "github.com/juspay/connector-service/backend/grpc-api-types/proto;proto";
+option go_package = "github.com/juspay/connector-service/crates/types-traits/grpc-api-types/proto;proto";
 
 // ============================================================
 // ENUMERATIONS
@@ -170,27 +170,18 @@ message IntegrationError {
   optional string doc_url = 4;                 // documentation url for reference
 }
 
-// Error when parsing connector HTTP response → SDK response (FFI boundary)
-message ConnectorResponseTransformationError {
-  string error_message = 1;           // Human-readable description of parsing failure (e.g., "Expected JSON response, got HTML")
-  string error_code = 2;              // Machine-readable code (e.g., "RESPONSE_DESERIALIZATION_FAILED")
-  optional uint32 http_status_code = 3;        // HTTP status from connector before parsing failed (e.g., 401, 500, 200)
-}
-
-// Error returned by req_transformer FFI calls
-message RequestError {
-  PaymentStatus status = 1;
-  optional string error_message = 2;
-  optional string error_code = 3;
-  optional uint32 status_code = 4;
-}
-
-// Error returned by res_transformer FFI calls
-message ResponseError {
-  PaymentStatus status = 1;
-  optional string error_message = 2;
-  optional string error_code = 3;
-  optional uint32 status_code = 4;
+// Error when parsing connector HTTP response → SDK response (FFI boundary).
+// Covers both UCS-side transformation failures and connector-side 4xx/5xx error responses.
+// error_code values:
+//   - RESPONSE_DESERIALIZATION_FAILED  — UCS could not parse the connector response body
+//   - RESPONSE_HANDLING_FAILED         — UCS failed to process the connector response
+//   - UNEXPECTED_RESPONSE_ERROR        — connector returned an unexpected response structure
+//   - INTEGRITY_CHECK_FAILED           — response fields failed integrity validation
+//   - CONNECTOR_ERROR_RESPONSE         — connector returned a 4xx/5xx error response (http_status_code is set)
+message ConnectorError {
+  string error_message = 1;           // Human-readable description (e.g., "Expected JSON response, got HTML")
+  string error_code = 2;              // Machine-readable code (e.g., "CONNECTOR_ERROR_RESPONSE")
+  optional uint32 http_status_code = 3;  // HTTP status from connector (set for all variants when known)
 }
 
 // Result type for FFI operations with explicit type discrimination
@@ -200,7 +191,7 @@ message FfiResult {
     HTTP_REQUEST = 0;
     HTTP_RESPONSE = 1;
     INTEGRATION_ERROR = 2;
-    CONNECTOR_RESPONSE_TRANSFORMATION_ERROR = 3;
+    CONNECTOR_ERROR = 3;
   }
 
   Type type = 1;
@@ -209,7 +200,7 @@ message FfiResult {
     FfiConnectorHttpRequest http_request = 2;
     FfiConnectorHttpResponse http_response = 3;
     IntegrationError integration_error = 4;
-    ConnectorResponseTransformationError connector_response_transformation_error = 5;
+    ConnectorError connector_error = 5;
   }
 }
 // ============================================================

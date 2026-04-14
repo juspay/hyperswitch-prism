@@ -4,8 +4,10 @@ on:
   push:
     branches:
       - main
+      - docs-summary-update-v2
     paths:
       - 'docs/**'
+      - 'docs-generated/**'
       - '.github/workflows/docs-sync.yml'
 
   workflow_dispatch:
@@ -15,6 +17,11 @@ on:
         required: false
         default: false
         type: boolean
+      source_branch:
+        description: 'Source branch to sync from'
+        required: false
+        default: ''
+        type: string
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -28,9 +35,10 @@ jobs:
     name: Sync Documentation to Hyperswitch Docs
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout connector-service
+      - name: Checkout prism
         uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.source_branch || github.ref }}
           fetch-depth: 0
 
       - name: Checkout hyperswitch-docs
@@ -40,51 +48,119 @@ jobs:
           token: ${{ secrets.CONNECTOR_SERVICE_DOCS_CI }}
           path: hyperswitch-docs
 
-      - name: Sync documentation
+      - name: Sync documentation files
         run: |
-          # Target: hyperswitch-docs/connector-service/
-          TARGET_DIR="hyperswitch-docs/connector-service"
+          echo "=== Syncing documentation files ==="
+          TARGET_DIR="hyperswitch-docs/integration-space/prism"
           mkdir -p "$TARGET_DIR"
 
-          # Remove old content
+          # Remove old content in integration-space/prism
+          echo "Removing old content in integration-space/prism/..."
           rm -rf "$TARGET_DIR"/*
 
-          # Copy new docs (excluding patterns from gitbook.yml)
-          rsync -av \
+          # Copy /docs content (excluding patterns from gitbook.yml)
+          echo "Copying docs/ content..."
+          rsync -a \
             --exclude='rules/' \
+            --exclude='rfcs/' \
             --exclude='plans/' \
             --exclude='CODE_OF_CONDUCT.md' \
             --exclude='specs-self-managing-documentation-system.md' \
+            --exclude='docs-strategy.md' \
+            --exclude='*.yml' \
+            --exclude='*.yaml' \
             --exclude='.git/' \
             docs/ "$TARGET_DIR/"
 
-          echo "Synced files:"
-          find "$TARGET_DIR" -type f | head -20
+          # Copy /docs-generated content (merges with /docs)
+          echo "Copying docs-generated/ content..."
+          rsync -a \
+            --exclude='.git/' \
+            docs-generated/ "$TARGET_DIR/"
+
+          echo "=== Files synced ==="
+          echo "Total files in integration-space/prism/:"
+          find "$TARGET_DIR" -type f | wc -l
+
+      - name: Update integration-space SUMMARY.md
+        working-directory: hyperswitch-docs
+        run: |
+          echo "=== Updating integration-space SUMMARY.md ==="
+
+          SOURCE_SUMMARY="../docs/SUMMARY.md"
+          TARGET_SUMMARY="integration-space/SUMMARY.md"
+
+          # Verify source exists
+          if [ ! -f "$SOURCE_SUMMARY" ]; then
+            echo "ERROR: Source SUMMARY.md not found at $SOURCE_SUMMARY"
+            exit 1
+          fi
+
+          echo "Source SUMMARY.md found."
+
+          # Check if target SUMMARY.md exists
+          if [ ! -f "$TARGET_SUMMARY" ]; then
+            echo "WARNING: Target SUMMARY.md not found at $TARGET_SUMMARY"
+            echo "Creating new SUMMARY.md from source..."
+            cp "$SOURCE_SUMMARY" "$TARGET_SUMMARY"
+            echo "✓ Created new SUMMARY.md"
+            exit 0
+          fi
+
+          echo "Target SUMMARY.md exists. Appending PRISM section..."
+
+          # Remove old PRISM section from target if it exists
+          # Look for "## PRISM" and remove until end of file or next "## "
+          if grep -q "^## PRISM" "$TARGET_SUMMARY"; then
+            echo "Found existing '## PRISM' section - removing it..."
+            # Remove from "## PRISM" to end of file (we'll re-add it)
+            sed -i '/^## PRISM$/,$d' "$TARGET_SUMMARY"
+          fi
+
+          # Append PRISM section to target SUMMARY.md
+          echo "" >> "$TARGET_SUMMARY"
+          echo "## PRISM" >> "$TARGET_SUMMARY"
+          echo "" >> "$TARGET_SUMMARY"
+
+          # Copy content from source (skip the # PRISM header line)
+          # Add prism/ prefix to all links
+          tail -n +2 "$SOURCE_SUMMARY" | sed 's|](|](prism/|g' >> "$TARGET_SUMMARY"
+
+          echo "✓ Appended PRISM section to $TARGET_SUMMARY"
+          echo ""
+          echo "Updated SUMMARY.md tail:"
+          tail -30 "$TARGET_SUMMARY"
 
       - name: Commit and push changes
         if: ${{ !inputs.dry_run }}
         working-directory: hyperswitch-docs
         run: |
+          echo "=== Committing and pushing changes ==="
+
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add connector-service/
+          git add integration-space/
 
-          # Check if there are any staged changes
+          # Check for changes
           if git diff --cached --quiet; then
             echo "No changes to commit"
             exit 0
           fi
 
-          git commit -m "docs(connector-service): sync from connector-service@${{ github.sha }}
+          echo "Changes detected:"
+          git diff --cached --stat
 
-          Sync documentation from juspay/connector-service@${{ github.sha }}
+          git commit -m "docs(prism): sync integration-space from hyperswitch-prism@${{ github.sha }}
+
+          Sync integration-space documentation from juspay/hyperswitch-prism@${{ github.sha }}
+          Branch: ${{ github.ref_name }}
 
           Changes:
           $(git diff --cached --stat | tail -1)"
 
           git push origin HEAD:main
-          echo "Successfully pushed changes to juspay/hyperswitch-docs"
+          echo "✓ Successfully pushed changes to hyperswitch-docs"
 
       - name: Dry run summary
         if: ${{ inputs.dry_run }}
@@ -93,7 +169,7 @@ jobs:
           echo "## Dry Run Summary"
           echo ""
           echo "Files that would be synced:"
-          git add connector-service/ 2>/dev/null || true
+          git add integration-space/ 2>/dev/null || true
           git diff --staged --stat || echo "No changes detected"
           echo ""
           echo "This was a dry run. No changes were pushed."

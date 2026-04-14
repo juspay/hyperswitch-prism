@@ -1,11 +1,14 @@
 // AUTO-GENERATED — do not edit by hand.
-// Source: services.proto ∩ services/payments.rs  |  Regenerate: make generate
+// Source: services.proto ∩ services/*.rs  |  Regenerate: make generate
 
-use grpc_api_types::payments::{
-{% for t in req_types %}
+{% for mod, types in modules_req.items() %}
+use grpc_api_types::{{ mod }}::{
+{% for t in types %}
     {{ t }},
 {% endfor %}
 };
+{% endfor %}
+
 use crate::handlers::payments::{
 {% for f in flows %}
     {{ f.name }}_req_handler, {{ f.name }}_res_handler,

@@ -8,7 +8,7 @@ use domain_types::{
         PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData,
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
-    errors::ConnectorError,
+    errors::{ConnectorError, IntegrationError},
     payment_method_data::{
         BankRedirectData, PaymentMethodData, PaymentMethodDataTypes, RealTimePaymentData, UpiData,
     },
@@ -32,7 +32,7 @@ pub struct IatapayAuthType {
 }
 
 impl TryFrom<&ConnectorSpecificConfig> for IatapayAuthType {
-    type Error = Report<ConnectorError>;
+    type Error = Report<IntegrationError>;
 
     fn try_from(auth_type: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         match auth_type {
@@ -46,7 +46,9 @@ impl TryFrom<&ConnectorSpecificConfig> for IatapayAuthType {
                 merchant_id: merchant_id.to_owned(),
                 client_secret: client_secret.to_owned(),
             }),
-            _ => Err(Report::new(ConnectorError::FailedToObtainAuthType)),
+            _ => Err(Report::new(IntegrationError::FailedToObtainAuthType {
+                context: Default::default(),
+            })),
         }
     }
 }
@@ -182,7 +184,7 @@ pub struct RedirectMethod {
 /// Determine country code from payment method data
 fn get_country_from_payment_method<T>(
     payment_method_data: &PaymentMethodData<T>,
-) -> Result<CountryAlpha2, Report<ConnectorError>>
+) -> Result<CountryAlpha2, Report<IntegrationError>>
 where
     T: PaymentMethodDataTypes,
 {
@@ -196,7 +198,7 @@ where
             BankRedirectData::Ideal { .. } => Ok(CountryAlpha2::NL),
             // LocalBankRedirect → Austria
             BankRedirectData::LocalBankRedirect { .. } => Ok(CountryAlpha2::AT),
-            _ => Err(Report::new(ConnectorError::NotImplemented(
+            _ => Err(Report::new(IntegrationError::not_implemented(
                 "Unsupported bank redirect type for Iatapay".to_string(),
             ))),
         },
@@ -213,7 +215,7 @@ where
             RealTimePaymentData::VietQr {} => Ok(CountryAlpha2::VN),
         },
 
-        _ => Err(Report::new(ConnectorError::NotImplemented(
+        _ => Err(Report::new(IntegrationError::not_implemented(
             "Payment method not supported by Iatapay".to_string(),
         ))),
     }
@@ -241,7 +243,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for IatapayPaymentsRequest
 {
-    type Error = Report<ConnectorError>;
+    type Error = Report<IntegrationError>;
 
     fn try_from(
         item: crate::connectors::iatapay::IatapayRouterData<
@@ -278,14 +280,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         // Get return URL and webhook URL
         let return_url = item.router_data.request.router_return_url.clone().ok_or(
-            ConnectorError::MissingRequiredField {
+            IntegrationError::MissingRequiredField {
                 field_name: "router_return_url",
+                context: Default::default(),
             },
         )?;
 
         let webhook_url = item.router_data.request.webhook_url.clone().ok_or(
-            ConnectorError::MissingRequiredField {
+            IntegrationError::MissingRequiredField {
                 field_name: "webhook_url",
+                context: Default::default(),
             },
         )?;
 
@@ -373,8 +377,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             "qr_code_url".to_string(),
                             Value::String(checkout_methods.redirect.redirect_url.clone()),
                         );
-                        let metadata_value = serde_json::to_value(metadata_map)
-                            .change_context(ConnectorError::ResponseHandlingFailed)?;
+                        let metadata_value = serde_json::to_value(metadata_map).change_context(
+                            crate::utils::response_handling_fail_for_connector(
+                                item.http_code,
+                                "iatapay",
+                            ),
+                        )?;
                         (Some(metadata_value), None)
                     }
                     false => {
@@ -570,7 +578,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for IatapayRefundRequest
 {
-    type Error = Report<ConnectorError>;
+    type Error = Report<IntegrationError>;
 
     fn try_from(
         item: crate::connectors::iatapay::IatapayRouterData<
@@ -599,8 +607,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             currency: router_data.request.currency.to_string(),
             bank_transfer_description: router_data.request.reason.clone(),
             notification_url: router_data.request.webhook_url.clone().ok_or(
-                ConnectorError::MissingRequiredField {
+                IntegrationError::MissingRequiredField {
                     field_name: "webhook_url",
+                    context: Default::default(),
                 },
             )?,
         })
@@ -701,24 +710,24 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     TryFrom<
         crate::connectors::iatapay::IatapayRouterData<
             RouterDataV2<
-                domain_types::connector_flow::CreateAccessToken,
+                domain_types::connector_flow::ServerAuthenticationToken,
                 PaymentFlowData,
-                domain_types::connector_types::AccessTokenRequestData,
-                domain_types::connector_types::AccessTokenResponseData,
+                domain_types::connector_types::ServerAuthenticationTokenRequestData,
+                domain_types::connector_types::ServerAuthenticationTokenResponseData,
             >,
             T,
         >,
     > for IatapayAuthUpdateRequest
 {
-    type Error = Report<ConnectorError>;
+    type Error = Report<IntegrationError>;
 
     fn try_from(
         item: crate::connectors::iatapay::IatapayRouterData<
             RouterDataV2<
-                domain_types::connector_flow::CreateAccessToken,
+                domain_types::connector_flow::ServerAuthenticationToken,
                 PaymentFlowData,
-                domain_types::connector_types::AccessTokenRequestData,
-                domain_types::connector_types::AccessTokenResponseData,
+                domain_types::connector_types::ServerAuthenticationTokenRequestData,
+                domain_types::connector_types::ServerAuthenticationTokenResponseData,
             >,
             T,
         >,
@@ -729,10 +738,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
 impl TryFrom<ResponseRouterData<IatapayAuthUpdateResponse, Self>>
     for RouterDataV2<
-        domain_types::connector_flow::CreateAccessToken,
+        domain_types::connector_flow::ServerAuthenticationToken,
         PaymentFlowData,
-        domain_types::connector_types::AccessTokenRequestData,
-        domain_types::connector_types::AccessTokenResponseData,
+        domain_types::connector_types::ServerAuthenticationTokenRequestData,
+        domain_types::connector_types::ServerAuthenticationTokenResponseData,
     >
 {
     type Error = Report<ConnectorError>;
@@ -743,11 +752,13 @@ impl TryFrom<ResponseRouterData<IatapayAuthUpdateResponse, Self>>
         let response = item.response;
         let mut router_data = item.router_data;
 
-        router_data.response = Ok(domain_types::connector_types::AccessTokenResponseData {
-            access_token: response.access_token,
-            token_type: Some("Bearer".to_string()),
-            expires_in: Some(response.expires_in),
-        });
+        router_data.response = Ok(
+            domain_types::connector_types::ServerAuthenticationTokenResponseData {
+                access_token: response.access_token,
+                token_type: Some("Bearer".to_string()),
+                expires_in: Some(response.expires_in),
+            },
+        );
 
         Ok(router_data)
     }

@@ -1,5 +1,6 @@
 use std::{collections::HashMap, str::FromStr, sync::RwLock, time::Duration};
 
+use base64::Engine;
 use common_enums::ApiClientError;
 #[cfg(feature = "injector-client")]
 use common_utils::{
@@ -13,14 +14,24 @@ use common_utils::{
 };
 use domain_types::{
     connector_types::{ConnectorResponseHeaders, RawConnectorRequestResponse},
-    errors::{ApiErrorResponse, ConnectorError},
+    errors::ApiErrorResponse,
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::Proxy,
+    ConnectorError,
 };
-use hyperswitch_masking::Secret;
+#[cfg(feature = "injector-client")]
+use domain_types::{
+    errors::{
+        report_common_api_client_to_flow, report_connector_request_to_flow,
+        report_connector_response_to_flow, ConnectorFlowError, ResponseTransformationErrorContext,
+    },
+    IntegrationError,
+};
+use hyperswitch_masking::{ExposeInterface, Secret};
 #[cfg(feature = "injector-client")]
 use injector;
+pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 
 /// Test context for mock server integration
 #[derive(Debug, Clone)]
@@ -86,14 +97,26 @@ impl AdditionalHeaders for domain_types::connector_types::DisputeFlowData {
         None
     }
 }
+
+impl ConnectorRequestReference for domain_types::payouts::payouts_types::PayoutFlowData {
+    fn get_connector_request_reference_id(&self) -> &str {
+        &self.connector_request_reference_id
+    }
+}
+
+impl AdditionalHeaders for domain_types::payouts::payouts_types::PayoutFlowData {
+    fn get_vault_headers(&self) -> Option<&HashMap<String, Secret<String>>> {
+        None
+    }
+}
 use common_utils::events::{Event, EventConfig, FlowName};
 #[cfg(feature = "injector-client")]
 // TokenData is now imported from hyperswitch_injector
 use common_utils::{consts, emit_event_with_config};
 use error_stack::{report, ResultExt};
-use hyperswitch_masking::Maskable;
 #[cfg(feature = "injector-client")]
-use hyperswitch_masking::{ErasedMaskSerialize, ExposeInterface};
+use hyperswitch_masking::ErasedMaskSerialize;
+use hyperswitch_masking::Maskable;
 #[cfg(feature = "injector-client")]
 use injector::{injector_core, HttpMethod, TokenData};
 use interfaces::connector_integration_v2::BoxedConnectorIntegrationV2;
@@ -166,13 +189,7 @@ where
                             .record("response.headers", tracing::field::debug(&evt.headers));
                     }
 
-                    match handle_response_result {
-                        Ok(data) => {
-                            tracing::info!("Transformer completed successfully");
-                            Ok(data)
-                        }
-                        Err(err) => Err(err),
-                    }?
+                    handle_response_result?
                 }
                 Err(body) => {
                     // Record metrics only if event_params is provided
@@ -197,20 +214,21 @@ where
                             .set_connector_response_headers(body.headers.clone());
                     }
 
-                    let error = match body.status_code {
+                    let error_response = match body.status_code {
                         500..=511 => connector.get_5xx_error_response(body.clone(), event)?,
                         _ => connector.get_error_response_v2(body.clone(), event)?,
                     };
                     tracing::Span::current().record(
                         "response.error_message",
-                        tracing::field::display(&error.message),
+                        tracing::field::display(&error_response.message),
                     );
                     tracing::Span::current().record(
                         "response.status_code",
-                        tracing::field::display(error.status_code),
+                        tracing::field::display(error_response.status_code),
                     );
-                    updated_router_data.response = Err(error);
-                    updated_router_data
+                    Err(error_stack::report!(
+                        ConnectorError::ConnectorErrorResponse(error_response)
+                    ))?
                 }
             };
             Ok(response)
@@ -282,7 +300,7 @@ pub async fn execute_connector_processing_step<T, F, ResourceCommonData, Req, Re
     call_connector_action: common_enums::CallConnectorAction,
     test_context: Option<TestContext>,
     api_tag: Option<String>,
-) -> CustomResult<RouterDataV2<F, ResourceCommonData, Req, Resp>, ConnectorError>
+) -> CustomResult<RouterDataV2<F, ResourceCommonData, Req, Resp>, ConnectorFlowError>
 where
     F: Clone + 'static,
     T: FlowIntegrity,
@@ -333,12 +351,15 @@ where
                     Ok(data)
                 }
                 Err(err) => Err(err),
-            }?;
+            }
+            .map_err(report_connector_response_to_flow)?;
 
             Ok(response)
         }
         common_enums::CallConnectorAction::Trigger => {
-            let mut connector_request = connector.build_request_v2(&router_data.clone())?;
+            let mut connector_request = connector
+                .build_request_v2(&router_data.clone())
+                .map_err(report_connector_request_to_flow)?;
 
             let mut updated_router_data = router_data.clone();
             updated_router_data = match &connector_request {
@@ -474,7 +495,11 @@ where
                         let template = request
                             .body
                             .as_ref()
-                            .ok_or(ConnectorError::RequestEncodingFailed)?
+                            .ok_or(ConnectorFlowError::from(
+                                IntegrationError::RequestEncodingFailed {
+                                    context: Default::default(),
+                                },
+                            ))?
                             .get_inner_value()
                             .expose()
                             .to_string();
@@ -521,13 +546,20 @@ where
                         );
 
                         // New injector handles HTTP request internally and returns enhanced response
-                        let injector_response = injector_core(injector_request)
-                            .await
-                            .change_context(ConnectorError::RequestEncodingFailed)?;
+                        let injector_response =
+                            injector_core(injector_request).await.change_context(
+                                ConnectorFlowError::from(IntegrationError::RequestEncodingFailed {
+                                    context: Default::default(),
+                                }),
+                            )?;
 
                         // Convert injector response to connector service Response format
                         let response_bytes = serde_json::to_vec(&injector_response.response)
-                            .map_err(|_| ConnectorError::ResponseHandlingFailed)?;
+                            .map_err(|_| {
+                                ConnectorFlowError::from(
+                                    ConnectorError::response_handling_failed_http_status_unknown(),
+                                )
+                            })?;
 
                         // Convert headers from HashMap<String, String> to reqwest::HeaderMap if present
                         let headers = injector_response.headers.map(|h| {
@@ -557,7 +589,7 @@ where
                             test_mode,
                         )
                         .await
-                        .change_context(ConnectorError::RequestEncodingFailed)
+                        .map_err(report_common_api_client_to_flow)
                         .inspect_err(|err| {
                             info_log(
                                 "NETWORK_ERROR",
@@ -613,7 +645,9 @@ where
                     event.add_service_name(event_params.service_name);
 
                     let result = handle_connector_response(
-                        response.change_context(ConnectorError::ProcessingStepFailed(None)),
+                        response.change_context(
+                            ConnectorError::response_handling_failed_http_status_unknown(),
+                        ),
                         updated_router_data,
                         &connector,
                         Some(&mut event),
@@ -621,7 +655,8 @@ where
                         method,
                         url.clone(),
                         Some(&event_params),
-                    );
+                    )
+                    .map_err(report_connector_response_to_flow);
 
                     emit_event_with_config(event, event_params.event_config);
                     result
@@ -635,9 +670,17 @@ where
         Ok(data) => {
             data.request
                 .check_integrity(&data.request.clone(), None)
-                .map_err(|err| ConnectorError::IntegrityCheckFailed {
-                    field_names: err.field_names,
-                    connector_transaction_id: err.connector_transaction_id,
+                .map_err(|err| {
+                    report_connector_response_to_flow(error_stack::report!(
+                        ConnectorError::IntegrityCheckFailed {
+                            context: ResponseTransformationErrorContext {
+                                http_status_code: None,
+                                additional_context: None,
+                            },
+                            field_names: err.field_names,
+                            connector_transaction_id: err.connector_transaction_id,
+                        }
+                    ))
                 })?;
             Ok(data)
         }
@@ -830,42 +873,33 @@ pub async fn call_connector_api(
 pub fn create_client(
     proxy_config: &Proxy,
     should_bypass_proxy: bool,
-    _client_certificate: Option<Secret<String>>,
-    _client_certificate_key: Option<Secret<String>>,
+    client_certificate: Option<Secret<String>>,
+    client_certificate_key: Option<Secret<String>>,
     test_mode: bool,
 ) -> CustomResult<Client, ApiClientError> {
-    get_base_client(proxy_config, should_bypass_proxy, test_mode)
-    // match (client_certificate, client_certificate_key) {
-    //     (Some(encoded_certificate), Some(encoded_certificate_key)) => {
-    //         let client_builder = get_client_builder(proxy_config, should_bypass_proxy)?;
+    match (client_certificate.clone(), client_certificate_key.clone()) {
+        (Some(encoded_certificate), Some(encoded_certificate_key)) => {
+            let client_builder = get_client_builder(proxy_config, should_bypass_proxy, test_mode)?;
 
-    //         let identity = create_identity_from_certificate_and_key(
-    //             encoded_certificate.clone(),
-    //             encoded_certificate_key,
-    //         )?;
-    //         let certificate_list = create_certificate(encoded_certificate)?;
-    //         let client_builder = certificate_list
-    //             .into_iter()
-    //             .fold(client_builder, |client_builder, certificate| {
-    //                 client_builder.add_root_certificate(certificate)
-    //             });
-    //         client_builder
-    //             .identity(identity)
-    //             .use_rustls_tls()
-    //             .build()
-    //             .change_context(ApiClientError::ClientConstructionFailed)
-    //             .inspect_err(|err| {
-    //                 info_log(
-    //                     "ERROR",
-    //                     &json!(format!(
-    //                         "Failed to construct client with certificate and certificate key. Error: {:?}",
-    //                         err
-    //                     )),
-    //                 );
-    //             })
-    //     }
-    //     _ => ,
-    // }
+            let identity = create_identity_from_certificate_and_key(
+                encoded_certificate.clone(),
+                encoded_certificate_key,
+            )?;
+            let certificate_list = create_certificate(encoded_certificate)?;
+            let client_builder = certificate_list
+                .into_iter()
+                .fold(client_builder, |client_builder, certificate| {
+                    client_builder.add_root_certificate(certificate)
+                });
+            client_builder
+                .identity(identity)
+                .use_rustls_tls()
+                .build()
+                .change_context(ApiClientError::ClientConstructionFailed)
+                .attach_printable("Failed to construct client with certificate and certificate key")
+        }
+        _ => get_base_client(proxy_config, should_bypass_proxy, test_mode),
+    }
 }
 
 static DEFAULT_CLIENT: OnceCell<Client> = OnceCell::new();
@@ -1037,41 +1071,41 @@ fn get_client_builder(
     Ok(client_builder)
 }
 
-// pub fn create_identity_from_certificate_and_key(
-//     encoded_certificate: hyperswitch_masking::Secret<String>,
-//     encoded_certificate_key: hyperswitch_masking::Secret<String>,
-// ) -> Result<reqwest::Identity, error_stack::Report<ApiClientError>> {
-//     let decoded_certificate = BASE64_ENGINE
-//         .decode(encoded_certificate.expose())
-//         .change_context(ApiClientError::CertificateDecodeFailed)?;
+pub fn create_identity_from_certificate_and_key(
+    encoded_certificate: Secret<String>,
+    encoded_certificate_key: Secret<String>,
+) -> Result<reqwest::Identity, error_stack::Report<ApiClientError>> {
+    let decoded_certificate = BASE64_ENGINE
+        .decode(encoded_certificate.expose())
+        .change_context(ApiClientError::CertificateDecodeFailed)?;
 
-//     let decoded_certificate_key = BASE64_ENGINE
-//         .decode(encoded_certificate_key.expose())
-//         .change_context(ApiClientError::CertificateDecodeFailed)?;
+    let decoded_certificate_key = BASE64_ENGINE
+        .decode(encoded_certificate_key.expose())
+        .change_context(ApiClientError::CertificateDecodeFailed)?;
 
-//     let certificate = String::from_utf8(decoded_certificate)
-//         .change_context(ApiClientError::CertificateDecodeFailed)?;
+    let certificate = String::from_utf8(decoded_certificate)
+        .change_context(ApiClientError::CertificateDecodeFailed)?;
 
-//     let certificate_key = String::from_utf8(decoded_certificate_key)
-//         .change_context(ApiClientError::CertificateDecodeFailed)?;
+    let certificate_key = String::from_utf8(decoded_certificate_key)
+        .change_context(ApiClientError::CertificateDecodeFailed)?;
 
-//     let key_chain = format!("{}{}", certificate_key, certificate);
-//     reqwest::Identity::from_pem(key_chain.as_bytes())
-//         .change_context(ApiClientError::CertificateDecodeFailed)
-// }
+    let key_chain = format!("{}{}", certificate_key, certificate);
+    reqwest::Identity::from_pem(key_chain.as_bytes())
+        .change_context(ApiClientError::CertificateDecodeFailed)
+}
 
-// pub fn create_certificate(
-//     encoded_certificate: hyperswitch_masking::Secret<String>,
-// ) -> Result<Vec<reqwest::Certificate>, error_stack::Report<ApiClientError>> {
-//     let decoded_certificate = BASE64_ENGINE
-//         .decode(encoded_certificate.expose())
-//         .change_context(ApiClientError::CertificateDecodeFailed)?;
+pub fn create_certificate(
+    encoded_certificate: Secret<String>,
+) -> Result<Vec<reqwest::Certificate>, error_stack::Report<ApiClientError>> {
+    let decoded_certificate = BASE64_ENGINE
+        .decode(encoded_certificate.expose())
+        .change_context(ApiClientError::CertificateDecodeFailed)?;
 
-//     let certificate = String::from_utf8(decoded_certificate)
-//         .change_context(ApiClientError::CertificateDecodeFailed)?;
-//     reqwest::Certificate::from_pem_bundle(certificate.as_bytes())
-//         .change_context(ApiClientError::CertificateDecodeFailed)
-// }
+    let certificate = String::from_utf8(decoded_certificate)
+        .change_context(ApiClientError::CertificateDecodeFailed)?;
+    reqwest::Certificate::from_pem_bundle(certificate.as_bytes())
+        .change_context(ApiClientError::CertificateDecodeFailed)
+}
 
 async fn handle_response(
     response: CustomResult<reqwest::Response, ApiClientError>,

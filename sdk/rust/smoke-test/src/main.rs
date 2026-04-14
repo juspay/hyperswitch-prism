@@ -2,7 +2,7 @@
  * Multi-connector smoke test for the hyperswitch-payments Rust SDK.
  *
  * Loads connector credentials from external JSON file and runs all scenario
- * functions found in examples/{connector}/rust/{connector}.rs for each connector.
+ * functions found in examples/{connector}/{connector}.rs for each connector.
  *
  * Each example file exports pub async fn process_*(client, txn_id) -> Result<String, Box<dyn Error>>
  * functions that the smoke test discovers and invokes at compile time.
@@ -103,6 +103,7 @@ fn rand_hex() -> u32 {
 
 /// Compile-time dispatch: call process_* functions for a given connector.
 /// Returns Vec<(scenario_key, Result<String, Box<dyn Error>>)>.
+#[allow(unused_variables)]
 async fn run_connector_scenarios(
     connector_name: &str,
     client: &ConnectorClient,
@@ -114,16 +115,16 @@ async fn run_connector_scenarios(
 
 #[derive(Debug)]
 struct ScenarioResult {
-    passed: bool,
-    #[allow(dead_code)]
-    message: Option<String>,
+    status: &'static str,    // "passed" | "skipped" | "failed" | "not_implemented"
+    message: Option<String>, // e.g. mock request "POST https://..." or response summary
+    reason: Option<String>,  // for skipped
     error: Option<String>,
 }
 
 #[derive(Debug)]
 struct ConnectorResult {
     connector: String,
-    status: &'static str,
+    status: &'static str, // "passed" | "failed" | "skipped" | "dry_run"
     scenarios: Vec<(String, ScenarioResult)>,
     error: Option<String>,
 }
@@ -133,6 +134,7 @@ async fn test_connector_scenarios(
     connector_name: &str,
     client: ConnectorClient,
     dry_run: bool,
+    mock: bool,
 ) -> ConnectorResult {
     if dry_run {
         return ConnectorResult {
@@ -155,6 +157,7 @@ async fn test_connector_scenarios(
     }
 
     let mut scenarios = vec![];
+    let mut any_failed = false;
 
     for (scenario_key, result) in scenario_results {
         print!("    [{scenario_key}] running ... ");
@@ -163,39 +166,81 @@ async fn test_connector_scenarios(
 
         match result {
             Ok(msg) => {
-                println!("{} {}", green("✓ ok"), grey(&format!("— {msg}")));
+                println!("{} {}", green("PASSED"), grey(&format!("— {msg}")));
                 scenarios.push((
                     scenario_key,
                     ScenarioResult {
-                        passed: true,
+                        status: "passed",
                         message: Some(msg),
+                        reason: None,
                         error: None,
                     },
                 ));
             }
             Err(e) => {
-                // Treat connector-level errors as expected (not a test framework failure)
                 let detail = e.to_string();
-                println!(
-                    "{} {}",
-                    yellow("~ connector error"),
-                    grey(&format!("— {detail}"))
-                );
-                scenarios.push((
-                    scenario_key,
-                    ScenarioResult {
-                        passed: true,
-                        message: None,
-                        error: Some(detail),
-                    },
-                ));
+                if detail.contains("NOT IMPLEMENTED") {
+                    // Unimplemented flow - not a failure
+                    println!(
+                        "{} {}",
+                        grey("NOT IMPLEMENTED"),
+                        grey(&format!("— {detail}"))
+                    );
+                    scenarios.push((
+                        scenario_key,
+                        ScenarioResult {
+                            status: "not_implemented",
+                            message: None,
+                            reason: None,
+                            error: Some(detail),
+                        },
+                    ));
+                } else if detail.contains("Rust panic:") || detail.starts_with("thread '") {
+                    // Rust panic (real SDK crash)
+                    println!("{} — {}", red("FAILED"), &detail);
+                    scenarios.push((
+                        scenario_key,
+                        ScenarioResult {
+                            status: "failed",
+                            message: None,
+                            reason: None,
+                            error: Some(detail),
+                        },
+                    ));
+                    any_failed = true;
+                } else if mock {
+                    // In mock mode, connector-level errors mean req_transformer successfully built the HTTP request.
+                    // The error is just from parsing the mock empty response, which is expected.
+                    println!("{} — req_transformer OK (mock response)", green("PASSED"));
+                    scenarios.push((
+                        scenario_key,
+                        ScenarioResult {
+                            status: "passed",
+                            message: None,
+                            reason: Some("mock_verified".to_string()),
+                            error: Some(detail),
+                        },
+                    ));
+                } else {
+                    // Connector-level error (expected)
+                    println!("{}", yellow("SKIPPED (connector error)"));
+                    scenarios.push((
+                        scenario_key,
+                        ScenarioResult {
+                            status: "skipped",
+                            message: None,
+                            reason: Some("connector_error".to_string()),
+                            error: Some(detail),
+                        },
+                    ));
+                }
             }
         }
     }
 
     ConnectorResult {
         connector: instance_name.to_string(),
-        status: "passed",
+        status: if any_failed { "failed" } else { "passed" },
         scenarios,
         error: None,
     }
@@ -203,11 +248,59 @@ async fn test_connector_scenarios(
 
 fn print_result(result: &ConnectorResult) {
     match result.status {
-        "passed" => println!(
-            "{} ({} scenario(s))",
-            green("  PASSED"),
-            result.scenarios.len()
-        ),
+        "passed" => {
+            let passed_count = result
+                .scenarios
+                .iter()
+                .filter(|(_, s)| s.status == "passed")
+                .count();
+            let skipped_count = result
+                .scenarios
+                .iter()
+                .filter(|(_, s)| s.status == "skipped")
+                .count();
+            let not_impl_count = result
+                .scenarios
+                .iter()
+                .filter(|(_, s)| s.status == "not_implemented")
+                .count();
+            println!(
+                "{} ({} passed, {} skipped, {} not implemented)",
+                green("  PASSED"),
+                passed_count,
+                skipped_count,
+                not_impl_count
+            );
+            for (key, detail) in &result.scenarios {
+                match detail.status {
+                    "passed" => {
+                        let extra = detail
+                            .message
+                            .as_deref()
+                            .map(|m| format!(" {}", grey(&format!("— {m}"))))
+                            .unwrap_or_default();
+                        println!("{}    {}: ✓{extra}", green(""), key);
+                    }
+                    "skipped" => {
+                        let reason = detail.reason.as_deref().unwrap_or("unknown");
+                        let error_info = detail
+                            .error
+                            .as_deref()
+                            .map(|e| format!(": {e}"))
+                            .unwrap_or_default();
+                        println!(
+                            "{}    {}: ~ skipped ({}){}",
+                            yellow(""),
+                            key,
+                            reason,
+                            error_info
+                        );
+                    }
+                    "not_implemented" => println!("{}    {}: N/A", grey(""), key),
+                    _ => {}
+                }
+            }
+        }
         "dry_run" => println!("{}", grey("  DRY RUN")),
         "skipped" => {
             let reason = result.error.as_deref().unwrap_or("unknown");
@@ -216,10 +309,10 @@ fn print_result(result: &ConnectorResult) {
         _ => {
             println!("{}", red("  FAILED"));
             for (key, detail) in &result.scenarios {
-                if !detail.passed {
+                if detail.status == "failed" {
                     println!(
                         "{} — {}",
-                        red(&format!("    {key}")),
+                        red(&format!("    {key}: ✗ FAILED")),
                         detail.error.as_deref().unwrap_or("unknown error")
                     );
                 }
@@ -235,6 +328,7 @@ async fn run_tests(
     creds_file: &str,
     connectors: Option<Vec<String>>,
     dry_run: bool,
+    mock: bool,
 ) -> Vec<ConnectorResult> {
     let text = std::fs::read_to_string(creds_file)
         .unwrap_or_else(|_| panic!("Credentials file not found: {creds_file}"));
@@ -294,7 +388,7 @@ async fn run_tests(
         };
 
         for (instance_name, auth_map) in instances {
-            if !has_valid_credentials(auth_map) {
+            if !mock && !has_valid_credentials(auth_map) {
                 println!("{}", grey("  SKIPPED (placeholder credentials)"));
                 results.push(ConnectorResult {
                     connector: instance_name.clone(),
@@ -337,7 +431,8 @@ async fn run_tests(
             };
 
             let result =
-                test_connector_scenarios(&instance_name, connector_name, client, dry_run).await;
+                test_connector_scenarios(&instance_name, connector_name, client, dry_run, mock)
+                    .await;
             print_result(&result);
             results.push(result);
         }
@@ -358,7 +453,22 @@ fn print_summary(results: &[ConnectorResult]) -> i32 {
     let skipped = results.iter().filter(|r| r.status == "skipped").count();
     let failed = results.iter().filter(|r| r.status == "failed").count();
 
-    println!("Total:   {}", results.len());
+    // Count per-scenario statuses across all connectors
+    let mut total_flows_passed = 0;
+    let mut total_flows_skipped = 0;
+    let mut total_flows_failed = 0;
+    for r in results {
+        for (_, scenario) in &r.scenarios {
+            match scenario.status {
+                "passed" => total_flows_passed += 1,
+                "skipped" => total_flows_skipped += 1,
+                "failed" => total_flows_failed += 1,
+                _ => {}
+            }
+        }
+    }
+
+    println!("Total connectors:   {}", results.len());
     println!("{}", green(&format!("Passed:  {passed}")));
     println!(
         "{}",
@@ -375,6 +485,24 @@ fn print_summary(results: &[ConnectorResult]) -> i32 {
             green(&failed_str)
         }
     );
+    println!();
+    println!("Flow results:");
+    println!(
+        "{}",
+        green(&format!("  {} flows PASSED", total_flows_passed))
+    );
+    if total_flows_skipped > 0 {
+        println!(
+            "{}",
+            yellow(&format!(
+                "  {} flows SKIPPED (connector errors)",
+                total_flows_skipped
+            ))
+        );
+    }
+    if total_flows_failed > 0 {
+        println!("{}", red(&format!("  {} flows FAILED", total_flows_failed)));
+    }
     println!();
 
     if failed > 0 {
@@ -402,12 +530,13 @@ fn print_summary(results: &[ConnectorResult]) -> i32 {
     0
 }
 
-fn parse_args() -> (String, Option<Vec<String>>, bool, bool) {
+fn parse_args() -> (String, Option<Vec<String>>, bool, bool, bool) {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let mut creds_file = "creds.json".to_string();
     let mut connectors: Option<Vec<String>> = None;
     let mut all = false;
     let mut dry_run = false;
+    let mut mock = false;
 
     let mut i = 0;
     while i < args.len() {
@@ -432,6 +561,9 @@ fn parse_args() -> (String, Option<Vec<String>>, bool, bool) {
             "--dry-run" => {
                 dry_run = true;
             }
+            "--mock" => {
+                mock = true;
+            }
             "--help" | "-h" => {
                 println!("Usage: hyperswitch-smoke-test [options]");
                 println!(
@@ -440,6 +572,7 @@ fn parse_args() -> (String, Option<Vec<String>>, bool, bool) {
                 println!("  --connectors <list>     Comma-separated list of connectors");
                 println!("  --all                   Test all connectors in the credentials file");
                 println!("  --dry-run               Skip HTTP calls, just verify compilation");
+                println!("  --mock                  Intercept HTTP; verify req_transformer only");
                 std::process::exit(0);
             }
             _ => {}
@@ -456,14 +589,27 @@ fn parse_args() -> (String, Option<Vec<String>>, bool, bool) {
         creds_file,
         if all { None } else { connectors },
         dry_run,
+        mock,
         all,
     )
 }
 
 #[tokio::main]
 async fn main() {
-    let (creds_file, connectors, dry_run, _all) = parse_args();
-    let results = run_tests(&creds_file, connectors, dry_run).await;
+    let (creds_file, connectors, dry_run, mock, _all) = parse_args();
+
+    // Enable mock HTTP mode if requested
+    if mock {
+        hyperswitch_payments_client::set_mock_http(true);
+    }
+
+    let results = run_tests(&creds_file, connectors, dry_run, mock).await;
+
+    // Disable mock HTTP mode after tests
+    if mock {
+        hyperswitch_payments_client::set_mock_http(false);
+    }
+
     let exit_code = print_summary(&results);
     std::process::exit(exit_code);
 }

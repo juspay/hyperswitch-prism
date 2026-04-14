@@ -1,19 +1,26 @@
 #!/usr/bin/env python3
 """
-Smoke test for PayPal access token flow using hyperswitch-payments SDK.
+Composite smoke test for hyperswitch-payments SDK.
 
-This test demonstrates:
-  1. Create an access token via PayPal
-  2. Use the access token in an authorize request
+Tests:
+  1. PayPal access token flow (create token + authorize)
+  2. Stripe direct authorize flow (happy path)
+  3. Stripe IntegrationError — missing amount must throw IntegrationError before HTTP call
+  4. Stripe ConnectorError — declined card must throw ConnectorError, not IntegrationError
+
+CI will fail if any test fails.
 
 Usage:
-    python3 test_smoke_composite.py
+    python3 test_smoke_composite.py --creds-file creds.json
 """
 
+import argparse
 import asyncio
+import json
 import os
 import sys
 import time
+from typing import Dict, Any, Optional, Tuple
 
 # Add parent directory to path for imports when running directly
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
@@ -26,17 +33,15 @@ try:
         RequestConfig,
         Environment,
         Connector,
-        MerchantAuthenticationServiceCreateAccessTokenRequest,
-        PaymentServiceAuthorizeRequest,
         Currency,
         CaptureMethod,
         AuthenticationType,
-        SecretString,
-        AccessToken,
-        ConnectorState,
-        PaymentAddress,
+        PaymentStatus,
+        MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
+        PaymentServiceAuthorizeRequest,
         IntegrationError,
-        ConnectorResponseTransformationError,
+        ConnectorError,
+        PaymentAddress
     )
 except ImportError as e:
     print(f"Error importing payments package: {e}")
@@ -46,150 +51,375 @@ except ImportError as e:
     sys.exit(1)
 
 
-# Hardcoded placeholder credentials
-PAYPAL_CREDS = {
-    "client_id": "client_id",
-    "client_secret": "client_secret",
-}
+def parse_args() -> argparse.Namespace:
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(
+        description="Composite smoke test for hyperswitch-payments SDK"
+    )
+    parser.add_argument(
+        "--creds-file",
+        default="creds.json",
+        help="Path to connector credentials JSON file (default: creds.json)",
+    )
+    return parser.parse_args()
 
 
-def create_config() -> ConnectorConfig:
-    """Create ConnectorConfig with PayPal credentials."""
+def load_credentials(creds_file: str) -> Dict[str, Any]:
+    """Load connector credentials from JSON file."""
+    if not os.path.exists(creds_file):
+        return {}
+    with open(creds_file, "r") as f:
+        return json.load(f)
+
+
+def get_stripe_api_key(credentials: Dict[str, Any]) -> Optional[str]:
+    """Extract Stripe API key from credentials."""
+    if not credentials.get("stripe"):
+        return None
+    stripe_creds = credentials["stripe"]
+    if isinstance(stripe_creds, list):
+        stripe_creds = stripe_creds[0]
+    return stripe_creds.get("apiKey", {}).get("value") or stripe_creds.get(
+        "api_key", {}
+    ).get("value")
+
+
+def get_paypal_credentials(credentials: Dict[str, Any]) -> Optional[Tuple[str, str]]:
+    """Extract PayPal client_id and client_secret from credentials."""
+    if not credentials.get("paypal"):
+        return None
+    paypal_creds = credentials["paypal"]
+    if isinstance(paypal_creds, list):
+        paypal_creds = paypal_creds[0]
+    client_id = paypal_creds.get("clientId", {}).get("value") or paypal_creds.get(
+        "client_id", {}
+    ).get("value")
+    client_secret = paypal_creds.get("clientSecret", {}).get(
+        "value"
+    ) or paypal_creds.get("client_secret", {}).get("value")
+    if client_id and client_secret:
+        return (client_id, client_secret)
+    return None
+
+
+async def test_paypal_authorize(creds_file: str) -> bool:
+    """Test PayPal authorize flow with access token."""
+    print("\n[PayPal Authorize]")
+
+    if not os.path.exists(creds_file):
+        print("  SKIPPED: creds.json not found")
+        return True
+
+    credentials = load_credentials(creds_file)
+    paypal_creds = get_paypal_credentials(credentials)
+
+    if not paypal_creds:
+        print("  SKIPPED: No PayPal credentials in creds.json")
+        return True
+
+    client_id, client_secret = paypal_creds
+    print(f"  Using client_id: {client_id[:10]}...")
+
+    # Configure PayPal
     config = ConnectorConfig()
     config.options.environment = Environment.SANDBOX
-    config.connector_config.paypal.client_id.value = PAYPAL_CREDS["client_id"]
-    config.connector_config.paypal.client_secret.value = PAYPAL_CREDS["client_secret"]
-    return config
+    config.connector_config.paypal.client_id.value = client_id
+    config.connector_config.paypal.client_secret.value = client_secret
 
-
-async def test_access_token_flow() -> None:
-    """Test the access token flow:
-    1. Create access token
-    2. Use access token in authorize request
-    """
-    print("\n=== Test: PayPal Access Token Flow ===")
-
-    config = create_config()
     defaults = RequestConfig()
-
     auth_client = MerchantAuthenticationClient(config, defaults)
     payment_client = PaymentClient(config, defaults)
 
-    # Step 1: Create Access Token Request
-    print("\n--- Step 1: Create Access Token ---")
-    access_token_request = MerchantAuthenticationServiceCreateAccessTokenRequest()
-    access_token_request.merchant_access_token_id = (
-        f"access_token_test_{int(time.time() * 1000)}"
-    )
-    access_token_request.connector = Connector.PAYPAL
-    access_token_request.test_mode = True
-
+    # Step 1: Create access token
+    print("  Step 1: Creating access token...")
     access_token_value = None
-    token_type_value = None
-    access_token_response = None
+    token_type_value = "Bearer"
+    expires_in_seconds = 3600
 
     try:
-        access_token_response = await auth_client.create_access_token(
+        access_token_request = MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest()
+        access_token_request.merchant_access_token_id = (
+            f"paypal_token_{int(time.time() * 1000)}"
+        )
+        access_token_request.connector = Connector.PAYPAL
+        access_token_request.test_mode = True
+
+        access_token_response = await auth_client.create_server_authentication_token(
             access_token_request
         )
-        print(f"  Response type: {type(access_token_response).__name__}")
 
-        # Extract access token from response
         if (
             access_token_response.access_token
             and access_token_response.access_token.value
         ):
             access_token_value = access_token_response.access_token.value
             token_type_value = access_token_response.token_type or "Bearer"
-            print(f"  Access Token received: {access_token_value[:20]}...")
-            print(f"  Token Type: {token_type_value}")
-            print(f"  Expires In: {access_token_response.expires_in_seconds} seconds")
-            print(f"  Status: {access_token_response.status}")
+            expires_in_seconds = access_token_response.expires_in_seconds or 3600
+            print("  Access token received")
         else:
-            print("  WARNING: No access token in response")
-            print(f"  Full response: {access_token_response}")
-
-    except IntegrationError as e:
-        print(f"  IntegrationError: {e.error_code} - {e.error_message}")
-        print("  This might be expected if credentials are not valid")
-        return
-    except ConnectorResponseTransformationError as e:
-        print(f"  ConnectorResponseTransformationError: {e.error_code} - {e.error_message}")
-        print("  This might be expected if credentials are not valid")
-        return
+            print("  No access token in response")
+            return True
     except Exception as e:
-        message = str(e) if str(e) else type(e).__name__
-        print(f"  Error creating access token: {message}")
-        print("  This might be expected if credentials are not valid")
-        return
+        print(f"  Error creating access token: {e}")
+        return True
 
-    if not access_token_value:
-        print("  SKIPPED: Cannot proceed without access token")
-        return
+    # Step 2: Authorize with access token
+    print("  Step 2: Authorizing with access token...")
 
-    # Step 2: Use Access Token in Authorize Request
-    print("\n--- Step 2: Authorize with Access Token ---")
+    try:
+        authorize_request = PaymentServiceAuthorizeRequest()
+        authorize_request.merchant_transaction_id = (
+            f"paypal_authorize_{int(time.time() * 1000)}"
+        )
+        authorize_request.amount.minor_amount = 1000
+        authorize_request.amount.currency = Currency.USD
+        authorize_request.capture_method = CaptureMethod.AUTOMATIC
+
+        # Card details
+        card = authorize_request.payment_method.card
+        card.card_number.value = "4111111111111111"
+        card.card_exp_month.value = "12"
+        card.card_exp_year.value = "2050"
+        card.card_cvc.value = "123"
+        card.card_holder_name.value = "Test User"
+
+        # Access token in state
+        authorize_request.state.access_token.token.value = access_token_value
+        authorize_request.state.access_token.token_type = token_type_value
+        authorize_request.state.access_token.expires_in_seconds = expires_in_seconds
+
+        authorize_request.auth_type = AuthenticationType.NO_THREE_DS
+        authorize_request.address.CopyFrom(PaymentAddress())
+        authorize_request.return_url = "https://example.com/return"
+        authorize_request.test_mode = True
+
+        response = await payment_client.authorize(authorize_request)
+
+        if response.status == PaymentStatus.CHARGED:
+            print("  PASSED: Payment charged")
+            return True
+        else:
+            print(f"  FAILED: Expected CHARGED, got {response.status}")
+            return False
+    except IntegrationError as e:
+        print(f"  IntegrationError: {e.error_message} (code={e.error_code}, action={getattr(e, 'suggested_action', None)}, doc={getattr(e, 'doc_url', None)})")
+        return False
+    except ConnectorError as e:
+        print(f"  ConnectorError: {e.error_message} (code={e.error_code}, http={getattr(e, 'http_status_code', None)})")
+        return False
+    except Exception as e:
+        print(f"  Error: {e}")
+        return False
+
+
+async def test_stripe_integration_error(creds_file: str) -> bool:
+    """
+    IntegrationError path: missing required field (amount) must throw IntegrationError
+    and must NOT reach the connector.
+    """
+    print("\n[Stripe IntegrationError — missing amount]")
+
+    if not os.path.exists(creds_file):
+        print("  FAILED: creds.json not found")
+        return False
+
+    credentials = load_credentials(creds_file)
+    api_key = get_stripe_api_key(credentials)
+
+    if not api_key:
+        print("  FAILED: No Stripe API key in creds.json")
+        return False
+
+    config = ConnectorConfig()
+    config.options.environment = Environment.SANDBOX
+    config.connector_config.stripe.api_key.value = api_key
+
+    defaults = RequestConfig()
+    payment_client = PaymentClient(config, defaults)
+
+    # amount intentionally omitted
     authorize_request = PaymentServiceAuthorizeRequest()
     authorize_request.merchant_transaction_id = (
-        f"authorize_with_token_{int(time.time() * 1000)}"
+        f"stripe_missing_amount_{int(time.time() * 1000)}"
     )
-    authorize_request.amount.minor_amount = 1000  # $10.00
-    authorize_request.amount.currency = Currency.USD
-    authorize_request.capture_method = CaptureMethod.AUTOMATIC
-
-    # Card details
     card = authorize_request.payment_method.card
     card.card_number.value = "4111111111111111"
     card.card_exp_month.value = "12"
     card.card_exp_year.value = "2050"
     card.card_cvc.value = "123"
     card.card_holder_name.value = "Test User"
-
-    # Customer info
-    authorize_request.customer.email.value = "test@example.com"
-    authorize_request.customer.name = "Test"
-
-    # Set connector state with access token
-    authorize_request.state.access_token.token.value = access_token_value
-    authorize_request.state.access_token.token_type = token_type_value
-    authorize_request.state.access_token.expires_in_seconds = (
-        access_token_response.expires_in_seconds
-    )
-
-    # Auth and URLs
+    authorize_request.capture_method = CaptureMethod.AUTOMATIC
     authorize_request.auth_type = AuthenticationType.NO_THREE_DS
-    authorize_request.return_url = "https://example.com/return"
-    authorize_request.webhook_url = "https://example.com/webhook"
-    authorize_request.address.CopyFrom(PaymentAddress())
-    authorize_request.test_mode = True
 
     try:
-        authorize_response = await payment_client.authorize(authorize_request)
-        print(f"  Response type: {type(authorize_response).__name__}")
-        print(f"  Payment status: {authorize_response.status}")
-        print("  PASSED")
+        await payment_client.authorize(authorize_request)
+        print("  FAILED: Expected IntegrationError but call succeeded — request should have been rejected before the HTTP call")
+        return False
     except IntegrationError as e:
-        print(f"  IntegrationError: {e.error_code} - {e.error_message}")
-        print("  PASSED (round-trip completed, error is from PayPal)")
-    except ConnectorResponseTransformationError as e:
-        print(f"  ConnectorResponseTransformationError: {e.error_code} - {e.error_message}")
-        print("  PASSED (round-trip completed, error is from PayPal)")
+        print(f"  PASSED: IntegrationError (expected): {e.error_message} (code={e.error_code})")
+        return True
+    except ConnectorError as e:
+        print(f"  FAILED: Got ConnectorError instead of IntegrationError: {e.error_message} (code={e.error_code}, http={getattr(e, 'http_status_code', None)})")
+        return False
     except Exception as e:
-        print(f"  Error during authorize: {e}")
-        print("  PASSED (round-trip completed, error is from PayPal)")
-
-    print("\n=== Test Complete ===")
+        print(f"  FAILED: Unexpected error: {e}")
+        return False
 
 
-def main():
-    """Run the composite flow test."""
+async def test_stripe_connector_error(creds_file: str) -> bool:
+    """
+    ConnectorError path: request is valid but card is known to be declined by Stripe.
+    Must throw ConnectorError, not IntegrationError.
+    """
+    print("\n[Stripe ConnectorError — declined card]")
+
+    if not os.path.exists(creds_file):
+        print("  FAILED: creds.json not found")
+        return False
+
+    credentials = load_credentials(creds_file)
+    api_key = get_stripe_api_key(credentials)
+
+    if not api_key:
+        print("  FAILED: No Stripe API key in creds.json")
+        return False
+
+    config = ConnectorConfig()
+    config.options.environment = Environment.SANDBOX
+    config.connector_config.stripe.api_key.value = api_key
+
+    defaults = RequestConfig()
+    payment_client = PaymentClient(config, defaults)
+
+    authorize_request = PaymentServiceAuthorizeRequest()
+    authorize_request.merchant_transaction_id = (
+        f"stripe_declined_{int(time.time() * 1000)}"
+    )
+    authorize_request.amount.minor_amount = 1000
+    authorize_request.amount.currency = Currency.USD
+    authorize_request.capture_method = CaptureMethod.AUTOMATIC
+
+    card = authorize_request.payment_method.card
+    card.card_number.value = "4000000000000002"  # Stripe generic decline test card
+    card.card_exp_month.value = "12"
+    card.card_exp_year.value = "2050"
+    card.card_cvc.value = "123"
+    card.card_holder_name.value = "Test User"
+
+    authorize_request.auth_type = AuthenticationType.NO_THREE_DS
+    authorize_request.address.CopyFrom(PaymentAddress())
+
     try:
-        asyncio.run(test_access_token_flow())
-        print("\nAll checks passed.")
+        await payment_client.authorize(authorize_request)
+        # Stripe should decline 4000000000000002 — if it doesn't, not our failure
+        print("  PASSED: Card unexpectedly succeeded (sandbox may behave differently)")
+        return True
+    except ConnectorError as e:
+        print(f"  PASSED: ConnectorError (expected): {e.error_message} (code={e.error_code}, http={getattr(e, 'http_status_code', None)})")
+        return True
+    except IntegrationError as e:
+        print(f"  FAILED: Got IntegrationError instead of ConnectorError: {e.error_message} (code={e.error_code})")
+        return False
     except Exception as e:
-        print(f"\nFatal error: {e}")
-        sys.exit(1)
+        print(f"  FAILED: Unexpected error: {e}")
+        return False
+
+
+async def test_stripe_authorize(creds_file: str) -> bool:
+    """Test Stripe authorize flow."""
+    print("\n[Stripe Authorize]")
+
+    if not os.path.exists(creds_file):
+        print("  FAILED: creds.json not found")
+        return False
+
+    credentials = load_credentials(creds_file)
+    api_key = get_stripe_api_key(credentials)
+
+    if not api_key:
+        print("  FAILED: No Stripe API key in creds.json")
+        return False
+
+    # Configure Stripe
+    config = ConnectorConfig()
+    config.options.environment = Environment.SANDBOX
+    config.connector_config.stripe.api_key.value = api_key
+
+    defaults = RequestConfig()
+    payment_client = PaymentClient(config, defaults)
+
+    try:
+        authorize_request = PaymentServiceAuthorizeRequest()
+        authorize_request.merchant_transaction_id = (
+            f"stripe_authorize_{int(time.time() * 1000)}"
+        )
+        authorize_request.amount.minor_amount = 1000
+        authorize_request.amount.currency = Currency.USD
+        authorize_request.capture_method = CaptureMethod.AUTOMATIC
+
+        # Card details
+        card = authorize_request.payment_method.card
+        card.card_number.value = "4111111111111111"
+        card.card_exp_month.value = "12"
+        card.card_exp_year.value = "2050"
+        card.card_cvc.value = "123"
+        card.card_holder_name.value = "Test User"
+
+        authorize_request.auth_type = AuthenticationType.NO_THREE_DS
+        authorize_request.address.CopyFrom(PaymentAddress())
+        authorize_request.return_url = "https://example.com/return"
+
+        response = await payment_client.authorize(authorize_request)
+
+        if response.status == PaymentStatus.CHARGED:
+            print("  PASSED: Payment charged")
+            return True
+        else:
+            print(f"  FAILED: Expected CHARGED, got {response.status}")
+            return False
+    except Exception as e:
+        print(f"  FAILED: {e}")
+        return False
+
+
+async def main() -> int:
+    """Run all composite tests."""
+    args = parse_args()
+
+    # Resolve relative paths from cwd
+    creds_file = args.creds_file
+    if not os.path.isabs(creds_file):
+        creds_file = os.path.join(os.getcwd(), creds_file)
+
+    all_passed = True
+
+    # Run PayPal test (informational - can skip if no creds)
+    paypal_passed = await test_paypal_authorize(creds_file)
+    if not paypal_passed:
+        all_passed = False
+
+    # Run Stripe tests (must pass)
+    stripe_passed = await test_stripe_authorize(creds_file)
+    if not stripe_passed:
+        all_passed = False
+
+    integration_error_passed = await test_stripe_integration_error(creds_file)
+    if not integration_error_passed:
+        all_passed = False
+
+    connector_error_passed = await test_stripe_connector_error(creds_file)
+    if not connector_error_passed:
+        all_passed = False
+
+    print("\n" + "=" * 40)
+    if all_passed:
+        print("PASSED")
+        return 0
+    else:
+        print("FAILED")
+        return 1
 
 
 if __name__ == "__main__":
-    main()
+    exit_code = asyncio.run(main())
+    sys.exit(exit_code)

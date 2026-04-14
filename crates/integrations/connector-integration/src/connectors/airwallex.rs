@@ -8,25 +8,25 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Accept, Authenticate, Authorize, Capture, CreateAccessToken, CreateOrder,
-        CreateSessionToken, DefendDispute, IncrementalAuthorization, MandateRevoke, PSync,
-        PaymentMethodToken, PostAuthenticate, PreAuthenticate, RSync, Refund, RepeatPayment,
-        SdkSessionToken, SetupMandate, SubmitEvidence, Void, VoidPC,
+        Accept, Authenticate, Authorize, Capture, ClientAuthenticationToken, CreateOrder,
+        DefendDispute, IncrementalAuthorization, MandateRevoke, PSync, PaymentMethodToken,
+        PostAuthenticate, PreAuthenticate, RSync, Refund, RepeatPayment, ServerAuthenticationToken,
+        ServerSessionAuthenticationToken, SetupMandate, SubmitEvidence, Void, VoidPC,
     },
     connector_types::{
-        AcceptDisputeData, AccessTokenRequestData, AccessTokenResponseData, ConnectorCustomerData,
+        AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
         ConnectorCustomerResponse, DisputeDefendData, DisputeFlowData, DisputeResponseData,
         MandateRevokeRequestData, MandateRevokeResponseData, PaymentCreateOrderData,
         PaymentCreateOrderResponse, PaymentFlowData, PaymentMethodTokenResponse,
         PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthenticateData,
         PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
-        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSdkSessionTokenData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        RepeatPaymentData, ResponseId, SessionTokenRequestData, SessionTokenResponseData,
+        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
+        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
+        ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
         SetupMandateRequestData, SubmitEvidenceData,
     },
-    errors::{self},
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -51,6 +51,8 @@ use transformers::{
 use super::macros;
 use crate::types::ResponseRouterData;
 use crate::with_error_response_body;
+use domain_types::errors::ConnectorError;
+use domain_types::errors::IntegrationError;
 
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
@@ -61,7 +63,7 @@ pub(crate) mod headers {
 
 // ===== CONNECTOR SERVICE TRAIT IMPLEMENTATIONS =====
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::SdkSessionTokenV2 for Airwallex<T>
+    connector_types::ClientAuthentication for Airwallex<T>
 {
 }
 
@@ -121,7 +123,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentAccessToken for Airwallex<T>
+    connector_types::ServerAuthentication for Airwallex<T>
 {
 }
 
@@ -131,7 +133,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentSessionToken for Airwallex<T>
+    connector_types::ServerSessionAuthentication for Airwallex<T>
 {
 }
 
@@ -198,7 +200,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 
     fn should_do_order_create(&self) -> bool {
-        true // Enable 2-step flow: CreateAccessToken → CreateOrder → Authorize
+        true // Enable 2-step flow: ServerAuthenticationToken → CreateOrder → Authorize
     }
 }
 
@@ -253,10 +255,10 @@ macros::create_all_prerequisites!(
             router_data: RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
         ),
         (
-            flow: CreateAccessToken,
+            flow: ServerAuthenticationToken,
             request_body: AirwallexAccessTokenRequest,
             response_body: AirwallexAccessTokenResponse,
-            router_data: RouterDataV2<CreateAccessToken, PaymentFlowData, AccessTokenRequestData, AccessTokenResponseData>,
+            router_data: RouterDataV2<ServerAuthenticationToken, PaymentFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
         ),
         (
             flow: CreateOrder,
@@ -288,6 +290,12 @@ macros::create_all_prerequisites!(
     }
 );
 
+macros::macro_connector_payout_implementation!(
+    connector: Airwallex,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize]
+);
+
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Airwallex,
@@ -304,21 +312,25 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let access_token = req.resource_common_data.get_access_token()
-                .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+                .change_context(IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
             Ok(self.build_headers(&access_token))
         }
         fn get_url(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             // 2-step flow: Authorize always confirms the payment intent created by CreateOrder
             // Get order_id from reference_id (stored after CreateOrder via set_order_reference_id)
-            let order_id = req.resource_common_data.reference_id
+            let order_id = req.resource_common_data.connector_order_id
                 .as_ref()
-                .ok_or(errors::ConnectorError::MissingRequiredField { field_name: "merchant_order_id" })?;
-            Ok(format!("{}/pa/payment_intents/{}/confirm", &req.resource_common_data.connectors.airwallex.base_url, order_id))
+                .ok_or(IntegrationError::MissingRequiredField { field_name: "connector_order_id", context: Default::default() })?;
+            Ok(format!(
+                "{}/pa/payment_intents/{}/confirm",
+                &req.resource_common_data.connectors.airwallex.base_url,
+                order_id
+            ))
         }
     }
 );
@@ -338,15 +350,15 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let access_token = req.resource_common_data.get_access_token()
-                .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+                .change_context(IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
             Ok(self.build_headers(&access_token))
         }
         fn get_url(
             &self,
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let payment_id = req.request.get_connector_transaction_id()?;
             Ok(format!("{}/pa/payment_intents/{}", &req.resource_common_data.connectors.airwallex.base_url, payment_id))
         }
@@ -369,19 +381,19 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let access_token = req.resource_common_data.get_access_token()
-                .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+                .change_context(IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
             Ok(self.build_headers(&access_token))
         }
         fn get_url(
             &self,
             req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let payment_id = match &req.request.connector_transaction_id {
                 ResponseId::ConnectorTransactionId(id) => id,
-                _ => return Err(errors::ConnectorError::MissingConnectorTransactionID.into()),
-            };
+                _ => return Err(IntegrationError::MissingConnectorTransactionID { context: Default::default() }.into())
+};
             Ok(format!("{}/pa/payment_intents/{}/capture", &req.resource_common_data.connectors.airwallex.base_url, payment_id))
         }
     }
@@ -403,15 +415,15 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let access_token = req.resource_common_data.get_access_token()
-                .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+                .change_context(IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
             Ok(self.build_headers(&access_token))
         }
         fn get_url(
             &self,
             req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}/pa/refunds/create", &req.resource_common_data.connectors.airwallex.base_url))
         }
     }
@@ -432,15 +444,15 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let access_token = req.resource_common_data.get_access_token()
-                .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+                .change_context(IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
             Ok(self.build_headers(&access_token))
         }
         fn get_url(
             &self,
             req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let refund_id = req.request.connector_refund_id.clone();
             Ok(format!("{}/pa/refunds/{}", &req.resource_common_data.connectors.airwallex.base_url, refund_id))
         }
@@ -452,20 +464,20 @@ macros::macro_connector_implementation!(
     connector: Airwallex,
     curl_request: Json(AirwallexAccessTokenRequest),
     curl_response: AirwallexAccessTokenResponse,
-    flow_name: CreateAccessToken,
+    flow_name: ServerAuthenticationToken,
     resource_common_data: PaymentFlowData,
-    flow_request: AccessTokenRequestData,
-    flow_response: AccessTokenResponseData,
+    flow_request: ServerAuthenticationTokenRequestData,
+    flow_response: ServerAuthenticationTokenResponseData,
     http_method: Post,
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     other_functions: {
         fn get_headers(
             &self,
-            req: &RouterDataV2<CreateAccessToken, PaymentFlowData, AccessTokenRequestData, AccessTokenResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+            req: &RouterDataV2<ServerAuthenticationToken, PaymentFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let auth = airwallex::AirwallexAuthType::try_from(&req.connector_config)
-                .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+                .change_context(IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
             Ok(vec![
                 (
                     headers::CONTENT_TYPE.to_string(),
@@ -483,8 +495,8 @@ macros::macro_connector_implementation!(
         }
         fn get_url(
             &self,
-            req: &RouterDataV2<CreateAccessToken, PaymentFlowData, AccessTokenRequestData, AccessTokenResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+            req: &RouterDataV2<ServerAuthenticationToken, PaymentFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}/authentication/login", &req.resource_common_data.connectors.airwallex.base_url))
         }
     }
@@ -506,15 +518,15 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<CreateOrder, PaymentFlowData, PaymentCreateOrderData, PaymentCreateOrderResponse>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let access_token = req.resource_common_data.get_access_token()
-                .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+                .change_context(IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
             Ok(self.build_headers(&access_token))
         }
         fn get_url(
             &self,
             req: &RouterDataV2<CreateOrder, PaymentFlowData, PaymentCreateOrderData, PaymentCreateOrderResponse>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}/pa/payment_intents/create", &req.resource_common_data.connectors.airwallex.base_url))
         }
     }
@@ -539,15 +551,15 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let access_token = req.resource_common_data.get_access_token()
-                .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+                .change_context(IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
             Ok(self.build_headers(&access_token))
         }
         fn get_url(
             &self,
             req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let payment_id = req.request.connector_transaction_id.clone();
             Ok(format!("{}/pa/payment_intents/{}/cancel", &req.resource_common_data.connectors.airwallex.base_url, payment_id))
         }
@@ -565,13 +577,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-// SdkSessionToken - Empty implementation (Airwallex doesn't support SDK session tokens)
+// ClientAuthenticationToken - Empty implementation (Airwallex doesn't support SDK session tokens)
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
-        SdkSessionToken,
+        ClientAuthenticationToken,
         PaymentFlowData,
-        PaymentsSdkSessionTokenData,
+        ClientAuthenticationTokenRequestData,
         PaymentsResponseData,
     > for Airwallex<T>
 {
@@ -604,7 +616,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-// CreateAccessToken - Airwallex Authentication Flow - will be implemented using macro
+// ServerAuthenticationToken - Airwallex Authentication Flow - will be implemented using macro
 
 // Repeat Payment
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -622,10 +634,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // Session Token
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
-        CreateSessionToken,
+        ServerSessionAuthenticationToken,
         PaymentFlowData,
-        SessionTokenRequestData,
-        SessionTokenResponseData,
+        ServerSessionAuthenticationTokenRequestData,
+        ServerSessionAuthenticationTokenResponseData,
     > for Airwallex<T>
 {
 }
@@ -744,12 +756,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     fn get_auth_header(
         &self,
         auth_type: &ConnectorSpecificConfig,
-    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
         // Note: This method should not be used for OAuth-based connectors like Airwallex
         // Use build_payment_headers or build_refund_headers instead for OAuth flows
-        // This method is only used for CreateAccessToken flow
-        let auth = airwallex::AirwallexAuthType::try_from(auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        // This method is only used for ServerAuthenticationToken flow
+        let auth = airwallex::AirwallexAuthType::try_from(auth_type).change_context(
+            IntegrationError::FailedToObtainAuthType {
+                context: Default::default(),
+            },
+        )?;
         Ok(vec![
             (
                 "x-api-key".to_string(),
@@ -766,11 +781,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: airwallex::AirwallexErrorResponse = res
             .response
             .parse_struct("AirwallexErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            .change_context(
+                crate::utils::response_deserialization_fail(
+                    res.status_code,
+                "airwallex: response body did not match the expected format; confirm API version and connector documentation."),
+            )?;
 
         with_error_response_body!(event_builder, response);
 

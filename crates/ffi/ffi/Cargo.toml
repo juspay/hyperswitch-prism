@@ -11,6 +11,7 @@ crate-type = ["cdylib", "rlib"]
 # First-party dependencies
 grpc-api-types = { path = "../../types-traits/grpc-api-types" }
 hyperswitch_masking = { version = "0.0.1", default-features = false, features = ["alloc", "serde", "time"] }
+cards = { path = "../../types-traits/cards", package = "ucs_cards" }
 connector-integration = { path = "../../integrations/connector-integration" }
 external-services = { path = "../../common/external-services", default-features = false }
 interfaces = { path = "../../types-traits/interfaces" }
@@ -31,7 +32,7 @@ http = "0.2.12"
 tonic = { workspace = true }
 paste = "1.0"
 tracing = { workspace = true }
-uniffi = { version = "0.28", optional = true }
+uniffi = { version = "0.29", optional = true }
 prost = { workspace = true }
 bytes = { workspace = true }
 thiserror = { workspace = true }
@@ -40,7 +41,7 @@ tokio = { version = "1", features = ["full"] }
 
 [build-dependencies]
 prost-build = { workspace = true }
-uniffi = { version = "0.28", features = ["build"], optional = true }
+uniffi = { version = "0.29", features = ["build"], optional = true }
 
 [features]
 default = ["uniffi"]

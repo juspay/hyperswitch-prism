@@ -189,12 +189,49 @@ pub struct BluesnapAchAuthorizeRequest {
     pub transaction_fraud_info: Option<TransactionFraudInfo>,
 }
 
+// ===== SEPA DD PAYMENT STRUCTURES =====
+
+// SEPA DD payer info (required by BlueSnap alt-transactions endpoint)
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapSepaPayerInfo {
+    pub first_name: Secret<String>,
+    pub last_name: Secret<String>,
+    pub country: String,
+}
+
+// SEPA Direct Debit transaction data (BlueSnap alt-transactions format)
+// BlueSnap requires sepaDirectDebitTransaction with the shopper's IBAN
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapSepaDirectDebitTransaction {
+    pub iban: Secret<String>,
+}
+
+// SEPA DD-specific authorize request structure
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapSepaAuthorizeRequest {
+    pub amount: StringMajorUnit,
+    pub currency: String,
+    pub authorized_by_shopper: bool,
+    pub payer_info: BluesnapSepaPayerInfo,
+    pub sepa_direct_debit_transaction: BluesnapSepaDirectDebitTransaction,
+    pub merchant_transaction_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub soft_descriptor: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub transaction_fraud_info: Option<TransactionFraudInfo>,
+}
+
 // Unified authorize request enum to support multiple payment methods
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum BluesnapAuthorizeRequest {
     Card(BluesnapPaymentsRequest),
     Ach(BluesnapAchAuthorizeRequest),
+    Sepa(BluesnapSepaAuthorizeRequest),
+    CardToken(BluesnapCompletePaymentsRequest),
 }
 
 // ===== 3DS AUTHENTICATION STRUCTURES =====

@@ -1,5 +1,6 @@
 .PHONY: install-deps install-codegen-deps generate-bindings generate-proto generate-all \
-        generate-flows pack-archive install test-package dist clean
+        generate-flows pack-archive install test-package test-grpc test-grpc-no-server dist publish clean \
+        publish-check-auth publish-check-version publish-check-dry-run publish-check
 
 # SDK-specific paths (define BEFORE including common.mk)
 MAKEFILE_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
@@ -16,6 +17,7 @@ GENERATED_KOTLIN := $(SDK_ROOT)/src/main/kotlin/generated
 GENERATED_JAVA   := $(SDK_ROOT)/src/main/java/generated
 NATIVE_DIR       := $(SDK_ROOT)/src/main/resources/native
 PACKAGE_DIR      := $(ARTIFACTS_DIR)/sdk-java
+PACKAGE_VERSION  := $(shell cd $(SDK_ROOT) && ./gradlew properties -q 2>/dev/null | grep "^version:" | awk '{print $$2}')
 
 # Note: BINDGEN is defined in common.mk
 
@@ -85,7 +87,7 @@ generate-proto:
 	@protoc \
 		-I $(PROTO_DIR) \
 		--java_out=$(GENERATED_JAVA) \
-		$(PROTO_DIR)/payment.proto $(PROTO_DIR)/payment_methods.proto $(PROTO_DIR)/sdk_config.proto
+		$(PROTO_DIR)/payment.proto $(PROTO_DIR)/payouts.proto $(PROTO_DIR)/payment_methods.proto $(PROTO_DIR)/sdk_config.proto
 	@echo "Proto stubs generated in $(GENERATED_JAVA)/"
 
 # ---------------------------------------------------------------------------
@@ -117,18 +119,19 @@ generate-flows: install-codegen-deps
 pack-archive:
 	@mkdir -p $(PACKAGE_DIR)
 	@cd $(SDK_ROOT) && $(SDK_ROOT)/gradlew jar
-	@cp $(SDK_ROOT)/build/libs/*.jar $(PACKAGE_DIR)/payments-client-0.1.0.jar
+	@rm -f $(PACKAGE_DIR)/prism-*.jar
+	@cp $(SDK_ROOT)/build/libs/prism-$(PACKAGE_VERSION).jar $(PACKAGE_DIR)/prism-$(PACKAGE_VERSION).jar
 	@echo "JAR built in $(PACKAGE_DIR)/"
 
 # ---------------------------------------------------------------------------
 # install
 # Builds the SDK JAR and publishes it to the local Maven repository (~/.m2)
 # so that other projects on this machine can depend on it via Maven coordinates
-# (com.hyperswitch:payments-client:0.1.0).
+# (io.hyperswitch:prism:0.1.0).
 # ---------------------------------------------------------------------------
 install: pack-archive
 	@$(SDK_ROOT)/gradlew publishToMavenLocal
-	@echo "Published to ~/.m2/repository/com/hyperswitch/payments-client/0.1.0/"
+	@echo "Published to ~/.m2/repository/io/hyperswitch/prism/$(PACKAGE_VERSION)/"
 
 # ---------------------------------------------------------------------------
 # test-package
@@ -145,7 +148,58 @@ test-package: generate-all install
 		echo "  Note: creds.json not found, test will use placeholder credentials"; \
 	fi
 	@cd $(SDK_ROOT)/smoke-test && $(SDK_ROOT)/gradlew run --args="--connectors $(CONNECTORS)"
+	@echo "Running composite smoke test..."
+	@cd $(SDK_ROOT)/smoke-test && $(SDK_ROOT)/gradlew runComposite
 	@echo "Package test passed."
+
+# ---------------------------------------------------------------------------
+# test-package-mock
+# Same as test-package but runs in MOCK mode (no real HTTP calls).
+# Uses generated harnesses instead of examples and verifies req_transformer only.
+# ---------------------------------------------------------------------------
+test-package-mock: generate-all install
+	@echo "Running Kotlin smoke test in MOCK mode..."
+	@# Copy generated harness to smoke-test source
+	@mkdir -p $(SDK_ROOT)/smoke-test/src/main/kotlin/generated/$(CONNECTORS)
+	@cp $(SDK_ROOT)/smoke-test/generated/$(CONNECTORS)/$(CONNECTORS).kt $(SDK_ROOT)/smoke-test/src/main/kotlin/generated/$(CONNECTORS)/
+	@if [ -f $(REPO_ROOT)/creds_dummy.json ]; then \
+		cp $(REPO_ROOT)/creds_dummy.json $(SDK_ROOT)/smoke-test/creds.json; \
+	fi
+	@cd $(SDK_ROOT)/smoke-test && $(SDK_ROOT)/gradlew run --args="--connectors $(CONNECTORS) --mock"
+	@echo "Package mock test passed."
+
+# ---------------------------------------------------------------------------
+# test-grpc
+# Builds the grpc-ffi library and runs the Kotlin gRPC smoke test.
+# Requires the grpc-server to be running (started by the top-level test-grpc).
+# ---------------------------------------------------------------------------
+GRPC_PROFILE    ?= release-fast
+GRPC_SERVER_BIN := $(REPO_ROOT)/target/$(PLATFORM)/$(GRPC_PROFILE)/grpc-server
+
+# Run gRPC test assuming server is already running (used by top-level test-grpc)
+test-grpc-no-server: install
+	@echo "Running Kotlin gRPC smoke test..."
+	@mkdir -p $(SDK_ROOT)/smoke-test/src/main/resources/native
+	@cp -f $(GRPC_FFI_LIBRARY) $(SDK_ROOT)/smoke-test/src/main/resources/native/
+	@if [ -f $(REPO_ROOT)/creds.json ]; then \
+		cp $(REPO_ROOT)/creds.json $(SDK_ROOT)/smoke-test/; \
+	fi
+	@cd $(SDK_ROOT)/smoke-test && $(SDK_ROOT)/gradlew runGrpc --args="--connectors $(CONNECTORS)" 2>&1
+
+test-grpc: install generate-all ## Build grpc-ffi lib + grpc-server → start server → run Kotlin gRPC smoke test → stop server
+	@echo "Building gRPC FFI library ($(GRPC_PROFILE))..."
+	@cd $(REPO_ROOT) && cargo build -p hyperswitch-grpc-ffi --profile $(GRPC_PROFILE) 2>&1
+	@echo "Building gRPC server ($(GRPC_PROFILE))..."
+	@cd $(REPO_ROOT) && cargo build -p grpc-server --profile $(GRPC_PROFILE) 2>&1
+	@echo "Starting gRPC server..."
+	@pkill -KILL -f grpc-server 2>/dev/null || true
+	@sleep 1
+	@cd $(REPO_ROOT) && $(GRPC_SERVER_BIN) > /tmp/grpc-server-kt.log 2>&1 &
+	@sleep 2
+	@$(MAKE) test-grpc-no-server; \
+	EXIT=$$?; \
+	pkill -f grpc-server 2>/dev/null || true; \
+	exit $$EXIT
 
 # ---------------------------------------------------------------------------
 # dist
@@ -164,6 +218,83 @@ dist:
 		$(NATIVE_DIR)/ 2>/dev/null || echo "  Note: macOS aarch64 binary not found (skipping)"
 	@$(MAKE) -C $(SDK_ROOT) pack-archive
 	@echo "Distribution JAR created in $(PACKAGE_DIR)/"
+
+# ---------------------------------------------------------------------------
+# publish
+# Publishes to Maven Central via Central Portal (requires proper credentials and signing).
+# For local testing, use 'install' which publishes to ~/.m2.
+# Requires CENTRAL_TOKEN_USERNAME and CENTRAL_TOKEN_PASSWORD to be set for authentication.
+# Also requires GPG_SIGNING_KEY and GPG_SIGNING_KEY_PASSWORD for artifact signing.
+# Uses Central Portal Publisher Gradle plugin (central.sonatype.com).
+# ---------------------------------------------------------------------------
+publish:
+	@if [ -z "$(CENTRAL_TOKEN_USERNAME)" ] || [ -z "$(CENTRAL_TOKEN_PASSWORD)" ]; then \
+		echo "Error: CENTRAL_TOKEN_USERNAME and/or CENTRAL_TOKEN_PASSWORD not set"; \
+		echo "Set them with:"; \
+		echo "  export CENTRAL_TOKEN_USERNAME=your_token_username"; \
+		echo "  export CENTRAL_TOKEN_PASSWORD=your_token_password"; \
+		exit 1; \
+	fi
+	@if [ -z "$${GPG_SIGNING_KEY}" ] || [ -z "$(GPG_SIGNING_KEY_PASSWORD)" ]; then \
+		echo "Error: GPG_SIGNING_KEY and/or GPG_SIGNING_KEY_PASSWORD not set"; \
+		exit 1; \
+	fi
+	@echo "Publishing io.hyperswitch:prism to Maven Central via Central Portal..."
+	@$(SDK_ROOT)/gradlew publishToCentral
+	@echo "Published io.hyperswitch:prism to Maven Central."
+
+# ---------------------------------------------------------------------------
+# Pre-publish checks
+# ---------------------------------------------------------------------------
+
+MAVEN_GROUP := io.hyperswitch
+MAVEN_ARTIFACT := prism
+
+# publish-check-auth
+# Verifies that CENTRAL_TOKEN_USERNAME and CENTRAL_TOKEN_PASSWORD environment variables are set.
+publish-check-auth:
+	@if [ -z "$(CENTRAL_TOKEN_USERNAME)" ]; then \
+		echo "Error: CENTRAL_TOKEN_USERNAME is not set"; \
+		exit 1; \
+	fi
+	@if [ -z "$(CENTRAL_TOKEN_PASSWORD)" ]; then \
+		echo "Error: CENTRAL_TOKEN_PASSWORD is not set"; \
+		exit 1; \
+	fi
+	@if [ -z "$${GPG_SIGNING_KEY}" ]; then \
+		echo "Error: GPG_SIGNING_KEY is not set"; \
+		exit 1; \
+	fi
+	@if [ -z "$(GPG_SIGNING_KEY_PASSWORD)" ]; then \
+		echo "Error: GPG_SIGNING_KEY_PASSWORD is not set"; \
+		exit 1; \
+	fi
+	@echo "Maven Central (Central Portal) authentication credentials are configured."
+
+# publish-check-version
+# Checks if $(PACKAGE_VERSION) already exists on Maven Central.
+# Uses Maven Central REST API to check for existing artifact POM.
+publish-check-version:
+	@echo "Checking if $(MAVEN_GROUP):$(MAVEN_ARTIFACT):$(PACKAGE_VERSION) exists on Maven Central..."
+	@POM_URL="https://repo1.maven.org/maven2/$(subst .,/,$(MAVEN_GROUP))/$(MAVEN_ARTIFACT)/$(PACKAGE_VERSION)/$(MAVEN_ARTIFACT)-$(PACKAGE_VERSION).pom"; \
+	if curl -s -f -I "$$POM_URL" >/dev/null 2>&1; then \
+		echo "Error: Version $(PACKAGE_VERSION) already exists on Maven Central"; \
+		echo "Increment the version in build.gradle.kts before publishing."; \
+		exit 1; \
+	fi
+	@echo "Version $(PACKAGE_VERSION) does not exist on Maven Central - OK to publish."
+
+# publish-check-dry-run
+# Simulates publish by creating bundle (requires signing key).
+publish-check-dry-run:
+	@echo "Creating deployment bundle (dry-run)..."
+	@$(SDK_ROOT)/gradlew bundleArtifacts
+	@echo "Dry-run validation passed."
+
+# publish-check
+# Runs all pre-publish checks in sequence.
+publish-check: publish-check-auth publish-check-version publish-check-dry-run
+	@echo "All Java pre-publish checks passed."
 
 clean:
 	@rm -rf $(GENERATED_KOTLIN) $(GENERATED_JAVA) $(NATIVE_DIR)

@@ -43,6 +43,7 @@ const NOT_IMPLEMENTED_PATTERNS: &[&str] =
 /// These indicate the connector explicitly doesn't support this PM/flow combination.
 const NOT_SUPPORTED_PATTERNS: &[&str] = &[
     "not supported",
+    "unsupported",
     "not configured with the given connector",
     "only card payment",
     "only interac",
@@ -53,7 +54,7 @@ const NOT_SUPPORTED_PATTERNS: &[&str] = &[
     "flownotsupported",
     "wallet payment method is not supported",
     "paylater payment method is not supported",
-    "payment method not supported", // e.g., "Payment method not supported"
+    "payment method not supported", // e.g. "Payment method not supported"
 ];
 
 /// Pattern matchers for detecting missing field errors (plural form).
@@ -92,7 +93,10 @@ pub fn classify_error(msg: &str) -> ErrorCategory {
         ErrorCategory::NotSupported
     } else if parse_missing_field(msg).is_some() {
         ErrorCategory::MissingField
-    } else if msg.contains("InvalidConnectorConfig") || msg.contains("account_id") {
+    } else if msg.contains("InvalidConnectorConfig")
+        || msg.contains("Invalid Configuration")
+        || msg.contains("account_id")
+    {
         ErrorCategory::InvalidConfig
     } else {
         ErrorCategory::Other
@@ -229,7 +233,7 @@ pub fn parse_missing_field_alt(msg: &str) -> Option<String> {
 
 /// Returns true when this connector requires an OAuth access token.
 ///
-/// OAuth connectors need a prior CreateAccessToken step before they can
+/// OAuth connectors need a prior ServerAuthenticationToken step before they can
 /// make payment requests. The probe handles this by providing mock state.
 pub fn is_oauth_connector(connector: &domain_types::connector_types::ConnectorEnum) -> bool {
     let config = crate::config::get_config();

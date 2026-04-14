@@ -68,7 +68,7 @@ pub trait IncomingWebhook {
         _request: RequestDetails,
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorAuthType>,
-    ) -> Result<bool, error_stack::Report<ConnectorError>> {
+    ) -> Result<bool, error_stack::Report<IntegrationError>> {
         Ok(false)
     }
 
@@ -77,7 +77,7 @@ pub trait IncomingWebhook {
         &self,
         _request: &RequestDetails,
         _connector_webhook_secret: &ConnectorWebhookSecrets,
-    ) -> Result<Vec<u8>, error_stack::Report<ConnectorError>> {
+    ) -> Result<Vec<u8>, error_stack::Report<IntegrationError>> {
         Ok(Vec::new())
     }
 
@@ -86,7 +86,7 @@ pub trait IncomingWebhook {
         &self,
         _request: &RequestDetails,
         _connector_webhook_secret: &ConnectorWebhookSecrets,
-    ) -> Result<Vec<u8>, error_stack::Report<ConnectorError>> {
+    ) -> Result<Vec<u8>, error_stack::Report<IntegrationError>> {
         Ok(Vec::new())
     }
 
@@ -96,7 +96,7 @@ pub trait IncomingWebhook {
         _request: RequestDetails,
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorAuthType>,
-    ) -> Result<EventType, error_stack::Report<ConnectorError>>;
+    ) -> Result<EventType, error_stack::Report<IntegrationError>>;
 
     /// Processes payment webhooks
     fn process_payment_webhook(
@@ -104,7 +104,7 @@ pub trait IncomingWebhook {
         _request: RequestDetails,
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorAuthType>,
-    ) -> Result<WebhookDetailsResponse, error_stack::Report<ConnectorError>>;
+    ) -> Result<WebhookDetailsResponse, error_stack::Report<IntegrationError>>;
 
     /// Processes refund webhooks
     fn process_refund_webhook(
@@ -112,7 +112,7 @@ pub trait IncomingWebhook {
         _request: RequestDetails,
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorAuthType>,
-    ) -> Result<RefundWebhookDetailsResponse, error_stack::Report<ConnectorError>>;
+    ) -> Result<RefundWebhookDetailsResponse, error_stack::Report<IntegrationError>>;
 
     /// Processes dispute/chargeback webhooks
     fn process_dispute_webhook(
@@ -120,13 +120,13 @@ pub trait IncomingWebhook {
         _request: RequestDetails,
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorAuthType>,
-    ) -> Result<DisputeWebhookDetailsResponse, error_stack::Report<ConnectorError>>;
+    ) -> Result<DisputeWebhookDetailsResponse, error_stack::Report<IntegrationError>>;
 
     /// Returns the webhook resource object for logging/debugging
     fn get_webhook_resource_object(
         &self,
         _request: RequestDetails,
-    ) -> Result<Box<dyn ErasedMaskSerialize>, error_stack::Report<ConnectorError>>;
+    ) -> Result<Box<dyn ErasedMaskSerialize>, error_stack::Report<IntegrationError>>;
 }
 ```
 
@@ -165,9 +165,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         request: RequestDetails,
         connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorAuthType>,
-    ) -> Result<bool, error_stack::Report<errors::ConnectorError>> {
+    ) -> Result<bool, error_stack::Report<errors::IntegrationError>> {
         let connector_webhook_secret = connector_webhook_secret
-            .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)
+            .ok_or(errors::IntegrationError::WebhookSourceVerificationFailed)
             .attach_printable("Connector webhook secret not configured")?;
 
         let signature =
@@ -178,7 +178,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         use common_utils::crypto::{HmacSha256, SignMessage};
         let expected_signature = HmacSha256
             .sign_message(&connector_webhook_secret.secret, &message)
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
+            .change_context(errors::IntegrationError::WebhookSourceVerificationFailed)
             .attach_printable("Failed to sign webhook message with HMAC-SHA256")?;
 
         Ok(expected_signature.eq(&signature))
@@ -188,26 +188,26 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: &RequestDetails,
         _connector_webhook_secret: &ConnectorWebhookSecrets,
-    ) -> Result<Vec<u8>, error_stack::Report<errors::ConnectorError>> {
+    ) -> Result<Vec<u8>, error_stack::Report<errors::IntegrationError>> {
         let signature_str = request
             .headers
             .get("{signature_header}")  // e.g., "bls-signature", "x-revolut-signature"
-            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
+            .ok_or(errors::IntegrationError::WebhookSignatureNotFound)?;
 
         hex::decode(signature_str)
-            .change_context(errors::ConnectorError::WebhookSignatureNotFound)
+            .change_context(errors::IntegrationError::WebhookSignatureNotFound)
     }
 
     fn get_webhook_source_verification_message(
         &self,
         request: &RequestDetails,
         _connector_webhook_secret: &ConnectorWebhookSecrets,
-    ) -> Result<Vec<u8>, error_stack::Report<errors::ConnectorError>> {
+    ) -> Result<Vec<u8>, error_stack::Report<errors::IntegrationError>> {
         // Pattern A: Timestamp + Body (Bluesnap style)
         let timestamp = request
             .headers
             .get("{timestamp_header}")  // e.g., "bls-ipn-timestamp"
-            .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+            .ok_or(errors::IntegrationError::WebhookSourceVerificationFailed)?;
         let body_str = String::from_utf8_lossy(&request.body);
         Ok(format!("{timestamp}{body_str}").into_bytes())
 
@@ -215,7 +215,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let response: serde_json::Value = request
             .body
             .parse_struct("Webhook Value")
-            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+            .change_context(errors::IntegrationError::WebhookBodyDecodingFailed)?;
         let values = utils::collect_and_sort_values_by_removing_signature(&response, &signature);
         let payload = values.join("/");
         Ok(payload.into_bytes())
@@ -236,12 +236,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         request: RequestDetails,
         connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorAuthType>,
-    ) -> Result<bool, error_stack::Report<errors::ConnectorError>> {
+    ) -> Result<bool, error_stack::Report<errors::IntegrationError>> {
         let algorithm = crypto::Md5;
 
         let connector_webhook_secrets = match connector_webhook_secret {
             Some(secrets) => secrets,
-            None => Err(errors::ConnectorError::WebhookSourceVerificationFailed)?,
+            None => Err(errors::IntegrationError::WebhookSourceVerificationFailed)?,
         };
 
         let signature =
@@ -251,19 +251,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         algorithm
             .verify_signature(&connector_webhook_secrets.secret, &signature, &message)
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
+            .change_context(errors::IntegrationError::WebhookSourceVerificationFailed)
     }
 
     fn get_webhook_source_verification_message(
         &self,
         request: &RequestDetails,
         connector_webhook_secrets: &ConnectorWebhookSecrets,
-    ) -> Result<Vec<u8>, error_stack::Report<errors::ConnectorError>> {
+    ) -> Result<Vec<u8>, error_stack::Report<errors::IntegrationError>> {
         // MD5-specific message construction
         let resource: {ConnectorName}WebhookBody = request
             .body
             .parse_struct("WebhookBody")
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+            .change_context(errors::IntegrationError::WebhookSourceVerificationFailed)?;
 
         let verification_message = format!(
             "{}{}{}{}{}{}",
@@ -289,15 +289,15 @@ fn get_webhook_source_verification_signature(
     &self,
     request: &RequestDetails,
     _connector_webhook_secret: &ConnectorWebhookSecrets,
-) -> Result<Vec<u8>, error_stack::Report<errors::ConnectorError>> {
+) -> Result<Vec<u8>, error_stack::Report<errors::IntegrationError>> {
     // Parse webhook body to extract signature field
     let webhook_response: {ConnectorName}WebhookResponse = request
         .body
         .parse_struct("WebhookResponse")
-        .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        .change_context(errors::IntegrationError::WebhookBodyDecodingFailed)?;
 
     hex::decode(webhook_response.signature)
-        .change_context(errors::ConnectorError::WebhookSignatureNotFound)
+        .change_context(errors::IntegrationError::WebhookSignatureNotFound)
 }
 ```
 
@@ -311,7 +311,7 @@ fn verify_webhook_source(
     request: RequestDetails,
     connector_webhook_secret: Option<ConnectorWebhookSecrets>,
     _connector_account_details: Option<ConnectorAuthType>,
-) -> Result<bool, error_stack::Report<errors::ConnectorError>> {
+) -> Result<bool, error_stack::Report<errors::IntegrationError>> {
     let connector_webhook_secrets = match connector_webhook_secret {
         Some(secrets) => secrets,
         None => {
@@ -386,11 +386,11 @@ fn get_event_type(
     request: RequestDetails,
     _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
     _connector_account_details: Option<ConnectorAuthType>,
-) -> Result<EventType, error_stack::Report<errors::ConnectorError>> {
+) -> Result<EventType, error_stack::Report<errors::IntegrationError>> {
     let webhook_body: transformers::{ConnectorName}WebhookBody = request
         .body
         .parse_struct("WebhookBody")
-        .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+        .change_context(errors::IntegrationError::WebhookEventTypeNotFound)?;
 
     Ok(EventType::from(webhook_body.event_type))
 }
@@ -404,7 +404,7 @@ fn get_event_type(
     request: RequestDetails,
     _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
     _connector_account_details: Option<ConnectorAuthType>,
-) -> Result<EventType, error_stack::Report<errors::ConnectorError>> {
+) -> Result<EventType, error_stack::Report<errors::IntegrationError>> {
     // Try parsing as payment webhook first
     match serde_urlencoded::from_bytes::<transformers::PaymentWebhookBody>(&request.body) {
         Ok(webhook_body) => {
@@ -414,7 +414,7 @@ fn get_event_type(
                     // Parse as dispute webhook for chargeback events
                     let dispute_body: transformers::DisputeWebhookBody =
                         serde_urlencoded::from_bytes(&request.body)
-                            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+                            .change_context(errors::IntegrationError::WebhookBodyDecodingFailed)?;
                     transformers::map_chargeback_status_to_event_type(&dispute_body.cb_status)
                 }
                 _ => Ok(transformers::map_webhook_event_to_incoming_webhook_event(
@@ -426,7 +426,7 @@ fn get_event_type(
             // Fallback to dispute parsing
             let dispute_body: transformers::DisputeWebhookBody =
                 serde_urlencoded::from_bytes(&request.body)
-                    .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+                    .change_context(errors::IntegrationError::WebhookBodyDecodingFailed)?;
             transformers::map_chargeback_status_to_event_type(&dispute_body.cb_status)
         }
     }
@@ -441,11 +441,11 @@ fn get_event_type(
     request: RequestDetails,
     _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
     _connector_account_details: Option<ConnectorAuthType>,
-) -> Result<EventType, error_stack::Report<errors::ConnectorError>> {
+) -> Result<EventType, error_stack::Report<errors::IntegrationError>> {
     let notif: transformers::WebhookNotification = request
         .body
         .parse_struct("WebhookNotification")
-        .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+        .change_context(errors::IntegrationError::WebhookEventTypeNotFound)?;
 
     let transaction_status = match notif.transaction {
         transformers::WebhookTransactionData::CaptureTransactionData(data) => data.status,
@@ -470,11 +470,11 @@ fn process_payment_webhook(
     request: RequestDetails,
     _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
     _connector_account_details: Option<ConnectorAuthType>,
-) -> Result<WebhookDetailsResponse, error_stack::Report<errors::ConnectorError>> {
+) -> Result<WebhookDetailsResponse, error_stack::Report<errors::IntegrationError>> {
     let webhook_body: transformers::WebhookBody = request
         .body
         .parse_struct("WebhookBody")
-        .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        .change_context(errors::IntegrationError::WebhookBodyDecodingFailed)?;
 
     // Map webhook status to UCS AttemptStatus
     let status = match webhook_body.status {
@@ -520,15 +520,15 @@ fn process_refund_webhook(
     request: RequestDetails,
     _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
     _connector_account_details: Option<ConnectorAuthType>,
-) -> Result<RefundWebhookDetailsResponse, error_stack::Report<errors::ConnectorError>> {
+) -> Result<RefundWebhookDetailsResponse, error_stack::Report<errors::IntegrationError>> {
     let webhook_body: transformers::RefundWebhookBody = request
         .body
         .parse_struct("RefundWebhookBody")
-        .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        .change_context(errors::IntegrationError::WebhookBodyDecodingFailed)?;
 
     let connector_refund_id = webhook_body
         .refund_id
-        .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        .ok_or(errors::IntegrationError::WebhookReferenceIdNotFound)?;
 
     let status = match webhook_body.status {
         transformers::RefundStatus::Success => common_enums::RefundStatus::Success,
@@ -557,11 +557,11 @@ fn process_dispute_webhook(
     request: RequestDetails,
     _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
     _connector_account_details: Option<ConnectorAuthType>,
-) -> Result<DisputeWebhookDetailsResponse, error_stack::Report<errors::ConnectorError>> {
+) -> Result<DisputeWebhookDetailsResponse, error_stack::Report<errors::IntegrationError>> {
     let notif: transformers::DisputeWebhookBody = request
         .body
         .parse_struct("DisputeWebhookBody")
-        .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        .change_context(errors::IntegrationError::WebhookBodyDecodingFailed)?;
 
     let (amount, currency, reason, reason_code) = match notif.transaction {
         transformers::DisputeTransactionData::CaptureTransactionData(data) => {
@@ -577,7 +577,7 @@ fn process_dispute_webhook(
     Ok(DisputeWebhookDetailsResponse {
         amount: utils::convert_amount(
             self.amount_converter,
-            amount.ok_or(errors::ConnectorError::AmountConversionFailed)?,
+            amount.ok_or(errors::IntegrationError::AmountConversionFailed)?,
             transformers::option_to_result(currency)?,
         )?,
         currency: transformers::option_to_result(currency)?,
@@ -600,11 +600,11 @@ fn process_dispute_webhook(
 fn get_webhook_resource_object(
     &self,
     request: RequestDetails,
-) -> Result<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, error_stack::Report<errors::ConnectorError>> {
+) -> Result<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, error_stack::Report<errors::IntegrationError>> {
     let resource: transformers::WebhookObject = request
         .body
         .parse_struct("WebhookObject")
-        .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)
+        .change_context(errors::IntegrationError::WebhookResourceObjectNotFound)
         .attach_printable("Failed to parse webhook resource object")?;
 
     Ok(Box::new(transformers::PaymentResponse::from(resource)))
@@ -625,9 +625,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         request: RequestDetails,
         connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorAuthType>,
-    ) -> Result<bool, error_stack::Report<errors::ConnectorError>> {
+    ) -> Result<bool, error_stack::Report<errors::IntegrationError>> {
         let connector_webhook_secret = connector_webhook_secret
-            .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)
+            .ok_or(errors::IntegrationError::WebhookSourceVerificationFailed)
             .attach_printable("Connector webhook secret not configured")?;
 
         let signature =
@@ -638,7 +638,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         use common_utils::crypto::{HmacSha256, SignMessage};
         let expected_signature = HmacSha256
             .sign_message(&connector_webhook_secret.secret, &message)
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
+            .change_context(errors::IntegrationError::WebhookSourceVerificationFailed)
             .attach_printable("Failed to sign webhook message with HMAC-SHA256")?;
 
         Ok(expected_signature.eq(&signature))
@@ -648,25 +648,25 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: &RequestDetails,
         _connector_webhook_secret: &ConnectorWebhookSecrets,
-    ) -> Result<Vec<u8>, error_stack::Report<errors::ConnectorError>> {
+    ) -> Result<Vec<u8>, error_stack::Report<errors::IntegrationError>> {
         let signature_str = request
             .headers
             .get("bls-signature")
-            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
+            .ok_or(errors::IntegrationError::WebhookSignatureNotFound)?;
 
         hex::decode(signature_str)
-            .change_context(errors::ConnectorError::WebhookSignatureNotFound)
+            .change_context(errors::IntegrationError::WebhookSignatureNotFound)
     }
 
     fn get_webhook_source_verification_message(
         &self,
         request: &RequestDetails,
         _connector_webhook_secret: &ConnectorWebhookSecrets,
-    ) -> Result<Vec<u8>, error_stack::Report<errors::ConnectorError>> {
+    ) -> Result<Vec<u8>, error_stack::Report<errors::IntegrationError>> {
         let timestamp = request
             .headers
             .get("bls-ipn-timestamp")
-            .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+            .ok_or(errors::IntegrationError::WebhookSourceVerificationFailed)?;
         let body_str = String::from_utf8_lossy(&request.body);
         Ok(format!("{timestamp}{body_str}").into_bytes())
     }
@@ -676,7 +676,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         request: RequestDetails,
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorAuthType>,
-    ) -> Result<EventType, error_stack::Report<errors::ConnectorError>> {
+    ) -> Result<EventType, error_stack::Report<errors::IntegrationError>> {
         // Implementation with conditional parsing for chargebacks
         // ... see Event Type Mapping Pattern 2
     }
@@ -686,7 +686,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         request: RequestDetails,
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorAuthType>,
-    ) -> Result<WebhookDetailsResponse, error_stack::Report<errors::ConnectorError>> {
+    ) -> Result<WebhookDetailsResponse, error_stack::Report<errors::IntegrationError>> {
         // Implementation
         // ... see Payment Webhook Processing
     }
@@ -696,7 +696,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         request: RequestDetails,
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorAuthType>,
-    ) -> Result<RefundWebhookDetailsResponse, error_stack::Report<errors::ConnectorError>> {
+    ) -> Result<RefundWebhookDetailsResponse, error_stack::Report<errors::IntegrationError>> {
         // Implementation
         // ... see Refund Webhook Processing
     }
@@ -716,11 +716,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         request: RequestDetails,
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorAuthType>,
-    ) -> Result<EventType, error_stack::Report<errors::ConnectorError>> {
+    ) -> Result<EventType, error_stack::Report<errors::IntegrationError>> {
         let webhook_body: {ConnectorName}WebhookBody = request
             .body
             .parse_struct("WebhookBody")
-            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+            .change_context(errors::IntegrationError::WebhookEventTypeNotFound)?;
 
         Ok(EventType::from(webhook_body.event_type))
     }
@@ -730,11 +730,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         request: RequestDetails,
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorAuthType>,
-    ) -> Result<WebhookDetailsResponse, error_stack::Report<errors::ConnectorError>> {
+    ) -> Result<WebhookDetailsResponse, error_stack::Report<errors::IntegrationError>> {
         let webhook_body: {ConnectorName}WebhookBody = request
             .body
             .parse_struct("WebhookBody")
-            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+            .change_context(errors::IntegrationError::WebhookBodyDecodingFailed)?;
 
         Ok(WebhookDetailsResponse {
             resource_id: Some(ResponseId::ConnectorTransactionId(webhook_body.transaction_id)),

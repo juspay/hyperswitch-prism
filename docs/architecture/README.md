@@ -1,4 +1,4 @@
-## The Problem
+## Architecture Overview
 
 If you've integrated multiple payment providers, you know the pain:
 - Stripe uses PaymentIntents
@@ -21,11 +21,15 @@ Prism is the unified abstraction layer for payment processors—giving you one A
 
 ## Architecture Components
 
-The Prism supports a three layered architecture, each solving a purpose 
+The Prism supports a three layered architecture, each solving a purpose. The architecture prioritizes:
+
+1. **Consistency**: Same types, patterns, and errors across all connectors
+2. **Extensibility**: Add connectors without SDK changes
+3. **Developer Experience**: Idiomatic payments interface with multi language SDKs 
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                           SDK INTERFACE LAYER                               │
+│                           PRISM - INTERFACE LAYER                           │
 │  ┌───────────┐ ┌───────────┐ ┌───────────┐ ┌───────────┐ ┌───────────┐      │
 │  │  Node.js  │ │  Python   │ │   Java    │ │   .NET    │ │    Go     │ ...  │
 │  │    SDK    │ │    SDK    │ │    SDK    │ │    SDK    │ │    SDK    │      │
@@ -34,19 +38,15 @@ The Prism supports a three layered architecture, each solving a purpose
          │             │             │             │             │
          ▼             ▼             ▼             ▼             ▼
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│                          FFI / BINDING LAYER                                 │
+│                          PRISM - BINDING LAYER                               │
 │  ┌────────────────────────────────────────────────────────────────────────┐  │
 │  │  Native gRPC Clients (tonic, grpcio, grpc-dotnet, go-grpc, etc.)       │  │
-│  │                                                                        │  │
-│  │  • Protobuf serialization/deserialization                              │  │
-│  │  • HTTP/2 connection management                                        │  │
-│  │  • Streaming support                                                   │  │
 │  └────────────────────────────────────────────────────────────────────────┘  │
 └──────────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
 ┌────────────────────────────────────────────────────────────────────────────┐
-│                                  CORE                                      │
+│                             PRISM - CORE                                   │
 │                                                                            │
 │  ┌────────────────────────────────────┐    ┌────────────────────────────┐  │
 │  │           gRPC Server              │    │    Connector Adapters      │  │
@@ -78,52 +78,47 @@ The Prism supports a three layered architecture, each solving a purpose
 
 ### Component Descriptions
 
-| Component | Why It Exists | Problem It Solves | Technologies |
-|-----------|---------------|-------------------|--------------|
-| **SDK Interface** | Developers can think in their language's patterns whicle using the unified payments grammar provided by the library | You use `client.payments.authorize()` with idiomatic types in your codebase | Node.js, Python, Java, .NET, Go, Haskell |
-| **FFI / Binding Layer** | Each language needs native-performance gRPC | Seamless transport without language bridges; handles serialization, HTTP/2, streaming | tonic, grpcio, grpc-dotnet, go-grpc |
-| **gRPC Server** | Single source of truth for payment logic. Also offers freedom to use Prism as a separate microservice | One implementation of payment services serves all languages; unified errors, routing, types | Rust, tonic, protocol buffers |
-| **Connector Adapters** | Each connector has unique APIs and formats | You use one `AuthorizeRequest`; the library maps to Stripe's `PaymentIntent` or Adyen's `payments` | Rust, 100+ connector implementations |
+| Component | Problem It Solves | Technologies |
+|-----------|-------------------|--------------|
+| **Interface Layer** | Developers can think in their language's patterns while using the unified payments grammar. You use `client.payments.authorize()` with idiomatic types in your codebase | Node.js, Python, Java, .NET, Go, Haskell |
+| **Binding Layer** | Each language needs native-performance gRPC with seamless transport without language bridges; handles serialization | tonic, grpcio, grpc-dotnet, go-grpc |
+| **Core Layer** | Single source of truth for payment logic with freedom to use Prism as a separate microservice. One implementation serves all languages; also include connector adapters maintaining the request response mapping to 100+ processors from the Proto | Rust, tonic, protocol buffers |
 
-## Data Flow
+### Data Flow
 
 ```mermaid
 sequenceDiagram
-    participant SDK as SDK Interface
-    participant FFI as FFI / Binding Layer
-    participant Server as gRPC Server
-    participant Adapter as Connector Adapters
+    participant Interface as Interface Layer
+    participant Binding as Binding Layer
+    participant Core as Core Layer
     participant Stripe as Stripe API
     participant Adyen as Adyen API
 
-    SDK->>FFI: Serialize to protobuf
-    FFI->>Server: gRPC call (HTTP/2)
-    Server->>Server: Route to connector adapter
-    Server->>Adapter: Transform request
+    Interface->>Binding: Serialize to protobuf
+    Binding->>Core: gRPC call (HTTP/2)
+    Core->>Core: Route to connector & transform request
 
     alt Stripe Connector
-        Adapter->>Stripe: POST /v1/payment_intents
-        Stripe-->>Adapter: PaymentIntent response
+        Core->>Stripe: POST /v1/payment_intents
+        Stripe-->>Core: PaymentIntent response
     else Adyen Connector
-        Adapter->>Adyen: POST /payments
-        Adyen-->>Adapter: Payment response
+        Core->>Adyen: POST /payments
+        Adyen-->>Core: Payment response
     end
 
-    Adapter->>Adapter: Transform to unified format
-    Adapter-->>Server: Return unified response
-    Server-->>Server: Normalize errors
-    Server-->>FFI: gRPC response
-    FFI-->>SDK: Deserialize from protobuf
+    Core->>Core: Transform to unified format & normalize errors
+    Core-->>Binding: gRPC response
+    Binding-->>Interface: Deserialize from protobuf
 ```
 
-## Connector Transformation
+### Connector Transformation
 
-The core value: Prism transforms unified requests to connector-specific formats.
+The core value of the Prism is transformation from a single unified interface into multiple processor patterns. For easier understanding, a simple example of how a Stripe Authorize Request and an Adyen Authorize Request is mapped against the Unified interface.
 
 **Authorization Mapping:**
 
-| Unified Field | Stripe | Adyen |
-|---------------|--------|-------|
+| Unified Field | Stripe Request | Adyen Request |
+|---------------|----------------|---------------|
 | `amount.currency` | `currency` | `amount.currency` |
 | `amount.amount` | `amount` (cents) | `value` (cents) |
 | `payment_method.card.card_number` | `payment_method[card][number]` | `paymentMethod[number]` |
@@ -131,9 +126,9 @@ The core value: Prism transforms unified requests to connector-specific formats.
 
 This transformation happens server-side, so SDKs remain unchanged when adding new connectors.
 
-## Connector Adapter Pattern
+### Connector Adapter Pattern
 
-Each connector implements a standard interface:
+Adding new connectors into PRism should also be easy and declarative. It is simplified with a standard interface for the ConnectorAdapter trait.
 
 ```rust
 trait ConnectorAdapter {
@@ -145,14 +140,3 @@ trait ConnectorAdapter {
 }
 ```
 Adding new connectors only need an adapter implementation. SDKs require zero changes.
-
-## Summary
-
-The architecture prioritizes:
-
-1. **Consistency**: Same types, patterns, and errors across all connectors
-2. **Extensibility**: Add connectors without SDK changes
-3. **Performance**: gRPC interface provides significant advantage over REST APIs for high volume payment processing. The library could also be used as microservice with 10x smaller payloads, faster serialization/ deserialization hops, reduced bandwidth consumption and optimized for concurrent requests on a single connection
-4. **Developer Experience**: Idiomatic payments interface with multi language SDKs 
-
-For developers integrating multiple payment providers, this means weeks of integration work becomes hours, and maintenance burden drops from O(N connectors) to O(1).

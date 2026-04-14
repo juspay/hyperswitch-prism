@@ -8,25 +8,25 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Accept, Authenticate, Authorize, Capture, CreateAccessToken, CreateOrder,
-        CreateSessionToken, DefendDispute, IncrementalAuthorization, MandateRevoke, PSync,
-        PaymentMethodToken, PostAuthenticate, PreAuthenticate, RSync, Refund, RepeatPayment,
-        SdkSessionToken, SetupMandate, SubmitEvidence, Void, VoidPC,
+        Accept, Authenticate, Authorize, Capture, ClientAuthenticationToken, CreateOrder,
+        DefendDispute, IncrementalAuthorization, MandateRevoke, PSync, PaymentMethodToken,
+        PostAuthenticate, PreAuthenticate, RSync, Refund, RepeatPayment, ServerAuthenticationToken,
+        ServerSessionAuthenticationToken, SetupMandate, SubmitEvidence, Void, VoidPC,
     },
     connector_types::{
-        AcceptDisputeData, AccessTokenRequestData, AccessTokenResponseData, ConnectorCustomerData,
+        AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
         ConnectorCustomerResponse, DisputeDefendData, DisputeFlowData, DisputeResponseData,
         MandateRevokeRequestData, MandateRevokeResponseData, PaymentCreateOrderData,
         PaymentCreateOrderResponse, PaymentFlowData, PaymentMethodTokenResponse,
         PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthenticateData,
         PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
-        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSdkSessionTokenData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        RepeatPaymentData, SessionTokenRequestData, SessionTokenResponseData,
+        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
+        ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
         SetupMandateRequestData, SubmitEvidenceData,
     },
-    errors::{self},
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -42,8 +42,9 @@ use interfaces::{
 use serde::Serialize;
 use transformers::{
     self as mollie, MollieCaptureRequest, MollieCaptureResponse, MollieCardTokenRequest,
-    MollieCardTokenResponse, MolliePSyncResponse, MolliePaymentsRequest, MolliePaymentsResponse,
-    MollieRSyncResponse, MollieRefundRequest, MollieRefundResponse, MollieVoidResponse,
+    MollieCardTokenResponse, MollieClientAuthRequest, MollieClientAuthResponse,
+    MolliePSyncResponse, MolliePaymentsRequest, MolliePaymentsResponse, MollieRSyncResponse,
+    MollieRefundRequest, MollieRefundResponse, MollieVoidResponse,
 };
 
 use crate::types::ResponseRouterData;
@@ -55,6 +56,8 @@ pub(crate) mod headers {
 }
 
 use super::macros;
+use domain_types::errors::ConnectorError;
+use domain_types::errors::IntegrationError;
 
 macros::create_all_prerequisites!(
     connector_name: Mollie,
@@ -98,6 +101,12 @@ macros::create_all_prerequisites!(
             request_body: MollieCardTokenRequest<T>,
             response_body: MollieCardTokenResponse,
             router_data: RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>,
+        ),
+        (
+            flow: ClientAuthenticationToken,
+            request_body: MollieClientAuthRequest,
+            response_body: MollieClientAuthResponse,
+            router_data: RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -107,7 +116,7 @@ macros::create_all_prerequisites!(
         pub fn build_headers<F, FCD, Req, Res>(
             &self,
             req: &RouterDataV2<F, FCD, Req, Res>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let mut header = vec![(
                 headers::CONTENT_TYPE.to_string(),
                 "application/json".to_string().into(),
@@ -199,17 +208,23 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentSessionToken for Mollie<T>
+    connector_types::ServerSessionAuthentication for Mollie<T>
 {
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::SdkSessionTokenV2 for Mollie<T>
+    connector_types::ClientAuthentication for Mollie<T>
 {
 }
 
+macros::macro_connector_payout_implementation!(
+    connector: Mollie,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize]
+);
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentAccessToken for Mollie<T>
+    connector_types::ServerAuthentication for Mollie<T>
 {
 }
 
@@ -305,7 +320,7 @@ macros::macro_connector_implementation!(
                 PaymentsAuthorizeData<T>,
                 PaymentsResponseData,
             >,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             Ok(format!(
                 "{}/payments",
                 self.base_url(&req.resource_common_data.connectors)
@@ -338,12 +353,12 @@ macros::macro_connector_implementation!(
                 PaymentsSyncData,
                 PaymentsResponseData,
             >,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let payment_id = req
                 .request
                 .connector_transaction_id
                 .get_connector_transaction_id()
-                .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+                .change_context(IntegrationError::MissingConnectorTransactionID { context: Default::default() })?;
             Ok(format!(
                 "{}/payments/{}",
                 self.base_url(&req.resource_common_data.connectors),
@@ -373,7 +388,7 @@ macros::macro_connector_implementation!(
                 PaymentVoidData,
                 PaymentsResponseData,
             >,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let payment_id = req
                 .request
                 .connector_transaction_id
@@ -421,12 +436,12 @@ macros::macro_connector_implementation!(
                 PaymentsCaptureData,
                 PaymentsResponseData,
             >,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let payment_id = req
                 .request
                 .connector_transaction_id
                 .get_connector_transaction_id()
-                .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+                .change_context(IntegrationError::MissingConnectorTransactionID { context: Default::default() })?;
             Ok(format!(
                 "{}/payments/{}/captures",
                 self.base_url(&req.resource_common_data.connectors),
@@ -457,7 +472,7 @@ macros::macro_connector_implementation!(
                 RefundsData,
                 RefundsResponseData,
             >,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let payment_id = req.request.connector_transaction_id.clone();
             Ok(format!(
                 "{}/payments/{}/refunds",
@@ -489,7 +504,7 @@ macros::macro_connector_implementation!(
                 RefundSyncData,
                 RefundsResponseData,
             >,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let payment_id = req.request.connector_transaction_id.clone();
             let refund_id = req.request.connector_refund_id.clone();
             Ok(format!(
@@ -549,24 +564,47 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // Session Token
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
-        CreateSessionToken,
+        ServerSessionAuthenticationToken,
         PaymentFlowData,
-        SessionTokenRequestData,
-        SessionTokenResponseData,
+        ServerSessionAuthenticationTokenRequestData,
+        ServerSessionAuthenticationTokenResponseData,
     > for Mollie<T>
 {
 }
 
-// SDK Session Token
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        SdkSessionToken,
-        PaymentFlowData,
-        PaymentsSdkSessionTokenData,
-        PaymentsResponseData,
-    > for Mollie<T>
-{
-}
+// SDK Session Token — ClientAuthenticationToken flow
+// Creates a Mollie payment and returns the checkout URL for client-side redirect
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Mollie,
+    curl_request: Json(MollieClientAuthRequest),
+    curl_response: MollieClientAuthResponse,
+    flow_name: ClientAuthenticationToken,
+    resource_common_data: PaymentFlowData,
+    flow_request: ClientAuthenticationTokenRequestData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!(
+                "{}/payments",
+                self.base_url(&req.resource_common_data.connectors)
+            ))
+        }
+    }
+);
 
 // Dispute Accept
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -621,7 +659,7 @@ macros::macro_connector_implementation!(
                 PaymentMethodTokenizationData<T>,
                 PaymentMethodTokenResponse,
             >,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             // Use Mollie Components API (secondary_base_url) for card tokenization
             let secondary_base_url = req
                 .resource_common_data
@@ -629,21 +667,22 @@ macros::macro_connector_implementation!(
                 .mollie
                 .secondary_base_url
                 .as_ref()
-                .ok_or(errors::ConnectorError::InvalidConnectorConfig {
+                .ok_or(IntegrationError::InvalidConnectorConfig {
                     config: "secondary_base_url",
+                context: Default::default()
                 })?;
             Ok(format!("{}card-tokens", secondary_base_url))
         }
     }
 );
 
-// Access Token (required by PaymentAccessToken trait)
+// Access Token (required by ServerAuthentication trait)
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
-        CreateAccessToken,
+        ServerAuthenticationToken,
         PaymentFlowData,
-        AccessTokenRequestData,
-        AccessTokenResponseData,
+        ServerAuthenticationTokenRequestData,
+        ServerAuthenticationTokenResponseData,
     > for Mollie<T>
 {
 }
@@ -717,9 +756,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     fn get_auth_header(
         &self,
         auth_type: &ConnectorSpecificConfig,
-    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
-        let auth = mollie::MollieAuthType::try_from(auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+        let auth = mollie::MollieAuthType::try_from(auth_type).change_context(
+            IntegrationError::FailedToObtainAuthType {
+                context: Default::default(),
+            },
+        )?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
             format!("Bearer {}", auth.api_key.expose()).into(),
@@ -730,11 +772,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: mollie::MollieErrorResponse = res
             .response
             .parse_struct("MollieErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            .change_context(
+                crate::utils::response_deserialization_fail(
+                    res.status_code,
+                "mollie: response body did not match the expected format; confirm API version and connector documentation."),
+            )?;
 
         with_error_response_body!(event_builder, response);
 

@@ -59,7 +59,7 @@ echo -e "${BLUE}🔍 Running pre-push validation...${NC}"
 echo ""
 
 FAILED=0
-TOTAL=6
+TOTAL=7
 CURRENT=0
 
 # Function to print step header
@@ -128,7 +128,20 @@ else
 fi
 echo ""
 
-# Step 4: Proto generation
+# Step 4: Connector specs coverage
+print_step "Checking connector specs coverage..."
+v_echo "Running: cargo run --bin check_connector_specs"
+if cargo run --bin check_connector_specs 2>&1 | tee /tmp/check-specs.log | tail -5 | grep -q "All checks passed"; then
+    print_success "Connector specs check passed"
+else
+    print_error "Connector specs check failed"
+    echo ""
+    grep -E "^\[FAIL\]|^ERROR" /tmp/check-specs.log | head -15
+    exit 4
+fi
+echo ""
+
+# Step 5: Proto generation
 print_step "Generating SDK bindings from proto files..."
 v_echo "Running: make generate"
 if make generate > /tmp/generate.log 2>&1; then
@@ -143,11 +156,11 @@ else
     print_error "SDK generation failed"
     echo ""
     tail -30 /tmp/generate.log
-    exit 4
+    exit 5
 fi
 echo ""
 
-# Step 5: Documentation
+# Step 6: Documentation
 print_step "Generating connector documentation..."
 v_echo "Running: make docs"
 if make docs > /tmp/docs.log 2>&1; then
@@ -158,11 +171,11 @@ else
     print_error "Documentation generation failed"
     echo ""
     tail -30 /tmp/docs.log
-    exit 5
+    exit 6
 fi
 echo ""
 
-# Step 6: Tests (optional)
+# Step 7: Tests (optional)
 if [ "$WITH_TESTS" = true ]; then
     print_step "Running tests..."
     v_echo "Running: cargo test --all-features"
@@ -172,7 +185,7 @@ if [ "$WITH_TESTS" = true ]; then
         print_error "Tests failed"
         echo ""
         grep -E "^test.*FAILED|^failures:" /tmp/test.log | head -20
-        exit 6
+        exit 7
     fi
 else
     print_step "Skipping tests (use --with-tests to run)"
@@ -187,6 +200,7 @@ echo -e "${BLUE}Summary:${NC}"
 echo "  ✓ Code formatting"
 echo "  ✓ Compilation"
 echo "  ✓ Clippy linting"
+echo "  ✓ Connector specs coverage"
 echo "  ✓ SDK bindings generation"
 echo "  ✓ Documentation generation"
 if [ "$WITH_TESTS" = true ]; then

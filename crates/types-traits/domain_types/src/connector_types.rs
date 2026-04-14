@@ -14,15 +14,15 @@ use common_utils::{
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
-use strum::{Display, EnumString};
+use strum::{Display, EnumIter, EnumString};
 use time::PrimitiveDateTime;
 
 use crate::{
-    errors::{ApiError, ApplicationErrorResponse, ConnectorError},
+    errors::{IntegrationError, IntegrationErrorContext, WebhookError},
     mandates::{CustomerAcceptance, MandateData},
     payment_address::{self, Address, AddressDetails, PhoneDetails},
     payment_method_data::{self, Card, PaymentMethodData, PaymentMethodDataTypes},
-    router_data::{self, ConnectorResponseData, PaymentMethodToken},
+    router_data::{self, ConnectorResponseData},
     router_request_types::{
         self, AcceptDisputeIntegrityObject, AuthoriseIntegrityObject, BrowserInformation,
         CaptureIntegrityObject, CreateOrderIntegrityObject, DefendDisputeIntegrityObject,
@@ -43,7 +43,17 @@ use url::Url;
 
 // snake case for enum variants
 #[derive(
-    Clone, Copy, Debug, Display, EnumString, serde::Deserialize, Eq, Hash, PartialEq, Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Display,
+    EnumIter,
+    EnumString,
+    serde::Deserialize,
+    Eq,
+    Hash,
+    PartialEq,
+    Serialize,
 )]
 #[strum(serialize_all = "snake_case")]
 pub enum ConnectorEnum {
@@ -126,10 +136,12 @@ pub enum ConnectorEnum {
     Truelayer,
     Peachpayments,
     Finix,
+    Trustly,
+    Itaubank,
 }
 
 impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
-    type Error = ApplicationErrorResponse;
+    type Error = IntegrationError;
 
     fn foreign_try_from(
         connector: grpc_api_types::payments::Connector,
@@ -211,21 +223,19 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Truelayer => Ok(Self::Truelayer),
             grpc_api_types::payments::Connector::Peachpayments => Ok(Self::Peachpayments),
             grpc_api_types::payments::Connector::Finix => Ok(Self::Finix),
+            grpc_api_types::payments::Connector::Trustly => Ok(Self::Trustly),
+            grpc_api_types::payments::Connector::Itaubank => Ok(Self::Itaubank),
             grpc_api_types::payments::Connector::Unspecified => {
-                Err(ApplicationErrorResponse::BadRequest(ApiError {
-                    sub_code: "UNSPECIFIED_CONNECTOR".to_owned(),
-                    error_identifier: 400,
-                    error_message: "Connector must be specified".to_owned(),
-                    error_object: None,
-                })
+                Err(IntegrationError::InvalidDataFormat {
+                    field_name: "connector",
+                    context: IntegrationErrorContext::default(),
+                }
                 .into())
             }
-            _ => Err(ApplicationErrorResponse::BadRequest(ApiError {
-                sub_code: "INVALID_CONNECTOR".to_owned(),
-                error_identifier: 400,
-                error_message: format!("Connector {connector:?} is not supported"),
-                error_object: None,
-            })
+            _ => Err(IntegrationError::InvalidDataFormat {
+                field_name: "connector",
+                context: IntegrationErrorContext::default(),
+            }
             .into()),
         }
     }
@@ -370,23 +380,32 @@ pub struct PaymentsSyncData {
 }
 
 impl PaymentsSyncData {
-    pub fn is_auto_capture(&self) -> Result<bool, Error> {
-        match self.capture_method {
-            Some(common_enums::CaptureMethod::Automatic)
-            | None
-            | Some(common_enums::CaptureMethod::SequentialAutomatic) => Ok(true),
-            Some(common_enums::CaptureMethod::Manual) => Ok(false),
-            Some(_) => Err(ConnectorError::CaptureMethodNotSupported.into()),
-        }
+    /// Returns true if payment should be automatically captured, false for manual capture.
+    ///
+    /// Maps capture methods to boolean intent:
+    /// - Automatic/SequentialAutomatic/None → true (auto capture)
+    /// - Manual/ManualMultiple/Scheduled → false (manual capture)
+    ///
+    /// Note: This is a pure getter, not a validation. Connectors that don't support
+    /// specific capture methods should validate explicitly during request building.
+    pub fn is_auto_capture(&self) -> bool {
+        !matches!(
+            self.capture_method,
+            Some(common_enums::CaptureMethod::Manual)
+                | Some(common_enums::CaptureMethod::ManualMultiple)
+                | Some(common_enums::CaptureMethod::Scheduled)
+        )
     }
-    pub fn get_connector_transaction_id(&self) -> CustomResult<String, ConnectorError> {
+    pub fn get_connector_transaction_id(&self) -> CustomResult<String, IntegrationError> {
         match self.connector_transaction_id.clone() {
             ResponseId::ConnectorTransactionId(txn_id) => Ok(txn_id),
             _ => Err(errors::ValidationError::IncorrectValueProvided {
                 field_name: "connector_transaction_id",
             })
             .attach_printable("Expected connector transaction ID not found")
-            .change_context(ConnectorError::MissingConnectorTransactionID)?,
+            .change_context(IntegrationError::MissingConnectorTransactionID {
+                context: Default::default(),
+            })?,
         }
     }
     pub fn is_mandate_payment(&self) -> bool {
@@ -415,10 +434,11 @@ pub struct PaymentFlowData {
     // minor amount for amount frameworka
     pub minor_amount_captured: Option<MinorUnit>,
     pub minor_amount_capturable: Option<MinorUnit>,
-    pub access_token: Option<AccessTokenResponseData>,
+    pub amount: Option<Money>,
+    pub access_token: Option<ServerAuthenticationTokenResponseData>,
     pub session_token: Option<String>,
     pub reference_id: Option<String>,
-    pub payment_method_token: Option<PaymentMethodToken>,
+    pub connector_order_id: Option<String>,
     pub preprocessing_id: Option<String>,
     ///for switching between two different versions of the same connector
     pub connector_api_version: Option<String>,
@@ -625,13 +645,16 @@ impl PaymentFlowData {
             .ok_or_else(missing_field_err("access_token"))
     }
 
-    pub fn get_access_token_data(&self) -> Result<AccessTokenResponseData, Error> {
+    pub fn get_access_token_data(&self) -> Result<ServerAuthenticationTokenResponseData, Error> {
         self.access_token
             .clone()
             .ok_or_else(missing_field_err("access_token"))
     }
 
-    pub fn set_access_token(mut self, access_token: Option<AccessTokenResponseData>) -> Self {
+    pub fn set_access_token(
+        mut self,
+        access_token: Option<ServerAuthenticationTokenResponseData>,
+    ) -> Self {
         self.access_token = access_token;
         self
     }
@@ -837,7 +860,9 @@ impl PaymentFlowData {
     {
         self.get_connector_meta()?
             .parse_value(std::any::type_name::<T>())
-            .change_context(ConnectorError::NoConnectorMetaData)
+            .change_context(IntegrationError::NoConnectorMetaData {
+                context: Default::default(),
+            })
     }
 
     pub fn is_three_ds(&self) -> bool {
@@ -857,11 +882,6 @@ impl PaymentFlowData {
             .ok_or_else(missing_field_err("shipping"))
     }
 
-    pub fn get_payment_method_token(&self) -> Result<PaymentMethodToken, Error> {
-        self.payment_method_token
-            .clone()
-            .ok_or_else(missing_field_err("payment_method_token"))
-    }
     pub fn get_customer_id(&self) -> Result<CustomerId, Error> {
         self.customer_id
             .to_owned()
@@ -902,13 +922,6 @@ impl PaymentFlowData {
         }
         self
     }
-    pub fn set_payment_method_token(mut self, payment_method_token: Option<String>) -> Self {
-        if payment_method_token.is_some() && self.payment_method_token.is_none() {
-            self.payment_method_token =
-                payment_method_token.map(|token| PaymentMethodToken::Token(Secret::new(token)));
-        }
-        self
-    }
     pub fn set_connector_customer_id(mut self, connector_customer_id: Option<String>) -> Self {
         if connector_customer_id.is_some() && self.connector_customer.is_none() {
             self.connector_customer = connector_customer_id;
@@ -918,7 +931,7 @@ impl PaymentFlowData {
 
     pub fn set_access_token_id(mut self, access_token_id: Option<String>) -> Self {
         if let (Some(token_id), None) = (access_token_id, &self.access_token) {
-            self.access_token = Some(AccessTokenResponseData {
+            self.access_token = Some(ServerAuthenticationTokenResponseData {
                 access_token: token_id.into(),
                 token_type: None,
                 expires_in: None,
@@ -1086,7 +1099,7 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub browser_info: Option<BrowserInformation>,
     pub order_category: Option<String>,
     pub session_token: Option<String>,
-    pub access_token: Option<AccessTokenResponseData>,
+    pub access_token: Option<ServerAuthenticationTokenResponseData>,
     pub customer_acceptance: Option<CustomerAcceptance>,
     pub enrolled_for_3ds: Option<bool>,
     pub related_transaction_id: Option<String>,
@@ -1123,14 +1136,21 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
 }
 
 impl<T: PaymentMethodDataTypes> PaymentsAuthorizeData<T> {
-    pub fn is_auto_capture(&self) -> Result<bool, Error> {
-        match self.capture_method {
-            Some(common_enums::CaptureMethod::Automatic)
-            | None
-            | Some(common_enums::CaptureMethod::SequentialAutomatic) => Ok(true),
-            Some(common_enums::CaptureMethod::Manual) => Ok(false),
-            Some(_) => Err(ConnectorError::CaptureMethodNotSupported.into()),
-        }
+    /// Returns true if payment should be automatically captured, false for manual capture.
+    ///
+    /// Maps capture methods to boolean intent:
+    /// - Automatic/SequentialAutomatic/None → true (auto capture)
+    /// - Manual/ManualMultiple/Scheduled → false (manual capture)
+    ///
+    /// Note: This is a pure getter, not a validation. Connectors that don't support
+    /// specific capture methods should validate explicitly during request building.
+    pub fn is_auto_capture(&self) -> bool {
+        !matches!(
+            self.capture_method,
+            Some(common_enums::CaptureMethod::Manual)
+                | Some(common_enums::CaptureMethod::ManualMultiple)
+                | Some(common_enums::CaptureMethod::Scheduled)
+        )
     }
     pub fn get_email(&self) -> Result<Email, Error> {
         self.email.clone().ok_or_else(missing_field_err("email"))
@@ -1317,7 +1337,7 @@ impl<T: PaymentMethodDataTypes> PaymentsAuthorizeData<T> {
     }
 
     pub fn set_access_token(mut self, access_token: Option<String>) -> Self {
-        self.access_token = access_token.map(|token| AccessTokenResponseData {
+        self.access_token = access_token.map(|token| ServerAuthenticationTokenResponseData {
             access_token: token.into(),
             token_type: None,
             expires_in: None,
@@ -1367,8 +1387,8 @@ pub enum PaymentsResponseData {
         incremental_authorization_allowed: Option<bool>,
         status_code: u16,
     },
-    SdkSessionTokenResponse {
-        session_token: SessionToken,
+    ClientAuthenticationTokenResponse {
+        session_data: ClientAuthenticationTokenData,
         status_code: u16,
     },
     PreAuthenticateResponse {
@@ -1409,6 +1429,22 @@ pub struct MandateReference {
     pub connector_mandate_request_reference_id: Option<String>,
 }
 
+#[derive(Debug, Clone)]
+pub enum PaymentMethodUpdate {
+    Card(CardDetailUpdate),
+}
+
+#[derive(Debug, Clone)]
+pub struct CardDetailUpdate {
+    pub card_exp_month: Option<String>,
+    pub card_exp_year: Option<String>,
+    pub last4_digits: Option<String>,
+    pub issuer_country: Option<String>,
+    pub card_issuer: Option<String>,
+    pub card_network: Option<String>,
+    pub card_holder_name: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum CaptureSyncResponse {
     Success {
@@ -1438,9 +1474,9 @@ pub struct PaymentCreateOrderData {
 
 #[derive(Debug, Clone)]
 pub struct PaymentCreateOrderResponse {
-    pub order_id: String,
-    /// Optional session token for wallet flows (Apple Pay, Google Pay)
-    pub session_token: Option<SessionToken>,
+    pub connector_order_id: String,
+    /// Optional SDK session data for wallet flows (Apple Pay, Google Pay) and other SDK types
+    pub session_data: Option<ClientAuthenticationTokenData>,
 }
 
 #[derive(Debug, Clone)]
@@ -1489,7 +1525,10 @@ impl<T: PaymentMethodDataTypes> PaymentsPreAuthenticateData<T> {
             Some(common_enums::CaptureMethod::Manual) => Ok(false),
             Some(common_enums::CaptureMethod::ManualMultiple)
             | Some(common_enums::CaptureMethod::Scheduled) => {
-                Err(ConnectorError::CaptureMethodNotSupported.into())
+                Err(IntegrationError::CaptureMethodNotSupported {
+                    context: Default::default(),
+                }
+                .into())
             }
         }
     }
@@ -1520,7 +1559,10 @@ impl<T: PaymentMethodDataTypes> PaymentsAuthenticateData<T> {
             Some(common_enums::CaptureMethod::Manual) => Ok(false),
             Some(common_enums::CaptureMethod::ManualMultiple)
             | Some(common_enums::CaptureMethod::Scheduled) => {
-                Err(ConnectorError::CaptureMethodNotSupported.into())
+                Err(IntegrationError::CaptureMethodNotSupported {
+                    context: Default::default(),
+                }
+                .into())
             }
         }
     }
@@ -1548,7 +1590,7 @@ pub struct PaymentsIncrementalAuthorizationData {
 }
 
 #[derive(Debug, Clone)]
-pub struct PaymentsSdkSessionTokenData {
+pub struct ClientAuthenticationTokenRequestData {
     pub amount: MinorUnit,
     pub currency: Currency,
     pub country: Option<common_enums::CountryAlpha2>,
@@ -1587,6 +1629,39 @@ pub struct PaymentsPostAuthenticateData<T: PaymentMethodDataTypes> {
     pub browser_info: Option<BrowserInformation>,
     pub enrolled_for_3ds: bool,
     pub redirect_response: Option<ContinueRedirectionResponse>,
+    pub capture_method: Option<common_enums::CaptureMethod>,
+}
+
+impl<T: PaymentMethodDataTypes> PaymentsPostAuthenticateData<T> {
+    pub fn is_auto_capture(&self) -> Result<bool, Error> {
+        match self.capture_method {
+            Some(common_enums::CaptureMethod::Automatic)
+            | None
+            | Some(common_enums::CaptureMethod::SequentialAutomatic) => Ok(true),
+            Some(common_enums::CaptureMethod::Manual) => Ok(false),
+            Some(common_enums::CaptureMethod::ManualMultiple)
+            | Some(common_enums::CaptureMethod::Scheduled) => {
+                Err(IntegrationError::CaptureMethodNotSupported {
+                    context: Default::default(),
+                }
+                .into())
+            }
+        }
+    }
+    pub fn get_redirect_response_payload(
+        &self,
+    ) -> Result<common_utils::pii::SecretSerdeValue, Error> {
+        self.redirect_response
+            .as_ref()
+            .and_then(|res| res.payload.to_owned())
+            .ok_or(
+                IntegrationError::MissingRequiredField {
+                    field_name: "request.redirect_response.payload",
+                    context: Default::default(),
+                }
+                .into(),
+            )
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -1596,13 +1671,13 @@ pub struct ContinueRedirectionResponse {
 }
 
 #[derive(Debug, Clone)]
-pub struct SessionTokenRequestData {
+pub struct ServerSessionAuthenticationTokenRequestData {
     pub amount: MinorUnit,
     pub currency: Currency,
     pub browser_info: Option<BrowserInformation>,
 }
 
-impl SessionTokenRequestData {
+impl ServerSessionAuthenticationTokenRequestData {
     pub fn get_browser_info(&self) -> Result<BrowserInformation, Error> {
         self.browser_info
             .clone()
@@ -1611,17 +1686,17 @@ impl SessionTokenRequestData {
 }
 
 #[derive(Debug, Clone)]
-pub struct SessionTokenResponseData {
+pub struct ServerSessionAuthenticationTokenResponseData {
     pub session_token: String,
 }
 
 #[derive(Debug, Clone)]
-pub struct AccessTokenRequestData {
+pub struct ServerAuthenticationTokenRequestData {
     pub grant_type: String,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct AccessTokenResponseData {
+pub struct ServerAuthenticationTokenResponseData {
     pub access_token: Secret<String>,
     pub token_type: Option<String>,
     pub expires_in: Option<i64>,
@@ -1696,7 +1771,7 @@ pub struct RefundFlowData {
     pub raw_connector_response: Option<Secret<String>>,
     pub connector_response_headers: Option<http::HeaderMap>,
     pub raw_connector_request: Option<Secret<String>>,
-    pub access_token: Option<AccessTokenResponseData>,
+    pub access_token: Option<ServerAuthenticationTokenResponseData>,
     pub connector_feature_data: Option<SecretSerdeValue>,
     pub test_mode: Option<bool>,
     pub payment_method: Option<PaymentMethod>,
@@ -1738,13 +1813,16 @@ impl RefundFlowData {
             .ok_or_else(missing_field_err("access_token"))
     }
 
-    pub fn get_access_token_data(&self) -> Result<AccessTokenResponseData, Error> {
+    pub fn get_access_token_data(&self) -> Result<ServerAuthenticationTokenResponseData, Error> {
         self.access_token
             .clone()
             .ok_or_else(missing_field_err("access_token"))
     }
 
-    pub fn set_access_token(mut self, access_token: Option<AccessTokenResponseData>) -> Self {
+    pub fn set_access_token(
+        mut self,
+        access_token: Option<ServerAuthenticationTokenResponseData>,
+    ) -> Self {
         self.access_token = access_token;
         self
     }
@@ -1779,6 +1857,7 @@ pub struct WebhookDetailsResponse {
     // minor amount for amount framework
     pub minor_amount_captured: Option<MinorUnit>,
     pub network_txn_id: Option<String>,
+    pub payment_method_update: Option<PaymentMethodUpdate>,
 }
 
 #[derive(Debug, Clone)]
@@ -2007,7 +2086,7 @@ impl EventType {
 }
 
 impl ForeignTryFrom<grpc_api_types::payments::WebhookEventType> for EventType {
-    type Error = ApplicationErrorResponse;
+    type Error = WebhookError;
 
     fn foreign_try_from(
         value: grpc_api_types::payments::WebhookEventType,
@@ -2120,7 +2199,7 @@ impl ForeignTryFrom<grpc_api_types::payments::WebhookEventType> for EventType {
 }
 
 impl ForeignTryFrom<EventType> for grpc_api_types::payments::WebhookEventType {
-    type Error = ApplicationErrorResponse;
+    type Error = IntegrationError;
 
     fn foreign_try_from(value: EventType) -> Result<Self, error_stack::Report<Self::Error>> {
         match value {
@@ -2180,7 +2259,7 @@ impl ForeignTryFrom<EventType> for grpc_api_types::payments::WebhookEventType {
 }
 
 impl ForeignTryFrom<grpc_api_types::payments::HttpMethod> for HttpMethod {
-    type Error = ApplicationErrorResponse;
+    type Error = IntegrationError;
 
     fn foreign_try_from(
         value: grpc_api_types::payments::HttpMethod,
@@ -2196,7 +2275,7 @@ impl ForeignTryFrom<grpc_api_types::payments::HttpMethod> for HttpMethod {
 }
 
 impl ForeignTryFrom<grpc_api_types::payments::RequestDetails> for RequestDetails {
-    type Error = ApplicationErrorResponse;
+    type Error = IntegrationError;
 
     fn foreign_try_from(
         value: grpc_api_types::payments::RequestDetails,
@@ -2227,7 +2306,7 @@ impl ForeignTryFrom<grpc_api_types::payments::RequestDetails> for RequestDetails
 }
 
 impl ForeignTryFrom<grpc_api_types::payments::WebhookSecrets> for ConnectorWebhookSecrets {
-    type Error = ApplicationErrorResponse;
+    type Error = IntegrationError;
 
     fn foreign_try_from(
         value: grpc_api_types::payments::WebhookSecrets,
@@ -2242,7 +2321,7 @@ impl ForeignTryFrom<grpc_api_types::payments::WebhookSecrets> for ConnectorWebho
 impl ForeignTryFrom<grpc_api_types::payments::RedirectResponseSecrets>
     for ConnectorRedirectResponseSecrets
 {
-    type Error = ApplicationErrorResponse;
+    type Error = IntegrationError;
 
     fn foreign_try_from(
         value: grpc_api_types::payments::RedirectResponseSecrets,
@@ -2284,7 +2363,9 @@ impl RefundsData {
         self.connector_refund_id
             .clone()
             .get_required_value("connector_refund_id")
-            .change_context(ConnectorError::MissingConnectorTransactionID)
+            .change_context(IntegrationError::MissingConnectorTransactionID {
+                context: Default::default(),
+            })
     }
     pub fn get_webhook_url(&self) -> Result<String, Error> {
         self.webhook_url
@@ -2340,14 +2421,16 @@ impl PaymentsCaptureData {
     pub fn is_multiple_capture(&self) -> bool {
         self.multiple_capture_data.is_some()
     }
-    pub fn get_connector_transaction_id(&self) -> CustomResult<String, ConnectorError> {
+    pub fn get_connector_transaction_id(&self) -> CustomResult<String, IntegrationError> {
         match self.connector_transaction_id.clone() {
             ResponseId::ConnectorTransactionId(txn_id) => Ok(txn_id),
             _ => Err(errors::ValidationError::IncorrectValueProvided {
                 field_name: "connector_transaction_id",
             })
             .attach_printable("Expected connector transaction ID not found")
-            .change_context(ConnectorError::MissingConnectorTransactionID)?,
+            .change_context(IntegrationError::MissingConnectorTransactionID {
+                context: Default::default(),
+            })?,
         }
     }
     pub fn get_optional_language_from_browser_info(&self) -> Option<String> {
@@ -2487,14 +2570,21 @@ impl<T: PaymentMethodDataTypes> RepeatPaymentData<T> {
     pub fn get_mandate_reference(&self) -> &MandateReferenceId {
         &self.mandate_reference
     }
-    pub fn is_auto_capture(&self) -> Result<bool, Error> {
-        match self.capture_method {
-            Some(common_enums::CaptureMethod::Automatic)
-            | None
-            | Some(common_enums::CaptureMethod::SequentialAutomatic) => Ok(true),
-            Some(common_enums::CaptureMethod::Manual) => Ok(false),
-            Some(_) => Err(ConnectorError::CaptureMethodNotSupported.into()),
-        }
+    /// Returns true if payment should be automatically captured, false for manual capture.
+    ///
+    /// Maps capture methods to boolean intent:
+    /// - Automatic/SequentialAutomatic/None → true (auto capture)
+    /// - Manual/ManualMultiple/Scheduled → false (manual capture)
+    ///
+    /// Note: This is a pure getter, not a validation. Connectors that don't support
+    /// specific capture methods should validate explicitly during request building.
+    pub fn is_auto_capture(&self) -> bool {
+        !matches!(
+            self.capture_method,
+            Some(common_enums::CaptureMethod::Manual)
+                | Some(common_enums::CaptureMethod::ManualMultiple)
+                | Some(common_enums::CaptureMethod::Scheduled)
+        )
     }
     pub fn get_optional_language_from_browser_info(&self) -> Option<String> {
         self.browser_info
@@ -2728,16 +2818,18 @@ pub trait ConnectorSpecifications {
 #[macro_export]
 macro_rules! capture_method_not_supported {
     ($connector:expr, $capture_method:expr) => {
-        Err(errors::ConnectorError::NotSupported {
+        Err(errors::IntegrationError::NotSupported {
             message: format!("{} for selected payment method", $capture_method),
             connector: $connector,
+            context: Default::default(),
         }
         .into())
     };
     ($connector:expr, $capture_method:expr, $payment_method_type:expr) => {
-        Err(errors::ConnectorError::NotSupported {
+        Err(errors::IntegrationError::NotSupported {
             message: format!("{} for {}", $capture_method, $payment_method_type),
             connector: $connector,
+            context: Default::default(),
         }
         .into())
     };
@@ -2746,12 +2838,13 @@ macro_rules! capture_method_not_supported {
 #[macro_export]
 macro_rules! payment_method_not_supported {
     ($connector:expr, $payment_method:expr, $payment_method_type:expr) => {
-        Err(errors::ConnectorError::NotSupported {
+        Err(errors::IntegrationError::NotSupported {
             message: format!(
                 "Payment method {} with type {} is not supported",
                 $payment_method, $payment_method_type
             ),
             connector: $connector,
+            context: Default::default(),
         }
         .into())
     };
@@ -2806,6 +2899,12 @@ impl<T: PaymentMethodDataTypes> From<PaymentMethodData<T>> for PaymentMethodData
                 payment_method_data::WalletData::MbWay(_) => Self::MbWay,
                 payment_method_data::WalletData::Satispay(_) => Self::Satispay,
                 payment_method_data::WalletData::Wero(_) => Self::Wero,
+                payment_method_data::WalletData::LazyPayRedirect(_) => Self::LazyPayRedirect,
+                payment_method_data::WalletData::PhonePeRedirect(_) => Self::PhonePeRedirect,
+                payment_method_data::WalletData::BillDeskRedirect(_) => Self::BillDeskRedirect,
+                payment_method_data::WalletData::CashfreeRedirect(_) => Self::CashfreeRedirect,
+                payment_method_data::WalletData::PayURedirect(_) => Self::PayURedirect,
+                payment_method_data::WalletData::EaseBuzzRedirect(_) => Self::EaseBuzzRedirect,
             },
             PaymentMethodData::PayLater(pay_later_data) => match pay_later_data {
                 payment_method_data::PayLaterData::KlarnaRedirect { .. } => Self::KlarnaRedirect,
@@ -2856,6 +2955,7 @@ impl<T: PaymentMethodDataTypes> From<PaymentMethodData<T>> for PaymentMethodData
                 }
                 payment_method_data::BankRedirectData::Eft { .. } => Self::Eft,
                 payment_method_data::BankRedirectData::OpenBanking {} => Self::OpenBanking,
+                payment_method_data::BankRedirectData::Netbanking { .. } => Self::Netbanking,
             },
             PaymentMethodData::BankDebit(bank_debit_data) => match bank_debit_data {
                 payment_method_data::BankDebitData::AchBankDebit { .. } => Self::AchBankDebit,
@@ -2950,7 +3050,7 @@ impl<T: PaymentMethodDataTypes> From<PaymentMethodData<T>> for PaymentMethodData
                 payment_method_data::GiftCardData::Givex(_) => Self::Givex,
                 payment_method_data::GiftCardData::PaySafeCard {} => Self::PaySafeCar,
             },
-            PaymentMethodData::CardToken(_) => Self::CardToken,
+            PaymentMethodData::PaymentMethodToken(_) => Self::PaymentMethodToken,
             PaymentMethodData::OpenBanking(data) => match data {
                 payment_method_data::OpenBankingData::OpenBankingPIS {} => Self::OpenBanking,
             },
@@ -2958,6 +3058,9 @@ impl<T: PaymentMethodDataTypes> From<PaymentMethodData<T>> for PaymentMethodData
                 Self::CardDetailsForNetworkTransactionId
             }
             PaymentMethodData::NetworkToken(_) => Self::NetworkToken,
+            PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_) => {
+                Self::NetworkToken
+            }
             PaymentMethodData::MobilePayment(mobile_payment_data) => match mobile_payment_data {
                 payment_method_data::MobilePaymentData::DirectCarrierBilling { .. } => {
                     Self::DirectCarrierBilling
@@ -3320,20 +3423,273 @@ pub struct SecretInfoToInitiateSdk {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "wallet_name")]
+#[serde(tag = "sdk_type")]
 #[serde(rename_all = "snake_case")]
-pub enum SessionToken {
+pub enum ClientAuthenticationTokenData {
     /// The session response structure for Google Pay
-    GooglePay(Box<GpaySessionTokenResponse>),
+    GooglePay(Box<GpayClientAuthenticationResponse>),
     /// The session response structure for PayPal
-    Paypal(Box<PaypalSessionTokenResponse>),
+    Paypal(Box<PaypalClientAuthenticationResponse>),
     /// The session response structure for Apple Pay
-    ApplePay(Box<ApplepaySessionTokenResponse>),
+    ApplePay(Box<ApplepayClientAuthenticationResponse>),
+    /// Generic connector-specific SDK initialization data
+    ConnectorSpecific(Box<ConnectorSpecificClientAuthenticationResponse>),
+}
+
+/// Per-connector SDK initialization data — discriminated by connector
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "connector")]
+#[serde(rename_all = "snake_case")]
+pub enum ConnectorSpecificClientAuthenticationResponse {
+    /// Stripe SDK initialization data
+    Stripe(StripeClientAuthenticationResponse),
+    /// Adyen SDK initialization data — session_id + session_data for Adyen Drop-in/Components
+    Adyen(AdyenClientAuthenticationResponse),
+    /// Checkout.com SDK initialization data — payment_session_token + payment_session_secret for Frames/Flow
+    Checkout(CheckoutClientAuthenticationResponse),
+    /// Cybersource SDK initialization data — capture_context JWT for Flex Microform SDK
+    Cybersource(CybersourceClientAuthenticationResponse),
+    /// Nuvei SDK initialization data — session_token for client-side SDK operations
+    Nuvei(NuveiClientAuthenticationResponse),
+    /// Mollie SDK initialization data — checkout_url for client-side redirect/components
+    Mollie(MollieClientAuthenticationResponse),
+    /// Globalpay SDK initialization data — access_token for client-side SDK operations
+    Globalpay(GlobalpayClientAuthenticationResponse),
+    /// Bluesnap SDK initialization data — pfToken for Hosted Payment Fields initialization
+    Bluesnap(BluesnapClientAuthenticationResponse),
+    /// Rapyd SDK initialization data — checkout_id and redirect_url for client-side checkout
+    Rapyd(RapydClientAuthenticationResponse),
+    /// Shift4 SDK initialization data — client_secret for client-side SDK
+    Shift4(Shift4ClientAuthenticationResponse),
+    /// Bank of America SDK initialization data — capture_context JWT for Flex Microform
+    BankOfAmerica(BankOfAmericaClientAuthenticationResponse),
+    /// Wellsfargo SDK initialization data — capture_context JWT for Flex Microform
+    Wellsfargo(WellsfargoClientAuthenticationResponse),
+    /// Fiserv SDK initialization data — session_id for client-side SDK
+    Fiserv(FiservClientAuthenticationResponse),
+    /// Elavon SDK initialization data — session_token for Converge Hosted Payments Lightbox
+    Elavon(ElavonClientAuthenticationResponse),
+    /// Noon SDK initialization data — order_id + checkout_url
+    Noon(NoonClientAuthenticationResponse),
+    /// Paysafe SDK initialization data — payment_handle_token for client-side SDK
+    Paysafe(PaysafeClientAuthenticationResponse),
+    /// Bamboraapac SDK initialization data — token for client-side SDK
+    Bamboraapac(BamboraapacClientAuthenticationResponse),
+    /// Jpmorgan SDK initialization data — transaction_id + request_id
+    Jpmorgan(JpmorganClientAuthenticationResponse),
+    /// Billwerk SDK initialization data — session_id for checkout session
+    Billwerk(BillwerkClientAuthenticationResponse),
+    /// Datatrans SDK initialization data — transaction_id for Secure Fields initialization
+    Datatrans(DatatransClientAuthenticationResponse),
+    /// Bambora SDK initialization data — token for Custom Checkout initialization
+    Bambora(BamboraClientAuthenticationResponse),
+    /// Payload SDK initialization data — client_token for Payload.js Checkout/Secure Input SDK
+    Payload(PayloadClientAuthenticationResponse),
+    /// Multisafepay SDK initialization data — api_token for Payment Components initialization
+    Multisafepay(MultisafepayClientAuthenticationResponse),
+    /// Nexinets SDK initialization data — order_id for client-side hosted payment page initialization
+    Nexinets(NexinetsClientAuthenticationResponse),
+    /// Nexixpay SDK initialization data — security_token and hosted_page URL for HPP initialization
+    Nexixpay(NexixpayClientAuthenticationResponse),
+}
+
+/// Stripe's client_secret for browser-side stripe.confirmPayment()
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StripeClientAuthenticationResponse {
+    pub client_secret: Secret<String>,
+}
+
+/// Adyen's session_id and session_data for browser-side Adyen Drop-in/Components
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AdyenClientAuthenticationResponse {
+    /// The unique identifier of the session
+    pub session_id: String,
+    /// The session data required to initialize the Adyen SDK
+    pub session_data: Secret<String>,
+}
+
+/// Checkout.com's payment_session_token and payment_session_secret for Frames/Flow SDK
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CheckoutClientAuthenticationResponse {
+    /// The payment session identifier
+    pub payment_session_id: String,
+    /// The base64-encoded token for client-side SDK initialization
+    pub payment_session_token: Secret<String>,
+    /// The secret for secure client-side operations
+    pub payment_session_secret: Secret<String>,
+}
+
+/// Cybersource's capture_context JWT for Flex Microform SDK initialization
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CybersourceClientAuthenticationResponse {
+    /// The capture context JWT token for client-side Flex Microform SDK
+    pub capture_context: Secret<String>,
+}
+
+/// Nuvei's session_token for client-side SDK operations
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NuveiClientAuthenticationResponse {
+    /// The session token for Nuvei client-side SDK
+    pub session_token: Secret<String>,
+}
+
+/// Mollie's checkout_url for client-side redirect or Mollie Components initialization
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MollieClientAuthenticationResponse {
+    /// The payment ID created on Mollie's side
+    pub payment_id: String,
+    /// The checkout URL for client-side redirect to complete payment
+    pub checkout_url: Secret<String>,
+}
+
+/// Globalpay's access_token for client-side SDK initialization
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GlobalpayClientAuthenticationResponse {
+    /// The OAuth access token for client-side operations
+    pub access_token: Secret<String>,
+    /// The token type (e.g., "Bearer")
+    pub token_type: Option<String>,
+    /// The number of seconds until the token expires
+    pub expires_in: Option<i64>,
+}
+
+/// Bluesnap's pfToken for client-side Hosted Payment Fields initialization
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BluesnapClientAuthenticationResponse {
+    /// The Hosted Payment Fields token for client-side SDK initialization
+    pub pf_token: Secret<String>,
+}
+
+/// Rapyd's checkout_id and redirect_url for client-side checkout page initialization
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RapydClientAuthenticationResponse {
+    /// The checkout page identifier
+    pub checkout_id: String,
+    /// The redirect URL for the client-side checkout experience
+    pub redirect_url: String,
+}
+
+/// Shift4's client_secret for client-side SDK initialization
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Shift4ClientAuthenticationResponse {
+    /// The client secret for Shift4 SDK
+    pub client_secret: Secret<String>,
+}
+
+/// Bank of America's capture_context JWT for Flex Microform SDK
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BankOfAmericaClientAuthenticationResponse {
+    /// The capture context JWT token
+    pub capture_context: Secret<String>,
+}
+
+/// Wellsfargo's capture_context JWT for Flex Microform SDK
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WellsfargoClientAuthenticationResponse {
+    /// The capture context JWT token
+    pub capture_context: Secret<String>,
+}
+
+/// Fiserv's session_id for client-side SDK
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FiservClientAuthenticationResponse {
+    /// The session ID for Fiserv client-side SDK
+    pub session_id: Secret<String>,
+}
+
+/// Elavon's session_token for Converge Hosted Payments Lightbox initialization
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ElavonClientAuthenticationResponse {
+    /// The transaction auth token for Converge Lightbox
+    pub session_token: Secret<String>,
+}
+
+/// Noon's order_id and checkout_url for client-side checkout
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NoonClientAuthenticationResponse {
+    /// The Noon order identifier
+    pub order_id: u64,
+    /// The checkout URL for client-side redirect
+    pub checkout_url: Secret<String>,
+}
+
+/// Paysafe's payment_handle_token for client-side SDK
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaysafeClientAuthenticationResponse {
+    /// The payment handle token for Paysafe client-side SDK
+    pub payment_handle_token: Secret<String>,
+}
+
+/// Bamboraapac's token for client-side SDK
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BamboraapacClientAuthenticationResponse {
+    /// The tokenization token for client-side SDK
+    pub token: Secret<String>,
+}
+
+/// Jpmorgan's transaction_id and request_id for client-side SDK initialization
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct JpmorganClientAuthenticationResponse {
+    /// The transaction identifier
+    pub transaction_id: String,
+    /// The request identifier
+    pub request_id: String,
+}
+
+/// Billwerk's session_id for checkout session initialization
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BillwerkClientAuthenticationResponse {
+    /// The checkout session identifier
+    pub session_id: String,
+}
+
+/// Datatrans's transaction_id for client-side Secure Fields initialization
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DatatransClientAuthenticationResponse {
+    /// The transaction ID returned from Secure Fields init, used as a client auth token
+    pub transaction_id: Secret<String>,
+}
+
+/// Bambora's token for client-side Custom Checkout SDK initialization
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BamboraClientAuthenticationResponse {
+    /// The tokenization token returned from Bambora's tokenization API
+    pub token: Secret<String>,
+}
+
+/// Payload's client_token for Payload.js Checkout/Secure Input SDK initialization
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PayloadClientAuthenticationResponse {
+    /// The client token ID returned from POST /access_tokens for client-side SDK initialization
+    pub client_token: Secret<String>,
+}
+
+/// Multisafepay's api_token for client-side Payment Components initialization
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MultisafepayClientAuthenticationResponse {
+    /// The API token for encrypting sensitive payment details (valid for 600 seconds)
+    pub api_token: Secret<String>,
+}
+
+/// Nexinets' order_id for client-side hosted payment page initialization
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NexinetsClientAuthenticationResponse {
+    /// The order ID that serves as the client authentication token for hosted checkout
+    pub order_id: String,
+}
+
+/// Nexixpay's security_token and hosted_page URL for HPP (Hosted Payment Page) initialization
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NexixpayClientAuthenticationResponse {
+    /// The security token for authenticating client-side hosted payment page requests
+    pub security_token: Secret<String>,
+    /// The hosted payment page URL for client-side redirect
+    pub hosted_page: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum GpaySessionTokenResponse {
+pub enum GpayClientAuthenticationResponse {
     /// Google pay session response for non third party sdk
     GooglePaySession(GooglePaySessionResponse),
 }
@@ -3472,11 +3828,11 @@ pub struct GpaySessionTokenData {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
-pub struct ApplepaySessionTokenResponse {
+pub struct ApplepayClientAuthenticationResponse {
     /// Session object for Apple Pay
-    /// The session_token_data will be null for iOS devices because the Apple Pay session call is skipped, as there is no web domain involved
+    /// The session_response will be null for iOS devices because the Apple Pay session call is skipped, as there is no web domain involved
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub session_token_data: Option<ApplePaySessionResponse>,
+    pub session_response: Option<ApplePaySessionResponse>,
     /// Payment request object for Apple Pay
     pub payment_request_data: Option<ApplePayPaymentRequest>,
     /// The session token is w.r.t this connector
@@ -3600,7 +3956,7 @@ pub struct AmountInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
-pub struct PaypalSessionTokenResponse {
+pub struct PaypalClientAuthenticationResponse {
     /// Name of the connector
     pub connector: String,
     /// The session token for PayPal
@@ -3635,7 +3991,7 @@ pub struct PaypalSdkMetaData {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PaypalSdkSessionTokenData {
+pub struct PaypalClientAuthenticationTokenData {
     #[serde(rename = "paypal_sdk")]
     pub data: PaypalSdkMetaData,
 }
@@ -3657,7 +4013,7 @@ pub struct BillingDescriptor {
     pub reference: Option<String>,
 }
 impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config> for ConnectorEnum {
-    type Error = ApplicationErrorResponse;
+    type Error = IntegrationError;
     fn foreign_try_from(
         auth_type: grpc_api_types::payments::connector_specific_config::Config,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
@@ -3728,49 +4084,44 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Hyperpg(_) => Ok(Self::Hyperpg),
             AuthType::Peachpayments(_) => Ok(Self::Peachpayments),
             AuthType::Zift(_) => Ok(Self::Zift),
+            AuthType::Trustly(_) => Ok(Self::Trustly),
+            AuthType::Truelayer(_) => Ok(Self::Truelayer),
+            AuthType::Fiservcommercehub(_) => Ok(Self::Fiservcommercehub),
+            AuthType::Itaubank(_) => Ok(Self::Itaubank),
             AuthType::Screenstream(_) => Err(error_stack::Report::new(
-                ApplicationErrorResponse::BadRequest(ApiError {
-                    sub_code: "UNSUPPORTED_CONNECTOR".to_string(),
-                    error_identifier: 400,
-                    error_message: "Connector is not supported".to_string(),
-                    error_object: None,
-                }),
+                IntegrationError::InvalidDataFormat {
+                    field_name: "connector",
+                    context: IntegrationErrorContext::default(),
+                },
             )),
             AuthType::Ebanx(_) => Err(error_stack::Report::new(
-                ApplicationErrorResponse::BadRequest(ApiError {
-                    sub_code: "UNSUPPORTED_CONNECTOR".to_string(),
-                    error_identifier: 400,
-                    error_message: "Connector is not supported".to_string(),
-                    error_object: None,
-                }),
+                IntegrationError::InvalidDataFormat {
+                    field_name: "connector",
+                    context: IntegrationErrorContext::default(),
+                },
             )),
             AuthType::Fiuu(_) => Ok(Self::Fiuu),
             AuthType::Globepay(_) => Err(error_stack::Report::new(
-                ApplicationErrorResponse::BadRequest(ApiError {
-                    sub_code: "UNSUPPORTED_CONNECTOR".to_string(),
-                    error_identifier: 400,
-                    error_message: "Connector is not supported".to_string(),
-                    error_object: None,
-                }),
+                IntegrationError::InvalidDataFormat {
+                    field_name: "connector",
+                    context: IntegrationErrorContext::default(),
+                },
             )),
             AuthType::Coinbase(_) => Err(error_stack::Report::new(
-                ApplicationErrorResponse::BadRequest(ApiError {
-                    sub_code: "UNSUPPORTED_CONNECTOR".to_string(),
-                    error_identifier: 400,
-                    error_message: "Connector is not supported".to_string(),
-                    error_object: None,
-                }),
+                IntegrationError::InvalidDataFormat {
+                    field_name: "connector",
+                    context: IntegrationErrorContext::default(),
+                },
             )),
             AuthType::Coingate(_) => Err(error_stack::Report::new(
-                ApplicationErrorResponse::BadRequest(ApiError {
-                    sub_code: "UNSUPPORTED_CONNECTOR".to_string(),
-                    error_identifier: 400,
-                    error_message: "Connector is not supported".to_string(),
-                    error_object: None,
-                }),
+                IntegrationError::InvalidDataFormat {
+                    field_name: "connector",
+                    context: IntegrationErrorContext::default(),
+                },
             )),
             AuthType::Revolv3(_) => Ok(Self::Revolv3),
             AuthType::Authorizedotnet(_) => Ok(Self::Authorizedotnet),
+            AuthType::Ppro(_) => Ok(Self::Ppro),
         }
     }
 }

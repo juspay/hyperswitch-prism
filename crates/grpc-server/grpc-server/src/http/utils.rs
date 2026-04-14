@@ -6,7 +6,6 @@ use axum::{
 };
 use serde::de::DeserializeOwned;
 use std::sync::Arc;
-use tonic::metadata::MetadataMap;
 
 use super::error::HttpError;
 use ucs_env::configs::Config;
@@ -15,7 +14,7 @@ use ucs_env::configs::Config;
 /// Delegates to the shared `headers_to_metadata` implementation.
 pub fn http_headers_to_grpc_metadata(
     http_headers: &HeaderMap,
-) -> Result<MetadataMap, Box<tonic::Status>> {
+) -> Result<tonic::metadata::MetadataMap, Box<tonic::Status>> {
     ucs_interface_common::headers::headers_to_metadata(http_headers)
         .map_err(|e| Box::new(tonic::Status::from(e)))
 }

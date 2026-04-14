@@ -1,0 +1,1 @@
+../../../_shared/references/flow-patterns/capture.md

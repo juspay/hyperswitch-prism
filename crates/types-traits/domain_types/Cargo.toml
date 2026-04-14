@@ -7,7 +7,7 @@ edition = "2021"
 grpc-api-types = { path = "../grpc-api-types" }
 common_enums = { path = "../../common/common_enums", package = "ucs_common_enums" }
 cards = { path = "../cards", package = "ucs_cards" }
-common_utils = { path = "../../common/common_utils", package = "ucs_common_utils" }
+common_utils = { path = "../../common/common_utils", package = "ucs_common_utils", features = ["superposition"] }
 config_patch_derive = { path = "../../common/config_patch_derive" }
 
 hyperswitch_masking = { version = "0.0.1", default-features = false, features = ["alloc", "serde", "time"] }

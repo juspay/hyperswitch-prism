@@ -15,21 +15,22 @@ use self::response::{
 use common_utils::{errors::CustomResult, events, ext_traits::BytesExt};
 use domain_types::{
     connector_flow::{
-        Accept, Authorize, Capture, CreateOrder, CreateSessionToken, DefendDispute,
+        Accept, Authorize, Capture, ClientAuthenticationToken, CreateOrder, DefendDispute,
         IncrementalAuthorization, MandateRevoke, PSync, PostAuthenticate, PreAuthenticate, RSync,
-        Refund, RepeatPayment, SdkSessionToken, SetupMandate, SubmitEvidence, Void, VoidPC,
+        Refund, RepeatPayment, ServerSessionAuthenticationToken, SetupMandate, SubmitEvidence,
+        Void, VoidPC,
     },
     connector_types::{
-        AcceptDisputeData, DisputeDefendData, DisputeFlowData, DisputeResponseData,
-        MandateRevokeRequestData, MandateRevokeResponseData, PaymentCreateOrderData,
-        PaymentCreateOrderResponse, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
-        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
-        PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsResponseData,
-        PaymentsSdkSessionTokenData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, RepeatPaymentData, SessionTokenRequestData, SessionTokenResponseData,
+        AcceptDisputeData, ClientAuthenticationTokenRequestData, DisputeDefendData,
+        DisputeFlowData, DisputeResponseData, MandateRevokeRequestData, MandateRevokeResponseData,
+        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
+        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
+        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
         SetupMandateRequestData, SubmitEvidenceData,
     },
-    errors,
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -50,6 +51,8 @@ use crate::{types::ResponseRouterData, with_error_response_body};
 
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 
+use domain_types::errors::ConnectorError;
+use domain_types::errors::IntegrationError;
 use error_stack::ResultExt;
 
 // Trait implementations with generic type parameters
@@ -69,9 +72,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::SdkSessionTokenV2 for Worldpay<T>
+    connector_types::ClientAuthentication for Worldpay<T>
 {
 }
+
+macros::macro_connector_payout_implementation!(
+    connector: Worldpay,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize]
+);
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Worldpay<T>
 {
@@ -149,7 +159,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentSessionToken for Worldpay<T>
+    connector_types::ServerSessionAuthentication for Worldpay<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -169,7 +179,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentAccessToken for Worldpay<T>
+    connector_types::ServerAuthentication for Worldpay<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -246,7 +256,7 @@ macros::create_all_prerequisites!(
         pub fn build_headers<F, FCD, Req, Res>(
             &self,
             req: &RouterDataV2<F, FCD, Req, Res>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError>
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError>
         where
             Self: ConnectorIntegrationV2<F, FCD, Req, Res>,
         {
@@ -284,22 +294,24 @@ macros::create_all_prerequisites!(
         /// Used by PreAuthenticate and PostAuthenticate flows to avoid code duplication
         pub fn extract_link_data_from_metadata<F, Req, Res>(
             req: &RouterDataV2<F, PaymentFlowData, Req, Res>,
-        ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+        ) -> Result<String, error_stack::Report<IntegrationError>> {
             let metadata_obj = req
                 .resource_common_data
                 .connector_feature_data
                 .as_ref()
                 .and_then(|metadata| metadata.peek().as_object())
-                .ok_or(errors::ConnectorError::MissingRequiredField {
+                .ok_or(IntegrationError::MissingRequiredField {
                     field_name: "connector_feature_data",
+                context: Default::default()
                 })?;
 
             metadata_obj
                 .get("link_data")
                 .and_then(|value| value.as_str())
                 .map(|s| s.to_string())
-                .ok_or(errors::ConnectorError::MissingRequiredField {
+                .ok_or(IntegrationError::MissingRequiredField {
                     field_name: "connector_feature_data.link_data",
+                context: Default::default()
                 }.into())
         }
     }
@@ -327,9 +339,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     fn get_auth_header(
         &self,
         auth_type: &ConnectorSpecificConfig,
-    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
-        let auth = worldpay::WorldpayAuthType::try_from(auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+        let auth = worldpay::WorldpayAuthType::try_from(auth_type).change_context(
+            IntegrationError::FailedToObtainAuthType {
+                context: Default::default(),
+            },
+        )?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
             auth.api_key.into_masked(),
@@ -340,11 +355,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response = if !res.response.is_empty() {
             res.response
                 .parse_struct("WorldpayErrorResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
+                .change_context(
+                    crate::utils::response_deserialization_fail(
+                        res.status_code,
+                    "worldpay: response body did not match the expected format; confirm API version and connector documentation."),
+                )?
         } else {
             WorldpayErrorResponse::default(res.status_code)
         };
@@ -381,13 +400,13 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
         fn get_url(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}api/payments", self.connector_base_url_payments(req)))
         }
     }
@@ -408,18 +427,18 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
         fn get_url(
             &self,
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let connector_payment_id = req
                 .request
                 .connector_transaction_id
                 .get_connector_transaction_id()
-                .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+                .change_context(IntegrationError::MissingConnectorTransactionID { context: Default::default() })?;
             Ok(format!(
                 "{}api/payments/{}",
                 self.connector_base_url_payments(req),
@@ -445,15 +464,15 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
         fn get_url(
             &self,
             req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let connector_payment_id = req.request.connector_transaction_id.get_connector_transaction_id()
-                .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+                .change_context(IntegrationError::MissingConnectorTransactionID { context: Default::default() })?;
 
             // Always use /partialSettlements endpoint (same as Hyperswitch)
             Ok(format!(
@@ -480,13 +499,13 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
         fn get_url(
             &self,
             req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             Ok(format!(
                 "{}api/payments/{}/cancellations",
                 self.connector_base_url_payments(req),
@@ -512,13 +531,13 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
         fn get_url(
             &self,
             req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let connector_payment_id = req.request.connector_transaction_id.clone();
             Ok(format!(
                 "{}api/payments/{}/partialRefunds",
@@ -544,13 +563,13 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
         fn get_url(
             &self,
             req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             Ok(format!(
                 "{}api/payments/{}",
                 self.connector_base_url_refunds(req),
@@ -576,13 +595,13 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
         fn get_url(
             &self,
             req: &RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let link_data = Self::extract_link_data_from_metadata(req)?;
 
             Ok(format!(
@@ -610,13 +629,13 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<PostAuthenticate, PaymentFlowData, PaymentsPostAuthenticateData<T>, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
         fn get_url(
             &self,
             req: &RouterDataV2<PostAuthenticate, PaymentFlowData, PaymentsPostAuthenticateData<T>, PaymentsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let link_data = Self::extract_link_data_from_metadata(req)?;
 
             Ok(format!(
@@ -644,13 +663,13 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
         fn get_url(
             &self,
             req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}api/payments", self.connector_base_url_payments(req)))
         }
     }
@@ -709,10 +728,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
-        CreateSessionToken,
+        ServerSessionAuthenticationToken,
         PaymentFlowData,
-        SessionTokenRequestData,
-        SessionTokenResponseData,
+        ServerSessionAuthenticationTokenRequestData,
+        ServerSessionAuthenticationTokenResponseData,
     > for Worldpay<T>
 {
 }
@@ -729,10 +748,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
-        domain_types::connector_flow::CreateAccessToken,
+        domain_types::connector_flow::ServerAuthenticationToken,
         PaymentFlowData,
-        domain_types::connector_types::AccessTokenRequestData,
-        domain_types::connector_types::AccessTokenResponseData,
+        domain_types::connector_types::ServerAuthenticationTokenRequestData,
+        domain_types::connector_types::ServerAuthenticationTokenResponseData,
     > for Worldpay<T>
 {
 }
@@ -759,9 +778,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
-        SdkSessionToken,
+        ClientAuthenticationToken,
         PaymentFlowData,
-        PaymentsSdkSessionTokenData,
+        ClientAuthenticationTokenRequestData,
         PaymentsResponseData,
     > for Worldpay<T>
 {

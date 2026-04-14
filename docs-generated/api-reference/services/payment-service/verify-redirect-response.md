@@ -5,7 +5,7 @@
 title: VerifyRedirectResponse
 description: Validate redirect-based payment responses - confirms authenticity of redirect-based payment completions to prevent fraud and tampering
 last_updated: 2026-03-11
-generated_from: backend/grpc-api-types/proto/services.proto
+generated_from: crates/types-traits/grpc-api-types/proto/services.proto
 auto_generated: true
 reviewed_by: ''
 reviewed_at: ''

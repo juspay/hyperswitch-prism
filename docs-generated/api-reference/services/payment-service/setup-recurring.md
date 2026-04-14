@@ -5,7 +5,7 @@
 title: SetupRecurring
 description: Setup a recurring payment instruction for future payments/debits - for SaaS subscriptions, monthly bill payments, insurance payments and similar use cases
 last_updated: 2026-03-11
-generated_from: backend/grpc-api-types/proto/services.proto
+generated_from: crates/types-traits/grpc-api-types/proto/services.proto
 auto_generated: true
 reviewed_by: ''
 reviewed_at: ''
