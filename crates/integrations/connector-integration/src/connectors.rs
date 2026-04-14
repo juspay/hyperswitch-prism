@@ -238,3 +238,6 @@ pub use self::trustly::Trustly;
 
 pub mod itaubank;
 pub use self::itaubank::Itaubank;
+
+pub mod easebuzz;
+pub use self::easebuzz::Easebuzz;

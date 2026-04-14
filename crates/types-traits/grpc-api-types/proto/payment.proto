@@ -741,6 +741,7 @@ enum Connector {
   PPRO = 113;
   FISERVCOMMERCEHUB = 114;
   TRUSTLY = 115;
+  EASEBUZZ = 116;
 }
 
 // Payment method types
@@ -4035,6 +4036,13 @@ message TrustlyConfig {
   optional string base_url = 50;
 }
 
+message EasebuzzConfig {
+  SecretString api_key = 1;
+  SecretString api_salt = 2;
+  optional string base_url = 50;
+  optional string secondary_base_url = 51;
+}
+
 message TruelayerConfig {
   SecretString client_id = 1;
   SecretString client_secret = 2;
@@ -4287,6 +4295,9 @@ message ConnectorSpecificConfig {
 
     // TRUSTLY = 116
     TrustlyConfig trustly = 115;
+
+    // EASEBUZZ = 116
+    EasebuzzConfig easebuzz = 116;
   }
 }
 

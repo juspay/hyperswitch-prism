@@ -268,6 +268,12 @@ pub enum ConnectorSpecificConfig {
         merchant_id: Secret<String>,
         base_url: Option<String>,
     },
+    Easebuzz {
+        api_key: Secret<String>,
+        api_salt: Secret<String>,
+        base_url: Option<String>,
+        secondary_base_url: Option<String>,
+    },
 
     // --- Two-field connectors ---
     Razorpay {
@@ -996,6 +1002,10 @@ impl ConnectorSpecificConfig {
                 api_key,
                 merchant_id
             },
+            Easebuzz {
+                api_key,
+                api_salt
+            },
             Fiservcommercehub {
                 api_key,
                 secret,
@@ -1058,6 +1068,9 @@ impl ConnectorSpecificConfig {
                 secondary_base_url, ..
             }
             | Self::Worldpayvantiv {
+                secondary_base_url, ..
+            }
+            | Self::Easebuzz {
                 secondary_base_url, ..
             } => {
                 if let Some(secondary_base_url) = secondary_base_url {
@@ -1383,6 +1396,10 @@ impl ConnectorSpecificConfig {
                 Ppro {
                     api_key,
                     merchant_id
+                },
+                Easebuzz {
+                    api_key,
+                    api_salt
                 },
                 Fiservcommercehub {
                     api_key,
@@ -1901,6 +1918,12 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 api_key: ppro.api_key.ok_or_else(err)?,
                 merchant_id: ppro.merchant_id.ok_or_else(err)?,
                 base_url: ppro.base_url,
+            }),
+            AuthType::Easebuzz(easebuzz) => Ok(Self::Easebuzz {
+                api_key: easebuzz.api_key.ok_or_else(err)?,
+                api_salt: easebuzz.api_salt.ok_or_else(err)?,
+                base_url: easebuzz.base_url,
+                secondary_base_url: easebuzz.secondary_base_url,
             }),
         }
     }
@@ -2871,6 +2894,17 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorEnum)>
                     merchant_id: key1.clone(),
                     base_url: None,
                 }),
+                _ => Err(err().into()),
+            },
+            ConnectorEnum::Easebuzz => match auth {
+                ConnectorAuthType::BodyKey { api_key, key1 } => {
+                    Ok(ConnectorSpecificConfig::Easebuzz {
+                        api_key: api_key.clone(),
+                        api_salt: key1.clone(),
+                        base_url: None,
+                        secondary_base_url: None,
+                    })
+                }
                 _ => Err(err().into()),
             },
             ConnectorEnum::Fiservcommercehub => match auth {

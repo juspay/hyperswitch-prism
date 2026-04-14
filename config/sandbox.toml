@@ -116,6 +116,8 @@ truelayer.base_url = "https://api.truelayer-sandbox.com"
 truelayer.secondary_base_url = "https://auth.truelayer-sandbox.com"
 itaubank.base_url = "https://sandbox.devportal.itau.com.br"
 trustly.base_url = "https://test.trustly.com/api/1"
+easebuzz.base_url = "https://testpay.easebuzz.in"
+easebuzz.secondary_base_url = "https://testdashboard.easebuzz.in"
 
 # Generic Events Configuration
 [events]
