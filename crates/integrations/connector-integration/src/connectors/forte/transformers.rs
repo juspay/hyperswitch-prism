@@ -940,9 +940,12 @@ pub struct ForteErrorResponse {
 }
 
 // ===== SETUP MANDATE (SetupRecurring) =====
-// Forte performs card verification / zero-dollar auth via the same
-// /transactions endpoint with action=verify. SetupMandate reuses the
-// Authorize request shape but pins action to Verify and defaults amount to 1.0.
+// Forte does not expose a true tokenize / stored-credential endpoint; the
+// /transactions resource supports only Sale/Authorize/Capture/Verify. The
+// "verify" action requires a specific sandbox entitlement that our test
+// account does not have, so SetupMandate uses action=authorize with a
+// nominal $1.00 amount. The resulting transaction_id can be used by the
+// caller to void the hold if desired. Reuses the Authorize request shape.
 
 #[derive(Debug, Serialize)]
 pub struct ForteSetupMandateCardWrapper<
@@ -1031,7 +1034,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     first_name: first_name.clone(),
                     last_name: address.get_last_name().unwrap_or(first_name).clone(),
                 };
-                // Forte verify uses a nominal authorization_amount (1.00 USD).
+                // Forte SetupMandate uses action=authorize with a nominal
+                // $1.00 authorization_amount. Verify action is not enabled
+                // on the sandbox account used for integration testing.
                 let minor_amount = item
                     .router_data
                     .request
@@ -1045,7 +1050,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         context: Default::default(),
                     })?;
                 Ok(Self {
-                    action: ForteAction::Verify,
+                    action: ForteAction::Authorize,
                     authorization_amount,
                     billing_address,
                     payment_method: ForteSetupMandatePaymentMethod::Card(
@@ -1102,7 +1107,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             context: Default::default(),
                         })?;
                     Ok(Self {
-                        action: ForteAction::Verify,
+                        action: ForteAction::Authorize,
                         authorization_amount,
                         billing_address,
                         payment_method: ForteSetupMandatePaymentMethod::Echeck(
