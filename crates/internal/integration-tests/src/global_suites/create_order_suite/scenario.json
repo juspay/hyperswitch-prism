@@ -6,6 +6,7 @@
         "minor_amount": 10000,
         "currency": "USD"
       },
+      "order_details": [],
       "webhook_url": "https://example.com/payment/webhook",
       "test_mode": true
     },
@@ -33,6 +34,7 @@
         "minor_amount": 15000,
         "currency": "USD"
       },
+      "order_details": [],
       "webhook_url": "https://example.com/payment/webhook",
       "metadata": {
         "value": "{\"custom_field\":\"test_value\",\"order_source\":\"mobile_app\"}"
@@ -62,6 +64,7 @@
         "minor_amount": 12000,
         "currency": "USD"
       },
+      "order_details": [],
       "webhook_url": "https://example.com/payment/webhook",
       "payment_method_type": "APPLE_PAY",
       "test_mode": true
@@ -92,6 +95,7 @@
         "minor_amount": 10000,
         "currency": "XXX"
       },
+      "order_details": [],
       "webhook_url": "https://example.com/payment/webhook",
       "test_mode": true
     },
@@ -115,6 +119,7 @@
         "minor_amount": 0,
         "currency": "USD"
       },
+      "order_details": [],
       "webhook_url": "https://example.com/payment/webhook",
       "test_mode": true
     },

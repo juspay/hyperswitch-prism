@@ -377,10 +377,10 @@ examples_python: examples/nmi/nmi.py
 ## Noon
 connector_id: noon
 doc: docs/connectors/noon.md
-scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
-payment_methods: Card, GooglePay, GooglePayDecrypted, PaypalRedirect
-flows: authorize, capture, get, handle_event, proxy_authorize, proxy_setup_recurring, recurring_charge, recurring_revoke, refund, refund_get, void
-examples_python: examples/noon/noon.py
+scenarios: none
+payment_methods: none
+flows: capture, get, handle_event, recurring_charge, recurring_revoke, refund, refund_get, void
+examples_python: none
 
 ## Novalnet
 connector_id: novalnet

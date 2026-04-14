@@ -2040,20 +2040,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
-// --- TryFrom: NuveiOpenOrderResponse -> PaymentCreateOrderResponse ---
-
-impl TryFrom<NuveiOpenOrderResponse> for PaymentCreateOrderResponse {
-    type Error = Report<ConnectorError>;
-
-    fn try_from(response: NuveiOpenOrderResponse) -> Result<Self, Self::Error> {
-        let connector_order_id = response.order_id.unwrap_or_default();
-        Ok(Self {
-            connector_order_id,
-            session_data: None,
-        })
-    }
-}
-
 // --- TryFrom: ResponseRouterData -> RouterDataV2 (CreateOrder response handler) ---
 
 impl TryFrom<ResponseRouterData<NuveiOpenOrderResponse, Self>>
@@ -2102,10 +2088,18 @@ impl TryFrom<ResponseRouterData<NuveiOpenOrderResponse, Self>>
             });
         }
 
-        let order_response = PaymentCreateOrderResponse::try_from(response.clone())?;
+        // Construct CreateOrder response with merchant_order_id from request
+        let connector_order_id = response.order_id.clone().unwrap_or_default();
+        let merchant_order_id = item.router_data.request.merchant_order_id.clone();
+
+        let order_response = PaymentCreateOrderResponse {
+            connector_order_id: connector_order_id.clone(),
+            merchant_order_id,
+            session_data: None,
+        };
 
         // Extract order_id to store for Authorize flow
-        let order_id = order_response.connector_order_id.clone();
+        let order_id = connector_order_id;
 
         // Store session_token in session_token field for use by Authorize flow
         let session_token = response.session_token.clone();

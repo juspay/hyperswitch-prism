@@ -354,7 +354,7 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse: { "sessionData": "ClientAuthenticationTokenData", "error": "ErrorInfo" },
   PaymentServiceCaptureRequest: { "amountToCapture": "Money", "multipleCaptureData": "MultipleCaptureRequestData", "browserInfo": "BrowserInformation", "state": "ConnectorState" },
   PaymentServiceCaptureResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry", "state": "ConnectorState", "mandateReference": "MandateReference" },
-  PaymentServiceCreateOrderRequest: { "amount": "Money", "state": "ConnectorState" },
+  PaymentServiceCreateOrderRequest: { "amount": "Money", "state": "ConnectorState", "orderDetails": "OrderDetailsWithAmount" },
   PaymentServiceCreateOrderResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry", "sessionData": "ClientAuthenticationTokenData" },
   PaymentServiceRefundRequest: { "refundAmount": "Money", "browserInfo": "BrowserInformation", "state": "ConnectorState" },
   RefundResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry", "refundAmount": "Money", "state": "ConnectorState" },

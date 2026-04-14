@@ -338,6 +338,11 @@ aliases = ["order_category", "order_category in metadata"]
 type = "string"
 value = "mobile"
 
+["order_detail.category"]
+aliases = ["order_detail.category"]
+type = "string"
+value = "mobile"
+
 [payment_method_token]
 aliases = [
   "or ensure connector_customer_id is set",

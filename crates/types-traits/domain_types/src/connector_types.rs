@@ -20,7 +20,7 @@ use time::PrimitiveDateTime;
 use crate::{
     errors::{IntegrationError, IntegrationErrorContext, WebhookError},
     mandates::{CustomerAcceptance, MandateData},
-    payment_address::{self, Address, AddressDetails, PhoneDetails},
+    payment_address::{self, Address, AddressDetails, OrderDetailsWithAmount, PhoneDetails},
     payment_method_data::{self, Card, PaymentMethodData, PaymentMethodDataTypes},
     router_data::{self, ConnectorResponseData},
     router_request_types::{
@@ -1466,6 +1466,8 @@ pub enum CaptureSyncResponse {
 pub struct PaymentCreateOrderData {
     pub amount: MinorUnit,
     pub currency: Currency,
+    pub merchant_order_id: Option<String>,
+    pub order_details: Option<Vec<OrderDetailsWithAmount>>,
     pub integrity_object: Option<CreateOrderIntegrityObject>,
     pub metadata: Option<SecretSerdeValue>,
     pub webhook_url: Option<String>,
@@ -1474,6 +1476,9 @@ pub struct PaymentCreateOrderData {
 
 #[derive(Debug, Clone)]
 pub struct PaymentCreateOrderResponse {
+    /// Merchant's order ID from the original request
+    pub merchant_order_id: Option<String>,
+    /// Connector-generated order ID  
     pub connector_order_id: String,
     /// Optional SDK session data for wallet flows (Apple Pay, Google Pay) and other SDK types
     pub session_data: Option<ClientAuthenticationTokenData>,

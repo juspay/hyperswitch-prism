@@ -929,6 +929,7 @@ impl TryFrom<PaypalOrderCreateResponse> for PaymentCreateOrderResponse {
     fn try_from(response: PaypalOrderCreateResponse) -> Result<Self, Self::Error> {
         Ok(Self {
             connector_order_id: response.id,
+            merchant_order_id: None, // PayPal doesn't return merchant_order_id in CreateOrder response, so we set it to None
             session_data: None,
         })
     }
@@ -953,14 +954,14 @@ impl TryFrom<ResponseRouterData<PaypalOrderCreateResponse, Self>>
         let order_response = PaymentCreateOrderResponse::try_from(response.clone())?;
 
         // Extract order_id before moving
-        let order_id = order_response.connector_order_id.clone();
+        let connector_order_id = order_response.connector_order_id.clone();
 
         Ok(Self {
             response: Ok(order_response),
             resource_common_data: PaymentFlowData {
                 status: common_enums::AttemptStatus::Pending,
                 // KEY: Store order ID so Authorize flow can use it via connector_order_id
-                connector_order_id: Some(order_id),
+                connector_order_id: Some(connector_order_id),
                 ..item.router_data.resource_common_data
             },
             ..item.router_data

@@ -2,15 +2,16 @@ use common_enums::enums::{self, AttemptStatus, CountryAlpha2};
 use common_utils::{ext_traits::Encode, pii, request::Method, types::StringMajorUnit};
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, MandateRevoke, Refund, RepeatPayment, SetupMandate, Void,
+        Authorize, Capture, CreateOrder, MandateRevoke, Refund, RepeatPayment, SetupMandate, Void,
     },
     connector_types::{
         MandateReference, MandateReferenceId, MandateRevokeRequestData, MandateRevokeResponseData,
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        RepeatPaymentData, ResponseId, SetupMandateRequestData,
+        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
+        SetupMandateRequestData,
     },
-    errors::{ConnectorError, IntegrationError},
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     mandates::MandateDataType,
     payment_method_data::{
         GooglePayWalletData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData,
@@ -74,13 +75,17 @@ pub struct NoonBilling {
 #[serde(rename_all = "camelCase")]
 pub struct NoonOrder {
     amount: StringMajorUnit,
+    #[serde(skip_serializing_if = "Option::is_none")]
     currency: Option<enums::Currency>,
     channel: NoonChannels,
+    #[serde(skip_serializing_if = "Option::is_none")]
     category: Option<String>,
     reference: String,
     //Short description of the order.
     name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     nvp: Option<NoonOrderNvp>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     ip_address: Option<Secret<String, pii::IpAddress>>,
 }
 
@@ -279,7 +284,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 data.router_data.request.currency,
             )
             .change_context(IntegrationError::RequestEncodingFailed {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    doc_url: Some("https://docs.noonpayments.com/payment-api/reference/initiate-payment".to_string()),
+                    suggested_action: Some("Ensure the payment amount is valid and within Noon's acceptable range for the specified currency".to_string()),
+                    additional_context: Some(format!(
+                        "Failed to convert amount {} {} to Noon format for authorize request",
+                        data.router_data.request.minor_amount, data.router_data.request.currency
+                    )),
+                },
             })?;
 
         let payment_data = match item.request.payment_method_data.clone() {
@@ -316,7 +328,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     let payment_token = payment_token_data
                         .encode_to_string_of_json()
                         .change_context(IntegrationError::RequestEncodingFailed {
-                            context: Default::default(),
+                            context: IntegrationErrorContext {
+                                doc_url: Some("https://docs.noonpayments.com/payment-method/apple-pay".to_string()),
+                                suggested_action: Some("Verify the Apple Pay payment token is properly formatted and contains all required fields".to_string()),
+                                additional_context: Some("Failed to encode Apple Pay payment token data to JSON string for authorize request".to_string()),
+                            },
                         })?;
 
                     Ok(NoonPaymentData::ApplePay(NoonApplePay {
@@ -394,7 +410,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let category = Some(item.request.order_category.clone().ok_or(
             IntegrationError::MissingRequiredField {
                 field_name: "order_category",
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    doc_url: Some("https://docs.noonpayments.com/payment-api/reference/initiate-payment".to_string()),
+                    suggested_action: Some("Provide the order_category field in the payment request to classify the type of goods or services".to_string()),
+                    additional_context: Some("order_category is required for Noon authorize payments to specify the nature of the transaction".to_string()),
+                },
             },
         )?);
 
@@ -476,7 +496,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             })
             .transpose()
             .change_context(IntegrationError::RequestEncodingFailed {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    doc_url: Some("https://docs.noonpayments.com/subscriptions".to_string()),
+                    suggested_action: Some("Verify the subscription details contain valid mandate name and max_amount fields".to_string()),
+                    additional_context: Some("Failed to process subscription/mandate details for authorize request".to_string()),
+                },
             })?;
 
         let tokenize_c_c = subscription.is_some().then_some(true);
@@ -518,7 +542,11 @@ impl TryFrom<&ConnectorSpecificConfig> for NoonAuthType {
                 business_identifier: business_identifier.to_owned(),
             }),
             _ => Err(IntegrationError::FailedToObtainAuthType {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    doc_url: Some("https://docs.noonpayments.com/payment-api/authentication".to_string()),
+                    suggested_action: Some("Provide valid Noon API credentials (api_key, application_identifier, business_identifier) in the connector configuration".to_string()),
+                    additional_context: Some("Failed to obtain Noon authentication credentials from connector configuration".to_string()),
+                },
             }
             .into()),
         }
@@ -719,12 +747,23 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .get_connector_transaction_id()
                 .change_context(IntegrationError::MissingRequiredField {
                     field_name: "connector_transaction_id",
-                    context: Default::default(),
+                    context: IntegrationErrorContext {
+                        doc_url: Some("https://docs.noonpayments.com/payment-api/reference/capture-payment".to_string()),
+                        suggested_action: Some("Ensure the payment has been authorized and a connector_transaction_id is available from Noon".to_string()),
+                        additional_context: Some("connector_transaction_id is required to identify the transaction for capture".to_string()),
+                    },
                 })?,
         };
         let transaction = NoonActionTransaction {
             amount: amount.change_context(IntegrationError::RequestEncodingFailed {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    doc_url: Some("https://docs.noonpayments.com/payment-api/reference/capture-payment".to_string()),
+                    suggested_action: Some("Ensure the capture amount is valid and within the authorized amount for the specified currency".to_string()),
+                    additional_context: Some(format!(
+                        "Failed to convert capture amount {} {} to Noon format",
+                        data.router_data.request.minor_amount_to_capture, data.router_data.request.currency
+                    )),
+                },
             })?,
             currency: item.request.currency,
             transaction_reference: None,
@@ -832,7 +871,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         };
         let transaction = NoonActionTransaction {
             amount: refund_amount.change_context(IntegrationError::RequestEncodingFailed {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    doc_url: Some("https://docs.noonpayments.com/payment-api/reference/refund-payment".to_string()),
+                    suggested_action: Some("Ensure the refund amount is valid and within the captured amount for the specified currency".to_string()),
+                    additional_context: Some(format!(
+                        "Failed to convert refund amount {} {} to Noon format",
+                        data.router_data.request.minor_refund_amount, data.router_data.request.currency
+                    )),
+                },
             })?,
             currency: item.request.currency,
             transaction_reference: Some(item.request.refund_id.clone()),
@@ -1159,7 +1205,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     } else {
                         return Err(IntegrationError::MissingRequiredField {
                             field_name: "connector_mandate_id",
-                            context: Default::default(),
+                            context: IntegrationErrorContext {
+                                doc_url: Some("https://docs.noonpayments.com/subscriptions".to_string()),
+                                suggested_action: Some("Ensure a valid connector_mandate_id is available from previous mandate setup".to_string()),
+                                additional_context: Some("connector_mandate_id is required to verify an existing mandate in setup mandate flow".to_string()),
+                            },
                         }
                         .into());
                     }
@@ -1167,7 +1217,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 _ => {
                     return Err(IntegrationError::MissingRequiredField {
                         field_name: "connector_mandate_id",
-                        context: Default::default(),
+                        context: IntegrationErrorContext {
+                            doc_url: Some("https://docs.noonpayments.com/subscriptions".to_string()),
+                            suggested_action: Some("Provide a connector_mandate_id in the mandate_reference_id field".to_string()),
+                            additional_context: Some("connector_mandate_id is required in setup mandate flow when mandate_reference_id is present".to_string()),
+                        },
                     }
                     .into());
                 }
@@ -1207,7 +1261,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             let payment_token = payment_token_data
                                 .encode_to_string_of_json()
                                 .change_context(IntegrationError::RequestEncodingFailed {
-                                    context: Default::default(),
+                                    context: IntegrationErrorContext {
+                                        doc_url: Some("https://docs.noonpayments.com/payment-method/apple-pay".to_string()),
+                                        suggested_action: Some("Verify the Apple Pay payment token is properly formatted for mandate setup".to_string()),
+                                        additional_context: Some("Failed to encode Apple Pay payment token data to JSON string for setup mandate request".to_string()),
+                                    },
                                 })?;
 
                             Ok(NoonPaymentData::ApplePay(NoonApplePay {
@@ -1293,7 +1351,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .map(|s| s.to_string())
                         .ok_or(IntegrationError::MissingRequiredField {
                             field_name: "order_category in metadata",
-                            context: Default::default(),
+                            context: IntegrationErrorContext {
+                                doc_url: Some("https://docs.noonpayments.com/subscriptions".to_string()),
+                                suggested_action: Some("Include order_category in the metadata field for setup mandate requests".to_string()),
+                                additional_context: Some("order_category must be provided in metadata for Noon setup mandate flow to classify the transaction type".to_string()),
+                            },
                         })?,
                 ),
             ),
@@ -1354,14 +1416,22 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             })
             .transpose()
             .change_context(IntegrationError::RequestEncodingFailed {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    doc_url: Some("https://docs.noonpayments.com/subscriptions".to_string()),
+                    suggested_action: Some("Verify the mandate details contain valid amount and currency for subscription setup".to_string()),
+                    additional_context: Some("Failed to process subscription/mandate details for setup mandate request".to_string()),
+                },
             })?;
 
         let tokenize_c_c = subscription.is_some().then_some(true);
 
         let order = NoonOrder {
             amount: amount.change_context(IntegrationError::RequestEncodingFailed {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    doc_url: Some("https://docs.noonpayments.com/subscriptions".to_string()),
+                    suggested_action: Some("Ensure a valid amount (even a minimal one like 1 unit) is provided for setup mandate".to_string()),
+                    additional_context: Some("Failed to convert amount to Noon format for setup mandate request".to_string()),
+                },
             })?,
             currency,
             channel,
@@ -1517,7 +1587,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    doc_url: Some("https://docs.noonpayments.com/subscriptions".to_string()),
+                    suggested_action: Some("Ensure the payment amount is valid and within acceptable limits for the specified currency".to_string()),
+                    additional_context: Some(format!(
+                        "Failed to convert amount {} {} to Noon format for repeat payment request",
+                        router_data.request.minor_amount, router_data.request.currency
+                    )),
+                },
             })?;
 
         // For repeat payments, use the subscription payment method with the mandate ID
@@ -1526,7 +1603,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 let connector_mandate_id = mandate_ids.get_connector_mandate_id().ok_or(
                     IntegrationError::MissingRequiredField {
                         field_name: "connector_mandate_id",
-                        context: Default::default(),
+                        context: IntegrationErrorContext {
+                            doc_url: Some("https://docs.noonpayments.com/subscriptions".to_string()),
+                            suggested_action: Some("Ensure the mandate has been set up and a valid connector_mandate_id is available".to_string()),
+                            additional_context: Some("connector_mandate_id is required for repeat payment to identify the saved payment method".to_string()),
+                        },
                     },
                 )?;
                 NoonPaymentData::Subscription(NoonSubscription {
@@ -1687,6 +1768,166 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 }
             },
             ..router_data
+        })
+    }
+}
+
+// CreateOrder types and implementations
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NoonCreateOrderRequest {
+    api_operation: NoonApiOperations,
+    order: NoonOrder,
+    configuration: NoonConfiguration,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct NoonCreateOrderResponse {
+    result: NoonCreateOrderResponseResult,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NoonCreateOrderResponseResult {
+    order: NoonCreateOrderOrderResponse,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NoonCreateOrderOrderResponse {
+    id: u64,
+    status: NoonPaymentStatus,
+    reference: Option<String>,
+}
+
+// TryFrom for CreateOrder Request
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        NoonRouterData<
+            RouterDataV2<
+                CreateOrder,
+                PaymentFlowData,
+                PaymentCreateOrderData,
+                PaymentCreateOrderResponse,
+            >,
+            T,
+        >,
+    > for NoonCreateOrderRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        data: NoonRouterData<
+            RouterDataV2<
+                CreateOrder,
+                PaymentFlowData,
+                PaymentCreateOrderData,
+                PaymentCreateOrderResponse,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let item = &data.router_data;
+
+        let amount = data
+            .connector
+            .amount_converter
+            .convert(item.request.amount, item.request.currency)
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: IntegrationErrorContext {
+                    doc_url: Some("https://docs.noonpayments.com/payment-api/reference/get-order".to_string()),
+                    suggested_action: Some("Ensure the payment amount is valid and within Noon's acceptable range for the specified currency".to_string()),
+                    additional_context: Some(format!(
+                        "Failed to convert amount {} {} to Noon format for create order request",
+                        item.request.amount, item.request.currency
+                    )),
+                },
+            })?;
+
+        let currency = Some(item.request.currency);
+
+        let channel = NoonChannels::Web;
+
+        let category = item
+            .request
+            .order_details
+            .as_ref()
+            .and_then(|details| details.first())
+            .and_then(|detail| detail.category.clone());
+
+        // The description should not have leading or trailing whitespaces, also it should not have double whitespaces and a max 50 chars according to Noon's Docs
+        let name: String = item
+            .resource_common_data
+            .get_description()?
+            .trim()
+            .replace("  ", " ")
+            .chars()
+            .take(50)
+            .collect();
+
+        let order = NoonOrder {
+            amount,
+            currency,
+            channel,
+            category,
+            reference: item.request.merchant_order_id.clone().unwrap_or_else(|| {
+                item.resource_common_data
+                    .connector_request_reference_id
+                    .clone()
+            }),
+            name,
+            nvp: item
+                .request
+                .metadata
+                .as_ref()
+                .map(|m| NoonOrderNvp::new(m.peek())),
+            ip_address: None,
+        };
+
+        // For orderCreate, use Authorize as the payment action (payment will be completed later)
+        let payment_action = NoonPaymentActions::Authorize;
+
+        Ok(Self {
+            api_operation: NoonApiOperations::Initiate,
+            order,
+            configuration: NoonConfiguration {
+                payment_action,
+                return_url: None,
+                tokenize_c_c: None,
+            },
+        })
+    }
+}
+
+// TryFrom for CreateOrder Response
+impl TryFrom<ResponseRouterData<NoonCreateOrderResponse, Self>>
+    for RouterDataV2<
+        CreateOrder,
+        PaymentFlowData,
+        PaymentCreateOrderData,
+        PaymentCreateOrderResponse,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<NoonCreateOrderResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let order = item.response.result.order;
+        let status = get_payment_status(order.status);
+
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                status,
+                connector_order_id: Some(order.id.to_string()),
+                ..item.router_data.resource_common_data
+            },
+            response: Ok(PaymentCreateOrderResponse {
+                merchant_order_id: item.router_data.request.merchant_order_id.clone(),
+                connector_order_id: order.id.to_string(),
+                session_data: None,
+            }),
+            ..item.router_data
         })
     }
 }

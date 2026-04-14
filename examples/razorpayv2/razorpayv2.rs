@@ -58,6 +58,7 @@ pub fn build_create_order_request() -> PaymentServiceCreateOrderRequest {
         "minor_amount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
         "currency": "USD",  // ISO 4217 currency code (e.g., "USD", "EUR").
     },
+    "order_details": []  // Details about the products for which the order is being created.
     })).unwrap_or_default()
 }
 
