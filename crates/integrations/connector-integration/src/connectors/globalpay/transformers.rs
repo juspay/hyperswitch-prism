@@ -8,16 +8,17 @@ use common_utils::types::StringMinorUnit;
 use domain_types::{
     connector_flow::{
         Authorize, Capture, ClientAuthenticationToken, PSync, RSync, Refund,
-        ServerAuthenticationToken, Void,
+        ServerAuthenticationToken, SetupMandate, Void,
     },
     connector_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
         ConnectorSpecificClientAuthenticationResponse,
         GlobalpayClientAuthenticationResponse as GlobalpayClientAuthenticationResponseDomain,
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId, ServerAuthenticationTokenRequestData,
-        ServerAuthenticationTokenResponseData,
+        MandateReference, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
+        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
+        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
+        SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{
@@ -47,6 +48,8 @@ pub type GlobalpayPSyncResponse = GlobalpayPaymentsResponse;
 pub type GlobalpayVoidResponse = GlobalpayPaymentsResponse;
 /// Response type for Capture flow - reuses GlobalpayPaymentsResponse
 pub type GlobalpayCaptureResponse = GlobalpayPaymentsResponse;
+/// Response type for SetupMandate flow - reuses GlobalpayPaymentsResponse
+pub type GlobalpaySetupMandateResponse = GlobalpayPaymentsResponse;
 /// Response type for RSync flow - reuses GlobalpayRefundResponse
 pub type GlobalpayRSyncResponse = GlobalpayRefundResponse;
 
@@ -1179,6 +1182,296 @@ impl TryFrom<ResponseRouterData<GlobalpayClientAuthResponse, Self>>
                 session_data,
                 status_code: item.http_code,
             }),
+            ..item.router_data
+        })
+    }
+}
+
+// ===== SETUP MANDATE FLOW STRUCTURES =====
+//
+// GlobalPay uses the same `/transactions` endpoint as Authorize for setting
+// up a stored credential / mandate. The standard pattern is a low-amount
+// (or zero-amount where supported) authorization with:
+//   - capture_mode: AUTO
+//   - stored_credential: { model: SUBSCRIPTION, sequence: FIRST }
+//   - initiator: PAYER (CIT - Customer-Initiated Transaction; simple enum
+//     value, not a struct - this matches the GlobalPay API contract)
+//
+// On success, the response contains the transaction id which becomes the
+// connector_mandate_id used for future RepeatPayment calls.
+
+/// Initiator enum for SetupMandate - GlobalPay expects a simple string
+/// value here, not a nested object (which is what the existing `Initiator`
+/// struct serializes to). See HyperSwitch's globalpay reference impl.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum GlobalpayMandateInitiator {
+    Merchant,
+    Payer,
+}
+
+/// Stored credential model for setup mandate. GlobalPay expects `model`
+/// (not `type`) as the field name and only the `model`/`sequence` pair.
+#[derive(Debug, Serialize)]
+pub struct GlobalpayMandateStoredCredential {
+    pub model: GlobalpayStoredCredentialModel,
+    pub sequence: StoredCredentialSequence,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum GlobalpayStoredCredentialModel {
+    Recurring,
+    Subscription,
+    Unscheduled,
+    Installment,
+}
+
+#[derive(Debug, Serialize)]
+pub struct GlobalpaySetupMandateRequest<T: PaymentMethodDataTypes> {
+    pub account_name: String,
+    pub channel: String,
+    pub amount: StringMinorUnit,
+    pub currency: common_enums::Currency,
+    pub reference: String,
+    pub country: common_enums::CountryAlpha2,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub capture_mode: Option<GlobalpayCaptureMode>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub initiator: Option<GlobalpayMandateInitiator>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub notifications: Option<GlobalpayNotifications>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stored_credential: Option<GlobalpayMandateStoredCredential>,
+    pub payment_method: GlobalpayPaymentMethod<T>,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        GlobalpayRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for GlobalpaySetupMandateRequest<T>
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        wrapper: GlobalpayRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let item = &wrapper.router_data;
+
+        let payment_method = match &item.request.payment_method_data {
+            PaymentMethodData::Card(card_data) => {
+                // Convert to 2-digit year using built-in helper method
+                let expiry_year_2digit = card_data.get_card_expiry_year_2_digit().change_context(
+                    IntegrationError::RequestEncodingFailed {
+                        context: Default::default(),
+                    },
+                )?;
+
+                // Determine cvv_indicator based on whether CVV is provided
+                let cvv_indicator = if card_data.card_cvc.peek().is_empty() {
+                    Some("NOT_PRESENT".to_string())
+                } else {
+                    Some("PRESENT".to_string())
+                };
+
+                GlobalpayPaymentMethod {
+                    name: item.request.customer_name.clone().map(Secret::new),
+                    entry_mode: constants::ENTRY_MODE_ECOM.to_string(),
+                    card: Some(GlobalpayCard {
+                        number: card_data.card_number.clone(),
+                        expiry_month: card_data.card_exp_month.clone(),
+                        expiry_year: expiry_year_2digit,
+                        cvv: card_data.card_cvc.clone(),
+                        cvv_indicator,
+                    }),
+                    apm: None,
+                    id: None,
+                }
+            }
+            _ => {
+                return Err(error_stack::report!(IntegrationError::not_implemented(
+                    "Payment method not supported for SetupMandate".to_string()
+                )))
+            }
+        };
+
+        // Get country from billing address or use default
+        let country = item
+            .resource_common_data
+            .get_billing_country()
+            .unwrap_or(common_enums::CountryAlpha2::US);
+
+        // Build notifications object from router data
+        let notifications = if let (Some(return_url), Some(webhook_url)) = (
+            item.request.router_return_url.as_ref(),
+            item.request.webhook_url.as_ref(),
+        ) {
+            Some(GlobalpayNotifications {
+                cancel_url: return_url.clone(),
+                return_url: return_url.clone(),
+                status_url: webhook_url.clone(),
+            })
+        } else {
+            None
+        };
+
+        // Mandate setup amount: prefer the request's amount when supplied
+        // (some callers pass a small verification amount like 1 unit), and
+        // fall back to 0 for zero-dollar verification. GlobalPay's sandbox
+        // accepts both, but real-world setups commonly use a non-zero
+        // amount to avoid SYSTEM_ERROR responses.
+        let minor_amount = item
+            .request
+            .amount
+            .map(common_utils::types::MinorUnit::new)
+            .unwrap_or_else(|| common_utils::types::MinorUnit::new(0));
+        let amount = GlobalpayAmountConvertor::convert(minor_amount, item.request.currency)
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?;
+
+        // Setup mandate is a Customer-Initiated Transaction (CIT) where the
+        // customer is present consenting to store the card on file for
+        // future use.
+        let initiator = Some(GlobalpayMandateInitiator::Payer);
+
+        let stored_credential = Some(GlobalpayMandateStoredCredential {
+            model: GlobalpayStoredCredentialModel::Subscription,
+            sequence: StoredCredentialSequence::First,
+        });
+
+        Ok(Self {
+            account_name: constants::ACCOUNT_NAME.to_string(),
+            channel: constants::CHANNEL_CNP.to_string(),
+            amount,
+            currency: item.request.currency,
+            reference: item
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
+            country,
+            capture_mode: Some(GlobalpayCaptureMode::Auto),
+            initiator,
+            notifications,
+            stored_credential,
+            payment_method,
+        })
+    }
+}
+
+// SetupMandate response transformation - reuses GlobalpayPaymentsResponse
+impl<T: PaymentMethodDataTypes>
+    TryFrom<ResponseRouterData<GlobalpayPaymentsResponse, Self>>
+    for RouterDataV2<
+        SetupMandate,
+        PaymentFlowData,
+        SetupMandateRequestData<T>,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<GlobalpayPaymentsResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        // Map connector status to standard status. For zero-dollar mandate setup
+        // the AUTO capture path will surface as CAPTURED (-> Charged); we still
+        // map the full enum to be safe.
+        let mut status = AttemptStatus::from(item.response.status.clone());
+
+        // For zero-amount mandate setup, treat Authorized as Charged so the
+        // attempt reaches a terminal state for downstream consumers.
+        if status == AttemptStatus::Authorized {
+            status = AttemptStatus::Charged;
+        }
+
+        // Extract network transaction ID from card response
+        let network_txn_id = item
+            .response
+            .payment_method
+            .as_ref()
+            .and_then(|pm| pm.card.as_ref())
+            .and_then(|card| card.brand_reference.as_ref())
+            .map(|s| s.peek().to_string());
+
+        let response = match status {
+            AttemptStatus::Failure => Err(ErrorResponse {
+                status_code: item.http_code,
+                code: item
+                    .response
+                    .payment_method
+                    .as_ref()
+                    .and_then(|pm| pm.result.clone())
+                    .unwrap_or_else(|| "UNKNOWN_ERROR".to_string()),
+                message: item
+                    .response
+                    .payment_method
+                    .as_ref()
+                    .and_then(|pm| pm.message.clone())
+                    .unwrap_or_else(|| "Mandate setup failed".to_string()),
+                reason: item
+                    .response
+                    .payment_method
+                    .as_ref()
+                    .and_then(|pm| pm.message.clone()),
+                attempt_status: Some(status),
+                connector_transaction_id: Some(item.response.id.clone()),
+                network_decline_code: item
+                    .response
+                    .payment_method
+                    .as_ref()
+                    .and_then(|pm| pm.result.clone()),
+                network_advice_code: None,
+                network_error_message: item
+                    .response
+                    .payment_method
+                    .as_ref()
+                    .and_then(|pm| pm.message.clone()),
+            }),
+            _ => {
+                // The transaction id IS the connector_mandate_id used for
+                // subsequent RepeatPayment calls against GlobalPay.
+                let mandate_reference = Some(Box::new(MandateReference {
+                    connector_mandate_id: Some(item.response.id.clone()),
+                    payment_method_id: None,
+                    connector_mandate_request_reference_id: None,
+                }));
+
+                Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
+                    redirection_data: None,
+                    mandate_reference,
+                    connector_metadata: None,
+                    network_txn_id,
+                    connector_response_reference_id: item.response.reference.clone(),
+                    incremental_authorization_allowed: None,
+                    status_code: item.http_code,
+                })
+            }
+        };
+
+        Ok(Self {
+            response,
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
             ..item.router_data
         })
     }
