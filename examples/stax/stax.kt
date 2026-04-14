@@ -17,10 +17,13 @@ import payments.PaymentServiceGetRequest
 import payments.PaymentServiceRefundRequest
 import payments.RefundServiceGetRequest
 import payments.PaymentServiceTokenAuthorizeRequest
+import payments.PaymentServiceTokenSetupRecurringRequest
 import payments.PaymentMethodServiceTokenizeRequest
 import payments.PaymentServiceVoidRequest
+import payments.AcceptanceType
 import payments.CaptureMethod
 import payments.Currency
+import payments.FutureUsage
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
@@ -148,6 +151,42 @@ fun tokenAuthorize(txnId: String) {
     println("Status: ${response.status.name}")
 }
 
+// Flow: PaymentService.TokenSetupRecurring
+fun tokenSetupRecurring(txnId: String) {
+    val client = PaymentClient(_defaultConfig)
+    val request = PaymentServiceTokenSetupRecurringRequest.newBuilder().apply {
+        merchantRecurringPaymentId = "probe_tokenized_mandate_001"
+        amountBuilder.apply {
+            minorAmount = 0L  // Amount in minor units (e.g., 1000 = $10.00).
+            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+        connectorTokenBuilder.value = "pm_1AbcXyzStripeTestToken"
+        addressBuilder.apply {
+            billingAddressBuilder.apply {
+            }
+        }
+        customerAcceptanceBuilder.apply {
+            acceptanceType = AcceptanceType.ONLINE  // Type of acceptance (e.g., online, offline).
+            acceptedAt = 0L  // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
+            onlineMandateDetailsBuilder.apply {  // Details if the acceptance was an online mandate.
+                ipAddress = "127.0.0.1"  // IP address from which the mandate was accepted.
+                userAgent = "Mozilla/5.0"  // User agent string of the browser used for mandate acceptance.
+            }
+        }
+        setupMandateDetailsBuilder.apply {
+            mandateTypeBuilder.apply {  // Type of mandate (single_use or multi_use) with amount details.
+                multiUseBuilder.apply {  // Multi use mandate with amount details (for recurring payments).
+                    amount = 0L  // Amount.
+                    currency = Currency.USD  // Currency code (ISO 4217).
+                }
+            }
+        }
+        setupFutureUsage = FutureUsage.OFF_SESSION
+    }.build()
+    val response = client.token_setup_recurring(request)
+    println("Status: ${response.status.name}")
+}
+
 // Flow: PaymentMethodService.Tokenize
 fun tokenize(txnId: String) {
     val client = PaymentMethodClient(_defaultConfig)
@@ -198,8 +237,9 @@ fun main(args: Array<String>) {
         "refund" -> refund(txnId)
         "refundGet" -> refundGet(txnId)
         "tokenAuthorize" -> tokenAuthorize(txnId)
+        "tokenSetupRecurring" -> tokenSetupRecurring(txnId)
         "tokenize" -> tokenize(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: capture, createCustomer, get, refund, refundGet, tokenAuthorize, tokenize, void")
+        else -> System.err.println("Unknown flow: $flow. Available: capture, createCustomer, get, refund, refundGet, tokenAuthorize, tokenSetupRecurring, tokenize, void")
     }
 }

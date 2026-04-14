@@ -106,6 +106,40 @@ def _build_token_authorize_request():
         payment_pb2.PaymentServiceTokenAuthorizeRequest(),
     )
 
+def _build_token_setup_recurring_request():
+    return ParseDict(
+        {
+            "merchant_recurring_payment_id": "probe_tokenized_mandate_001",
+            "amount": {
+                "minor_amount": 0,  # Amount in minor units (e.g., 1000 = $10.00).
+                "currency": "USD"  # ISO 4217 currency code (e.g., "USD", "EUR").
+            },
+            "connector_token": {"value": "pm_1AbcXyzStripeTestToken"},
+            "address": {
+                "billing_address": {
+                }
+            },
+            "customer_acceptance": {
+                "acceptance_type": "ONLINE",  # Type of acceptance (e.g., online, offline).
+                "accepted_at": 0,  # Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
+                "online_mandate_details": {  # Details if the acceptance was an online mandate.
+                    "ip_address": "127.0.0.1",  # IP address from which the mandate was accepted.
+                    "user_agent": "Mozilla/5.0"  # User agent string of the browser used for mandate acceptance.
+                }
+            },
+            "setup_mandate_details": {
+                "mandate_type": {  # Type of mandate (single_use or multi_use) with amount details.
+                    "multi_use": {  # Multi use mandate with amount details (for recurring payments).
+                        "amount": 0,  # Amount.
+                        "currency": "USD"  # Currency code (ISO 4217).
+                    }
+                }
+            },
+            "setup_future_usage": "OFF_SESSION"
+        },
+        payment_pb2.PaymentServiceTokenSetupRecurringRequest(),
+    )
+
 def _build_tokenize_request():
     return ParseDict(
         {
@@ -191,6 +225,15 @@ async def token_authorize(merchant_transaction_id: str, config: sdk_config_pb2.C
     payment_client = PaymentClient(config)
 
     token_response = await payment_client.token_authorize(_build_token_authorize_request())
+
+    return {"status": token_response.status}
+
+
+async def token_setup_recurring(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: PaymentService.TokenSetupRecurring"""
+    payment_client = PaymentClient(config)
+
+    token_response = await payment_client.token_setup_recurring(_build_token_setup_recurring_request())
 
     return {"status": token_response.status}
 

@@ -6,7 +6,9 @@ use common_utils::{
     types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, MinorUnit},
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, PaymentMethodToken, RSync, Refund, SetupMandate, Void},
+    connector_flow::{
+        Authorize, Capture, PSync, PaymentMethodToken, RSync, Refund, SetupMandate, Void,
+    },
     connector_types::{
         PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
         PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
@@ -1189,9 +1191,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .as_ref()
                     .and_then(|m| m.mandate_reference_id.as_ref())
                     .and_then(|r| match r {
-                        domain_types::connector_types::MandateReferenceId::ConnectorMandateId(c) => {
-                            c.get_connector_mandate_id()
-                        }
+                        domain_types::connector_types::MandateReferenceId::ConnectorMandateId(
+                            c,
+                        ) => c.get_connector_mandate_id(),
                         _ => None,
                     })
                 {
@@ -1229,7 +1231,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 }
 
 impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<StaxSetupMandateResponse, Self>>
-    for RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>
+    for RouterDataV2<
+        SetupMandate,
+        PaymentFlowData,
+        SetupMandateRequestData<T>,
+        PaymentsResponseData,
+    >
 {
     type Error = error_stack::Report<ConnectorError>;
 
