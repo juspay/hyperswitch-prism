@@ -492,3 +492,4 @@ pub type WorldpayAuthenticateResponse = WorldpayPaymentsResponse;
 pub type WorldpayPreAuthenticateResponse = WorldpayPaymentsResponse;
 pub type WorldpayPostAuthenticateResponse = WorldpayPaymentsResponse;
 pub type WorldpayRepeatPaymentResponse = WorldpayPaymentsResponse;
+pub type WorldpaySetupMandateResponse = WorldpayPaymentsResponse;

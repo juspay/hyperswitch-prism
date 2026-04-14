@@ -385,3 +385,7 @@ pub type WorldpayPostAuthenticateRequest = WorldpayAuthenticateRequest;
 
 // RepeatPayment uses the same request structure as Authorize (MIT vs CIT)
 pub type WorldpayRepeatPaymentRequest<T> = WorldpayAuthorizeRequest<T>;
+
+// SetupMandate uses the same request structure as Authorize but with zero amount
+// and mandate-specific customerAgreement settings
+pub type WorldpaySetupMandateRequest<T> = WorldpayAuthorizeRequest<T>;
