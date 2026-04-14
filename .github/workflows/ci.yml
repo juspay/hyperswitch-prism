@@ -111,7 +111,7 @@ jobs:
           names=$(echo '${{ steps.filter.outputs.connector_files }}' | \
             jq -r '.[]' | \
             grep -oE '(connectors|connector_specs)/[^/]+' | \
-            sed 's|^connectors/||;s|^connector_specs/||' | \
+            sed 's|^connectors/||;s|^connector_specs/||;s|\.rs$||' | \
             sort -u | paste -sd ',' -)
           echo "list=$names" >> $GITHUB_OUTPUT
           echo "Changed connectors: $names"
@@ -404,6 +404,7 @@ jobs:
             cargo nextest run \
               --config-file .nextest.toml \
               --profile ci \
+              --no-tests=warn \
               -E "($FILTER) & ($SCHEMA_EXCLUDE)"
           else
             echo "🔍 Running full test suite (event=$EVENT)"

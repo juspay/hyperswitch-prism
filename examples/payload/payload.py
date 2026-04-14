@@ -8,6 +8,7 @@
 import asyncio
 import sys
 from payments import PaymentClient
+from payments import MerchantAuthenticationClient
 from payments import EventClient
 from payments import RecurringPaymentClient
 from payments import RefundClient
@@ -79,6 +80,18 @@ def _build_capture_request(connector_transaction_id: str):
                 token_type="Bearer",  # Token type (e.g., "Bearer", "Basic").
             ),
         ),
+    )
+
+def _build_create_client_authentication_token_request():
+    return ParseDict(
+        {
+            "merchant_client_session_id": "probe_sdk_session_001",  # Infrastructure.
+            "domain_context": {
+                "minor_amount": 1000,
+                "currency": "USD"
+            }
+        },
+        payment_pb2.MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest(),
     )
 
 def _build_get_request(connector_transaction_id: str):
@@ -274,6 +287,32 @@ def _build_setup_recurring_request():
                 token_type="Bearer",  # Token type (e.g., "Bearer", "Basic").
             ),
         ),
+    )
+
+def _build_token_authorize_request():
+    return ParseDict(
+        {
+            "merchant_transaction_id": "probe_tokenized_txn_001",
+            "amount": {
+                "minor_amount": 1000,  # Amount in minor units (e.g., 1000 = $10.00).
+                "currency": "USD"  # ISO 4217 currency code (e.g., "USD", "EUR").
+            },
+            "connector_token": {"value": "pm_1AbcXyzStripeTestToken"},  # Connector-issued token. Replaces PaymentMethod entirely. Examples: Stripe pm_xxx, Adyen recurringDetailReference, Braintree nonce.
+            "address": {
+                "billing_address": {
+                }
+            },
+            "capture_method": "AUTOMATIC",
+            "return_url": "https://example.com/return",
+            "state": {
+                "access_token": {  # Access token obtained from connector.
+                    "token": {"value": "probe_access_token"},  # The token string.
+                    "expires_in_seconds": 3600,  # Expiration timestamp (seconds since epoch).
+                    "token_type": "Bearer"  # Token type (e.g., "Bearer", "Basic").
+                }
+            }
+        },
+        payment_pb2.PaymentServiceTokenAuthorizeRequest(),
     )
 
 def _build_void_request(connector_transaction_id: str):

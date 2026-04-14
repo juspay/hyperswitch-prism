@@ -8,6 +8,7 @@
 import asyncio
 import sys
 from payments import PaymentClient
+from payments import MerchantAuthenticationClient
 from payments import CustomerClient
 from payments import RecurringPaymentClient
 from payments import RefundClient
@@ -62,6 +63,18 @@ def _build_capture_request(connector_transaction_id: str):
             minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
             currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
         ),
+    )
+
+def _build_create_client_authentication_token_request():
+    return ParseDict(
+        {
+            "merchant_client_session_id": "probe_sdk_session_001",  # Infrastructure.
+            "domain_context": {
+                "minor_amount": 1000,
+                "currency": "USD"
+            }
+        },
+        payment_pb2.MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest(),
     )
 
 def _build_create_customer_request():
@@ -145,6 +158,25 @@ def _build_refund_get_request():
         merchant_refund_id="probe_refund_001",  # Identification.
         connector_transaction_id="probe_connector_txn_001",
         refund_id="probe_refund_id_001",
+    )
+
+def _build_token_authorize_request():
+    return ParseDict(
+        {
+            "merchant_transaction_id": "probe_tokenized_txn_001",
+            "amount": {
+                "minor_amount": 1000,  # Amount in minor units (e.g., 1000 = $10.00).
+                "currency": "USD"  # ISO 4217 currency code (e.g., "USD", "EUR").
+            },
+            "connector_token": {"value": "pm_1AbcXyzStripeTestToken"},  # Connector-issued token. Replaces PaymentMethod entirely. Examples: Stripe pm_xxx, Adyen recurringDetailReference, Braintree nonce.
+            "address": {
+                "billing_address": {
+                }
+            },
+            "capture_method": "AUTOMATIC",
+            "return_url": "https://example.com/return"
+        },
+        payment_pb2.PaymentServiceTokenAuthorizeRequest(),
     )
 async def process_checkout_autocapture(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """One-step Payment (Authorize + Capture)
@@ -307,6 +339,15 @@ async def process_refund_get(merchant_transaction_id: str, config: sdk_config_pb
     refund_response = await refund_client.refund_get(_build_refund_get_request())
 
     return {"status": refund_response.status}
+
+
+async def token_authorize(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: PaymentService.TokenAuthorize"""
+    payment_client = PaymentClient(config)
+
+    token_response = await payment_client.token_authorize(_build_token_authorize_request())
+
+    return {"status": token_response.status}
 
 if __name__ == "__main__":
     scenario = sys.argv[1] if len(sys.argv) > 1 else "checkout_autocapture"

@@ -98,6 +98,20 @@ pub fn build_capture_request(connector_transaction_id: &str) -> PaymentServiceCa
     }
 }
 
+pub fn build_create_client_authentication_token_request() -> MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest {
+    serde_json::from_value::<MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest>(serde_json::json!({
+    "merchant_client_session_id": "probe_sdk_session_001",  // Infrastructure.
+    "domain_context": {
+        "payment": {
+            "amount": {
+                "minor_amount": 1000,
+                "currency": "USD",
+            },
+        },
+    },
+    })).unwrap_or_default()
+}
+
 pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetRequest {
     PaymentServiceGetRequest {
         merchant_transaction_id: Some("probe_merchant_txn_001".to_string()),  // Identification.
@@ -333,6 +347,30 @@ pub fn build_setup_recurring_request() -> PaymentServiceSetupRecurringRequest {
     }
 }
 
+pub fn build_token_authorize_request() -> PaymentServiceTokenAuthorizeRequest {
+    serde_json::from_value::<PaymentServiceTokenAuthorizeRequest>(serde_json::json!({
+    "merchant_transaction_id": "probe_tokenized_txn_001",
+    "amount": {
+        "minor_amount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+        "currency": "USD",  // ISO 4217 currency code (e.g., "USD", "EUR").
+    },
+    "connector_token": "pm_1AbcXyzStripeTestToken",  // Connector-issued token. Replaces PaymentMethod entirely. Examples: Stripe pm_xxx, Adyen recurringDetailReference, Braintree nonce.
+    "address": {
+        "billing_address": {
+        },
+    },
+    "capture_method": "AUTOMATIC",
+    "return_url": "https://example.com/return",
+    "state": {
+        "access_token": {  // Access token obtained from connector.
+            "token": "probe_access_token",  // The token string.
+            "expires_in_seconds": 3600,  // Expiration timestamp (seconds since epoch).
+            "token_type": "Bearer",  // Token type (e.g., "Bearer", "Basic").
+        },
+    },
+    })).unwrap_or_default()
+}
+
 pub fn build_void_request(connector_transaction_id: &str) -> PaymentServiceVoidRequest {
     PaymentServiceVoidRequest {
         merchant_void_id: Some("probe_void_001".to_string()),  // Identification.
@@ -469,6 +507,13 @@ pub async fn process_capture(client: &ConnectorClient, _merchant_transaction_id:
     Ok(format!("status: {:?}", response.status()))
 }
 
+// Flow: MerchantAuthenticationService.CreateClientAuthenticationToken
+#[allow(dead_code)]
+pub async fn create_client_authentication_token(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client.create_client_authentication_token(build_create_client_authentication_token_request(), &HashMap::new(), None).await?;
+    Ok(format!("status: {:?}", response.status_code))
+}
+
 // Flow: PaymentService.Get
 #[allow(dead_code)]
 pub async fn process_get(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
@@ -512,6 +557,13 @@ pub async fn process_setup_recurring(client: &ConnectorClient, _merchant_transac
         return Err(format!("Setup failed: {:?}", response.error).into());
     }
     Ok(format!("Mandate: {}", response.connector_recurring_payment_id.as_deref().unwrap_or("")))
+}
+
+// Flow: PaymentService.TokenAuthorize
+#[allow(dead_code)]
+pub async fn token_authorize(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client.token_authorize(build_token_authorize_request(), &HashMap::new(), None).await?;
+    Ok(format!("status: {:?}", response.status()))
 }
 
 // Flow: PaymentService.Void

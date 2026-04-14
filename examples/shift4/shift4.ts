@@ -146,6 +146,23 @@ function _buildRefundGetRequest(): types.IRefundServiceGetRequest {
     };
 }
 
+function _buildTokenAuthorizeRequest(): PaymentServiceTokenAuthorizeRequest {
+    return {
+        "merchantTransactionId": "probe_tokenized_txn_001",
+        "amount": {
+            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        },
+        "connectorToken": {"value": "pm_1AbcXyzStripeTestToken"},  // Connector-issued token. Replaces PaymentMethod entirely. Examples: Stripe pm_xxx, Adyen recurringDetailReference, Braintree nonce.
+        "address": {
+            "billingAddress": {
+            }
+        },
+        "captureMethod": CaptureMethod.AUTOMATIC,
+        "returnUrl": "https://example.com/return"
+    };
+}
+
 
 // ANCHOR: scenario_functions
 // One-step Payment (Authorize + Capture)
@@ -259,6 +276,15 @@ async function capture(merchantTransactionId: string, config: types.IConnectorCo
     return captureResponse;
 }
 
+// Flow: MerchantAuthenticationService.CreateClientAuthenticationToken
+async function createClientAuthenticationToken(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse> {
+    const merchantAuthenticationClient = new MerchantAuthenticationClient(config);
+
+    const createResponse = await merchantAuthenticationClient.createClientAuthenticationToken(_buildCreateClientAuthenticationTokenRequest());
+
+    return { status: createResponse.status };
+}
+
 // Flow: CustomerService.Create
 async function createCustomer(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const customerClient = new CustomerClient(config);
@@ -313,10 +339,19 @@ async function refundGet(merchantTransactionId: string, config: types.IConnector
     return refundResponse;
 }
 
+// Flow: PaymentService.TokenAuthorize
+async function tokenAuthorize(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<PaymentServiceAuthorizeResponse> {
+    const paymentClient = new PaymentClient(config);
+
+    const tokenResponse = await paymentClient.tokenAuthorize(_buildTokenAuthorizeRequest());
+
+    return { status: tokenResponse.status };
+}
+
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processCheckoutCard, processRefund, processGetPayment, authorize, capture, createCustomer, get, proxyAuthorize, recurringCharge, refund, refundGet, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateCustomerRequest, _buildGetRequest, _buildProxyAuthorizeRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest
+    processCheckoutAutocapture, processCheckoutCard, processRefund, processGetPayment, authorize, capture, createClientAuthenticationToken, createCustomer, get, proxyAuthorize, recurringCharge, refund, refundGet, tokenAuthorize, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateClientAuthenticationTokenRequest, _buildCreateCustomerRequest, _buildGetRequest, _buildProxyAuthorizeRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildTokenAuthorizeRequest
 };
 
 // CLI runner

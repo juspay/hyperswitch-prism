@@ -79,6 +79,20 @@ pub fn build_capture_request(connector_transaction_id: &str) -> PaymentServiceCa
     }
 }
 
+pub fn build_create_client_authentication_token_request() -> MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest {
+    serde_json::from_value::<MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest>(serde_json::json!({
+    "merchant_client_session_id": "probe_sdk_session_001",  // Infrastructure.
+    "domain_context": {
+        "payment": {
+            "amount": {
+                "minor_amount": 1000,
+                "currency": "USD",
+            },
+        },
+    },
+    })).unwrap_or_default()
+}
+
 pub fn build_create_customer_request() -> CustomerServiceCreateRequest {
     CustomerServiceCreateRequest {
         merchant_customer_id: Some("cust_probe_123".to_string()),  // Identification.
@@ -175,6 +189,23 @@ pub fn build_refund_get_request() -> RefundServiceGetRequest {
         refund_id: "probe_refund_id_001".to_string(),
         ..Default::default()
     }
+}
+
+pub fn build_token_authorize_request() -> PaymentServiceTokenAuthorizeRequest {
+    serde_json::from_value::<PaymentServiceTokenAuthorizeRequest>(serde_json::json!({
+    "merchant_transaction_id": "probe_tokenized_txn_001",
+    "amount": {
+        "minor_amount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+        "currency": "USD",  // ISO 4217 currency code (e.g., "USD", "EUR").
+    },
+    "connector_token": "pm_1AbcXyzStripeTestToken",  // Connector-issued token. Replaces PaymentMethod entirely. Examples: Stripe pm_xxx, Adyen recurringDetailReference, Braintree nonce.
+    "address": {
+        "billing_address": {
+        },
+    },
+    "capture_method": "AUTOMATIC",
+    "return_url": "https://example.com/return",
+    })).unwrap_or_default()
 }
 
 
@@ -278,6 +309,13 @@ pub async fn process_capture(client: &ConnectorClient, _merchant_transaction_id:
     Ok(format!("status: {:?}", response.status()))
 }
 
+// Flow: MerchantAuthenticationService.CreateClientAuthenticationToken
+#[allow(dead_code)]
+pub async fn create_client_authentication_token(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client.create_client_authentication_token(build_create_client_authentication_token_request(), &HashMap::new(), None).await?;
+    Ok(format!("status: {:?}", response.status_code))
+}
+
 // Flow: CustomerService.Create
 #[allow(dead_code)]
 pub async fn process_create_customer(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
@@ -310,6 +348,13 @@ pub async fn process_recurring_charge(client: &ConnectorClient, _merchant_transa
 #[allow(dead_code)]
 pub async fn process_refund_get(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
     let response = client.refund_get(build_refund_get_request(), &HashMap::new(), None).await?;
+    Ok(format!("status: {:?}", response.status()))
+}
+
+// Flow: PaymentService.TokenAuthorize
+#[allow(dead_code)]
+pub async fn token_authorize(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client.token_authorize(build_token_authorize_request(), &HashMap::new(), None).await?;
     Ok(format!("status: {:?}", response.status()))
 }
 

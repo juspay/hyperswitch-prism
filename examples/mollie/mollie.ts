@@ -233,6 +233,15 @@ async function authorize(merchantTransactionId: string, config: types.IConnector
     return authorizeResponse;
 }
 
+// Flow: MerchantAuthenticationService.CreateClientAuthenticationToken
+async function createClientAuthenticationToken(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse> {
+    const merchantAuthenticationClient = new MerchantAuthenticationClient(config);
+
+    const createResponse = await merchantAuthenticationClient.createClientAuthenticationToken(_buildCreateClientAuthenticationTokenRequest());
+
+    return { status: createResponse.status };
+}
+
 // Flow: PaymentService.Get
 async function get(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -290,7 +299,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processRefund, processVoidPayment, processGetPayment, authorize, get, proxyAuthorize, refund, refundGet, tokenAuthorize, voidPayment, _buildAuthorizeRequest, _buildGetRequest, _buildProxyAuthorizeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildTokenAuthorizeRequest, _buildVoidRequest
+    processCheckoutAutocapture, processRefund, processVoidPayment, processGetPayment, authorize, createClientAuthenticationToken, get, proxyAuthorize, refund, refundGet, tokenAuthorize, voidPayment, _buildAuthorizeRequest, _buildCreateClientAuthenticationTokenRequest, _buildGetRequest, _buildProxyAuthorizeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildTokenAuthorizeRequest, _buildVoidRequest
 };
 
 // CLI runner

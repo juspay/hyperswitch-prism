@@ -430,6 +430,15 @@ async function capture(merchantTransactionId: string, config: types.IConnectorCo
     return captureResponse;
 }
 
+// Flow: MerchantAuthenticationService.CreateClientAuthenticationToken
+async function createClientAuthenticationToken(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse> {
+    const merchantAuthenticationClient = new MerchantAuthenticationClient(config);
+
+    const createResponse = await merchantAuthenticationClient.createClientAuthenticationToken(_buildCreateClientAuthenticationTokenRequest());
+
+    return { status: createResponse.status };
+}
+
 // Flow: PaymentService.Get
 async function get(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -502,6 +511,15 @@ async function setupRecurring(merchantTransactionId: string, config: types.IConn
     return setupResponse;
 }
 
+// Flow: PaymentService.TokenAuthorize
+async function tokenAuthorize(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<PaymentServiceAuthorizeResponse> {
+    const paymentClient = new PaymentClient(config);
+
+    const tokenResponse = await paymentClient.tokenAuthorize(_buildTokenAuthorizeRequest());
+
+    return { status: tokenResponse.status };
+}
+
 // Flow: PaymentService.Void
 async function voidPayment(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -514,7 +532,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, get, handleEvent, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildGetRequest, _buildHandleEventRequest, _buildProxyAuthorizeRequest, _buildProxySetupRecurringRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildSetupRecurringRequest, _buildVoidRequest
+    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createClientAuthenticationToken, get, handleEvent, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring, tokenAuthorize, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateClientAuthenticationTokenRequest, _buildGetRequest, _buildHandleEventRequest, _buildProxyAuthorizeRequest, _buildProxySetupRecurringRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildSetupRecurringRequest, _buildTokenAuthorizeRequest, _buildVoidRequest
 };
 
 // CLI runner

@@ -8,6 +8,7 @@
 import asyncio
 import sys
 from payments import PaymentClient
+from payments import MerchantAuthenticationClient
 from payments import RefundClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
@@ -51,6 +52,18 @@ def _build_authorize_request(capture_method: str):
         auth_type=payment_pb2.AuthenticationType.Value("NO_THREE_DS"),  # Authentication Details.
         return_url="https://example.com/return",  # URLs for Redirection and Webhooks.
         description="Probe payment",
+    )
+
+def _build_create_client_authentication_token_request():
+    return ParseDict(
+        {
+            "merchant_client_session_id": "probe_sdk_session_001",  # Infrastructure.
+            "domain_context": {
+                "minor_amount": 1000,
+                "currency": "USD"
+            }
+        },
+        payment_pb2.MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest(),
     )
 
 def _build_get_request(connector_transaction_id: str):
