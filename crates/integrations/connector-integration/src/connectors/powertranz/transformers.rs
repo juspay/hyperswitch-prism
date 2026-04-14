@@ -2,10 +2,11 @@ use common_enums::enums;
 use common_utils::types::FloatMajorUnit;
 use domain_types::errors::{ConnectorError, IntegrationError};
 use domain_types::{
+    connector_flow::SetupMandate,
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId,
+        MandateReference, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
+        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, ResponseId, SetupMandateRequestData,
     },
     payment_method_data::{PaymentMethodDataTypes, RawCardNumber},
     router_data::ConnectorSpecificConfig,
@@ -735,6 +736,187 @@ impl<F> TryFrom<ResponseRouterData<PowertranzRSyncResponse, Self>>
                 refund_status,
                 status_code: http_code,
             }),
+            ..router_data
+        })
+    }
+}
+
+// ============================================================================
+// SetupMandate Flow
+// ============================================================================
+//
+// PowerTranz does not expose a dedicated mandate-setup endpoint. The
+// idiomatic card-on-file / mandate pattern is to issue an auth-only
+// (transaction_type = 1) request against the `/auth` endpoint. A
+// zero-dollar (or caller-supplied) auth is treated as a verification and
+// the returned `transaction_identifier` is surfaced as the
+// `connector_mandate_id` used for subsequent RepeatPayment (MIT) calls.
+//
+// The request shape mirrors `PowertranzPaymentsRequest<T>` — same source
+// (card) + transaction identifier contract — so downstream callers can
+// replay the stored transaction_identifier on MIT. For zero-amount
+// verification we fall back to 0 when the caller does not supply an
+// amount.
+
+/// SetupMandate request – identical wire shape to the standard
+/// PowerTranz payment request (the `/auth` endpoint doubles as the
+/// card-on-file verification endpoint for the zero/low-amount case).
+pub type PowertranzSetupMandateRequest<T> = PowertranzPaymentsRequest<T>;
+
+/// SetupMandate response – reuses the standard PowerTranz payments
+/// response (transaction_type = 1 on success).
+pub type PowertranzSetupMandateResponse = PowertranzPaymentsResponse;
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        PowertranzRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for PowertranzSetupMandateRequest<T>
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: PowertranzRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let request_data = &router_data.request;
+
+        // ISO 4217 numeric currency code (e.g., "840" for USD) — same
+        // convention as the Authorize flow.
+        let currency_code = request_data.currency.iso_4217().to_string();
+
+        // Prefer caller-supplied amount, fall back to 0 for a zero-dollar
+        // verification. PowerTranz `/auth` accepts a zero-amount auth as
+        // the card-on-file verification primitive.
+        let amount = PowertranzAmountConvertor::convert(
+            request_data
+                .minor_amount
+                .unwrap_or(common_utils::types::MinorUnit::new(0)),
+            request_data.currency,
+        )?;
+
+        match &request_data.payment_method_data {
+            domain_types::payment_method_data::PaymentMethodData::Card(card_data) => {
+                let card_expiration = card_data
+                    .get_card_expiry_year_month_2_digit_with_delimiter(String::new())
+                    .change_context(IntegrationError::RequestEncodingFailed {
+                        context: Default::default(),
+                    })?;
+
+                // Cardholder name: prefer card-supplied holder name, fall
+                // back to SetupMandateRequestData.customer_name.
+                let cardholder_name = card_data
+                    .card_holder_name
+                    .clone()
+                    .or_else(|| {
+                        request_data
+                            .customer_name
+                            .as_ref()
+                            .map(|name| Secret::new(name.clone()))
+                    })
+                    .ok_or(IntegrationError::MissingRequiredField {
+                        field_name: "payment_method.card.card_holder_name",
+                        context: Default::default(),
+                    })?;
+
+                Ok(Self {
+                    transaction_identifier: uuid::Uuid::new_v4().to_string(),
+                    total_amount: amount,
+                    currency_code,
+                    three_d_secure: Some(false),
+                    source: PowertranzSource {
+                        cardholder_name,
+                        card_pan: card_data.card_number.clone(),
+                        card_cvv: card_data.card_cvc.clone(),
+                        card_expiration,
+                    },
+                    order_identifier: router_data
+                        .resource_common_data
+                        .connector_request_reference_id
+                        .clone(),
+                    extended_data: None,
+                })
+            }
+            _ => Err(IntegrationError::NotSupported {
+                message: "Payment method not supported for SetupMandate".to_string(),
+                connector: "powertranz",
+                context: Default::default(),
+            }
+            .into()),
+        }
+    }
+}
+
+impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PowertranzSetupMandateResponse, Self>>
+    for RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<PowertranzSetupMandateResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let ResponseRouterData {
+            response,
+            router_data,
+            http_code,
+        } = item;
+
+        // Reuse the shared status-mapping logic. Transaction type 1 (Auth)
+        // + approved -> Authorized.
+        let mut status = get_payment_status(
+            response.transaction_type,
+            response.approved,
+            &response.iso_response_code,
+        );
+
+        // For zero-amount mandate setup, treat Authorized as Charged so
+        // the attempt reaches a terminal state for downstream consumers.
+        // Subsequent RepeatPayment (MIT) calls can replay the stored
+        // transaction_identifier.
+        if status == enums::AttemptStatus::Authorized {
+            status = enums::AttemptStatus::Charged;
+        }
+
+        // The PowerTranz transaction_identifier IS the connector_mandate_id
+        // used for subsequent RepeatPayment (MIT) calls.
+        let mandate_reference = Some(Box::new(MandateReference {
+            connector_mandate_id: Some(response.transaction_identifier.clone()),
+            payment_method_id: None,
+            connector_mandate_request_reference_id: None,
+        }));
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(
+                    response.transaction_identifier.clone(),
+                ),
+                redirection_data: None,
+                mandate_reference,
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
+                status_code: http_code,
+            }),
+            resource_common_data: PaymentFlowData {
+                status,
+                ..router_data.resource_common_data
+            },
             ..router_data
         })
     }

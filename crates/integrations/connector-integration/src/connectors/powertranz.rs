@@ -47,7 +47,8 @@ use transformers::{
     PowertranzCaptureRequest, PowertranzCaptureResponse, PowertranzPaymentsRequest,
     PowertranzPaymentsResponse, PowertranzPaymentsResponse as PowertranzPaymentsSyncResponse,
     PowertranzRSyncResponse, PowertranzRefundRequest, PowertranzRefundResponse,
-    PowertranzVoidRequest, PowertranzVoidResponse,
+    PowertranzSetupMandateRequest, PowertranzSetupMandateResponse, PowertranzVoidRequest,
+    PowertranzVoidResponse,
 };
 
 use crate::{types::ResponseRouterData, with_response_body};
@@ -239,16 +240,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
-        SetupMandate,
-        PaymentFlowData,
-        SetupMandateRequestData<T>,
-        PaymentsResponseData,
-    > for Powertranz<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
         RepeatPayment,
         PaymentFlowData,
         RepeatPaymentData<T>,
@@ -425,6 +416,12 @@ macros::create_all_prerequisites!(
             flow: RSync,
             response_body: PowertranzRSyncResponse,
             router_data: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        ),
+        (
+            flow: SetupMandate,
+            request_body: PowertranzSetupMandateRequest<T>,
+            response_body: PowertranzSetupMandateResponse,
+            router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [],
@@ -756,6 +753,39 @@ macros::macro_connector_implementation!(
                 self.connector_base_url_refunds(req),
                 connector_refund_id
             ))
+        }
+    }
+);
+
+// SetupMandate flow implementation using macro. PowerTranz has no dedicated
+// mandate-setup endpoint — the canonical approach is to issue an auth-only
+// (zero/low-amount) request against `/auth`. The returned
+// `transaction_identifier` is surfaced as the connector_mandate_id for
+// subsequent RepeatPayment (MIT) calls.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Powertranz,
+    curl_request: Json(PowertranzSetupMandateRequest<T>),
+    curl_response: PowertranzSetupMandateResponse,
+    flow_name: SetupMandate,
+    resource_common_data: PaymentFlowData,
+    flow_request: SetupMandateRequestData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}/auth", self.connector_base_url_payments(req)))
         }
     }
 );
