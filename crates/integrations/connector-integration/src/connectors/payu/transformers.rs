@@ -511,15 +511,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Extract authentication
         let auth = PayuAuthType::try_from(&router_data.connector_config)?;
 
-        // Extract transaction ID from connector_transaction_id
+        // PayU verify_payment expects var1 = merchant txnid, not mihpayid.
+        // The connector_request_reference_id carries the merchant's original txnid.
         let transaction_id = router_data
-            .request
-            .connector_transaction_id
-            .get_connector_transaction_id()
-            .change_context(IntegrationError::MissingRequiredField {
-                field_name: "connector_transaction_id",
-                context: Default::default(),
-            })?;
+            .resource_common_data
+            .connector_request_reference_id
+            .clone();
 
         let command = constants::COMMAND;
 
