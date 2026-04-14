@@ -2,13 +2,15 @@ use base64::{engine::general_purpose::STANDARD, Engine};
 use common_enums::AttemptStatus;
 use common_utils::errors::CustomResult;
 use domain_types::{
-    connector_flow::{Authorize, Capture, ClientAuthenticationToken, PSync, RSync, Refund, SetupMandate},
+    connector_flow::{
+        Authorize, Capture, ClientAuthenticationToken, PSync, RSync, Refund, SetupMandate,
+    },
     connector_types::{
         BluesnapClientAuthenticationResponse as BluesnapClientAuthenticationResponseDomain,
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
-        ConnectorSpecificClientAuthenticationResponse, MandateReference, PaymentFlowData, PaymentsAuthorizeData,
-        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
+        ConnectorSpecificClientAuthenticationResponse, MandateReference, PaymentFlowData,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
         SetupMandateRequestData,
     },
     payment_method_data::{BankDebitData, PaymentMethodData, PaymentMethodDataTypes},
@@ -31,13 +33,15 @@ const WALLET_TYPE_GOOGLE_PAY: &str = "GOOGLE_PAY";
 
 // Re-export request types
 pub use requests::{
-    BluesnapAchAuthorizeRequest, BluesnapAchData, BluesnapAuthorizeRequest, BluesnapBillingContactInfo,
-    BluesnapCaptureRequest, BluesnapCardHolderInfo, BluesnapCompletePaymentsRequest, BluesnapCreditCard,
-    BluesnapEcpTransaction, BluesnapMetadata, BluesnapPayerInfo, BluesnapPaymentMethodDetails,
-    BluesnapPaymentSources, BluesnapPaymentsRequest, BluesnapPaymentsTokenRequest, BluesnapRefundRequest,
+    BluesnapAchAuthorizeRequest, BluesnapAchData, BluesnapAuthorizeRequest,
+    BluesnapBillingContactInfo, BluesnapCaptureRequest, BluesnapCardHolderInfo,
+    BluesnapCompletePaymentsRequest, BluesnapCreditCard, BluesnapEcpTransaction, BluesnapMetadata,
+    BluesnapPayerInfo, BluesnapPaymentMethodDetails, BluesnapPaymentSources,
+    BluesnapPaymentsRequest, BluesnapPaymentsTokenRequest, BluesnapRefundRequest,
     BluesnapSepaAuthorizeRequest, BluesnapSepaDirectDebitTransaction, BluesnapSepaPayerInfo,
-    BluesnapSetupMandateRequest, BluesnapThreeDSecureInfo, BluesnapTxnType, BluesnapVaultedCreditCard,
-    BluesnapVaultedCreditCardInfo, BluesnapVoidRequest, BluesnapWallet, RequestMetadata, TransactionFraudInfo,
+    BluesnapSetupMandateRequest, BluesnapThreeDSecureInfo, BluesnapTxnType,
+    BluesnapVaultedCreditCard, BluesnapVaultedCreditCardInfo, BluesnapVoidRequest, BluesnapWallet,
+    RequestMetadata, TransactionFraudInfo,
 };
 
 // Re-export response types
