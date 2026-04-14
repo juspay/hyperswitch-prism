@@ -2,6 +2,7 @@
   "connector": "worldpayvantiv",
   "supported_suites": [
     "authorize",
-    "get"
+    "get",
+    "setup_recurring"
   ]
 }
