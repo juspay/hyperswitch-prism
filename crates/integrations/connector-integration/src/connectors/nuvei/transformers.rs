@@ -2150,6 +2150,11 @@ pub struct NuveiSetupMandateRequest<
     pub currency: common_enums::Currency,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub client_unique_id: Option<String>,
+    /// userTokenId is required for Nuvei to register the card as a reusable
+    /// payment option and return a non-empty `userPaymentOptionId` in the
+    /// response - this is what downstream MIT/RepeatPayment calls reference.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user_token_id: Option<String>,
     pub payment_option: NuveiPaymentOption<T>,
     /// "0" marks the initial CIT transaction of a recurring series.
     pub is_rebilling: String,
@@ -2387,6 +2392,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             &time_stamp.to_string(),
         ]);
 
+        // Nuvei requires a userTokenId on the initial CIT call so that it
+        // binds the card to a reusable userPaymentOptionId - prefer customer_id,
+        // fall back to payment_id to guarantee a value is sent.
+        let user_token_id = router_data
+            .resource_common_data
+            .customer_id
+            .as_ref()
+            .map(|c| c.get_string_repr().to_string())
+            .unwrap_or_else(|| router_data.resource_common_data.payment_id.clone());
+
         Ok(Self {
             session_token: Some(session_token),
             merchant_id: auth.merchant_id,
@@ -2395,6 +2410,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             amount,
             currency,
             client_unique_id: Some(client_request_id),
+            user_token_id: Some(user_token_id),
             payment_option,
             is_rebilling: "0".to_string(),
             transaction_type,
