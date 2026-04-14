@@ -44,8 +44,9 @@ use transformers::{
     NexixpayClientAuthResponse, NexixpayPaymentsRequest, NexixpayPaymentsResponse,
     NexixpayPostAuthenticateRequest, NexixpayPostAuthenticateResponse,
     NexixpayPreAuthenticateRequest, NexixpayPreAuthenticateResponse, NexixpayRSyncResponse,
-    NexixpayRefundRequest, NexixpayRefundResponse, NexixpaySetupMandateRequest,
-    NexixpaySetupMandateResponse, NexixpaySyncResponse, NexixpayVoidRequest, NexixpayVoidResponse,
+    NexixpayMitPaymentRequest, NexixpayMitPaymentResponse, NexixpayRefundRequest,
+    NexixpayRefundResponse, NexixpaySetupMandateRequest, NexixpaySetupMandateResponse,
+    NexixpaySyncResponse, NexixpayVoidRequest, NexixpayVoidResponse,
 };
 use uuid::Uuid;
 
@@ -124,6 +125,12 @@ macros::create_all_prerequisites!(
             request_body: NexixpaySetupMandateRequest,
             response_body: NexixpaySetupMandateResponse,
             router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: RepeatPayment,
+            request_body: NexixpayMitPaymentRequest,
+            response_body: NexixpayMitPaymentResponse,
+            router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [],
@@ -643,16 +650,35 @@ macros::macro_connector_implementation!(
     }
 );
 
-// Repeat Payment
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        RepeatPayment,
-        PaymentFlowData,
-        RepeatPaymentData<T>,
-        PaymentsResponseData,
-    > for Nexixpay<T>
-{
-}
+// Repeat Payment (MIT) — posts to /orders/mit with the stored contractId
+// obtained from SetupMandate (surfaced as connector_mandate_id).
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Nexixpay,
+    curl_request: Json(NexixpayMitPaymentRequest),
+    curl_response: NexixpayMitPaymentResponse,
+    flow_name: RepeatPayment,
+    resource_common_data: PaymentFlowData,
+    flow_request: RepeatPaymentData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}/orders/mit", self.connector_base_url_payments(req)))
+        }
+    }
+);
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<

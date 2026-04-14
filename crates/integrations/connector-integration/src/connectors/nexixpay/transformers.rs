@@ -8,7 +8,7 @@ use common_utils::{
 use domain_types::{
     connector_flow::{
         Authorize, Capture, ClientAuthenticationToken, PSync, PostAuthenticate, PreAuthenticate,
-        RSync, Refund, SetupMandate, Void,
+        RSync, Refund, RepeatPayment, SetupMandate, Void,
     },
     connector_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
@@ -17,7 +17,7 @@ use domain_types::{
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
         PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsResponseData,
         PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        ResponseId, SetupMandateRequestData,
+        RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
@@ -57,6 +57,30 @@ fn get_nexi_order_id(payment_id: &str) -> CustomResult<String, IntegrationError>
     } else {
         Ok(payment_id.to_string())
     }
+}
+
+/// Derive a NexiXPay `contractId` deterministically from a request reference
+/// so the SetupMandate request and response both surface the same value.
+/// NexiXPay rejects contract ids that are too long (>18 chars) or contain
+/// non-alphanumeric characters. We sanitize to `[A-Za-z0-9]`, truncate/pad
+/// with a fresh UUID suffix, and cap at 18 chars.
+fn derive_nexi_contract_id(reference: &str) -> String {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    let sanitized: String = reference
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric())
+        .collect();
+    if sanitized.len() >= 18 {
+        return sanitized.chars().take(18).collect();
+    }
+    // Pad with a deterministic hex hash derived from the reference so the
+    // same reference always yields the same contract id across the request
+    // and response transformers.
+    let mut hasher = DefaultHasher::new();
+    reference.hash(&mut hasher);
+    let hash = format!("{:016x}", hasher.finish());
+    format!("{sanitized}{hash}").chars().take(18).collect()
 }
 
 #[derive(Debug, Clone)]
@@ -1964,12 +1988,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // non-alphanumeric characters ("not valid"). Use the first 18 chars
         // of a dash-stripped UUID — within the documented max length and
         // safely alphanumeric.
-        let contract_id: String = uuid::Uuid::new_v4()
-            .simple()
-            .to_string()
-            .chars()
-            .take(18)
-            .collect();
+        let contract_id: String = derive_nexi_contract_id(
+            &item.resource_common_data.connector_request_reference_id,
+        );
         let recurrence = Some(NexixpayRecurrence {
             action: NexixpayRecurringAction::ContractCreation,
             contract_id: Some(Secret::new(contract_id)),
@@ -2010,15 +2031,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let response = &item.response;
         let operation = &response.operation;
 
-        // Re-derive the request body so we can recover the contractId we
-        // generated and surface it back as connector_mandate_id. The
-        // contractId is not echoed in NexiXPay's init response, but it is
-        // also stored in connector_metadata for downstream MIT calls.
-        // We generate a fresh uuid here only as a stable fallback if the
-        // contract id cannot be otherwise propagated; in practice the
-        // RepeatPayment flow reads `connector_mandate_id` from the
-        // mandate_reference set below.
-        let mandate_id = uuid::Uuid::new_v4().to_string();
+        // Re-derive the contractId deterministically from the original
+        // connector_request_reference_id so it matches what was sent on the
+        // request side. This is what downstream RepeatPayment (MIT) calls
+        // will supply back to NexiXPay via `/orders/mit`.
+        let mandate_id = derive_nexi_contract_id(
+            &item
+                .router_data
+                .resource_common_data
+                .connector_request_reference_id,
+        );
 
         // Map the operation result to an attempt status. For SetupMandate
         // we want to reach a terminal state when no 3DS is required, so
@@ -2083,6 +2105,215 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 resource_id: ResponseId::ConnectorTransactionId(operation.operation_id.clone()),
                 redirection_data,
                 mandate_reference,
+                connector_metadata: connector_metadata.clone(),
+                network_txn_id: None,
+                connector_response_reference_id: Some(operation.order_id.clone()),
+                incremental_authorization_allowed: None,
+                status_code: item.http_code,
+            }),
+            resource_common_data: PaymentFlowData {
+                status,
+                connector_feature_data: connector_metadata.map(Secret::new),
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
+    }
+}
+
+// ============================================================================
+// RepeatPayment (MIT) Flow
+// ============================================================================
+//
+// NexiXPay exposes `/orders/mit` for Merchant-Initiated Transactions that
+// re-use a previously-created `contractId` (MIT_UNSCHEDULED). The request
+// shape is an `order` envelope plus a `contractId` + `captureType`. No card
+// data or 3DS fields are sent; NexiXPay charges the card that was
+// previously bound to the contract during SetupMandate.
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NexixpayMitPaymentRequest {
+    pub order: NexixpayPreAuthOrder,
+    pub contract_id: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub capture_type: Option<NexixpayCaptureType>,
+    pub recurrence: RecurrenceRequest,
+}
+
+/// MIT response mirrors the `/orders/3steps/payment` shape (single operation)
+pub type NexixpayMitPaymentResponse = NexixpayPaymentsResponse;
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        NexixpayRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for NexixpayMitPaymentRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        value: NexixpayRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let item = &value.router_data;
+
+        // Resolve the stored contract id from the ConnectorMandateId.
+        let contract_id = match &item.request.mandate_reference {
+            MandateReferenceId::ConnectorMandateId(mandate_data) => mandate_data
+                .get_connector_mandate_id()
+                .ok_or_else(|| IntegrationError::MissingRequiredField {
+                    field_name: "connector_mandate_id",
+                    context: Default::default(),
+                })?,
+            MandateReferenceId::NetworkMandateId(_)
+            | MandateReferenceId::NetworkTokenWithNTI(_) => {
+                return Err(IntegrationError::NotSupported {
+                    message: "Only ConnectorMandateId is supported for NexiXPay MIT".to_string(),
+                    connector: "Nexixpay",
+                    context: Default::default(),
+                }
+                .into());
+            }
+        };
+
+        // Build billing / customer info from the address on the flow.
+        let billing_address = item
+            .resource_common_data
+            .address
+            .get_payment_method_billing()
+            .and_then(|billing| {
+                billing.address.as_ref().map(|addr| {
+                    let country = addr
+                        .country
+                        .map(common_enums::CountryAlpha2::from_alpha2_to_alpha3);
+                    let name = match (&addr.first_name, &addr.last_name) {
+                        (Some(first), Some(last)) => {
+                            Some(Secret::new(format!("{} {}", first.peek(), last.peek())))
+                        }
+                        (Some(first), None) => Some(first.clone()),
+                        (None, Some(last)) => Some(last.clone()),
+                        (None, None) => None,
+                    };
+                    let street = match (&addr.line1, &addr.line2) {
+                        (Some(l1), Some(l2)) => {
+                            Some(Secret::new(format!("{}, {}", l1.peek(), l2.peek())))
+                        }
+                        (Some(l1), None) => Some(l1.clone()),
+                        (None, Some(l2)) => Some(l2.clone()),
+                        (None, None) => None,
+                    };
+                    NexixpayBillingAddress {
+                        name,
+                        street,
+                        city: addr.city.clone().map(|c| c.expose().to_string()),
+                        post_code: addr.zip.clone(),
+                        country,
+                    }
+                })
+            });
+
+        let card_holder_name = item
+            .resource_common_data
+            .address
+            .get_payment_method_billing()
+            .and_then(|billing| {
+                billing.address.as_ref().and_then(|addr| {
+                    match (&addr.first_name, &addr.last_name) {
+                        (Some(first), Some(last)) => {
+                            Some(format!("{} {}", first.peek(), last.peek()))
+                        }
+                        (Some(first), None) => Some(first.peek().to_string()),
+                        (None, Some(last)) => Some(last.peek().to_string()),
+                        (None, None) => None,
+                    }
+                })
+            })
+            .unwrap_or_else(|| "Cardholder".to_string());
+
+        let customer_info = NexixpayCustomerInfo {
+            card_holder_name: Secret::new(card_holder_name),
+            billing_address,
+            shipping_address: None,
+        };
+
+        let order_amount = StringMinorUnitForConnector
+            .convert(item.request.minor_amount, item.request.currency)
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?;
+
+        let order = NexixpayPreAuthOrder {
+            order_id: get_nexi_order_id(&item.resource_common_data.connector_request_reference_id)?,
+            amount: order_amount,
+            currency: item.request.currency,
+            customer_info,
+            description: None,
+        };
+
+        let capture_type = match item.request.capture_method {
+            Some(common_enums::CaptureMethod::Manual) => Some(NexixpayCaptureType::Explicit),
+            Some(common_enums::CaptureMethod::Automatic)
+            | Some(common_enums::CaptureMethod::SequentialAutomatic)
+            | None => Some(NexixpayCaptureType::Implicit),
+            _ => Some(NexixpayCaptureType::Implicit),
+        };
+
+        let recurrence = RecurrenceRequest {
+            action: NexixpayRecurringAction::SubsequentPayment,
+            contract_id: Some(Secret::new(contract_id.clone())),
+            contract_type: Some(ContractType::MitUnscheduled),
+        };
+
+        Ok(Self {
+            order,
+            contract_id: Secret::new(contract_id),
+            capture_type,
+            recurrence,
+        })
+    }
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<NexixpayMitPaymentResponse, Self>>
+    for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<NexixpayMitPaymentResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let operation = &item.response.operation;
+        let status = AttemptStatus::from(operation.operation_result.clone());
+
+        let connector_metadata = Some(serde_json::json!(NexixpayConnectorMetaData {
+            three_d_s_auth_result: None,
+            three_d_s_auth_response: None,
+            authorization_operation_id: Some(operation.operation_id.clone()),
+            cancel_operation_id: None,
+            capture_operation_id: None,
+            psync_flow: NexixpayPaymentIntent::Authorize,
+        }));
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(operation.operation_id.clone()),
+                redirection_data: None,
+                mandate_reference: None,
                 connector_metadata: connector_metadata.clone(),
                 network_txn_id: None,
                 connector_response_reference_id: Some(operation.order_id.clone()),
