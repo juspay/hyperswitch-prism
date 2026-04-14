@@ -613,7 +613,7 @@
             "via": "HyperSwitch",
             "x-forte-auth-organization-id": "org_probe_org_id"
           },
-          "body": "{\"action\":\"verify\",\"authorization_amount\":0.0,\"billing_address\":{\"first_name\":\"John\",\"last_name\":\"John\"},\"card\":{\"card_type\":\"visa\",\"name_on_card\":\"John\",\"account_number\":\"4111111111111111\",\"expire_month\":\"03\",\"expire_year\":\"2030\",\"card_verification_value\":\"123\"}}"
+          "body": "{\"action\":\"authorize\",\"authorization_amount\":0.0,\"billing_address\":{\"first_name\":\"John\",\"last_name\":\"John\"},\"card\":{\"card_type\":\"visa\",\"name_on_card\":\"John\",\"account_number\":\"4111111111111111\",\"expire_month\":\"03\",\"expire_year\":\"2030\",\"card_verification_value\":\"123\"}}"
         }
       }
     },
@@ -701,7 +701,7 @@
             "via": "HyperSwitch",
             "x-forte-auth-organization-id": "org_probe_org_id"
           },
-          "body": "{\"action\":\"verify\",\"authorization_amount\":0.0,\"billing_address\":{\"first_name\":\"John\",\"last_name\":\"John\"},\"card\":{\"card_type\":\"visa\",\"name_on_card\":\"John\",\"account_number\":\"4111111111111111\",\"expire_month\":\"03\",\"expire_year\":\"2030\",\"card_verification_value\":\"737\"}}"
+          "body": "{\"action\":\"authorize\",\"authorization_amount\":0.0,\"billing_address\":{\"first_name\":\"John\",\"last_name\":\"John\"},\"card\":{\"card_type\":\"visa\",\"name_on_card\":\"John\",\"account_number\":\"4111111111111111\",\"expire_month\":\"03\",\"expire_year\":\"2030\",\"card_verification_value\":\"737\"}}"
         }
       }
     },
