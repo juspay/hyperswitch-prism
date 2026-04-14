@@ -140,6 +140,54 @@ pub enum BluesnapRefundStatus {
 
 pub type BluesnapRefundSyncResponse = BluesnapPSyncResponse;
 
+// ===== SETUP MANDATE (VAULTED SHOPPER) RESPONSE STRUCTURES =====
+
+/// Vaulted shopper credit card response info
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapVaultedCreditCardResponse {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card_last_four_digits: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card_sub_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expiration_month: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expiration_year: Option<String>,
+}
+
+/// Credit card info in vaulted shopper response
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapVaultedCreditCardInfoResponse {
+    pub credit_card: BluesnapVaultedCreditCardResponse,
+}
+
+/// Payment sources in vaulted shopper response
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapPaymentSourcesResponse {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub credit_card_info: Option<Vec<BluesnapVaultedCreditCardInfoResponse>>,
+}
+
+/// SetupMandate response - vaulted shopper created in BlueSnap
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapSetupMandateResponse {
+    pub vaulted_shopper_id: i64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub first_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payment_sources: Option<BluesnapPaymentSourcesResponse>,
+}
+
 // ===== 3DS AUTHENTICATION RESPONSES =====
 
 // 3DS redirect response after authentication

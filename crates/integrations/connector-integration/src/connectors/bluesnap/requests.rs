@@ -270,3 +270,66 @@ pub struct BluesnapCompletePaymentsRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub transaction_meta_data: Option<BluesnapMetadata>,
 }
+
+// ===== SETUP MANDATE (VAULTED SHOPPER) STRUCTURES =====
+
+/// Credit card information for vaulted shopper creation
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapVaultedCreditCard {
+    pub card_number: Secret<String>,
+    pub expiration_month: Secret<String>,
+    pub expiration_year: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub security_code: Option<Secret<String>>,
+}
+
+/// Credit card info wrapper for vaulted shopper
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapVaultedCreditCardInfo {
+    pub credit_card: BluesnapVaultedCreditCard,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub billing_contact_info: Option<BluesnapBillingContactInfo>,
+}
+
+/// Billing contact info for vaulted shopper
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapBillingContactInfo {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub first_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub address1: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub address2: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub city: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub state: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub zip: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub country: Option<String>,
+}
+
+/// Payment sources for vaulted shopper (supports credit card)
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapPaymentSources {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub credit_card_info: Option<Vec<BluesnapVaultedCreditCardInfo>>,
+}
+
+/// SetupMandate request - creates a vaulted shopper in BlueSnap
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapSetupMandateRequest {
+    pub first_name: Secret<String>,
+    pub last_name: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email: Option<common_utils::pii::Email>,
+    pub payment_sources: BluesnapPaymentSources,
+}

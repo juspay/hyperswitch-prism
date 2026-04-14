@@ -44,7 +44,8 @@ use transformers::{
     self as bluesnap, BluesnapAuthorizeRequest, BluesnapAuthorizeResponse, BluesnapCaptureRequest,
     BluesnapCaptureResponse, BluesnapClientAuthRequest, BluesnapClientAuthResponse,
     BluesnapPSyncResponse, BluesnapRefundRequest, BluesnapRefundResponse,
-    BluesnapRefundSyncResponse, BluesnapVoidRequest, BluesnapVoidResponse,
+    BluesnapRefundSyncResponse, BluesnapSetupMandateRequest, BluesnapSetupMandateResponse,
+    BluesnapVoidRequest, BluesnapVoidResponse,
 };
 
 use super::macros;
@@ -434,6 +435,12 @@ macros::create_all_prerequisites!(
             request_body: BluesnapClientAuthRequest,
             response_body: BluesnapClientAuthResponse,
             router_data: RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ),
+        (
+            flow: SetupMandate,
+            request_body: BluesnapSetupMandateRequest,
+            response_body: BluesnapSetupMandateResponse,
+            router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [],
@@ -823,16 +830,35 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-// Setup Mandate
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        SetupMandate,
-        PaymentFlowData,
-        SetupMandateRequestData<T>,
-        PaymentsResponseData,
-    > for Bluesnap<T>
-{
-}
+// Setup Mandate (SetupRecurring) - creates a vaulted shopper in BlueSnap
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Bluesnap,
+    curl_request: Json(BluesnapSetupMandateRequest),
+    curl_response: BluesnapSetupMandateResponse,
+    flow_name: SetupMandate,
+    resource_common_data: PaymentFlowData,
+    flow_request: SetupMandateRequestData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}/services/2/vaulted-shoppers", self.connector_base_url_payments(req)))
+        }
+    }
+);
 
 // Repeat Payment
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
