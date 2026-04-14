@@ -815,8 +815,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         });
 
         let payment_method = match &request.payment_method_data {
-            PaymentMethodData::Card(ccard) => RapydPaymentMethodData::PaymentMethod(Box::new(
-                PaymentMethod {
+            PaymentMethodData::Card(ccard) => {
+                RapydPaymentMethodData::PaymentMethod(Box::new(PaymentMethod {
                     pm_type: "in_amex_card".to_owned(),
                     fields: Some(PaymentFields {
                         number: ccard.card_number.to_owned(),
@@ -831,8 +831,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     }),
                     address: None,
                     digital_wallet: None,
-                },
-            )),
+                }))
+            }
             _ => {
                 return Err(IntegrationError::not_implemented(
                     "payment_method for rapyd SetupMandate".to_owned(),
@@ -870,7 +870,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<ResponseRouterData<RapydSetupMandateResponse, Self>>
-    for RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>
+    for RouterDataV2<
+        SetupMandate,
+        PaymentFlowData,
+        SetupMandateRequestData<T>,
+        PaymentsResponseData,
+    >
 {
     type Error = error_stack::Report<ConnectorError>;
 
@@ -890,12 +895,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                 .to_owned()
                                 .unwrap_or(item.response.status.error_code.clone()),
                             status_code: item.http_code,
-                            message: item
-                                .response
-                                .status
-                                .status
-                                .clone()
-                                .unwrap_or_default(),
+                            message: item.response.status.status.clone().unwrap_or_default(),
                             reason: data.failure_message.to_owned(),
                             attempt_status: None,
                             connector_transaction_id: None,
