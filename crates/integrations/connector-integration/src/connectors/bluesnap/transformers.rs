@@ -122,13 +122,11 @@ fn map_ecp_account_type(
                         "Use `BankType::Checking` or `BankType::Savings`".to_owned(),
                     ),
                     doc_url: None,
-                    additional_context: Some(
-                        format!(
-                            "Received BankType::{unsupported:?}, which does not map to any \
+                    additional_context: Some(format!(
+                        "Received BankType::{unsupported:?}, which does not map to any \
                              BlueSnap ECP account type. Only `Checking` and `Savings` are \
                              accepted by the BlueSnap."
-                        ),
-                    ),
+                    ),),
                 },
             }))
         }
