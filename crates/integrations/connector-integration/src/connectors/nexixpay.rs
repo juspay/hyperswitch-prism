@@ -44,8 +44,8 @@ use transformers::{
     NexixpayClientAuthResponse, NexixpayPaymentsRequest, NexixpayPaymentsResponse,
     NexixpayPostAuthenticateRequest, NexixpayPostAuthenticateResponse,
     NexixpayPreAuthenticateRequest, NexixpayPreAuthenticateResponse, NexixpayRSyncResponse,
-    NexixpayRefundRequest, NexixpayRefundResponse, NexixpaySyncResponse, NexixpayVoidRequest,
-    NexixpayVoidResponse,
+    NexixpayRefundRequest, NexixpayRefundResponse, NexixpaySetupMandateRequest,
+    NexixpaySetupMandateResponse, NexixpaySyncResponse, NexixpayVoidRequest, NexixpayVoidResponse,
 };
 use uuid::Uuid;
 
@@ -118,6 +118,12 @@ macros::create_all_prerequisites!(
             request_body: NexixpayClientAuthRequest,
             response_body: NexixpayClientAuthResponse,
             router_data: RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ),
+        (
+            flow: SetupMandate,
+            request_body: NexixpaySetupMandateRequest,
+            response_body: NexixpaySetupMandateResponse,
+            router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [],
@@ -605,16 +611,37 @@ macros::macro_connector_implementation!(
     }
 );
 
-// Setup Mandate
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        SetupMandate,
-        PaymentFlowData,
-        SetupMandateRequestData<T>,
-        PaymentsResponseData,
-    > for Nexixpay<T>
-{
-}
+// SetupMandate flow implementation using macro. NexiXPay reuses
+// /orders/3steps/init for card-on-file contract creation; the contractId we
+// generate is surfaced as connector_mandate_id for subsequent RepeatPayment
+// (MIT) calls.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Nexixpay,
+    curl_request: Json(NexixpaySetupMandateRequest),
+    curl_response: NexixpaySetupMandateResponse,
+    flow_name: SetupMandate,
+    resource_common_data: PaymentFlowData,
+    flow_request: SetupMandateRequestData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}/orders/3steps/init", self.connector_base_url_payments(req)))
+        }
+    }
+);
 
 // Repeat Payment
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
