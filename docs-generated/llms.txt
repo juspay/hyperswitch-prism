@@ -99,7 +99,7 @@ connector_id: billwerk
 doc: docs/connectors/billwerk.md
 scenarios: none
 payment_methods: none
-flows: capture, get, recurring_charge, refund, refund_get, token_authorize, token_setup_recurring, tokenize, void
+flows: capture, create_order, get, recurring_charge, refund, refund_get, token_authorize, token_setup_recurring, tokenize, void
 examples_python: none
 
 ## Bluesnap

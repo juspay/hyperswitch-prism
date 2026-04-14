@@ -12,6 +12,7 @@ import payments.RecurringPaymentClient
 import payments.RefundClient
 import payments.PaymentMethodClient
 import payments.PaymentServiceCaptureRequest
+import payments.PaymentServiceCreateOrderRequest
 import payments.PaymentServiceGetRequest
 import payments.RecurringPaymentServiceChargeRequest
 import payments.PaymentServiceRefundRequest
@@ -87,6 +88,20 @@ fun capture(txnId: String) {
     if (response.status.name == "FAILED")
         throw RuntimeException("Capture failed: ${response.error.unifiedDetails.message}")
     println("Done: ${response.status.name}")
+}
+
+// Flow: PaymentService.CreateOrder
+fun createOrder(txnId: String) {
+    val client = PaymentClient(_defaultConfig)
+    val request = PaymentServiceCreateOrderRequest.newBuilder().apply {
+        merchantOrderId = "probe_order_001"  // Identification.
+        amountBuilder.apply {  // Amount Information.
+            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
+            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+    }.build()
+    val response = client.create_order(request)
+    println("Order: ${response.connectorOrderId}")
 }
 
 // Flow: PaymentService.Get
@@ -249,6 +264,7 @@ fun main(args: Array<String>) {
     val flow = args.firstOrNull() ?: "capture"
     when (flow) {
         "capture" -> capture(txnId)
+        "createOrder" -> createOrder(txnId)
         "get" -> get(txnId)
         "recurringCharge" -> recurringCharge(txnId)
         "refund" -> refund(txnId)
@@ -257,6 +273,6 @@ fun main(args: Array<String>) {
         "tokenSetupRecurring" -> tokenSetupRecurring(txnId)
         "tokenize" -> tokenize(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: capture, get, recurringCharge, refund, refundGet, tokenAuthorize, tokenSetupRecurring, tokenize, void")
+        else -> System.err.println("Unknown flow: $flow. Available: capture, createOrder, get, recurringCharge, refund, refundGet, tokenAuthorize, tokenSetupRecurring, tokenize, void")
     }
 }

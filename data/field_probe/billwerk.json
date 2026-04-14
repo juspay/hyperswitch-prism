@@ -408,7 +408,24 @@
     },
     "create_order": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_order_id": "probe_order_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://checkout-api.reepay.com/v1/session/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"order\":{\"handle\":\"probe_order_001\",\"amount\":1000,\"currency\":\"USD\",\"customer_handle\":\"probe_order_001\",\"customer\":{\"handle\":\"probe_order_001\"}}}"
+        }
       }
     },
     "create_server_authentication_token": {
