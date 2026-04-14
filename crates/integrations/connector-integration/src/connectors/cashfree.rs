@@ -6,8 +6,8 @@ use std::{fmt::Debug, sync::LazyLock};
 use cashfree::{
     CashfreeCaptureRequest, CashfreeCaptureResponse, CashfreeOrderCreateRequest,
     CashfreeOrderCreateResponse, CashfreePaymentRequest, CashfreePaymentResponse,
-    CashfreeRefundRequest, CashfreeRefundResponse, CashfreeRefundSyncResponse,
-    CashfreeSyncRequest, CashfreeSyncResponse, CashfreeVoidRequest, CashfreeVoidResponse,
+    CashfreeRefundRequest, CashfreeRefundResponse, CashfreeRefundSyncResponse, CashfreeSyncRequest,
+    CashfreeSyncResponse, CashfreeVoidRequest, CashfreeVoidResponse,
 };
 use common_enums::{AttemptStatus, CaptureMethod, PaymentMethod, PaymentMethodType};
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt};
@@ -20,21 +20,18 @@ use domain_types::{
         SubmitEvidence, Void, VoidPC,
     },
     connector_types::{
-        AcceptDisputeData, AccessTokenRequestData, AccessTokenResponseData,
-        ClientAuthenticationTokenRequestData, ConnectorCustomerData, ConnectorCustomerResponse,
-        ConnectorSpecifications, DisputeDefendData, DisputeFlowData, DisputeResponseData,
-        MandateRevokeRequestData, MandateRevokeResponseData, PaymentCreateOrderData,
-        PaymentCreateOrderResponse, PaymentFlowData, PaymentMethodTokenResponse,
-        PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthenticateData,
-        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
-        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSdkSessionTokenData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        RepeatPaymentData, ServerAuthenticationTokenRequestData,
-        ServerAuthenticationTokenResponseData,
+        AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
+        ConnectorCustomerResponse, ConnectorSpecifications, DisputeDefendData, DisputeFlowData,
+        DisputeResponseData, MandateRevokeRequestData, MandateRevokeResponseData,
+        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData,
+        PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
+        PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
+        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
+        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
         ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
-        SessionTokenRequestData, SessionTokenResponseData, SetupMandateRequestData,
-        SubmitEvidenceData, SupportedPaymentMethodsExt,
+        SetupMandateRequestData, SubmitEvidenceData, SupportedPaymentMethodsExt,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
@@ -55,8 +52,7 @@ use transformers as cashfree;
 
 use super::macros;
 use crate::{types::ResponseRouterData, with_response_body};
-use domain_types::errors::ConnectorError;
-use domain_types::errors::IntegrationError;
+use domain_types::errors::{ConnectorError, IntegrationError};
 
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
@@ -371,20 +367,21 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
 
         fn get_url(
             &self,
             req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let order_id = req
                 .request
                 .merchant_order_id
                 .as_ref()
-                .ok_or(errors::ConnectorError::MissingRequiredField {
+                .ok_or(IntegrationError::MissingRequiredField {
                     field_name: "merchant_order_id",
+                    context: Default::default(),
                 })?;
             let base_url = self.connector_base_url(req);
             Ok(format!("{base_url}pg/orders/{order_id}/authorization"))
@@ -408,14 +405,14 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
 
         fn get_url(
             &self,
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             // Cashfree PSync URL uses the merchant order_id, not cf_payment_id.
             // Try reference_id (connector_order_reference_id from gRPC) first,
             // then connector_request_reference_id (merchant_transaction_id).
@@ -447,20 +444,21 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
 
         fn get_url(
             &self,
             req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let order_id = req
                 .request
                 .merchant_order_id
                 .as_ref()
-                .ok_or(errors::ConnectorError::MissingRequiredField {
+                .ok_or(IntegrationError::MissingRequiredField {
                     field_name: "merchant_order_id",
+                    context: Default::default(),
                 })?;
             let base_url = self.connector_base_url(req);
             Ok(format!("{base_url}pg/orders/{order_id}/authorization"))
@@ -485,14 +483,14 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
 
         fn get_url(
             &self,
             req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let order_id = &req.request.connector_transaction_id;
             let base_url = self.refund_base_url(req);
             Ok(format!("{base_url}pg/orders/{order_id}/refunds"))
@@ -594,14 +592,14 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
 
         fn get_url(
             &self,
             req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let order_id = &req.request.connector_transaction_id;
             let refund_id = &req.request.connector_refund_id;
             let base_url = self.refund_base_url(req);
@@ -894,7 +892,7 @@ static CASHFREE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
 
         // Netbanking
         cashfree_supported_payment_methods.add(
-            PaymentMethod::Netbanking,
+            PaymentMethod::BankRedirect,
             PaymentMethodType::Netbanking,
             PaymentMethodDetails {
                 mandates: FeatureStatus::NotSupported,
@@ -909,13 +907,12 @@ static CASHFREE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
 
 static CASHFREE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Cashfree",
-    description:
-        "Cashfree Payments is an Indian payment gateway and banking technology company.",
+    description: "Cashfree Payments is an Indian payment gateway and banking technology company.",
     connector_type: domain_types::types::PaymentConnectorCategory::PaymentGateway,
 };
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorSpecifications for Cashfree<T>
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorSpecifications
+    for Cashfree<T>
 {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&CASHFREE_CONNECTOR_INFO)

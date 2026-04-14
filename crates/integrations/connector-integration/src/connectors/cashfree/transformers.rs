@@ -2,11 +2,14 @@ use common_enums;
 use domain_types::{
     connector_flow::{Authorize, Capture, CreateOrder, PSync, RSync, Refund, Void},
     connector_types::{
-        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentsAuthorizeData,
-        PaymentsCaptureData, PaymentVoidData, PaymentsResponseData, PaymentsSyncData,
+        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
-    errors::{ConnectorError, IntegrationError},
+    errors::{
+        ConnectorError, IntegrationError, IntegrationErrorContext,
+        ResponseTransformationErrorContext,
+    },
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, WalletData},
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
@@ -39,7 +42,11 @@ impl TryFrom<&ConnectorSpecificConfig> for CashfreeAuthType {
                 secret_key: secret_key.to_owned(),
             }),
             _ => Err(report!(IntegrationError::FailedToObtainAuthType {
-                context: Default::default()
+                context: IntegrationErrorContext {
+                    suggested_action: Some("Pass Cashfree credentials via x-connector-config header with app_id and secret_key".to_string()),
+                    doc_url: Some("https://docs.cashfree.com/docs/credentials".to_string()),
+                    additional_context: Some("Expected ConnectorSpecificConfig::Cashfree with app_id and secret_key".to_string()),
+                },
             })),
         }
     }
@@ -172,8 +179,8 @@ pub struct CashfreePaymentMethod {
 /// CashFreeAPPType — wallet/app payment method (channel: "link", provider, phone)
 #[derive(Debug, Serialize)]
 pub struct CashfreeAppDetails {
-    pub channel: String,   // "link"
-    pub provider: String,  // e.g. "phonepe", "paytm", "amazon", "gpay"
+    pub channel: String,       // "link"
+    pub provider: String,      // e.g. "phonepe", "paytm", "amazon", "gpay"
     pub phone: Secret<String>, // customer phone number
 }
 
@@ -192,51 +199,41 @@ pub struct CashfreeUpiDetails {
 /// Matches Haskell CashFreeNBType from Types.hs:2411
 #[derive(Debug, Serialize)]
 pub struct CashfreeNBDetails {
-    pub channel: String,              // Always "link"
-    pub netbanking_bank_code: i32,    // Cashfree-specific integer bank code
+    pub channel: String,           // Always "link"
+    pub netbanking_bank_code: i32, // Cashfree-specific integer bank code
 }
 
 /// Maps the bank_code from NetbankingData to Cashfree's integer bank code.
 /// Cashfree uses numeric bank codes for netbanking. This mapping is based
 /// on the Cashfree API documentation and the Haskell tech spec.
-fn map_to_cashfree_bank_code(bank_code: &str) -> Result<i32, ConnectorError> {
-    match bank_code {
-        // Major Indian banks
-        "SBIN" | "SBI" => Ok(3044),           // State Bank of India
-        "HDFC" => Ok(3021),                     // HDFC Bank
-        "ICIC" | "ICICI" => Ok(3022),          // ICICI Bank
-        "UTIB" | "AXIS" => Ok(3003),           // Axis Bank
-        "KKBK" | "KOTAK" => Ok(3032),          // Kotak Mahindra Bank
-        "PUNB" | "PNB" => Ok(3035),            // Punjab National Bank
-        "BARB" | "BOB" => Ok(3005),            // Bank of Baroda
-        "YESB" | "YES" => Ok(3053),            // Yes Bank
-        "UBIN" | "UNION" => Ok(3055),          // Union Bank of India
-        "INDB" | "INDUSIND" => Ok(3024),       // IndusInd Bank
-        "FDRL" | "FEDERAL" => Ok(3016),        // Federal Bank
-        "IBKL" | "IDBI" => Ok(3023),           // IDBI Bank
-        "CNRB" | "CANARA" => Ok(3009),         // Canara Bank
-        "CBIN" | "CENTRAL" => Ok(3010),        // Central Bank of India
-        "BKID" | "BOI" => Ok(3006),            // Bank of India
-        "IOBA" | "IOB" => Ok(3025),            // Indian Overseas Bank
-        "MAHB" | "BOMAh" => Ok(3007),          // Bank of Maharashtra
-        "SYNB" | "SYNDICATE" => Ok(3049),      // Syndicate Bank
-        "ALLA" | "ALLAHABAD" => Ok(3002),      // Allahabad Bank
-        "UCBA" | "UCO" => Ok(3054),            // UCO Bank
-        "KARB" | "KARNATAKA" => Ok(3029),      // Karnataka Bank
-        "RATN" | "RBL" => Ok(3037),            // RBL Bank
-        "SCBL" | "SCB" => Ok(3043),            // Standard Chartered Bank
-        "CITI" | "CITIBANK" => Ok(3011),       // Citibank
-        "DCBL" | "DCB" => Ok(3014),            // DCB Bank
-        "DLXB" | "DLB" => Ok(3015),            // Dhanlaxmi Bank
-        "TMBL" | "TMB" => Ok(3050),            // Tamilnad Mercantile Bank
-        "JAKA" | "JK" => Ok(3028),             // Jammu & Kashmir Bank
-        "KVBL" | "KVB" => Ok(3031),            // Karur Vysya Bank
-        "SIBL" | "SIB" => Ok(3046),            // South Indian Bank
-        "IDFB" | "IDFC" => Ok(3056),           // IDFC FIRST Bank
-        // Pass through numeric codes directly
-        _ => bank_code.parse::<i32>().map_err(|_| ConnectorError::NotSupported {
-            message: format!("Bank code '{}' is not supported for Cashfree netbanking", bank_code),
+fn map_to_cashfree_bank_code(bank_name: &common_enums::BankNames) -> Result<i32, IntegrationError> {
+    use common_enums::BankNames;
+    match bank_name {
+        BankNames::StateBank => Ok(3044),
+        BankNames::HdfcBank => Ok(3021),
+        BankNames::IciciBank => Ok(3022),
+        BankNames::AxisBank => Ok(3003),
+        BankNames::KotakMahindraBank => Ok(3032),
+        BankNames::PunjabNationalBank => Ok(3035),
+        BankNames::BankOfBaroda => Ok(3005),
+        BankNames::YesBank => Ok(3053),
+        BankNames::UnionBankOfIndia => Ok(3055),
+        BankNames::IndusIndBank => Ok(3024),
+        BankNames::FederalBank => Ok(3016),
+        BankNames::IdbiBank => Ok(3023),
+        BankNames::CanaraBank => Ok(3009),
+        BankNames::CentralBankOfIndia => Ok(3010),
+        BankNames::IndianOverseasBank => Ok(3025),
+        BankNames::StandardCharteredBank => Ok(3043),
+        BankNames::Citi => Ok(3011),
+        _ => Err(IntegrationError::NotSupported {
+            message: format!("Bank '{:?}' is not supported for Cashfree netbanking", bank_name),
             connector: "Cashfree",
+            context: IntegrationErrorContext {
+                suggested_action: Some("Use a supported Indian bank name from the BankNames enum".to_string()),
+                doc_url: Some("https://docs.cashfree.com/docs/net-banking".to_string()),
+                additional_context: Some(format!("Unsupported bank: {:?}. Supported: StateBank, HdfcBank, IciciBank, AxisBank, KotakMahindraBank, PunjabNationalBank, BankOfBaroda, YesBank, UnionBankOfIndia, IndusIndBank, FederalBank, IdbiBank, CanaraBank, CentralBankOfIndia, IndianOverseasBank, StandardCharteredBank, Citi", bank_name)),
+            },
         }),
     }
 }
@@ -298,7 +295,11 @@ fn get_cashfree_payment_method_data<
                     if vpa.is_empty() {
                         return Err(IntegrationError::MissingRequiredField {
                             field_name: "vpa_id for UPI collect",
-                            context: Default::default(),
+                            context: IntegrationErrorContext {
+                                suggested_action: Some("Provide a valid VPA in the upi_collect.vpa_id field (e.g. user@upi)".to_string()),
+                                doc_url: Some("https://docs.cashfree.com/docs/upi".to_string()),
+                                additional_context: Some("UPI collect requires a non-empty VPA to initiate a collect request".to_string()),
+                            },
                         });
                     }
 
@@ -349,8 +350,13 @@ fn get_cashfree_payment_method_data<
                 WalletData::PayURedirect(_) => "payu",
                 WalletData::EaseBuzzRedirect(_) => "easebuzz",
                 _ => {
-                    return Err(IntegrationError::not_implemented(
-                        "This wallet type is not supported for Cashfree".to_string(),
+                    return Err(IntegrationError::not_implemented_with_context(
+                        "This wallet type is not supported for Cashfree",
+                        IntegrationErrorContext {
+                            suggested_action: Some("Use a supported wallet: PhonePe, AmazonPay, GooglePay, LazyPay, BillDesk, Cashfree, PayU, or EaseBuzz".to_string()),
+                            doc_url: Some("https://docs.cashfree.com/docs/payment-method".to_string()),
+                            additional_context: None,
+                        },
                     ))
                 }
             };
@@ -370,9 +376,9 @@ fn get_cashfree_payment_method_data<
                 cardless_emi: None,
             })
         }
-        PaymentMethodData::Netbanking(nb_data) => {
+        PaymentMethodData::BankRedirect(domain_types::payment_method_data::BankRedirectData::Netbanking { issuer }) => {
             // Map the bank_code to Cashfree's integer bank code
-            let cashfree_bank_code = map_to_cashfree_bank_code(&nb_data.bank_code)?;
+            let cashfree_bank_code = map_to_cashfree_bank_code(issuer)?;
 
             Ok(CashfreePaymentMethod {
                 upi: None,
@@ -391,7 +397,11 @@ fn get_cashfree_payment_method_data<
         _ => Err(IntegrationError::NotSupported {
             message: "Payment method not supported for Cashfree V3".to_string(),
             connector: "Cashfree",
-            context: Default::default(),
+            context: IntegrationErrorContext {
+                suggested_action: Some("Use a supported payment method: UPI (collect/intent), Wallet (PhonePe, AmazonPay, GooglePay, etc.), or Netbanking".to_string()),
+                doc_url: Some("https://docs.cashfree.com/docs/payment-method".to_string()),
+                additional_context: Some("Cashfree V3 supports UPI, Wallet redirect, and Netbanking payment methods".to_string()),
+            },
         }),
     }
 }
@@ -612,8 +622,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .or_else(|| item.resource_common_data.reference_id.clone())
             .or_else(|| item.request.merchant_order_id.clone())
             .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "payment_session_id (pass session_token from CreateOrder response)",
-                context: Default::default(),
+                field_name: "payment_session_id",
+                context: IntegrationErrorContext {
+                    suggested_action: Some("Call CreateOrder first and pass the returned session_token in the Authorize request".to_string()),
+                    doc_url: Some("https://docs.cashfree.com/docs/create-order".to_string()),
+                    additional_context: Some("Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment".to_string()),
+                },
             })?;
 
         // Extract customer phone from billing address (needed for wallet APP type)
@@ -706,10 +720,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 {
                     // Wallet/APP and Netbanking flows — redirect URL is in data.url
                     let redirect_url =
-                        response.data.url.clone().ok_or(IntegrationError::MissingRequiredField {
-                            field_name: "redirect_url",
-                            context: Default::default(),
-                        })?;
+                        response.data.url.clone().ok_or(report!(ConnectorError::ResponseDeserializationFailed {
+                            context: ResponseTransformationErrorContext {
+                                http_status_code: Some(item.http_code),
+                                additional_context: Some("Wallet/Netbanking authorize response missing data.url for redirect".to_string()),
+                            },
+                        }))?;
                     let redirection_data = Some(Box::new(Some(
                         domain_types::router_response_types::RedirectForm::Uri {
                             uri: redirect_url,
@@ -721,24 +737,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     )
                 } else {
                     // UPI Intent/QR flow - extract deep link from payload.default
-                    let deep_link = response.data.payload.map(|p| p.default_link).ok_or(
-                        ConnectorError::MissingRequiredField {
-                            field_name: "intent_link",
-                        },
-                    )?;
+                    let deep_link = response.data.payload.map(|p| p.default_link).ok_or(report!(
+                        ConnectorError::ResponseDeserializationFailed {
+                            context: ResponseTransformationErrorContext {
+                                http_status_code: Some(item.http_code),
+                                additional_context: Some("UPI intent/QR authorize response missing payload.default deep link".to_string()),
+                            },
+                        }
+                    ))?;
 
-                    // Trim deep link at "?" as per Haskell: truncateIntentLink "?" link
-                    let trimmed_link = if let Some(pos) = deep_link.find('?') {
-                        &deep_link[(pos + 1)..]
-                    } else {
-                        &deep_link
-                    };
-
-                    // Create UPI intent redirection
+                    // Return the full deep link URL for UPI intent
                     let redirection_data = Some(Box::new(Some(
-                        domain_types::router_response_types::RedirectForm::Uri {
-                            uri: trimmed_link.to_string(),
-                        },
+                        domain_types::router_response_types::RedirectForm::Uri { uri: deep_link },
                     )));
 
                     (
@@ -904,7 +914,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for CashfreeCaptureRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<IntegrationError>;
 
     fn try_from(
         wrapper: crate::connectors::cashfree::CashfreeRouterData<
@@ -926,22 +936,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 }
 
 // TryFrom for CashfreeCaptureResponse → RouterDataV2 (response parsing)
-impl
-    TryFrom<
-        ResponseRouterData<
-            CashfreeCaptureResponse,
-            RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
-        >,
-    >
+impl TryFrom<ResponseRouterData<CashfreeCaptureResponse, Self>>
     for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<
-            CashfreeCaptureResponse,
-            RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
-        >,
+        item: ResponseRouterData<CashfreeCaptureResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let response = item.response;
         let router_data = item.router_data;
@@ -958,7 +959,12 @@ impl
         let order_id = response
             .order_id
             .as_deref()
-            .unwrap_or(&router_data.request.get_connector_transaction_id().unwrap_or_default())
+            .unwrap_or(
+                &router_data
+                    .request
+                    .get_connector_transaction_id()
+                    .unwrap_or_default(),
+            )
             .to_string();
 
         let cf_payment_id = response
@@ -996,7 +1002,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for CashfreeSyncRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<IntegrationError>;
 
     fn try_from(
         _wrapper: crate::connectors::cashfree::CashfreeRouterData<
@@ -1047,7 +1053,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for CashfreeVoidRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<IntegrationError>;
 
     fn try_from(
         _wrapper: crate::connectors::cashfree::CashfreeRouterData<
@@ -1062,23 +1068,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 }
 
 // TryFrom for CashfreeVoidResponse → RouterDataV2 (response parsing)
-impl
-    TryFrom<
-        ResponseRouterData<
-            CashfreeVoidResponse,
-            RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
-        >,
-    >
+impl TryFrom<ResponseRouterData<CashfreeVoidResponse, Self>>
     for RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<ConnectorError>;
 
-    fn try_from(
-        item: ResponseRouterData<
-            CashfreeVoidResponse,
-            RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
-        >,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: ResponseRouterData<CashfreeVoidResponse, Self>) -> Result<Self, Self::Error> {
         let response = item.response;
         let router_data = item.router_data;
 
@@ -1125,23 +1120,12 @@ impl
 }
 
 /// TryFrom for PSync response — picks the first SUCCESS item, or falls back to first item
-impl
-    TryFrom<
-        ResponseRouterData<
-            CashfreeSyncResponse,
-            RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
-        >,
-    >
+impl TryFrom<ResponseRouterData<CashfreeSyncResponse, Self>>
     for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<ConnectorError>;
 
-    fn try_from(
-        item: ResponseRouterData<
-            CashfreeSyncResponse,
-            RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
-        >,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: ResponseRouterData<CashfreeSyncResponse, Self>) -> Result<Self, Self::Error> {
         let payments = item.response;
         let router_data = item.router_data;
 
@@ -1151,12 +1135,18 @@ impl
             .find(|p| p.payment_status == "SUCCESS")
             .or_else(|| payments.iter().find(|p| p.payment_status == "PENDING"))
             .or_else(|| payments.first())
-            .ok_or(ConnectorError::ResponseDeserializationFailed)?;
+            .ok_or(ConnectorError::ResponseDeserializationFailed {
+                context: ResponseTransformationErrorContext {
+                    http_status_code: Some(item.http_code),
+                    additional_context: Some(
+                        "PSync response returned empty payments array".to_string(),
+                    ),
+                },
+            })?;
 
-        let attempt_status =
-            common_enums::AttemptStatus::from(CashfreePaymentStatus::from(
-                payment.payment_status.as_str(),
-            ));
+        let attempt_status = common_enums::AttemptStatus::from(CashfreePaymentStatus::from(
+            payment.payment_status.as_str(),
+        ));
 
         // Use order_id as connector_transaction_id for consistency with Cashfree APIs
         let order_id = payment.order_id.clone();
@@ -1168,10 +1158,7 @@ impl
             .unwrap_or_default();
 
         // Check for error details on failure
-        if matches!(
-            attempt_status,
-            common_enums::AttemptStatus::Failure
-        ) {
+        if matches!(attempt_status, common_enums::AttemptStatus::Failure) {
             if let Some(error) = &payment.error_details {
                 return Ok(Self {
                     resource_common_data: PaymentFlowData {
@@ -1261,7 +1248,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for CashfreeRefundRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<IntegrationError>;
 
     fn try_from(
         wrapper: crate::connectors::cashfree::CashfreeRouterData<
@@ -1285,22 +1272,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 }
 
 // TryFrom for CashfreeRefundResponse → RouterDataV2 (response parsing)
-impl
-    TryFrom<
-        ResponseRouterData<
-            CashfreeRefundResponse,
-            RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
-        >,
-    >
+impl TryFrom<ResponseRouterData<CashfreeRefundResponse, Self>>
     for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<
-            CashfreeRefundResponse,
-            RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
-        >,
+        item: ResponseRouterData<CashfreeRefundResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let response = item.response;
         let router_data = item.router_data;
@@ -1333,22 +1311,13 @@ impl
 pub type CashfreeRefundSyncResponse = CashfreeRefundResponse;
 
 // TryFrom for CashfreeRefundSyncResponse → RouterDataV2 (RSync response parsing)
-impl
-    TryFrom<
-        ResponseRouterData<
-            CashfreeRefundSyncResponse,
-            RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
-        >,
-    >
+impl TryFrom<ResponseRouterData<CashfreeRefundSyncResponse, Self>>
     for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = Report<ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<
-            CashfreeRefundSyncResponse,
-            RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
-        >,
+        item: ResponseRouterData<CashfreeRefundSyncResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let response = item.response;
         let router_data = item.router_data;
