@@ -24,7 +24,21 @@ pub struct WorldpayxmlOrderStatus {
     #[serde(rename = "@orderCode")]
     pub order_code: String,
     pub payment: Option<WorldpayxmlPayment>,
+    pub token: Option<WorldpayxmlToken>,
     pub error: Option<WorldpayxmlError>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldpayxmlToken {
+    pub token_details: WorldpayxmlTokenDetails,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldpayxmlTokenDetails {
+    #[serde(rename = "paymentTokenID")]
+    pub payment_token_id: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -269,6 +283,9 @@ pub type WorldpayxmlRsyncResponse = WorldpayxmlTransactionResponse;
 
 // Type alias for SetupMandate - reuses Authorize response structure
 pub type WorldpayxmlSetupMandateResponse = WorldpayxmlAuthorizeResponse;
+
+// Type alias for RepeatPayment (MIT) - reuses Authorize response structure
+pub type WorldpayxmlRepeatPaymentResponse = WorldpayxmlAuthorizeResponse;
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
