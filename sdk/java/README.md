@@ -90,13 +90,13 @@ Your Java/Kotlin App
 ### Gradle (Kotlin DSL)
 
 ```kotlin
-implementation("io.hyperswitch:prism:0.0.1")
+implementation("io.hyperswitch:prism:0.0.5")
 ```
 
 ### Gradle (Groovy DSL)
 
 ```groovy
-implementation 'io.hyperswitch:prism:0.0.1'
+implementation 'io.hyperswitch:prism:0.0.5'
 ```
 
 ### Maven
@@ -105,7 +105,7 @@ implementation 'io.hyperswitch:prism:0.0.1'
 <dependency>
   <groupId>io.hyperswitch</groupId>
   <artifactId>prism</artifactId>
-  <version>0.0.1</version>
+  <version>0.0.5</version>
 </dependency>
 ```
 

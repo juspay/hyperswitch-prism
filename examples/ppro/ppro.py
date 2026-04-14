@@ -25,29 +25,6 @@ _default_config = sdk_config_pb2.ConnectorConfig(
 
 
 
-def _build_authorize_request(capture_method: str):
-    return ParseDict(
-        {
-            "merchant_transaction_id": "probe_txn_001",  # Identification.
-            "amount": {  # The amount for the payment.
-                "minor_amount": 1000,  # Amount in minor units (e.g., 1000 = $10.00).
-                "currency": "USD"  # ISO 4217 currency code (e.g., "USD", "EUR").
-            },
-            "payment_method": {  # Payment method to be used.
-                "ideal": {
-                }
-            },
-            "capture_method": capture_method,  # Method for capturing the payment.
-            "address": {  # Address Information.
-                "billing_address": {
-                }
-            },
-            "auth_type": "NO_THREE_DS",  # Authentication Details.
-            "return_url": "https://example.com/return"  # URLs for Redirection and Webhooks.
-        },
-        payment_pb2.PaymentServiceAuthorizeRequest(),
-    )
-
 def _build_capture_request(connector_transaction_id: str):
     return ParseDict(
         {
@@ -143,15 +120,6 @@ def _build_void_request(connector_transaction_id: str):
         },
         payment_pb2.PaymentServiceVoidRequest(),
     )
-async def authorize(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
-    """Flow: PaymentService.Authorize (Ideal)"""
-    payment_client = PaymentClient(config)
-
-    authorize_response = await payment_client.authorize(_build_authorize_request("AUTOMATIC"))
-
-    return {"status": authorize_response.status, "transaction_id": authorize_response.connector_transaction_id}
-
-
 async def capture(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """Flow: PaymentService.Capture"""
     payment_client = PaymentClient(config)
@@ -215,7 +183,7 @@ async def void(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorCon
     return {"status": void_response.status}
 
 if __name__ == "__main__":
-    scenario = sys.argv[1] if len(sys.argv) > 1 else "authorize"
+    scenario = sys.argv[1] if len(sys.argv) > 1 else "capture"
     fn = globals().get(f"process_{scenario}")
     if not fn:
         available = [k[8:] for k in globals() if k.startswith("process_")]
