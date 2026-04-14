@@ -654,9 +654,9 @@ fn determine_upi_app_name<
                     // TODO: Extract bank code from metadata if available
                     Ok(None)
                 }
-                UpiData::UpiCollect(upi_collect_data) => {
-                    // UPI Collect doesn't typically use app name
-                    Ok(upi_collect_data.vpa_id.clone().map(|vpa| vpa.expose()))
+                UpiData::UpiCollect(_) => {
+                    // UPI Collect doesn't use app name
+                    Ok(None)
                 }
             }
         }
