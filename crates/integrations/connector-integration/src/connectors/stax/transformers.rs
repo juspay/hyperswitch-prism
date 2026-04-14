@@ -6,12 +6,12 @@ use common_utils::{
     types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, MinorUnit},
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, PaymentMethodToken, RSync, Refund, Void},
+    connector_flow::{Authorize, Capture, PSync, PaymentMethodToken, RSync, Refund, SetupMandate, Void},
     connector_types::{
         PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
         PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
         PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        ResponseId,
+        ResponseId, SetupMandateRequestData,
     },
     payment_method_data::{
         BankDebitData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
@@ -1119,6 +1119,141 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<StaxTokenResponse, Se
             response: Ok(PaymentMethodTokenResponse {
                 token: item.response.id.expose(),
             }),
+            ..item.router_data
+        })
+    }
+}
+
+// ===== SETUP MANDATE (SetupRecurring) =====
+// Stax uses the same `/charge` endpoint for SetupMandate, with `pre_auth: true`
+// to authorize (verify) the card without capturing funds. A saved payment method
+// token (payment_method_id) is required — produced by the PaymentMethodToken flow.
+#[derive(Debug, Serialize)]
+pub struct StaxSetupMandateRequest {
+    pub total: FloatMajorUnit,
+    pub payment_method_id: String,
+    pub is_refundable: bool,
+    pub pre_auth: bool,
+    pub meta: StaxMeta,
+    pub idempotency_id: Option<String>,
+}
+
+pub type StaxSetupMandateResponse = StaxPaymentResponse;
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        StaxRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for StaxSetupMandateRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: StaxRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let converter = FloatMajorUnitForConnector;
+        // SetupMandate may not carry an amount — default to 1 minor unit (Stax requires a non-zero total).
+        let minor_amount = item
+            .router_data
+            .request
+            .minor_amount
+            .unwrap_or_else(|| MinorUnit::new(1));
+        let total = converter
+            .convert(minor_amount, item.router_data.request.currency)
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?;
+
+        let payment_method_id = match &item.router_data.request.payment_method_data {
+            PaymentMethodData::PaymentMethodToken(t) => t.token.peek().to_string(),
+            PaymentMethodData::Card(_) | PaymentMethodData::BankDebit(_) => {
+                if let Some(mandate_id) = item
+                    .router_data
+                    .request
+                    .mandate_id
+                    .as_ref()
+                    .and_then(|m| m.mandate_reference_id.as_ref())
+                    .and_then(|r| match r {
+                        domain_types::connector_types::MandateReferenceId::ConnectorMandateId(c) => {
+                            c.get_connector_mandate_id()
+                        }
+                        _ => None,
+                    })
+                {
+                    mandate_id
+                } else {
+                    return Err(IntegrationError::MissingRequiredField {
+                        field_name: "payment_method_token (from PaymentMethodToken flow) or connector_mandate_id (for saved payment methods)",
+                        context: Default::default()
+                    })?;
+                }
+            }
+            _ => {
+                return Err(IntegrationError::not_implemented(
+                    "Only card and ACH bank debit payments are supported for Stax".to_string(),
+                ))?;
+            }
+        };
+
+        Ok(Self {
+            total,
+            payment_method_id,
+            is_refundable: false,
+            pre_auth: true,
+            meta: StaxMeta {
+                tax: MinorUnit::zero(),
+            },
+            idempotency_id: Some(
+                item.router_data
+                    .resource_common_data
+                    .connector_request_reference_id
+                    .clone(),
+            ),
+        })
+    }
+}
+
+impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<StaxSetupMandateResponse, Self>>
+    for RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<StaxSetupMandateResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = &item.response;
+        let status = get_payment_status(response, item.http_code)?;
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(response.id.clone()),
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
+                status_code: item.http_code,
+            }),
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
             ..item.router_data
         })
     }
