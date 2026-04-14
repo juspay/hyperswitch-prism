@@ -1340,8 +1340,10 @@ message EventServiceHandleResponse {
   // Reference
   optional string merchant_event_id = 4;
 
+  reserved 5; // was: event_status (EventStatus) — removed; reserved for wire-format safety
+
   // Suggested HTTP response to send back to the connector for webhook acknowledgement
-  optional EventAckResponse event_ack_response = 5;
+  optional EventAckResponse event_ack_response = 6;
 }
 
 // Suggested HTTP response for webhook acknowledgement (status, headers, body).

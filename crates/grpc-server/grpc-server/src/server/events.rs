@@ -77,7 +77,9 @@ impl EventService for EventServiceImpl {
                         payload
                             .request_details
                             .ok_or_else(|| {
-                                error_stack::report!(WebhookError::WebhookBodyDecodingFailed)
+                                error_stack::report!(WebhookError::WebhookMissingRequiredField {
+                                    field: "request_details"
+                                })
                             })
                             .into_grpc_status()?,
                     )
@@ -144,7 +146,7 @@ impl EventService for EventServiceImpl {
                     let connector_config = &metadata_payload.connector_config;
                     let request_details = payload
                         .request_details
-                        .ok_or_else(|| error_stack::report!(WebhookError::WebhookBodyDecodingFailed))
+                        .ok_or_else(|| error_stack::report!(WebhookError::WebhookMissingRequiredField { field: "request_details" }))
                         .into_grpc_status()
                         .and_then(|rd| {
                             domain_types::connector_types::RequestDetails::foreign_try_from(rd)

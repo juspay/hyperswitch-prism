@@ -587,6 +587,8 @@ pub enum WebhookError {
         field: &'static str,
         origin: &'static str,
     },
+    #[error("Missing required field '{field}' in webhook request")]
+    WebhookMissingRequiredField { field: &'static str },
 }
 
 impl ErrorSwitch<grpc_api_types::payments::IntegrationError> for WebhookError {

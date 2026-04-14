@@ -215,6 +215,8 @@ impl IntoGrpcStatus for error_stack::Report<WebhookError> {
             | WebhookError::WebhookReferenceIdNotFound
             | WebhookError::WebhookResourceObjectNotFound
             | WebhookError::WebhookVerificationSecretNotFound => Status::not_found(msg),
+            // Caller omitted a required field — bad request from SDK user.
+            WebhookError::WebhookMissingRequiredField { .. } => Status::invalid_argument(msg),
             // Bad body from the webhook sender — genuinely bad argument.
             WebhookError::WebhookBodyDecodingFailed => Status::invalid_argument(msg),
             // Caller did not supply required business context (e.g. capture_method).
