@@ -1,4 +1,4 @@
-.PHONY: help install dev dev-stop build start logs clean up down restart
+.PHONY: help install dev dev-stop build start logs clean clean-docker up down restart
 
 # Default target
 help:
@@ -19,6 +19,7 @@ help:
 	@echo "  Utility:"
 	@echo "    restart       Restart containers (down + up)"
 	@echo "    clean         Remove node_modules and dist"
+	@echo "    clean-docker  Stop containers, remove volumes, and prune images"
 	@echo ""
 
 # Local Development
@@ -57,4 +58,9 @@ restart: down up
 
 # Cleanup
 clean:
+	rm -rf node_modules dist package-lock.json
+
+clean-docker:
+	docker-compose down -v --remove-orphans
+	docker system prune -af --volumes
 	rm -rf node_modules dist package-lock.json

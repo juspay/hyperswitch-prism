@@ -1,8 +1,18 @@
-# Build stage
-FROM node:18-alpine AS builder
+# Build stage - Force x86_64 platform for FFI compatibility
+# Using Ubuntu 24.04 for glibc 2.39 which is compatible with the FFI library
+FROM --platform=linux/amd64 ubuntu:24.04 AS builder
 
-# Install build dependencies for native modules
-RUN apk add --no-cache cmake make g++ python3
+# Install Node.js and build tools
+RUN apt-get update && apt-get install -y \
+    curl \
+    ca-certificates \
+    cmake \
+    make \
+    g++ \
+    python3 \
+    && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get install -y nodejs \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -23,11 +33,17 @@ COPY demo/e-commerce/server ./server
 # Build TypeScript
 RUN npm run build
 
-# Production stage
-FROM node:18-alpine AS production
+# Production stage - Force x86_64 platform for FFI compatibility
+# Using Ubuntu 24.04 for glibc 2.39 which is compatible with the FFI library
+FROM --platform=linux/amd64 ubuntu:24.04 AS production
 
-# Install runtime dependencies
-RUN apk add --no-cache cmake make g++ python3 libstdc++
+# Install Node.js (production only needs runtime, not build tools)
+RUN apt-get update && apt-get install -y \
+    curl \
+    ca-certificates \
+    && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get install -y nodejs \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -40,15 +56,11 @@ COPY demo/e-commerce/package.json /app/demo/e-commerce/
 WORKDIR /app/demo/e-commerce
 RUN npm install --omit=dev
 
-# Remove build tools after npm install
-RUN apk del cmake make g++ python3
-
 # Copy built files from builder
 COPY --from=builder /app/demo/e-commerce/dist ./dist
 
-# Copy client files to both locations (for compatibility)
+# Copy client files for static serving
 COPY demo/e-commerce/client ./client
-COPY demo/e-commerce/client ./dist/client
 
 # Expose port
 EXPOSE 3000

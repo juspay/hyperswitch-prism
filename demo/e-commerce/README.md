@@ -20,6 +20,39 @@ A simple e-commerce website demonstrating the **hyperswitch-prism** payment libr
 - GlobalPay test account
 - Adyen test account (optional, for high-value payments)
 
+### Platform Requirements
+
+⚠️ **Important**: This demo uses the `hyperswitch-prism` SDK which contains platform-specific native libraries compiled for **x86_64 (AMD64)** architecture.
+
+#### Supported Platforms
+
+| Platform | Architecture | Status | Notes |
+|----------|--------------|--------|-------|
+| macOS (Intel) | x86_64 | ✅ Supported | Native support |
+| macOS (Apple Silicon) | arm64 | ✅ Supported via Docker | Uses x86_64 emulation |
+| Linux | x86_64 | ✅ Supported | Native support |
+| Linux | arm64 | ❌ Not supported | No ARM64 binaries |
+| Windows (WSL2) | x86_64 | ✅ Supported | Use x86_64 Linux distro |
+
+#### Docker Platform
+
+The `Dockerfile` explicitly specifies `--platform=linux/amd64` to ensure compatibility with the FFI library. On Apple Silicon Macs, Docker will automatically use QEMU emulation (Rosetta 2).
+
+If you encounter shared library errors like:
+```
+Error loading shared library ld-linux-x86-64.so.2
+```
+or
+```
+version `GLIBC_2.38' not found
+```
+
+Ensure your Docker Desktop is configured to use:
+- **Platform**: linux/amd64 (set in Dockerfile)
+- **Base Image**: Ubuntu 24.04 (provides glibc 2.39)
+
+Do not modify the Dockerfile to use Alpine Linux or ARM64 images, as the SDK's native FFI library requires glibc 2.38+ and x86_64 architecture.
+
 ## Quick Start
 
 ### Option 1: Local Development
