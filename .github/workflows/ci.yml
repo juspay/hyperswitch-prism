@@ -254,11 +254,11 @@ jobs:
   check:
     name: Compilation Check
     needs: [changes, auto-fix]
-    # Run if rust/proto/CI files changed AND auto-fix didn't push new code.
-    # If auto-fix pushed, skip — a new CI run is coming with clean code.
-    # 'always()' handles skipped auto-fix (non-PR events).
+    # Run if rust/proto/CI files changed AND auto-fix succeeded without pushing.
+    # Skip if auto-fix pushed (new CI run incoming) or if auto-fix failed.
+    # 'success() || skipped' handles non-PR events where auto-fix is skipped.
     if: >-
-      always() &&
+      (success() || needs.auto-fix.result == 'skipped') &&
       needs.auto-fix.outputs.pushed != 'true' &&
       (needs.changes.outputs.any-rust == 'true' ||
        needs.changes.outputs.proto == 'true' ||
@@ -302,10 +302,10 @@ jobs:
   test:
     name: Run Tests
     needs: [changes, auto-fix]
-    # Runs in PARALLEL with check (separate caches, faster wall clock).
-    # Scopes tests to changed connectors for connector-only PRs.
+    # Run if rust/proto/CI files changed AND auto-fix succeeded without pushing.
+    # Skip if auto-fix pushed (new CI run incoming) or if auto-fix failed.
     if: >-
-      always() &&
+      (success() || needs.auto-fix.result == 'skipped') &&
       needs.auto-fix.outputs.pushed != 'true' &&
       (needs.changes.outputs.any-rust == 'true' ||
        needs.changes.outputs.proto == 'true' ||
@@ -419,10 +419,10 @@ jobs:
   sdk-test:
     name: SDK Tests
     needs: [changes, auto-fix]
-    # Run when SDK, core Rust (not just connectors), proto, or CI files changed.
-    # Connector-only PRs skip this entirely. Also skip if auto-fix pushed.
+    # Run when SDK/core/proto/CI files changed AND auto-fix succeeded without pushing.
+    # Skip if auto-fix pushed (new CI run incoming) or if auto-fix failed.
     if: >-
-      always() &&
+      (success() || needs.auto-fix.result == 'skipped') &&
       needs.auto-fix.outputs.pushed != 'true' &&
       (needs.changes.outputs.sdk == 'true' ||
        needs.changes.outputs.rust-core == 'true' ||
