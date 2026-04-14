@@ -3,12 +3,14 @@ use common_utils::{pii::IpAddress, Email};
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
     connector_types::{
-        PaymentFlowData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentVoidData,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
         RefundsResponseData, ResponseId,
     },
     errors::{ConnectorError, IntegrationError},
-    payment_method_data::{NetbankingData, PaymentMethodData, PaymentMethodDataTypes, UpiData, WalletData},
+    payment_method_data::{
+        NetbankingData, PaymentMethodData, PaymentMethodDataTypes, UpiData, WalletData,
+    },
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     router_request_types::AuthoriseIntegrityObject,
@@ -134,7 +136,7 @@ pub struct PayuPaymentRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub txn_s2s_flow: Option<String>, // S2S flow type ("2" for UPI); None for redirect flows
     pub s2s_client_ip: Secret<String, IpAddress>, // Client IP
-    pub s2s_device_info: String, // Device info
+    pub s2s_device_info: String,                  // Device info
     #[serde(skip_serializing_if = "Option::is_none")]
     pub api_version: Option<String>, // API version ("2.0")
 
@@ -241,17 +243,17 @@ pub struct PayuPaymentResponse {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PayuResult {
     // Common fields present in both UPI-collect and wallet/netbanking redirect responses
-    pub status: String,             // e.g. "pending", "failure", "success"
-    pub mihpayid: Option<String>,   // PayU payment ID (may be absent on hard failures)
+    pub status: String,           // e.g. "pending", "failure", "success"
+    pub mihpayid: Option<String>, // PayU payment ID (may be absent on hard failures)
     // Fields present in redirect wallet/netbanking responses
     #[serde(rename = "error_Message")]
     pub error_message: Option<String>, // Human-readable error description
-    pub error: Option<String>,         // PayU error code, e.g. "E312"
-    pub mode: Option<String>,          // Payment mode, e.g. "CASH"
+    pub error: Option<String>,          // PayU error code, e.g. "E312"
+    pub mode: Option<String>,           // Payment mode, e.g. "CASH"
     pub payment_source: Option<String>, // e.g. "payuPureS2S"
     #[serde(rename = "PG_TYPE")]
-    pub pg_type: Option<String>,       // e.g. "CASH-PG"
-    pub bankcode: Option<String>,      // e.g. "PHONEPE"
+    pub pg_type: Option<String>, // e.g. "CASH-PG"
+    pub bankcode: Option<String>,       // e.g. "PHONEPE"
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -668,7 +670,15 @@ fn determine_upi_flow<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 >(
     request: &PaymentsAuthorizeData<T>,
-) -> Result<(Option<String>, Option<String>, Option<String>, Option<String>), ConnectorError> {
+) -> Result<
+    (
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+    ),
+    ConnectorError,
+> {
     // Based on Haskell implementation:
     // getTxnS2SType :: Bool -> Bool -> Bool -> Bool -> Bool -> Maybe Text
     // getTxnS2SType isTxnS2SFlow4Enabled s2sEnabled isDirectOTPTxn isEmandateRegister isDirectAuthorization
@@ -754,10 +764,7 @@ pub fn is_wallet_redirect_flow<
 >(
     request: &PaymentsAuthorizeData<T>,
 ) -> bool {
-    matches!(
-        request.payment_method_data,
-        PaymentMethodData::Wallet(_)
-    )
+    matches!(request.payment_method_data, PaymentMethodData::Wallet(_))
 }
 
 /// Returns true if the payment is a netbanking redirect flow.
@@ -923,7 +930,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             }
                         }
                     })
-                    .unwrap_or((AttemptStatus::AuthenticationPending, upi_transaction_id.clone()));
+                    .unwrap_or((
+                        AttemptStatus::AuthenticationPending,
+                        upi_transaction_id.clone(),
+                    ));
                 (status, transaction_id, None)
             }
             _ => {
@@ -1105,7 +1115,7 @@ pub struct PayuCaptureRequest {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PayuCaptureResponse {
     #[serde(default, deserialize_with = "deserialize_payu_status")]
-    pub status: Option<PayuStatusValue>,   // e.g. "success" (string) or 0 (integer for error)
+    pub status: Option<PayuStatusValue>, // e.g. "success" (string) or 0 (integer for error)
     pub message: Option<String>,           // Status message
     pub msg: Option<String>,               // Alternative message field used in error responses
     pub mihpayid: Option<String>,          // PayU payment ID
@@ -1198,9 +1208,7 @@ impl TryFrom<ResponseRouterData<PayuCaptureResponse, Self>>
 {
     type Error = error_stack::Report<ConnectorError>;
 
-    fn try_from(
-        item: ResponseRouterData<PayuCaptureResponse, Self>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: ResponseRouterData<PayuCaptureResponse, Self>) -> Result<Self, Self::Error> {
         let response = &item.response;
 
         // Map connector status to internal status
@@ -1257,15 +1265,12 @@ impl TryFrom<ResponseRouterData<PayuCaptureResponse, Self>>
             });
         }
 
-        let connector_transaction_id = response
-            .mihpayid
-            .clone()
-            .unwrap_or_else(|| {
-                item.router_data
-                    .request
-                    .get_connector_transaction_id()
-                    .unwrap_or_default()
-            });
+        let connector_transaction_id = response.mihpayid.clone().unwrap_or_else(|| {
+            item.router_data
+                .request
+                .get_connector_transaction_id()
+                .unwrap_or_default()
+        });
 
         let payment_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(connector_transaction_id.clone()),
@@ -1307,7 +1312,7 @@ pub struct PayuVoidRequest {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PayuVoidResponse {
     #[serde(default, deserialize_with = "deserialize_payu_status")]
-    pub status: Option<PayuStatusValue>,   // e.g. "success" (string) or 0 (integer for error)
+    pub status: Option<PayuStatusValue>, // e.g. "success" (string) or 0 (integer for error)
     pub message: Option<String>,           // Status message
     pub msg: Option<String>,               // Alternative message field used in error responses
     pub mihpayid: Option<String>,          // PayU payment ID
@@ -1383,15 +1388,15 @@ impl TryFrom<ResponseRouterData<PayuVoidResponse, Self>>
 {
     type Error = error_stack::Report<ConnectorError>;
 
-    fn try_from(
-        item: ResponseRouterData<PayuVoidResponse, Self>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: ResponseRouterData<PayuVoidResponse, Self>) -> Result<Self, Self::Error> {
         let response = &item.response;
 
         // Map connector status to internal status
         // Per spec Flow.hs:1478: success → VOIDED, error → VOID_PROCESSING_FAILED
         let attempt_status = match &response.status {
-            Some(PayuStatusValue::StringStatus(s)) if s.as_str() == "success" => AttemptStatus::Voided,
+            Some(PayuStatusValue::StringStatus(s)) if s.as_str() == "success" => {
+                AttemptStatus::Voided
+            }
             Some(PayuStatusValue::StringStatus(s))
                 if matches!(s.as_str(), "failure" | "failed" | "error") =>
             {
@@ -1497,9 +1502,9 @@ pub struct PayuRefundRequest {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PayuRefundResponse {
     #[serde(default, deserialize_with = "deserialize_payu_status")]
-    pub status: Option<PayuStatusValue>,   // e.g. "success" (string) or 0 (integer for error)
-    pub message: Option<String>,           // Status message
-    pub msg: Option<String>,               // Alternative message field used in error responses
+    pub status: Option<PayuStatusValue>, // e.g. "success" (string) or 0 (integer for error)
+    pub message: Option<String>, // Status message
+    pub msg: Option<String>,     // Alternative message field used in error responses
     pub mihpayid: Option<String>,
     pub refundId: Option<String>,
     pub error_code: Option<String>,
@@ -1513,7 +1518,10 @@ fn generate_payu_refund_hash(
     use sha2::{Digest, Sha512};
     let hash_string = format!(
         "{}|{}|{}|{}",
-        request.key, request.command, request.var1, merchant_salt.peek()
+        request.key,
+        request.command,
+        request.var1,
+        merchant_salt.peek()
     );
     let mut hasher = Sha512::new();
     hasher.update(hash_string.as_bytes());
@@ -1544,7 +1552,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(router_data.request.minor_refund_amount, router_data.request.currency)
+            .convert(
+                router_data.request.minor_refund_amount,
+                router_data.request.currency,
+            )
             .change_context(ConnectorError::AmountConversionFailed)?;
         let txnid = router_data.request.refund_id.clone();
         let command = "cancel_refund_transaction".to_string();
@@ -1670,7 +1681,7 @@ pub struct PayuRefundSyncRequest {
 pub struct PayuRefundSyncResponse {
     #[serde(default, deserialize_with = "deserialize_payu_status")]
     pub status: Option<PayuStatusValue>, // 0 (integer) = error, 1 (integer) = success
-    pub msg: Option<String>,             // Status message (used in error responses)
+    pub msg: Option<String>, // Status message (used in error responses)
     pub transaction_details: Option<std::collections::HashMap<String, PayuTransactionDetail>>,
     pub result: Option<serde_json::Value>,
     pub error_code: Option<String>,
@@ -1779,10 +1790,10 @@ impl TryFrom<ResponseRouterData<PayuRefundSyncResponse, Self>>
                             _ => RefundStatus::Pending,
                         };
 
-                        let connector_refund_id = txn_detail
-                            .mihpayid
-                            .clone()
-                            .unwrap_or_else(|| item.router_data.request.connector_refund_id.clone());
+                        let connector_refund_id =
+                            txn_detail.mihpayid.clone().unwrap_or_else(|| {
+                                item.router_data.request.connector_refund_id.clone()
+                            });
 
                         Ok(Self {
                             response: Ok(RefundsResponseData {

@@ -989,8 +989,8 @@ static PAYU_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     connector_type: PaymentConnectorCategory::PaymentGateway,
 };
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorSpecifications for Payu<T>
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorSpecifications
+    for Payu<T>
 {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&PAYU_CONNECTOR_INFO)
