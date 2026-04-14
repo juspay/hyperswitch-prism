@@ -5,11 +5,13 @@ use common_enums::{AttemptStatus, RefundStatus};
 use common_utils::ext_traits::StringExt;
 use common_utils::{consts, errors::CustomResult, types::MinorUnit, SecretSerdeValue};
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
+    connector_flow::{Authorize, Capture, ClientAuthenticationToken, PSync, RSync, Refund, Void},
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId,
+        ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
+        ConnectorSpecificClientAuthenticationResponse, PaymentFlowData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
+        PeachpaymentsClientAuthenticationResponse as PeachpaymentsClientAuthenticationResponseDomain,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
     errors::{ConnectorError, IntegrationError, WebhookError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
@@ -710,5 +712,86 @@ impl Default for requests::PeachpaymentsCofData {
             source: requests::CofSource::Cit,
             mode: requests::CofMode::Initial,
         }
+    }
+}
+
+// ---- ClientAuthenticationToken flow transformers ----
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        PeachpaymentsRouterData<
+            RouterDataV2<
+                ClientAuthenticationToken,
+                PaymentFlowData,
+                ClientAuthenticationTokenRequestData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for requests::PeachpaymentsClientAuthRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        item: PeachpaymentsRouterData<
+            RouterDataV2<
+                ClientAuthenticationToken,
+                PaymentFlowData,
+                ClientAuthenticationTokenRequestData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let auth = PeachpaymentsAuthType::try_from(&item.router_data.connector_config)?;
+
+        // Map existing auth credentials to OAuth token request fields:
+        // api_key -> clientId, tenant_id -> merchantId
+        // client_merchant_reference_id -> clientSecret (if available)
+        let client_secret =
+            auth.client_merchant_reference_id
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "client_merchant_reference_id (used as clientSecret)",
+                    context: Default::default(),
+                })?;
+
+        Ok(Self {
+            client_id: auth.api_key,
+            client_secret,
+            merchant_id: auth.tenant_id,
+        })
+    }
+}
+
+impl TryFrom<ResponseRouterData<requests::PeachpaymentsClientAuthResponse, Self>>
+    for RouterDataV2<
+        ClientAuthenticationToken,
+        PaymentFlowData,
+        ClientAuthenticationTokenRequestData,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<requests::PeachpaymentsClientAuthResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response;
+
+        let session_data = ClientAuthenticationTokenData::ConnectorSpecific(Box::new(
+            ConnectorSpecificClientAuthenticationResponse::Peachpayments(
+                PeachpaymentsClientAuthenticationResponseDomain {
+                    access_token: response.access_token,
+                    token_type: response.token_type,
+                    expires_in: response.expires_in,
+                },
+            ),
+        ));
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::ClientAuthenticationTokenResponse {
+                session_data,
+                status_code: item.http_code,
+            }),
+            ..item.router_data
+        })
     }
 }

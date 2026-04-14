@@ -3473,6 +3473,8 @@ pub enum ConnectorSpecificClientAuthenticationResponse {
     Nexinets(NexinetsClientAuthenticationResponse),
     /// Nexixpay SDK initialization data — security_token and hosted_page URL for HPP initialization
     Nexixpay(NexixpayClientAuthenticationResponse),
+    /// Peachpayments SDK initialization data — access_token for Embedded Checkout initialization
+    Peachpayments(PeachpaymentsClientAuthenticationResponse),
 }
 
 /// Stripe's client_secret for browser-side stripe.confirmPayment()
@@ -3667,6 +3669,17 @@ pub struct NexixpayClientAuthenticationResponse {
     pub security_token: Secret<String>,
     /// The hosted payment page URL for client-side redirect
     pub hosted_page: String,
+}
+
+/// Peachpayments' access_token for client-side Embedded Checkout initialization
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PeachpaymentsClientAuthenticationResponse {
+    /// The OAuth access token for client-side Embedded Checkout API calls
+    pub access_token: Secret<String>,
+    /// The token type (e.g., "Bearer")
+    pub token_type: Option<String>,
+    /// The number of seconds until the token expires
+    pub expires_in: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

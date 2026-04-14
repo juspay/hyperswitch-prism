@@ -11,7 +11,9 @@ use common_utils::{
     ext_traits::{ByteSliceExt, StringExt},
 };
 use domain_types::{
-    connector_flow::{self, Authorize, Capture, PSync, RSync, Refund, Void},
+    connector_flow::{
+        self, Authorize, Capture, ClientAuthenticationToken, PSync, RSync, Refund, Void,
+    },
     connector_types::*,
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
@@ -27,8 +29,8 @@ use interfaces::{
     decode::BodyDecoding,
 };
 use requests::{
-    PeachpaymentsAuthorizeRequest, PeachpaymentsCaptureRequest, PeachpaymentsRefundRequest,
-    PeachpaymentsVoidRequest,
+    PeachpaymentsAuthorizeRequest, PeachpaymentsCaptureRequest, PeachpaymentsClientAuthRequest,
+    PeachpaymentsClientAuthResponse, PeachpaymentsRefundRequest, PeachpaymentsVoidRequest,
 };
 use responses::{
     PeachpaymentsCaptureResponse, PeachpaymentsPaymentsResponse, PeachpaymentsRefundResponse,
@@ -85,6 +87,12 @@ macros::create_all_prerequisites!(
             flow: PSync,
             response_body: PeachpaymentsSyncResponse,
             router_data: RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
+        ),
+        (
+            flow: ClientAuthenticationToken,
+            request_body: PeachpaymentsClientAuthRequest,
+            response_body: PeachpaymentsClientAuthResponse,
+            router_data: RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
         )
     ],
     amount_converters: [],
@@ -260,6 +268,47 @@ macros::macro_connector_implementation!(
         fn get_url(&self, req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>) -> CustomResult<String, IntegrationError> {
             let reference_id = req.resource_common_data.connector_request_reference_id.clone();
             Ok(format!("{}/transactions/by-reference/{}", self.connector_base_url_refunds(req), reference_id))
+        }
+    }
+);
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Peachpayments,
+    curl_request: Json(PeachpaymentsClientAuthRequest),
+    curl_response: PeachpaymentsClientAuthResponse,
+    flow_name: ClientAuthenticationToken,
+    resource_common_data: PaymentFlowData,
+    flow_request: ClientAuthenticationTokenRequestData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            _req: &RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            // OAuth token endpoint only needs Content-Type, no API key auth headers
+            Ok(vec![(
+                headers::CONTENT_TYPE.to_string(),
+                Self::common_get_content_type(self).to_string().into(),
+            )])
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            // The OAuth token endpoint uses secondary_base_url (dashboard URL) if configured,
+            // otherwise falls back to the main base_url
+            let base_url = req
+                .resource_common_data
+                .connectors
+                .peachpayments
+                .secondary_base_url
+                .as_deref()
+                .unwrap_or(&req.resource_common_data.connectors.peachpayments.base_url);
+            Ok(format!("{}/api/oauth/token", base_url))
         }
     }
 );
@@ -617,15 +666,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        connector_flow::ClientAuthenticationToken,
-        PaymentFlowData,
-        ClientAuthenticationTokenRequestData,
-        PaymentsResponseData,
-    > for Peachpayments<T>
-{
-}
+// ClientAuthenticationToken ConnectorIntegrationV2 is implemented via macro_connector_implementation! above
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
