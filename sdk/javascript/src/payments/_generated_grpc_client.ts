@@ -376,6 +376,7 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   EventReference: { "payment": "PaymentEventReference", "refund": "RefundEventReference", "dispute": "DisputeEventReference", "mandate": "MandateEventReference", "payout": "PayoutEventReference" },
   EventServiceParseRequest: { "requestDetails": "RequestDetails" },
   EventServiceParseResponse: { "reference": "EventReference" },
+  EventContext: { "payment": "PaymentEventContext", "refund": "RefundEventContext", "dispute": "DisputeEventContext", "mandate": "MandateEventContext", "payout": "PayoutEventContext" },
   EventServiceHandleRequest: { "requestDetails": "RequestDetails", "webhookSecrets": "WebhookSecrets", "accessToken": "AccessToken", "eventContext": "EventContext" },
   PaymentServiceVerifyRedirectResponseRequest: { "requestDetails": "RequestDetails", "redirectResponseSecrets": "RedirectResponseSecrets" },
   PaymentServiceVerifyRedirectResponseResponse: { "responseAmount": "Money", "error": "ErrorInfo" },
