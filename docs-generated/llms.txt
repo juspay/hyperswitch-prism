@@ -130,8 +130,8 @@ examples_python: none
 connector_id: cashfree
 doc: docs/connectors/cashfree.md
 scenarios: none
-payment_methods: UpiCollect, UpiIntent, UpiQr
-flows: authorize
+payment_methods: none
+flows: capture, create_order, get, refund, refund_get, void
 examples_python: none
 
 ## CashtoCode
