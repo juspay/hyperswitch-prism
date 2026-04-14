@@ -1,9 +1,10 @@
 use common_enums::{self, AttemptStatus, Currency};
 use common_utils::{pii::IpAddress, Email};
 use domain_types::{
-    connector_flow::{Authorize, PSync},
+    connector_flow::{Authorize, PSync, SetupMandate},
     connector_types::{
-        PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData, ResponseId,
+        MandateReference, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData,
+        PaymentsSyncData, ResponseId, SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, UpiData},
@@ -1018,5 +1019,359 @@ fn map_payu_sync_status(payu_status: &str, txn_detail: &PayuTransactionDetail) -
             // Unknown status - treat as failure for safety
             AttemptStatus::Failure
         }
+    }
+}
+
+// ===== SETUP MANDATE FLOW STRUCTURES =====
+//
+// PayU does not expose a separate mandate-setup endpoint. The canonical
+// way to register a UPI-AutoPay / Standing Instruction with PayU is to
+// POST to the same `/_payment` endpoint used by Authorize, with the
+// standing-instruction flag (`si=1`) and a small verification amount.
+// The resulting reference_id / mihpayid / token is surfaced as the
+// `connector_mandate_id` for subsequent RepeatPayment (MIT) calls.
+//
+// Customer-Initiated Transaction (CIT): the customer is present to
+// approve the mandate. We prefer the caller-supplied amount and fall
+// back to 1 INR for a minimal-amount verification, since PayU UPI
+// generally rejects zero-amount transactions.
+
+/// SetupMandate request - reuses the PayU `/_payment` form payload.
+/// The only mandate-specific tweaks are `si=1` + `si_details`.
+pub type PayuSetupMandateRequest = PayuPaymentRequest;
+
+/// SetupMandate response - reuses the standard PayU payment response.
+pub type PayuSetupMandateResponse = PayuPaymentResponse;
+
+// SetupMandate Request - builds the UPI form payload from
+// SetupMandateRequestData, mirroring the Authorize construction.
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        super::PayuRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for PayuSetupMandateRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: super::PayuRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+
+        // Prefer caller-supplied minor_amount, fall back to 1 minor unit
+        // (e.g. 1 paisa) for verification. PayU UPI generally rejects
+        // zero-amount transactions.
+        let minor_amount = router_data
+            .request
+            .minor_amount
+            .unwrap_or_else(|| common_utils::types::MinorUnit::new(1));
+        let amount = item
+            .connector
+            .amount_converter
+            .convert(minor_amount, router_data.request.currency)
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: Default::default(),
+            })?;
+
+        let auth = PayuAuthType::try_from(&router_data.connector_config)?;
+
+        // Determine UPI flow parameters (pg / bankcode / vpa / s2s_flow)
+        // using the same logic as the Authorize path.
+        let (pg, bankcode, vpa, s2s_flow) = determine_setup_mandate_upi_flow(&router_data.request)?;
+
+        // Use a default set of UDFs for mandate setup. PayU hash includes
+        // udf1..udf10, so we populate sensible defaults (payment_id /
+        // merchant_id) to match the Authorize shape.
+        let payment_id = router_data.resource_common_data.payment_id.clone();
+        let merchant_id = router_data
+            .resource_common_data
+            .merchant_id
+            .get_string_repr()
+            .to_string();
+
+        // URLs - use the request's router return URL when available, fall
+        // back to the webhook URL or an empty placeholder.
+        let return_url = router_data
+            .request
+            .router_return_url
+            .clone()
+            .or_else(|| router_data.request.webhook_url.clone())
+            .unwrap_or_default();
+
+        // SI details JSON as accepted by PayU UPI AutoPay. The schema is
+        // intentionally minimal: billing_amount / billing_currency /
+        // billing_cycle / billing_interval / payment_start_date (today) /
+        // payment_end_date (30 years from now).
+        let now = time::OffsetDateTime::now_utc();
+        let date_fmt = time::macros::format_description!("[year]-[month]-[day]");
+        let start_date = now.format(&date_fmt).unwrap_or_else(|_| "2024-01-01".to_string());
+        let end_date = (now + time::Duration::days(365 * 30))
+            .format(&date_fmt)
+            .unwrap_or_else(|_| "2054-01-01".to_string());
+        let si_details = serde_json::json!({
+            "billingAmount": amount.get_amount_as_string(),
+            "billingCurrency": router_data.request.currency.to_string(),
+            "billingCycle": "adhoc",
+            "billingInterval": 1,
+            "paymentStartDate": start_date,
+            "paymentEndDate": end_date,
+            "remarks": "UPI AutoPay mandate setup",
+        })
+        .to_string();
+
+        let mut request = Self {
+            key: auth.api_key.peek().to_string(),
+            txnid: router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
+            amount,
+            currency: router_data.request.currency,
+            productinfo: constants::PRODUCT_INFO.to_string(),
+
+            firstname: router_data
+                .resource_common_data
+                .get_billing_first_name()
+                .change_context(IntegrationError::MissingRequiredField {
+                    field_name: "billing.first_name",
+                    context: Default::default(),
+                })?,
+            lastname: router_data
+                .resource_common_data
+                .get_optional_billing_last_name(),
+            email: router_data
+                .resource_common_data
+                .get_billing_email()
+                .change_context(IntegrationError::MissingRequiredField {
+                    field_name: "billing.email",
+                    context: Default::default(),
+                })?,
+            phone: router_data
+                .resource_common_data
+                .get_billing_phone_number()
+                .change_context(IntegrationError::MissingRequiredField {
+                    field_name: "billing.phone_number",
+                    context: Default::default(),
+                })?,
+
+            surl: return_url.clone(),
+            furl: return_url,
+
+            pg,
+            bankcode,
+            vpa: vpa.map(Secret::new),
+
+            txn_s2s_flow: s2s_flow,
+            s2s_client_ip: router_data
+                .request
+                .get_ip_address_as_optional()
+                .unwrap_or_else(|| Secret::new("127.0.0.1".to_string())),
+            s2s_device_info: constants::DEVICE_INFO.to_string(),
+            api_version: Some(constants::API_VERSION.to_string()),
+
+            hash: String::new(),
+
+            // Default UDFs: udf1=payment_id, udf2=merchant_id, rest empty.
+            udf1: Some(payment_id),
+            udf2: Some(merchant_id),
+            udf3: None,
+            udf4: None,
+            udf5: None,
+            udf6: None,
+            udf7: None,
+            udf8: None,
+            udf9: None,
+            udf10: None,
+
+            offer_key: None,
+            // Standing instruction: enable UPI AutoPay mandate registration.
+            si: Some(1),
+            si_details: Some(si_details),
+            beneficiarydetail: None,
+            user_token: None,
+            offer_auto_apply: None,
+            additional_charges: None,
+            additional_gst_charges: None,
+            upi_app_name: determine_setup_mandate_upi_app_name(&router_data.request)?,
+        };
+
+        request.hash = generate_payu_hash(&request, &auth.api_secret)?;
+
+        Ok(request)
+    }
+}
+
+// SetupMandate response - extracts connector_mandate_id from PayU's
+// reference_id / txn_id / token, mirroring the Authorize response shape.
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<PayuSetupMandateResponse, Self>>
+    for RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<PayuSetupMandateResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response;
+
+        // Error response: PayU returns an `error` code on failure.
+        if let Some(error_code) = &response.error {
+            let error_transaction_id = response
+                .reference_id
+                .clone()
+                .or_else(|| response.txn_id.clone())
+                .or_else(|| response.token.clone());
+
+            let error_response = ErrorResponse {
+                status_code: item.http_code,
+                code: error_code.clone(),
+                message: response.message.clone().unwrap_or_default(),
+                reason: None,
+                attempt_status: Some(AttemptStatus::Failure),
+                connector_transaction_id: error_transaction_id,
+                network_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+            };
+
+            return Ok(Self {
+                response: Err(error_response),
+                resource_common_data: PaymentFlowData {
+                    status: AttemptStatus::Failure,
+                    ..item.router_data.resource_common_data
+                },
+                ..item.router_data
+            });
+        }
+
+        // Success path: determine the mandate id. Prefer reference_id,
+        // then txn_id, then token, falling back to payment_id.
+        let mandate_id = response
+            .reference_id
+            .clone()
+            .or_else(|| response.txn_id.clone())
+            .or_else(|| response.token.clone())
+            .unwrap_or_else(|| item.router_data.resource_common_data.payment_id.clone());
+
+        // Status mapping mirrors the Authorize response: UPI Intent
+        // success yields AuthenticationPending (pending customer action);
+        // UPI Collect success -> Pending (awaiting customer approval in
+        // the UPI app); otherwise fall back to AuthenticationPending so
+        // the attempt reaches a non-terminal state consumable downstream.
+        let (status, redirection_data) = match &response.status {
+            Some(PayuStatusValue::IntStatus(1)) => {
+                let redirection_data = response
+                    .intent_uri_data
+                    .clone()
+                    .map(|intent_data| Box::new(RedirectForm::Uri { uri: intent_data }));
+                (AttemptStatus::AuthenticationPending, redirection_data)
+            }
+            Some(PayuStatusValue::StringStatus(s)) if s == "success" => {
+                (AttemptStatus::AuthenticationPending, None)
+            }
+            _ => (AttemptStatus::AuthenticationPending, None),
+        };
+
+        // The PayU mandate id (reference_id / mihpayid / token) is the
+        // connector_mandate_id used for subsequent RepeatPayment calls.
+        let mandate_reference = Some(Box::new(MandateReference {
+            connector_mandate_id: Some(mandate_id.clone()),
+            payment_method_id: None,
+            connector_mandate_request_reference_id: None,
+        }));
+
+        let payment_response_data = PaymentsResponseData::TransactionResponse {
+            resource_id: ResponseId::ConnectorTransactionId(mandate_id.clone()),
+            redirection_data,
+            mandate_reference,
+            connector_metadata: None,
+            network_txn_id: None,
+            connector_response_reference_id: Some(mandate_id),
+            incremental_authorization_allowed: None,
+            status_code: item.http_code,
+        };
+
+        Ok(Self {
+            response: Ok(payment_response_data),
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
+    }
+}
+
+// SetupMandate variant of the UPI flow determination. Mirrors
+// `determine_upi_flow` but operates over SetupMandateRequestData.
+#[allow(clippy::type_complexity)]
+fn determine_setup_mandate_upi_flow<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+>(
+    request: &SetupMandateRequestData<T>,
+) -> Result<(Option<String>, Option<String>, Option<String>, String), IntegrationError> {
+    match &request.payment_method_data {
+        PaymentMethodData::Upi(upi_data) => match upi_data {
+            UpiData::UpiCollect(collect_data) => {
+                if let Some(vpa) = &collect_data.vpa_id {
+                    Ok((
+                        Some(constants::UPI_PG.to_string()),
+                        Some(constants::UPI_COLLECT_BANKCODE.to_string()),
+                        Some(vpa.peek().to_string()),
+                        constants::UPI_S2S_FLOW.to_string(),
+                    ))
+                } else {
+                    Err(IntegrationError::MissingRequiredField {
+                        field_name: "vpa_id",
+                        context: Default::default(),
+                    })
+                }
+            }
+            UpiData::UpiIntent(_) | UpiData::UpiQr(_) => Ok((
+                Some(constants::UPI_PG.to_string()),
+                Some(constants::UPI_INTENT_BANKCODE.to_string()),
+                None,
+                constants::UPI_S2S_FLOW.to_string(),
+            )),
+        },
+        _ => Err(IntegrationError::NotSupported {
+            message: "Payment method not supported by PayU SetupMandate. Only UPI is supported"
+                .to_string(),
+            connector: "PayU",
+            context: Default::default(),
+        }),
+    }
+}
+
+// SetupMandate variant of UPI app-name determination.
+fn determine_setup_mandate_upi_app_name<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+>(
+    request: &SetupMandateRequestData<T>,
+) -> Result<Option<String>, IntegrationError> {
+    match &request.payment_method_data {
+        PaymentMethodData::Upi(upi_data) => match upi_data {
+            UpiData::UpiIntent(_) | UpiData::UpiQr(_) => Ok(None),
+            UpiData::UpiCollect(collect_data) => Ok(collect_data
+                .vpa_id
+                .clone()
+                .map(|vpa| vpa.expose())),
+        },
+        _ => Ok(None),
     }
 }

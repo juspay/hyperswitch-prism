@@ -47,8 +47,8 @@ use serde::Serialize;
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 
 use transformers::{
-    is_upi_collect_flow, PayuAuthType, PayuPaymentRequest, PayuPaymentResponse, PayuSyncRequest,
-    PayuSyncResponse,
+    is_upi_collect_flow, PayuAuthType, PayuPaymentRequest, PayuPaymentResponse,
+    PayuSetupMandateRequest, PayuSetupMandateResponse, PayuSyncRequest, PayuSyncResponse,
 };
 
 use super::macros;
@@ -223,6 +223,12 @@ macros::create_all_prerequisites!(
             request_body: PayuSyncRequest,
             response_body: PayuSyncResponse,
             router_data: RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
+        ),
+        (
+            flow: SetupMandate,
+            request_body: PayuSetupMandateRequest,
+            response_body: PayuSetupMandateResponse,
+            router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -437,6 +443,82 @@ macros::macro_connector_implementation!(
     }
 );
 
+// SetupMandate flow implementation using macro - POST to /_payment with
+// standing-instruction flag (si=1) and a small verification amount to
+// register a UPI AutoPay mandate. The resulting reference_id is
+// surfaced as the connector_mandate_id for subsequent RepeatPayment
+// (MIT) calls.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [],
+    connector: Payu,
+    curl_request: FormUrlEncoded(PayuSetupMandateRequest),
+    curl_response: PayuSetupMandateResponse,
+    flow_name: SetupMandate,
+    resource_common_data: PaymentFlowData,
+    flow_request: SetupMandateRequestData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            let base_url = self.base_url(&req.resource_common_data.connectors);
+            Ok(format!("{base_url}/_payment"))
+        }
+
+        fn get_content_type(&self) -> &'static str {
+            "application/x-www-form-urlencoded"
+        }
+
+        fn get_error_response_v2(
+            &self,
+            res: Response,
+            _event_builder: Option<&mut events::Event>,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            let response: PayuSetupMandateResponse = res
+                .response
+                .parse_struct("PayU SetupMandate ErrorResponse")
+                .change_context(crate::utils::response_handling_fail_for_connector(res.status_code, "payu"))?;
+
+            if response.error.is_some() {
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code: response.error.unwrap_or_default(),
+                    message: response.message.unwrap_or_default(),
+                    reason: None,
+                    attempt_status: Some(enums::AttemptStatus::Failure),
+                    connector_transaction_id: response.reference_id,
+                    network_error_message: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                })
+            } else {
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code: "SETUP_MANDATE_UNKNOWN_ERROR".to_string(),
+                    message: "Unknown PayU setup mandate error".to_string(),
+                    reason: None,
+                    attempt_status: Some(enums::AttemptStatus::Failure),
+                    connector_transaction_id: None,
+                    network_error_message: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                })
+            }
+        }
+    }
+);
+
 // Implement ConnectorCommon trait
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorCommon
     for Payu<T>
@@ -480,15 +562,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize + Ser
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize + Serialize>
     ConnectorIntegrationV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
     for Payu<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize + Serialize>
-    ConnectorIntegrationV2<
-        SetupMandate,
-        PaymentFlowData,
-        SetupMandateRequestData<T>,
-        PaymentsResponseData,
-    > for Payu<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize + Serialize>
