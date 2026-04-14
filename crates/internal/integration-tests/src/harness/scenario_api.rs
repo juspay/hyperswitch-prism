@@ -291,6 +291,8 @@ fn prepare_context_placeholders(suite: &str, _connector: &str, current_grpc_req:
 /// `access_token` block with `{"token": {"value": ""}, "expires_in_seconds": 0}`
 /// that should be pruned when dependency context didn't fill any real values.
 fn prune_empty_context_wrappers(current_grpc_req: &mut Value) {
+    // Special handling: connector_feature_data with unresolved "auto_generate"
+    // sentinel must be removed before auto-generation fills it with garbage.
     let should_remove_connector_feature =
         lookup_json_path_with_case_fallback(current_grpc_req, "connector_feature_data")
             .map(is_unresolved_connector_feature_data)
@@ -299,12 +301,49 @@ fn prune_empty_context_wrappers(current_grpc_req: &mut Value) {
         let _ = remove_json_path(current_grpc_req, "connector_feature_data");
     }
 
-    // Cleanup optional wrappers that contain only default leaf values.
-    // Order matters: prune inner paths first, then check outer wrappers.
-    let _ = remove_json_path_if_all_defaults(current_grpc_req, "state.access_token.token");
-    let _ = remove_json_path_if_all_defaults(current_grpc_req, "state.access_token");
-    let _ = remove_json_path_if_all_defaults(current_grpc_req, "state");
-    let _ = remove_json_path_if_all_defaults(current_grpc_req, "connector_feature_data");
+    // Generic cleanup: remove any top-level key whose value is an object (or
+    // scalar) where ALL primitive leaf values are defaults ("", 0, null, false).
+    //
+    // We skip subtrees that contain NO primitive leaves at all (only nested
+    // empty objects/arrays) because those may be proto oneof selectors — e.g.
+    // `payment_method: { "ideal": {} }` — where the empty object is
+    // intentional and choosing a variant.
+    prune_all_default_top_level_keys(current_grpc_req);
+}
+
+/// Returns `true` if the JSON value contains at least one primitive leaf
+/// (string, number, bool, or null).  Empty objects and arrays don't count.
+fn contains_primitive_leaf(value: &Value) -> bool {
+    match value {
+        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => true,
+        Value::Array(items) => items.iter().any(contains_primitive_leaf),
+        Value::Object(map) => map.values().any(contains_primitive_leaf),
+    }
+}
+
+/// Walks all top-level keys of a JSON object and removes any key whose value
+/// is an object/scalar containing only default primitive leaves.
+///
+/// This replaces the old hardcoded path list (`state`, `connector_feature_data`,
+/// etc.) with a single generic pass that handles any future wrapper fields.
+fn prune_all_default_top_level_keys(root: &mut Value) {
+    let Some(map) = root.as_object_mut() else {
+        return;
+    };
+    let keys_to_remove: Vec<String> = map
+        .iter()
+        .filter(|(_key, val)| {
+            // Only prune if: (a) the value has at least one primitive leaf,
+            // AND (b) all leaves are defaults.  Subtrees with no primitive
+            // leaves (e.g. oneof selectors like `{ "ideal": {} }`) are kept.
+            contains_primitive_leaf(val) && has_only_default_leaves(val)
+        })
+        .map(|(key, _)| key.clone())
+        .collect();
+
+    for key in keys_to_remove {
+        map.remove(&key);
+    }
 }
 
 fn maybe_execute_browser_automation_for_suite(
@@ -1599,6 +1638,7 @@ fn has_only_default_leaves(value: &Value) -> bool {
 
 /// Removes a JSON path if the value at that path has only default leaves
 /// (empty strings, zeros, nulls, false, or nested objects/arrays of the same).
+#[cfg(test)]
 fn remove_json_path_if_all_defaults(root: &mut Value, path: &str) -> bool {
     let should_remove = lookup_json_path_with_case_fallback(root, path)
         .map(has_only_default_leaves)
@@ -4499,10 +4539,11 @@ mod tests {
 
     use super::{
         add_context, apply_context_map, build_grpcurl_command, build_grpcurl_request,
-        deep_set_json_path, extract_json_body_from_grpc_output, get_the_assertion,
-        get_the_assertion_for_connector, get_the_grpc_req_for_connector, has_only_default_leaves,
-        normalize_tonic_request_json, prepare_context_placeholders, prune_empty_context_wrappers,
-        remove_json_path_if_all_defaults, run_test, DEFAULT_SCENARIO, DEFAULT_SUITE,
+        contains_primitive_leaf, deep_set_json_path, extract_json_body_from_grpc_output,
+        get_the_assertion, get_the_assertion_for_connector, get_the_grpc_req_for_connector,
+        has_only_default_leaves, normalize_tonic_request_json, prepare_context_placeholders,
+        prune_empty_context_wrappers, remove_json_path_if_all_defaults, run_test, DEFAULT_SCENARIO,
+        DEFAULT_SUITE,
     };
     use crate::harness::auto_gen::resolve_auto_generate;
     use crate::harness::scenario_loader::{
@@ -5091,7 +5132,9 @@ grpc-status: 0
             "connector_feature_data": { "value": "auto_generate" },
             "state": {
                 "access_token": {
-                    "token": {}
+                    "token": {"value": ""},
+                    "token_type": "",
+                    "expires_in_seconds": 0
                 }
             },
             "merchant_transaction_id": { "id": "mti_real" }
@@ -5103,7 +5146,7 @@ grpc-status: 0
         assert!(
             req.get("connector_feature_data").is_none() || req["connector_feature_data"].is_null()
         );
-        // Empty nested wrappers should be cleaned up.
+        // Empty context wrappers with only default leaves should be cleaned up.
         assert!(req.get("state").is_none() || req["state"].is_null());
         // Real values should be kept.
         assert_eq!(req["merchant_transaction_id"]["id"], json!("mti_real"));
@@ -5153,7 +5196,7 @@ grpc-status: 0
         // Non-default primitives.
         assert!(!has_only_default_leaves(&json!("hello")));
         assert!(!has_only_default_leaves(&json!(42)));
-        assert!(!has_only_default_leaves(&json!(3.14)));
+        assert!(!has_only_default_leaves(&json!(3.5)));
         assert!(!has_only_default_leaves(&json!(true)));
 
         // Empty containers are all-default.
@@ -5237,6 +5280,96 @@ grpc-status: 0
             req["state"]["access_token"]["expires_in_seconds"],
             json!(3600)
         );
+    }
+
+    #[test]
+    fn prune_keeps_oneof_selectors_with_empty_objects() {
+        // Proto oneof selectors like `payment_method: { "ideal": {} }` should
+        // NOT be pruned — the empty object selects the variant.
+        let mut req = json!({
+            "payment_method": { "ideal": {} },
+            "amount": { "minor_amount": 6000, "currency": "USD" },
+            "state": {
+                "access_token": {
+                    "token": {"value": ""},
+                    "token_type": "",
+                    "expires_in_seconds": 0
+                }
+            }
+        });
+
+        prune_empty_context_wrappers(&mut req);
+
+        // payment_method should be kept — it's a oneof selector with no primitive leaves.
+        assert!(
+            req.get("payment_method").is_some(),
+            "payment_method with oneof selector should not be pruned"
+        );
+        assert!(req["payment_method"]["ideal"].is_object());
+        // amount should be kept — it has non-default leaves.
+        assert_eq!(req["amount"]["minor_amount"], json!(6000));
+        // state should be pruned — all primitive leaves are defaults.
+        assert!(
+            req.get("state").is_none(),
+            "state with all-default leaves should be pruned"
+        );
+    }
+
+    #[test]
+    fn prune_removes_connector_token_with_empty_value() {
+        // Context placeholders like `connector_token: { "value": "" }`
+        // should be pruned when unfilled.
+        let mut req = json!({
+            "connector_token": { "value": "" },
+            "merchant_transaction_id": "mti_real"
+        });
+
+        prune_empty_context_wrappers(&mut req);
+
+        assert!(
+            req.get("connector_token").is_none(),
+            "connector_token with empty value should be pruned"
+        );
+        assert_eq!(req["merchant_transaction_id"], json!("mti_real"));
+    }
+
+    #[test]
+    fn prune_removes_customer_with_only_empty_connector_customer_id() {
+        let mut req = json!({
+            "customer": { "connector_customer_id": "" },
+            "amount": { "minor_amount": 100, "currency": "EUR" }
+        });
+
+        prune_empty_context_wrappers(&mut req);
+
+        assert!(
+            req.get("customer").is_none(),
+            "customer with only empty connector_customer_id should be pruned"
+        );
+        assert_eq!(req["amount"]["minor_amount"], json!(100));
+    }
+
+    #[test]
+    fn contains_primitive_leaf_detects_primitives() {
+        // Primitives are leaves.
+        assert!(contains_primitive_leaf(&json!("")));
+        assert!(contains_primitive_leaf(&json!(0)));
+        assert!(contains_primitive_leaf(&json!(null)));
+        assert!(contains_primitive_leaf(&json!(false)));
+        assert!(contains_primitive_leaf(&json!(true)));
+        assert!(contains_primitive_leaf(&json!("hello")));
+        assert!(contains_primitive_leaf(&json!(42)));
+
+        // Empty containers have no primitive leaves.
+        assert!(!contains_primitive_leaf(&json!({})));
+        assert!(!contains_primitive_leaf(&json!([])));
+
+        // Nested empty objects — no primitive leaves.
+        assert!(!contains_primitive_leaf(&json!({"a": {}, "b": {"c": {}}})));
+
+        // Nested with a primitive leaf somewhere.
+        assert!(contains_primitive_leaf(&json!({"a": {"b": ""}})));
+        assert!(contains_primitive_leaf(&json!({"a": {"b": {"c": 0}}})));
     }
 
     #[test]
