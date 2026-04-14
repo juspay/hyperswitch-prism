@@ -1,6 +1,7 @@
 {
   "connector": "shift4",
   "supported_suites": [
+    "MerchantAuthenticationService/CreateClientAuthenticationToken",
     "PaymentService/Authorize",
     "PaymentService/Capture",
     "CustomerService/Create",

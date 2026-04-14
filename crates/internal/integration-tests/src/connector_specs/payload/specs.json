@@ -1,6 +1,7 @@
 {
   "connector": "payload",
   "supported_suites": [
+    "MerchantAuthenticationService/CreateClientAuthenticationToken",
     "PaymentService/Authorize",
     "PaymentService/Capture",
     "PaymentService/Get",
