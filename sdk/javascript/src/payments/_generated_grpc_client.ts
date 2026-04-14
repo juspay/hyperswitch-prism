@@ -239,7 +239,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   WorldpayxmlConfig: ["apiUsername", "apiPassword", "merchantCode"],
   ZiftConfig: ["userName", "password", "accountId"],
   FiservcommercehubConfig: ["apiKey", "secret", "merchantId", "terminalId"],
-  SanlamMultiDataConfig: ["apiKey"],
+  SanlamMultiDataConfig: ["apiKey", "merchantId"],
   ItaubankConfig: ["clientSecret", "clientId"],
   GigadatConfig: ["campaignId", "accessToken", "securityToken"],
   PhonepeConfig: ["merchantId", "saltKey", "saltIndex"],
