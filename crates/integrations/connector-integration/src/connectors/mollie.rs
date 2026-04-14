@@ -42,8 +42,9 @@ use interfaces::{
 use serde::Serialize;
 use transformers::{
     self as mollie, MollieCaptureRequest, MollieCaptureResponse, MollieCardTokenRequest,
-    MollieCardTokenResponse, MolliePSyncResponse, MolliePaymentsRequest, MolliePaymentsResponse,
-    MollieRSyncResponse, MollieRefundRequest, MollieRefundResponse, MollieVoidResponse,
+    MollieCardTokenResponse, MollieClientAuthRequest, MollieClientAuthResponse,
+    MolliePSyncResponse, MolliePaymentsRequest, MolliePaymentsResponse, MollieRSyncResponse,
+    MollieRefundRequest, MollieRefundResponse, MollieVoidResponse,
 };
 
 use crate::types::ResponseRouterData;
@@ -100,6 +101,12 @@ macros::create_all_prerequisites!(
             request_body: MollieCardTokenRequest<T>,
             response_body: MollieCardTokenResponse,
             router_data: RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>,
+        ),
+        (
+            flow: ClientAuthenticationToken,
+            request_body: MollieClientAuthRequest,
+            response_body: MollieClientAuthResponse,
+            router_data: RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -565,16 +572,39 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-// SDK Session Token
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        ClientAuthenticationToken,
-        PaymentFlowData,
-        ClientAuthenticationTokenRequestData,
-        PaymentsResponseData,
-    > for Mollie<T>
-{
-}
+// SDK Session Token — ClientAuthenticationToken flow
+// Creates a Mollie payment and returns the checkout URL for client-side redirect
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Mollie,
+    curl_request: Json(MollieClientAuthRequest),
+    curl_response: MollieClientAuthResponse,
+    flow_name: ClientAuthenticationToken,
+    resource_common_data: PaymentFlowData,
+    flow_request: ClientAuthenticationTokenRequestData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!(
+                "{}/payments",
+                self.base_url(&req.resource_common_data.connectors)
+            ))
+        }
+    }
+);
 
 // Dispute Accept
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

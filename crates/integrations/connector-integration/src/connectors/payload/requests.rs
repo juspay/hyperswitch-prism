@@ -11,6 +11,7 @@ pub enum PayloadPaymentsRequest<T: PaymentMethodDataTypes> {
     PayloadCardsRequest(Box<PayloadCardsRequestData<T>>),
     PayloadBankAccountRequest(Box<PayloadBankAccountRequestData>),
     PayloadMandateRequest(Box<PayloadMandateRequestData>),
+    PayloadCardTokenRequest(Box<PayloadCardTokenRequestData>),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -70,6 +71,21 @@ pub struct PayloadMandateRequestData {
     // Connector by default, saves every payment method
     pub payment_method_id: Secret<String>,
     // For manual capture, set status to "authorized", otherwise omit
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status: Option<responses::PayloadPaymentStatus>,
+}
+
+// Charge a previously-tokenized payment method obtained from Payload.js
+// Secure Inputs. Wire shape is identical to PayloadMandateRequestData — both
+// send `payment_method_id=pm_xxx` as a top-level form field — but kept as a
+// separate type so the two flows can diverge if Payload adds fields specific
+// to Secure-Input tokens.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct PayloadCardTokenRequestData {
+    pub amount: FloatMajorUnit,
+    #[serde(rename = "type")]
+    pub transaction_types: TransactionTypes,
+    pub payment_method_id: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<responses::PayloadPaymentStatus>,
 }
