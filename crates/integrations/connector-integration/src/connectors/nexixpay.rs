@@ -41,10 +41,10 @@ use serde::Serialize;
 use transformers as nexixpay;
 use transformers::{
     NexixpayCaptureRequest, NexixpayCaptureResponse, NexixpayClientAuthRequest,
-    NexixpayClientAuthResponse, NexixpayPaymentsRequest, NexixpayPaymentsResponse,
-    NexixpayPostAuthenticateRequest, NexixpayPostAuthenticateResponse,
-    NexixpayPreAuthenticateRequest, NexixpayPreAuthenticateResponse, NexixpayRSyncResponse,
-    NexixpayMitPaymentRequest, NexixpayMitPaymentResponse, NexixpayRefundRequest,
+    NexixpayClientAuthResponse, NexixpayMitPaymentRequest, NexixpayMitPaymentResponse,
+    NexixpayPaymentsRequest, NexixpayPaymentsResponse, NexixpayPostAuthenticateRequest,
+    NexixpayPostAuthenticateResponse, NexixpayPreAuthenticateRequest,
+    NexixpayPreAuthenticateResponse, NexixpayRSyncResponse, NexixpayRefundRequest,
     NexixpayRefundResponse, NexixpaySetupMandateRequest, NexixpaySetupMandateResponse,
     NexixpaySyncResponse, NexixpayVoidRequest, NexixpayVoidResponse,
 };

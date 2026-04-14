@@ -99,6 +99,7 @@ let config = ConnectorConfig {
 | [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
 | [PaymentMethodAuthenticationService.PreAuthenticate](#paymentmethodauthenticationservicepreauthenticate) | Authentication | `PaymentMethodAuthenticationServicePreAuthenticateRequest` |
+| [RecurringPaymentService.Charge](#recurringpaymentservicecharge) | Mandates | `RecurringPaymentServiceChargeRequest` |
 | [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
 | [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
 | [PaymentService.SetupRecurring](#paymentservicesetuprecurring) | Payments | `PaymentServiceSetupRecurringRequest` |
@@ -115,7 +116,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/nexixpay/nexixpay.py#L150) · [TypeScript](../../examples/nexixpay/nexixpay.ts#L135) · [Kotlin](../../examples/nexixpay/nexixpay.kt#L82) · [Rust](../../examples/nexixpay/nexixpay.rs#L141)
+**Examples:** [Python](../../examples/nexixpay/nexixpay.py#L176) · [TypeScript](../../examples/nexixpay/nexixpay.ts#L158) · [Kotlin](../../examples/nexixpay/nexixpay.kt#L85) · [Rust](../../examples/nexixpay/nexixpay.rs#L168)
 
 #### PaymentService.Get
 
@@ -126,7 +127,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/nexixpay/nexixpay.py#L159) · [TypeScript](../../examples/nexixpay/nexixpay.ts#L144) · [Kotlin](../../examples/nexixpay/nexixpay.kt#L92) · [Rust](../../examples/nexixpay/nexixpay.rs#L148)
+**Examples:** [Python](../../examples/nexixpay/nexixpay.py#L185) · [TypeScript](../../examples/nexixpay/nexixpay.ts#L167) · [Kotlin](../../examples/nexixpay/nexixpay.kt#L95) · [Rust](../../examples/nexixpay/nexixpay.rs#L175)
 
 #### PaymentService.Refund
 
@@ -137,7 +138,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/nexixpay/nexixpay.py#L177) · [TypeScript](../../examples/nexixpay/nexixpay.ts#L162) · [Kotlin](../../examples/nexixpay/nexixpay.kt#L128) · [Rust](../../examples/nexixpay/nexixpay.rs#L162)
+**Examples:** [Python](../../examples/nexixpay/nexixpay.py#L212) · [TypeScript](../../examples/nexixpay/nexixpay.ts#L194) · [Kotlin](../../examples/nexixpay/nexixpay.kt#L162) · [Rust](../../examples/nexixpay/nexixpay.rs#L196)
 
 #### PaymentService.SetupRecurring
 
@@ -148,7 +149,7 @@ Configure a payment method for recurring billing. Sets up the mandate and paymen
 | **Request** | `PaymentServiceSetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/nexixpay/nexixpay.py#L195) · [TypeScript](../../examples/nexixpay/nexixpay.ts#L180) · [Kotlin](../../examples/nexixpay/nexixpay.kt#L150) · [Rust](../../examples/nexixpay/nexixpay.rs#L176)
+**Examples:** [Python](../../examples/nexixpay/nexixpay.py#L230) · [TypeScript](../../examples/nexixpay/nexixpay.ts#L212) · [Kotlin](../../examples/nexixpay/nexixpay.kt#L184) · [Rust](../../examples/nexixpay/nexixpay.rs#L210)
 
 #### PaymentService.Void
 
@@ -159,7 +160,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/nexixpay/nexixpay.py#L204) · [TypeScript](../../examples/nexixpay/nexixpay.ts) · [Kotlin](../../examples/nexixpay/nexixpay.kt#L189) · [Rust](../../examples/nexixpay/nexixpay.rs#L186)
+**Examples:** [Python](../../examples/nexixpay/nexixpay.py#L239) · [TypeScript](../../examples/nexixpay/nexixpay.ts) · [Kotlin](../../examples/nexixpay/nexixpay.kt#L223) · [Rust](../../examples/nexixpay/nexixpay.rs#L220)
 
 ### Refunds
 
@@ -172,7 +173,20 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/nexixpay/nexixpay.py#L186) · [TypeScript](../../examples/nexixpay/nexixpay.ts#L171) · [Kotlin](../../examples/nexixpay/nexixpay.kt#L138) · [Rust](../../examples/nexixpay/nexixpay.rs#L169)
+**Examples:** [Python](../../examples/nexixpay/nexixpay.py#L221) · [TypeScript](../../examples/nexixpay/nexixpay.ts#L203) · [Kotlin](../../examples/nexixpay/nexixpay.kt#L172) · [Rust](../../examples/nexixpay/nexixpay.rs#L203)
+
+### Mandates
+
+#### RecurringPaymentService.Charge
+
+Charge using an existing stored recurring payment instruction. Processes repeat payments for subscriptions or recurring billing without collecting payment details.
+
+| | Message |
+|---|---------|
+| **Request** | `RecurringPaymentServiceChargeRequest` |
+| **Response** | `RecurringPaymentServiceChargeResponse` |
+
+**Examples:** [Python](../../examples/nexixpay/nexixpay.py#L203) · [TypeScript](../../examples/nexixpay/nexixpay.ts#L185) · [Kotlin](../../examples/nexixpay/nexixpay.kt#L131) · [Rust](../../examples/nexixpay/nexixpay.rs#L189)
 
 ### Authentication
 
@@ -185,4 +199,4 @@ Initiate 3DS flow before payment authorization. Collects device data and prepare
 | **Request** | `PaymentMethodAuthenticationServicePreAuthenticateRequest` |
 | **Response** | `PaymentMethodAuthenticationServicePreAuthenticateResponse` |
 
-**Examples:** [Python](../../examples/nexixpay/nexixpay.py#L168) · [TypeScript](../../examples/nexixpay/nexixpay.ts#L153) · [Kotlin](../../examples/nexixpay/nexixpay.kt#L100) · [Rust](../../examples/nexixpay/nexixpay.rs#L155)
+**Examples:** [Python](../../examples/nexixpay/nexixpay.py#L194) · [TypeScript](../../examples/nexixpay/nexixpay.ts#L176) · [Kotlin](../../examples/nexixpay/nexixpay.kt#L103) · [Rust](../../examples/nexixpay/nexixpay.rs#L182)

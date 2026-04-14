@@ -1988,9 +1988,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // non-alphanumeric characters ("not valid"). Use the first 18 chars
         // of a dash-stripped UUID — within the documented max length and
         // safely alphanumeric.
-        let contract_id: String = derive_nexi_contract_id(
-            &item.resource_common_data.connector_request_reference_id,
-        );
+        let contract_id: String =
+            derive_nexi_contract_id(&item.resource_common_data.connector_request_reference_id);
         let recurrence = Some(NexixpayRecurrence {
             action: NexixpayRecurringAction::ContractCreation,
             contract_id: Some(Secret::new(contract_id)),
