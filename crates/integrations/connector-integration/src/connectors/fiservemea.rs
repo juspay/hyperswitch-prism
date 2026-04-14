@@ -45,8 +45,9 @@ use serde::Serialize;
 use transformers as fiservemea;
 use transformers::{
     FiservemeaAuthorizeResponse, FiservemeaCaptureResponse, FiservemeaPaymentsRequest,
-    FiservemeaRefundResponse, FiservemeaRefundSyncResponse, FiservemeaSyncResponse,
-    FiservemeaVoidResponse, PostAuthTransaction, ReturnTransaction, VoidTransaction,
+    FiservemeaRefundResponse, FiservemeaRefundSyncResponse, FiservemeaSetupMandateRequest,
+    FiservemeaSetupMandateResponse, FiservemeaSyncResponse, FiservemeaVoidResponse,
+    PostAuthTransaction, ReturnTransaction, VoidTransaction,
 };
 
 use super::macros;
@@ -100,6 +101,12 @@ macros::create_all_prerequisites!(
             flow: RSync,
             response_body: FiservemeaRefundSyncResponse,
             router_data: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        ),
+        (
+            flow: SetupMandate,
+            request_body: FiservemeaSetupMandateRequest<T>,
+            response_body: FiservemeaSetupMandateResponse,
+            router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -522,6 +529,36 @@ macros::macro_connector_implementation!(
     }
 );
 
+// Setup Mandate / Setup Recurring - Uses the same Primary Transaction endpoint
+// as Authorize; the card is verified via a PreAuth to enable recurring usage.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Fiservemea,
+    curl_request: Json(FiservemeaSetupMandateRequest),
+    curl_response: FiservemeaSetupMandateResponse,
+    flow_name: SetupMandate,
+    resource_common_data: PaymentFlowData,
+    flow_request: SetupMandateRequestData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(self.connector_base_url_payments(req).trim_end_matches('/').to_string())
+        }
+    }
+);
+
 // ===== EMPTY IMPLEMENTATIONS FOR UNIMPLEMENTED FLOWS =====
 
 // Payment Void Post Capture
@@ -530,17 +567,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         VoidPC,
         PaymentFlowData,
         PaymentsCancelPostCaptureData,
-        PaymentsResponseData,
-    > for Fiservemea<T>
-{
-}
-
-// Setup Mandate
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        SetupMandate,
-        PaymentFlowData,
-        SetupMandateRequestData<T>,
         PaymentsResponseData,
     > for Fiservemea<T>
 {
