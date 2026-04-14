@@ -1258,6 +1258,9 @@ def check_example_syntax(examples_dir: Path, connectors: Optional[list[str]] = N
                         # Skip deprecation warnings about baseUrl and TS5101
                         if "TS5101" in line or "deprecated" in line.lower():
                             continue
+                        # Skip info/help URLs and messages without error codes
+                        if line.startswith("Visit http") or "aka.ms" in line:
+                            continue
                         # Normalize absolute path back to examples/connector/file.ts
                         for f in ts_files:
                             rel = str(f.relative_to(examples_dir.parent))
