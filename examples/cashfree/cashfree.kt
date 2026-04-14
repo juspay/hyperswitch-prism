@@ -61,8 +61,8 @@ private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAutho
 }
 
 // Flow: PaymentService.Authorize (UpiCollect)
-fun authorize(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+fun authorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
     val request = buildAuthorizeRequest("AUTOMATIC")
     val response = client.authorize(request)
     when (response.status.name) {

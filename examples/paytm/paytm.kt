@@ -75,8 +75,8 @@ private fun buildGetRequest(connectorTransactionIdStr: String): PaymentServiceGe
 }
 
 // Flow: PaymentService.Authorize (UpiCollect)
-fun authorize(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+fun authorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
     val request = buildAuthorizeRequest("AUTOMATIC")
     val response = client.authorize(request)
     when (response.status.name) {
@@ -87,8 +87,8 @@ fun authorize(txnId: String) {
 }
 
 // Flow: MerchantAuthenticationService.CreateServerSessionAuthenticationToken
-fun createServerSessionAuthenticationToken(txnId: String) {
-    val client = MerchantAuthenticationClient(_defaultConfig)
+fun createServerSessionAuthenticationToken(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = MerchantAuthenticationClient(config)
     val request = MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest.newBuilder().apply {
         paymentBuilder.apply {  // PayoutSessionContext payout = 6; // future FrmSessionContext frm = 7; // future.
             amountBuilder.apply {
@@ -102,8 +102,8 @@ fun createServerSessionAuthenticationToken(txnId: String) {
 }
 
 // Flow: PaymentService.Get
-fun get(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+fun get(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
     val request = buildGetRequest("probe_connector_txn_001")
     val response = client.get(request)
     println("Status: ${response.status.name}")

@@ -74,8 +74,8 @@ private fun buildGetRequest(connectorTransactionIdStr: String): PaymentServiceGe
 }
 
 // Flow: PaymentService.Authorize (UpiCollect)
-fun authorize(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+fun authorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
     val request = buildAuthorizeRequest("AUTOMATIC")
     val response = client.authorize(request)
     when (response.status.name) {
@@ -86,8 +86,8 @@ fun authorize(txnId: String) {
 }
 
 // Flow: PaymentService.Get
-fun get(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+fun get(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
     val request = buildGetRequest("probe_connector_txn_001")
     val response = client.get(request)
     println("Status: ${response.status.name}")

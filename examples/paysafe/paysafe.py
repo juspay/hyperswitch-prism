@@ -163,7 +163,7 @@ async def process_tokenize(merchant_transaction_id: str, config: sdk_config_pb2.
 
     tokenize_response = await paymentmethod_client.tokenize(_build_tokenize_request())
 
-    return {"status": tokenize_response.status}
+    return {"token": tokenize_response.payment_method_token}
 
 
 async def process_void(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):

@@ -100,13 +100,24 @@ def get_ffi_lib_path(repo_root: Path) -> Path:
     return repo_root / "target" / triple / "release-fast" / f"libconnector_service_ffi.{ext}"
 
 
+def get_js_sdk_version(repo_root: Path) -> str:
+    """Read JavaScript SDK version from package.json."""
+    pkg_json = repo_root / "sdk" / "javascript" / "package.json"
+    if pkg_json.exists():
+        import json
+        data = json.loads(pkg_json.read_text())
+        return data.get("version", "0.0.1")
+    return "0.0.1"
+
+
 def build_javascript_sdk_once(repo_root: Path) -> Optional[Path]:
     """Build JavaScript SDK once and return the path to the tarball."""
     global _js_sdk_path
     if _js_sdk_path is not None:
         return _js_sdk_path
 
-    tarball = repo_root / "artifacts" / "sdk-javascript" / "hyperswitch-prism-0.0.1.tgz"
+    version = get_js_sdk_version(repo_root)
+    tarball = repo_root / "artifacts" / "sdk-javascript" / f"hyperswitch-prism-{version}.tgz"
     if tarball.exists():
         _js_sdk_path = tarball
         return _js_sdk_path
@@ -608,8 +619,8 @@ def run_kotlin_test_batch(
 
     try:
         result = subprocess.run(
-            [str(repo_root / "sdk" / "java" / "gradlew"), "run", f"--args={run_args}"],
-            cwd=smoke_test_dir,
+            ["../gradlew", "run", f"--args={run_args}"],
+            cwd=str(smoke_test_dir),
             capture_output=True, text=True, timeout=300, env=env
         )
 

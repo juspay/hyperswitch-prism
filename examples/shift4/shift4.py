@@ -288,7 +288,7 @@ async def process_create_client_authentication_token(merchant_transaction_id: st
 
     create_response = await merchantauthentication_client.create_client_authentication_token(_build_create_client_authentication_token_request())
 
-    return {"status": create_response.status}
+    return {"session_data": create_response.session_data}
 
 
 async def process_create_customer(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
@@ -297,7 +297,7 @@ async def process_create_customer(merchant_transaction_id: str, config: sdk_conf
 
     create_response = await customer_client.create(_build_create_customer_request())
 
-    return {"status": create_response.status}
+    return {"customer_id": create_response.connector_customer_id}
 
 
 async def process_get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
@@ -325,15 +325,6 @@ async def process_recurring_charge(merchant_transaction_id: str, config: sdk_con
     recurring_response = await recurringpayment_client.charge(_build_recurring_charge_request())
 
     return {"status": recurring_response.status}
-
-
-async def process_refund(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
-    """Flow: PaymentService.Refund"""
-    payment_client = PaymentClient(config)
-
-    refund_response = await payment_client.refund(_build_refund_request("probe_connector_txn_001"))
-
-    return {"status": refund_response.status}
 
 
 async def process_refund_get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):

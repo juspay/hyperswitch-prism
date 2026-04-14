@@ -348,7 +348,7 @@ async def process_create_customer(merchant_transaction_id: str, config: sdk_conf
 
     create_response = await customer_client.create(_build_create_customer_request())
 
-    return {"status": create_response.status}
+    return {"customer_id": create_response.connector_customer_id}
 
 
 async def process_get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
@@ -387,15 +387,6 @@ async def process_recurring_charge(merchant_transaction_id: str, config: sdk_con
     return {"status": recurring_response.status}
 
 
-async def process_refund(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
-    """Flow: PaymentService.Refund"""
-    payment_client = PaymentClient(config)
-
-    refund_response = await payment_client.refund(_build_refund_request("probe_connector_txn_001"))
-
-    return {"status": refund_response.status}
-
-
 async def process_refund_get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """Flow: RefundService.Get"""
     refund_client = RefundClient(config)
@@ -411,7 +402,7 @@ async def process_setup_recurring(merchant_transaction_id: str, config: sdk_conf
 
     setup_response = await payment_client.setup_recurring(_build_setup_recurring_request())
 
-    return {"status": setup_response.status, "mandate_id": setup_response.connector_transaction_id}
+    return {"status": setup_response.status, "mandate_id": setup_response.connector_recurring_payment_id}
 
 
 async def process_void(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):

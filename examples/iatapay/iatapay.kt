@@ -110,8 +110,8 @@ private fun buildRefundRequest(connectorTransactionIdStr: String): PaymentServic
 }
 
 // Flow: PaymentService.Authorize (Ideal)
-fun authorize(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+fun authorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
     val request = buildAuthorizeRequest("AUTOMATIC")
     val response = client.authorize(request)
     when (response.status.name) {
@@ -122,8 +122,8 @@ fun authorize(txnId: String) {
 }
 
 // Flow: MerchantAuthenticationService.CreateServerAuthenticationToken
-fun createServerAuthenticationToken(txnId: String) {
-    val client = MerchantAuthenticationClient(_defaultConfig)
+fun createServerAuthenticationToken(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = MerchantAuthenticationClient(config)
     val request = MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest.newBuilder().apply {
 
     }.build()
@@ -132,16 +132,16 @@ fun createServerAuthenticationToken(txnId: String) {
 }
 
 // Flow: PaymentService.Get
-fun get(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+fun get(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
     val request = buildGetRequest("probe_connector_txn_001")
     val response = client.get(request)
     println("Status: ${response.status.name}")
 }
 
 // Flow: PaymentService.Refund
-fun refund(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+fun refund(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
     val request = buildRefundRequest("probe_connector_txn_001")
     val response = client.refund(request)
     if (response.status.name == "FAILED")
@@ -150,8 +150,8 @@ fun refund(txnId: String) {
 }
 
 // Flow: RefundService.Get
-fun refundGet(txnId: String) {
-    val client = RefundClient(_defaultConfig)
+fun refundGet(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = RefundClient(config)
     val request = RefundServiceGetRequest.newBuilder().apply {
         merchantRefundId = "probe_refund_001"  // Identification.
         connectorTransactionId = "probe_connector_txn_001"

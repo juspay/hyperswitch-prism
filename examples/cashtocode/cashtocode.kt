@@ -31,8 +31,8 @@ val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
 
 
 // Flow: EventService.HandleEvent
-fun handleEvent(txnId: String) {
-    val client = EventClient(_defaultConfig)
+fun handleEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = EventClient(config)
     val request = EventServiceHandleRequest.newBuilder().apply {
 
     }.build()

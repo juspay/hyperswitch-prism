@@ -294,15 +294,6 @@ async def process_proxy_authorize(merchant_transaction_id: str, config: sdk_conf
     return {"status": proxy_response.status}
 
 
-async def process_refund(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
-    """Flow: PaymentService.Refund"""
-    payment_client = PaymentClient(config)
-
-    refund_response = await payment_client.refund(_build_refund_request("probe_connector_txn_001"))
-
-    return {"status": refund_response.status}
-
-
 async def process_refund_get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """Flow: RefundService.Get"""
     refund_client = RefundClient(config)

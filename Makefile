@@ -297,6 +297,10 @@ validate-pre-push-fix:
 ## Generate connector docs (default: stripe only; use CONNECTORS=all for all connectors)
 ## Skips field-probe if data/field_probe already exists; use CONNECTORS=all to re-probe all connectors.
 docs:
+	@echo "▶ Building FFI library (if needed)…"
+	@$(MAKE) -C sdk build-ffi-lib
+	@echo "▶ Ensuring JavaScript SDK dependencies are generated…"
+	@$(MAKE) -C sdk/javascript generate-proto generate-bindings
 	@echo "▶ Generating connector docs…"
 	@if [ "$(CONNECTORS)" = "all" ]; then \
 		$(MAKE) field-probe; \

@@ -219,8 +219,8 @@ fun processGetPayment(txnId: String, config: ConnectorConfig = _defaultConfig): 
 }
 
 // Flow: PaymentMethodAuthenticationService.Authenticate
-fun authenticate(txnId: String) {
-    val client = PaymentMethodAuthenticationClient(_defaultConfig)
+fun authenticate(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentMethodAuthenticationClient(config)
     val request = PaymentMethodAuthenticationServiceAuthenticateRequest.newBuilder().apply {
         amountBuilder.apply {  // Amount Information.
             minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
@@ -254,8 +254,8 @@ fun authenticate(txnId: String) {
 }
 
 // Flow: PaymentService.Authorize (Card)
-fun authorize(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+fun authorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
     val request = buildAuthorizeRequest("AUTOMATIC")
     val response = client.authorize(request)
     when (response.status.name) {
@@ -266,8 +266,8 @@ fun authorize(txnId: String) {
 }
 
 // Flow: PaymentService.Capture
-fun capture(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+fun capture(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
     val request = buildCaptureRequest("probe_connector_txn_001")
     val response = client.capture(request)
     if (response.status.name == "FAILED")
@@ -276,16 +276,16 @@ fun capture(txnId: String) {
 }
 
 // Flow: PaymentService.Get
-fun get(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+fun get(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
     val request = buildGetRequest("probe_connector_txn_001")
     val response = client.get(request)
     println("Status: ${response.status.name}")
 }
 
 // Flow: PaymentMethodAuthenticationService.PostAuthenticate
-fun postAuthenticate(txnId: String) {
-    val client = PaymentMethodAuthenticationClient(_defaultConfig)
+fun postAuthenticate(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentMethodAuthenticationClient(config)
     val request = PaymentMethodAuthenticationServicePostAuthenticateRequest.newBuilder().apply {
         amountBuilder.apply {  // Amount Information.
             minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
@@ -314,8 +314,8 @@ fun postAuthenticate(txnId: String) {
 }
 
 // Flow: PaymentMethodAuthenticationService.PreAuthenticate
-fun preAuthenticate(txnId: String) {
-    val client = PaymentMethodAuthenticationClient(_defaultConfig)
+fun preAuthenticate(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentMethodAuthenticationClient(config)
     val request = PaymentMethodAuthenticationServicePreAuthenticateRequest.newBuilder().apply {
         amountBuilder.apply {  // Amount Information.
             minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
@@ -342,8 +342,8 @@ fun preAuthenticate(txnId: String) {
 }
 
 // Flow: PaymentService.ProxyAuthorize
-fun proxyAuthorize(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+fun proxyAuthorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
     val request = PaymentServiceProxyAuthorizeRequest.newBuilder().apply {
         merchantTransactionId = "probe_proxy_txn_001"
         amountBuilder.apply {
@@ -373,8 +373,8 @@ fun proxyAuthorize(txnId: String) {
 }
 
 // Flow: RecurringPaymentService.Charge
-fun recurringCharge(txnId: String) {
-    val client = RecurringPaymentClient(_defaultConfig)
+fun recurringCharge(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = RecurringPaymentClient(config)
     val request = RecurringPaymentServiceChargeRequest.newBuilder().apply {
         connectorRecurringPaymentIdBuilder.apply {  // Reference to existing mandate.
             connectorMandateIdBuilder.apply {  // mandate_id sent by the connector.
@@ -404,8 +404,8 @@ fun recurringCharge(txnId: String) {
 }
 
 // Flow: RecurringPaymentService.Revoke
-fun recurringRevoke(txnId: String) {
-    val client = RecurringPaymentClient(_defaultConfig)
+fun recurringRevoke(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = RecurringPaymentClient(config)
     val request = RecurringPaymentServiceRevokeRequest.newBuilder().apply {
         merchantRevokeId = "probe_revoke_001"  // Identification.
         mandateId = "probe_mandate_001"  // Mandate Details.
@@ -416,8 +416,8 @@ fun recurringRevoke(txnId: String) {
 }
 
 // Flow: PaymentService.Refund
-fun refund(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+fun refund(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
     val request = buildRefundRequest("probe_connector_txn_001")
     val response = client.refund(request)
     if (response.status.name == "FAILED")
@@ -426,8 +426,8 @@ fun refund(txnId: String) {
 }
 
 // Flow: RefundService.Get
-fun refundGet(txnId: String) {
-    val client = RefundClient(_defaultConfig)
+fun refundGet(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = RefundClient(config)
     val request = RefundServiceGetRequest.newBuilder().apply {
         merchantRefundId = "probe_refund_001"  // Identification.
         connectorTransactionId = "probe_connector_txn_001"
@@ -438,8 +438,8 @@ fun refundGet(txnId: String) {
 }
 
 // Flow: PaymentService.TokenAuthorize
-fun tokenAuthorize(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+fun tokenAuthorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
     val request = PaymentServiceTokenAuthorizeRequest.newBuilder().apply {
         merchantTransactionId = "probe_tokenized_txn_001"
         amountBuilder.apply {
@@ -462,8 +462,8 @@ fun tokenAuthorize(txnId: String) {
 }
 
 // Flow: PaymentService.Void
-fun void(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+fun void(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
     val request = buildVoidRequest("probe_connector_txn_001")
     val response = client.void(request)
     if (response.status.name == "FAILED")

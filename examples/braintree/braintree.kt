@@ -92,8 +92,8 @@ private fun buildVoidRequest(connectorTransactionIdStr: String): PaymentServiceV
 }
 
 // Flow: PaymentService.Capture
-fun capture(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+fun capture(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
     val request = buildCaptureRequest("probe_connector_txn_001")
     val response = client.capture(request)
     if (response.status.name == "FAILED")
@@ -102,8 +102,8 @@ fun capture(txnId: String) {
 }
 
 // Flow: MerchantAuthenticationService.CreateClientAuthenticationToken
-fun createClientAuthenticationToken(txnId: String) {
-    val client = MerchantAuthenticationClient(_defaultConfig)
+fun createClientAuthenticationToken(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = MerchantAuthenticationClient(config)
     val request = MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest.newBuilder().apply {
         merchantClientSessionId = "probe_sdk_session_001"  // Infrastructure.
         paymentBuilder.apply {  // FrmClientAuthenticationContext frm = 5; // future: device fingerprinting PayoutClientAuthenticationContext payout = 6; // future: payout verification widget.
@@ -118,16 +118,16 @@ fun createClientAuthenticationToken(txnId: String) {
 }
 
 // Flow: PaymentService.Get
-fun get(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+fun get(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
     val request = buildGetRequest("probe_connector_txn_001")
     val response = client.get(request)
     println("Status: ${response.status.name}")
 }
 
 // Flow: PaymentService.Refund
-fun refund(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+fun refund(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
     val request = buildRefundRequest("probe_connector_txn_001")
     val response = client.refund(request)
     if (response.status.name == "FAILED")
@@ -136,8 +136,8 @@ fun refund(txnId: String) {
 }
 
 // Flow: RefundService.Get
-fun refundGet(txnId: String) {
-    val client = RefundClient(_defaultConfig)
+fun refundGet(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = RefundClient(config)
     val request = RefundServiceGetRequest.newBuilder().apply {
         merchantRefundId = "probe_refund_001"  // Identification.
         connectorTransactionId = "probe_connector_txn_001"
@@ -149,8 +149,8 @@ fun refundGet(txnId: String) {
 }
 
 // Flow: PaymentMethodService.Tokenize
-fun tokenize(txnId: String) {
-    val client = PaymentMethodClient(_defaultConfig)
+fun tokenize(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentMethodClient(config)
     val request = PaymentMethodServiceTokenizeRequest.newBuilder().apply {
         amountBuilder.apply {  // Payment Information.
             minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
@@ -175,8 +175,8 @@ fun tokenize(txnId: String) {
 }
 
 // Flow: PaymentService.Void
-fun void(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+fun void(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
     val request = buildVoidRequest("probe_connector_txn_001")
     val response = client.void(request)
     if (response.status.name == "FAILED")

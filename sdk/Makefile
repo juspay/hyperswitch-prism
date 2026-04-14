@@ -184,6 +184,10 @@ generate: install-deps generate-rust generate-grpc-client generate-python genera
 # SDK's generate-bindings step also checks if outputs exist before regenerating.
 # Set QUIET=0 to show full compilation output (default: QUIET=1 shows only test results)
 test: build-ffi-lib ## Run all SDK smoke tests (builds FFI, runs sequentially). Use QUIET=0 for verbose output.
+	@if [ ! -f $(REPO_ROOT)/sdk/generated/flows.json ]; then \
+		echo "Generating flows.json..."; \
+		python3 $(REPO_ROOT)/scripts/generators/code/generate.py --lang rust; \
+	fi
 	@echo "Running FFI smoke tests for all SDKs..."
 	@echo; echo "═══ Rust FFI ═══"; echo
 	@$(MAKE) -C $(REPO_ROOT)/sdk/rust test-package CONNECTORS=$(CONNECTORS) 2>&1 

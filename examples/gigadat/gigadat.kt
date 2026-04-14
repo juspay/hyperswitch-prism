@@ -62,16 +62,16 @@ private fun buildRefundRequest(connectorTransactionIdStr: String): PaymentServic
 }
 
 // Flow: PaymentService.Get
-fun get(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+fun get(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
     val request = buildGetRequest("probe_connector_txn_001")
     val response = client.get(request)
     println("Status: ${response.status.name}")
 }
 
 // Flow: PaymentService.Refund
-fun refund(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+fun refund(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
     val request = buildRefundRequest("probe_connector_txn_001")
     val response = client.refund(request)
     if (response.status.name == "FAILED")

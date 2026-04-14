@@ -34,8 +34,8 @@ val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
 
 
 // Flow: MerchantAuthenticationService.CreateServerAuthenticationToken
-fun createServerAuthenticationToken(txnId: String) {
-    val client = MerchantAuthenticationClient(_defaultConfig)
+fun createServerAuthenticationToken(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = MerchantAuthenticationClient(config)
     val request = MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest.newBuilder().apply {
 
     }.build()

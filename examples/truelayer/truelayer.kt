@@ -62,8 +62,8 @@ private fun buildGetRequest(connectorTransactionIdStr: String): PaymentServiceGe
 }
 
 // Flow: MerchantAuthenticationService.CreateServerAuthenticationToken
-fun createServerAuthenticationToken(txnId: String) {
-    val client = MerchantAuthenticationClient(_defaultConfig)
+fun createServerAuthenticationToken(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = MerchantAuthenticationClient(config)
     val request = MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest.newBuilder().apply {
 
     }.build()
@@ -72,16 +72,16 @@ fun createServerAuthenticationToken(txnId: String) {
 }
 
 // Flow: PaymentService.Get
-fun get(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+fun get(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
     val request = buildGetRequest("probe_connector_txn_001")
     val response = client.get(request)
     println("Status: ${response.status.name}")
 }
 
 // Flow: EventService.HandleEvent
-fun handleEvent(txnId: String) {
-    val client = EventClient(_defaultConfig)
+fun handleEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = EventClient(config)
     val request = EventServiceHandleRequest.newBuilder().apply {
 
     }.build()
@@ -90,8 +90,8 @@ fun handleEvent(txnId: String) {
 }
 
 // Flow: RefundService.Get
-fun refundGet(txnId: String) {
-    val client = RefundClient(_defaultConfig)
+fun refundGet(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = RefundClient(config)
     val request = RefundServiceGetRequest.newBuilder().apply {
         merchantRefundId = "probe_refund_001"  // Identification.
         connectorTransactionId = "probe_connector_txn_001"

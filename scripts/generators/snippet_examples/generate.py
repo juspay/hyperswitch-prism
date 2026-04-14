@@ -1922,6 +1922,9 @@ def render_consolidated_python(
 
         return slines
 
+    # Track scenario keys to avoid duplicate function names with standalone flows
+    scenario_keys = {scenario.key for scenario, _ in scenarios_with_payloads}
+
     for scenario, flow_payloads in scenarios_with_payloads:
         func_name = f"process_{scenario.key}"
         func_names.append(func_name)
@@ -1977,6 +1980,9 @@ def render_consolidated_python(
 
     # Append individual flow functions (flows not already covered by a scenario)
     for flow_key, proto_req, pm_label in (flow_items or []):
+        # Skip flows that have a scenario with the same key (avoid duplicate function names)
+        if flow_key in scenario_keys:
+            continue
         # Skip unsupported flows (not yet implemented in ConnectorClient)
         if flow_key in _UNSUPPORTED_FLOWS:
             continue
@@ -2004,7 +2010,13 @@ def render_consolidated_python(
         if flow_key == "authorize":
             body_lines.append(f'    return {{"status": {resp_var}.status, "transaction_id": {resp_var}.connector_transaction_id}}')
         elif flow_key == "setup_recurring":
-            body_lines.append(f'    return {{"status": {resp_var}.status, "mandate_id": {resp_var}.connector_transaction_id}}')
+            body_lines.append(f'    return {{"status": {resp_var}.status, "mandate_id": {resp_var}.connector_recurring_payment_id}}')
+        elif flow_key == "create_customer":
+            body_lines.append(f'    return {{"customer_id": {resp_var}.connector_customer_id}}')
+        elif flow_key == "tokenize":
+            body_lines.append(f'    return {{"token": {resp_var}.payment_method_token}}')
+        elif flow_key == "create_client_authentication_token":
+            body_lines.append(f'    return {{"session_data": {resp_var}.session_data}}')
         else:
             body_lines.append(f'    return {{"status": {resp_var}.status}}')
 
@@ -2023,6 +2035,8 @@ def render_consolidated_python(
     functions_text = "\n\n".join(func_blocks)
     first_scenario = func_names[0][8:] if func_names and func_names[0].startswith("process_") else func_names[0] if func_names else "checkout_autocapture"
     supported_flows_list = json.dumps([fk for fk, _, _ in (flow_items or []) if fk not in _UNSUPPORTED_FLOWS])
+    # Add type annotation for empty list to satisfy mypy
+    supported_flows_line = f"SUPPORTED_FLOWS: list[str] = {supported_flows_list}" if supported_flows_list == "[]" else f"SUPPORTED_FLOWS = {supported_flows_list}"
 
     return f"""\
 # This file is auto-generated. Do not edit manually.
@@ -2037,7 +2051,7 @@ import sys
 {client_imports}
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
-SUPPORTED_FLOWS = {supported_flows_list}
+{supported_flows_line}
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -3269,8 +3283,8 @@ def render_consolidated_kotlin(
             kt_default  = f'"{default_val}"' if param_type == "&str" else default_val
             func_blocks.append(
                 f"// Flow: {svc}.{rpc_name}{pm_part}\n"
-                f"fun {func_name}(txnId: String) {{\n"
-                f"    val client = {client_cls}(_defaultConfig)\n"
+                f"fun {func_name}(txnId: String, config: ConnectorConfig = _defaultConfig) {{\n"
+                f"    val client = {client_cls}(config)\n"
                 f"    val request = {fn_name}({kt_default})\n"
                 f"    val response = client.{method}(request)\n"
                 f"{status_block}\n"
@@ -3282,8 +3296,8 @@ def render_consolidated_kotlin(
             body       = "\n".join(body_lines)
             func_blocks.append(
                 f"// Flow: {svc}.{rpc_name}{pm_part}\n"
-                f"fun {func_name}(txnId: String) {{\n"
-                f"    val client = {client_cls}(_defaultConfig)\n"
+                f"fun {func_name}(txnId: String, config: ConnectorConfig = _defaultConfig) {{\n"
+                f"    val client = {client_cls}(config)\n"
                 f"    val request = {grpc_req}.newBuilder().apply {{\n"
                 f"{body}\n"
                 f"    }}.build()\n"

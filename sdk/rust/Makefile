@@ -32,7 +32,7 @@ dist: package ## Build distribution package (alias for package)
 
 test-package: build-ffi-lib ## Build FFI → Run Rust smoke test
 	@echo "Running Rust smoke test..."
-	@cd $(REPO_ROOT) && HARNESS_DIR=$(SDK_ROOT)/smoke-test/generated CONNECTORS=$(CONNECTORS) cargo run --profile $(PROFILE) -p hyperswitch-smoke-test -- --connectors $(CONNECTORS) 2>&1
+	@cd $(REPO_ROOT) && HARNESS_DIR=$(SDK_ROOT)/../../examples CONNECTORS=$(CONNECTORS) cargo run --profile $(PROFILE) -p hyperswitch-smoke-test -- --connectors $(CONNECTORS) 2>&1
 
 test-package-mock: build-ffi-lib ## Build FFI → Run Rust smoke test in MOCK mode (uses examples/connector/connector.rs)
 	@echo "Running Rust smoke test in MOCK mode..."
@@ -41,7 +41,7 @@ test-package-mock: build-ffi-lib ## Build FFI → Run Rust smoke test in MOCK mo
 		exit 1; \
 	fi
 	@# Use examples directory (via HARNESS_DIR env var)
-	@cd $(REPO_ROOT) && HARNESS_DIR=$(SDK_ROOT)/smoke-test/generated CONNECTORS=$(CONNECTORS) cargo run --profile $(PROFILE) -p hyperswitch-smoke-test -- --creds-file $(REPO_ROOT)/creds_dummy.json --connectors $(CONNECTORS) --mock 2>&1
+	@cd $(REPO_ROOT) && HARNESS_DIR=$(SDK_ROOT)/../../examples CONNECTORS=$(CONNECTORS) cargo run --profile $(PROFILE) -p hyperswitch-smoke-test -- --creds-file $(REPO_ROOT)/creds.json --connectors $(CONNECTORS) --mock 2>&1
 
 # test-grpc
 # Builds the grpc-server binary, starts it in background, runs gRPC smoke test binary.

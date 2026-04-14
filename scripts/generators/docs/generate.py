@@ -20,12 +20,14 @@ To add docs for a new connector:
   - Run: python3 scripts/generators/docs/generate.py {name}
 """
 
+import os
 import sys
 import json
+import shutil
+import subprocess
 from pathlib import Path
 from typing import Optional
 
-import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from snippet_examples import generate as snippets
 
@@ -1169,6 +1171,24 @@ def check_example_syntax(examples_dir: Path, connectors: Optional[list[str]] = N
         else:
             print("✓")
 
+    # ── Python — mypy type checking ────────────────────────────────────────────
+    if py_files:
+        print(f"  Checking Python types ({len(py_files)} files) ...", end=" ", flush=True)
+        mypy_errors: list[str] = []
+        for f in py_files:
+            result = subprocess.run(
+                [sys.executable, "-m", "mypy", "--ignore-missing-imports", "--follow-imports=skip", str(f)],
+                capture_output=True, text=True,
+            )
+            if result.returncode != 0:
+                err_lines = [line for line in (result.stdout + result.stderr).splitlines() if line.strip()]
+                mypy_errors.append(f"Python Types: {f.relative_to(examples_dir.parent)}: {'; '.join(err_lines)}")
+        if mypy_errors:
+            print(f"✗ ({len(mypy_errors)} error(s))")
+            errors.extend(mypy_errors)
+        else:
+            print("✓")
+
     # ── TypeScript — tsc --noEmit via SDK's local tsc installation ──────────────
     # The generated .ts files import 'hyperswitch-prism', which is resolved via
     # path mappings in sdk/javascript/tsconfig.json.  We must run tsc from that
@@ -1382,7 +1402,11 @@ def check_example_syntax(examples_dir: Path, connectors: Optional[list[str]] = N
             for connector in connector_names:
                 src_file = examples_dir / connector / f"{connector}.rs"
                 if src_file.exists():
-                    shutil.copy2(src_file, examples_dst / f"{connector}.rs")
+                    dst_file = examples_dst / f"{connector}.rs"
+                    shutil.copy2(src_file, dst_file)
+                    # Force sync to ensure file is fully written before cargo reads it
+                    with open(dst_file, 'rb') as f:
+                        os.fsync(f.fileno())
                     copied += 1
             
             if copied > 0:

@@ -186,7 +186,7 @@ async def process_create_client_authentication_token(merchant_transaction_id: st
 
     create_response = await merchantauthentication_client.create_client_authentication_token(_build_create_client_authentication_token_request())
 
-    return {"status": create_response.status}
+    return {"session_data": create_response.session_data}
 
 
 async def process_get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
@@ -205,15 +205,6 @@ async def process_proxy_authorize(merchant_transaction_id: str, config: sdk_conf
     proxy_response = await payment_client.proxy_authorize(_build_proxy_authorize_request())
 
     return {"status": proxy_response.status}
-
-
-async def process_refund(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
-    """Flow: PaymentService.Refund"""
-    payment_client = PaymentClient(config)
-
-    refund_response = await payment_client.refund(_build_refund_request("probe_connector_txn_001"))
-
-    return {"status": refund_response.status}
 
 if __name__ == "__main__":
     scenario = sys.argv[1] if len(sys.argv) > 1 else "checkout_autocapture"
