@@ -1017,12 +1017,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         // Extract stored mandate id (connector_mandate_id from SetupMandate).
         let mandate_id = match &request.mandate_reference {
-            MandateReferenceId::ConnectorMandateId(cmr) => cmr
-                .get_connector_mandate_id()
-                .ok_or(IntegrationError::MissingRequiredField {
-                    field_name: "mandate_reference.connector_mandate_id",
-                    context: Default::default(),
-                })?,
+            MandateReferenceId::ConnectorMandateId(cmr) => {
+                cmr.get_connector_mandate_id()
+                    .ok_or(IntegrationError::MissingRequiredField {
+                        field_name: "mandate_reference.connector_mandate_id",
+                        context: Default::default(),
+                    })?
+            }
             _ => {
                 return Err(IntegrationError::not_implemented(
                     "non-connector mandate for rapyd RepeatPayment".to_owned(),
@@ -1065,12 +1066,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<ResponseRouterData<RapydRepeatPaymentResponse, Self>>
-    for RouterDataV2<
-        RepeatPayment,
-        PaymentFlowData,
-        RepeatPaymentData<T>,
-        PaymentsResponseData,
-    >
+    for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
 
@@ -1079,7 +1075,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let (status, response) = match &item.response.data {
             Some(data) => {
-                let attempt_status = get_status(data.status.to_owned(), data.next_action.to_owned());
+                let attempt_status =
+                    get_status(data.status.to_owned(), data.next_action.to_owned());
                 match attempt_status {
                     common_enums::AttemptStatus::Failure => (
                         common_enums::AttemptStatus::Failure,
