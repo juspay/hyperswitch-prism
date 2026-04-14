@@ -556,7 +556,40 @@
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_proxy_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          },
+          "auth_type": "NO_THREE_DS",
+          "setup_future_usage": "OFF_SESSION"
+        },
+        "sample": {
+          "url": "https://secure-test.worldpay.com/jsp/merchant/xml/paymentService.jsp",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "text/xml",
+            "via": "HyperSwitch"
+          },
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE paymentService PUBLIC \"-//Worldpay//DTD Worldpay PaymentService v1//EN\" \"http://dtd.worldpay.com/paymentService_v1.dtd\">\n<paymentService version=\"1.4\" merchantCode=\"probe_merchant_code\"><submit><order orderCode=\"probe_proxy_mandate_001\" captureDelay=\"OFF\"><description>Payment</description><amount value=\"0\" currencyCode=\"USD\" exponent=\"2\"/><paymentDetails action=\"AUTHORISE\"><CARD-SSL><cardNumber>4111111111111111</cardNumber><expiryDate><date month=\"03\" year=\"2030\"/></expiryDate><cardHolderName>John Doe</cardHolderName><cvc>123</cvc></CARD-SSL></paymentDetails><shopper/><billingAddress><address/></billingAddress></order></submit></paymentService>"
+        }
       }
     },
     "recurring_charge": {
@@ -621,7 +654,45 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/mandate-return",
+          "setup_future_usage": "OFF_SESSION",
+          "request_incremental_authorization": false,
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          }
+        },
+        "sample": {
+          "url": "https://secure-test.worldpay.com/jsp/merchant/xml/paymentService.jsp",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "text/xml",
+            "via": "HyperSwitch"
+          },
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE paymentService PUBLIC \"-//Worldpay//DTD Worldpay PaymentService v1//EN\" \"http://dtd.worldpay.com/paymentService_v1.dtd\">\n<paymentService version=\"1.4\" merchantCode=\"probe_merchant_code\"><submit><order orderCode=\"probe_mandate_001\" captureDelay=\"OFF\"><description>Payment</description><amount value=\"0\" currencyCode=\"USD\" exponent=\"2\"/><paymentDetails action=\"AUTHORISE\"><CARD-SSL><cardNumber>4111111111111111</cardNumber><expiryDate><date month=\"03\" year=\"2030\"/></expiryDate><cardHolderName>John Doe</cardHolderName><cvc>737</cvc></CARD-SSL></paymentDetails><shopper/><billingAddress><address/></billingAddress></order></submit></paymentService>"
+        }
       }
     },
     "token_authorize": {
@@ -632,7 +703,8 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "Selected payment method for SetupMandate is not supported by worldpayxml"
       }
     },
     "tokenize": {

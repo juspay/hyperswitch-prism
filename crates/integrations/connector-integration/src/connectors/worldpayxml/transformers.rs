@@ -1306,8 +1306,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     },
                     shopper: requests::WorldpayxmlShopper {
                         shopper_email_address: router_data.request.email.clone(),
-                        browser: router_data.request.browser_info.as_ref().map(|browser_info| {
-                            requests::WorldpayxmlBrowser {
+                        browser: router_data
+                            .request
+                            .browser_info
+                            .as_ref()
+                            .map(|browser_info| requests::WorldpayxmlBrowser {
                                 accept_header: browser_info.accept_header.clone(),
                                 user_agent_header: browser_info.user_agent.clone(),
                                 http_accept_language: browser_info.accept_language.clone(),
@@ -1318,8 +1321,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                 browser_colour_depth: browser_info.color_depth.map(u32::from),
                                 browser_screen_height: browser_info.screen_height,
                                 browser_screen_width: browser_info.screen_width,
-                            }
-                        }),
+                            }),
                     },
                     billing_address,
                 },
@@ -1461,7 +1463,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .scheme_response
             .as_ref()
             .map(|scheme| scheme.transaction_identifier.clone())
-            .or_else(|| payment.authorisation_id.as_ref().map(|auth| auth.id.clone()));
+            .or_else(|| {
+                payment
+                    .authorisation_id
+                    .as_ref()
+                    .map(|auth| auth.id.clone())
+            });
 
         // Build success response
         let payments_response_data = PaymentsResponseData::TransactionResponse {
