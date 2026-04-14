@@ -7,38 +7,15 @@ const { Environment } = types;
 
 // Connector configurations
 export const getStripeConfig = (): types.ConnectorConfig => ({
-  connectorConfig: {
-    stripe: {
-      apiKey: { value: process.env.STRIPE_API_KEY! }
-    }
-  },
-  options: {
-    environment: Environment.SANDBOX
-  }
+
 });
 
 export const getGlobalPayConfig = (): types.ConnectorConfig => ({
-  connectorConfig: {
-    globalpay: {
-      appId: { value: process.env.GLOBALPAY_APP_ID! },
-      appKey: { value: process.env.GLOBALPAY_APP_KEY! }
-    }
-  },
-  options: {
-    environment: Environment.SANDBOX
-  }
+
 });
 
 export const getAdyenConfig = (): types.ConnectorConfig => ({
-  connectorConfig: {
-    adyen: {
-      apiKey: { value: process.env.ADYEN_API_KEY! },
-      merchantAccount: { value: process.env.ADYEN_MERCHANT_ACCOUNT! }
-    }
-  },
-  options: {
-    environment: Environment.SANDBOX
-  }
+
 });
 
 // Routing logic: Amount > $50.00 (5000 cents) -> Adyen, else USD -> Stripe, EUR -> GlobalPay

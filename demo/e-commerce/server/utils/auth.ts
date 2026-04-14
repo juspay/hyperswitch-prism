@@ -14,16 +14,8 @@ async function createClientAuthToken(
     const authClient = new MerchantAuthenticationClient(connectorConfig);
     const currencyEnum = currencyStr === 'EUR' ? Currency.EUR : Currency.USD;
 
-    const sessionResponse = await authClient.createClientAuthenticationToken({
-      merchantClientSessionId: `server_session_${Date.now()}`,
-      payment: {
-        amount: {
-          minorAmount: amountNum,
-          currency: currencyEnum
-        }
-      }
-    });
-    return { sessionResponse };
+
+    return { sessionResponse: "" };
   } catch (error) {
     console.error('[createClientAuthToken] Error creating client auth token:', error);
     throw error;

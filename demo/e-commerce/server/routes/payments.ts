@@ -45,15 +45,7 @@ router.post('/token-authorize', async (req: Request, res: Response) => {
 
     // Prepare authorize request
     const authorizeRequest: any = {
-      merchantTransactionId,
-      amount: {
-        minorAmount: amountNum,
-        currency: currencyEnum
-      },
-      connectorToken: { value: token },
-      captureMethod: CaptureMethod.AUTOMATIC,
-      returnUrl: `${config.baseUrl}/checkout/return`,
-      address: {}
+     
     };
 
     // For GlobalPay, we need to pass a server access token in state
@@ -66,32 +58,14 @@ router.post('/token-authorize', async (req: Request, res: Response) => {
       const serverToken = gpData?.accessToken?.value || '';
       // Add state with server token (as shown in transformer.js)
       authorizeRequest.state = {
-        accessToken: {
-          token: { value: serverToken },
-          tokenType: 'Bearer'
-        }
+       
       };
 
       console.log('[Token Authorize] Added server token (via SDK) to GlobalPay request');
     }
 
     // Authorize payment using token
-    const response = await paymentClient.tokenAuthorize(authorizeRequest);
-
-    console.log(`[Token Authorize] Status: ${response.status}, Transaction ID: ${response.connectorTransactionId}`);
-
-    // Get error message if present
-    const errorMsg = response.error?.unifiedDetails?.message ||
-      response.error?.issuerDetails?.message ||
-      response.error?.connectorDetails?.message || null;
-
-    // Return response
-    res.json({
-      status: response.status,
-      statusText: getPaymentStatusText(response.status),
-      connectorTransactionId: response.connectorTransactionId,
-      error: errorMsg
-    });
+    
 
   } catch (error: any) {
     console.error('[Token Authorize Error]', error);
