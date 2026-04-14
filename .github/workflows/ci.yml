@@ -183,7 +183,7 @@ jobs:
         if: needs.changes.outputs.docs-trigger == 'true' || needs.changes.outputs.ci == 'true'
         run: |
           python3 -m pip install --upgrade pip
-          pip3 install jinja2 google-cloud-vision python-dotenv requests types-requests grpcio-tools
+          pip3 install jinja2 google-cloud-vision python-dotenv requests types-requests grpcio-tools mypy
 
       - name: Format Rust code
         run: cargo +nightly fmt --all
