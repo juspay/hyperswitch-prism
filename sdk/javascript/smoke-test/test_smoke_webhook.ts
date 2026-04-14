@@ -98,7 +98,9 @@ async function testHandleEvent(): Promise<boolean> {
     // capture_method is the EventContext use case:
     // Adyen AUTHORISATION maps to AUTHORIZED (manual) or CAPTURED (automatic)
     eventContext: {
-      captureMethod: types.CaptureMethod.MANUAL,
+      payment: {
+        captureMethod: types.CaptureMethod.MANUAL,
+      },
     },
   };
 

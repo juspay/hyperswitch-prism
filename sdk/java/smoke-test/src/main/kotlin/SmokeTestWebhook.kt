@@ -111,7 +111,11 @@ fun testHandleEvent(): Boolean {
         // Adyen AUTHORISATION maps to AUTHORIZED (manual) or CAPTURED (automatic)
         .setEventContext(
             EventContext.newBuilder()
-                .setCaptureMethod(CaptureMethod.MANUAL)
+                .setPayment(
+                    PaymentEventContext.newBuilder()
+                        .setCaptureMethod(CaptureMethod.MANUAL)
+                        .build()
+                )
                 .build()
         )
         .build()

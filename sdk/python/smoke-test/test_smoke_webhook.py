@@ -108,7 +108,9 @@ def test_handle_event() -> bool:
         # capture_method is the EventContext use case:
         # Adyen AUTHORISATION maps to AUTHORIZED (manual) or CAPTURED (automatic)
         event_context=payment_pb2.EventContext(
-            capture_method=payment_pb2.CaptureMethod.MANUAL,
+            payment=payment_pb2.PaymentEventContext(
+                capture_method=payment_pb2.CaptureMethod.MANUAL,
+            ),
         ),
     )
 
