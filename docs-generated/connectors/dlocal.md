@@ -131,7 +131,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/dlocal/dlocal.py#L164) · [JavaScript](../../examples/dlocal/dlocal.js) · [Kotlin](../../examples/dlocal/dlocal.kt#L120) · [Rust](../../examples/dlocal/dlocal.rs#L204)
+**Examples:** [Python](../../examples/dlocal/dlocal.py#L164) · [JavaScript](../../examples/dlocal/dlocal.js) · [Kotlin](../../examples/dlocal/dlocal.kt#L120) · [Rust](../../examples/dlocal/dlocal.rs#L203)
 
 ### Card Payment (Authorize + Capture)
 
@@ -145,25 +145,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/dlocal/dlocal.py#L183) · [JavaScript](../../examples/dlocal/dlocal.js) · [Kotlin](../../examples/dlocal/dlocal.kt#L136) · [Rust](../../examples/dlocal/dlocal.rs#L220)
+**Examples:** [Python](../../examples/dlocal/dlocal.py#L183) · [JavaScript](../../examples/dlocal/dlocal.js) · [Kotlin](../../examples/dlocal/dlocal.kt#L136) · [Rust](../../examples/dlocal/dlocal.rs#L219)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/dlocal/dlocal.py#L208) · [JavaScript](../../examples/dlocal/dlocal.js) · [Kotlin](../../examples/dlocal/dlocal.kt#L158) · [Rust](../../examples/dlocal/dlocal.rs#L243)
+**Examples:** [Python](../../examples/dlocal/dlocal.py#L208) · [JavaScript](../../examples/dlocal/dlocal.js) · [Kotlin](../../examples/dlocal/dlocal.kt#L158) · [Rust](../../examples/dlocal/dlocal.rs#L242)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/dlocal/dlocal.py#L233) · [JavaScript](../../examples/dlocal/dlocal.js) · [Kotlin](../../examples/dlocal/dlocal.kt#L180) · [Rust](../../examples/dlocal/dlocal.rs#L266)
+**Examples:** [Python](../../examples/dlocal/dlocal.py#L233) · [JavaScript](../../examples/dlocal/dlocal.js) · [Kotlin](../../examples/dlocal/dlocal.kt#L180) · [Rust](../../examples/dlocal/dlocal.rs#L265)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/dlocal/dlocal.py#L255) · [JavaScript](../../examples/dlocal/dlocal.js) · [Kotlin](../../examples/dlocal/dlocal.kt#L199) · [Rust](../../examples/dlocal/dlocal.rs#L285)
+**Examples:** [Python](../../examples/dlocal/dlocal.py#L255) · [JavaScript](../../examples/dlocal/dlocal.js) · [Kotlin](../../examples/dlocal/dlocal.kt#L199) · [Rust](../../examples/dlocal/dlocal.rs#L284)
 
 ## API Reference
 

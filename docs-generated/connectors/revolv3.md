@@ -123,7 +123,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/revolv3/revolv3.py#L164) · [JavaScript](../../examples/revolv3/revolv3.js) · [Kotlin](../../examples/revolv3/revolv3.kt#L101) · [Rust](../../examples/revolv3/revolv3.rs#L214)
+**Examples:** [Python](../../examples/revolv3/revolv3.py#L164) · [JavaScript](../../examples/revolv3/revolv3.js) · [Kotlin](../../examples/revolv3/revolv3.kt#L101) · [Rust](../../examples/revolv3/revolv3.rs#L213)
 
 ### Card Payment (Authorize + Capture)
 
@@ -137,19 +137,19 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/revolv3/revolv3.py#L183) · [JavaScript](../../examples/revolv3/revolv3.js) · [Kotlin](../../examples/revolv3/revolv3.kt#L117) · [Rust](../../examples/revolv3/revolv3.rs#L230)
+**Examples:** [Python](../../examples/revolv3/revolv3.py#L183) · [JavaScript](../../examples/revolv3/revolv3.js) · [Kotlin](../../examples/revolv3/revolv3.kt#L117) · [Rust](../../examples/revolv3/revolv3.rs#L229)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/revolv3/revolv3.py#L208) · [JavaScript](../../examples/revolv3/revolv3.js) · [Kotlin](../../examples/revolv3/revolv3.kt#L139) · [Rust](../../examples/revolv3/revolv3.rs#L253)
+**Examples:** [Python](../../examples/revolv3/revolv3.py#L208) · [JavaScript](../../examples/revolv3/revolv3.js) · [Kotlin](../../examples/revolv3/revolv3.kt#L139) · [Rust](../../examples/revolv3/revolv3.rs#L252)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/revolv3/revolv3.py#L233) · [JavaScript](../../examples/revolv3/revolv3.js) · [Kotlin](../../examples/revolv3/revolv3.kt#L161) · [Rust](../../examples/revolv3/revolv3.rs#L276)
+**Examples:** [Python](../../examples/revolv3/revolv3.py#L233) · [JavaScript](../../examples/revolv3/revolv3.js) · [Kotlin](../../examples/revolv3/revolv3.kt#L161) · [Rust](../../examples/revolv3/revolv3.rs#L275)
 
 ## API Reference
 

@@ -127,7 +127,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/revolut/revolut.py#L130) · [JavaScript](../../examples/revolut/revolut.js) · [Kotlin](../../examples/revolut/revolut.kt#L105) · [Rust](../../examples/revolut/revolut.rs#L183)
+**Examples:** [Python](../../examples/revolut/revolut.py#L130) · [JavaScript](../../examples/revolut/revolut.js) · [Kotlin](../../examples/revolut/revolut.kt#L105) · [Rust](../../examples/revolut/revolut.rs#L182)
 
 ### Card Payment (Authorize + Capture)
 
@@ -141,19 +141,19 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/revolut/revolut.py#L149) · [JavaScript](../../examples/revolut/revolut.js) · [Kotlin](../../examples/revolut/revolut.kt#L121) · [Rust](../../examples/revolut/revolut.rs#L199)
+**Examples:** [Python](../../examples/revolut/revolut.py#L149) · [JavaScript](../../examples/revolut/revolut.js) · [Kotlin](../../examples/revolut/revolut.kt#L121) · [Rust](../../examples/revolut/revolut.rs#L198)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/revolut/revolut.py#L174) · [JavaScript](../../examples/revolut/revolut.js) · [Kotlin](../../examples/revolut/revolut.kt#L143) · [Rust](../../examples/revolut/revolut.rs#L222)
+**Examples:** [Python](../../examples/revolut/revolut.py#L174) · [JavaScript](../../examples/revolut/revolut.js) · [Kotlin](../../examples/revolut/revolut.kt#L143) · [Rust](../../examples/revolut/revolut.rs#L221)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/revolut/revolut.py#L199) · [JavaScript](../../examples/revolut/revolut.js) · [Kotlin](../../examples/revolut/revolut.kt#L165) · [Rust](../../examples/revolut/revolut.rs#L245)
+**Examples:** [Python](../../examples/revolut/revolut.py#L199) · [JavaScript](../../examples/revolut/revolut.js) · [Kotlin](../../examples/revolut/revolut.kt#L165) · [Rust](../../examples/revolut/revolut.rs#L244)
 
 ## API Reference
 

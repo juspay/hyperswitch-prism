@@ -135,7 +135,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/hipay/hipay.py#L158) · [JavaScript](../../examples/hipay/hipay.js) · [Kotlin](../../examples/hipay/hipay.kt#L114) · [Rust](../../examples/hipay/hipay.rs#L206)
+**Examples:** [Python](../../examples/hipay/hipay.py#L158) · [JavaScript](../../examples/hipay/hipay.js) · [Kotlin](../../examples/hipay/hipay.kt#L114) · [Rust](../../examples/hipay/hipay.rs#L205)
 
 ### Card Payment (Authorize + Capture)
 
@@ -149,25 +149,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/hipay/hipay.py#L177) · [JavaScript](../../examples/hipay/hipay.js) · [Kotlin](../../examples/hipay/hipay.kt#L130) · [Rust](../../examples/hipay/hipay.rs#L222)
+**Examples:** [Python](../../examples/hipay/hipay.py#L177) · [JavaScript](../../examples/hipay/hipay.js) · [Kotlin](../../examples/hipay/hipay.kt#L130) · [Rust](../../examples/hipay/hipay.rs#L221)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/hipay/hipay.py#L202) · [JavaScript](../../examples/hipay/hipay.js) · [Kotlin](../../examples/hipay/hipay.kt#L152) · [Rust](../../examples/hipay/hipay.rs#L245)
+**Examples:** [Python](../../examples/hipay/hipay.py#L202) · [JavaScript](../../examples/hipay/hipay.js) · [Kotlin](../../examples/hipay/hipay.kt#L152) · [Rust](../../examples/hipay/hipay.rs#L244)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/hipay/hipay.py#L227) · [JavaScript](../../examples/hipay/hipay.js) · [Kotlin](../../examples/hipay/hipay.kt#L174) · [Rust](../../examples/hipay/hipay.rs#L268)
+**Examples:** [Python](../../examples/hipay/hipay.py#L227) · [JavaScript](../../examples/hipay/hipay.js) · [Kotlin](../../examples/hipay/hipay.kt#L174) · [Rust](../../examples/hipay/hipay.rs#L267)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/hipay/hipay.py#L249) · [JavaScript](../../examples/hipay/hipay.js) · [Kotlin](../../examples/hipay/hipay.kt#L193) · [Rust](../../examples/hipay/hipay.rs#L287)
+**Examples:** [Python](../../examples/hipay/hipay.py#L249) · [JavaScript](../../examples/hipay/hipay.js) · [Kotlin](../../examples/hipay/hipay.kt#L193) · [Rust](../../examples/hipay/hipay.rs#L286)
 
 ## API Reference
 

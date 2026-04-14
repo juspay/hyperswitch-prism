@@ -127,19 +127,19 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/nexinets/nexinets.py#L96) · [JavaScript](../../examples/nexinets/nexinets.js) · [Kotlin](../../examples/nexinets/nexinets.kt#L92) · [Rust](../../examples/nexinets/nexinets.rs#L128)
+**Examples:** [Python](../../examples/nexinets/nexinets.py#L108) · [JavaScript](../../examples/nexinets/nexinets.js) · [Kotlin](../../examples/nexinets/nexinets.kt#L93) · [Rust](../../examples/nexinets/nexinets.rs#L135)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/nexinets/nexinets.py#L115) · [JavaScript](../../examples/nexinets/nexinets.js) · [Kotlin](../../examples/nexinets/nexinets.kt#L108) · [Rust](../../examples/nexinets/nexinets.rs#L144)
+**Examples:** [Python](../../examples/nexinets/nexinets.py#L127) · [JavaScript](../../examples/nexinets/nexinets.js) · [Kotlin](../../examples/nexinets/nexinets.kt#L109) · [Rust](../../examples/nexinets/nexinets.rs#L151)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/nexinets/nexinets.py#L140) · [JavaScript](../../examples/nexinets/nexinets.js) · [Kotlin](../../examples/nexinets/nexinets.kt#L130) · [Rust](../../examples/nexinets/nexinets.rs#L167)
+**Examples:** [Python](../../examples/nexinets/nexinets.py#L152) · [JavaScript](../../examples/nexinets/nexinets.js) · [Kotlin](../../examples/nexinets/nexinets.kt#L131) · [Rust](../../examples/nexinets/nexinets.rs#L174)
 
 ## API Reference
 
@@ -310,7 +310,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/nexinets/nexinets.py) · [TypeScript](../../examples/nexinets/nexinets.ts#L170) · [Kotlin](../../examples/nexinets/nexinets.kt#L148) · [Rust](../../examples/nexinets/nexinets.rs)
+**Examples:** [Python](../../examples/nexinets/nexinets.py) · [TypeScript](../../examples/nexinets/nexinets.ts#L182) · [Kotlin](../../examples/nexinets/nexinets.kt#L149) · [Rust](../../examples/nexinets/nexinets.rs)
 
 #### PaymentService.Get
 
@@ -321,7 +321,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/nexinets/nexinets.py) · [TypeScript](../../examples/nexinets/nexinets.ts#L179) · [Kotlin](../../examples/nexinets/nexinets.kt#L160) · [Rust](../../examples/nexinets/nexinets.rs)
+**Examples:** [Python](../../examples/nexinets/nexinets.py) · [TypeScript](../../examples/nexinets/nexinets.ts#L200) · [Kotlin](../../examples/nexinets/nexinets.kt#L177) · [Rust](../../examples/nexinets/nexinets.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -332,7 +332,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/nexinets/nexinets.py) · [TypeScript](../../examples/nexinets/nexinets.ts#L188) · [Kotlin](../../examples/nexinets/nexinets.kt#L168) · [Rust](../../examples/nexinets/nexinets.rs)
+**Examples:** [Python](../../examples/nexinets/nexinets.py) · [TypeScript](../../examples/nexinets/nexinets.ts#L209) · [Kotlin](../../examples/nexinets/nexinets.kt#L185) · [Rust](../../examples/nexinets/nexinets.rs)
 
 #### PaymentService.Refund
 
@@ -343,4 +343,17 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/nexinets/nexinets.py) · [TypeScript](../../examples/nexinets/nexinets.ts#L197) · [Kotlin](../../examples/nexinets/nexinets.kt#L196) · [Rust](../../examples/nexinets/nexinets.rs)
+**Examples:** [Python](../../examples/nexinets/nexinets.py) · [TypeScript](../../examples/nexinets/nexinets.ts#L218) · [Kotlin](../../examples/nexinets/nexinets.kt#L213) · [Rust](../../examples/nexinets/nexinets.rs)
+
+### Authentication
+
+#### MerchantAuthenticationService.CreateClientAuthenticationToken
+
+Initialize client-facing SDK sessions for wallets, device fingerprinting, etc. Returns structured data the client SDK needs to render payment/verification UI.
+
+| | Message |
+|---|---------|
+| **Request** | `MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest` |
+| **Response** | `MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse` |
+
+**Examples:** [Python](../../examples/nexinets/nexinets.py) · [TypeScript](../../examples/nexinets/nexinets.ts#L191) · [Kotlin](../../examples/nexinets/nexinets.kt#L161) · [Rust](../../examples/nexinets/nexinets.rs)

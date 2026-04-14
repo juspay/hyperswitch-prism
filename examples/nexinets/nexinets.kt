@@ -10,6 +10,7 @@ package examples.nexinets
 import types.Payment.*
 import types.PaymentMethods.*
 import payments.PaymentClient
+import payments.MerchantAuthenticationClient
 import payments.AuthenticationType
 import payments.CaptureMethod
 import payments.Currency
@@ -20,7 +21,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.NexinetsConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("authorize", "get", "proxy_authorize", "refund")
+val SUPPORTED_FLOWS = listOf<String>("authorize", "create_client_authentication_token", "get", "proxy_authorize", "refund")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())

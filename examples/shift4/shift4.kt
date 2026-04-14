@@ -25,7 +25,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.Shift4Config
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "create_customer", "get", "proxy_authorize", "recurring_charge", "refund", "refund_get")
+val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "create_client_authentication_token", "create_customer", "get", "proxy_authorize", "recurring_charge", "refund", "refund_get", "token_authorize")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())

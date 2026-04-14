@@ -131,7 +131,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/elavon/elavon.py#L115) · [JavaScript](../../examples/elavon/elavon.js) · [Kotlin](../../examples/elavon/elavon.kt#L105) · [Rust](../../examples/elavon/elavon.rs#L150)
+**Examples:** [Python](../../examples/elavon/elavon.py#L115) · [JavaScript](../../examples/elavon/elavon.js) · [Kotlin](../../examples/elavon/elavon.kt#L105) · [Rust](../../examples/elavon/elavon.rs#L149)
 
 ### Card Payment (Authorize + Capture)
 
@@ -145,19 +145,19 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/elavon/elavon.py#L134) · [JavaScript](../../examples/elavon/elavon.js) · [Kotlin](../../examples/elavon/elavon.kt#L121) · [Rust](../../examples/elavon/elavon.rs#L166)
+**Examples:** [Python](../../examples/elavon/elavon.py#L134) · [JavaScript](../../examples/elavon/elavon.js) · [Kotlin](../../examples/elavon/elavon.kt#L121) · [Rust](../../examples/elavon/elavon.rs#L165)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/elavon/elavon.py#L159) · [JavaScript](../../examples/elavon/elavon.js) · [Kotlin](../../examples/elavon/elavon.kt#L143) · [Rust](../../examples/elavon/elavon.rs#L189)
+**Examples:** [Python](../../examples/elavon/elavon.py#L159) · [JavaScript](../../examples/elavon/elavon.js) · [Kotlin](../../examples/elavon/elavon.kt#L143) · [Rust](../../examples/elavon/elavon.rs#L188)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/elavon/elavon.py#L184) · [JavaScript](../../examples/elavon/elavon.js) · [Kotlin](../../examples/elavon/elavon.kt#L165) · [Rust](../../examples/elavon/elavon.rs#L212)
+**Examples:** [Python](../../examples/elavon/elavon.py#L184) · [JavaScript](../../examples/elavon/elavon.js) · [Kotlin](../../examples/elavon/elavon.kt#L165) · [Rust](../../examples/elavon/elavon.rs#L211)
 
 ## API Reference
 

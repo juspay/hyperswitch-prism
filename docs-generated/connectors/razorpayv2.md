@@ -102,19 +102,19 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/razorpayv2/razorpayv2.py#L127) · [JavaScript](../../examples/razorpayv2/razorpayv2.js) · [Kotlin](../../examples/razorpayv2/razorpayv2.kt#L84) · [Rust](../../examples/razorpayv2/razorpayv2.rs#L164)
+**Examples:** [Python](../../examples/razorpayv2/razorpayv2.py#L127) · [JavaScript](../../examples/razorpayv2/razorpayv2.js) · [Kotlin](../../examples/razorpayv2/razorpayv2.kt#L84) · [Rust](../../examples/razorpayv2/razorpayv2.rs#L163)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/razorpayv2/razorpayv2.py#L146) · [JavaScript](../../examples/razorpayv2/razorpayv2.js) · [Kotlin](../../examples/razorpayv2/razorpayv2.kt#L100) · [Rust](../../examples/razorpayv2/razorpayv2.rs#L180)
+**Examples:** [Python](../../examples/razorpayv2/razorpayv2.py#L146) · [JavaScript](../../examples/razorpayv2/razorpayv2.js) · [Kotlin](../../examples/razorpayv2/razorpayv2.kt#L100) · [Rust](../../examples/razorpayv2/razorpayv2.rs#L179)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/razorpayv2/razorpayv2.py#L171) · [JavaScript](../../examples/razorpayv2/razorpayv2.js) · [Kotlin](../../examples/razorpayv2/razorpayv2.kt#L122) · [Rust](../../examples/razorpayv2/razorpayv2.rs#L203)
+**Examples:** [Python](../../examples/razorpayv2/razorpayv2.py#L171) · [JavaScript](../../examples/razorpayv2/razorpayv2.js) · [Kotlin](../../examples/razorpayv2/razorpayv2.kt#L122) · [Rust](../../examples/razorpayv2/razorpayv2.rs#L202)
 
 ## API Reference
 

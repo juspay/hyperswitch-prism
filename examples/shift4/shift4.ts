@@ -5,9 +5,9 @@
 // Shift4 — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx shift4.ts checkout_autocapture
 
-import { PaymentClient, CustomerClient, RecurringPaymentClient, RefundClient, types } from 'hyperswitch-prism';
+import { PaymentClient, MerchantAuthenticationClient, CustomerClient, RecurringPaymentClient, RefundClient, types } from 'hyperswitch-prism';
 const { Environment, AuthenticationType, CaptureMethod, Currency, PaymentMethodType } = types;
-export const SUPPORTED_FLOWS = ["authorize", "capture", "create_customer", "get", "proxy_authorize", "recurring_charge", "refund", "refund_get"];
+export const SUPPORTED_FLOWS = ["authorize", "capture", "create_client_authentication_token", "create_customer", "get", "proxy_authorize", "recurring_charge", "refund", "refund_get", "token_authorize"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -56,6 +56,18 @@ function _buildCaptureRequest(connectorTransactionId: string): types.IPaymentSer
         "amountToCapture": {  // Capture Details.
             "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
             "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+    };
+}
+
+function _buildCreateClientAuthenticationTokenRequest(): types.IMerchantAuthenticationServiceCreateClientAuthenticationTokenRequest {
+    return {
+        "merchantClientSessionId": "probe_sdk_session_001",  // Infrastructure.
+        "payment": {  // FrmClientAuthenticationContext frm = 5; // future: device fingerprinting PayoutClientAuthenticationContext payout = 6; // future: payout verification widget.
+            "amount": {
+                "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+                "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            }
         }
     };
 }
@@ -146,7 +158,7 @@ function _buildRefundGetRequest(): types.IRefundServiceGetRequest {
     };
 }
 
-function _buildTokenAuthorizeRequest(): PaymentServiceTokenAuthorizeRequest {
+function _buildTokenAuthorizeRequest(): types.IPaymentServiceTokenAuthorizeRequest {
     return {
         "merchantTransactionId": "probe_tokenized_txn_001",
         "amount": {
@@ -277,12 +289,12 @@ async function capture(merchantTransactionId: string, config: types.IConnectorCo
 }
 
 // Flow: MerchantAuthenticationService.CreateClientAuthenticationToken
-async function createClientAuthenticationToken(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse> {
+async function createClientAuthenticationToken(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const merchantAuthenticationClient = new MerchantAuthenticationClient(config);
 
     const createResponse = await merchantAuthenticationClient.createClientAuthenticationToken(_buildCreateClientAuthenticationTokenRequest());
 
-    return { status: createResponse.status };
+    return createResponse;
 }
 
 // Flow: CustomerService.Create
@@ -340,12 +352,12 @@ async function refundGet(merchantTransactionId: string, config: types.IConnector
 }
 
 // Flow: PaymentService.TokenAuthorize
-async function tokenAuthorize(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<PaymentServiceAuthorizeResponse> {
+async function tokenAuthorize(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
 
     const tokenResponse = await paymentClient.tokenAuthorize(_buildTokenAuthorizeRequest());
 
-    return { status: tokenResponse.status };
+    return tokenResponse;
 }
 
 

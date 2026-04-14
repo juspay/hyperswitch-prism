@@ -123,7 +123,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/xendit/xendit.py#L121) · [JavaScript](../../examples/xendit/xendit.js) · [Kotlin](../../examples/xendit/xendit.kt#L106) · [Rust](../../examples/xendit/xendit.rs#L154)
+**Examples:** [Python](../../examples/xendit/xendit.py#L121) · [JavaScript](../../examples/xendit/xendit.js) · [Kotlin](../../examples/xendit/xendit.kt#L106) · [Rust](../../examples/xendit/xendit.rs#L153)
 
 ### Card Payment (Authorize + Capture)
 
@@ -137,19 +137,19 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/xendit/xendit.py#L140) · [JavaScript](../../examples/xendit/xendit.js) · [Kotlin](../../examples/xendit/xendit.kt#L122) · [Rust](../../examples/xendit/xendit.rs#L170)
+**Examples:** [Python](../../examples/xendit/xendit.py#L140) · [JavaScript](../../examples/xendit/xendit.js) · [Kotlin](../../examples/xendit/xendit.kt#L122) · [Rust](../../examples/xendit/xendit.rs#L169)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/xendit/xendit.py#L165) · [JavaScript](../../examples/xendit/xendit.js) · [Kotlin](../../examples/xendit/xendit.kt#L144) · [Rust](../../examples/xendit/xendit.rs#L193)
+**Examples:** [Python](../../examples/xendit/xendit.py#L165) · [JavaScript](../../examples/xendit/xendit.js) · [Kotlin](../../examples/xendit/xendit.kt#L144) · [Rust](../../examples/xendit/xendit.rs#L192)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/xendit/xendit.py#L190) · [JavaScript](../../examples/xendit/xendit.js) · [Kotlin](../../examples/xendit/xendit.kt#L166) · [Rust](../../examples/xendit/xendit.rs#L216)
+**Examples:** [Python](../../examples/xendit/xendit.py#L190) · [JavaScript](../../examples/xendit/xendit.js) · [Kotlin](../../examples/xendit/xendit.kt#L166) · [Rust](../../examples/xendit/xendit.rs#L215)
 
 ## API Reference
 

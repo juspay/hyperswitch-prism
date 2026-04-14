@@ -131,7 +131,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/wellsfargo/wellsfargo.py#L192) · [JavaScript](../../examples/wellsfargo/wellsfargo.js) · [Kotlin](../../examples/wellsfargo/wellsfargo.kt#L121) · [Rust](../../examples/wellsfargo/wellsfargo.rs#L248)
+**Examples:** [Python](../../examples/wellsfargo/wellsfargo.py#L192) · [JavaScript](../../examples/wellsfargo/wellsfargo.js) · [Kotlin](../../examples/wellsfargo/wellsfargo.kt#L121) · [Rust](../../examples/wellsfargo/wellsfargo.rs#L247)
 
 ### Card Payment (Authorize + Capture)
 
@@ -145,25 +145,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/wellsfargo/wellsfargo.py#L211) · [JavaScript](../../examples/wellsfargo/wellsfargo.js) · [Kotlin](../../examples/wellsfargo/wellsfargo.kt#L137) · [Rust](../../examples/wellsfargo/wellsfargo.rs#L264)
+**Examples:** [Python](../../examples/wellsfargo/wellsfargo.py#L211) · [JavaScript](../../examples/wellsfargo/wellsfargo.js) · [Kotlin](../../examples/wellsfargo/wellsfargo.kt#L137) · [Rust](../../examples/wellsfargo/wellsfargo.rs#L263)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/wellsfargo/wellsfargo.py#L236) · [JavaScript](../../examples/wellsfargo/wellsfargo.js) · [Kotlin](../../examples/wellsfargo/wellsfargo.kt#L159) · [Rust](../../examples/wellsfargo/wellsfargo.rs#L287)
+**Examples:** [Python](../../examples/wellsfargo/wellsfargo.py#L236) · [JavaScript](../../examples/wellsfargo/wellsfargo.js) · [Kotlin](../../examples/wellsfargo/wellsfargo.kt#L159) · [Rust](../../examples/wellsfargo/wellsfargo.rs#L286)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/wellsfargo/wellsfargo.py#L261) · [JavaScript](../../examples/wellsfargo/wellsfargo.js) · [Kotlin](../../examples/wellsfargo/wellsfargo.kt#L181) · [Rust](../../examples/wellsfargo/wellsfargo.rs#L310)
+**Examples:** [Python](../../examples/wellsfargo/wellsfargo.py#L261) · [JavaScript](../../examples/wellsfargo/wellsfargo.js) · [Kotlin](../../examples/wellsfargo/wellsfargo.kt#L181) · [Rust](../../examples/wellsfargo/wellsfargo.rs#L309)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/wellsfargo/wellsfargo.py#L283) · [JavaScript](../../examples/wellsfargo/wellsfargo.js) · [Kotlin](../../examples/wellsfargo/wellsfargo.kt#L200) · [Rust](../../examples/wellsfargo/wellsfargo.rs#L329)
+**Examples:** [Python](../../examples/wellsfargo/wellsfargo.py#L283) · [JavaScript](../../examples/wellsfargo/wellsfargo.js) · [Kotlin](../../examples/wellsfargo/wellsfargo.kt#L200) · [Rust](../../examples/wellsfargo/wellsfargo.rs#L328)
 
 ## API Reference
 

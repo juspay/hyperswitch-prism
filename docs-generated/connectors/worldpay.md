@@ -135,7 +135,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/worldpay/worldpay.py#L145) · [JavaScript](../../examples/worldpay/worldpay.js) · [Kotlin](../../examples/worldpay/worldpay.kt#L115) · [Rust](../../examples/worldpay/worldpay.rs#L183)
+**Examples:** [Python](../../examples/worldpay/worldpay.py#L145) · [JavaScript](../../examples/worldpay/worldpay.js) · [Kotlin](../../examples/worldpay/worldpay.kt#L115) · [Rust](../../examples/worldpay/worldpay.rs#L182)
 
 ### Card Payment (Authorize + Capture)
 
@@ -149,25 +149,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/worldpay/worldpay.py#L164) · [JavaScript](../../examples/worldpay/worldpay.js) · [Kotlin](../../examples/worldpay/worldpay.kt#L131) · [Rust](../../examples/worldpay/worldpay.rs#L199)
+**Examples:** [Python](../../examples/worldpay/worldpay.py#L164) · [JavaScript](../../examples/worldpay/worldpay.js) · [Kotlin](../../examples/worldpay/worldpay.kt#L131) · [Rust](../../examples/worldpay/worldpay.rs#L198)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/worldpay/worldpay.py#L189) · [JavaScript](../../examples/worldpay/worldpay.js) · [Kotlin](../../examples/worldpay/worldpay.kt#L153) · [Rust](../../examples/worldpay/worldpay.rs#L222)
+**Examples:** [Python](../../examples/worldpay/worldpay.py#L189) · [JavaScript](../../examples/worldpay/worldpay.js) · [Kotlin](../../examples/worldpay/worldpay.kt#L153) · [Rust](../../examples/worldpay/worldpay.rs#L221)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/worldpay/worldpay.py#L214) · [JavaScript](../../examples/worldpay/worldpay.js) · [Kotlin](../../examples/worldpay/worldpay.kt#L175) · [Rust](../../examples/worldpay/worldpay.rs#L245)
+**Examples:** [Python](../../examples/worldpay/worldpay.py#L214) · [JavaScript](../../examples/worldpay/worldpay.js) · [Kotlin](../../examples/worldpay/worldpay.kt#L175) · [Rust](../../examples/worldpay/worldpay.rs#L244)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/worldpay/worldpay.py#L236) · [JavaScript](../../examples/worldpay/worldpay.js) · [Kotlin](../../examples/worldpay/worldpay.kt#L194) · [Rust](../../examples/worldpay/worldpay.rs#L264)
+**Examples:** [Python](../../examples/worldpay/worldpay.py#L236) · [JavaScript](../../examples/worldpay/worldpay.js) · [Kotlin](../../examples/worldpay/worldpay.kt#L194) · [Rust](../../examples/worldpay/worldpay.rs#L263)
 
 ## API Reference
 

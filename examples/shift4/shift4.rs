@@ -4,7 +4,6 @@
 //
 // Shift4 — all scenarios and flows in one file.
 // Run a scenario:  cargo run --example shift4 -- process_checkout_card
-#![allow(clippy::needless_update)]
 use grpc_api_types::payments::*;
 use grpc_api_types::payments::connector_specific_config;
 use hyperswitch_payments_client::ConnectorClient;
@@ -15,7 +14,7 @@ use cards::CardNumber;
 use std::str::FromStr;
 
 #[allow(dead_code)]
-pub const SUPPORTED_FLOWS: &[&str] = &["authorize", "capture", "create_customer", "get", "proxy_authorize", "recurring_charge", "refund", "refund_get"];
+pub const SUPPORTED_FLOWS: &[&str] = &["authorize", "capture", "create_client_authentication_token", "create_customer", "get", "proxy_authorize", "recurring_charge", "refund", "refund_get", "token_authorize"];
 
 #[allow(dead_code)]
 fn build_client() -> ConnectorClient {
@@ -80,17 +79,11 @@ pub fn build_capture_request(connector_transaction_id: &str) -> PaymentServiceCa
 }
 
 pub fn build_create_client_authentication_token_request() -> MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest {
-    serde_json::from_value::<MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest>(serde_json::json!({
-    "merchant_client_session_id": "probe_sdk_session_001",  // Infrastructure.
-    "domain_context": {
-        "payment": {
-            "amount": {
-                "minor_amount": 1000,
-                "currency": "USD",
-            },
-        },
-    },
-    })).unwrap_or_default()
+    MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest {
+        merchant_client_session_id: "probe_sdk_session_001".to_string(),  // Infrastructure.
+        // domain_context: {"payment": {"amount": {"minor_amount": 1000, "currency": "USD"}}}
+        ..Default::default()
+    }
 }
 
 pub fn build_create_customer_request() -> CustomerServiceCreateRequest {
@@ -192,20 +185,23 @@ pub fn build_refund_get_request() -> RefundServiceGetRequest {
 }
 
 pub fn build_token_authorize_request() -> PaymentServiceTokenAuthorizeRequest {
-    serde_json::from_value::<PaymentServiceTokenAuthorizeRequest>(serde_json::json!({
-    "merchant_transaction_id": "probe_tokenized_txn_001",
-    "amount": {
-        "minor_amount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-        "currency": "USD",  // ISO 4217 currency code (e.g., "USD", "EUR").
-    },
-    "connector_token": "pm_1AbcXyzStripeTestToken",  // Connector-issued token. Replaces PaymentMethod entirely. Examples: Stripe pm_xxx, Adyen recurringDetailReference, Braintree nonce.
-    "address": {
-        "billing_address": {
-        },
-    },
-    "capture_method": "AUTOMATIC",
-    "return_url": "https://example.com/return",
-    })).unwrap_or_default()
+    PaymentServiceTokenAuthorizeRequest {
+        merchant_transaction_id: Some("probe_tokenized_txn_001".to_string()),
+        amount: Some(Money {
+            minor_amount: 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+            currency: Currency::Usd.into(),  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }),
+        connector_token: Some(Secret::new("pm_1AbcXyzStripeTestToken".to_string())),  // Connector-issued token. Replaces PaymentMethod entirely. Examples: Stripe pm_xxx, Adyen recurringDetailReference, Braintree nonce.
+        address: Some(PaymentAddress {
+            billing_address: Some(Address {
+                ..Default::default()
+            }),
+            ..Default::default()
+        }),
+        capture_method: Some(CaptureMethod::Automatic.into()),
+        return_url: Some("https://example.com/return".to_string()),
+        ..Default::default()
+    }
 }
 
 
@@ -311,7 +307,7 @@ pub async fn process_capture(client: &ConnectorClient, _merchant_transaction_id:
 
 // Flow: MerchantAuthenticationService.CreateClientAuthenticationToken
 #[allow(dead_code)]
-pub async fn create_client_authentication_token(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
+pub async fn process_create_client_authentication_token(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
     let response = client.create_client_authentication_token(build_create_client_authentication_token_request(), &HashMap::new(), None).await?;
     Ok(format!("status: {:?}", response.status_code))
 }
@@ -353,7 +349,7 @@ pub async fn process_refund_get(client: &ConnectorClient, _merchant_transaction_
 
 // Flow: PaymentService.TokenAuthorize
 #[allow(dead_code)]
-pub async fn token_authorize(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
+pub async fn process_token_authorize(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
     let response = client.token_authorize(build_token_authorize_request(), &HashMap::new(), None).await?;
     Ok(format!("status: {:?}", response.status()))
 }
@@ -370,12 +366,14 @@ async fn main() {
         "process_get_payment" => process_get_payment(&client, "order_001").await,
         "process_authorize" => process_authorize(&client, "txn_001").await,
         "process_capture" => process_capture(&client, "txn_001").await,
+        "process_create_client_authentication_token" => process_create_client_authentication_token(&client, "txn_001").await,
         "process_create_customer" => process_create_customer(&client, "txn_001").await,
         "process_get" => process_get(&client, "txn_001").await,
         "process_proxy_authorize" => process_proxy_authorize(&client, "txn_001").await,
         "process_recurring_charge" => process_recurring_charge(&client, "txn_001").await,
         "process_refund_get" => process_refund_get(&client, "txn_001").await,
-        _ => { eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_get_payment, process_authorize, process_capture, process_create_customer, process_get, process_proxy_authorize, process_recurring_charge, process_refund_get", flow); return; }
+        "process_token_authorize" => process_token_authorize(&client, "txn_001").await,
+        _ => { eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_get_payment, process_authorize, process_capture, process_create_client_authentication_token, process_create_customer, process_get, process_proxy_authorize, process_recurring_charge, process_refund_get, process_token_authorize", flow); return; }
     };
     match result {
         Ok(msg) => println!("✓ {msg}"),

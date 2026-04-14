@@ -127,7 +127,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/authorizedotnet/authorizedotnet.py#L214) · [JavaScript](../../examples/authorizedotnet/authorizedotnet.js) · [Kotlin](../../examples/authorizedotnet/authorizedotnet.kt#L117) · [Rust](../../examples/authorizedotnet/authorizedotnet.rs#L276)
+**Examples:** [Python](../../examples/authorizedotnet/authorizedotnet.py#L214) · [JavaScript](../../examples/authorizedotnet/authorizedotnet.js) · [Kotlin](../../examples/authorizedotnet/authorizedotnet.kt#L117) · [Rust](../../examples/authorizedotnet/authorizedotnet.rs#L275)
 
 ### Card Payment (Authorize + Capture)
 
@@ -141,25 +141,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/authorizedotnet/authorizedotnet.py#L233) · [JavaScript](../../examples/authorizedotnet/authorizedotnet.js) · [Kotlin](../../examples/authorizedotnet/authorizedotnet.kt#L133) · [Rust](../../examples/authorizedotnet/authorizedotnet.rs#L292)
+**Examples:** [Python](../../examples/authorizedotnet/authorizedotnet.py#L233) · [JavaScript](../../examples/authorizedotnet/authorizedotnet.js) · [Kotlin](../../examples/authorizedotnet/authorizedotnet.kt#L133) · [Rust](../../examples/authorizedotnet/authorizedotnet.rs#L291)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/authorizedotnet/authorizedotnet.py#L258) · [JavaScript](../../examples/authorizedotnet/authorizedotnet.js) · [Kotlin](../../examples/authorizedotnet/authorizedotnet.kt#L155) · [Rust](../../examples/authorizedotnet/authorizedotnet.rs#L315)
+**Examples:** [Python](../../examples/authorizedotnet/authorizedotnet.py#L258) · [JavaScript](../../examples/authorizedotnet/authorizedotnet.js) · [Kotlin](../../examples/authorizedotnet/authorizedotnet.kt#L155) · [Rust](../../examples/authorizedotnet/authorizedotnet.rs#L314)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/authorizedotnet/authorizedotnet.py#L283) · [JavaScript](../../examples/authorizedotnet/authorizedotnet.js) · [Kotlin](../../examples/authorizedotnet/authorizedotnet.kt#L177) · [Rust](../../examples/authorizedotnet/authorizedotnet.rs#L338)
+**Examples:** [Python](../../examples/authorizedotnet/authorizedotnet.py#L283) · [JavaScript](../../examples/authorizedotnet/authorizedotnet.js) · [Kotlin](../../examples/authorizedotnet/authorizedotnet.kt#L177) · [Rust](../../examples/authorizedotnet/authorizedotnet.rs#L337)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/authorizedotnet/authorizedotnet.py#L305) · [JavaScript](../../examples/authorizedotnet/authorizedotnet.js) · [Kotlin](../../examples/authorizedotnet/authorizedotnet.kt#L196) · [Rust](../../examples/authorizedotnet/authorizedotnet.rs#L357)
+**Examples:** [Python](../../examples/authorizedotnet/authorizedotnet.py#L305) · [JavaScript](../../examples/authorizedotnet/authorizedotnet.js) · [Kotlin](../../examples/authorizedotnet/authorizedotnet.kt#L196) · [Rust](../../examples/authorizedotnet/authorizedotnet.rs#L356)
 
 ## API Reference
 

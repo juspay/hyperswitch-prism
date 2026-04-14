@@ -131,19 +131,19 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/hyperpg/hyperpg.py#L106) · [JavaScript](../../examples/hyperpg/hyperpg.js) · [Kotlin](../../examples/hyperpg/hyperpg.kt#L95) · [Rust](../../examples/hyperpg/hyperpg.rs#L139)
+**Examples:** [Python](../../examples/hyperpg/hyperpg.py#L106) · [JavaScript](../../examples/hyperpg/hyperpg.js) · [Kotlin](../../examples/hyperpg/hyperpg.kt#L95) · [Rust](../../examples/hyperpg/hyperpg.rs#L138)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/hyperpg/hyperpg.py#L125) · [JavaScript](../../examples/hyperpg/hyperpg.js) · [Kotlin](../../examples/hyperpg/hyperpg.kt#L111) · [Rust](../../examples/hyperpg/hyperpg.rs#L155)
+**Examples:** [Python](../../examples/hyperpg/hyperpg.py#L125) · [JavaScript](../../examples/hyperpg/hyperpg.js) · [Kotlin](../../examples/hyperpg/hyperpg.kt#L111) · [Rust](../../examples/hyperpg/hyperpg.rs#L154)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/hyperpg/hyperpg.py#L150) · [JavaScript](../../examples/hyperpg/hyperpg.js) · [Kotlin](../../examples/hyperpg/hyperpg.kt#L133) · [Rust](../../examples/hyperpg/hyperpg.rs#L178)
+**Examples:** [Python](../../examples/hyperpg/hyperpg.py#L150) · [JavaScript](../../examples/hyperpg/hyperpg.js) · [Kotlin](../../examples/hyperpg/hyperpg.kt#L133) · [Rust](../../examples/hyperpg/hyperpg.rs#L177)
 
 ## API Reference
 

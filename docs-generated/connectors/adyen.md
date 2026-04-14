@@ -139,7 +139,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/adyen/adyen.py#L303) · [JavaScript](../../examples/adyen/adyen.js) · [Kotlin](../../examples/adyen/adyen.kt#L122) · [Rust](../../examples/adyen/adyen.rs#L371)
+**Examples:** [Python](../../examples/adyen/adyen.py#L303) · [JavaScript](../../examples/adyen/adyen.js) · [Kotlin](../../examples/adyen/adyen.kt#L122) · [Rust](../../examples/adyen/adyen.rs#L370)
 
 ### Card Payment (Authorize + Capture)
 
@@ -153,19 +153,19 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/adyen/adyen.py#L322) · [JavaScript](../../examples/adyen/adyen.js) · [Kotlin](../../examples/adyen/adyen.kt#L138) · [Rust](../../examples/adyen/adyen.rs#L387)
+**Examples:** [Python](../../examples/adyen/adyen.py#L322) · [JavaScript](../../examples/adyen/adyen.js) · [Kotlin](../../examples/adyen/adyen.kt#L138) · [Rust](../../examples/adyen/adyen.rs#L386)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/adyen/adyen.py#L347) · [JavaScript](../../examples/adyen/adyen.js) · [Kotlin](../../examples/adyen/adyen.kt#L160) · [Rust](../../examples/adyen/adyen.rs#L410)
+**Examples:** [Python](../../examples/adyen/adyen.py#L347) · [JavaScript](../../examples/adyen/adyen.js) · [Kotlin](../../examples/adyen/adyen.kt#L160) · [Rust](../../examples/adyen/adyen.rs#L409)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/adyen/adyen.py#L372) · [JavaScript](../../examples/adyen/adyen.js) · [Kotlin](../../examples/adyen/adyen.kt#L182) · [Rust](../../examples/adyen/adyen.rs#L433)
+**Examples:** [Python](../../examples/adyen/adyen.py#L372) · [JavaScript](../../examples/adyen/adyen.js) · [Kotlin](../../examples/adyen/adyen.kt#L182) · [Rust](../../examples/adyen/adyen.rs#L432)
 
 ## API Reference
 

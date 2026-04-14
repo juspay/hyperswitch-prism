@@ -135,7 +135,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/peachpayments/peachpayments.py#L127) · [JavaScript](../../examples/peachpayments/peachpayments.js) · [Kotlin](../../examples/peachpayments/peachpayments.kt#L118) · [Rust](../../examples/peachpayments/peachpayments.rs#L170)
+**Examples:** [Python](../../examples/peachpayments/peachpayments.py#L127) · [JavaScript](../../examples/peachpayments/peachpayments.js) · [Kotlin](../../examples/peachpayments/peachpayments.kt#L118) · [Rust](../../examples/peachpayments/peachpayments.rs#L169)
 
 ### Card Payment (Authorize + Capture)
 
@@ -149,25 +149,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/peachpayments/peachpayments.py#L146) · [JavaScript](../../examples/peachpayments/peachpayments.js) · [Kotlin](../../examples/peachpayments/peachpayments.kt#L134) · [Rust](../../examples/peachpayments/peachpayments.rs#L186)
+**Examples:** [Python](../../examples/peachpayments/peachpayments.py#L146) · [JavaScript](../../examples/peachpayments/peachpayments.js) · [Kotlin](../../examples/peachpayments/peachpayments.kt#L134) · [Rust](../../examples/peachpayments/peachpayments.rs#L185)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/peachpayments/peachpayments.py#L171) · [JavaScript](../../examples/peachpayments/peachpayments.js) · [Kotlin](../../examples/peachpayments/peachpayments.kt#L156) · [Rust](../../examples/peachpayments/peachpayments.rs#L209)
+**Examples:** [Python](../../examples/peachpayments/peachpayments.py#L171) · [JavaScript](../../examples/peachpayments/peachpayments.js) · [Kotlin](../../examples/peachpayments/peachpayments.kt#L156) · [Rust](../../examples/peachpayments/peachpayments.rs#L208)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/peachpayments/peachpayments.py#L196) · [JavaScript](../../examples/peachpayments/peachpayments.js) · [Kotlin](../../examples/peachpayments/peachpayments.kt#L178) · [Rust](../../examples/peachpayments/peachpayments.rs#L232)
+**Examples:** [Python](../../examples/peachpayments/peachpayments.py#L196) · [JavaScript](../../examples/peachpayments/peachpayments.js) · [Kotlin](../../examples/peachpayments/peachpayments.kt#L178) · [Rust](../../examples/peachpayments/peachpayments.rs#L231)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/peachpayments/peachpayments.py#L218) · [JavaScript](../../examples/peachpayments/peachpayments.js) · [Kotlin](../../examples/peachpayments/peachpayments.kt#L197) · [Rust](../../examples/peachpayments/peachpayments.rs#L251)
+**Examples:** [Python](../../examples/peachpayments/peachpayments.py#L218) · [JavaScript](../../examples/peachpayments/peachpayments.js) · [Kotlin](../../examples/peachpayments/peachpayments.kt#L197) · [Rust](../../examples/peachpayments/peachpayments.rs#L250)
 
 ## API Reference
 

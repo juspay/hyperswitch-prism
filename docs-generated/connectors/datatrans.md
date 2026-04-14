@@ -127,7 +127,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/datatrans/datatrans.py#L147) · [JavaScript](../../examples/datatrans/datatrans.js) · [Kotlin](../../examples/datatrans/datatrans.kt#L112) · [Rust](../../examples/datatrans/datatrans.rs#L185)
+**Examples:** [Python](../../examples/datatrans/datatrans.py#L147) · [JavaScript](../../examples/datatrans/datatrans.js) · [Kotlin](../../examples/datatrans/datatrans.kt#L112) · [Rust](../../examples/datatrans/datatrans.rs#L184)
 
 ### Card Payment (Authorize + Capture)
 
@@ -141,25 +141,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/datatrans/datatrans.py#L166) · [JavaScript](../../examples/datatrans/datatrans.js) · [Kotlin](../../examples/datatrans/datatrans.kt#L128) · [Rust](../../examples/datatrans/datatrans.rs#L201)
+**Examples:** [Python](../../examples/datatrans/datatrans.py#L166) · [JavaScript](../../examples/datatrans/datatrans.js) · [Kotlin](../../examples/datatrans/datatrans.kt#L128) · [Rust](../../examples/datatrans/datatrans.rs#L200)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/datatrans/datatrans.py#L191) · [JavaScript](../../examples/datatrans/datatrans.js) · [Kotlin](../../examples/datatrans/datatrans.kt#L150) · [Rust](../../examples/datatrans/datatrans.rs#L224)
+**Examples:** [Python](../../examples/datatrans/datatrans.py#L191) · [JavaScript](../../examples/datatrans/datatrans.js) · [Kotlin](../../examples/datatrans/datatrans.kt#L150) · [Rust](../../examples/datatrans/datatrans.rs#L223)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/datatrans/datatrans.py#L216) · [JavaScript](../../examples/datatrans/datatrans.js) · [Kotlin](../../examples/datatrans/datatrans.kt#L172) · [Rust](../../examples/datatrans/datatrans.rs#L247)
+**Examples:** [Python](../../examples/datatrans/datatrans.py#L216) · [JavaScript](../../examples/datatrans/datatrans.js) · [Kotlin](../../examples/datatrans/datatrans.kt#L172) · [Rust](../../examples/datatrans/datatrans.rs#L246)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/datatrans/datatrans.py#L238) · [JavaScript](../../examples/datatrans/datatrans.js) · [Kotlin](../../examples/datatrans/datatrans.kt#L191) · [Rust](../../examples/datatrans/datatrans.rs#L266)
+**Examples:** [Python](../../examples/datatrans/datatrans.py#L238) · [JavaScript](../../examples/datatrans/datatrans.js) · [Kotlin](../../examples/datatrans/datatrans.kt#L191) · [Rust](../../examples/datatrans/datatrans.rs#L265)
 
 ## API Reference
 

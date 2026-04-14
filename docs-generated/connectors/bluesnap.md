@@ -127,7 +127,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/bluesnap/bluesnap.py#L148) · [JavaScript](../../examples/bluesnap/bluesnap.js) · [Kotlin](../../examples/bluesnap/bluesnap.kt#L113) · [Rust](../../examples/bluesnap/bluesnap.rs#L192)
+**Examples:** [Python](../../examples/bluesnap/bluesnap.py#L148) · [JavaScript](../../examples/bluesnap/bluesnap.js) · [Kotlin](../../examples/bluesnap/bluesnap.kt#L113) · [Rust](../../examples/bluesnap/bluesnap.rs#L191)
 
 ### Card Payment (Authorize + Capture)
 
@@ -141,25 +141,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/bluesnap/bluesnap.py#L167) · [JavaScript](../../examples/bluesnap/bluesnap.js) · [Kotlin](../../examples/bluesnap/bluesnap.kt#L129) · [Rust](../../examples/bluesnap/bluesnap.rs#L208)
+**Examples:** [Python](../../examples/bluesnap/bluesnap.py#L167) · [JavaScript](../../examples/bluesnap/bluesnap.js) · [Kotlin](../../examples/bluesnap/bluesnap.kt#L129) · [Rust](../../examples/bluesnap/bluesnap.rs#L207)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/bluesnap/bluesnap.py#L192) · [JavaScript](../../examples/bluesnap/bluesnap.js) · [Kotlin](../../examples/bluesnap/bluesnap.kt#L151) · [Rust](../../examples/bluesnap/bluesnap.rs#L231)
+**Examples:** [Python](../../examples/bluesnap/bluesnap.py#L192) · [JavaScript](../../examples/bluesnap/bluesnap.js) · [Kotlin](../../examples/bluesnap/bluesnap.kt#L151) · [Rust](../../examples/bluesnap/bluesnap.rs#L230)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/bluesnap/bluesnap.py#L217) · [JavaScript](../../examples/bluesnap/bluesnap.js) · [Kotlin](../../examples/bluesnap/bluesnap.kt#L173) · [Rust](../../examples/bluesnap/bluesnap.rs#L254)
+**Examples:** [Python](../../examples/bluesnap/bluesnap.py#L217) · [JavaScript](../../examples/bluesnap/bluesnap.js) · [Kotlin](../../examples/bluesnap/bluesnap.kt#L173) · [Rust](../../examples/bluesnap/bluesnap.rs#L253)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/bluesnap/bluesnap.py#L239) · [JavaScript](../../examples/bluesnap/bluesnap.js) · [Kotlin](../../examples/bluesnap/bluesnap.kt#L192) · [Rust](../../examples/bluesnap/bluesnap.rs#L273)
+**Examples:** [Python](../../examples/bluesnap/bluesnap.py#L239) · [JavaScript](../../examples/bluesnap/bluesnap.js) · [Kotlin](../../examples/bluesnap/bluesnap.kt#L192) · [Rust](../../examples/bluesnap/bluesnap.rs#L272)
 
 ## API Reference
 

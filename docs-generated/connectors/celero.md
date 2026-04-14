@@ -123,7 +123,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/celero/celero.py#L119) · [JavaScript](../../examples/celero/celero.js) · [Kotlin](../../examples/celero/celero.kt#L110) · [Rust](../../examples/celero/celero.rs#L156)
+**Examples:** [Python](../../examples/celero/celero.py#L119) · [JavaScript](../../examples/celero/celero.js) · [Kotlin](../../examples/celero/celero.kt#L110) · [Rust](../../examples/celero/celero.rs#L155)
 
 ### Card Payment (Authorize + Capture)
 
@@ -137,25 +137,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/celero/celero.py#L138) · [JavaScript](../../examples/celero/celero.js) · [Kotlin](../../examples/celero/celero.kt#L126) · [Rust](../../examples/celero/celero.rs#L172)
+**Examples:** [Python](../../examples/celero/celero.py#L138) · [JavaScript](../../examples/celero/celero.js) · [Kotlin](../../examples/celero/celero.kt#L126) · [Rust](../../examples/celero/celero.rs#L171)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/celero/celero.py#L163) · [JavaScript](../../examples/celero/celero.js) · [Kotlin](../../examples/celero/celero.kt#L148) · [Rust](../../examples/celero/celero.rs#L195)
+**Examples:** [Python](../../examples/celero/celero.py#L163) · [JavaScript](../../examples/celero/celero.js) · [Kotlin](../../examples/celero/celero.kt#L148) · [Rust](../../examples/celero/celero.rs#L194)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/celero/celero.py#L188) · [JavaScript](../../examples/celero/celero.js) · [Kotlin](../../examples/celero/celero.kt#L170) · [Rust](../../examples/celero/celero.rs#L218)
+**Examples:** [Python](../../examples/celero/celero.py#L188) · [JavaScript](../../examples/celero/celero.js) · [Kotlin](../../examples/celero/celero.kt#L170) · [Rust](../../examples/celero/celero.rs#L217)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/celero/celero.py#L210) · [JavaScript](../../examples/celero/celero.js) · [Kotlin](../../examples/celero/celero.kt#L189) · [Rust](../../examples/celero/celero.rs#L237)
+**Examples:** [Python](../../examples/celero/celero.py#L210) · [JavaScript](../../examples/celero/celero.js) · [Kotlin](../../examples/celero/celero.kt#L189) · [Rust](../../examples/celero/celero.rs#L236)
 
 ## API Reference
 

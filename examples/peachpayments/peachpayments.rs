@@ -4,7 +4,6 @@
 //
 // Peachpayments — all scenarios and flows in one file.
 // Run a scenario:  cargo run --example peachpayments -- process_checkout_card
-#![allow(clippy::needless_update)]
 use grpc_api_types::payments::*;
 use grpc_api_types::payments::connector_specific_config;
 use hyperswitch_payments_client::ConnectorClient;

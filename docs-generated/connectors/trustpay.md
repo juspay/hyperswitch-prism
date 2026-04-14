@@ -135,19 +135,19 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/trustpay/trustpay.py#L189) · [JavaScript](../../examples/trustpay/trustpay.js) · [Kotlin](../../examples/trustpay/trustpay.kt#L131) · [Rust](../../examples/trustpay/trustpay.rs#L240)
+**Examples:** [Python](../../examples/trustpay/trustpay.py#L189) · [JavaScript](../../examples/trustpay/trustpay.js) · [Kotlin](../../examples/trustpay/trustpay.kt#L131) · [Rust](../../examples/trustpay/trustpay.rs#L239)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/trustpay/trustpay.py#L208) · [JavaScript](../../examples/trustpay/trustpay.js) · [Kotlin](../../examples/trustpay/trustpay.kt#L147) · [Rust](../../examples/trustpay/trustpay.rs#L256)
+**Examples:** [Python](../../examples/trustpay/trustpay.py#L208) · [JavaScript](../../examples/trustpay/trustpay.js) · [Kotlin](../../examples/trustpay/trustpay.kt#L147) · [Rust](../../examples/trustpay/trustpay.rs#L255)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/trustpay/trustpay.py#L233) · [JavaScript](../../examples/trustpay/trustpay.js) · [Kotlin](../../examples/trustpay/trustpay.kt#L169) · [Rust](../../examples/trustpay/trustpay.rs#L279)
+**Examples:** [Python](../../examples/trustpay/trustpay.py#L233) · [JavaScript](../../examples/trustpay/trustpay.js) · [Kotlin](../../examples/trustpay/trustpay.kt#L169) · [Rust](../../examples/trustpay/trustpay.rs#L278)
 
 ## API Reference
 

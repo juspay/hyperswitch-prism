@@ -123,19 +123,19 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/multisafepay/multisafepay.py#L123) · [JavaScript](../../examples/multisafepay/multisafepay.js) · [Kotlin](../../examples/multisafepay/multisafepay.kt#L97) · [Rust](../../examples/multisafepay/multisafepay.rs#L154)
+**Examples:** [Python](../../examples/multisafepay/multisafepay.py#L123) · [JavaScript](../../examples/multisafepay/multisafepay.js) · [Kotlin](../../examples/multisafepay/multisafepay.kt#L97) · [Rust](../../examples/multisafepay/multisafepay.rs#L153)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/multisafepay/multisafepay.py#L142) · [JavaScript](../../examples/multisafepay/multisafepay.js) · [Kotlin](../../examples/multisafepay/multisafepay.kt#L113) · [Rust](../../examples/multisafepay/multisafepay.rs#L170)
+**Examples:** [Python](../../examples/multisafepay/multisafepay.py#L142) · [JavaScript](../../examples/multisafepay/multisafepay.js) · [Kotlin](../../examples/multisafepay/multisafepay.kt#L113) · [Rust](../../examples/multisafepay/multisafepay.rs#L169)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/multisafepay/multisafepay.py#L167) · [JavaScript](../../examples/multisafepay/multisafepay.js) · [Kotlin](../../examples/multisafepay/multisafepay.kt#L135) · [Rust](../../examples/multisafepay/multisafepay.rs#L193)
+**Examples:** [Python](../../examples/multisafepay/multisafepay.py#L167) · [JavaScript](../../examples/multisafepay/multisafepay.js) · [Kotlin](../../examples/multisafepay/multisafepay.kt#L135) · [Rust](../../examples/multisafepay/multisafepay.rs#L192)
 
 ## API Reference
 

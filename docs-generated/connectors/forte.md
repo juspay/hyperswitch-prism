@@ -135,19 +135,19 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/forte/forte.py#L104) · [JavaScript](../../examples/forte/forte.js) · [Kotlin](../../examples/forte/forte.kt#L90) · [Rust](../../examples/forte/forte.rs#L135)
+**Examples:** [Python](../../examples/forte/forte.py#L104) · [JavaScript](../../examples/forte/forte.js) · [Kotlin](../../examples/forte/forte.kt#L90) · [Rust](../../examples/forte/forte.rs#L134)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/forte/forte.py#L123) · [JavaScript](../../examples/forte/forte.js) · [Kotlin](../../examples/forte/forte.kt#L106) · [Rust](../../examples/forte/forte.rs#L151)
+**Examples:** [Python](../../examples/forte/forte.py#L123) · [JavaScript](../../examples/forte/forte.js) · [Kotlin](../../examples/forte/forte.kt#L106) · [Rust](../../examples/forte/forte.rs#L150)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/forte/forte.py#L145) · [JavaScript](../../examples/forte/forte.js) · [Kotlin](../../examples/forte/forte.kt#L125) · [Rust](../../examples/forte/forte.rs#L170)
+**Examples:** [Python](../../examples/forte/forte.py#L145) · [JavaScript](../../examples/forte/forte.js) · [Kotlin](../../examples/forte/forte.kt#L125) · [Rust](../../examples/forte/forte.rs#L169)
 
 ## API Reference
 

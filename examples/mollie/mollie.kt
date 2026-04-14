@@ -22,7 +22,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.MollieConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("authorize", "get", "proxy_authorize", "refund", "refund_get", "token_authorize", "void")
+val SUPPORTED_FLOWS = listOf<String>("authorize", "create_client_authentication_token", "get", "proxy_authorize", "refund", "refund_get", "token_authorize", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())

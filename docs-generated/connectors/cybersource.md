@@ -139,7 +139,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/cybersource/cybersource.py#L262) · [JavaScript](../../examples/cybersource/cybersource.js) · [Kotlin](../../examples/cybersource/cybersource.kt#L125) · [Rust](../../examples/cybersource/cybersource.rs#L326)
+**Examples:** [Python](../../examples/cybersource/cybersource.py#L262) · [JavaScript](../../examples/cybersource/cybersource.js) · [Kotlin](../../examples/cybersource/cybersource.kt#L125) · [Rust](../../examples/cybersource/cybersource.rs#L325)
 
 ### Card Payment (Authorize + Capture)
 
@@ -153,25 +153,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/cybersource/cybersource.py#L281) · [JavaScript](../../examples/cybersource/cybersource.js) · [Kotlin](../../examples/cybersource/cybersource.kt#L141) · [Rust](../../examples/cybersource/cybersource.rs#L342)
+**Examples:** [Python](../../examples/cybersource/cybersource.py#L281) · [JavaScript](../../examples/cybersource/cybersource.js) · [Kotlin](../../examples/cybersource/cybersource.kt#L141) · [Rust](../../examples/cybersource/cybersource.rs#L341)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/cybersource/cybersource.py#L306) · [JavaScript](../../examples/cybersource/cybersource.js) · [Kotlin](../../examples/cybersource/cybersource.kt#L163) · [Rust](../../examples/cybersource/cybersource.rs#L365)
+**Examples:** [Python](../../examples/cybersource/cybersource.py#L306) · [JavaScript](../../examples/cybersource/cybersource.js) · [Kotlin](../../examples/cybersource/cybersource.kt#L163) · [Rust](../../examples/cybersource/cybersource.rs#L364)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/cybersource/cybersource.py#L331) · [JavaScript](../../examples/cybersource/cybersource.js) · [Kotlin](../../examples/cybersource/cybersource.kt#L185) · [Rust](../../examples/cybersource/cybersource.rs#L388)
+**Examples:** [Python](../../examples/cybersource/cybersource.py#L331) · [JavaScript](../../examples/cybersource/cybersource.js) · [Kotlin](../../examples/cybersource/cybersource.kt#L185) · [Rust](../../examples/cybersource/cybersource.rs#L387)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/cybersource/cybersource.py#L353) · [JavaScript](../../examples/cybersource/cybersource.js) · [Kotlin](../../examples/cybersource/cybersource.kt#L204) · [Rust](../../examples/cybersource/cybersource.rs#L407)
+**Examples:** [Python](../../examples/cybersource/cybersource.py#L353) · [JavaScript](../../examples/cybersource/cybersource.js) · [Kotlin](../../examples/cybersource/cybersource.kt#L204) · [Rust](../../examples/cybersource/cybersource.rs#L406)
 
 ## API Reference
 

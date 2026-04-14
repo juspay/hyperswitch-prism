@@ -14,7 +14,7 @@ from payments import RecurringPaymentClient
 from payments import RefundClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
-SUPPORTED_FLOWS = ["authorize", "capture", "get", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "void"]
+SUPPORTED_FLOWS = ["authorize", "capture", "create_client_authentication_token", "get", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "token_authorize", "void"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -83,15 +83,14 @@ def _build_capture_request(connector_transaction_id: str):
     )
 
 def _build_create_client_authentication_token_request():
-    return ParseDict(
-        {
-            "merchant_client_session_id": "probe_sdk_session_001",  # Infrastructure.
-            "domain_context": {
-                "minor_amount": 1000,
-                "currency": "USD"
-            }
-        },
-        payment_pb2.MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest(),
+    return payment_pb2.MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest(
+        merchant_client_session_id="probe_sdk_session_001",  # Infrastructure.
+        payment=payment_pb2.PaymentClientAuthenticationContext(  # FrmClientAuthenticationContext frm = 5; // future: device fingerprinting PayoutClientAuthenticationContext payout = 6; // future: payout verification widget.
+            amount=payment_pb2.Money(
+                minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
+                currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+            ),
+        ),
     )
 
 def _build_get_request(connector_transaction_id: str):
@@ -290,29 +289,25 @@ def _build_setup_recurring_request():
     )
 
 def _build_token_authorize_request():
-    return ParseDict(
-        {
-            "merchant_transaction_id": "probe_tokenized_txn_001",
-            "amount": {
-                "minor_amount": 1000,  # Amount in minor units (e.g., 1000 = $10.00).
-                "currency": "USD"  # ISO 4217 currency code (e.g., "USD", "EUR").
-            },
-            "connector_token": {"value": "pm_1AbcXyzStripeTestToken"},  # Connector-issued token. Replaces PaymentMethod entirely. Examples: Stripe pm_xxx, Adyen recurringDetailReference, Braintree nonce.
-            "address": {
-                "billing_address": {
-                }
-            },
-            "capture_method": "AUTOMATIC",
-            "return_url": "https://example.com/return",
-            "state": {
-                "access_token": {  # Access token obtained from connector.
-                    "token": {"value": "probe_access_token"},  # The token string.
-                    "expires_in_seconds": 3600,  # Expiration timestamp (seconds since epoch).
-                    "token_type": "Bearer"  # Token type (e.g., "Bearer", "Basic").
-                }
-            }
-        },
-        payment_pb2.PaymentServiceTokenAuthorizeRequest(),
+    return payment_pb2.PaymentServiceTokenAuthorizeRequest(
+        merchant_transaction_id="probe_tokenized_txn_001",
+        amount=payment_pb2.Money(
+            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
+            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        ),
+        connector_token=payment_methods_pb2.SecretString(value="pm_1AbcXyzStripeTestToken"),  # Connector-issued token. Replaces PaymentMethod entirely. Examples: Stripe pm_xxx, Adyen recurringDetailReference, Braintree nonce.
+        address=payment_pb2.PaymentAddress(
+            billing_address=payment_pb2.Address(),
+        ),
+        capture_method=payment_pb2.CaptureMethod.Value("AUTOMATIC"),
+        return_url="https://example.com/return",
+        state=payment_pb2.ConnectorState(
+            access_token=payment_pb2.AccessToken(  # Access token obtained from connector.
+                token=payment_methods_pb2.SecretString(value="probe_access_token"),  # The token string.
+                expires_in_seconds=3600,  # Expiration timestamp (seconds since epoch).
+                token_type="Bearer",  # Token type (e.g., "Bearer", "Basic").
+            ),
+        ),
     )
 
 def _build_void_request(connector_transaction_id: str):
@@ -458,6 +453,15 @@ async def process_capture(merchant_transaction_id: str, config: sdk_config_pb2.C
     return {"status": capture_response.status}
 
 
+async def process_create_client_authentication_token(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: MerchantAuthenticationService.CreateClientAuthenticationToken"""
+    merchantauthentication_client = MerchantAuthenticationClient(config)
+
+    create_response = await merchantauthentication_client.create_client_authentication_token(_build_create_client_authentication_token_request())
+
+    return {"status": create_response.status}
+
+
 async def process_get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """Flow: PaymentService.Get"""
     payment_client = PaymentClient(config)
@@ -519,6 +523,15 @@ async def process_setup_recurring(merchant_transaction_id: str, config: sdk_conf
     setup_response = await payment_client.setup_recurring(_build_setup_recurring_request())
 
     return {"status": setup_response.status, "mandate_id": setup_response.connector_transaction_id}
+
+
+async def process_token_authorize(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: PaymentService.TokenAuthorize"""
+    payment_client = PaymentClient(config)
+
+    token_response = await payment_client.token_authorize(_build_token_authorize_request())
+
+    return {"status": token_response.status}
 
 
 async def process_void(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
