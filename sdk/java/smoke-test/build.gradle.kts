@@ -55,15 +55,24 @@ tasks.register<JavaExec>("runGrpc") {
     environment("FORCE_COLOR", "1")
 
     // Suppress JNA "restricted method" warning (Java 17+) and protobuf Unsafe warning (Java 21+)
+    // -XX:+IgnoreUnrecognizedVMOptions allows this to work on both Java 17 and 21+
     jvmArgs(
+        "-XX:+IgnoreUnrecognizedVMOptions",
         "--enable-native-access=ALL-UNNAMED",
         "--sun-misc-unsafe-memory-access=allow",
     )
 
     // Pass through all project properties as system properties
     systemProperty("jna.library.path", file("../src/main/resources/native").absolutePath)
+    // Determine library extension based on OS
+    val osName = System.getProperty("os.name").lowercase()
+    val libExt = when {
+        osName.contains("mac") || osName.contains("darwin") -> "dylib"
+        osName.contains("win") -> "dll"
+        else -> "so"
+    }
     systemProperty("hyperswitch.grpc.lib.path",
-        file("src/main/resources/native/libhyperswitch_grpc_ffi.dylib").absolutePath)
+        file("src/main/resources/native/libhyperswitch_grpc_ffi.$libExt").absolutePath)
 
     // Forward any args passed to this task
     args = project.properties["args"]?.toString()?.split(" ") ?: emptyList()

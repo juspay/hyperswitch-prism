@@ -518,7 +518,7 @@ jobs:
             echo "No CONNECTOR_SPECIFIC_AUTH secret found, will run in dry-run mode"
           fi
 
-      - name: Build FFI library once
+      - name: Build FFI and gRPC libraries once
         run: |
           ARCH=$(uname -m)
           if [ "$ARCH" = "aarch64" ]; then
@@ -526,14 +526,23 @@ jobs:
           else
             PLATFORM="x86_64-unknown-linux-gnu"
           fi
-          PROFILE_DIR="debug"
-          LIB_PATH="target/${PLATFORM}/${PROFILE_DIR}/libconnector_service_ffi.so"
-          if [ ! -f "$LIB_PATH" ]; then
-            echo "Building FFI library (cache miss)..."
+          PROFILE="release-fast"
+          FFI_LIB_PATH="target/${PLATFORM}/${PROFILE}/libconnector_service_ffi.so"
+          GRPC_SERVER_BIN="target/${PLATFORM}/${PROFILE}/grpc-server"
+          
+          if [ ! -f "$FFI_LIB_PATH" ]; then
+            echo "Building FFI library..."
             cargo build -p ffi --no-default-features --features uniffi \
-              --profile dev --target "$PLATFORM"
+              --profile "$PROFILE" --target "$PLATFORM"
           else
-            echo "Using cached FFI library: $LIB_PATH"
+            echo "Using cached FFI library: $FFI_LIB_PATH"
+          fi
+          
+          if [ ! -f "$GRPC_SERVER_BIN" ]; then
+            echo "Building grpc-server..."
+            cargo build -p grpc-server --profile "$PROFILE"
+          else
+            echo "Using cached grpc-server: $GRPC_SERVER_BIN"
           fi
 
       - name: Run SDK Tests
@@ -544,7 +553,19 @@ jobs:
           else
             echo "Running SDK tests without connector credentials (dry-run mode)"
           fi
-          make -C sdk test FFI_SKIP_BUILD=1
+          make -C sdk test FFI_SKIP_BUILD=1 PROFILE=release-fast
+
+      - name: Run SDK Mock Tests
+        shell: bash
+        run: |
+          echo "Running SDK mock tests (no real HTTP calls)"
+          make -C sdk test-mock FFI_SKIP_BUILD=1 PROFILE=release-fast
+
+      - name: Run SDK gRPC Tests
+        shell: bash
+        run: |
+          echo "Running SDK gRPC tests"
+          make -C sdk test-grpc GRPC_SKIP_BUILD=1 PROFILE=release-fast
 
       - name: Verify SDK code regeneration produces no changes
         shell: bash

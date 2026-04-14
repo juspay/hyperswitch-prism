@@ -61,7 +61,8 @@ endif
 # Pre-built FFI library for the current platform (output of build-ffi-lib).
 LIBRARY          := $(REPO_ROOT)/target/$(PLATFORM)/$(_PROFILE_DIR)/libconnector_service_ffi.$(LIB_EXT)
 # Pre-built gRPC FFI library (output of build-grpc-ffi-lib).
-GRPC_FFI_LIBRARY := $(REPO_ROOT)/target/$(PLATFORM)/$(_PROFILE_DIR)/libhyperswitch_grpc_ffi.$(LIB_EXT)
+# Note: hyperswitch-grpc-ffi doesn't use --target, so it's in target/$(PROFILE)/
+GRPC_FFI_LIBRARY := $(REPO_ROOT)/target/$(_PROFILE_DIR)/libhyperswitch_grpc_ffi.$(LIB_EXT)
 
 # UniFFI bindgen binary path (used by Python/Java for code generation)
 BINDGEN := $(REPO_ROOT)/target/$(PLATFORM)/$(_PROFILE_DIR)/uniffi-bindgen
@@ -76,7 +77,14 @@ BINDGEN := $(REPO_ROOT)/target/$(PLATFORM)/$(_PROFILE_DIR)/uniffi-bindgen
 # to save time when running multiple SDK tests.
 # ---------------------------------------------------------------------------
 build-ffi-lib:
-	@if [ -f "$(LIBRARY)" ]; then \
+	@if [ "$(FFI_SKIP_BUILD)" = "1" ]; then \
+		if [ -f "$(LIBRARY)" ]; then \
+			echo "FFI library found: $(LIBRARY)"; \
+		else \
+			echo "ERROR: FFI_SKIP_BUILD=1 but library not found: $(LIBRARY)"; \
+			exit 1; \
+		fi; \
+	elif [ -f "$(LIBRARY)" ]; then \
 		echo "FFI library already exists: $(LIBRARY)"; \
 	else \
 		echo "Building FFI shared library for $(PLATFORM) ($(PROFILE))..."; \
@@ -86,12 +94,24 @@ build-ffi-lib:
 	fi
 
 # ---------------------------------------------------------------------------
+# build-grpc-ffi-lib
+# Builds the gRPC FFI library for SDKs that use gRPC functionality.
+# Output: target/$(PLATFORM)/$(PROFILE)/libhyperswitch_grpc_ffi.<ext>
+# ---------------------------------------------------------------------------
+build-grpc-ffi-lib:
+	@if [ -f "$(GRPC_FFI_LIBRARY)" ]; then \
+		echo "gRPC FFI library already exists: $(GRPC_FFI_LIBRARY)"; \
+	else \
+		echo "Building gRPC FFI shared library for $(PLATFORM) ($(PROFILE))..."; \
+		cd $(REPO_ROOT) && cargo build -p hyperswitch-grpc-ffi \
+			--profile $(PROFILE); \
+		echo "Build complete: $(GRPC_FFI_LIBRARY)"; \
+	fi
+
+# ---------------------------------------------------------------------------
 # check-cargo
 # Verifies cargo command is installed before attempting builds.
 # ---------------------------------------------------------------------------
-.PHONY: check-cargo
-check-cargo:
-
 .PHONY: check-cargo
 check-cargo:
 	@which cargo > /dev/null 2>&1 || (echo "Error: cargo is not installed" && exit 1)
