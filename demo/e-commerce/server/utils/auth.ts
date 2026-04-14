@@ -9,20 +9,25 @@ async function createClientAuthToken(
   currencyStr: string,
   amountNum: number
 ): Promise<{ sessionResponse: any }> {
-  const connectorConfig = getConnectorConfig(currencyStr, amountNum);
-  const authClient = new MerchantAuthenticationClient(connectorConfig);
-  const currencyEnum = currencyStr === 'EUR' ? Currency.EUR : Currency.USD;
+  try {
+    const connectorConfig = getConnectorConfig(currencyStr, amountNum);
+    const authClient = new MerchantAuthenticationClient(connectorConfig);
+    const currencyEnum = currencyStr === 'EUR' ? Currency.EUR : Currency.USD;
 
-  const sessionResponse = await authClient.createClientAuthenticationToken({
-    merchantClientSessionId: `server_session_${Date.now()}`,
-    payment: {
-      amount: {
-        minorAmount: amountNum,
-        currency: currencyEnum
+    const sessionResponse = await authClient.createClientAuthenticationToken({
+      merchantClientSessionId: `server_session_${Date.now()}`,
+      payment: {
+        amount: {
+          minorAmount: amountNum,
+          currency: currencyEnum
+        }
       }
-    }
-  });
-  return { sessionResponse };
+    });
+    return { sessionResponse };
+  } catch (error) {
+    console.error('[createClientAuthToken] Error creating client auth token:', error);
+    throw error;
+  }
 }
 
 

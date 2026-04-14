@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Checkout - Hyperswitch Store</title>
   <link rel="stylesheet" href="css/styles.css">
 </head>
+
 <body>
   <header>
     <div class="container">
@@ -70,19 +72,33 @@
       <!-- Payment Form -->
       <div class="payment-section">
         <h2>Payment Details</h2>
-        <div id="payment-connector-info" class="connector-info">
-          <!-- Connector info will be shown here -->
+
+
+        <!-- Integration Pending -->
+
+        <div style="display: flex; justify-content: center;">
+          <div style="text-align: center; margin-top: 60px;">
+            <div></div>
+            <p style="font-weight: bold; margin: 0;">Integration pending</p>
+          </div>
         </div>
 
-        <!-- Loading state -->
-        <div id="loading" class="loading">
+
+        <!-- Show After integration -->
+
+        <!-- <div id="payment-connector-info" class="connector-info">
+          <!-- Connector info will be shown here -->
+      </div> -->
+
+      <!-- Loading state -->
+      <!-- <div id="loading" class="loading">
           <div class="spinner"></div>
           <p>Initializing payment...</p>
-        </div>
+        </div> -->
 
-        <!-- Stripe Checkout Container -->
-        <div id="stripe-checkout-container" class="checkout-container hidden">
-          <!-- Stripe Payment Element will be mounted here -->
+      <!-- Stripe Checkout Container -->
+      <!-- <div id="stripe-checkout-container" class="checkout-container hidden">
+
           <div id="payment-element"></div>
           <button id="stripe-submit-btn" class="submit-btn">
             <span id="btn-text">Pay Now</span>
@@ -91,33 +107,33 @@
             </span>
           </button>
           <div id="stripe-error" class="card-errors"></div>
-        </div>
+        </div> -->
 
-        <!-- GlobalPay Checkout Container -->
-        <div id="globalpay-checkout-container" class="checkout-container hidden">
-          <!-- GlobalPay Credit Card Form (auto-submits, no button needed) -->
+      <!-- GlobalPay Checkout Container -->
+      <!-- <div id="globalpay-checkout-container" class="checkout-container hidden">
+
           <div id="credit-card"></div>
           <div id="globalpay-error" class="card-errors"></div>
-        </div>
+        </div> -->
 
-        <!-- Adyen Checkout Container -->
-        <div id="adyen-checkout-container" class="checkout-container hidden">
-          <!-- Adyen Card Component mounts here -->
+      <!-- Adyen Checkout Container -->
+      <!-- <div id="adyen-checkout-container" class="checkout-container hidden">
+
           <div id="adyen-card-container"></div>
           <div id="adyen-error" class="card-errors"></div>
-        </div>
+        </div> -->
 
-        <!-- Payment Result -->
-        <div id="payment-result" class="payment-result hidden">
-          <div id="result-icon"></div>
-          <h3 id="result-title"></h3>
-          <p id="result-message"></p>
-          <p id="result-txn-id" class="txn-id"></p>
-          <div id="result-actions" class="result-actions">
-            <a href="/" class="continue-btn">Continue Shopping</a>
-          </div>
+      <!-- Payment Result -->
+      <div id="payment-result" class="payment-result hidden">
+        <div id="result-icon"></div>
+        <h3 id="result-title"></h3>
+        <p id="result-message"></p>
+        <p id="result-txn-id" class="txn-id"></p>
+        <div id="result-actions" class="result-actions">
+          <a href="/" class="continue-btn">Continue Shopping</a>
         </div>
       </div>
+    </div>
     </div>
   </main>
 
@@ -129,13 +145,14 @@
 
   <!-- Adyen Web SDK v6.31.1 for Checkout Components -->
   <script src="https://checkoutshopper-test.adyen.com/checkoutshopper/sdk/6.31.1/adyen.js"
-          crossorigin="anonymous"></script>
+    crossorigin="anonymous"></script>
   <link rel="stylesheet" href="https://checkoutshopper-test.adyen.com/checkoutshopper/sdk/6.31.1/adyen.css"
-        crossorigin="anonymous">
+    crossorigin="anonymous">
 
   <script src="js/stripe-sdk.js"></script>
   <script src="js/globalpay-sdk.js"></script>
   <script src="js/adyen-sdk.js"></script>
   <script src="js/checkout.js"></script>
 </body>
+
 </html>
