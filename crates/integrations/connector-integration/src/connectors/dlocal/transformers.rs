@@ -1,10 +1,11 @@
 use common_utils::{pii, request::Method, FloatMajorUnit};
 use domain_types::{
-    connector_flow::{self, Authorize, RepeatPayment},
+    connector_flow::{self, Authorize, RepeatPayment, SetupMandate},
     connector_types::{
-        MandateReferenceId, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
-        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
+        MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        ResponseId, SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{self, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
@@ -34,6 +35,8 @@ pub struct Card<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'sta
     pub expiration_month: Secret<String>,
     pub expiration_year: Secret<String>,
     pub capture: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub save: Option<bool>,
 }
 
 #[derive(Debug, Default, Eq, PartialEq, Serialize)]
@@ -153,6 +156,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         expiration_month: ccard.card_exp_month.clone(),
                         expiration_year: ccard.card_exp_year.clone(),
                         capture: should_capture.to_string(),
+                        save: None,
                     }),
                     order_id,
                     three_dsecure: match item.router_data.resource_common_data.auth_type {
@@ -426,6 +430,187 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
 // RepeatPayment response - reuses DlocalPaymentsResponse (generic TryFrom covers this)
 pub type DlocalRepeatPaymentResponse = DlocalPaymentsResponse;
+
+// SetupMandate (CIT) flow: tokenize a card by sending a zero-amount payment with
+// `card.save=true`. dLocal's response includes a `card` object containing the
+// saved `card_id` which is later used in RepeatPayment (MIT) flow.
+
+#[derive(Debug, Serialize)]
+pub struct DlocalSetupMandateRequest<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+> {
+    pub amount: FloatMajorUnit,
+    pub currency: common_enums::Currency,
+    pub country: common_enums::CountryAlpha2,
+    pub payment_method_id: PaymentMethodId,
+    pub payment_method_flow: PaymentMethodFlow,
+    pub payer: Payer,
+    pub card: Card<T>,
+    pub order_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub three_dsecure: Option<ThreeDSecureReqData>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub callback_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub notification_url: Option<String>,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        DlocalRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for DlocalSetupMandateRequest<T>
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        item: DlocalRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+
+        let email = router_data.request.get_email()?;
+        let address = router_data.resource_common_data.get_billing_address()?;
+        let country = *address.get_country()?;
+        let name = address.get_full_name()?;
+
+        // For SetupMandate (CIT), dLocal requires a non-zero authorization amount
+        // alongside `card.save = true` to tokenize the card. Use a minimal
+        // 500 minor units (e.g. 5.00 BRL) verify amount — dLocal rejects very
+        // small amounts (<= 1.00) with code 5016 "Amount too low". The request
+        // runs with `capture: false` so funds are released immediately after
+        // the authorization.
+        let amount = utils::convert_amount(
+            item.connector.amount_converter,
+            common_utils::types::MinorUnit::new(500),
+            router_data.request.currency,
+        )?;
+
+        let order_id = router_data
+            .resource_common_data
+            .connector_request_reference_id
+            .clone();
+        let callback_url = router_data.request.router_return_url.clone();
+        let description = router_data.resource_common_data.description.clone();
+
+        match &router_data.request.payment_method_data {
+            PaymentMethodData::Card(ccard) => Ok(Self {
+                amount,
+                currency: router_data.request.currency,
+                payment_method_id: PaymentMethodId::Card,
+                payment_method_flow: PaymentMethodFlow::Direct,
+                country,
+                payer: Payer {
+                    name,
+                    email,
+                    document: get_doc_from_currency(country.to_string()),
+                },
+                card: Card {
+                    holder_name: ccard.card_holder_name.clone(),
+                    number: ccard.card_number.clone(),
+                    cvv: ccard.card_cvc.clone(),
+                    expiration_month: ccard.card_exp_month.clone(),
+                    expiration_year: ccard.card_exp_year.clone(),
+                    // Setup mandate is always a verify/no-capture operation
+                    capture: "false".to_string(),
+                    save: Some(true),
+                },
+                order_id,
+                three_dsecure: None,
+                callback_url,
+                description,
+                notification_url: router_data.request.webhook_url.clone(),
+            }),
+            _ => Err(IntegrationError::not_implemented(
+                crate::utils::get_unimplemented_payment_method_error_message("Dlocal"),
+            ))?,
+        }
+    }
+}
+
+// SetupMandate response — adds a `card` object with the saved `card_id` on top of
+// the standard payment response fields.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct DlocalSetupMandateCardData {
+    pub id: Option<String>,
+    pub card_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct DlocalSetupMandateResponse {
+    pub status: DlocalPaymentStatus,
+    pub id: String,
+    pub three_dsecure: Option<ThreeDSecureResData>,
+    pub order_id: Option<String>,
+    pub redirect_url: Option<url::Url>,
+    pub card: Option<DlocalSetupMandateCardData>,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<DlocalSetupMandateResponse, Self>>
+    for RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<DlocalSetupMandateResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let redirection_data = item
+            .response
+            .three_dsecure
+            .and_then(|three_secure_data| three_secure_data.redirect_url)
+            .or(item.response.redirect_url)
+            .map(|redirect_url| RedirectForm::from((redirect_url, Method::Get)));
+
+        // Extract the saved card identifier from the response. dLocal may return
+        // it as `card.id` or `card.card_id` depending on the endpoint version.
+        let connector_mandate_id = item
+            .response
+            .card
+            .as_ref()
+            .and_then(|c| c.id.clone().or_else(|| c.card_id.clone()));
+
+        let mandate_reference = connector_mandate_id.map(|card_id| MandateReference {
+            connector_mandate_id: Some(card_id),
+            payment_method_id: None,
+            connector_mandate_request_reference_id: None,
+        });
+
+        let response = PaymentsResponseData::TransactionResponse {
+            resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
+            redirection_data: redirection_data.map(Box::new),
+            mandate_reference: mandate_reference.map(Box::new),
+            connector_metadata: None,
+            network_txn_id: None,
+            connector_response_reference_id: item.response.order_id.clone(),
+            incremental_authorization_allowed: None,
+            status_code: item.http_code,
+        };
+
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                status: common_enums::AttemptStatus::from(item.response.status),
+                ..item.router_data.resource_common_data
+            },
+            response: Ok(response),
+            ..item.router_data
+        })
+    }
+}
 
 // Auth Struct
 pub struct DlocalAuthType {
