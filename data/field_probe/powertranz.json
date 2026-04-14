@@ -599,7 +599,8 @@
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "Payment method not supported for RepeatPayment is not supported by powertranz"
       }
     },
     "recurring_revoke": {

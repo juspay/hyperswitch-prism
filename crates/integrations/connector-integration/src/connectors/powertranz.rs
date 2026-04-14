@@ -47,9 +47,8 @@ use transformers::{
     PowertranzCaptureRequest, PowertranzCaptureResponse, PowertranzPaymentsRequest,
     PowertranzPaymentsResponse, PowertranzPaymentsResponse as PowertranzPaymentsSyncResponse,
     PowertranzRSyncResponse, PowertranzRefundRequest, PowertranzRefundResponse,
-    PowertranzRepeatPaymentRequest, PowertranzRepeatPaymentResponse,
-    PowertranzSetupMandateRequest, PowertranzSetupMandateResponse, PowertranzVoidRequest,
-    PowertranzVoidResponse,
+    PowertranzRepeatPaymentRequest, PowertranzRepeatPaymentResponse, PowertranzSetupMandateRequest,
+    PowertranzSetupMandateResponse, PowertranzVoidRequest, PowertranzVoidResponse,
 };
 
 use crate::{types::ResponseRouterData, with_response_body};
