@@ -108,19 +108,19 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/forte/forte.py#L113) · [JavaScript](../../examples/forte/forte.js) · [Kotlin](../../examples/forte/forte.kt#L78) · [Rust](../../examples/forte/forte.rs#L109)
+**Examples:** [Python](../../examples/forte/forte.py#L178) · [JavaScript](../../examples/forte/forte.js) · [Kotlin](../../examples/forte/forte.kt#L82) · [Rust](../../examples/forte/forte.rs#L172)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/forte/forte.py#L132) · [JavaScript](../../examples/forte/forte.js) · [Kotlin](../../examples/forte/forte.kt#L94) · [Rust](../../examples/forte/forte.rs#L125)
+**Examples:** [Python](../../examples/forte/forte.py#L197) · [JavaScript](../../examples/forte/forte.js) · [Kotlin](../../examples/forte/forte.kt#L98) · [Rust](../../examples/forte/forte.rs#L188)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/forte/forte.py#L154) · [JavaScript](../../examples/forte/forte.js) · [Kotlin](../../examples/forte/forte.kt#L113) · [Rust](../../examples/forte/forte.rs#L144)
+**Examples:** [Python](../../examples/forte/forte.py#L219) · [JavaScript](../../examples/forte/forte.js) · [Kotlin](../../examples/forte/forte.kt#L117) · [Rust](../../examples/forte/forte.rs#L207)
 
 ## API Reference
 
@@ -129,7 +129,9 @@ Retrieve current payment status from the connector.
 | [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
 | [PaymentService.ProxyAuthorize](#paymentserviceproxyauthorize) | Payments | `PaymentServiceProxyAuthorizeRequest` |
+| [PaymentService.ProxySetupRecurring](#paymentserviceproxysetuprecurring) | Payments | `PaymentServiceProxySetupRecurringRequest` |
 | [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
+| [PaymentService.SetupRecurring](#paymentservicesetuprecurring) | Payments | `PaymentServiceSetupRecurringRequest` |
 | [PaymentService.Void](#paymentservicevoid) | Payments | `PaymentServiceVoidRequest` |
 
 ### Payments
@@ -267,7 +269,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/forte/forte.py#L176) · [TypeScript](../../examples/forte/forte.ts#L166) · [Kotlin](../../examples/forte/forte.kt#L131) · [Rust](../../examples/forte/forte.rs#L162)
+**Examples:** [Python](../../examples/forte/forte.py#L241) · [TypeScript](../../examples/forte/forte.ts#L227) · [Kotlin](../../examples/forte/forte.kt#L135) · [Rust](../../examples/forte/forte.rs#L225)
 
 #### PaymentService.Get
 
@@ -278,7 +280,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/forte/forte.py#L185) · [TypeScript](../../examples/forte/forte.ts#L175) · [Kotlin](../../examples/forte/forte.kt#L143) · [Rust](../../examples/forte/forte.rs#L174)
+**Examples:** [Python](../../examples/forte/forte.py#L250) · [TypeScript](../../examples/forte/forte.ts#L236) · [Kotlin](../../examples/forte/forte.kt#L147) · [Rust](../../examples/forte/forte.rs#L237)
 
 #### PaymentService.ProxyAuthorize
 
@@ -289,7 +291,29 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/forte/forte.py#L194) · [TypeScript](../../examples/forte/forte.ts#L184) · [Kotlin](../../examples/forte/forte.kt#L151) · [Rust](../../examples/forte/forte.rs#L181)
+**Examples:** [Python](../../examples/forte/forte.py#L259) · [TypeScript](../../examples/forte/forte.ts#L245) · [Kotlin](../../examples/forte/forte.kt#L155) · [Rust](../../examples/forte/forte.rs#L244)
+
+#### PaymentService.ProxySetupRecurring
+
+Setup recurring mandate using vault-aliased card data.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceProxySetupRecurringRequest` |
+| **Response** | `PaymentServiceSetupRecurringResponse` |
+
+**Examples:** [Python](../../examples/forte/forte.py#L268) · [TypeScript](../../examples/forte/forte.ts#L254) · [Kotlin](../../examples/forte/forte.kt#L184) · [Rust](../../examples/forte/forte.rs#L251)
+
+#### PaymentService.SetupRecurring
+
+Configure a payment method for recurring billing. Sets up the mandate and payment details needed for future automated charges.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceSetupRecurringRequest` |
+| **Response** | `PaymentServiceSetupRecurringResponse` |
+
+**Examples:** [Python](../../examples/forte/forte.py#L286) · [TypeScript](../../examples/forte/forte.ts#L272) · [Kotlin](../../examples/forte/forte.kt#L228) · [Rust](../../examples/forte/forte.rs#L265)
 
 #### PaymentService.Void
 
@@ -300,7 +324,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/forte/forte.py#L212) · [TypeScript](../../examples/forte/forte.ts) · [Kotlin](../../examples/forte/forte.kt#L192) · [Rust](../../examples/forte/forte.rs#L195)
+**Examples:** [Python](../../examples/forte/forte.py#L295) · [TypeScript](../../examples/forte/forte.ts) · [Kotlin](../../examples/forte/forte.kt#L268) · [Rust](../../examples/forte/forte.rs#L275)
 
 ### Refunds
 
@@ -313,4 +337,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/forte/forte.py#L203) · [TypeScript](../../examples/forte/forte.ts#L193) · [Kotlin](../../examples/forte/forte.kt#L180) · [Rust](../../examples/forte/forte.rs#L188)
+**Examples:** [Python](../../examples/forte/forte.py#L277) · [TypeScript](../../examples/forte/forte.ts#L263) · [Kotlin](../../examples/forte/forte.kt#L216) · [Rust](../../examples/forte/forte.rs#L258)
