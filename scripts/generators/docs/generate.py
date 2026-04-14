@@ -1365,96 +1365,8 @@ def check_example_syntax(examples_dir: Path, connectors: Optional[list[str]] = N
         else:
             print(f"  Checking Rust format ({len(rs_files)} files) ... skipped (rustfmt unavailable)")
 
-    # Rust full compilation — cargo check -p hyperswitch-smoke-test with CONNECTORS env var.
-    # This validates that generated examples type-check against the real prost-generated types.
-    cargo_ok = False
-    try:
-        subprocess.run(["cargo", "--version"], capture_output=True, check=True)
-        cargo_ok = True
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        pass
-    if cargo_ok and rs_files:
-        # Detect target platform to share build artifacts with FFI/library builds
-        import platform
-        system = platform.system()
-        machine = platform.machine()
-        if system == "Darwin":
-            if machine == "arm64":
-                cargo_target = "aarch64-apple-darwin"
-            else:
-                cargo_target = "x86_64-apple-darwin"
-        else:
-            if machine == "aarch64":
-                cargo_target = "aarch64-unknown-linux-gnu"
-            else:
-                cargo_target = "x86_64-unknown-linux-gnu"
-        cargo_target_flag = ["--target", cargo_target]
-        # Derive connector names from the rs_files paths (examples/{connector}/*.rs)
-        connector_names: list[str] = []
-        for f in rs_files:
-            # examples/{connector}/{connector}.rs → connector name is the parent dir
-            connector_dir = f.parent.name
-            if connector_dir and connector_dir not in connector_names:
-                connector_names.append(connector_dir)
-        if connector_names:
-            connectors_env = ",".join(connector_names)
-            repo_root = examples_dir.parent
-            print(f"  Running cargo check for connectors: {connectors_env} ...")
-            cargo_result = subprocess.run(
-                ["cargo", "check", "-p", "hyperswitch-smoke-test", "--profile", "release-fast", "--message-format=short"] + cargo_target_flag,
-                cwd=str(repo_root),
-                env={**__import__("os").environ, "CONNECTORS": connectors_env},
-                capture_output=True,
-                text=True,
-                timeout=300,
-            )
-            if cargo_result.returncode != 0:
-                # Collect error lines from stderr/stdout
-                combined = cargo_result.stdout + cargo_result.stderr
-                for line in combined.splitlines():
-                    if "error" in line.lower() and line.strip():
-                        errors.append(f"Rust (cargo): {line.strip()}")
-                if not any("Rust (cargo)" in e for e in errors):
-                    errors.append(f"Rust (cargo check failed): {combined[:500].strip()}")
-            
-            # Check examples directly to catch import resolution errors
-            # Use temp copy to sdk/rust/examples for auto-discovery (cleaner than 80 [[example]] entries)
-            import shutil
-            examples_dst = repo_root / "sdk" / "rust" / "examples"
-            examples_dst.mkdir(exist_ok=True)
-            
-            # Copy all .rs files for auto-discovery
-            copied = 0
-            for connector in connector_names:
-                src_file = examples_dir / connector / f"{connector}.rs"
-                if src_file.exists():
-                    dst_file = examples_dst / f"{connector}.rs"
-                    shutil.copy2(src_file, dst_file)
-                    # Force sync to ensure file is fully written before cargo reads it
-                    with open(dst_file, 'rb') as f:
-                        os.fsync(f.fileno())
-                    copied += 1
-            
-            if copied > 0:
-                # Check all examples at once (much faster than 80 individual checks)
-                # Use same target flag to share build artifacts
-                example_check = subprocess.run(
-                    ["cargo", "check", "--examples", "--message-format=short"] + cargo_target_flag,
-                    cwd=str(repo_root / "sdk" / "rust"),
-                    capture_output=True,
-                    text=True,
-                    timeout=300,
-                )
-                if example_check.returncode != 0:
-                    for line in (example_check.stdout + example_check.stderr).splitlines():
-                        if "error[" in line or "error:" in line:
-                            errors.append(f"Rust (examples): {line.strip()}")
-                
-                # Clean up only the files we copied (not the entire directory)
-                for connector in connector_names:
-                    copied_file = examples_dst / f"{connector}.rs"
-                    if copied_file.exists():
-                        copied_file.unlink()
+    # Note: Cargo check removed - examples are validated during actual smoke test execution
+    # which catches compilation errors naturally without duplicate compilation overhead
 
     if errors:
         print(f"\n  ✗ {len(errors)} compilation error(s) found:")
@@ -1540,6 +1452,22 @@ def cmd_generate(connectors: list[str], output_dir: Path, probe_path: Optional[P
         ok_syntax = check_example_syntax(EXAMPLES_DIR, connectors=connectors)
         if not ok_syntax:
             sys.exit(1)
+    
+    # Format generated Rust files with nightly rustfmt
+    rs_files = list(EXAMPLES_DIR.rglob("*.rs"))
+    if rs_files:
+        print("  Formatting generated Rust files ...", end=" ", flush=True)
+        try:
+            result = subprocess.run(
+                ["rustfmt", "--edition", "2021"] + [str(f) for f in rs_files],
+                capture_output=True, text=True,
+            )
+            if result.returncode == 0:
+                print("✓")
+            else:
+                print(f"✗ (some files may have formatting issues)")
+        except FileNotFoundError:
+            print("skipped (rustfmt not found)")
 
 
 # ─── All Connectors Coverage Document ─────────────────────────────────────────

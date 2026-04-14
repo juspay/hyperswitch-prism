@@ -222,8 +222,17 @@ def prepare_rust_smoke_test_once(repo_root: Path, connectors: List[str]) -> bool
     Connectors whose harnesses fail build.rs validation are silently excluded.
     """
     global _rust_smoke_test_prepared, _rust_valid_connectors
-    if _rust_smoke_test_prepared:
-        return True
+
+    # Check if we need to rebuild (connector list changed from cached)
+    if _rust_smoke_test_prepared and _rust_valid_connectors:
+        current_set = set(connectors)
+        cached_set = set(_rust_valid_connectors)
+        if current_set != cached_set:
+            print(f"  Connector list changed ({len(cached_set)} → {len(current_set)} connectors), rebuilding...")
+            _rust_smoke_test_prepared = False
+            _rust_valid_connectors = []
+        else:
+            return True
 
     valid = get_valid_rust_connectors(repo_root, connectors)
     if not valid:
@@ -653,15 +662,8 @@ def run_rust_test_batch(
     invalid_connectors = [c for c in connectors if c not in valid]
 
     # Use the pre-built binary directly to avoid any cargo lock during parallel tests.
-    # Try arch-specific path first (cross-compilation), then default target directory.
-    uname = platform.uname()
-    if uname.system == "Darwin":
-        triple = "aarch64-apple-darwin" if uname.machine == "arm64" else "x86_64-apple-darwin"
-    else:
-        triple = "aarch64-unknown-linux-gnu" if uname.machine == "aarch64" else "x86_64-unknown-linux-gnu"
-    binary = repo_root / "target" / triple / "release-fast" / "hyperswitch-smoke-test"
-    if not binary.exists():
-        binary = repo_root / "target" / "release-fast" / "hyperswitch-smoke-test"
+    # Always use the default target directory (without --target flag).
+    binary = repo_root / "target" / "release-fast" / "hyperswitch-smoke-test"
 
     if not binary.exists():
         # Fall back to cargo run if binary not found

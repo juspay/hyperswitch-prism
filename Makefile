@@ -314,26 +314,36 @@ validate-pre-push-fix:
 	@./scripts/validation/pre-push.sh --fix
 
 ## Generate connector docs (default: stripe only; use CONNECTORS=all for all connectors)
-## Skips field-probe if data/field_probe already exists; use CONNECTORS=all to re-probe all connectors.
+## Variables:
+##   CONNECTORS=all       - Generate docs for all connectors (default: stripe only)
+##   FORCE_PROBE=1        - Re-run field-probe even if data exists
+##   SKIP_PROBE=1         - Skip field-probe entirely (use cached data if available)
+## Usage:
+##   make docs                          # Generate stripe docs, use cached probe data
+##   make docs CONNECTORS=all           # Generate all docs, use cached probe data
+##   make docs CONNECTORS=all FORCE_PROBE=1  # Regenerate all probe data
 docs:
-	@echo "▶ Ensuring Python dependencies are installed…"
-	@$(MAKE) -C sdk install-deps
-	@echo "▶ Building FFI library (if needed)…"
-	@$(MAKE) -C sdk build-ffi-lib
-	@echo "▶ Ensuring JavaScript SDK dependencies are generated…"
-	@$(MAKE) -C sdk/javascript generate-proto generate-bindings
 	@echo "▶ Generating connector docs…"
 	@if [ "$(CONNECTORS)" = "all" ]; then \
-		$(MAKE) field-probe; \
+		if [ -n "$(FORCE_PROBE)" ]; then \
+			echo "▶ Re-running field-probe (FORCE_PROBE=1)…"; \
+			$(MAKE) field-probe; \
+		elif [ -n "$(SKIP_PROBE)" ]; then \
+			echo "▶ Using cached probe data ($(shell ls data/field_probe/*.json 2>/dev/null | wc -l) connectors)…"; \
+		elif [ ! -f data/field_probe/stripe.json ] || [ ! -f data/field_probe/adyen.json ]; then \
+			echo "▶ Probe data incomplete, running field-probe…"; \
+			$(MAKE) field-probe; \
+		else \
+			echo "▶ Using cached probe data ($(shell ls data/field_probe/*.json 2>/dev/null | wc -l) connectors)…"; \
+		fi; \
 		python3 scripts/generators/docs/generate.py --all --probe-path data/field_probe; \
 	else \
-		if [ ! -d data/field_probe ] || [ -z "$$(ls -A data/field_probe 2>/dev/null)" ]; then \
+		if [ ! -f data/field_probe/stripe.json ]; then \
+			echo "▶ Probe data missing, running field-probe…"; \
 			$(MAKE) field-probe; \
 		fi; \
 		python3 scripts/generators/docs/generate.py stripe --probe-path data/field_probe; \
 	fi
-	@echo "▶ Formatting Rust code (nightly)…"
-	@cargo $(NIGHTLY) fmt --all
 
 ## Generate the all-connectors coverage document
 all-connectors-doc: field-probe

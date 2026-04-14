@@ -191,10 +191,10 @@ jobs:
       - name: Generate documentation
         if: needs.changes.outputs.docs-trigger == 'true' || needs.changes.outputs.ci == 'true'
         run: |
-          echo "Generating connector documentation..."
-          make docs CONNECTORS=all 2>&1 | tail -20
           echo "Generating all-connectors coverage document..."
-          make all-connectors-doc 2>&1 | tail -10
+          make all-connectors-doc
+          echo "Generating connector documentation..."
+          make docs CONNECTORS=all
 
       - name: Check for changes and commit
         id: commit
