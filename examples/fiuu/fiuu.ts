@@ -26,13 +26,13 @@ function _buildAuthorizeRequest(captureMethod: CaptureMethod): PaymentServiceAut
             "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
             "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         },
-        "paymentMethod": {  // Payment method to be used
-            "card": {  // Generic card payment
-                "cardNumber": "4111111111111111",  // Card Identification
-                "cardExpMonth": "03",
-                "cardExpYear": "2030",
-                "cardCvc": "737",
-                "cardHolderName": "John Doe"  // Cardholder Information
+        "paymentMethod": {  // Payment method to be used.
+            "card": {  // Generic card payment.
+                "cardNumber": {"value": "4111111111111111"},  // Card Identification.
+                "cardExpMonth": {"value": "03"},
+                "cardExpYear": {"value": "2030"},
+                "cardCvc": {"value": "737"},
+                "cardHolderName": {"value": "John Doe"}  // Cardholder Information.
             }
         },
         "captureMethod": captureMethod,  // Method for capturing the payment.
@@ -300,33 +300,9 @@ async function get(merchantTransactionId: string, config: ConnectorConfig = _def
     return { status: getResponse.status };
 }
 
-// Flow: RecurringPaymentService.Charge
-async function recurringCharge(merchantTransactionId, config = _defaultConfig) {
-    // Step 1: Recurring Charge — charge against the stored mandate
-    const recurringResponse = await recurringPaymentClient.charge({
-        "connectorRecurringPaymentId": {  // Reference to existing mandate
-            "mandateIdType": {
-                "connectorMandateId": "probe-mandate-123"
-            }
-        },
-        "amount": {  // Amount Information
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00)
-            "currency": "USD"  // ISO 4217 currency code (e.g., "USD", "EUR")
-        },
-        "paymentMethod": {  // Optional payment Method Information (for network transaction flows)
-            "token": "probe_pm_token"  // Payment tokens
-        },
-        "returnUrl": "https://example.com/recurring-return",
-        "address": {  // Address Information
-            "billingAddress": {
-                "firstName": "John",  // Personal Information
-                "email": "test@example.com"  // Contact Information
-            }
-        },
-        "connectorCustomerId": "cust_probe_123",
-        "paymentMethodType": "PAY_PAL",
-        "offSession": true  // Behavioral Flags and Preferences
-    });
+// Flow: EventService.HandleEvent
+async function handleEvent(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<EventServiceHandleResponse> {
+    const eventClient = new EventClient(config);
 
     const handleResponse = await eventClient.handleEvent(_buildHandleEventRequest());
 

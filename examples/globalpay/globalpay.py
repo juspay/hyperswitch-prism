@@ -32,13 +32,13 @@ def _build_authorize_request(capture_method: str):
                 "minor_amount": 1000,  # Amount in minor units (e.g., 1000 = $10.00).
                 "currency": "USD"  # ISO 4217 currency code (e.g., "USD", "EUR").
             },
-            "payment_method": {  # Payment method to be used
-                "card": {  # Generic card payment
-                    "card_number": "4111111111111111",  # Card Identification
-                    "card_exp_month": "03",
-                    "card_exp_year": "2030",
-                    "card_cvc": "737",
-                    "card_holder_name": "John Doe"  # Cardholder Information
+            "payment_method": {  # Payment method to be used.
+                "card": {  # Generic card payment.
+                    "card_number": {"value": "4111111111111111"},  # Card Identification.
+                    "card_exp_month": {"value": "03"},
+                    "card_exp_year": {"value": "2030"},
+                    "card_cvc": {"value": "737"},
+                    "card_holder_name": {"value": "John Doe"}  # Cardholder Information.
                 }
             },
             "capture_method": capture_method,  # Method for capturing the payment.
@@ -46,12 +46,12 @@ def _build_authorize_request(capture_method: str):
                 "billing_address": {
                 }
             },
-            "auth_type": "NO_THREE_DS",  # Authentication Details
-            "return_url": "https://example.com/return",  # URLs for Redirection and Webhooks
-            "state": {  # State Information
-                "access_token": {  # Access token obtained from connector
-                    "token": "probe_access_token",  # The token string.
-                    "expires_in_seconds": 3600,  # Expiration timestamp (seconds since epoch)
+            "auth_type": "NO_THREE_DS",  # Authentication Details.
+            "return_url": "https://example.com/return",  # URLs for Redirection and Webhooks.
+            "state": {  # State Information.
+                "access_token": {  # Access token obtained from connector.
+                    "token": {"value": "probe_access_token"},  # The token string.
+                    "expires_in_seconds": 3600,  # Expiration timestamp (seconds since epoch).
                     "token_type": "Bearer"  # Token type (e.g., "Bearer", "Basic").
                 }
             }
@@ -68,10 +68,10 @@ def _build_capture_request(connector_transaction_id: str):
                 "minor_amount": 1000,  # Amount in minor units (e.g., 1000 = $10.00).
                 "currency": "USD"  # ISO 4217 currency code (e.g., "USD", "EUR").
             },
-            "state": {  # State Information
-                "access_token": {  # Access token obtained from connector
-                    "token": "probe_access_token",  # The token string.
-                    "expires_in_seconds": 3600,  # Expiration timestamp (seconds since epoch)
+            "state": {  # State Information.
+                "access_token": {  # Access token obtained from connector.
+                    "token": {"value": "probe_access_token"},  # The token string.
+                    "expires_in_seconds": 3600,  # Expiration timestamp (seconds since epoch).
                     "token_type": "Bearer"  # Token type (e.g., "Bearer", "Basic").
                 }
             }
@@ -107,10 +107,10 @@ def _build_get_request(connector_transaction_id: str):
                 "minor_amount": 1000,  # Amount in minor units (e.g., 1000 = $10.00).
                 "currency": "USD"  # ISO 4217 currency code (e.g., "USD", "EUR").
             },
-            "state": {  # State Information
-                "access_token": {  # Access token obtained from connector
-                    "token": "probe_access_token",  # The token string.
-                    "expires_in_seconds": 3600,  # Expiration timestamp (seconds since epoch)
+            "state": {  # State Information.
+                "access_token": {  # Access token obtained from connector.
+                    "token": {"value": "probe_access_token"},  # The token string.
+                    "expires_in_seconds": 3600,  # Expiration timestamp (seconds since epoch).
                     "token_type": "Bearer"  # Token type (e.g., "Bearer", "Basic").
                 }
             }
@@ -221,10 +221,10 @@ def _build_void_request(connector_transaction_id: str):
         {
             "merchant_void_id": "probe_void_001",  # Identification.
             "connector_transaction_id": connector_transaction_id,
-            "state": {  # State Information
-                "access_token": {  # Access token obtained from connector
-                    "token": "probe_access_token",  # The token string.
-                    "expires_in_seconds": 3600,  # Expiration timestamp (seconds since epoch)
+            "state": {  # State Information.
+                "access_token": {  # Access token obtained from connector.
+                    "token": {"value": "probe_access_token"},  # The token string.
+                    "expires_in_seconds": 3600,  # Expiration timestamp (seconds since epoch).
                     "token_type": "Bearer"  # Token type (e.g., "Bearer", "Basic").
                 }
             }
@@ -292,26 +292,7 @@ async def process_refund(merchant_transaction_id: str, config: sdk_config_pb2.Co
         return {"status": "pending", "transaction_id": authorize_response.connector_transaction_id}
 
     # Step 2: Refund — return funds to the customer
-    refund_response = await payment_client.refund(ParseDict(
-        {
-            "merchant_refund_id": "probe_refund_001",  # Identification
-            "connector_transaction_id": authorize_response.connector_transaction_id,  # from Authorize response
-            "payment_amount": 1000,  # Amount Information
-            "refund_amount": {
-                "minor_amount": 1000,  # Amount in minor units (e.g., 1000 = $10.00)
-                "currency": "USD"  # ISO 4217 currency code (e.g., "USD", "EUR")
-            },
-            "reason": "customer_request",  # Reason for the refund
-            "state": {  # State data for access token storage and other connector-specific state
-                "access_token": {  # Access token obtained from connector
-                    "token": "probe_access_token",  # The token string.
-                    "expires_in_seconds": 3600,  # Expiration timestamp (seconds since epoch)
-                    "token_type": "Bearer"  # Token type (e.g., "Bearer", "Basic").
-                }
-            }
-        },
-        payment_pb2.PaymentServiceRefundRequest(),
-    ))
+    refund_response = await payment_client.refund(_build_refund_request(authorize_response.connector_transaction_id))
 
     if refund_response.status == "FAILED":
         raise RuntimeError(f"Refund failed: {refund_response.error}")

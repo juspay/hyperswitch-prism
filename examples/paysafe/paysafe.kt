@@ -94,34 +94,6 @@ fun get(txnId: String) {
     println("Status: ${response.status.name}")
 }
 
-// Flow: PaymentMethodAuthenticationService.PreAuthenticate
-fun preAuthenticate(txnId: String) {
-    val client = PaymentMethodAuthenticationClient(_defaultConfig)
-    val request = PaymentMethodAuthenticationServicePreAuthenticateRequest.newBuilder().apply {
-        amountBuilder.apply {  // Amount Information
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00)
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR")
-        }
-        paymentMethodBuilder.apply {  // Payment Method
-            cardBuilder.apply {  // Generic card payment
-                cardNumber = "4111111111111111"  // Card Identification
-                cardExpMonth = "03"
-                cardExpYear = "2030"
-                cardCvc = "737"
-                cardHolderName = "John Doe"  // Cardholder Information
-            }
-        }
-        addressBuilder.apply {  // Address Information
-            billingAddressBuilder.apply {
-            }
-        }
-        enrolledFor3Ds = false  // Authentication Details
-        returnUrl = "https://example.com/3ds-return"  // URLs for Redirection
-    }.build()
-    val response = client.pre_authenticate(request)
-    println("Status: ${response.status.name}")
-}
-
 // Flow: PaymentService.Refund
 fun refund(txnId: String) {
     val client = PaymentClient(_defaultConfig)

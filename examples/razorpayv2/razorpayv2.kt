@@ -31,13 +31,13 @@ private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAutho
             minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
             currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         }
-        paymentMethodBuilder.apply {  // Payment method to be used
-            cardBuilder.apply {  // Generic card payment
-                cardNumber = "4111111111111111"  // Card Identification
-                cardExpMonth = "03"
-                cardExpYear = "2030"
-                cardCvc = "737"
-                cardHolderName = "John Doe"  // Cardholder Information
+        paymentMethodBuilder.apply {  // Payment method to be used.
+            cardBuilder.apply {  // Generic card payment.
+                cardNumberBuilder.value = "4111111111111111"  // Card Identification.
+                cardExpMonthBuilder.value = "03"
+                cardExpYearBuilder.value = "2030"
+                cardCvcBuilder.value = "737"
+                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
             }
         }
         captureMethod = CaptureMethod.valueOf(captureMethodStr)  // Method for capturing the payment.
@@ -97,90 +97,8 @@ fun processCheckoutAutocapture(txnId: String, config: ConnectorConfig = _default
     return mapOf("status" to authorizeResponse.status.name, "transactionId" to authorizeResponse.connectorTransactionId, "error" to authorizeResponse.error)
 }
 
-// Scenario: Wallet Payment (Google Pay / Apple Pay)
-// Wallet payments pass an encrypted token from the browser/device SDK. Pass the token blob directly — do not decrypt client-side.
-fun processCheckoutWallet(txnId: String, config: ConnectorConfig = _defaultConfig): Map<String, Any?> {
-    val paymentClient = PaymentClient(config)
-
-    // Step 1: Authorize — reserve funds on the payment method
-    val authorizeResponse = paymentClient.authorize(PaymentServiceAuthorizeRequest.newBuilder().apply {
-        merchantTransactionId = "probe_txn_001"  // Identification
-        amountBuilder.apply {  // The amount for the payment
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00)
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR")
-        }
-        paymentMethodBuilder.apply {  // Payment method to be used
-            googlePayBuilder.apply {  // Google Pay
-                type = "CARD"  // Type of payment method
-                description = "Visa 1111"  // User-facing description of the payment method
-                infoBuilder.apply {
-                    cardNetwork = "VISA"  // Card network name
-                    cardDetails = "1111"  // Card details (usually last 4 digits)
-                }
-                tokenizationDataBuilder.apply {
-                    encryptedDataBuilder.apply {  // Encrypted Google Pay payment data
-                        tokenType = "PAYMENT_GATEWAY"  // The type of the token
-                        token = "{\"id\":\"tok_probe_gpay\",\"object\":\"token\",\"type\":\"card\"}"  // Token generated for the wallet
-                    }
-                }
-            }
-        }
-        captureMethod = CaptureMethod.AUTOMATIC  // Method for capturing the payment
-        addressBuilder.apply {  // Address Information
-            billingAddressBuilder.apply {
-            }
-        }
-        authType = AuthenticationType.NO_THREE_DS  // Authentication Details
-        returnUrl = "https://example.com/return"  // URLs for Redirection and Webhooks
-        merchantOrderId = "probe_order_001"
-    }.build())
-
-    when (authorizeResponse.status.name) {
-        "FAILED"  -> throw RuntimeException("Payment failed: ${authorizeResponse.error.unifiedDetails.message}")
-        "PENDING" -> return mapOf("status" to "PENDING")  // await webhook before proceeding
-    }
-
-    return mapOf("status" to authorizeResponse.status.name, "transactionId" to authorizeResponse.connectorTransactionId, "error" to authorizeResponse.error)
-}
-
-// Scenario: Bank Transfer (SEPA / ACH / BACS)
-// Direct bank debit (Sepa). Bank transfers typically use `capture_method=AUTOMATIC`.
-fun processCheckoutBank(txnId: String, config: ConnectorConfig = _defaultConfig): Map<String, Any?> {
-    val paymentClient = PaymentClient(config)
-
-    // Step 1: Authorize — reserve funds on the payment method
-    val authorizeResponse = paymentClient.authorize(PaymentServiceAuthorizeRequest.newBuilder().apply {
-        merchantTransactionId = "probe_txn_001"  // Identification
-        amountBuilder.apply {  // The amount for the payment
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00)
-            currency = Currency.EUR  // ISO 4217 currency code (e.g., "USD", "EUR")
-        }
-        paymentMethodBuilder.apply {  // Payment method to be used
-            sepaBuilder.apply {  // Sepa - Single Euro Payments Area direct debit
-                iban = "DE89370400440532013000"  // International bank account number (iban) for SEPA
-                bankAccountHolderName = "John Doe"  // Owner name for bank debit
-            }
-        }
-        captureMethod = CaptureMethod.AUTOMATIC  // Method for capturing the payment
-        addressBuilder.apply {  // Address Information
-            billingAddressBuilder.apply {
-            }
-        }
-        authType = AuthenticationType.NO_THREE_DS  // Authentication Details
-        returnUrl = "https://example.com/return"  // URLs for Redirection and Webhooks
-        merchantOrderId = "probe_order_001"
-    }.build())
-
-    when (authorizeResponse.status.name) {
-        "FAILED"  -> throw RuntimeException("Payment failed: ${authorizeResponse.error.unifiedDetails.message}")
-        "PENDING" -> return mapOf("status" to "PENDING")  // await webhook before proceeding
-    }
-
-    return mapOf("status" to authorizeResponse.status.name, "transactionId" to authorizeResponse.connectorTransactionId, "error" to authorizeResponse.error)
-}
-
-// Scenario: Refund a Payment
-// Authorize with automatic capture, then refund the captured amount. `connector_transaction_id` from the Authorize response is reused for the Refund call.
+// Scenario: Refund
+// Return funds to the customer for a completed payment.
 fun processRefund(txnId: String, config: ConnectorConfig = _defaultConfig): Map<String, Any?> {
     val paymentClient = PaymentClient(config)
 

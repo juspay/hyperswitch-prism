@@ -35,25 +35,25 @@ private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAutho
             minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
             currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         }
-        paymentMethodBuilder.apply {  // Payment method to be used
-            cardBuilder.apply {  // Generic card payment
-                cardNumber = "4111111111111111"  // Card Identification
-                cardExpMonth = "03"
-                cardExpYear = "2030"
-                cardCvc = "737"
-                cardHolderName = "John Doe"  // Cardholder Information
+        paymentMethodBuilder.apply {  // Payment method to be used.
+            cardBuilder.apply {  // Generic card payment.
+                cardNumberBuilder.value = "4111111111111111"  // Card Identification.
+                cardExpMonthBuilder.value = "03"
+                cardExpYearBuilder.value = "2030"
+                cardCvcBuilder.value = "737"
+                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
             }
         }
-        captureMethod = CaptureMethod.valueOf(captureMethodStr)  // Method for capturing the payment
-        customerBuilder.apply {  // Customer Information
-            email = "test@example.com"  // Customer's email address
+        captureMethod = CaptureMethod.valueOf(captureMethodStr)  // Method for capturing the payment.
+        customerBuilder.apply {  // Customer Information.
+            emailBuilder.value = "test@example.com"  // Customer's email address.
         }
         addressBuilder.apply {  // Address Information.
             billingAddressBuilder.apply {
-                firstName = "John"  // Personal Information
-                line1 = "123 Main St"  // Address Details
-                city = "Seattle"
-                zipCode = "98101"
+                firstNameBuilder.value = "John"  // Personal Information.
+                line1Builder.value = "123 Main St"  // Address Details.
+                cityBuilder.value = "Seattle"
+                zipCodeBuilder.value = "98101"
                 countryAlpha2Code = CountryAlpha2.US
             }
         }
@@ -63,10 +63,10 @@ private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAutho
             userAgent = "Mozilla/5.0 (probe-bot)"
             ipAddress = "1.2.3.4"  // Device Information.
         }
-        stateBuilder.apply {  // State Information
-            accessTokenBuilder.apply {  // Access token obtained from connector
-                token = "probe_access_token"  // The token string.
-                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch)
+        stateBuilder.apply {  // State Information.
+            accessTokenBuilder.apply {  // Access token obtained from connector.
+                tokenBuilder.value = "probe_access_token"  // The token string.
+                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch).
                 tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
             }
         }
@@ -81,10 +81,10 @@ private fun buildGetRequest(connectorTransactionIdStr: String): PaymentServiceGe
             minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
             currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         }
-        stateBuilder.apply {  // State Information
-            accessTokenBuilder.apply {  // Access token obtained from connector
-                token = "probe_access_token"  // The token string.
-                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch)
+        stateBuilder.apply {  // State Information.
+            accessTokenBuilder.apply {  // Access token obtained from connector.
+                tokenBuilder.value = "probe_access_token"  // The token string.
+                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch).
                 tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
             }
         }
@@ -100,11 +100,11 @@ private fun buildRefundRequest(connectorTransactionIdStr: String): PaymentServic
             minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
             currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         }
-        reason = "customer_request"  // Reason for the refund
-        stateBuilder.apply {  // State data for access token storage and other connector-specific state
-            accessTokenBuilder.apply {  // Access token obtained from connector
-                token = "probe_access_token"  // The token string.
-                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch)
+        reason = "customer_request"  // Reason for the refund.
+        stateBuilder.apply {  // State data for access token storage and.
+            accessTokenBuilder.apply {  // Access token obtained from connector.
+                tokenBuilder.value = "probe_access_token"  // The token string.
+                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch).
                 tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
             }
         }
@@ -195,10 +195,10 @@ fun createOrder(txnId: String) {
             minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
             currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         }
-        stateBuilder.apply {  // State Information
-            accessTokenBuilder.apply {  // Access token obtained from connector
-                token = "probe_access_token"  // The token string.
-                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch)
+        stateBuilder.apply {  // State Information.
+            accessTokenBuilder.apply {  // Access token obtained from connector.
+                tokenBuilder.value = "probe_access_token"  // The token string.
+                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch).
                 tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
             }
         }

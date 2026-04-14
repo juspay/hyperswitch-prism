@@ -26,28 +26,28 @@ function _buildAuthorizeRequest(captureMethod: CaptureMethod): PaymentServiceAut
             "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
             "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         },
-        "paymentMethod": {  // Payment method to be used
-            "card": {  // Generic card payment
-                "cardNumber": "4111111111111111",  // Card Identification
-                "cardExpMonth": "03",
-                "cardExpYear": "2030",
-                "cardCvc": "737",
-                "cardHolderName": "John Doe"  // Cardholder Information
+        "paymentMethod": {  // Payment method to be used.
+            "card": {  // Generic card payment.
+                "cardNumber": {"value": "4111111111111111"},  // Card Identification.
+                "cardExpMonth": {"value": "03"},
+                "cardExpYear": {"value": "2030"},
+                "cardCvc": {"value": "737"},
+                "cardHolderName": {"value": "John Doe"}  // Cardholder Information.
             }
         },
-        "captureMethod": captureMethod,  // Method for capturing the payment
-        "customer": {  // Customer Information
-            "email": "test@example.com"  // Customer's email address
+        "captureMethod": captureMethod,  // Method for capturing the payment.
+        "customer": {  // Customer Information.
+            "email": {"value": "test@example.com"}  // Customer's email address.
         },
         "address": {  // Address Information.
             "billingAddress": {
-                "firstName": "John",  // Personal Information
-                "lastName": "Doe",
-                "line1": "123 Main St",  // Address Details
-                "city": "Seattle",
-                "state": "WA",
-                "zipCode": "98101",
-                "countryAlpha2Code": "US"
+                "firstName": {"value": "John"},  // Personal Information.
+                "lastName": {"value": "Doe"},
+                "line1": {"value": "123 Main St"},  // Address Details.
+                "city": {"value": "Seattle"},
+                "state": {"value": "WA"},
+                "zipCode": {"value": "98101"},
+                "countryAlpha2Code": CountryAlpha2.US
             }
         },
         "authType": AuthenticationType.NO_THREE_DS,  // Authentication Details.

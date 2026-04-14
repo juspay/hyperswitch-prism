@@ -32,13 +32,13 @@ def _build_authorize_request(capture_method: str):
                 "minor_amount": 1000,  # Amount in minor units (e.g., 1000 = $10.00).
                 "currency": "USD"  # ISO 4217 currency code (e.g., "USD", "EUR").
             },
-            "payment_method": {  # Payment method to be used
-                "card": {  # Generic card payment
-                    "card_number": "4111111111111111",  # Card Identification
-                    "card_exp_month": "03",
-                    "card_exp_year": "2030",
-                    "card_cvc": "737",
-                    "card_holder_name": "John Doe"  # Cardholder Information
+            "payment_method": {  # Payment method to be used.
+                "card": {  # Generic card payment.
+                    "card_number": {"value": "4111111111111111"},  # Card Identification.
+                    "card_exp_month": {"value": "03"},
+                    "card_exp_year": {"value": "2030"},
+                    "card_cvc": {"value": "737"},
+                    "card_holder_name": {"value": "John Doe"}  # Cardholder Information.
                 }
             },
             "capture_method": capture_method,  # Method for capturing the payment.
@@ -315,31 +315,7 @@ async def recurring_charge(merchant_transaction_id: str, config: sdk_config_pb2.
     """Flow: RecurringPaymentService.Charge"""
     recurringpayment_client = RecurringPaymentClient(config)
 
-    # Step 1: Recurring Charge — charge against the stored mandate
-    recurring_response = await recurringpayment_client.charge(ParseDict(
-        {
-            "connector_recurring_payment_id": {  # Reference to existing mandate
-                "mandate_id_type": {
-                    "connector_mandate_id": "probe-mandate-123"
-                }
-            },
-            "amount": {  # Amount Information
-                "minor_amount": 1000,  # Amount in minor units (e.g., 1000 = $10.00)
-                "currency": "USD"  # ISO 4217 currency code (e.g., "USD", "EUR")
-            },
-            "payment_method": {  # Optional payment Method Information (for network transaction flows)
-                "token": "probe_pm_token"  # Payment tokens
-            },
-            "return_url": "https://example.com/recurring-return",
-            "connector_customer_id": "cust_probe_123",
-            "payment_method_type": "PAY_PAL",
-            "off_session": True  # Behavioral Flags and Preferences
-        },
-        payment_pb2.RecurringPaymentServiceChargeRequest(),
-    ))
-
-    if recurring_response.status == "FAILED":
-        raise RuntimeError(f"Recurring_Charge failed: {recurring_response.error}")
+    recurring_response = await recurringpayment_client.charge(_build_recurring_charge_request())
 
     return {"status": recurring_response.status}
 

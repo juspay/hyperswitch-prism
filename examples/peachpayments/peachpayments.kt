@@ -33,39 +33,22 @@ private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAutho
             minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
             currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         }
-        paymentMethodBuilder.apply {  // Payment method to be used
-            cardBuilder.apply {  // Generic card payment
-                cardNumber = "4111111111111111"  // Card Identification
-                cardExpMonth = "03"
-                cardExpYear = "2030"
-                cardCvc = "737"
-                cardHolderName = "John Doe"  // Cardholder Information
+        paymentMethodBuilder.apply {  // Payment method to be used.
+            cardBuilder.apply {  // Generic card payment.
+                cardNumberBuilder.value = "4111111111111111"  // Card Identification.
+                cardExpMonthBuilder.value = "03"
+                cardExpYearBuilder.value = "2030"
+                cardCvcBuilder.value = "737"
+                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
             }
         }
         captureMethod = CaptureMethod.valueOf(captureMethodStr)  // Method for capturing the payment.
         addressBuilder.apply {  // Address Information.
             billingAddressBuilder.apply {
-                lastName = "Doe"
-                countryAlpha2Code = CountryAlpha2.US
-                email = "test@example.com"  // Contact Information
             }
         }
-        authType = AuthenticationType.NO_THREE_DS  // Authentication Details
-        returnUrl = "https://example.com/return"  // URLs for Redirection and Webhooks
-        sessionToken = "probe_session_token"  // Session and Token Information
-        browserInfoBuilder.apply {
-            colorDepth = 24L  // Display Information
-            screenHeight = 900L
-            screenWidth = 1440L
-            javaEnabled = false  // Browser Settings
-            javaScriptEnabled = true
-            language = "en-US"
-            timeZoneOffsetMinutes = -480L
-            acceptHeader = "application/json"  // Browser Headers
-            userAgent = "Mozilla/5.0 (probe-bot)"
-            acceptLanguage = "en-US,en;q=0.9"
-            ipAddress = "1.2.3.4"  // Device Information
-        }
+        authType = AuthenticationType.NO_THREE_DS  // Authentication Details.
+        returnUrl = "https://example.com/return"  // URLs for Redirection and Webhooks.
     }.build()
 }
 

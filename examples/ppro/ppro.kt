@@ -23,7 +23,6 @@ import payments.AuthenticationType
 import payments.CaptureMethod
 import payments.Currency
 import payments.PaymentMethodType
-import payments.TokenPaymentMethodType
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
@@ -54,16 +53,9 @@ private fun buildCaptureRequest(connectorTransactionIdStr: String): PaymentServi
     return PaymentServiceCaptureRequest.newBuilder().apply {
         merchantCaptureId = "probe_capture_001"  // Identification.
         connectorTransactionId = connectorTransactionIdStr
-        amountToCaptureBuilder.apply {  // Capture Details
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00)
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR")
-        }
-        stateBuilder.apply {  // State Information
-            accessTokenBuilder.apply {  // Access token obtained from connector
-                token = "probe_access_token"  // The token string.
-                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch)
-                tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
-            }
+        amountToCaptureBuilder.apply {  // Capture Details.
+            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
+            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         }
     }.build()
 }
@@ -72,16 +64,9 @@ private fun buildGetRequest(connectorTransactionIdStr: String): PaymentServiceGe
     return PaymentServiceGetRequest.newBuilder().apply {
         merchantTransactionId = "probe_merchant_txn_001"  // Identification.
         connectorTransactionId = connectorTransactionIdStr
-        amountBuilder.apply {  // Amount Information
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00)
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR")
-        }
-        stateBuilder.apply {  // State Information
-            accessTokenBuilder.apply {  // Access token obtained from connector
-                token = "probe_access_token"  // The token string.
-                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch)
-                tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
-            }
+        amountBuilder.apply {  // Amount Information.
+            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
+            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         }
     }.build()
 }
@@ -92,16 +77,8 @@ private fun buildRefundRequest(connectorTransactionIdStr: String): PaymentServic
         connectorTransactionId = connectorTransactionIdStr
         paymentAmount = 1000L  // Amount Information.
         refundAmountBuilder.apply {
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00)
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR")
-        }
-        reason = "customer_request"  // Reason for the refund
-        stateBuilder.apply {  // State data for access token storage and other connector-specific state
-            accessTokenBuilder.apply {  // Access token obtained from connector
-                token = "probe_access_token"  // The token string.
-                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch)
-                tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
-            }
+            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
+            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         }
         reason = "customer_request"  // Reason for the refund.
     }.build()
@@ -111,12 +88,9 @@ private fun buildVoidRequest(connectorTransactionIdStr: String): PaymentServiceV
     return PaymentServiceVoidRequest.newBuilder().apply {
         merchantVoidId = "probe_void_001"  // Identification.
         connectorTransactionId = connectorTransactionIdStr
-        stateBuilder.apply {  // State Information
-            accessTokenBuilder.apply {  // Access token obtained from connector
-                token = "probe_access_token"  // The token string.
-                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch)
-                tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
-            }
+        amountBuilder.apply {  // Amount Information.
+            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
+            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         }
     }.build()
 }
@@ -182,20 +156,15 @@ fun recurringCharge(txnId: String) {
             minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
             currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         }
-        paymentMethodBuilder.apply {  // Optional payment Method Information (for network transaction flows)
-            token = TokenPaymentMethodType.probe_pm_token  // Payment tokens
+        paymentMethodBuilder.apply {  // Optional payment Method Information (for network transaction flows).
+            tokenBuilder.apply {  // Payment tokens.
+                tokenBuilder.value = "probe_pm_token"  // The token string representing a payment method.
+            }
         }
         returnUrl = "https://example.com/recurring-return"
         connectorCustomerId = "cust_probe_123"
         paymentMethodType = PaymentMethodType.PAY_PAL
-        offSession = true  // Behavioral Flags and Preferences
-        stateBuilder.apply {  // State Information
-            accessTokenBuilder.apply {  // Access token obtained from connector
-                token = "probe_access_token"  // The token string.
-                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch)
-                tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
-            }
-        }
+        offSession = true  // Behavioral Flags and Preferences.
     }.build()
     val response = client.charge(request)
     if (response.status.name == "FAILED")

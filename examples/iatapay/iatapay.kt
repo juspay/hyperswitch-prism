@@ -42,10 +42,10 @@ private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAutho
         authType = AuthenticationType.NO_THREE_DS  // Authentication Details.
         returnUrl = "https://example.com/return"  // URLs for Redirection and Webhooks.
         webhookUrl = "https://example.com/webhook"
-        stateBuilder.apply {  // State Information
-            accessTokenBuilder.apply {  // Access token obtained from connector
-                token = "probe_access_token"  // The token string.
-                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch)
+        stateBuilder.apply {  // State Information.
+            accessTokenBuilder.apply {  // Access token obtained from connector.
+                tokenBuilder.value = "probe_access_token"  // The token string.
+                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch).
                 tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
             }
         }
@@ -60,10 +60,10 @@ private fun buildGetRequest(connectorTransactionIdStr: String): PaymentServiceGe
             minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
             currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         }
-        stateBuilder.apply {  // State Information
-            accessTokenBuilder.apply {  // Access token obtained from connector
-                token = "probe_access_token"  // The token string.
-                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch)
+        stateBuilder.apply {  // State Information.
+            accessTokenBuilder.apply {  // Access token obtained from connector.
+                tokenBuilder.value = "probe_access_token"  // The token string.
+                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch).
                 tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
             }
         }
@@ -80,12 +80,12 @@ private fun buildRefundRequest(connectorTransactionIdStr: String): PaymentServic
             minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
             currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         }
-        reason = "customer_request"  // Reason for the refund
-        webhookUrl = "https://example.com/webhook"  // URL for webhook notifications
-        stateBuilder.apply {  // State data for access token storage and other connector-specific state
-            accessTokenBuilder.apply {  // Access token obtained from connector
-                token = "probe_access_token"  // The token string.
-                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch)
+        reason = "customer_request"  // Reason for the refund.
+        webhookUrl = "https://example.com/webhook"  // URL for webhook notifications.
+        stateBuilder.apply {  // State data for access token storage and.
+            accessTokenBuilder.apply {  // Access token obtained from connector.
+                tokenBuilder.value = "probe_access_token"  // The token string.
+                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch).
                 tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
             }
         }

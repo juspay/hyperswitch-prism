@@ -31,13 +31,13 @@ def _build_authorize_request(capture_method: str):
                 "minor_amount": 1000,  # Amount in minor units (e.g., 1000 = $10.00).
                 "currency": "USD"  # ISO 4217 currency code (e.g., "USD", "EUR").
             },
-            "payment_method": {  # Payment method to be used
-                "card": {  # Generic card payment
-                    "card_number": "4111111111111111",  # Card Identification
-                    "card_exp_month": "03",
-                    "card_exp_year": "2030",
-                    "card_cvc": "737",
-                    "card_holder_name": "John Doe"  # Cardholder Information
+            "payment_method": {  # Payment method to be used.
+                "card": {  # Generic card payment.
+                    "card_number": {"value": "4111111111111111"},  # Card Identification.
+                    "card_exp_month": {"value": "03"},
+                    "card_exp_year": {"value": "2030"},
+                    "card_cvc": {"value": "737"},
+                    "card_holder_name": {"value": "John Doe"}  # Cardholder Information.
                 }
             },
             "capture_method": capture_method,  # Method for capturing the payment.
@@ -247,40 +247,6 @@ async def process_get_payment(merchant_transaction_id: str, config: sdk_config_p
     get_response = await payment_client.get(_build_get_request(authorize_response.connector_transaction_id))
 
     return {"status": getattr(get_response, "status", ""), "transaction_id": getattr(get_response, "connector_transaction_id", ""), "error": getattr(get_response, "error", None)}
-
-
-async def process_tokenize(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
-    """Tokenize Payment Method
-
-    Store card details in the connector's vault and receive a reusable payment token. Use the returned token for one-click payments and recurring billing without re-collecting card data.
-    """
-    paymentmethod_client = PaymentMethodClient(config)
-
-    # Step 1: Tokenize — store card details and return a reusable token
-    tokenize_response = await paymentmethod_client.tokenize(ParseDict(
-        {
-            "amount": {  # Payment Information
-                "minor_amount": 1000,  # Amount in minor units (e.g., 1000 = $10.00)
-                "currency": "USD"  # ISO 4217 currency code (e.g., "USD", "EUR")
-            },
-            "payment_method": {
-                "card": {  # Generic card payment
-                    "card_number": "4111111111111111",  # Card Identification
-                    "card_exp_month": "03",
-                    "card_exp_year": "2030",
-                    "card_cvc": "737",
-                    "card_holder_name": "John Doe"  # Cardholder Information
-                }
-            },
-            "address": {  # Address Information
-                "billing_address": {
-                }
-            }
-        },
-        payment_pb2.PaymentMethodServiceTokenizeRequest(),
-    ))
-
-    return {"token": getattr(tokenize_response, "payment_method_token", ""), "error": getattr(tokenize_response, "error", None)}
 
 
 async def authorize(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):

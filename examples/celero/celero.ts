@@ -26,13 +26,13 @@ function _buildAuthorizeRequest(captureMethod: CaptureMethod): PaymentServiceAut
             "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
             "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         },
-        "paymentMethod": {  // Payment method to be used
-            "card": {  // Generic card payment
-                "cardNumber": "4111111111111111",  // Card Identification
-                "cardExpMonth": "03",
-                "cardExpYear": "2030",
-                "cardCvc": "737",
-                "cardHolderName": "John Doe"  // Cardholder Information
+        "paymentMethod": {  // Payment method to be used.
+            "card": {  // Generic card payment.
+                "cardNumber": {"value": "4111111111111111"},  // Card Identification.
+                "cardExpMonth": {"value": "03"},
+                "cardExpYear": {"value": "2030"},
+                "cardCvc": {"value": "737"},
+                "cardHolderName": {"value": "John Doe"}  // Cardholder Information.
             }
         },
         "captureMethod": captureMethod,  // Method for capturing the payment.
@@ -172,65 +172,7 @@ async function processRefund(merchantTransactionId: string, config: ConnectorCon
     const paymentClient = new PaymentClient(config);
 
     // Step 1: Authorize — reserve funds on the payment method
-    const authorizeResponse = await paymentClient.authorize(_buildAuthorizeRequest('AUTOMATIC'));
-
-    if (authorizeResponse.status === 'FAILED') {
-        throw new Error(`Payment failed: ${authorizeResponse.error?.message}`);
-    }
-    if (authorizeResponse.status === 'PENDING') {
-        // Awaiting async confirmation — handle via webhook
-        return { status: 'pending', transactionId: authorizeResponse.connectorTransactionId };
-    }
-
-    return { status: authorizeResponse.status, transactionId: authorizeResponse.connectorTransactionId, error: authorizeResponse.error };
-}
-
-// Bank Transfer (SEPA / ACH / BACS)
-// Direct bank debit (Ach). Bank transfers typically use `capture_method=AUTOMATIC`.
-async function processCheckoutBank(merchantTransactionId, config = _defaultConfig) {
-    const paymentClient = new PaymentClient(config);
-
-    // Step 1: Authorize — reserve funds on the payment method
-    const authorizeResponse = await paymentClient.authorize({
-        "merchantTransactionId": "probe_txn_001",  // Identification
-        "amount": {  // The amount for the payment
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00)
-            "currency": "USD"  // ISO 4217 currency code (e.g., "USD", "EUR")
-        },
-        "paymentMethod": {  // Payment method to be used
-            "ach": {  // Ach - Automated Clearing House
-                "accountNumber": "000123456789",  // Account number for ach bank debit payment
-                "routingNumber": "110000000",  // Routing number for ach bank debit payment
-                "bankAccountHolderName": "John Doe"  // Bank account holder name
-            }
-        },
-        "captureMethod": "AUTOMATIC",  // Method for capturing the payment
-        "address": {  // Address Information
-            "billingAddress": {
-            }
-        },
-        "authType": "NO_THREE_DS",  // Authentication Details
-        "returnUrl": "https://example.com/return"  // URLs for Redirection and Webhooks
-    });
-
-    if (authorizeResponse.status === 'FAILED') {
-        throw new Error(`Payment failed: ${authorizeResponse.error?.message}`);
-    }
-    if (authorizeResponse.status === 'PENDING') {
-        // Awaiting async confirmation — handle via webhook
-        return { status: 'pending', transactionId: authorizeResponse.connectorTransactionId };
-    }
-
-    return { status: authorizeResponse.status, transactionId: authorizeResponse.connectorTransactionId, error: authorizeResponse.error };
-}
-
-// Refund a Payment
-// Authorize with automatic capture, then refund the captured amount. `connector_transaction_id` from the Authorize response is reused for the Refund call.
-async function processRefund(merchantTransactionId, config = _defaultConfig) {
-    const paymentClient = new PaymentClient(config);
-
-    // Step 1: Authorize — reserve funds on the payment method
-    const authorizeResponse = await paymentClient.authorize(_buildAuthorizeRequest('AUTOMATIC'));
+    const authorizeResponse = await paymentClient.authorize(_buildAuthorizeRequest(CaptureMethod.AUTOMATIC));
 
     if (authorizeResponse.status === 'FAILED') {
         throw new Error(`Payment failed: ${authorizeResponse.error?.message}`);

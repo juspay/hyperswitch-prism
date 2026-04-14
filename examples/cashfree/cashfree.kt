@@ -24,9 +24,9 @@ private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAutho
             minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
             currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         }
-        paymentMethodBuilder.apply {  // Payment method to be used
-            upiCollectBuilder.apply {  // UPI Collect
-                vpaId = "test@upi"  // Virtual Payment Address
+        paymentMethodBuilder.apply {  // Payment method to be used.
+            upiCollectBuilder.apply {  // UPI Collect.
+                vpaIdBuilder.value = "test@upi"  // Virtual Payment Address.
             }
         }
         captureMethod = CaptureMethod.valueOf(captureMethodStr)  // Method for capturing the payment.
