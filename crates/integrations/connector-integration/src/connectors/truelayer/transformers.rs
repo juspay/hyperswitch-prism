@@ -332,7 +332,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         match &item.router_data.request.payment_method_data {
-            PaymentMethodData::BankRedirect(BankRedirectData::OpenBankingUk { .. }) => {
+            PaymentMethodData::BankRedirect(BankRedirectData::OpenBanking { .. }) => {
                 let currency = item.router_data.request.currency;
                 let amount_in_minor = item.router_data.request.amount;
 
