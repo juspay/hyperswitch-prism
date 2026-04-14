@@ -46,7 +46,8 @@ use transformers::{
     MollieCardTokenResponse, MollieClientAuthRequest, MollieClientAuthResponse,
     MollieCustomerRequest, MollieCustomerResponse, MolliePSyncResponse, MolliePaymentsRequest,
     MolliePaymentsResponse, MollieRSyncResponse, MollieRefundRequest, MollieRefundResponse,
-    MollieSetupMandateRequest, MollieSetupMandateResponse, MollieVoidResponse,
+    MollieRepeatPaymentRequest, MollieRepeatPaymentResponse, MollieSetupMandateRequest,
+    MollieSetupMandateResponse, MollieVoidResponse,
 };
 
 use crate::types::ResponseRouterData;
@@ -121,6 +122,12 @@ macros::create_all_prerequisites!(
             request_body: MollieSetupMandateRequest,
             response_body: MollieSetupMandateResponse,
             router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: RepeatPayment,
+            request_body: MollieRepeatPaymentRequest,
+            response_body: MollieRepeatPaymentResponse,
+            router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -574,16 +581,37 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-// Repeat Payment
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        RepeatPayment,
-        PaymentFlowData,
-        RepeatPaymentData<T>,
-        PaymentsResponseData,
-    > for Mollie<T>
-{
-}
+// Repeat Payment (Merchant-Initiated recurring charge)
+// POST /payments with sequenceType=recurring + customerId + optional mandateId.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_headers, get_content_type, get_error_response_v2],
+    connector: Mollie,
+    curl_request: Json(MollieRepeatPaymentRequest),
+    curl_response: MollieRepeatPaymentResponse,
+    flow_name: RepeatPayment,
+    resource_common_data: PaymentFlowData,
+    flow_request: RepeatPaymentData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize ],
+    other_functions: {
+        fn get_url(
+            &self,
+            req: &RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!(
+                "{}/payments",
+                self.base_url(&req.resource_common_data.connectors)
+            ))
+        }
+    }
+);
 
 // Order Create
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
