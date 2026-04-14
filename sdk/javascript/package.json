@@ -1,6 +1,6 @@
 {
   "name": "hyperswitch-prism",
-  "version": "0.0.4",
+  "version": "0.0.7",
   "description": "Hyperswitch Payments SDK — Node.js client for connector integrations via UniFFI FFI",
   "main": "dist/src/index.js",
   "repository": {
@@ -13,6 +13,20 @@
   },
   "homepage": "https://github.com/juspay/hyperswitch-prism#readme",
   "types": "dist/src/index.d.ts",
+  "license": "MIT",
+  "keywords": [
+    "hyperswitch",
+    "prism",
+    "payments",
+    "payment-processing",
+    "credit-cards",
+    "juspay",
+    "payment-gateway",
+    "stripe",
+    "adyen",
+    "paypal",
+    "unified-payments"
+  ],
   "files": [
     "dist/src/**/*.js",
     "dist/src/**/*.d.ts",
