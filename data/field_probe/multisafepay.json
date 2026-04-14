@@ -877,7 +877,42 @@
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_proxy_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe"
+          },
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          },
+          "auth_type": "NO_THREE_DS",
+          "setup_future_usage": "OFF_SESSION"
+        },
+        "sample": {
+          "url": "https://testapi.multisafepay.com/v1/json/orders?api_key=probe_key",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"type\":\"direct\",\"order_id\":\"probe_proxy_mandate_001\",\"gateway\":\"VISA\",\"currency\":\"USD\",\"amount\":0,\"description\":\"Setup recurring payment\",\"payment_options\":{\"redirect_url\":\"https://example.com/return\",\"cancel_url\":\"https://example.com/cancel\"},\"customer\":{\"reference\":\"probe_proxy_mandate_001\",\"email\":\"test@example.com\"},\"gateway_info\":{\"card_number\":\"4111111111111111\",\"card_expiry_date\":3003,\"card_cvc\":\"123\",\"card_holder_name\":null,\"flexible_3d\":null,\"moto\":null,\"term_url\":null},\"recurring_model\":\"cardOnFile\",\"recurring_id\":\"probe_proxy_mandate_001\"}"
+        }
       }
     },
     "recurring_charge": {
@@ -940,7 +975,47 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/mandate-return",
+          "setup_future_usage": "OFF_SESSION",
+          "request_incremental_authorization": false,
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          }
+        },
+        "sample": {
+          "url": "https://testapi.multisafepay.com/v1/json/orders?api_key=probe_key",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"type\":\"direct\",\"order_id\":\"probe_mandate_001\",\"gateway\":\"VISA\",\"currency\":\"USD\",\"amount\":0,\"description\":\"Setup recurring payment\",\"payment_options\":{\"redirect_url\":\"https://example.com/mandate-return\",\"cancel_url\":\"https://example.com/mandate-return\"},\"customer\":{\"reference\":\"probe_mandate_001\",\"email\":\"test@example.com\"},\"gateway_info\":{\"card_number\":\"4111111111111111\",\"card_expiry_date\":3003,\"card_cvc\":\"737\",\"card_holder_name\":null,\"flexible_3d\":null,\"moto\":null,\"term_url\":null},\"recurring_model\":\"cardOnFile\",\"recurring_id\":\"probe_mandate_001\"}"
+        }
       }
     },
     "token_authorize": {
@@ -951,7 +1026,8 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
       }
     },
     "tokenize": {
