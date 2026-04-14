@@ -863,9 +863,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             complete_payment_url: Some(
                 "https://sandboxcheckout.rapyd.net/thank_you.html".to_string(),
             ),
-            error_payment_url: Some(
-                "https://sandboxcheckout.rapyd.net/error.html".to_string(),
-            ),
+            error_payment_url: Some("https://sandboxcheckout.rapyd.net/error.html".to_string()),
         })
     }
 }
@@ -899,9 +897,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         (
                             common_enums::AttemptStatus::Charged,
                             Ok(PaymentsResponseData::TransactionResponse {
-                                resource_id: ResponseId::ConnectorTransactionId(
-                                    mandate_id.clone(),
-                                ),
+                                resource_id: ResponseId::ConnectorTransactionId(mandate_id.clone()),
                                 redirection_data: None,
                                 mandate_reference,
                                 connector_metadata: None,
@@ -919,15 +915,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         Err(ErrorResponse {
                             code: item.response.status.error_code.clone(),
                             status_code: item.http_code,
-                            message: item
-                                .response
-                                .status
-                                .status
-                                .clone()
-                                .unwrap_or_default(),
+                            message: item.response.status.status.clone().unwrap_or_default(),
                             reason: Some(
-                                "rapyd customer response missing default_payment_method"
-                                    .to_owned(),
+                                "rapyd customer response missing default_payment_method".to_owned(),
                             ),
                             attempt_status: None,
                             connector_transaction_id: Some(data.id.clone()),

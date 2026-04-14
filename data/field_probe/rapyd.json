@@ -1139,7 +1139,7 @@
           "setup_future_usage": "OFF_SESSION"
         },
         "sample": {
-          "url": "https://sandboxapi.rapyd.net/v1/payments",
+          "url": "https://sandboxapi.rapyd.net/v1/customers",
           "method": "Post",
           "headers": {
             "access_key": "probe_key",
@@ -1149,48 +1149,14 @@
             "timestamp": "0000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":\"0.00\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"in_amex_card\",\"fields\":{\"number\":\"4111111111111111\",\"expiration_month\":\"03\",\"expiration_year\":\"2030\",\"name\":\"\",\"cvv\":\"123\"},\"address\":null,\"digital_wallet\":null},\"payment_method_options\":{\"3d_required\":false},\"merchant_reference_id\":\"probe_proxy_mandate_001\",\"capture\":true,\"description\":null,\"complete_payment_url\":\"https://hyperswitch.io/return\",\"error_payment_url\":\"https://hyperswitch.io/return\"}"
+          "body": "{\"payment_method\":{\"type\":\"in_amex_card\",\"fields\":{\"number\":\"4111111111111111\",\"expiration_month\":\"03\",\"expiration_year\":\"2030\",\"name\":\"\",\"cvv\":\"123\"},\"address\":null,\"digital_wallet\":null},\"merchant_reference_id\":\"probe_proxy_mandate_001\",\"complete_payment_url\":\"https://sandboxcheckout.rapyd.net/thank_you.html\",\"error_payment_url\":\"https://sandboxcheckout.rapyd.net/error.html\"}"
         }
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "connector_recurring_payment_id": {
-            "mandate_id_type": {
-              "connector_mandate_id": {
-                "connector_mandate_id": "probe-mandate-123"
-              }
-            }
-          },
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "token": {
-              "token": "probe_pm_token"
-            }
-          },
-          "return_url": "https://example.com/recurring-return",
-          "connector_customer_id": "cust_probe_123",
-          "payment_method_type": "PAY_PAL",
-          "off_session": true
-        },
-        "sample": {
-          "url": "https://sandboxapi.rapyd.net/v1/payments",
-          "method": "Post",
-          "headers": {
-            "access_key": "probe_key",
-            "content-type": "application/json",
-            "salt": "probeSaltVal0001",
-            "signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "timestamp": "0000000000",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":\"probe-mandate-123\",\"payment_method_options\":{\"3d_required\":false},\"merchant_reference_id\":\"\",\"capture\":true,\"description\":null,\"complete_payment_url\":\"https://hyperswitch.io/return\",\"error_payment_url\":\"https://hyperswitch.io/return\"}"
-        }
+        "status": "error",
+        "error": "Stuck on field: mandate_reference.connector_mandate_id — Missing required field: mandate_reference.connector_mandate_id (expected cus_*|card_*)"
       }
     },
     "recurring_revoke": {
@@ -1286,7 +1252,7 @@
           }
         },
         "sample": {
-          "url": "https://sandboxapi.rapyd.net/v1/payments",
+          "url": "https://sandboxapi.rapyd.net/v1/customers",
           "method": "Post",
           "headers": {
             "access_key": "probe_key",
@@ -1296,7 +1262,7 @@
             "timestamp": "0000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":\"0.00\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"in_amex_card\",\"fields\":{\"number\":\"4111111111111111\",\"expiration_month\":\"03\",\"expiration_year\":\"2030\",\"name\":\"\",\"cvv\":\"737\"},\"address\":null,\"digital_wallet\":null},\"payment_method_options\":{\"3d_required\":false},\"merchant_reference_id\":\"probe_mandate_001\",\"capture\":true,\"description\":null,\"complete_payment_url\":\"https://example.com/mandate-return\",\"error_payment_url\":\"https://example.com/mandate-return\"}"
+          "body": "{\"payment_method\":{\"type\":\"in_amex_card\",\"fields\":{\"number\":\"4111111111111111\",\"expiration_month\":\"03\",\"expiration_year\":\"2030\",\"name\":\"\",\"cvv\":\"737\"},\"address\":null,\"digital_wallet\":null},\"merchant_reference_id\":\"probe_mandate_001\",\"complete_payment_url\":\"https://sandboxcheckout.rapyd.net/thank_you.html\",\"error_payment_url\":\"https://sandboxcheckout.rapyd.net/error.html\"}"
         }
       }
     },
