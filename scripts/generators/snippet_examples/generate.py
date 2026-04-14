@@ -3704,7 +3704,6 @@ async fn main() {{
 }}
 """
 
-
 # ── Public API: llms.txt entry ────────────────────────────────────────────────
 
 def render_llms_txt_entry(
