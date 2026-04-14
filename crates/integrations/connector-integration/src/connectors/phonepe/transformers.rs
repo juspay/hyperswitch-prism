@@ -12,7 +12,6 @@ use domain_types::{
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
         RefundsResponseData, ResponseId,
     },
-    errors,
     payment_method_data::{
         PaymentMethodData, PaymentMethodDataTypes, UpiData, UpiSource, WalletData,
     },
@@ -36,6 +35,8 @@ use super::constants;
 use crate::{connectors::phonepe::PhonepeRouterData, types::ResponseRouterData};
 use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
+use domain_types::errors::IntegrationErrorContext;
+use domain_types::errors::WebhookError;
 
 type Error = error_stack::Report<IntegrationError>;
 type ResponseError = error_stack::Report<ConnectorError>;
@@ -266,7 +267,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 router_data.request.currency,
             )
             .change_context(IntegrationError::RequestEncodingFailed {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to encode PhonePe request payload to base64".to_string(),
+                    ),
+                    ..Default::default()
+                },
             })?;
 
         // Get customer mobile number from billing address
@@ -280,8 +286,19 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             &router_data.request.payment_method_data
         {
             let wallet_mobile_number =
-                mobile_number.ok_or(errors::ConnectorError::MissingRequiredField {
+                mobile_number.ok_or(IntegrationError::MissingRequiredField {
                     field_name: "billing.phone.number",
+                    context: IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Provide billing phone number in the address".to_string(),
+                        ),
+                        doc_url: Some(
+                            "https://developer.phonepe.com/v1/reference/pay-api".to_string(),
+                        ),
+                        additional_context: Some(
+                            "PhonePe wallet debit requires a mobile number".to_string(),
+                        ),
+                    },
                 })?;
 
             let callback_url = router_data.request.get_webhook_url().ok();
@@ -297,8 +314,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 callback_url,
             };
 
-            let json_payload = Encode::encode_to_string_of_json(&wallet_payload)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            let json_payload = Encode::encode_to_string_of_json(&wallet_payload).change_context(
+                IntegrationError::RequestEncodingFailed {
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Failed to encode PhonePe request payload to base64".to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                },
+            )?;
             let base64_payload = base64::engine::general_purpose::STANDARD.encode(&json_payload);
             let api_path = format!("/{}", constants::API_WALLET_DEBIT_ENDPOINT);
             let checksum = generate_phonepe_checksum(
@@ -344,7 +369,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 return Err(IntegrationError::NotSupported {
                     message: "Payment method not supported".to_string(),
                     connector: "Phonepe",
-                    context: Default::default(),
+                    context: IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Use a supported payment method: UPI Intent, UPI Collect, UPI QR, or PhonePe Wallet"
+                                .to_string(),
+                        ),
+                        doc_url: Some(
+                            "https://developer.phonepe.com/v1/reference/pay-api".to_string(),
+                        ),
+                        additional_context: None,
+                    },
                 }
                 .into())
             }
@@ -404,7 +438,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Convert to JSON and encode
         let json_payload = Encode::encode_to_string_of_json(&payload).change_context(
             IntegrationError::RequestEncodingFailed {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to encode PhonePe request payload to base64".to_string(),
+                    ),
+                    ..Default::default()
+                },
             },
         )?;
 
@@ -467,7 +506,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 router_data.request.currency,
             )
             .change_context(IntegrationError::RequestEncodingFailed {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to encode PhonePe request payload to base64".to_string(),
+                    ),
+                    ..Default::default()
+                },
             })?;
 
         // Get customer mobile number from billing address
@@ -481,8 +525,19 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             &router_data.request.payment_method_data
         {
             let wallet_mobile_number =
-                mobile_number.ok_or(errors::ConnectorError::MissingRequiredField {
+                mobile_number.ok_or(IntegrationError::MissingRequiredField {
                     field_name: "billing.phone.number",
+                    context: IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Provide billing phone number in the address".to_string(),
+                        ),
+                        doc_url: Some(
+                            "https://developer.phonepe.com/v1/reference/pay-api".to_string(),
+                        ),
+                        additional_context: Some(
+                            "PhonePe wallet debit requires a mobile number".to_string(),
+                        ),
+                    },
                 })?;
 
             let callback_url = router_data.request.get_webhook_url().ok();
@@ -498,8 +553,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 callback_url,
             };
 
-            let json_payload = Encode::encode_to_string_of_json(&wallet_payload)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            let json_payload = Encode::encode_to_string_of_json(&wallet_payload).change_context(
+                IntegrationError::RequestEncodingFailed {
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Failed to encode PhonePe request payload to base64".to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                },
+            )?;
             let base64_payload = base64::engine::general_purpose::STANDARD.encode(&json_payload);
             let api_path = format!("/{}", constants::API_WALLET_DEBIT_ENDPOINT);
             let checksum = generate_phonepe_checksum(
@@ -545,7 +608,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 return Err(IntegrationError::NotSupported {
                     message: "Payment method not supported".to_string(),
                     connector: "Phonepe",
-                    context: Default::default(),
+                    context: IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Use a supported payment method: UPI Intent, UPI Collect, UPI QR, or PhonePe Wallet"
+                                .to_string(),
+                        ),
+                        doc_url: Some(
+                            "https://developer.phonepe.com/v1/reference/pay-api".to_string(),
+                        ),
+                        additional_context: None,
+                    },
                 }
                 .into())
             }
@@ -605,7 +677,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Convert to JSON and encode
         let json_payload = Encode::encode_to_string_of_json(&payload).change_context(
             IntegrationError::RequestEncodingFailed {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to encode PhonePe request payload to base64".to_string(),
+                    ),
+                    ..Default::default()
+                },
             },
         )?;
 
@@ -806,7 +883,19 @@ impl TryFrom<&ConnectorSpecificConfig> for PhonepeAuthType {
                 key_index: salt_index.peek().clone(),
             }),
             _ => Err(IntegrationError::FailedToObtainAuthType {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Pass PhonePe credentials via x-connector-config with merchant_id, salt_key, and salt_index"
+                            .to_string(),
+                    ),
+                    doc_url: Some(
+                        "https://developer.phonepe.com/v1/reference/credentials".to_string(),
+                    ),
+                    additional_context: Some(
+                        "Expected ConnectorSpecificConfig::Phonepe with merchant_id, salt_key, and salt_index"
+                            .to_string(),
+                    ),
+                },
             }
             .into()),
         }
@@ -834,7 +923,12 @@ fn generate_phonepe_checksum(
     let hash_bytes = sha256
         .generate_digest(checksum_input.as_bytes())
         .change_context(IntegrationError::RequestEncodingFailed {
-            context: Default::default(),
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "Failed to encode PhonePe request payload to base64".to_string(),
+                ),
+                ..Default::default()
+            },
         })?;
     let hash = hash_bytes.iter().fold(String::new(), |mut acc, byte| {
         use std::fmt::Write;
@@ -1071,7 +1165,12 @@ fn generate_phonepe_sync_checksum(
     let hash_bytes = sha256
         .generate_digest(checksum_input.as_bytes())
         .change_context(IntegrationError::RequestEncodingFailed {
-            context: Default::default(),
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "Failed to encode PhonePe request payload to base64".to_string(),
+                ),
+                ..Default::default()
+            },
         })?;
     let hash = hash_bytes.iter().fold(String::new(), |mut acc, byte| {
         use std::fmt::Write;
@@ -1330,7 +1429,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let original_transaction_id = router_data
             .request
             .get_connector_transaction_id()
-            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+            .change_context(IntegrationError::MissingConnectorTransactionID {
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "connector_transaction_id is required for PhonePe capture/void operations"
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
+            })?;
 
         let merchant_transaction_id = router_data
             .resource_common_data
@@ -1344,7 +1451,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 router_data.request.minor_amount_to_capture,
                 router_data.request.currency,
             )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to encode PhonePe request payload to base64".to_string(),
+                    ),
+                    ..Default::default()
+                },
+            })?;
 
         let payload = PhonepeCaptureRequestPayload {
             merchant_id: auth.merchant_id.clone(),
@@ -1353,8 +1467,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             amount: amount_in_minor_units,
         };
 
-        let json_payload = Encode::encode_to_string_of_json(&payload)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let json_payload = Encode::encode_to_string_of_json(&payload).change_context(
+            IntegrationError::RequestEncodingFailed {
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to encode PhonePe request payload to base64".to_string(),
+                    ),
+                    ..Default::default()
+                },
+            },
+        )?;
 
         let base64_payload = base64::engine::general_purpose::STANDARD.encode(&json_payload);
         let api_path = format!("/{}", constants::API_CAPTURE_ENDPOINT);
@@ -1392,7 +1514,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let original_transaction_id = router_data
             .request
             .get_connector_transaction_id()
-            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+            .change_context(IntegrationError::MissingConnectorTransactionID {
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "connector_transaction_id is required for PhonePe capture/void operations"
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
+            })?;
 
         let merchant_transaction_id = router_data
             .resource_common_data
@@ -1406,7 +1536,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 router_data.request.minor_amount_to_capture,
                 router_data.request.currency,
             )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to encode PhonePe request payload to base64".to_string(),
+                    ),
+                    ..Default::default()
+                },
+            })?;
 
         let payload = PhonepeCaptureRequestPayload {
             merchant_id: auth.merchant_id.clone(),
@@ -1415,8 +1552,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             amount: amount_in_minor_units,
         };
 
-        let json_payload = Encode::encode_to_string_of_json(&payload)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let json_payload = Encode::encode_to_string_of_json(&payload).change_context(
+            IntegrationError::RequestEncodingFailed {
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to encode PhonePe request payload to base64".to_string(),
+                    ),
+                    ..Default::default()
+                },
+            },
+        )?;
 
         let base64_payload = base64::engine::general_purpose::STANDARD.encode(&json_payload);
         let api_path = format!("/{}", constants::API_CAPTURE_ENDPOINT);
@@ -1432,21 +1577,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
 // ===== CAPTURE RESPONSE HANDLING =====
 
-impl
-    TryFrom<
-        ResponseRouterData<
-            PhonepeCaptureResponse,
-            RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
-        >,
-    > for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
+impl TryFrom<ResponseRouterData<PhonepeCaptureResponse, Self>>
+    for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
-    type Error = Error;
+    type Error = ResponseError;
 
     fn try_from(
-        item: ResponseRouterData<
-            PhonepeCaptureResponse,
-            RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
-        >,
+        item: ResponseRouterData<PhonepeCaptureResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let response = &item.response;
 
@@ -1610,7 +1747,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 router_data.request.minor_refund_amount,
                 router_data.request.currency,
             )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to encode PhonePe request payload to base64".to_string(),
+                    ),
+                    ..Default::default()
+                },
+            })?;
 
         let original_transaction_id = router_data.request.connector_transaction_id.clone();
         let merchant_transaction_id = router_data.request.refund_id.clone();
@@ -1624,8 +1768,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             callback_url,
         };
 
-        let json_payload = Encode::encode_to_string_of_json(&payload)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let json_payload = Encode::encode_to_string_of_json(&payload).change_context(
+            IntegrationError::RequestEncodingFailed {
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to encode PhonePe request payload to base64".to_string(),
+                    ),
+                    ..Default::default()
+                },
+            },
+        )?;
 
         let base64_payload = base64::engine::general_purpose::STANDARD.encode(&json_payload);
         let api_path = format!("/{}", constants::API_REFUND_ENDPOINT);
@@ -1666,7 +1818,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 router_data.request.minor_refund_amount,
                 router_data.request.currency,
             )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to encode PhonePe request payload to base64".to_string(),
+                    ),
+                    ..Default::default()
+                },
+            })?;
 
         let original_transaction_id = router_data.request.connector_transaction_id.clone();
         let merchant_transaction_id = router_data.request.refund_id.clone();
@@ -1680,8 +1839,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             callback_url,
         };
 
-        let json_payload = Encode::encode_to_string_of_json(&payload)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let json_payload = Encode::encode_to_string_of_json(&payload).change_context(
+            IntegrationError::RequestEncodingFailed {
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to encode PhonePe request payload to base64".to_string(),
+                    ),
+                    ..Default::default()
+                },
+            },
+        )?;
 
         let base64_payload = base64::engine::general_purpose::STANDARD.encode(&json_payload);
         let api_path = format!("/{}", constants::API_REFUND_ENDPOINT);
@@ -1697,21 +1864,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
 // ===== REFUND RESPONSE HANDLING =====
 
-impl
-    TryFrom<
-        ResponseRouterData<
-            PhonepeRefundResponse,
-            RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
-        >,
-    > for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
+impl TryFrom<ResponseRouterData<PhonepeRefundResponse, Self>>
+    for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = Error;
+    type Error = ResponseError;
 
     fn try_from(
-        item: ResponseRouterData<
-            PhonepeRefundResponse,
-            RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
-        >,
+        item: ResponseRouterData<PhonepeRefundResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let response = &item.response;
 
@@ -1921,20 +2080,20 @@ pub fn map_phonepe_webhook_state_to_attempt_status(state: &str) -> common_enums:
 /// Decode and parse the PhonePe webhook body (base64-encoded JSON payload)
 pub fn decode_phonepe_webhook_payload(
     raw_body: &[u8],
-) -> Result<PhonepeWebhookPayload, error_stack::Report<errors::ConnectorError>> {
+) -> Result<PhonepeWebhookPayload, error_stack::Report<WebhookError>> {
     use common_utils::ext_traits::ByteSliceExt;
 
     let webhook_request: PhonepeWebhookRequest = raw_body
         .parse_struct("PhonepeWebhookRequest")
-        .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        .change_context(WebhookError::WebhookBodyDecodingFailed)?;
 
     let decoded_bytes = base64::engine::general_purpose::STANDARD
         .decode(&webhook_request.response)
-        .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
+        .change_context(WebhookError::WebhookBodyDecodingFailed)
         .attach_printable("Failed to base64-decode PhonePe webhook response field")?;
 
     let payload: PhonepeWebhookPayload = serde_json::from_slice(&decoded_bytes)
-        .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
+        .change_context(WebhookError::WebhookBodyDecodingFailed)
         .attach_printable("Failed to parse decoded PhonePe webhook payload as JSON")?;
 
     Ok(payload)
@@ -1947,14 +2106,14 @@ pub fn compute_phonepe_webhook_checksum(
     api_path: &str,
     salt_key: &Secret<String>,
     key_index: &str,
-) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+) -> Result<String, error_stack::Report<WebhookError>> {
     use hyperswitch_masking::PeekInterface;
 
     let checksum_input = format!("{}{}{}", base64_body, api_path, salt_key.peek());
     let sha256 = crypto::Sha256;
     let hash_bytes = sha256
         .generate_digest(checksum_input.as_bytes())
-        .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+        .change_context(WebhookError::WebhookSourceVerificationFailed)?;
     let hash = hash_bytes.iter().fold(String::new(), |mut acc, byte| {
         use std::fmt::Write;
         let _ = write!(&mut acc, "{byte:02x}");
@@ -1970,21 +2129,13 @@ pub fn compute_phonepe_webhook_checksum(
 
 // ===== REFUND SYNC RESPONSE HANDLING =====
 
-impl
-    TryFrom<
-        ResponseRouterData<
-            PhonepeRefundSyncResponse,
-            RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
-        >,
-    > for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
+impl TryFrom<ResponseRouterData<PhonepeRefundSyncResponse, Self>>
+    for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
-    type Error = Error;
+    type Error = ResponseError;
 
     fn try_from(
-        item: ResponseRouterData<
-            PhonepeRefundSyncResponse,
-            RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
-        >,
+        item: ResponseRouterData<PhonepeRefundSyncResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let response = &item.response;
 
@@ -2116,8 +2267,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             original_transaction_id,
         };
 
-        let json_payload = Encode::encode_to_string_of_json(&payload)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let json_payload = Encode::encode_to_string_of_json(&payload).change_context(
+            IntegrationError::RequestEncodingFailed {
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to encode PhonePe request payload to base64".to_string(),
+                    ),
+                    ..Default::default()
+                },
+            },
+        )?;
 
         let base64_payload = base64::engine::general_purpose::STANDARD.encode(&json_payload);
         let api_path = format!("/{}", constants::API_VOID_ENDPOINT);
@@ -2158,8 +2317,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             original_transaction_id,
         };
 
-        let json_payload = Encode::encode_to_string_of_json(&payload)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let json_payload = Encode::encode_to_string_of_json(&payload).change_context(
+            IntegrationError::RequestEncodingFailed {
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to encode PhonePe request payload to base64".to_string(),
+                    ),
+                    ..Default::default()
+                },
+            },
+        )?;
 
         let base64_payload = base64::engine::general_purpose::STANDARD.encode(&json_payload);
         let api_path = format!("/{}", constants::API_VOID_ENDPOINT);
@@ -2175,22 +2342,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
 // ===== VOID RESPONSE HANDLING =====
 
-impl
-    TryFrom<
-        ResponseRouterData<
-            PhonepeVoidResponse,
-            RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
-        >,
-    > for RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
+impl TryFrom<ResponseRouterData<PhonepeVoidResponse, Self>>
+    for RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
 {
-    type Error = Error;
+    type Error = ResponseError;
 
-    fn try_from(
-        item: ResponseRouterData<
-            PhonepeVoidResponse,
-            RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
-        >,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: ResponseRouterData<PhonepeVoidResponse, Self>) -> Result<Self, Self::Error> {
         let response = &item.response;
 
         if response.success {

@@ -28,13 +28,11 @@ use domain_types::{
         PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
         PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
         RefundSyncData, RefundWebhookDetailsResponse, RefundsData, RefundsResponseData,
-        RepeatPaymentData, RequestDetails, ResponseId,
-        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
-        ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
-        SetupMandateRequestData, SubmitEvidenceData, SupportedPaymentMethodsExt,
-        WebhookDetailsResponse,
+        RepeatPaymentData, RequestDetails, ResponseId, ServerAuthenticationTokenRequestData,
+        ServerAuthenticationTokenResponseData, ServerSessionAuthenticationTokenRequestData,
+        ServerSessionAuthenticationTokenResponseData, SetupMandateRequestData, SubmitEvidenceData,
+        SupportedPaymentMethodsExt, WebhookDetailsResponse,
     },
-    errors,
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, UpiData, WalletData},
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -64,6 +62,8 @@ use super::macros;
 use crate::types::ResponseRouterData;
 use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
+use domain_types::errors::IntegrationErrorContext;
+use domain_types::errors::WebhookError;
 
 // Trait implementations with generic type parameters
 
@@ -170,11 +170,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         &self,
         request: &RequestDetails,
         _connector_webhook_secret: &ConnectorWebhookSecrets,
-    ) -> Result<Vec<u8>, error_stack::Report<errors::ConnectorError>> {
+    ) -> Result<Vec<u8>, error_stack::Report<WebhookError>> {
         let signature_str = request
             .headers
             .get("x-verify")
-            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
+            .ok_or(WebhookError::WebhookSignatureNotFound)?;
         Ok(signature_str.as_bytes().to_vec())
     }
 
@@ -182,13 +182,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         &self,
         request: &RequestDetails,
         connector_webhook_secret: &ConnectorWebhookSecrets,
-    ) -> Result<Vec<u8>, error_stack::Report<errors::ConnectorError>> {
+    ) -> Result<Vec<u8>, error_stack::Report<WebhookError>> {
         use hyperswitch_masking::Secret;
 
         let webhook_request: phonepe::PhonepeWebhookRequest = request
             .body
             .parse_struct("PhonepeWebhookRequest")
-            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
 
         let base64_body = &webhook_request.response;
         let api_path = request.uri.as_deref().unwrap_or("");
@@ -212,7 +212,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         request: RequestDetails,
         connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
-    ) -> Result<bool, error_stack::Report<errors::ConnectorError>> {
+    ) -> Result<bool, error_stack::Report<WebhookError>> {
         use hyperswitch_masking::Secret;
 
         let connector_webhook_secret = match connector_webhook_secret {
@@ -272,7 +272,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         request: RequestDetails,
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
-    ) -> Result<EventType, error_stack::Report<errors::ConnectorError>> {
+    ) -> Result<EventType, error_stack::Report<WebhookError>> {
         let payload = phonepe::decode_phonepe_webhook_payload(&request.body)?;
         Ok(phonepe::map_phonepe_webhook_state_to_event_type(
             &payload.state,
@@ -284,7 +284,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         request: RequestDetails,
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
-    ) -> Result<WebhookDetailsResponse, error_stack::Report<errors::ConnectorError>> {
+    ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
         let payload = phonepe::decode_phonepe_webhook_payload(&request.body)?;
 
         let status = phonepe::map_phonepe_webhook_state_to_attempt_status(&payload.state);
@@ -323,8 +323,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         _request: RequestDetails,
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
-    ) -> Result<RefundWebhookDetailsResponse, error_stack::Report<errors::ConnectorError>> {
-        Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
+    ) -> Result<RefundWebhookDetailsResponse, error_stack::Report<WebhookError>> {
+        Err(error_stack::report!(WebhookError::WebhooksNotImplemented {
+            operation: "process_refund_webhook",
+        }))
     }
 
     fn process_dispute_webhook(
@@ -334,18 +336,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<
         domain_types::connector_types::DisputeWebhookDetailsResponse,
-        error_stack::Report<errors::ConnectorError>,
+        error_stack::Report<WebhookError>,
     > {
-        Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
+        Err(error_stack::report!(WebhookError::WebhooksNotImplemented {
+            operation: "process_dispute_webhook",
+        }))
     }
 
     fn get_webhook_resource_object(
         &self,
         request: RequestDetails,
-    ) -> Result<
-        Box<dyn hyperswitch_masking::ErasedMaskSerialize>,
-        error_stack::Report<errors::ConnectorError>,
-    > {
+    ) -> Result<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, error_stack::Report<WebhookError>>
+    {
         let payload = phonepe::decode_phonepe_webhook_payload(&request.body)?;
         Ok(Box::new(payload))
     }
@@ -702,7 +704,7 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let mut headers = vec![
                 (
                     headers::CONTENT_TYPE.to_string(),
@@ -728,7 +730,7 @@ macros::macro_connector_implementation!(
         fn get_url(
             &self,
             req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let base_url = self.connector_base_url_payments(req);
             Ok(format!("{}{}", base_url, constants::API_CAPTURE_ENDPOINT))
         }
@@ -752,7 +754,7 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let mut headers = vec![
                 (
                     headers::CONTENT_TYPE.to_string(),
@@ -778,7 +780,7 @@ macros::macro_connector_implementation!(
         fn get_url(
             &self,
             req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let base_url = self.connector_base_url_payments(req);
             Ok(format!("{}{}", base_url, constants::API_VOID_ENDPOINT))
         }
@@ -802,7 +804,7 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let mut headers = vec![
                 (
                     headers::CONTENT_TYPE.to_string(),
@@ -828,7 +830,7 @@ macros::macro_connector_implementation!(
         fn get_url(
             &self,
             req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let base_url = self.connector_base_url_refunds(req);
             Ok(format!("{}{}", base_url, constants::API_REFUND_ENDPOINT))
         }
@@ -856,7 +858,19 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
         let _auth = phonepe::PhonepeAuthType::try_from(auth_type).change_context(
             IntegrationError::FailedToObtainAuthType {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Pass PhonePe credentials via x-connector-config with merchant_id, salt_key, and salt_index"
+                            .to_string(),
+                    ),
+                    doc_url: Some(
+                        "https://developer.phonepe.com/v1/reference/credentials".to_string(),
+                    ),
+                    additional_context: Some(
+                        "Expected ConnectorSpecificConfig::Phonepe with merchant_id, salt_key, and salt_index"
+                            .to_string(),
+                    ),
+                },
             },
         )?;
         Ok(vec![(
@@ -1040,7 +1054,7 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let mut headers = vec![
                 (
                     headers::CONTENT_TYPE.to_string(),
@@ -1067,7 +1081,7 @@ macros::macro_connector_implementation!(
         fn get_url(
             &self,
             req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let base_url = self.connector_base_url_refunds(req);
             let connector_refund_id = &req.request.connector_refund_id;
 
