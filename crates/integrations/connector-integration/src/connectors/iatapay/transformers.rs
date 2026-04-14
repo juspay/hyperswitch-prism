@@ -295,7 +295,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | BankRedirectData::Sofort { .. }
                 | BankRedirectData::Trustly { .. }
                 | BankRedirectData::OnlineBankingFpx { .. }
-                | BankRedirectData::OnlineBankingThailand { .. }
+                            | BankRedirectData::OnlineBankingThailand { .. }
                 | BankRedirectData::Netbanking { .. }
                 | BankRedirectData::OpenBanking { .. } => Err(IntegrationError::not_implemented(
                     domain_types::utils::get_unimplemented_payment_method_error_message("iatapay"),
