@@ -1091,12 +1091,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         event_builder: Option<&mut events::Event>,
         res: Response,
     ) -> CustomResult<
-        RouterDataV2<
-            RepeatPayment,
-            PaymentFlowData,
-            RepeatPaymentData<T>,
-            PaymentsResponseData,
-        >,
+        RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         ConnectorError,
     > {
         let xml_str = unwrap_json_wrapped_xml(&res.response, res.status_code)?;

@@ -3,12 +3,14 @@ use std::borrow::Cow;
 use common_enums::{self, CountryAlpha2, Currency};
 use common_utils::{id_type::CustomerId, types::MinorUnit, StringMajorUnit};
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund, RepeatPayment, SetupMandate, Void, VoidPC},
+    connector_flow::{
+        Authorize, Capture, PSync, RSync, Refund, RepeatPayment, SetupMandate, Void, VoidPC,
+    },
     connector_types::{
-        MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
-        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        ResponseId, SetupMandateRequestData,
+        MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData},
@@ -2691,9 +2693,7 @@ fn is_payment_failure(status: common_enums::AttemptStatus) -> bool {
 // Extract MMYY expDate string (Vantiv format) from SetupMandate payment method
 // data. Returns None for non-card payment methods; RepeatPayment will then
 // reject the request.
-fn extract_exp_date_mmyy<T: PaymentMethodDataTypes>(
-    pmd: &PaymentMethodData<T>,
-) -> Option<String> {
+fn extract_exp_date_mmyy<T: PaymentMethodDataTypes>(pmd: &PaymentMethodData<T>) -> Option<String> {
     match pmd {
         PaymentMethodData::Card(card_data) => {
             let year_str = card_data.card_exp_year.peek();
@@ -2702,7 +2702,11 @@ fn extract_exp_date_mmyy<T: PaymentMethodDataTypes>(
             } else {
                 year_str.as_str()
             };
-            Some(format!("{}{}", card_data.card_exp_month.peek(), formatted_year))
+            Some(format!(
+                "{}{}",
+                card_data.card_exp_month.peek(),
+                formatted_year
+            ))
         }
         _ => None,
     }
@@ -3145,8 +3149,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
         };
 
-        let status =
-            get_attempt_status(WorldpayvantivPaymentFlow::Sale, sale_response.response)?;
+        let status = get_attempt_status(WorldpayvantivPaymentFlow::Sale, sale_response.response)?;
 
         if is_payment_failure(status) {
             let error_response = ErrorResponse {

@@ -585,7 +585,8 @@
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Stuck on field: token.expDate — Missing required field: token.expDate"
       }
     },
     "recurring_revoke": {
