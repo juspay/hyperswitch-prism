@@ -1176,9 +1176,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 }
                 _ => {
                     return Err(IntegrationError::NotSupported {
-                        message:
-                            "Only card and ACH payment methods are supported for SetupMandate"
-                                .to_string(),
+                        message: "Only card and ACH payment methods are supported for SetupMandate"
+                            .to_string(),
                         connector: "Paysafe",
                         context: Default::default(),
                     }
@@ -1258,7 +1257,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 // `PaymentHandleStatus` -> `AttemptStatus`; a Payable/Completed handle is
 // a successful mandate setup.
 impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaysafeSetupMandateResponse, Self>>
-    for RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>
+    for RouterDataV2<
+        SetupMandate,
+        PaymentFlowData,
+        SetupMandateRequestData<T>,
+        PaymentsResponseData,
+    >
 {
     type Error = error_stack::Report<ConnectorError>;
 
