@@ -45,8 +45,8 @@ use transformers::{
     self as paysafe, PaysafeAuthorizeResponse, PaysafeCaptureRequest, PaysafeCaptureResponse,
     PaysafeErrorResponse, PaysafePaymentMethodTokenRequest, PaysafePaymentMethodTokenResponse,
     PaysafePaymentsRequest, PaysafeRSyncResponse, PaysafeRefundRequest, PaysafeRefundResponse,
-    PaysafeRepeatPaymentRequest, PaysafeRepeatPaymentResponse, PaysafeSyncResponse,
-    PaysafeVoidRequest, PaysafeVoidResponse,
+    PaysafeRepeatPaymentRequest, PaysafeRepeatPaymentResponse, PaysafeSetupMandateRequest,
+    PaysafeSetupMandateResponse, PaysafeSyncResponse, PaysafeVoidRequest, PaysafeVoidResponse,
 };
 
 use super::macros;
@@ -254,6 +254,12 @@ macros::create_all_prerequisites!(
             request_body: PaysafeRepeatPaymentRequest,
             response_body: PaysafeRepeatPaymentResponse,
             router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: SetupMandate,
+            request_body: PaysafeSetupMandateRequest<T>,
+            response_body: PaysafeSetupMandateResponse,
+            router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [],
@@ -647,6 +653,41 @@ macros::macro_connector_implementation!(
     }
 );
 
+// SetupMandate flow implementation using macro. Paysafe has no dedicated
+// mandate-setup endpoint — the canonical approach is to create a reusable
+// payment handle via `POST /v1/paymenthandles`. The returned
+// `payment_handle_token` is surfaced as the connector_mandate_id for
+// subsequent Authorize / RepeatPayment (MIT) calls.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Paysafe,
+    curl_request: Json(PaysafeSetupMandateRequest<T>),
+    curl_response: PaysafeSetupMandateResponse,
+    flow_name: SetupMandate,
+    resource_common_data: PaymentFlowData,
+    flow_request: SetupMandateRequestData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            // Paysafe uses /v1/paymenthandles for card-on-file / mandate setup.
+            // Wallets are not supported for SetupMandate on Paysafe.
+            Ok(format!("{}v1/paymenthandles", self.connector_base_url_payments(req)))
+        }
+    }
+);
+
 // SourceVerification implementations for all flows
 
 // Stub implementations for unsupported flows
@@ -706,16 +747,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentFlowData,
         PaymentCreateOrderData,
         PaymentCreateOrderResponse,
-    > for Paysafe<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        SetupMandate,
-        PaymentFlowData,
-        SetupMandateRequestData<T>,
-        PaymentsResponseData,
     > for Paysafe<T>
 {
 }
