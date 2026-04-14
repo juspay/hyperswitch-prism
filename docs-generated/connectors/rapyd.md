@@ -269,12 +269,12 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "card": {  # Generic card payment.
-        "card_number": {"value": "4111111111111111"},  # Card Identification.
-        "card_exp_month": {"value": "03"},
-        "card_exp_year": {"value": "2030"},
-        "card_cvc": {"value": "737"},
-        "card_holder_name": {"value": "John Doe"}  # Cardholder Information.
+    "card": {  # Generic card payment
+        "card_number": "4111111111111111",  # Card Identification
+        "card_exp_month": "03",
+        "card_exp_year": "2030",
+        "card_cvc": "737",
+        "card_holder_name": "John Doe"  # Cardholder Information
     }
 }
 ```
@@ -322,8 +322,8 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "paypal_redirect": {  # PayPal.
-        "email": {"value": "test@example.com"}  # PayPal's email address.
+    "paypal_redirect": {  # PayPal
+        "email": "test@example.com"  # PayPal's email address
     }
 }
 ```
@@ -337,11 +337,11 @@ Authorize a payment amount on a payment method. This reserves funds without capt
             "method": "3DS",  # Method type.
             "recurring_payment": False,  # Whether this is a recurring payment.
             "card_brand": "VISA",
-            "card_last_four_digits": "1234",  # Last four digits of card.
+            "card_last_four_digits": "1234",  # Last four digits of card
             "token_data": {
-                "type": "S",  # 3DS type.
-                "version": "100",  # 3DS version.
-                "data": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InNhbXN1bmdfcHJvYmVfa2V5XzEyMyJ9.eyJwYXltZW50TWV0aG9kVG9rZW4iOiJwcm9iZV9zYW1zdW5nX3Rva2VuIn0.ZHVtbXlfc2lnbmF0dXJl"  # Token data.
+                "type": "S",  # 3DS type
+                "version": "100",  # 3DS version
+                "data": "probe_samsung_token_data"  # Token data
             }
         }
     }

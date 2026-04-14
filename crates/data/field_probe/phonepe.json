@@ -1,0 +1,216 @@
+{
+  "connector": "phonepe",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Phonepe"
+      },
+      "Affirm": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Phonepe"
+      },
+      "Afterpay": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Phonepe"
+      },
+      "ApplePay": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Phonepe"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Phonepe"
+      },
+      "Bacs": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Phonepe"
+      },
+      "Becs": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Phonepe"
+      },
+      "Blik": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Phonepe"
+      },
+      "Card": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Phonepe"
+      },
+      "GooglePay": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Phonepe"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Phonepe"
+      },
+      "Ideal": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Phonepe"
+      },
+      "Klarna": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Phonepe"
+      },
+      "PaypalRedirect": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Phonepe"
+      },
+      "SamsungPay": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Phonepe"
+      },
+      "Sepa": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Phonepe"
+      },
+      "UpiCollect": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "upi_collect": {
+              "vpa_id": "test@upi"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "webhook_url": "https://example.com/webhook"
+        },
+        "sample": {
+          "url": "https://api-preprod.phonepe.com/apis/hermes/pg/v1/pay",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-source": "API",
+            "x-source-channel": "WEB",
+            "x-verify": "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3###1"
+          },
+          "body": "{\"request\":\"eyJtZXJjaGFudElkIjoicHJvYmVfbWVyY2hhbnQiLCJtZXJjaGFudFRyYW5zYWN0aW9uSWQiOiJwcm9iZV90eG5fMDAxIiwiYW1vdW50IjoxMDAwLCJjYWxsYmFja1VybCI6Imh0dHBzOi8vZXhhbXBsZS5jb20vd2ViaG9vayIsInBheW1lbnRJbnN0cnVtZW50Ijp7InR5cGUiOiJVUElfQ09MTEVDVCIsInZwYSI6InRlc3RAdXBpIn19\"}"
+        }
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_access_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_customer": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_session_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_merchant_txn_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "connector_order_reference_id": "probe_order_ref_001"
+        },
+        "sample": {
+          "url": "https://api-preprod.phonepe.com/apis/hermes/pg/v1/status/probe_merchant/probe_order_ref_001",
+          "method": "Get",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-merchant-id": "probe_merchant",
+            "x-verify": "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3###1"
+          },
+          "body": "{}"
+        }
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "tokenize": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "not_implemented"
+      }
+    }
+  }
+}

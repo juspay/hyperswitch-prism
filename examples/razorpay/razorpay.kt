@@ -33,22 +33,23 @@ private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAutho
             minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
             currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         }
-        paymentMethodBuilder.apply {  // Payment method to be used.
-            cardBuilder.apply {  // Generic card payment.
-                cardNumberBuilder.value = "4111111111111111"  // Card Identification.
-                cardExpMonthBuilder.value = "03"
-                cardExpYearBuilder.value = "2030"
-                cardCvcBuilder.value = "737"
-                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
+        paymentMethodBuilder.apply {  // Payment method to be used
+            cardBuilder.apply {  // Generic card payment
+                cardNumber = "4111111111111111"  // Card Identification
+                cardExpMonth = "03"
+                cardExpYear = "2030"
+                cardCvc = "737"
+                cardHolderName = "John Doe"  // Cardholder Information
             }
         }
-        captureMethod = CaptureMethod.valueOf(captureMethodStr)  // Method for capturing the payment.
-        customerBuilder.apply {  // Customer Information.
-            emailBuilder.value = "test@example.com"  // Customer's email address.
+        captureMethod = CaptureMethod.valueOf(captureMethodStr)  // Method for capturing the payment
+        customerBuilder.apply {  // Customer Information
+            email = "test@example.com"  // Customer's email address
         }
         addressBuilder.apply {  // Address Information.
             billingAddressBuilder.apply {
-                phoneNumberBuilder.value = "4155552671"
+                firstName = "John"  // Personal Information
+                countryAlpha2Code = CountryAlpha2.US
             }
         }
         authType = AuthenticationType.NO_THREE_DS  // Authentication Details.

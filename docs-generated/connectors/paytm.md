@@ -213,8 +213,8 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "upi_collect": {  # UPI Collect.
-        "vpa_id": {"value": "test@upi"}  # Virtual Payment Address.
+    "upi_collect": {  # UPI Collect
+        "vpa_id": "test@upi"  # Virtual Payment Address
     }
 }
 ```

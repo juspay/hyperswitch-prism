@@ -34,13 +34,13 @@ private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAutho
             minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
             currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         }
-        paymentMethodBuilder.apply {  // Payment method to be used.
-            cardBuilder.apply {  // Generic card payment.
-                cardNumberBuilder.value = "4111111111111111"  // Card Identification.
-                cardExpMonthBuilder.value = "03"
-                cardExpYearBuilder.value = "2030"
-                cardCvcBuilder.value = "737"
-                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
+        paymentMethodBuilder.apply {  // Payment method to be used
+            cardBuilder.apply {  // Generic card payment
+                cardNumber = "4111111111111111"  // Card Identification
+                cardExpMonth = "03"
+                cardExpYear = "2030"
+                cardCvc = "737"
+                cardHolderName = "John Doe"  // Cardholder Information
             }
         }
         captureMethod = CaptureMethod.valueOf(captureMethodStr)  // Method for capturing the payment.
@@ -199,6 +199,35 @@ fun processGetPayment(txnId: String, config: ConnectorConfig = _defaultConfig): 
     return mapOf("status" to getResponse.status.name, "transactionId" to getResponse.connectorTransactionId, "error" to getResponse.error)
 }
 
+// Scenario: Tokenize Payment Method
+// Store card details in the connector's vault and receive a reusable payment token. Use the returned token for one-click payments and recurring billing without re-collecting card data.
+fun processTokenize(txnId: String, config: ConnectorConfig = _defaultConfig): Map<String, Any?> {
+    val paymentMethodClient = PaymentMethodClient(config)
+
+    // Step 1: Tokenize — store card details and return a reusable token
+    val tokenizeResponse = paymentMethodClient.tokenize(PaymentMethodServiceTokenizeRequest.newBuilder().apply {
+        amountBuilder.apply {  // Payment Information
+            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00)
+            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR")
+        }
+        paymentMethodBuilder.apply {
+            cardBuilder.apply {  // Generic card payment
+                cardNumber = "4111111111111111"  // Card Identification
+                cardExpMonth = "03"
+                cardExpYear = "2030"
+                cardCvc = "737"
+                cardHolderName = "John Doe"  // Cardholder Information
+            }
+        }
+        addressBuilder.apply {  // Address Information
+            billingAddressBuilder.apply {
+            }
+        }
+    }.build())
+
+    return mapOf("token" to tokenizeResponse.paymentMethodToken, "error" to tokenizeResponse.error)
+}
+
 // Flow: PaymentService.Authorize (Card)
 fun authorize(txnId: String) {
     val client = PaymentClient(_defaultConfig)
@@ -309,12 +338,12 @@ fun tokenize(txnId: String) {
             currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         }
         paymentMethodBuilder.apply {
-            cardBuilder.apply {  // Generic card payment.
-                cardNumberBuilder.value = "4111111111111111"  // Card Identification.
-                cardExpMonthBuilder.value = "03"
-                cardExpYearBuilder.value = "2030"
-                cardCvcBuilder.value = "737"
-                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
+            cardBuilder.apply {  // Generic card payment
+                cardNumber = "4111111111111111"  // Card Identification
+                cardExpMonth = "03"
+                cardExpYear = "2030"
+                cardCvc = "737"
+                cardHolderName = "John Doe"  // Cardholder Information
             }
         }
         addressBuilder.apply {  // Address Information.

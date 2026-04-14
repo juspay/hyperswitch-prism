@@ -1,0 +1,321 @@
+{
+  "connector": "getnet",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by Getnet"
+      },
+      "Affirm": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by Getnet"
+      },
+      "Afterpay": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by Getnet"
+      },
+      "ApplePay": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by Getnet"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by Getnet"
+      },
+      "Bacs": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by Getnet"
+      },
+      "Becs": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by Getnet"
+      },
+      "Blik": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by Getnet"
+      },
+      "Card": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api-sbx.globalgetnet.com/dpm/payments-gwproxy/v2/payments",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-transaction-channel-entry": "XX"
+          },
+          "body": "{\"request_id\":\"probe_txn_001\",\"idempotency_key\":\"probe_txn_001\",\"order_id\":\"probe_txn_001\",\"data\":{\"customer_id\":\"cus_default\",\"amount\":1000,\"currency\":\"USD\",\"payment\":{\"payment_id\":\"probe_txn_001\",\"payment_method\":\"CREDIT\",\"transaction_type\":\"FULL\",\"number_installments\":1,\"card\":{\"number\":\"4111111111111111\",\"expiration_month\":\"03\",\"expiration_year\":\"30\",\"cardholder_name\":\"John Doe\",\"security_code\":\"737\"}}}}"
+        }
+      },
+      "GooglePay": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by Getnet"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by Getnet"
+      },
+      "Ideal": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by Getnet"
+      },
+      "Klarna": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by Getnet"
+      },
+      "PaypalRedirect": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by Getnet"
+      },
+      "SamsungPay": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by Getnet"
+      },
+      "Sepa": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by Getnet"
+      },
+      "UpiCollect": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by Getnet"
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_capture_id": "probe_capture_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount_to_capture": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api-sbx.globalgetnet.com/dpm/payments-gwproxy/v2/payments/capture",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-transaction-channel-entry": "XX"
+          },
+          "body": "{\"idempotency_key\":\"probe_capture_001\",\"payment_id\":\"probe_connector_txn_001\",\"amount\":1000}"
+        }
+      }
+    },
+    "create_access_token": {
+      "default": {
+        "status": "supported",
+        "proto_request": {},
+        "sample": {
+          "url": "https://api-sbx.globalgetnet.com/authentication/oauth2/access_token",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "grant_type=client_credentials"
+        }
+      }
+    },
+    "create_customer": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_session_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_merchant_txn_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api-sbx.globalgetnet.com/dpm/hub-payment-info/v1/payments/info/probe_connector_txn_001",
+          "method": "Get",
+          "headers": {
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-transaction-channel-entry": "XX"
+          },
+          "body": null
+        }
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "payment_amount": 1000,
+          "refund_amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "reason": "customer_request",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api-sbx.globalgetnet.com/dpm/payments-gwproxy/v2/payments/cancel",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-transaction-channel-entry": "XX"
+          },
+          "body": "{\"idempotency_key\":\"probe_refund_001\",\"payment_id\":\"probe_connector_txn_001\",\"amount\":1000,\"payment_method\":\"CREDIT\"}"
+        }
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "tokenize": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_void_id": "probe_void_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api-sbx.globalgetnet.com/dpm/payments-gwproxy/v2/payments/cancel",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-transaction-channel-entry": "XX"
+          },
+          "body": "{\"idempotency_key\":\"probe_void_001\",\"payment_id\":\"probe_connector_txn_001\",\"amount\":1000,\"payment_method\":\"CREDIT_AUTHORIZATION\"}"
+        }
+      }
+    }
+  }
+}

@@ -31,6 +31,7 @@ import payments.CaptureMethod
 import payments.Currency
 import payments.FutureUsage
 import payments.PaymentMethodType
+import payments.TokenPaymentMethodType
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
@@ -43,13 +44,13 @@ private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAutho
             minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
             currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         }
-        paymentMethodBuilder.apply {  // Payment method to be used.
-            cardBuilder.apply {  // Generic card payment.
-                cardNumberBuilder.value = "4111111111111111"  // Card Identification.
-                cardExpMonthBuilder.value = "03"
-                cardExpYearBuilder.value = "2030"
-                cardCvcBuilder.value = "737"
-                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
+        paymentMethodBuilder.apply {  // Payment method to be used
+            cardBuilder.apply {  // Generic card payment
+                cardNumber = "4111111111111111"  // Card Identification
+                cardExpMonth = "03"
+                cardExpYear = "2030"
+                cardCvc = "737"
+                cardHolderName = "John Doe"  // Cardholder Information
             }
         }
         captureMethod = CaptureMethod.valueOf(captureMethodStr)  // Method for capturing the payment.
@@ -57,12 +58,12 @@ private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAutho
             billingAddressBuilder.apply {
             }
         }
-        authType = AuthenticationType.NO_THREE_DS  // Authentication Details.
-        returnUrl = "https://example.com/return"  // URLs for Redirection and Webhooks.
-        stateBuilder.apply {  // State Information.
-            accessTokenBuilder.apply {  // Access token obtained from connector.
-                tokenBuilder.value = "probe_access_token"  // The token string.
-                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch).
+        authType = AuthenticationType.NO_THREE_DS  // Authentication Details
+        returnUrl = "https://example.com/return"  // URLs for Redirection and Webhooks
+        stateBuilder.apply {  // State Information
+            accessTokenBuilder.apply {  // Access token obtained from connector
+                token = "probe_access_token"  // The token string.
+                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch)
                 tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
             }
         }
@@ -77,10 +78,10 @@ private fun buildCaptureRequest(connectorTransactionIdStr: String): PaymentServi
             minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
             currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         }
-        stateBuilder.apply {  // State Information.
-            accessTokenBuilder.apply {  // Access token obtained from connector.
-                tokenBuilder.value = "probe_access_token"  // The token string.
-                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch).
+        stateBuilder.apply {  // State Information
+            accessTokenBuilder.apply {  // Access token obtained from connector
+                token = "probe_access_token"  // The token string.
+                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch)
                 tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
             }
         }
@@ -95,10 +96,10 @@ private fun buildGetRequest(connectorTransactionIdStr: String): PaymentServiceGe
             minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
             currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         }
-        stateBuilder.apply {  // State Information.
-            accessTokenBuilder.apply {  // Access token obtained from connector.
-                tokenBuilder.value = "probe_access_token"  // The token string.
-                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch).
+        stateBuilder.apply {  // State Information
+            accessTokenBuilder.apply {  // Access token obtained from connector
+                token = "probe_access_token"  // The token string.
+                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch)
                 tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
             }
         }
@@ -114,11 +115,11 @@ private fun buildRefundRequest(connectorTransactionIdStr: String): PaymentServic
             minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
             currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         }
-        reason = "customer_request"  // Reason for the refund.
-        stateBuilder.apply {  // State data for access token storage and.
-            accessTokenBuilder.apply {  // Access token obtained from connector.
-                tokenBuilder.value = "probe_access_token"  // The token string.
-                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch).
+        reason = "customer_request"  // Reason for the refund
+        stateBuilder.apply {  // State data for access token storage and other connector-specific state
+            accessTokenBuilder.apply {  // Access token obtained from connector
+                token = "probe_access_token"  // The token string.
+                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch)
                 tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
             }
         }
@@ -129,10 +130,10 @@ private fun buildVoidRequest(connectorTransactionIdStr: String): PaymentServiceV
     return PaymentServiceVoidRequest.newBuilder().apply {
         merchantVoidId = "probe_void_001"  // Identification.
         connectorTransactionId = connectorTransactionIdStr
-        stateBuilder.apply {  // State Information.
-            accessTokenBuilder.apply {  // Access token obtained from connector.
-                tokenBuilder.value = "probe_access_token"  // The token string.
-                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch).
+        stateBuilder.apply {  // State Information
+            accessTokenBuilder.apply {  // Access token obtained from connector
+                token = "probe_access_token"  // The token string.
+                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch)
                 tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
             }
         }
@@ -205,8 +206,84 @@ fun processRefund(txnId: String, config: ConnectorConfig = _defaultConfig): Map<
     return mapOf("status" to refundResponse.status.name, "error" to refundResponse.error)
 }
 
-// Scenario: Void Payment
-// Cancel an authorized but not-yet-captured payment.
+// Scenario: Recurring / Mandate Payments
+// Store a payment mandate with SetupRecurring, then charge it repeatedly with RecurringPaymentService.Charge without requiring customer action.
+fun processRecurring(txnId: String, config: ConnectorConfig = _defaultConfig): Map<String, Any?> {
+    val paymentClient = PaymentClient(config)
+    val recurringPaymentClient = RecurringPaymentClient(config)
+
+    // Step 1: Setup Recurring — store the payment mandate
+    val setupResponse = paymentClient.setup_recurring(PaymentServiceSetupRecurringRequest.newBuilder().apply {
+        merchantRecurringPaymentId = "probe_mandate_001"  // Identification
+        amountBuilder.apply {  // Mandate Details
+            minorAmount = 0L  // Amount in minor units (e.g., 1000 = $10.00)
+            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR")
+        }
+        paymentMethodBuilder.apply {
+            cardBuilder.apply {  // Generic card payment
+                cardNumber = "4111111111111111"  // Card Identification
+                cardExpMonth = "03"
+                cardExpYear = "2030"
+                cardCvc = "737"
+                cardHolderName = "John Doe"  // Cardholder Information
+            }
+        }
+        addressBuilder.apply {  // Address Information
+            billingAddressBuilder.apply {
+            }
+        }
+        authType = AuthenticationType.NO_THREE_DS  // Type of authentication to be used
+        enrolledFor3Ds = false  // Indicates if the customer is enrolled for 3D Secure
+        returnUrl = "https://example.com/mandate-return"  // URL to redirect after setup
+        setupFutureUsage = FutureUsage.OFF_SESSION  // Indicates future usage intention
+        requestIncrementalAuthorization = false  // Indicates if incremental authorization is requested
+        customerAcceptanceBuilder.apply {  // Details of customer acceptance
+            acceptanceType = AcceptanceType.OFFLINE  // Type of acceptance (e.g., online, offline).
+            acceptedAt = 0L  // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
+        }
+        stateBuilder.apply {  // State data for access token storage and other connector-specific state
+            accessTokenBuilder.apply {  // Access token obtained from connector
+                token = "probe_access_token"  // The token string.
+                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch)
+                tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
+            }
+        }
+    }.build())
+
+    if (setupResponse.status.name == "FAILED")
+        throw RuntimeException("Setup failed: ${setupResponse.error.unifiedDetails.message}")
+
+    // Step 2: Recurring Charge — charge against the stored mandate
+    val recurringResponse = recurringPaymentClient.charge(RecurringPaymentServiceChargeRequest.newBuilder().apply {
+        amountBuilder.apply {  // Amount Information
+            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00)
+            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR")
+        }
+        returnUrl = "https://example.com/recurring-return"
+        connectorCustomerId = "cust_probe_123"
+        offSession = true  // Behavioral Flags and Preferences
+        stateBuilder.apply {  // State Information
+            accessTokenBuilder.apply {  // Access token obtained from connector
+                token = "probe_access_token"  // The token string.
+                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch)
+                tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
+            }
+        }
+        connectorRecurringPaymentIdBuilder.apply {
+            connectorMandateIdBuilder.apply {
+                connectorMandateId = setupResponse.mandateReference.connectorMandateId.connectorMandateId  // from SetupRecurring
+            }
+        }
+    }.build())
+
+    if (recurringResponse.status.name == "FAILED")
+        throw RuntimeException("Recurring Charge failed: ${recurringResponse.error.unifiedDetails.message}")
+
+    return mapOf("status" to recurringResponse.status.name, "transactionId" to (recurringResponse.connectorTransactionId ?: ""), "error" to recurringResponse.error)
+}
+
+// Scenario: Void a Payment
+// Authorize funds with a manual capture flag, then cancel the authorization with Void before any capture occurs. Releases the hold on the customer's funds.
 fun processVoidPayment(txnId: String, config: ConnectorConfig = _defaultConfig): Map<String, Any?> {
     val paymentClient = PaymentClient(config)
 
@@ -402,19 +479,17 @@ fun recurringCharge(txnId: String) {
             minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
             currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         }
-        paymentMethodBuilder.apply {  // Optional payment Method Information (for network transaction flows).
-            tokenBuilder.apply {  // Payment tokens.
-                tokenBuilder.value = "probe_pm_token"  // The token string representing a payment method.
-            }
+        paymentMethodBuilder.apply {  // Optional payment Method Information (for network transaction flows)
+            token = TokenPaymentMethodType.probe_pm_token  // Payment tokens
         }
         returnUrl = "https://example.com/recurring-return"
         connectorCustomerId = "cust_probe_123"
         paymentMethodType = PaymentMethodType.PAY_PAL
-        offSession = true  // Behavioral Flags and Preferences.
-        stateBuilder.apply {  // State Information.
-            accessTokenBuilder.apply {  // Access token obtained from connector.
-                tokenBuilder.value = "probe_access_token"  // The token string.
-                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch).
+        offSession = true  // Behavioral Flags and Preferences
+        stateBuilder.apply {  // State Information
+            accessTokenBuilder.apply {  // Access token obtained from connector
+                token = "probe_access_token"  // The token string.
+                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch)
                 tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
             }
         }
@@ -464,12 +539,12 @@ fun setupRecurring(txnId: String) {
             currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         }
         paymentMethodBuilder.apply {
-            cardBuilder.apply {  // Generic card payment.
-                cardNumberBuilder.value = "4111111111111111"  // Card Identification.
-                cardExpMonthBuilder.value = "03"
-                cardExpYearBuilder.value = "2030"
-                cardCvcBuilder.value = "737"
-                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
+            cardBuilder.apply {  // Generic card payment
+                cardNumber = "4111111111111111"  // Card Identification
+                cardExpMonth = "03"
+                cardExpYear = "2030"
+                cardCvc = "737"
+                cardHolderName = "John Doe"  // Cardholder Information
             }
         }
         addressBuilder.apply {  // Address Information.
@@ -485,10 +560,10 @@ fun setupRecurring(txnId: String) {
             acceptanceType = AcceptanceType.OFFLINE  // Type of acceptance (e.g., online, offline).
             acceptedAt = 0L  // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
         }
-        stateBuilder.apply {  // State data for access token storage and.
-            accessTokenBuilder.apply {  // Access token obtained from connector.
-                tokenBuilder.value = "probe_access_token"  // The token string.
-                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch).
+        stateBuilder.apply {  // State data for access token storage and other connector-specific state
+            accessTokenBuilder.apply {  // Access token obtained from connector
+                token = "probe_access_token"  // The token string.
+                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch)
                 tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
             }
         }

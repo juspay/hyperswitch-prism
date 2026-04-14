@@ -107,6 +107,100 @@ let config = ConnectorConfig {
 
 ### Payments
 
+#### PaymentService.Authorize
+
+Authorize a payment amount on a payment method. This reserves funds without capturing them, essential for verifying availability before finalizing.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceAuthorizeRequest` |
+| **Response** | `PaymentServiceAuthorizeResponse` |
+
+**Supported payment method types:**
+
+| Payment Method | Supported |
+|----------------|:---------:|
+| Card | ✓ |
+| Google Pay | ⚠ |
+| Apple Pay | ⚠ |
+| SEPA | ✓ |
+| BACS | ✓ |
+| ACH | ✓ |
+| BECS | ✓ |
+| iDEAL | ⚠ |
+| PayPal | ⚠ |
+| BLIK | ⚠ |
+| Klarna | ⚠ |
+| Afterpay | ⚠ |
+| UPI | ⚠ |
+| Affirm | ⚠ |
+| Samsung Pay | ⚠ |
+
+**Payment method objects** — use these in the `payment_method` field of the Authorize request.
+
+##### Card (Raw PAN)
+
+```python
+"payment_method": {
+    "card": {  # Generic card payment
+        "card_number": "4111111111111111",  # Card Identification
+        "card_exp_month": "03",
+        "card_exp_year": "2030",
+        "card_cvc": "737",
+        "card_holder_name": "John Doe"  # Cardholder Information
+    }
+}
+```
+
+##### SEPA Direct Debit
+
+```python
+"payment_method": {
+    "sepa": {  # Sepa - Single Euro Payments Area direct debit
+        "iban": "DE89370400440532013000",  # International bank account number (iban) for SEPA
+        "bank_account_holder_name": "John Doe"  # Owner name for bank debit
+    }
+}
+```
+
+##### BACS Direct Debit
+
+```python
+"payment_method": {
+    "bacs": {  # Bacs - Bankers' Automated Clearing Services
+        "account_number": "55779911",  # Account number for Bacs payment method
+        "sort_code": "200000",  # Sort code for Bacs payment method
+        "bank_account_holder_name": "John Doe"  # Holder name for bank debit
+    }
+}
+```
+
+##### ACH Direct Debit
+
+```python
+"payment_method": {
+    "ach": {  # Ach - Automated Clearing House
+        "account_number": "000123456789",  # Account number for ach bank debit payment
+        "routing_number": "110000000",  # Routing number for ach bank debit payment
+        "bank_account_holder_name": "John Doe"  # Bank account holder name
+    }
+}
+```
+
+##### BECS Direct Debit
+
+```python
+"payment_method": {
+    "becs": {  # Becs - Bulk Electronic Clearing System - Australian direct debit
+        "account_number": "000123456",  # Account number for Becs payment method
+        "bsb_number": "000000",  # Bank-State-Branch (bsb) number
+        "bank_account_holder_name": "John Doe"  # Owner name for bank debit
+    }
+}
+```
+
+**Examples:** [Python](../../examples/stax/python/stax.py#L315) · [JavaScript](../../examples/stax/javascript/stax.js#L289) · [Kotlin](../../examples/stax/kotlin/stax.kt#L286) · [Rust](../../examples/stax/rust/stax.rs#L284)
+
 #### PaymentService.Capture
 
 Finalize an authorized payment by transferring funds. Captures the authorized amount to complete the transaction and move funds to your merchant account.

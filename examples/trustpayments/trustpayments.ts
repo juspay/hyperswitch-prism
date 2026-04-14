@@ -26,18 +26,19 @@ function _buildAuthorizeRequest(captureMethod: CaptureMethod): PaymentServiceAut
             "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
             "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         },
-        "paymentMethod": {  // Payment method to be used.
-            "card": {  // Generic card payment.
-                "cardNumber": {"value": "4111111111111111"},  // Card Identification.
-                "cardExpMonth": {"value": "03"},
-                "cardExpYear": {"value": "2030"},
-                "cardCvc": {"value": "737"},
-                "cardHolderName": {"value": "John Doe"}  // Cardholder Information.
+        "paymentMethod": {  // Payment method to be used
+            "card": {  // Generic card payment
+                "cardNumber": "4111111111111111",  // Card Identification
+                "cardExpMonth": "03",
+                "cardExpYear": "2030",
+                "cardCvc": "737",
+                "cardHolderName": "John Doe"  // Cardholder Information
             }
         },
         "captureMethod": captureMethod,  // Method for capturing the payment.
         "address": {  // Address Information.
             "billingAddress": {
+                "email": "test@example.com"  // Contact Information
             }
         },
         "authType": AuthenticationType.NO_THREE_DS,  // Authentication Details.
@@ -263,9 +264,38 @@ async function get(merchantTransactionId: string, config: ConnectorConfig = _def
     return { status: getResponse.status };
 }
 
-// Flow: PaymentService.ProxyAuthorize
-async function proxyAuthorize(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<PaymentServiceAuthorizeResponse> {
-    const paymentClient = new PaymentClient(config);
+// Flow: PaymentService.SetupRecurring
+async function setupRecurring(merchantTransactionId, config = _defaultConfig) {
+    // Step 1: Setup Recurring — store the payment mandate
+    const setupResponse = await paymentClient.setupRecurring({
+        "merchantRecurringPaymentId": "probe_mandate_001",  // Identification
+        "amount": {  // Mandate Details
+            "minorAmount": 0,  // Amount in minor units (e.g., 1000 = $10.00)
+            "currency": "USD"  // ISO 4217 currency code (e.g., "USD", "EUR")
+        },
+        "paymentMethod": {
+            "card": {  // Generic card payment
+                "cardNumber": "4111111111111111",  // Card Identification
+                "cardExpMonth": "03",
+                "cardExpYear": "2030",
+                "cardCvc": "737",
+                "cardHolderName": "John Doe"  // Cardholder Information
+            }
+        },
+        "address": {  // Address Information
+            "billingAddress": {
+            }
+        },
+        "authType": "NO_THREE_DS",  // Type of authentication to be used
+        "enrolledFor3Ds": false,  // Indicates if the customer is enrolled for 3D Secure
+        "returnUrl": "https://example.com/mandate-return",  // URL to redirect after setup
+        "setupFutureUsage": "OFF_SESSION",  // Indicates future usage intention
+        "requestIncrementalAuthorization": false,  // Indicates if incremental authorization is requested
+        "customerAcceptance": {  // Details of customer acceptance
+            "acceptanceType": "OFFLINE",  // Type of acceptance (e.g., online, offline).
+            "acceptedAt": 0  // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
+        }
+    });
 
     const proxyResponse = await paymentClient.proxyAuthorize(_buildProxyAuthorizeRequest());
 

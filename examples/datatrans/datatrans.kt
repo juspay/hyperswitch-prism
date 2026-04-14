@@ -34,13 +34,13 @@ private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAutho
             minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
             currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         }
-        paymentMethodBuilder.apply {  // Payment method to be used.
-            cardBuilder.apply {  // Generic card payment.
-                cardNumberBuilder.value = "4111111111111111"  // Card Identification.
-                cardExpMonthBuilder.value = "03"
-                cardExpYearBuilder.value = "2030"
-                cardCvcBuilder.value = "737"
-                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
+        paymentMethodBuilder.apply {  // Payment method to be used
+            cardBuilder.apply {  // Generic card payment
+                cardNumber = "4111111111111111"  // Card Identification
+                cardExpMonth = "03"
+                cardExpYear = "2030"
+                cardCvc = "737"
+                cardHolderName = "John Doe"  // Cardholder Information
             }
         }
         captureMethod = CaptureMethod.valueOf(captureMethodStr)  // Method for capturing the payment.
@@ -48,8 +48,15 @@ private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAutho
             billingAddressBuilder.apply {
             }
         }
-        authType = AuthenticationType.NO_THREE_DS  // Authentication Details.
-        returnUrl = "https://example.com/return"  // URLs for Redirection and Webhooks.
+        authType = AuthenticationType.NO_THREE_DS  // Authentication Details
+        returnUrl = "https://example.com/return"  // URLs for Redirection and Webhooks
+        stateBuilder.apply {  // State Information
+            accessTokenBuilder.apply {  // Access token obtained from connector
+                token = "probe_access_token"  // The token string.
+                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch)
+                tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
+            }
+        }
     }.build()
 }
 
@@ -57,9 +64,16 @@ private fun buildCaptureRequest(connectorTransactionIdStr: String): PaymentServi
     return PaymentServiceCaptureRequest.newBuilder().apply {
         merchantCaptureId = "probe_capture_001"  // Identification.
         connectorTransactionId = connectorTransactionIdStr
-        amountToCaptureBuilder.apply {  // Capture Details.
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        amountToCaptureBuilder.apply {  // Capture Details
+            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00)
+            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR")
+        }
+        stateBuilder.apply {  // State Information
+            accessTokenBuilder.apply {  // Access token obtained from connector
+                token = "probe_access_token"  // The token string.
+                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch)
+                tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
+            }
         }
     }.build()
 }
@@ -68,9 +82,16 @@ private fun buildGetRequest(connectorTransactionIdStr: String): PaymentServiceGe
     return PaymentServiceGetRequest.newBuilder().apply {
         merchantTransactionId = "probe_merchant_txn_001"  // Identification.
         connectorTransactionId = connectorTransactionIdStr
-        amountBuilder.apply {  // Amount Information.
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        amountBuilder.apply {  // Amount Information
+            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00)
+            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR")
+        }
+        stateBuilder.apply {  // State Information
+            accessTokenBuilder.apply {  // Access token obtained from connector
+                token = "probe_access_token"  // The token string.
+                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch)
+                tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
+            }
         }
     }.build()
 }
@@ -81,8 +102,16 @@ private fun buildRefundRequest(connectorTransactionIdStr: String): PaymentServic
         connectorTransactionId = connectorTransactionIdStr
         paymentAmount = 1000L  // Amount Information.
         refundAmountBuilder.apply {
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00)
+            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR")
+        }
+        reason = "customer_request"  // Reason for the refund
+        stateBuilder.apply {  // State data for access token storage and other connector-specific state
+            accessTokenBuilder.apply {  // Access token obtained from connector
+                token = "probe_access_token"  // The token string.
+                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch)
+                tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
+            }
         }
         reason = "customer_request"  // Reason for the refund.
     }.build()
@@ -92,6 +121,17 @@ private fun buildVoidRequest(connectorTransactionIdStr: String): PaymentServiceV
     return PaymentServiceVoidRequest.newBuilder().apply {
         merchantVoidId = "probe_void_001"  // Identification.
         connectorTransactionId = connectorTransactionIdStr
+        amountBuilder.apply {  // Amount Information
+            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00)
+            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR")
+        }
+        stateBuilder.apply {  // State Information
+            accessTokenBuilder.apply {  // Access token obtained from connector
+                token = "probe_access_token"  // The token string.
+                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch)
+                tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
+            }
+        }
     }.build()
 }
 
