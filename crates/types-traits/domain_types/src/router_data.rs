@@ -2439,6 +2439,18 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorEnum)>
                     base_url: None,
                     terminal_id: None,
                 }),
+                ConnectorAuthType::MultiAuthKey {
+                    api_key,
+                    key1,
+                    api_secret,
+                    key2,
+                } => Ok(Self::Fiserv {
+                    api_key: api_key.clone(),
+                    merchant_account: key1.clone(),
+                    api_secret: api_secret.clone(),
+                    base_url: None,
+                    terminal_id: Some(key2.clone()),
+                }),
                 _ => Err(err().into()),
             },
             ConnectorEnum::Fiuu => match auth {
