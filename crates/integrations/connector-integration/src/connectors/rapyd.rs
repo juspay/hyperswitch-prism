@@ -42,10 +42,10 @@ use serde::Serialize;
 use std::fmt::Debug;
 use transformers::{
     CaptureRequest, RapydAuthType, RapydClientAuthRequest, RapydClientAuthResponse,
-    RapydCreateOrderRequest, RapydCreateOrderResponse, RapydPaymentsRequest,
-    RapydPaymentsResponse as RapydCaptureResponse, RapydPaymentsResponse as RapydPSyncResponse,
-    RapydPaymentsResponse, RapydPaymentsResponse as RapydVoidResponse,
-    RapydPaymentsResponse as RapydAuthorizeResponse, RapydRefundRequest, RefundResponse,
+    RapydPaymentsRequest, RapydPaymentsResponse as RapydCaptureResponse,
+    RapydPaymentsResponse as RapydPSyncResponse, RapydPaymentsResponse,
+    RapydPaymentsResponse as RapydVoidResponse, RapydPaymentsResponse as RapydAuthorizeResponse,
+    RapydRefundRequest, RapydSetupMandateRequest, RapydSetupMandateResponse, RefundResponse,
     RefundResponse as RapydRSyncResponse,
 };
 
@@ -342,10 +342,10 @@ macros::create_all_prerequisites!(
             router_data: RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
         ),
         (
-            flow: CreateOrder,
-            request_body: RapydCreateOrderRequest,
-            response_body: RapydCreateOrderResponse,
-            router_data: RouterDataV2<CreateOrder, PaymentFlowData, PaymentCreateOrderData, PaymentCreateOrderResponse>,
+            flow: SetupMandate,
+            request_body: RapydSetupMandateRequest<T>,
+            response_body: RapydSetupMandateResponse,
+            router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -624,41 +624,16 @@ macros::macro_connector_implementation!(
     }
 );
 
-macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
-    connector: Rapyd,
-    curl_request: Json(RapydCreateOrderRequest),
-    curl_response: RapydCreateOrderResponse,
-    flow_name: CreateOrder,
-    resource_common_data: PaymentFlowData,
-    flow_request: PaymentCreateOrderData,
-    flow_response: PaymentCreateOrderResponse,
-    http_method: Post,
-    generic_type: T,
-    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
-    other_functions: {
-        fn get_headers(
-            &self,
-            req: &RouterDataV2<CreateOrder, PaymentFlowData, PaymentCreateOrderData, PaymentCreateOrderResponse>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            let url = self.get_url(req)?;
-            let url_path = url.strip_prefix(self.connector_base_url_payments(req))
-                .unwrap_or(&url);
-            let body = self.get_request_body(req)?
-                .map(|content| content.get_inner_value().expose())
-                .unwrap_or_default();
-            self.build_headers(req, "post", url_path, &body)
-        }
-        fn get_url(
-            &self,
-            req: &RouterDataV2<CreateOrder, PaymentFlowData, PaymentCreateOrderData, PaymentCreateOrderResponse>,
-        ) -> CustomResult<String, IntegrationError> {
-            Ok(format!("{}/v1/checkout", self.connector_base_url_payments(req)))
-        }
-    }
-);
-
 // Stub implementations for unsupported flows
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    ConnectorIntegrationV2<
+        CreateOrder,
+        PaymentFlowData,
+        PaymentCreateOrderData,
+        PaymentCreateOrderResponse,
+    > for Rapyd<T>
+{
+}
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>
@@ -675,16 +650,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>
     for Rapyd<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        SetupMandate,
-        PaymentFlowData,
-        SetupMandateRequestData<T>,
-        PaymentsResponseData,
-    > for Rapyd<T>
 {
 }
 
@@ -777,6 +742,43 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}/v1/checkout", self.connector_base_url_payments(req)))
+        }
+    }
+);
+
+// SetupMandate flow – reuses the standard `/v1/payments` endpoint for
+// card-on-file verification. The returned payment id is surfaced as the
+// connector_mandate_id for subsequent RepeatPayment (MIT) calls.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Rapyd,
+    curl_request: Json(RapydSetupMandateRequest),
+    curl_response: RapydSetupMandateResponse,
+    flow_name: SetupMandate,
+    resource_common_data: PaymentFlowData,
+    flow_request: SetupMandateRequestData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            let url = self.get_url(req)?;
+            let url_path = url.strip_prefix(self.connector_base_url_payments(req))
+                .unwrap_or(&url);
+            let body = self.get_request_body(req)?
+                .map(|content| content.get_inner_value().expose())
+                .unwrap_or_default();
+            self.build_headers(req, "post", url_path, &body)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}/v1/payments", self.connector_base_url_payments(req)))
         }
     }
 );
