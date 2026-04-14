@@ -5,11 +5,11 @@ use common_utils::{
     types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
+    connector_flow::{Authorize, Capture, PSync, RSync, Refund, SetupMandate, Void},
     connector_types::{
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId,
+        RefundsResponseData, ResponseId, SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
@@ -436,6 +436,16 @@ pub struct FiservRefundSyncRequest {
     pub merchant_details: MerchantDetails,
     pub reference_transaction_details: ReferenceTransactionDetails,
 }
+
+// SetupMandate (SetupRecurring) flow types - reuses Authorize charges endpoint
+// with capture_flag=false to validate and store the card for future use.
+#[derive(Debug, Serialize)]
+#[serde(transparent)]
+pub struct FiservSetupMandateRequest<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+>(pub FiservPaymentsRequest<T>);
+
+pub type FiservSetupMandateResponse = FiservPaymentsResponse;
 
 // Implementations for FiservRouterData - needed for the macro framework
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -1178,6 +1188,179 @@ impl<F> TryFrom<ResponseRouterData<FiservRefundSyncResponse, Self>>
                 reason: None,
                 status_code: http_code,
                 attempt_status: None,
+                connector_transaction_id: gateway_resp.gateway_transaction_id.clone(),
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+            });
+        } else {
+            router_data_out.response = Ok(response_payload);
+        }
+
+        Ok(router_data_out)
+    }
+}
+
+// SetupMandate (SetupRecurring) request conversion - wraps Authorize charges with capture_flag=false
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        FiservRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for FiservSetupMandateRequest<T>
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        item: FiservRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        if item.router_data.resource_common_data.is_three_ds() {
+            Err(IntegrationError::NotSupported {
+                message: "Cards 3DS".to_string(),
+                connector: "Fiserv",
+                context: Default::default(),
+            })?
+        }
+
+        let auth: FiservAuthType = FiservAuthType::try_from(&item.router_data.connector_config)?;
+
+        // SetupMandate may not carry an amount - default to 0 in major units.
+        let minor_amount = item
+            .router_data
+            .request
+            .minor_amount
+            .unwrap_or_else(|| common_utils::types::MinorUnit::new(0));
+        let total = item
+            .connector
+            .amount_converter
+            .convert(minor_amount, item.router_data.request.currency)
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: Default::default(),
+            })?;
+
+        let amount = Amount {
+            total,
+            currency: item.router_data.request.currency.to_string(),
+        };
+        let merchant_details = MerchantDetails {
+            merchant_id: auth.merchant_account,
+            terminal_id: auth.terminal_id,
+        };
+
+        let checkout_charges_request = match item.router_data.request.payment_method_data.clone() {
+            PaymentMethodData::Card(ref ccard) => FiservCheckoutChargesRequest::Charges(
+                ChargesPaymentRequest {
+                    source: Source::PaymentCard {
+                        card: CardData {
+                            card_data: ccard.card_number.clone(),
+                            expiration_month: ccard.card_exp_month.clone(),
+                            expiration_year: ccard.get_expiry_year_4_digit(),
+                            security_code: Some(ccard.card_cvc.clone()),
+                        },
+                    },
+                    transaction_details: TransactionDetails {
+                        // SetupMandate = authorize only, never capture.
+                        capture_flag: Some(false),
+                        reversal_reason_code: None,
+                        merchant_transaction_id: Some(
+                            item.router_data
+                                .resource_common_data
+                                .connector_request_reference_id
+                                .clone(),
+                        ),
+                        operation_type: None,
+                    },
+                    transaction_interaction: Some(TransactionInteraction {
+                        origin: TransactionInteractionOrigin::Ecom,
+                        eci_indicator: TransactionInteractionEciIndicator::ChannelEncrypted,
+                        pos_condition_code:
+                            TransactionInteractionPosConditionCode::CardNotPresentEcom,
+                    }),
+                },
+            ),
+            _ => {
+                return Err(error_stack::report!(IntegrationError::not_implemented(
+                    utils::get_unimplemented_payment_method_error_message("fiserv"),
+                )))
+            }
+        };
+
+        Ok(FiservSetupMandateRequest(FiservPaymentsRequest {
+            amount,
+            checkout_charges_request,
+            merchant_details,
+        }))
+    }
+}
+
+// SetupMandate response conversion
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<FiservSetupMandateResponse, Self>>
+    for RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<FiservSetupMandateResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let ResponseRouterData {
+            response,
+            router_data,
+            http_code,
+        } = item;
+
+        let gateway_resp = &response.gateway_response;
+        let status = enums::AttemptStatus::from(gateway_resp.transaction_state.clone());
+
+        let mut router_data_out = router_data;
+        router_data_out.resource_common_data.status = status;
+
+        let response_payload = PaymentsResponseData::TransactionResponse {
+            resource_id: ResponseId::ConnectorTransactionId(
+                gateway_resp
+                    .gateway_transaction_id
+                    .clone()
+                    .unwrap_or_else(|| {
+                        gateway_resp
+                            .transaction_processing_details
+                            .transaction_id
+                            .clone()
+                    }),
+            ),
+            redirection_data: None,
+            mandate_reference: None,
+            connector_metadata: None,
+            network_txn_id: None,
+            connector_response_reference_id: Some(
+                gateway_resp.transaction_processing_details.order_id.clone(),
+            ),
+            incremental_authorization_allowed: None,
+            status_code: http_code,
+        };
+
+        if status == enums::AttemptStatus::Failure || status == enums::AttemptStatus::Voided {
+            router_data_out.response = Err(ErrorResponse {
+                code: gateway_resp
+                    .transaction_processing_details
+                    .transaction_id
+                    .clone(),
+                message: format!("SetupMandate status: {:?}", gateway_resp.transaction_state),
+                reason: None,
+                status_code: http_code,
+                attempt_status: Some(status),
                 connector_transaction_id: gateway_resp.gateway_transaction_id.clone(),
                 network_decline_code: None,
                 network_advice_code: None,
