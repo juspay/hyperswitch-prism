@@ -2,11 +2,12 @@ use crate::types::ResponseRouterData;
 use common_enums::{AttemptStatus, RefundStatus};
 use common_utils::types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector};
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, PreAuthenticate, RSync, Refund, Void},
+    connector_flow::{Authorize, Capture, PSync, PreAuthenticate, RSync, Refund, SetupMandate, Void},
     connector_types::{
         MandateReference, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
         PaymentsCaptureData, PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData,
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
+        SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{
@@ -1518,6 +1519,273 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<NmiVaultResponse, Sel
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                }),
+            ),
+        };
+
+        Ok(Self {
+            response: payment_response,
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
+    }
+}
+
+// ===== SETUP MANDATE (SetupRecurring) =====
+
+/// NMI SetupMandate request - adds payment method to Customer Vault for recurring payments
+#[derive(Debug, Serialize)]
+pub struct NmiSetupMandateRequest<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+> {
+    security_key: Secret<String>,
+    customer_vault: CustomerAction,
+    #[serde(flatten)]
+    payment_method: NmiSetupMandatePaymentMethod<T>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    first_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    last_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    email: Option<common_utils::pii::Email>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    address1: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    address2: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    city: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    state: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    zip: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    country: Option<common_enums::CountryAlpha2>,
+}
+
+/// Payment method for SetupMandate - supports Card and ACH
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum NmiSetupMandatePaymentMethod<T: PaymentMethodDataTypes> {
+    Card(NmiSetupMandateCard<T>),
+    Ach(NmiSetupMandateAch),
+}
+
+/// Card payment method for SetupMandate
+#[derive(Debug, Serialize)]
+pub struct NmiSetupMandateCard<T: PaymentMethodDataTypes> {
+    ccnumber: RawCardNumber<T>,
+    ccexp: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    cvv: Option<Secret<String>>,
+}
+
+/// ACH payment method for SetupMandate
+#[derive(Debug, Serialize)]
+pub struct NmiSetupMandateAch {
+    payment: &'static str,
+    checkname: Secret<String>,
+    checkaba: Secret<String>,
+    checkaccount: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    account_holder_type: Option<common_enums::BankHolderType>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    account_type: Option<common_enums::BankType>,
+}
+
+/// NMI SetupMandate response - same as StandardResponse, includes customer_vault_id
+pub type NmiSetupMandateResponse = StandardResponse;
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        super::NmiRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for NmiSetupMandateRequest<T>
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: super::NmiRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let auth = NmiAuthType::try_from(&router_data.connector_config)?;
+
+        let payment_method = match &router_data.request.payment_method_data {
+            PaymentMethodData::Card(card_data) => {
+                let ccexp = card_data.get_card_expiry_month_year_2_digit_with_delimiter("".to_string())?;
+                NmiSetupMandatePaymentMethod::Card(NmiSetupMandateCard {
+                    ccnumber: card_data.card_number.clone(),
+                    ccexp,
+                    cvv: Some(card_data.card_cvc.clone()),
+                })
+            }
+            PaymentMethodData::BankDebit(BankDebitData::AchBankDebit {
+                account_number,
+                routing_number,
+                bank_account_holder_name,
+                bank_type,
+                bank_holder_type,
+                ..
+            }) => {
+                let checkname = bank_account_holder_name.clone().ok_or_else(|| {
+                    IntegrationError::MissingRequiredField {
+                        field_name: "bank_account_holder_name",
+                        context: Default::default(),
+                    }
+                })?;
+                NmiSetupMandatePaymentMethod::Ach(NmiSetupMandateAch {
+                    payment: ACH_PAYMENT_TYPE,
+                    checkname,
+                    checkaba: routing_number.clone(),
+                    checkaccount: account_number.clone(),
+                    account_holder_type: *bank_holder_type,
+                    account_type: *bank_type,
+                })
+            }
+            _ => {
+                return Err(IntegrationError::NotImplemented(
+                    get_unimplemented_payment_method_error_message("NMI SetupMandate"),
+                    Default::default(),
+                )
+                .into())
+            }
+        };
+
+        let billing_address = router_data
+            .resource_common_data
+            .get_optional_billing()
+            .and_then(|b| b.address.as_ref());
+
+        Ok(Self {
+            security_key: auth.api_key,
+            customer_vault: CustomerAction::AddCustomer,
+            payment_method,
+            first_name: billing_address.and_then(|a| a.first_name.clone()),
+            last_name: billing_address.and_then(|a| a.last_name.clone()),
+            email: router_data.request.email.clone(),
+            address1: billing_address.and_then(|a| a.line1.clone()),
+            address2: billing_address.and_then(|a| a.line2.clone()),
+            city: billing_address.and_then(|a| a.city.clone()),
+            state: billing_address.and_then(|a| a.state.clone()),
+            zip: billing_address.and_then(|a| a.zip.clone()),
+            country: billing_address.and_then(|a| a.country),
+        })
+    }
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        ResponseRouterData<
+            NmiSetupMandateResponse,
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+        >,
+    >
+    for RouterDataV2<
+        SetupMandate,
+        PaymentFlowData,
+        SetupMandateRequestData<T>,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<
+            NmiSetupMandateResponse,
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let response = &item.response;
+
+        // NMI response codes: "1" = Approved, "2" = Declined, "3" = Error
+        let (status, payment_response) = match response.response.as_str() {
+            "1" => {
+                // Approved - Extract customer_vault_id as the mandate reference
+                let connector_mandate_id = response
+                    .customer_vault_id
+                    .as_ref()
+                    .map(|id| id.clone().expose());
+
+                let mandate_reference = connector_mandate_id.clone().map(|id| {
+                    Box::new(MandateReference {
+                        connector_mandate_id: Some(id),
+                        payment_method_id: None,
+                        connector_mandate_request_reference_id: None,
+                    })
+                });
+
+                (
+                    AttemptStatus::Charged, // Mandate setup successful
+                    Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(
+                            response.transactionid.clone(),
+                        ),
+                        redirection_data: None,
+                        mandate_reference,
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        connector_response_reference_id: Some(response.transactionid.clone()),
+                        incremental_authorization_allowed: None,
+                        status_code: item.http_code,
+                    }),
+                )
+            }
+            "2" | "3" => (
+                // Declined or Error
+                AttemptStatus::Failure,
+                Err(domain_types::router_data::ErrorResponse {
+                    code: response.response_code.clone(),
+                    message: response.responsetext.clone(),
+                    reason: Some(response.responsetext.clone()),
+                    status_code: item.http_code,
+                    attempt_status: Some(AttemptStatus::Failure),
+                    connector_transaction_id: Some(response.transactionid.clone()),
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                }),
+            ),
+            _ => (
+                // Unknown response - treat as pending
+                AttemptStatus::Pending,
+                Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(
+                        response.transactionid.clone(),
+                    ),
+                    redirection_data: None,
+                    mandate_reference: None,
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: Some(response.transactionid.clone()),
+                    incremental_authorization_allowed: None,
+                    status_code: item.http_code,
                 }),
             ),
         };
