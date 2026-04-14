@@ -32,7 +32,7 @@ dist: package ## Build distribution package (alias for package)
 
 test-package: build-ffi-lib ## Build FFI → Run Rust smoke test
 	@echo "Running Rust smoke test..."
-	@cd $(REPO_ROOT) && HARNESS_DIR=$(SDK_ROOT)/../../examples CONNECTORS=$(CONNECTORS) cargo run --profile $(PROFILE) -p hyperswitch-smoke-test -- --connectors $(CONNECTORS) 2>&1
+	@cd $(REPO_ROOT) && HARNESS_DIR=$(SDK_ROOT)/../../examples CONNECTORS=$(CONNECTORS) cargo run --profile $(PROFILE) --target $(PLATFORM) -p hyperswitch-smoke-test -- --connectors $(CONNECTORS) 2>&1
 
 test-package-mock: build-ffi-lib ## Build FFI → Run Rust smoke test in MOCK mode (uses examples/connector/connector.rs)
 	@echo "Running Rust smoke test in MOCK mode..."
@@ -41,13 +41,13 @@ test-package-mock: build-ffi-lib ## Build FFI → Run Rust smoke test in MOCK mo
 		exit 1; \
 	fi
 	@# Use examples directory (via HARNESS_DIR env var)
-	@cd $(REPO_ROOT) && HARNESS_DIR=$(SDK_ROOT)/../../examples CONNECTORS=$(CONNECTORS) cargo run --profile $(PROFILE) -p hyperswitch-smoke-test -- --creds-file $(REPO_ROOT)/creds.json --connectors $(CONNECTORS) --mock 2>&1
+	@cd $(REPO_ROOT) && HARNESS_DIR=$(SDK_ROOT)/../../examples CONNECTORS=$(CONNECTORS) cargo run --profile $(PROFILE) --target $(PLATFORM) -p hyperswitch-smoke-test -- --creds-file $(REPO_ROOT)/creds.json --connectors $(CONNECTORS) --mock 2>&1
 
 # test-grpc
 # Builds the grpc-server binary, starts it in background, runs gRPC smoke test binary.
 test-grpc-no-server: build-ffi-lib build-grpc-ffi-lib
 	@echo "Running gRPC smoke test..."
-	@cd $(REPO_ROOT) && cargo run --profile $(PROFILE) -p hyperswitch-smoke-test --bin grpc-smoke-test -- --connectors $(GRPC_CONNECTOR) 2>&1 | tail -30
+	@cd $(REPO_ROOT) && cargo run --profile $(PROFILE) --target $(PLATFORM) -p hyperswitch-smoke-test --bin grpc-smoke-test -- --connectors $(GRPC_CONNECTOR) 2>&1 | tail -30
 
 # test-grpc
 # Builds the grpc-server binary, starts it as a background process, runs
@@ -63,11 +63,11 @@ GRPC_AUTH_TYPE  ?= header-key
 GRPC_API_KEY    ?=
 GRPC_ENDPOINT   ?= http://localhost:8000
 GRPC_PROFILE    ?= release-fast
-GRPC_SERVER_BIN := $(REPO_ROOT)/target/$(GRPC_PROFILE)/grpc-server
+GRPC_SERVER_BIN := $(REPO_ROOT)/target/$(PLATFORM)/$(GRPC_PROFILE)/grpc-server
 
 test-grpc: ## Build grpc-server → start in background → run gRPC smoke test → stop
 	@echo "Building grpc-server ($(GRPC_PROFILE))…"
-	@cd $(REPO_ROOT) && cargo build -p grpc-server --profile $(GRPC_PROFILE) 2>&1
+	@cd $(REPO_ROOT) && cargo build -p grpc-server --profile $(GRPC_PROFILE) --target $(PLATFORM) 2>&1
 	@echo "Starting gRPC server…"
 	@pkill -KILL -f grpc-server 2>/dev/null || true
 	@sleep 1

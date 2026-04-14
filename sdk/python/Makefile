@@ -221,7 +221,7 @@ test-composite: generate-all pack-archive
 # installs it in an isolated temp directory, then runs test_smoke_grpc.py.
 # ---------------------------------------------------------------------------
 GRPC_PROFILE    ?= release-fast
-GRPC_SERVER_BIN := $(REPO_ROOT)/target/$(GRPC_PROFILE)/grpc-server
+GRPC_SERVER_BIN := $(REPO_ROOT)/target/$(PLATFORM)/$(GRPC_PROFILE)/grpc-server
 
 # Run gRPC test assuming server is already running (used by top-level test-grpc)
 test-grpc-no-server: build-ffi-lib build-grpc-ffi-lib generate-all pack-archive
@@ -247,7 +247,7 @@ test-grpc-no-server: build-ffi-lib build-grpc-ffi-lib generate-all pack-archive
 
 test-grpc: build-ffi-lib build-grpc-ffi-lib generate-all pack-archive
 	@echo "Building grpc-server ($(GRPC_PROFILE))..."
-	@cd $(REPO_ROOT) && cargo build -p grpc-server --profile $(GRPC_PROFILE) 2>&1
+	@cd $(REPO_ROOT) && cargo build -p grpc-server --profile $(GRPC_PROFILE) --target $(PLATFORM) 2>&1
 	@echo "Starting gRPC server..."
 	@pkill -KILL -f grpc-server 2>/dev/null || true
 	@sleep 1

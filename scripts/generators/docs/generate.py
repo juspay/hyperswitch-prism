@@ -1172,22 +1172,33 @@ def check_example_syntax(examples_dir: Path, connectors: Optional[list[str]] = N
             print("✓")
 
     # ── Python — mypy type checking ────────────────────────────────────────────
+    # Check if mypy is available before attempting type checking
+    mypy_available = False
+    try:
+        subprocess.run([sys.executable, "-m", "mypy", "--version"], capture_output=True, check=True)
+        mypy_available = True
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        pass
+    
     if py_files:
-        print(f"  Checking Python types ({len(py_files)} files) ...", end=" ", flush=True)
-        mypy_errors: list[str] = []
-        for f in py_files:
-            result = subprocess.run(
-                [sys.executable, "-m", "mypy", "--ignore-missing-imports", "--follow-imports=skip", str(f)],
-                capture_output=True, text=True,
-            )
-            if result.returncode != 0:
-                err_lines = [line for line in (result.stdout + result.stderr).splitlines() if line.strip()]
-                mypy_errors.append(f"Python Types: {f.relative_to(examples_dir.parent)}: {'; '.join(err_lines)}")
-        if mypy_errors:
-            print(f"✗ ({len(mypy_errors)} error(s))")
-            errors.extend(mypy_errors)
+        if mypy_available:
+            print(f"  Checking Python types ({len(py_files)} files) ...", end=" ", flush=True)
+            mypy_errors: list[str] = []
+            for f in py_files:
+                result = subprocess.run(
+                    [sys.executable, "-m", "mypy", "--ignore-missing-imports", "--follow-imports=skip", str(f)],
+                    capture_output=True, text=True,
+                )
+                if result.returncode != 0:
+                    err_lines = [line for line in (result.stdout + result.stderr).splitlines() if line.strip()]
+                    mypy_errors.append(f"Python Types: {f.relative_to(examples_dir.parent)}: {'; '.join(err_lines)}")
+            if mypy_errors:
+                print(f"✗ ({len(mypy_errors)} error(s))")
+                errors.extend(mypy_errors)
+            else:
+                print("✓")
         else:
-            print("✓")
+            print(f"  Checking Python types ({len(py_files)} files) ... skipped (mypy unavailable)")
 
     # ── TypeScript — tsc --noEmit via SDK's local tsc installation ──────────────
     # The generated .ts files import 'hyperswitch-prism', which is resolved via
@@ -1363,6 +1374,21 @@ def check_example_syntax(examples_dir: Path, connectors: Optional[list[str]] = N
     except (subprocess.CalledProcessError, FileNotFoundError):
         pass
     if cargo_ok and rs_files:
+        # Detect target platform to share build artifacts with FFI/library builds
+        import platform
+        system = platform.system()
+        machine = platform.machine()
+        if system == "Darwin":
+            if machine == "arm64":
+                cargo_target = "aarch64-apple-darwin"
+            else:
+                cargo_target = "x86_64-apple-darwin"
+        else:
+            if machine == "aarch64":
+                cargo_target = "aarch64-unknown-linux-gnu"
+            else:
+                cargo_target = "x86_64-unknown-linux-gnu"
+        cargo_target_flag = ["--target", cargo_target]
         # Derive connector names from the rs_files paths (examples/{connector}/*.rs)
         connector_names: list[str] = []
         for f in rs_files:
@@ -1375,7 +1401,7 @@ def check_example_syntax(examples_dir: Path, connectors: Optional[list[str]] = N
             repo_root = examples_dir.parent
             print(f"  Running cargo check for connectors: {connectors_env} ...")
             cargo_result = subprocess.run(
-                ["cargo", "check", "-p", "hyperswitch-smoke-test", "--message-format=short"],
+                ["cargo", "check", "-p", "hyperswitch-smoke-test", "--profile", "release-fast", "--message-format=short"] + cargo_target_flag,
                 cwd=str(repo_root),
                 env={**__import__("os").environ, "CONNECTORS": connectors_env},
                 capture_output=True,
@@ -1411,8 +1437,9 @@ def check_example_syntax(examples_dir: Path, connectors: Optional[list[str]] = N
             
             if copied > 0:
                 # Check all examples at once (much faster than 80 individual checks)
+                # Use same target flag to share build artifacts
                 example_check = subprocess.run(
-                    ["cargo", "check", "--examples", "--message-format=short"],
+                    ["cargo", "check", "--examples", "--message-format=short"] + cargo_target_flag,
                     cwd=str(repo_root / "sdk" / "rust"),
                     capture_output=True,
                     text=True,

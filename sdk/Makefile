@@ -65,6 +65,10 @@ install-deps: ## Install Python dependencies (skipped in Nix shell)
 			(echo "  → Installing jinja2..." && \
 			 pip3 install jinja2 --quiet 2>/dev/null || \
 			 pip3 install jinja2 --user --quiet); \
+		python3 -c "import mypy" 2>/dev/null || \
+			(echo "  → Installing mypy..." && \
+			 pip3 install mypy --quiet 2>/dev/null || \
+			 pip3 install mypy --user --quiet); \
 	fi
 	@echo "All required tools present."
 
@@ -220,7 +224,7 @@ else
 endif
 
 # grpc-server doesn't use --target, so it's in the default target directory
-GRPC_SERVER_BIN := $(REPO_ROOT)/target/$(GRPC_PROFILE)/grpc-server
+GRPC_SERVER_BIN := $(REPO_ROOT)/target/$(PLATFORM)/$(GRPC_PROFILE)/grpc-server
 
 # Internal target: wait for gRPC server to be ready (checks TCP port 8080)
 _wait-for-server:
@@ -257,7 +261,7 @@ test-grpc: _cleanup-grpc ## Run gRPC smoke tests for all SDKs (Rust + JS + Pytho
 			fi; \
 		else \
 			printf "Building grpc-server ($(GRPC_PROFILE))...\n"; \
-			cd $(REPO_ROOT) && cargo build -p grpc-server --profile $(GRPC_PROFILE) 2>&1 | grep -v "^   Compiling\|^   Finished" || true; \
+			cd $(REPO_ROOT) && cargo build -p grpc-server --profile $(GRPC_PROFILE) --target $(PLATFORM) 2>&1 | grep -v "^   Compiling\|^   Finished" || true; \
 		fi; \
 		\
 		printf "\nStarting gRPC server (shared across all tests)...\n"; \

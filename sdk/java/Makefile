@@ -188,9 +188,9 @@ test-grpc-no-server: install
 
 test-grpc: install generate-all ## Build grpc-ffi lib + grpc-server → start server → run Kotlin gRPC smoke test → stop server
 	@echo "Building gRPC FFI library ($(GRPC_PROFILE))..."
-	@cd $(REPO_ROOT) && cargo build -p hyperswitch-grpc-ffi --profile $(GRPC_PROFILE) 2>&1
+	@cd $(REPO_ROOT) && cargo build -p hyperswitch-grpc-ffi --profile $(GRPC_PROFILE) --target $(PLATFORM) 2>&1
 	@echo "Building gRPC server ($(GRPC_PROFILE))..."
-	@cd $(REPO_ROOT) && cargo build -p grpc-server --profile $(GRPC_PROFILE) 2>&1
+	@cd $(REPO_ROOT) && cargo build -p grpc-server --profile $(GRPC_PROFILE) --target $(PLATFORM) 2>&1
 	@echo "Starting gRPC server..."
 	@pkill -KILL -f grpc-server 2>/dev/null || true
 	@sleep 1

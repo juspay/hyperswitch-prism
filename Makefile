@@ -275,9 +275,26 @@ test-ffi-mock:
 	@python3 scripts/run_smoke_tests_parallel.py --connectors $(CONNECTORS) --mock $(if $(filter 1,$(VERBOSE) $(V)),--verbose)
 
 ## Run field-probe to generate connector flow data
+# Use the same platform detection as sdk/common.mk to share build artifacts
+UNAME_S := $(shell uname -s)
+UNAME_M := $(shell uname -m)
+ifeq ($(UNAME_S), Darwin)
+  ifeq ($(UNAME_M), arm64)
+    FIELD_PROBE_TARGET := aarch64-apple-darwin
+  else
+    FIELD_PROBE_TARGET := x86_64-apple-darwin
+  endif
+else
+  ifeq ($(UNAME_M), aarch64)
+    FIELD_PROBE_TARGET := aarch64-unknown-linux-gnu
+  else
+    FIELD_PROBE_TARGET := x86_64-unknown-linux-gnu
+  endif
+endif
+
 field-probe:
 	@echo "▶ Running field-probe to generate connector flow data…"
-	-cargo run -p field-probe
+	-cargo run -p field-probe --target $(FIELD_PROBE_TARGET) --profile release-fast
 
 ## Run comprehensive pre-push validation (format, check, clippy, generate, docs)
 validate-pre-push:
@@ -297,6 +314,8 @@ validate-pre-push-fix:
 ## Generate connector docs (default: stripe only; use CONNECTORS=all for all connectors)
 ## Skips field-probe if data/field_probe already exists; use CONNECTORS=all to re-probe all connectors.
 docs:
+	@echo "▶ Ensuring Python dependencies are installed…"
+	@$(MAKE) -C sdk install-deps
 	@echo "▶ Building FFI library (if needed)…"
 	@$(MAKE) -C sdk build-ffi-lib
 	@echo "▶ Ensuring JavaScript SDK dependencies are generated…"
