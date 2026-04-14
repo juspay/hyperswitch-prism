@@ -20,11 +20,11 @@ use domain_types::{
         ApplepayClientAuthenticationResponse, ClientAuthenticationTokenData,
         GooglePaySessionResponse, GpayAllowedPaymentMethods, GpayClientAuthenticationResponse,
         GpayMerchantInfo, GpayShippingAddressParameters, MandateReference, NextActionCall,
-        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData,
-        PaymentsAuthorizeData, PaymentsResponseData, RefundFlowData, RefundsData,
-        RefundsResponseData, ResponseId, SdkNextAction, SecretInfoToInitiateSdk,
-        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
-        SetupMandateRequestData, ThirdPartySdkSessionResponse,
+        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentsAuthorizeData,
+        PaymentsResponseData, RefundFlowData, RefundsData, RefundsResponseData, ResponseId,
+        SdkNextAction, SecretInfoToInitiateSdk, ServerAuthenticationTokenRequestData,
+        ServerAuthenticationTokenResponseData, SetupMandateRequestData,
+        ThirdPartySdkSessionResponse,
     },
     errors::{ConnectorError, IntegrationError, WebhookError},
     payment_method_data::{
@@ -2558,7 +2558,12 @@ impl From<GooglePayAllowedPaymentMethods> for GpayAllowedPaymentMethods {
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         TrustpayRouterData<
-            RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
             T,
         >,
     > for TrustpaySetupMandateRequest<T>
@@ -2567,7 +2572,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
     fn try_from(
         item: TrustpayRouterData<
-            RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
             T,
         >,
     ) -> Result<Self, Self::Error> {
@@ -2587,55 +2597,64 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         // Get billing address
         let billing = router_data.resource_common_data.get_billing()?;
-        let address = billing.address.as_ref().ok_or_else(|| {
-            IntegrationError::MissingRequiredField {
-                field_name: "billing.address",
-                context: Default::default(),
-            }
-        })?;
+        let address =
+            billing
+                .address
+                .as_ref()
+                .ok_or_else(|| IntegrationError::MissingRequiredField {
+                    field_name: "billing.address",
+                    context: Default::default(),
+                })?;
 
         // Extract mandatory params
-        let billing_city = address.city.clone().ok_or_else(|| {
-            IntegrationError::MissingRequiredField {
-                field_name: "billing.address.city",
-                context: Default::default(),
-            }
-        })?;
-        let billing_country = address.country.ok_or_else(|| {
-            IntegrationError::MissingRequiredField {
-                field_name: "billing.address.country",
-                context: Default::default(),
-            }
-        })?;
-        let billing_street1 = address.line1.clone().ok_or_else(|| {
-            IntegrationError::MissingRequiredField {
-                field_name: "billing.address.line1",
-                context: Default::default(),
-            }
-        })?;
-        let billing_postcode = address.zip.clone().ok_or_else(|| {
-            IntegrationError::MissingRequiredField {
-                field_name: "billing.address.zip",
-                context: Default::default(),
-            }
-        })?;
-        let billing_first_name = address.first_name.clone().ok_or_else(|| {
-            IntegrationError::MissingRequiredField {
-                field_name: "billing.address.first_name",
-                context: Default::default(),
-            }
-        })?;
+        let billing_city =
+            address
+                .city
+                .clone()
+                .ok_or_else(|| IntegrationError::MissingRequiredField {
+                    field_name: "billing.address.city",
+                    context: Default::default(),
+                })?;
+        let billing_country =
+            address
+                .country
+                .ok_or_else(|| IntegrationError::MissingRequiredField {
+                    field_name: "billing.address.country",
+                    context: Default::default(),
+                })?;
+        let billing_street1 =
+            address
+                .line1
+                .clone()
+                .ok_or_else(|| IntegrationError::MissingRequiredField {
+                    field_name: "billing.address.line1",
+                    context: Default::default(),
+                })?;
+        let billing_postcode =
+            address
+                .zip
+                .clone()
+                .ok_or_else(|| IntegrationError::MissingRequiredField {
+                    field_name: "billing.address.zip",
+                    context: Default::default(),
+                })?;
+        let billing_first_name =
+            address
+                .first_name
+                .clone()
+                .ok_or_else(|| IntegrationError::MissingRequiredField {
+                    field_name: "billing.address.first_name",
+                    context: Default::default(),
+                })?;
         let billing_last_name = address.last_name.clone();
 
         // Get browser info
-        let browser_info = router_data
-            .request
-            .browser_info
-            .as_ref()
-            .ok_or_else(|| IntegrationError::MissingRequiredField {
+        let browser_info = router_data.request.browser_info.as_ref().ok_or_else(|| {
+            IntegrationError::MissingRequiredField {
                 field_name: "browser_info",
                 context: Default::default(),
-            })?;
+            }
+        })?;
 
         // Get email
         let customer_email = router_data.request.get_email()?;
@@ -2657,19 +2676,24 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let expiry_date = {
             let year = card_data.card_exp_year.peek();
             let year_2_digit = if year.len() == 4 { &year[2..] } else { year };
-            Secret::new(format!("{}/{}", card_data.card_exp_month.peek(), year_2_digit))
+            Secret::new(format!(
+                "{}/{}",
+                card_data.card_exp_month.peek(),
+                year_2_digit
+            ))
         };
 
         // Build cardholder name
         let cardholder = get_full_name(billing_first_name.clone(), billing_last_name);
 
         // Use zero amount for mandate setup verification
-        let amount = item.connector.amount_converter.convert(
-            MinorUnit::new(0),
-            router_data.request.currency,
-        ).change_context(IntegrationError::RequestEncodingFailed {
-            context: Default::default(),
-        })?;
+        let amount = item
+            .connector
+            .amount_converter
+            .convert(MinorUnit::new(0), router_data.request.currency)
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?;
 
         Ok(Self {
             amount,
@@ -2709,16 +2733,32 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     TryFrom<
         ResponseRouterData<
             TrustpaySetupMandateResponse,
-            RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
         >,
-    > for RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>
+    >
+    for RouterDataV2<
+        SetupMandate,
+        PaymentFlowData,
+        SetupMandateRequestData<T>,
+        PaymentsResponseData,
+    >
 {
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<
             TrustpaySetupMandateResponse,
-            RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
         >,
     ) -> Result<Self, Self::Error> {
         let response = &item.response;
