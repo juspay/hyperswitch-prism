@@ -183,7 +183,7 @@ generate: install-deps generate-rust generate-grpc-client generate-python genera
 # The FFI library build is now idempotent (skips if already exists), and each
 # SDK's generate-bindings step also checks if outputs exist before regenerating.
 # Set QUIET=0 to show full compilation output (default: QUIET=1 shows only test results)
-test: build-ffi-lib generate-harnesses ## Run all SDK smoke tests (builds FFI and generates harnesses, runs sequentially). Use QUIET=0 for verbose output.
+test: build-ffi-lib ## Run all SDK smoke tests (builds FFI, runs sequentially). Use QUIET=0 for verbose output.
 	@echo "Running FFI smoke tests for all SDKs..."
 	@echo; echo "═══ Rust FFI ═══"; echo
 	@$(MAKE) -C $(REPO_ROOT)/sdk/rust test-package CONNECTORS=$(CONNECTORS) 2>&1 
@@ -311,13 +311,6 @@ test-mock: build-ffi-lib ## Run all SDK smoke tests in MOCK mode (verifies req_t
 	@echo; echo "═══ Kotlin FFI (MOCK) ═══"; echo
 	@$(MAKE) -C $(REPO_ROOT)/sdk/java test-package-mock CONNECTORS=$(CONNECTORS) 2>&1
 	@echo; echo "All SDK mock smoke tests completed."
-
-# ---------------------------------------------------------------------------
-# Generate harnesses for mock mode testing
-# ---------------------------------------------------------------------------
-generate-harnesses: ## Generate flow harnesses for mock mode testing
-	@echo "Generating flow harnesses from field probe data..."
-	@python3 $(REPO_ROOT)/scripts/generators/code/generate_harnesses.py --connectors $(CONNECTORS)
 
 # ---------------------------------------------------------------------------
 # Distribution targets - delegate to SDK-specific dist

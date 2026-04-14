@@ -340,7 +340,7 @@ async def test_connector_scenarios(
     example_fn_map = {key: fn for key, fn in scenario_fns}
     
     # Test ALL flows from manifest - use flow_to_example_fn mapping to find implementations
-    # In mock mode, harnesses use direct flow-based naming (process_{flow}) so bypass mapping
+    # In mock mode, examples use direct flow-based naming (process_{flow}) so bypass mapping
     any_failed = False
     for flow_name in manifest:
         scenario_key = flow_name
@@ -726,7 +726,7 @@ def main():
     parser.add_argument(
         "--mock",
         action="store_true",
-        help="Intercept HTTP; verify req_transformer only. Uses generated/ harnesses.",
+        help="Intercept HTTP; verify req_transformer only. Uses examples/connector/connector.py files.",
     )
     parser.add_argument(
         "--json-output",

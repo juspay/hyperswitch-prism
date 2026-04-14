@@ -34,13 +34,13 @@ test-package: build-ffi-lib ## Build FFI → Run Rust smoke test
 	@echo "Running Rust smoke test..."
 	@cd $(REPO_ROOT) && HARNESS_DIR=$(SDK_ROOT)/smoke-test/generated CONNECTORS=$(CONNECTORS) cargo run --profile $(PROFILE) -p hyperswitch-smoke-test -- --connectors $(CONNECTORS) 2>&1
 
-test-package-mock: build-ffi-lib ## Build FFI → Run Rust smoke test in MOCK mode (uses generated harnesses)
+test-package-mock: build-ffi-lib ## Build FFI → Run Rust smoke test in MOCK mode (uses examples/connector/connector.rs)
 	@echo "Running Rust smoke test in MOCK mode..."
 	@if [ ! -f $(REPO_ROOT)/creds_dummy.json ]; then \
 		echo "ERROR: creds_dummy.json not found"; \
 		exit 1; \
 	fi
-	@# Use generated harness directory instead of examples/ (via HARNESS_DIR env var)
+	@# Use examples directory (via HARNESS_DIR env var)
 	@cd $(REPO_ROOT) && HARNESS_DIR=$(SDK_ROOT)/smoke-test/generated CONNECTORS=$(CONNECTORS) cargo run --profile $(PROFILE) -p hyperswitch-smoke-test -- --creds-file $(REPO_ROOT)/creds_dummy.json --connectors $(CONNECTORS) --mock 2>&1
 
 # test-grpc

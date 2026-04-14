@@ -202,7 +202,7 @@ test-composite: build-ffi-lib generate-all build-ts pack-archive
 # ---------------------------------------------------------------------------
 # test-package-mock
 # Same as test-package but runs in MOCK mode (no real HTTP calls).
-# Uses generated harnesses instead of examples and verifies req_transformer only.
+# Uses examples/connector/connector.ts files and verifies req_transformer only.
 # ---------------------------------------------------------------------------
 test-package-mock: build-ffi-lib generate-all build-ts pack-archive
 	@echo "Testing in MOCK mode (HTTP intercepted)..."
@@ -217,7 +217,7 @@ test-package-mock: build-ffi-lib generate-all build-ts pack-archive
 	@if [ -f $(REPO_ROOT)/creds_dummy.json ]; then \
 		cp $(REPO_ROOT)/creds_dummy.json /tmp/test-hyperswitch-js-mock/creds.json; \
 	fi
-	@# Copy harness to the location test_smoke.ts expects in mock mode
+	@# Copy example to the location test_smoke.ts expects in mock mode
 	@mkdir -p /tmp/test-hyperswitch-js-mock/smoke-test/generated/$(CONNECTORS)
 	@cp $(SDK_ROOT)/smoke-test/generated/$(CONNECTORS)/$(CONNECTORS).ts /tmp/test-hyperswitch-js-mock/smoke-test/generated/$(CONNECTORS)/
 	@cd /tmp/test-hyperswitch-js-mock && \

@@ -467,7 +467,7 @@ async function runTests(
   const results: ConnectorResult[] = [];
   const testConnectors = connectors || Object.keys(credentials);
 
-  // Use generated harnesses in mock mode
+  // Use examples from examples/connector/connector.ts in mock mode
   // If examplesDir is explicitly provided, use it; otherwise use default paths
   let resolvedExamplesDir: string;
   if (examplesDir) {
@@ -490,7 +490,7 @@ async function runTests(
   console.log(`\n${"=".repeat(60)}`);
   console.log(`Running smoke tests for ${testConnectors.length} connector(s)`);
   if (mock) {
-    console.log(`Mode: MOCK (HTTP intercepted, using generated harnesses)`);
+    console.log(`Mode: MOCK (HTTP intercepted, using examples/connector/connector.ts)`);
   }
   console.log(`Examples dir: ${resolvedExamplesDir}`);
   console.log(`${"=".repeat(60)}\n`);

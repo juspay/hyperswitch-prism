@@ -155,11 +155,11 @@ test-package: generate-all install
 # ---------------------------------------------------------------------------
 # test-package-mock
 # Same as test-package but runs in MOCK mode (no real HTTP calls).
-# Uses generated harnesses instead of examples and verifies req_transformer only.
+# Uses examples/connector/connector.kt files and verifies req_transformer only.
 # ---------------------------------------------------------------------------
 test-package-mock: generate-all install
 	@echo "Running Kotlin smoke test in MOCK mode..."
-	@# Copy generated harness to smoke-test source
+	@# Copy example to smoke-test source
 	@mkdir -p $(SDK_ROOT)/smoke-test/src/main/kotlin/generated/$(CONNECTORS)
 	@cp $(SDK_ROOT)/smoke-test/generated/$(CONNECTORS)/$(CONNECTORS).kt $(SDK_ROOT)/smoke-test/src/main/kotlin/generated/$(CONNECTORS)/
 	@if [ -f $(REPO_ROOT)/creds_dummy.json ]; then \
