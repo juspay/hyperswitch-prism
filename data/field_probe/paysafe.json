@@ -397,7 +397,28 @@
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_client_session_id": "probe_sdk_session_001",
+          "domain_context": {
+            "payment": {
+              "amount": {
+                "minor_amount": 1000,
+                "currency": "USD"
+              }
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api.test.paysafe.com/paymenthub/v1/paymenthandles",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"merchantRefNum\":\"probe_sdk_session_001\",\"amount\":1000,\"currencyCode\":\"USD\",\"paymentType\":\"CARD\",\"transactionType\":\"PAYMENT\",\"accountId\":\"probe_acct_no3ds\"}"
+        }
       }
     },
     "create_customer": {

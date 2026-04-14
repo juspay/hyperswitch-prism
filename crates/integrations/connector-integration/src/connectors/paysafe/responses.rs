@@ -193,3 +193,4 @@ pub type PaysafePaymentMethodTokenResponse = PaysafePaymentHandleResponse;
 pub type PaysafeAuthorizeResponse = PaysafePaymentsResponse;
 pub type PaysafeCaptureResponse = PaysafeSettlementResponse;
 pub type PaysafeRepeatPaymentResponse = PaysafePaymentsResponse;
+pub type PaysafeClientAuthResponse = PaysafePaymentHandleResponse;
