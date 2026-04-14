@@ -6,11 +6,11 @@ use common_utils::{
 };
 use domain_types::errors::{ConnectorError, IntegrationError};
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
+    connector_flow::{Authorize, Capture, PSync, RSync, Refund, SetupMandate, Void},
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId,
+        MandateReference, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
+        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, ResponseId, SetupMandateRequestData,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::ConnectorSpecificConfig,
@@ -448,6 +448,10 @@ pub struct AirwallexPaymentsResponse {
     // Void-specific fields
     pub cancelled_at: Option<String>,
     pub cancellation_reason: Option<String>,
+    // PaymentConsent ID for SetupMandate (CIT) flow - this is the mandate token for MIT
+    pub payment_consent_id: Option<Secret<String>>,
+    // Customer id echoed back
+    pub customer_id: Option<String>,
 }
 
 // Type alias - reuse the same response structure for PSync
@@ -1415,5 +1419,190 @@ impl TryFrom<ResponseRouterData<AirwallexAccessTokenResponse, Self>>
         );
 
         Ok(router_data)
+    }
+}
+
+// ===== SETUP MANDATE (PaymentConsent CIT) FLOW TYPES =====
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AirwallexTriggeredBy {
+    Merchant,
+    Customer,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AirwallexMerchantTriggeredReason {
+    Unscheduled,
+}
+
+#[derive(Debug, Serialize)]
+pub struct AirwallexPaymentConsentData {
+    pub next_triggered_by: AirwallexTriggeredBy,
+    pub merchant_trigger_reason: AirwallexMerchantTriggeredReason,
+}
+
+#[derive(Debug, Serialize)]
+pub struct AirwallexSetupMandateRequest {
+    pub request_id: String,
+    pub payment_method: AirwallexPaymentMethod,
+    pub payment_method_options: Option<AirwallexPaymentOptions>,
+    pub return_url: Option<String>,
+    pub payment_consent: AirwallexPaymentConsentData,
+    pub customer_id: String,
+}
+
+// Reuse the payments response for SetupMandate confirm - same endpoint shape
+pub type AirwallexSetupMandateResponse = AirwallexPaymentsResponse;
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        super::AirwallexRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for AirwallexSetupMandateRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: super::AirwallexRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let payment_method = match item.router_data.request.payment_method_data.clone() {
+            domain_types::payment_method_data::PaymentMethodData::Card(card_data) => {
+                AirwallexPaymentMethod::Card(AirwallexCardData {
+                    card: AirwallexCardDetails {
+                        number: Secret::new(card_data.card_number.peek().to_string()),
+                        expiry_month: card_data.card_exp_month.clone(),
+                        expiry_year: card_data.get_expiry_year_4_digit(),
+                        cvc: card_data.card_cvc.clone(),
+                        name: card_data
+                            .card_holder_name
+                            .map(|name| Secret::new(name.expose())),
+                    },
+                    payment_method_type: AirwallexPaymentType::Card,
+                })
+            }
+            _ => {
+                return Err(IntegrationError::NotSupported {
+                    message: "SetupMandate Payment Method (only Card supported)".to_string(),
+                    connector: "Airwallex",
+                    context: Default::default(),
+                }
+                .into())
+            }
+        };
+
+        let payment_method_options = Some(AirwallexPaymentOptions {
+            card: Some(AirwallexCardOptions {
+                auto_capture: Some(false),
+            }),
+        });
+
+        // Airwallex requires a connector-level customer_id for PaymentConsent.
+        // Prefer resource_common_data.connector_customer if present, fall back to
+        // request.customer_id (merchant-side id).
+        let customer_id = item
+            .router_data
+            .resource_common_data
+            .connector_customer
+            .clone()
+            .or_else(|| {
+                item.router_data
+                    .request
+                    .customer_id
+                    .as_ref()
+                    .map(|c| c.get_string_repr().to_string())
+            })
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "customer_id",
+                context: Default::default(),
+            })?;
+
+        let request_id = format!(
+            "confirm_{}",
+            item.router_data
+                .resource_common_data
+                .connector_request_reference_id
+        );
+
+        Ok(Self {
+            request_id,
+            payment_method,
+            payment_method_options,
+            return_url: item.router_data.request.router_return_url.clone(),
+            payment_consent: AirwallexPaymentConsentData {
+                next_triggered_by: AirwallexTriggeredBy::Merchant,
+                merchant_trigger_reason: AirwallexMerchantTriggeredReason::Unscheduled,
+            },
+            customer_id,
+        })
+    }
+}
+
+impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<AirwallexSetupMandateResponse, Self>>
+    for RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<AirwallexSetupMandateResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let status = get_payment_status(&item.response.status, &item.response.next_action);
+
+        let redirection_data = item.response.next_action.as_ref().and_then(|next_action| {
+            if next_action.action_type == "redirect" {
+                next_action.url.as_ref().and_then(|url_str| {
+                    Url::parse(url_str)
+                        .ok()
+                        .map(|url| Box::new(RedirectForm::from((url, Method::Get))))
+                })
+            } else {
+                None
+            }
+        });
+
+        let mandate_reference = item
+            .response
+            .payment_consent_id
+            .clone()
+            .map(|id| MandateReference {
+                connector_mandate_id: Some(id.expose()),
+                payment_method_id: None,
+                connector_mandate_request_reference_id: None,
+            })
+            .map(Box::new);
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(item.response.id),
+                redirection_data,
+                mandate_reference,
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: item.response.payment_intent_id,
+                incremental_authorization_allowed: Some(false),
+                status_code: item.http_code,
+            }),
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
     }
 }

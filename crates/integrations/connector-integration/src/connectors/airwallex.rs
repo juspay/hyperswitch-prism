@@ -45,7 +45,8 @@ use transformers::{
     AirwallexCaptureRequest, AirwallexCaptureResponse, AirwallexIntentRequest,
     AirwallexIntentResponse, AirwallexPaymentRequest, AirwallexPaymentsResponse,
     AirwallexRefundRequest, AirwallexRefundResponse, AirwallexRefundSyncResponse,
-    AirwallexSyncResponse, AirwallexVoidRequest, AirwallexVoidResponse,
+    AirwallexSetupMandateRequest, AirwallexSetupMandateResponse, AirwallexSyncResponse,
+    AirwallexVoidRequest, AirwallexVoidResponse,
 };
 
 use super::macros;
@@ -265,6 +266,12 @@ macros::create_all_prerequisites!(
             request_body: AirwallexIntentRequest,
             response_body: AirwallexIntentResponse,
             router_data: RouterDataV2<CreateOrder, PaymentFlowData, PaymentCreateOrderData, PaymentCreateOrderResponse>,
+        ),
+        (
+            flow: SetupMandate,
+            request_body: AirwallexSetupMandateRequest,
+            response_body: AirwallexSetupMandateResponse,
+            router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -532,6 +539,44 @@ macros::macro_connector_implementation!(
     }
 );
 
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Airwallex,
+    curl_request: Json(AirwallexSetupMandateRequest),
+    curl_response: AirwallexSetupMandateResponse,
+    flow_name: SetupMandate,
+    resource_common_data: PaymentFlowData,
+    flow_request: SetupMandateRequestData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            let access_token = req.resource_common_data.get_access_token()
+                .change_context(IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
+            Ok(self.build_headers(&access_token))
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            // SetupMandate confirms the payment intent created by CreateOrder (auto-chained via should_do_order_create).
+            let order_id = req.resource_common_data.connector_order_id
+                .as_ref()
+                .ok_or(IntegrationError::MissingRequiredField { field_name: "connector_order_id", context: Default::default() })?;
+            Ok(format!(
+                "{}/pa/payment_intents/{}/confirm",
+                &req.resource_common_data.connectors.airwallex.base_url,
+                order_id
+            ))
+        }
+    }
+);
+
 // ===== EMPTY IMPLEMENTATIONS FOR OTHER FLOWS =====
 // These will be implemented separately as needed
 
@@ -605,16 +650,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 // Refund Sync - implemented using macro above
 
-// Setup Mandate
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        SetupMandate,
-        PaymentFlowData,
-        SetupMandateRequestData<T>,
-        PaymentsResponseData,
-    > for Airwallex<T>
-{
-}
+// Setup Mandate - implemented via macro below
 
 // ServerAuthenticationToken - Airwallex Authentication Flow - will be implemented using macro
 

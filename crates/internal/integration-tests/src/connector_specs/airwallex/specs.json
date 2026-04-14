@@ -8,6 +8,7 @@
     "refund",
     "refund_sync",
     "server_authentication_token",
+    "setup_recurring",
     "void"
   ]
 }
