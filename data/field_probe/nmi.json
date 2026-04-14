@@ -719,7 +719,7 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "security_key=probe_key&customer_vault=add_customer&ccnumber=4111111111111111&ccexp=0330&cvv=123"
+          "body": "type=validate&security_key=probe_key&orderid=probe_proxy_mandate_001&customer_vault=add_customer&ccnumber=4111111111111111&ccexp=0330&cvv=123"
         }
       }
     },
@@ -819,7 +819,7 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "security_key=probe_key&customer_vault=add_customer&ccnumber=4111111111111111&ccexp=0330&cvv=737"
+          "body": "type=validate&security_key=probe_key&orderid=probe_mandate_001&customer_vault=add_customer&ccnumber=4111111111111111&ccexp=0330&cvv=737"
         }
       }
     },
