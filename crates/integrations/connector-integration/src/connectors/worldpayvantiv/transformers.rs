@@ -2796,10 +2796,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let authorization = Authorization {
             id: format!("{}_{}", OperationId::Auth, merchant_txn_id),
             report_group,
-            customer_id: extract_customer_id(
-                &item.router_data.resource_common_data.customer_id,
-            )
-            .map(Secret::new),
+            customer_id: extract_customer_id(&item.router_data.resource_common_data.customer_id)
+                .map(Secret::new),
             order_id: merchant_txn_id,
             amount: MinorUnit::zero(),
             order_source,
@@ -2868,8 +2866,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
         };
 
-        let status =
-            get_attempt_status(WorldpayvantivPaymentFlow::Auth, auth_response.response)?;
+        let status = get_attempt_status(WorldpayvantivPaymentFlow::Auth, auth_response.response)?;
 
         if is_payment_failure(status) {
             let error_response = ErrorResponse {

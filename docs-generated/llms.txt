@@ -643,7 +643,7 @@ connector_id: worldpayvantiv
 doc: docs/connectors/worldpayvantiv.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Card
-flows: authorize, capture, get, proxy_authorize, refund, refund_get, reverse, void
+flows: authorize, capture, get, proxy_authorize, proxy_setup_recurring, refund, refund_get, reverse, setup_recurring, void
 examples_python: examples/worldpayvantiv/worldpayvantiv.py
 
 ## Worldpayxml
