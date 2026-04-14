@@ -910,9 +910,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector_customer
             .clone()
             .or_else(|| match &router_data.request.mandate_reference {
-                MandateReferenceId::ConnectorMandateId(cm) => {
-                    cm.get_payment_method_id().cloned()
-                }
+                MandateReferenceId::ConnectorMandateId(cm) => cm.get_payment_method_id().cloned(),
                 _ => None,
             })
             .ok_or(IntegrationError::MissingRequiredField {
@@ -940,7 +938,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let converter = StringMajorUnitForConnector;
         let amount_value = converter
-            .convert(router_data.request.minor_amount, router_data.request.currency)
+            .convert(
+                router_data.request.minor_amount,
+                router_data.request.currency,
+            )
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -984,8 +985,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
-impl<T: PaymentMethodDataTypes>
-    TryFrom<ResponseRouterData<MolliePaymentsResponse, Self>>
+impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<MolliePaymentsResponse, Self>>
     for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
