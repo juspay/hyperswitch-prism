@@ -2989,16 +2989,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             context: Default::default(),
         })?;
 
-        let payment_method_token = item
-            .router_data
-            .resource_common_data
-            .get_payment_method_token()
-            .map_err(|_| IntegrationError::MissingRequiredField {
-                field_name: "payment_method_token",
-                context: Default::default(),
-            })?;
-
-        let PaymentMethodTokenFlow::Token(payment_method_id) = payment_method_token;
+        let payment_method_id = match &item.router_data.request.payment_method_data {
+            PaymentMethodData::PaymentMethodToken(t) => t.token.clone(),
+            _ => {
+                return Err(IntegrationError::MissingRequiredField {
+                    field_name: "payment_method_token",
+                    context: Default::default(),
+                }
+                .into())
+            }
+        };
 
         Ok(Self {
             query: constants::VAULT_CREDIT_CARD_MUTATION.to_string(),
@@ -3098,7 +3098,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         PaymentsResponseData,
     >
 {
-    type Error = Report<ConnectorResponseTransformationError>;
+    type Error = Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<BraintreeSetupMandateResponse, Self>,
     ) -> Result<Self, Self::Error> {
