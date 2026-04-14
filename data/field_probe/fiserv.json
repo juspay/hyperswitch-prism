@@ -572,7 +572,44 @@
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_proxy_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          },
+          "auth_type": "NO_THREE_DS",
+          "setup_future_usage": "OFF_SESSION"
+        },
+        "sample": {
+          "url": "https://cert.api.fiservapps.com/ch/payments/v1/charges",
+          "method": "Post",
+          "headers": {
+            "api-key": "probe_key",
+            "auth-token-type": "HMAC",
+            "authorization": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "client-request-id": "00000000-0000-0000-0000-000000000000",
+            "content-type": "application/json",
+            "timestamp": "0000000000",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":{\"total\":0.0,\"currency\":\"USD\"},\"merchantDetails\":{\"merchantId\":\"probe_merchant\",\"terminalId\":null},\"source\":{\"sourceType\":\"PaymentCard\",\"card\":{\"cardData\":\"4111111111111111\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"securityCode\":\"123\"}},\"transactionInteraction\":{\"origin\":\"ECOM\",\"eciIndicator\":\"CHANNEL_ENCRYPTED\",\"posConditionCode\":\"CARD_NOT_PRESENT_ECOM\"},\"transactionDetails\":{\"captureFlag\":false,\"merchantTransactionId\":\"probe_proxy_mandate_001\"}}"
+        }
       }
     },
     "recurring_charge": {
@@ -645,7 +682,49 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/mandate-return",
+          "setup_future_usage": "OFF_SESSION",
+          "request_incremental_authorization": false,
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          }
+        },
+        "sample": {
+          "url": "https://cert.api.fiservapps.com/ch/payments/v1/charges",
+          "method": "Post",
+          "headers": {
+            "api-key": "probe_key",
+            "auth-token-type": "HMAC",
+            "authorization": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "client-request-id": "00000000-0000-0000-0000-000000000000",
+            "content-type": "application/json",
+            "timestamp": "0000000000",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":{\"total\":0.0,\"currency\":\"USD\"},\"merchantDetails\":{\"merchantId\":\"probe_merchant\",\"terminalId\":null},\"source\":{\"sourceType\":\"PaymentCard\",\"card\":{\"cardData\":\"4111111111111111\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"securityCode\":\"737\"}},\"transactionInteraction\":{\"origin\":\"ECOM\",\"eciIndicator\":\"CHANNEL_ENCRYPTED\",\"posConditionCode\":\"CARD_NOT_PRESENT_ECOM\"},\"transactionDetails\":{\"captureFlag\":false,\"merchantTransactionId\":\"probe_mandate_001\"}}"
+        }
       }
     },
     "token_authorize": {
@@ -656,7 +735,8 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through fiserv"
       }
     },
     "tokenize": {

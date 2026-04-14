@@ -1261,8 +1261,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         };
 
         let checkout_charges_request = match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::Card(ref ccard) => FiservCheckoutChargesRequest::Charges(
-                ChargesPaymentRequest {
+            PaymentMethodData::Card(ref ccard) => {
+                FiservCheckoutChargesRequest::Charges(ChargesPaymentRequest {
                     source: Source::PaymentCard {
                         card: CardData {
                             card_data: ccard.card_number.clone(),
@@ -1289,8 +1289,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         pos_condition_code:
                             TransactionInteractionPosConditionCode::CardNotPresentEcom,
                     }),
-                },
-            ),
+                })
+            }
             _ => {
                 return Err(error_stack::report!(IntegrationError::not_implemented(
                     utils::get_unimplemented_payment_method_error_message("fiserv"),
@@ -1309,7 +1309,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 // SetupMandate response conversion
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<ResponseRouterData<FiservSetupMandateResponse, Self>>
-    for RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>
+    for RouterDataV2<
+        SetupMandate,
+        PaymentFlowData,
+        SetupMandateRequestData<T>,
+        PaymentsResponseData,
+    >
 {
     type Error = error_stack::Report<ConnectorError>;
 
