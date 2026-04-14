@@ -2,7 +2,9 @@ use crate::types::ResponseRouterData;
 use common_enums::{AttemptStatus, RefundStatus};
 use common_utils::types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector};
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, PreAuthenticate, RSync, Refund, SetupMandate, Void},
+    connector_flow::{
+        Authorize, Capture, PSync, PreAuthenticate, RSync, Refund, SetupMandate, Void,
+    },
     connector_types::{
         MandateReference, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
         PaymentsCaptureData, PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData,
@@ -1643,7 +1645,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let payment_method = match &router_data.request.payment_method_data {
             PaymentMethodData::Card(card_data) => {
-                let ccexp = card_data.get_card_expiry_month_year_2_digit_with_delimiter("".to_string())?;
+                let ccexp =
+                    card_data.get_card_expiry_month_year_2_digit_with_delimiter("".to_string())?;
                 NmiSetupMandatePaymentMethod::Card(NmiSetupMandateCard {
                     ccnumber: card_data.card_number.clone(),
                     ccexp,
@@ -1795,9 +1798,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 // Unknown response - treat as pending
                 AttemptStatus::Pending,
                 Ok(PaymentsResponseData::TransactionResponse {
-                    resource_id: ResponseId::ConnectorTransactionId(
-                        response.transactionid.clone(),
-                    ),
+                    resource_id: ResponseId::ConnectorTransactionId(response.transactionid.clone()),
                     redirection_data: None,
                     mandate_reference: None,
                     connector_metadata: None,
