@@ -477,10 +477,24 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-
 
+      - name: Install Python codegen dependencies
+        run: |
+          pip install -r sdk/python/requirements.txt grpcio-tools protobuf
+          make -C sdk install-deps
+
+      - name: Install Node dependencies
+        run: |
+          cd sdk/javascript && npm ci && cd ../..
+          cd sdk/tests && npm install && cd ../..
+
+      - name: Generate SDK code (flows.json)
+        shell: bash
+        run: make -C sdk generate FFI_SKIP_BUILD=1
+
       - uses: Swatinem/rust-cache@v2.7.8
         with:
           cache-on-failure: true
-          key: sdk-test-${{ runner.os }}
+          key: sdk-test-${{ runner.os }}-${{ hashFiles('sdk/generated/flows.json') }}
 
       - name: Cache FFI library
         uses: actions/cache@v4
@@ -491,16 +505,6 @@ jobs:
           key: ffi-lib-${{ runner.os }}-${{ hashFiles('crates/ffi/**/*.rs', 'crates/ffi/**/Cargo.toml', 'Cargo.lock') }}
           restore-keys: |
             ffi-lib-${{ runner.os }}-
-
-      - name: Install Python codegen dependencies
-        run: |
-          pip install -r sdk/python/requirements.txt grpcio-tools protobuf
-          make -C sdk install-deps
-
-      - name: Install Node dependencies
-        run: |
-          cd sdk/javascript && npm ci && cd ../..
-          cd sdk/tests && npm install && cd ../..
 
       - name: Create connector credentials for SDK tests
         shell: bash
@@ -531,10 +535,6 @@ jobs:
           else
             echo "Using cached FFI library: $LIB_PATH"
           fi
-
-      - name: Generate SDK code (flows.json and harnesses)
-        shell: bash
-        run: make -C sdk generate FFI_SKIP_BUILD=1
 
       - name: Run SDK Tests
         shell: bash
