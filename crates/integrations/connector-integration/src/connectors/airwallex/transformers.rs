@@ -1707,10 +1707,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 field_name: "connector_mandate_id",
                 context: Default::default(),
             })?;
-        let payment_method_id = payment_method_id.ok_or(IntegrationError::MissingRequiredField {
-            field_name: "payment_method_id",
-            context: Default::default(),
-        })?;
+        let payment_method_id =
+            payment_method_id.ok_or(IntegrationError::MissingRequiredField {
+                field_name: "payment_method_id",
+                context: Default::default(),
+            })?;
 
         let customer_id = item
             .router_data
@@ -1738,8 +1739,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
-impl<T: PaymentMethodDataTypes>
-    TryFrom<ResponseRouterData<AirwallexRepeatPaymentResponse, Self>>
+impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<AirwallexRepeatPaymentResponse, Self>>
     for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;

@@ -734,7 +734,8 @@
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Stuck on field: connector_order_id — Missing required field: connector_order_id"
       }
     },
     "recurring_revoke": {
