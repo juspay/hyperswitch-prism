@@ -379,7 +379,7 @@ connector_id: noon
 doc: docs/connectors/noon.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Card, GooglePay, GooglePayDecrypted, PaypalRedirect
-flows: authorize, capture, get, handle_event, proxy_authorize, proxy_setup_recurring, recurring_charge, recurring_revoke, refund, refund_get, void
+flows: authorize, capture, create_client_authentication_token, get, handle_event, proxy_authorize, proxy_setup_recurring, recurring_charge, recurring_revoke, refund, refund_get, void
 examples_python: examples/noon/noon.py
 
 ## Novalnet

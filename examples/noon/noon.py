@@ -9,6 +9,7 @@ import asyncio
 import sys
 from google.protobuf.json_format import ParseDict
 from payments import PaymentClient
+from payments import MerchantAuthenticationClient
 from payments import EventClient
 from payments import RecurringPaymentClient
 from payments import RefundClient
@@ -66,6 +67,18 @@ def _build_capture_request(connector_transaction_id: str):
             }
         },
         payment_pb2.PaymentServiceCaptureRequest(),
+    )
+
+def _build_create_client_authentication_token_request():
+    return ParseDict(
+        {
+            "merchant_client_session_id": "probe_sdk_session_001",  # Infrastructure.
+            "domain_context": {
+                "minor_amount": 1000,
+                "currency": "USD"
+            }
+        },
+        payment_pb2.MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest(),
     )
 
 def _build_get_request(connector_transaction_id: str):
@@ -344,6 +357,15 @@ async def capture(merchant_transaction_id: str, config: sdk_config_pb2.Connector
     capture_response = await payment_client.capture(_build_capture_request("probe_connector_txn_001"))
 
     return {"status": capture_response.status}
+
+
+async def create_client_authentication_token(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: MerchantAuthenticationService.CreateClientAuthenticationToken"""
+    merchantauthentication_client = MerchantAuthenticationClient(config)
+
+    create_response = await merchantauthentication_client.create_client_authentication_token(_build_create_client_authentication_token_request())
+
+    return {"status": create_response.status}
 
 
 async def get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
