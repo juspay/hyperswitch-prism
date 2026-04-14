@@ -519,7 +519,7 @@ jobs:
           
           if [ ! -f "$GRPC_SERVER_BIN" ]; then
             echo "Building grpc-server..."
-            cargo build -p grpc-server --profile "$PROFILE"
+            cargo build -p grpc-server --profile "$PROFILE" --target "$PLATFORM"
           else
             echo "Using cached grpc-server: $GRPC_SERVER_BIN"
           fi
