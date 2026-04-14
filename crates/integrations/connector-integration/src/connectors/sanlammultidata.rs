@@ -52,6 +52,7 @@ use transformers::{
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
     pub(crate) const AUTHORIZATION: &str = "Authorization";
+    pub(crate) const MERCHANT_ID: &str = "Merchant-Id";
 }
 
 macros::macro_connector_payout_implementation!(
@@ -299,10 +300,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                 context: Default::default(),
             },
         )?;
-        Ok(vec![(
-            headers::AUTHORIZATION.to_string(),
-            auth.api_key.peek().to_owned().into_masked(),
-        )])
+        Ok(vec![
+            (
+                headers::AUTHORIZATION.to_string(),
+                auth.api_key.peek().to_owned().into_masked(),
+            ),
+            (
+                headers::MERCHANT_ID.to_string(),
+                auth.merchant_id.peek().to_owned().into(),
+            ),
+        ])
     }
 }
 

@@ -21,14 +21,16 @@ use serde::{Deserialize, Serialize};
 
 pub struct SanlammultidataAuthType {
     pub(super) api_key: Secret<String>,
+    pub(super) merchant_id: Secret<String>,
 }
 
 impl TryFrom<&ConnectorSpecificConfig> for SanlammultidataAuthType {
     type Error = error_stack::Report<IntegrationError>;
     fn try_from(item: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         match item {
-            ConnectorSpecificConfig::Sanlammultidata { api_key, .. } => Ok(Self {
+            ConnectorSpecificConfig::Sanlammultidata { api_key, merchant_id, .. } => Ok(Self {
                 api_key: api_key.to_owned(),
+                merchant_id: merchant_id.to_owned(),
             }),
             _ => Err(IntegrationError::FailedToObtainAuthType {
                 context: IntegrationErrorContext {

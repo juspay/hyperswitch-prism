@@ -713,6 +713,7 @@ pub enum ConnectorSpecificConfig {
     },
     Sanlammultidata {
         api_key: Secret<String>,
+        merchant_id: Secret<String>,
         base_url: Option<String>,
     },
 }
@@ -1656,6 +1657,7 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
             }),
             AuthType::Sanlammultidata(sanlammultidata) => Ok(Self::Sanlammultidata {
                 api_key: sanlammultidata.api_key.ok_or_else(err)?,
+                merchant_id: sanlammultidata.merchant_id.ok_or_else(err)?,
                 base_url: sanlammultidata.base_url,
             }),
             AuthType::Redsys(redsys) => Ok(Self::Redsys {
@@ -2005,13 +2007,6 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorEnum)>
                 }),
                 _ => Err(err().into()),
             },
-            ConnectorEnum::Sanlammultidata => match auth {
-                ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Sanlammultidata {
-                    api_key: api_key.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
             ConnectorEnum::Xendit => match auth {
                 ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Xendit {
                     api_key: api_key.clone(),
@@ -2158,6 +2153,15 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorEnum)>
                     product_name: None,
                     merchant_purchase_description: None,
                     statement_descriptor: None,
+                }),
+                _ => Err(err().into()),
+            },
+
+            ConnectorEnum::Sanlammultidata => match auth {
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Sanlammultidata {
+                    api_key: api_key.clone(),
+                    merchant_id: key1.clone(),
+                    base_url: None,
                 }),
                 _ => Err(err().into()),
             },

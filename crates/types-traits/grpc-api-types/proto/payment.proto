@@ -3884,6 +3884,7 @@ message FiservcommercehubConfig {
 
 message SanlamMultiDataConfig {
   SecretString api_key = 1;
+  SecretString merchant_id = 2;
   optional string base_url = 50;
 }
 
