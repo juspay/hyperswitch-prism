@@ -2,6 +2,9 @@
 # Builds FFI binaries for all SDK platforms
 # This Makefile should be run from the repository root
 
+# Use bash for pipefail support across different systems
+SHELL := /bin/bash
+
 .PHONY: help build build-all build-macos build-linux clean check-cargo generate install-deps \
         generate-rust generate-flows-python generate-flows-javascript generate-flows-java \
         test test-rust test-grpc test-python test-javascript test-java \
