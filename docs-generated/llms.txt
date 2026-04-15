@@ -155,7 +155,7 @@ connector_id: checkout
 doc: docs/connectors/checkout.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Ach, ApplePayDecrypted, Card, GooglePayDecrypted
-flows: authorize, capture, get, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, void
+flows: authorize, capture, get, incremental_authorization, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, void
 examples_python: examples/checkout/checkout.py
 
 ## CryptoPay

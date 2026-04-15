@@ -619,7 +619,26 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_authorization_id": "probe_auth_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1100,
+            "currency": "USD"
+          },
+          "reason": "incremental_auth_probe"
+        },
+        "sample": {
+          "url": "https://api.sandbox.checkout.com/payments/probe_connector_txn_001/authorizations",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_secret",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":1100,\"reference\":\"probe_auth_001\"}"
+        }
       }
     },
     "post_authenticate": {

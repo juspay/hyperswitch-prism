@@ -5,12 +5,14 @@ use common_utils::{
     types::MinorUnit,
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture, RepeatPayment, SetupMandate, Void},
+    connector_flow::{
+        Authorize, Capture, IncrementalAuthorization, RepeatPayment, SetupMandate, Void,
+    },
     connector_types::{
         MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
-        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        ResponseId, SetupMandateRequestData,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{
@@ -283,6 +285,15 @@ pub struct CheckoutBillingDescriptor {
     pub reference: Option<String>,
 }
 
+/// Checkout.com authorization type sent in the Payments request.
+/// `Estimated` must be used on the original payment to later allow
+/// incremental authorizations. `Final` forbids incremental authorizations.
+#[derive(Debug, Serialize)]
+pub enum CheckoutAuthorizationType {
+    Estimated,
+    Final,
+}
+
 #[skip_serializing_none]
 #[derive(Debug, Serialize)]
 pub struct PaymentsRequest<
@@ -297,6 +308,10 @@ pub struct PaymentsRequest<
     #[serde(flatten)]
     pub return_url: ReturnUrl,
     pub capture: bool,
+    /// Checkout.com "authorization_type" (Estimated | Final).
+    /// Only sent for manual-capture flows so incremental authorizations
+    /// remain possible against the original payment.
+    pub authorization_type: Option<CheckoutAuthorizationType>,
     pub reference: String,
     pub metadata: Option<Secret<serde_json::Value>>,
     pub payment_type: CheckoutPaymentType,
@@ -781,6 +796,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     reference: descriptor.reference.clone(),
                 });
 
+        // Checkout.com requires `authorization_type: Estimated` on the
+        // original payment for subsequent Incremental Authorizations to be
+        // accepted. Set it on any manual-capture payment (capture == false).
+        let authorization_type = if capture {
+            None
+        } else {
+            Some(CheckoutAuthorizationType::Estimated)
+        };
+
         let request = Self {
             source: source_var,
             amount: item.router_data.request.minor_amount,
@@ -789,6 +813,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             three_ds,
             return_url,
             capture,
+            authorization_type,
             reference: item
                 .router_data
                 .resource_common_data
@@ -1105,6 +1130,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             three_ds,
             return_url,
             capture,
+            authorization_type: None,
             reference: item
                 .router_data
                 .resource_common_data
@@ -1391,6 +1417,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             three_ds,
             return_url,
             capture: true,
+            authorization_type: None,
             reference: item
                 .router_data
                 .resource_common_data
@@ -2452,4 +2479,143 @@ fn convert_to_additional_payment_method_connector_response(
             auth_code: None,
         }
     })
+}
+
+// ============================================================================
+// IncrementalAuthorization flow
+// ============================================================================
+//
+// Checkout.com Incremental Authorization
+//   Endpoint: POST /payments/{id}/authorizations
+//   Docs: https://api-reference.checkout.com/#operation/incrementPaymentAuthorization
+//
+// Prerequisites (from Checkout docs):
+//   - The original authorize request MUST have been made with
+//     `authorization_type = "Estimated"`.
+//   - The payment must NOT have been (fully or partially) captured yet.
+//   - Must be performed within the original estimated authorization's
+//     validity window.
+//
+// Request body (minimal — currency is inherited from the original payment):
+//   { "amount": <minor_amount>, "reference": "<optional>" }
+
+#[skip_serializing_none]
+#[derive(Debug, Serialize)]
+pub struct CheckoutIncrementalAuthRequest {
+    pub amount: MinorUnit,
+    pub reference: Option<String>,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        CheckoutRouterData<
+            RouterDataV2<
+                IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for CheckoutIncrementalAuthRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        item: CheckoutRouterData<
+            RouterDataV2<
+                IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount: item.router_data.request.minor_amount,
+            reference: Some(
+                item.router_data
+                    .resource_common_data
+                    .connector_request_reference_id
+                    .clone(),
+            ),
+        })
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub struct CheckoutIncrementalAuthResponse {
+    pub action_id: String,
+    #[serde(default)]
+    pub amount: Option<MinorUnit>,
+    #[serde(default)]
+    pub currency: Option<String>,
+    #[serde(default)]
+    pub approved: Option<bool>,
+    #[serde(default)]
+    pub status: Option<String>,
+    #[serde(default)]
+    pub auth_code: Option<String>,
+    #[serde(default)]
+    pub response_code: Option<String>,
+    #[serde(default)]
+    pub response_summary: Option<String>,
+    #[serde(default)]
+    pub reference: Option<String>,
+    #[serde(default)]
+    pub scheme_id: Option<String>,
+    #[serde(default)]
+    pub processed_on: Option<String>,
+    #[serde(default)]
+    pub expires_on: Option<String>,
+    #[serde(default)]
+    pub balances: Option<serde_json::Value>,
+    #[serde(rename = "_links", default)]
+    pub links: Option<serde_json::Value>,
+}
+
+impl TryFrom<ResponseRouterData<CheckoutIncrementalAuthResponse, Self>>
+    for RouterDataV2<
+        IncrementalAuthorization,
+        PaymentFlowData,
+        PaymentsIncrementalAuthorizationData,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<CheckoutIncrementalAuthResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        // Checkout returns HTTP 201 with `approved: true` for an approved
+        // incremental authorization. Map status from the combination of
+        // approval flag + HTTP code, falling back to the response body's
+        // `status` when present.
+        let authorization_status = if item
+            .response
+            .approved
+            .unwrap_or(item.http_code >= 200 && item.http_code < 300)
+        {
+            match item.response.status.as_deref() {
+                Some("Declined") | Some("Expired") | Some("Canceled") => {
+                    common_enums::AuthorizationStatus::Failure
+                }
+                Some("Pending") | Some("Retry Scheduled") => {
+                    common_enums::AuthorizationStatus::Processing
+                }
+                _ => common_enums::AuthorizationStatus::Success,
+            }
+        } else {
+            common_enums::AuthorizationStatus::Failure
+        };
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
+                status: authorization_status,
+                connector_authorization_id: Some(item.response.action_id.clone()),
+                status_code: item.http_code,
+            }),
+            ..item.router_data
+        })
+    }
 }
