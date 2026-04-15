@@ -350,7 +350,6 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         with:
           shared-key: "ci-rust"
-          cache-on-failure: true
 
       - name: Install nextest
         if: ${{ env.RUN_TESTS == 'true' }}
