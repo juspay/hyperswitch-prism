@@ -1002,10 +1002,7 @@ impl ConnectorSpecificConfig {
                 api_key,
                 merchant_id
             },
-            Easebuzz {
-                api_key,
-                api_salt
-            },
+            Easebuzz { api_key, api_salt },
             Fiservcommercehub {
                 api_key,
                 secret,
@@ -1397,10 +1394,7 @@ impl ConnectorSpecificConfig {
                     api_key,
                     merchant_id
                 },
-                Easebuzz {
-                    api_key,
-                    api_salt
-                },
+                Easebuzz { api_key, api_salt },
                 Fiservcommercehub {
                     api_key,
                     secret,
