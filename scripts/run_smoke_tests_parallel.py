@@ -167,7 +167,6 @@ def prepare_kotlin_sdk_once(repo_root: Path) -> bool:
             # pre-built artifacts (CI env may carry PROFILE=dev from the job env).
             ["make", "PROFILE=release-fast", "generate-all", "install"],
             cwd=repo_root / "sdk" / "java",
-            capture_output=True,
             text=True,
             timeout=600
         )
@@ -176,8 +175,6 @@ def prepare_kotlin_sdk_once(repo_root: Path) -> bool:
             print("  Kotlin SDK ready")
             return True
         print(f"  Warning: Kotlin SDK prep failed (rc={result.returncode})")
-        if result.stderr:
-            print(f"  {result.stderr[-300:]}")
     except Exception as e:
         print(f"  Warning: Kotlin SDK prep exception: {e}")
 
@@ -264,7 +261,7 @@ def prepare_rust_smoke_test_once(repo_root: Path, connectors: List[str]) -> bool
              "--target", get_platform_triple(),
              "-p", "hyperswitch-smoke-test", "--bin", "hyperswitch-smoke-test"],
             cwd=repo_root,
-            capture_output=True, text=True, timeout=300, env=env
+            text=True, timeout=300, env=env
         )
         if result.returncode == 0:
             _rust_smoke_test_prepared = True
@@ -272,8 +269,6 @@ def prepare_rust_smoke_test_once(repo_root: Path, connectors: List[str]) -> bool
             print(f"  Rust smoke-test ready ({len(valid)} connectors)")
             return True
         print(f"  Warning: Rust smoke-test build failed (rc={result.returncode})")
-        if result.stderr:
-            print(f"  {result.stderr[-300:]}")
     except Exception as e:
         print(f"  Warning: Rust smoke-test build exception: {e}")
 

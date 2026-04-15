@@ -513,6 +513,7 @@ jobs:
           key: ffi-sdk-${{ runner.os }}-${{ hashFiles('crates/ffi/**/*.rs', 'crates/internal/uniffi-bindgen/**/*.rs', 'sdk/rust/smoke-test/**/*.rs') }}
           restore-keys: |
             ffi-sdk-${{ runner.os }}-
+          save-always: true
 
       - name: Build FFI library and tooling
         run: |
@@ -681,6 +682,7 @@ jobs:
           key: grpc-sdk-${{ runner.os }}-${{ hashFiles('crates/ffi/**/*.rs', 'sdk/grpc-ffi/**/*.rs', 'crates/internal/uniffi-bindgen/**/*.rs', 'sdk/rust/smoke-test/**/*.rs') }}
           restore-keys: |
             grpc-sdk-${{ runner.os }}-
+          save-always: true
 
       - name: Build gRPC server, FFI library, and tooling
         run: |
