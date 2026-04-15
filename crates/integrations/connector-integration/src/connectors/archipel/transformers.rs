@@ -335,7 +335,12 @@ impl From<&ArchipelPaymentsResponse> for ArchipelTransactionMetadata {
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         super::ArchipelRouterData<
-            RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+            RouterDataV2<
+                Authorize,
+                PaymentFlowData,
+                PaymentsAuthorizeData<T>,
+                PaymentsResponseData,
+            >,
             T,
         >,
     > for ArchipelCardAuthorizationRequest<T>
@@ -441,8 +446,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             ),
         };
 
-        let connector_metadata: Option<Value> =
-            ArchipelTransactionMetadata::from(&item.response).encode_to_value().ok();
+        let connector_metadata: Option<Value> = ArchipelTransactionMetadata::from(&item.response)
+            .encode_to_value()
+            .ok();
 
         let status: AttemptStatus =
             ArchipelFlowStatus::new(item.response.transaction_result, archipel_flow).into();
