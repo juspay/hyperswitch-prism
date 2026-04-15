@@ -127,6 +127,48 @@ pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetReq
     })).unwrap_or_default()
 }
 
+pub fn build_pre_authenticate_request() -> PaymentMethodAuthenticationServicePreAuthenticateRequest {
+    serde_json::from_value::<PaymentMethodAuthenticationServicePreAuthenticateRequest>(serde_json::json!({
+    "amount": {  // Amount Information.
+        "minor_amount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+        "currency": "USD",  // ISO 4217 currency code (e.g., "USD", "EUR").
+    },
+    "payment_method": {  // Payment Method.
+        "payment_method": {
+            "card": {  // Generic card payment.
+                "card_number": "4111111111111111",  // Card Identification.
+                "card_exp_month": "03",
+                "card_exp_year": "2030",
+                "card_cvc": "737",
+                "card_holder_name": "John Doe",  // Cardholder Information.
+            },
+        }
+    },
+    "address": {  // Address Information.
+        "billing_address": {
+            "country_alpha2_code": "US",
+            "email": "test@example.com",  // Contact Information.
+        },
+    },
+    "enrolled_for_3ds": false,  // Authentication Details.
+    "return_url": "https://example.com/3ds-return",  // URLs for Redirection.
+    "browser_info": {  // Contextual Information.
+        "color_depth": 24,  // Display Information.
+        "screen_height": 900,
+        "screen_width": 1440,
+        "java_enabled": false,  // Browser Settings.
+        "java_script_enabled": true,
+        "language": "en-US",
+        "time_zone_offset_minutes": -480,
+        "accept_header": "application/json",  // Browser Headers.
+        "user_agent": "Mozilla/5.0 (probe-bot)",
+        "accept_language": "en-US,en;q=0.9",
+        "ip_address": "1.2.3.4",  // Device Information.
+    },
+    "session_token": "probe_session_token",  // Session Token (required for some connectors like Nuvei for 3DS).
+    })).unwrap_or_default()
+}
+
 pub fn build_refund_request(connector_transaction_id: &str) -> PaymentServiceRefundRequest {
     serde_json::from_value::<PaymentServiceRefundRequest>(serde_json::json!({
     "merchant_refund_id": "probe_refund_001",  // Identification.
@@ -307,6 +349,13 @@ pub async fn get(client: &ConnectorClient, _merchant_transaction_id: &str) -> Re
     Ok(format!("status: {:?}", response.status()))
 }
 
+// Flow: PaymentMethodAuthenticationService.PreAuthenticate
+#[allow(dead_code)]
+pub async fn pre_authenticate(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client.pre_authenticate(build_pre_authenticate_request(), &HashMap::new(), None).await?;
+    Ok(format!("status: {:?}", response.status()))
+}
+
 // Flow: PaymentService.Refund
 #[allow(dead_code)]
 pub async fn refund(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
@@ -345,10 +394,11 @@ async fn main() {
         "create_order" => create_order(&client, "order_001").await,
         "create_server_session_authentication_token" => create_server_session_authentication_token(&client, "order_001").await,
         "get" => get(&client, "order_001").await,
+        "pre_authenticate" => pre_authenticate(&client, "order_001").await,
         "refund" => refund(&client, "order_001").await,
         "refund_get" => refund_get(&client, "order_001").await,
         "void" => void(&client, "order_001").await,
-        _ => { eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, authorize, capture, create_client_authentication_token, create_order, create_server_session_authentication_token, get, refund, refund_get, void", flow); return; }
+        _ => { eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, authorize, capture, create_client_authentication_token, create_order, create_server_session_authentication_token, get, pre_authenticate, refund, refund_get, void", flow); return; }
     };
     match result {
         Ok(msg) => println!("✓ {msg}"),

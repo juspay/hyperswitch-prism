@@ -45,9 +45,9 @@ use transformers::{
     NuveiClientAuthRequest, NuveiClientAuthResponse, NuveiErrorResponse, NuveiInitPaymentRequest,
     NuveiInitPaymentResponse, NuveiOpenOrderRequest, NuveiOpenOrderResponse, NuveiPaymentRequest,
     NuveiPaymentResponse, NuveiPostAuthSyncRequest, NuveiPostAuthSyncResponse, NuveiRefundRequest,
-    NuveiRefundResponse, NuveiRefundSyncRequest, NuveiRefundSyncResponse,
-    NuveiSessionTokenRequest, NuveiSessionTokenResponse, NuveiSyncRequest, NuveiSyncResponse,
-    NuveiVoidRequest, NuveiVoidResponse,
+    NuveiRefundResponse, NuveiRefundSyncRequest, NuveiRefundSyncResponse, NuveiSessionTokenRequest,
+    NuveiSessionTokenResponse, NuveiSyncRequest, NuveiSyncResponse, NuveiVoidRequest,
+    NuveiVoidResponse,
 };
 
 use super::macros;

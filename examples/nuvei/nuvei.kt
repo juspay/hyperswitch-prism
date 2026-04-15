@@ -9,6 +9,7 @@ package examples.nuvei
 
 import payments.PaymentClient
 import payments.MerchantAuthenticationClient
+import payments.PaymentMethodAuthenticationClient
 import payments.RefundClient
 import payments.PaymentServiceAuthorizeRequest
 import payments.PaymentServiceCaptureRequest
@@ -18,6 +19,7 @@ import payments.PaymentServiceGetRequest
 import payments.MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest
 import payments.PaymentServiceCreateOrderRequest
 import payments.MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest
+import payments.PaymentMethodAuthenticationServicePreAuthenticateRequest
 import payments.RefundServiceGetRequest
 import payments.AuthenticationType
 import payments.CaptureMethod
@@ -297,6 +299,50 @@ fun get(txnId: String) {
     println("Status: ${response.status.name}")
 }
 
+// Flow: PaymentMethodAuthenticationService.PreAuthenticate
+fun preAuthenticate(txnId: String) {
+    val client = PaymentMethodAuthenticationClient(_defaultConfig)
+    val request = PaymentMethodAuthenticationServicePreAuthenticateRequest.newBuilder().apply {
+        amountBuilder.apply {  // Amount Information.
+            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
+            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+        paymentMethodBuilder.apply {  // Payment Method.
+            cardBuilder.apply {  // Generic card payment.
+                cardNumberBuilder.value = "4111111111111111"  // Card Identification.
+                cardExpMonthBuilder.value = "03"
+                cardExpYearBuilder.value = "2030"
+                cardCvcBuilder.value = "737"
+                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
+            }
+        }
+        addressBuilder.apply {  // Address Information.
+            billingAddressBuilder.apply {
+                countryAlpha2Code = CountryAlpha2.US
+                emailBuilder.value = "test@example.com"  // Contact Information.
+            }
+        }
+        enrolledFor3Ds = false  // Authentication Details.
+        returnUrl = "https://example.com/3ds-return"  // URLs for Redirection.
+        browserInfoBuilder.apply {  // Contextual Information.
+            colorDepth = 24  // Display Information.
+            screenHeight = 900
+            screenWidth = 1440
+            javaEnabled = false  // Browser Settings.
+            javaScriptEnabled = true
+            language = "en-US"
+            timeZoneOffsetMinutes = -480
+            acceptHeader = "application/json"  // Browser Headers.
+            userAgent = "Mozilla/5.0 (probe-bot)"
+            acceptLanguage = "en-US,en;q=0.9"
+            ipAddress = "1.2.3.4"  // Device Information.
+        }
+        sessionToken = "probe_session_token"  // Session Token (required for some connectors like Nuvei for 3DS).
+    }.build()
+    val response = client.pre_authenticate(request)
+    println("Status: ${response.status.name}")
+}
+
 // Flow: PaymentService.Refund
 fun refund(txnId: String) {
     val client = PaymentClient(_defaultConfig)
@@ -345,9 +391,10 @@ fun main(args: Array<String>) {
         "createOrder" -> createOrder(txnId)
         "createServerSessionAuthenticationToken" -> createServerSessionAuthenticationToken(txnId)
         "get" -> get(txnId)
+        "preAuthenticate" -> preAuthenticate(txnId)
         "refund" -> refund(txnId)
         "refundGet" -> refundGet(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createClientAuthenticationToken, createOrder, createServerSessionAuthenticationToken, get, refund, refundGet, void")
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createClientAuthenticationToken, createOrder, createServerSessionAuthenticationToken, get, preAuthenticate, refund, refundGet, void")
     }
 }
