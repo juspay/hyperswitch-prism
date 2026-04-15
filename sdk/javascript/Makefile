@@ -134,6 +134,24 @@ pack-archive: build-ts
 	@echo "Tarball created: $(JS_TARBALL)"
 
 # ---------------------------------------------------------------------------
+# dist
+# Builds the distribution package for all supported platforms.
+# Copies pre-built native binaries for each target platform into the generated
+# output directory, generates proto stubs, then packs the archive. Assumes
+# generated/ already contains the proto files from a prior generate-proto step
+# or downloaded CI artifact.
+# ---------------------------------------------------------------------------
+dist:
+	@echo "Building JavaScript SDK distribution package..."
+	@mkdir -p $(GENERATED_OUT)
+	@cp -f $(REPO_ROOT)/target/x86_64-unknown-linux-gnu/release/libconnector_service_ffi.so \
+		$(GENERATED_OUT)/ 2>/dev/null || echo "  Note: Linux x86_64 binary not found (skipping)"
+	@cp -f $(REPO_ROOT)/target/aarch64-apple-darwin/release/libconnector_service_ffi.dylib \
+		$(GENERATED_OUT)/ 2>/dev/null || echo "  Note: macOS aarch64 binary not found (skipping)"
+	@$(MAKE) -C $(SDK_ROOT) pack-archive
+	@echo "Distribution package created in $(PACKAGE_DIR)/"
+
+# ---------------------------------------------------------------------------
 # install
 # Local install: builds TypeScript and links for development.
 # ---------------------------------------------------------------------------

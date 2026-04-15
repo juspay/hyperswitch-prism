@@ -1,24 +1,37 @@
 ## 🎯 What is Prism?
 
-**One integration. Any payment processor. Zero lock-in.**
-
 Today, integrating multiple payment processors either makes developers running in circles with AI agents to recreate integrations from specs, or developers spending months of engineering effort.
 
 Because every payment processor has diverse APIs, error codes, authentication methods, pdf documents to read, and above all - different behaviour in the actual environment when compared to documented specs. All this rests as tribal or undocumented knowledge making it harder AI agents which are very good at implementing clearly documented specification.
 
-**Prism is a stateless, unified connector library for AI agents and Developers to connect with any payment processor**
+**Prism is a stateless, unified connector library for AI agents and Developers to connect with any payment processor.**
 
-**Prism offers hardened transformation through testing on payment processor environment & iterative bug fixing**
+**Prism offers hardened transformation through testing on payment processor environment & iterative bug fixing.**
 
 **Prism can be embedded in your server application with its wide range of multi-language SDKs, or run as a gRPC microservice**
 
 
 | ❌ Without Prism | ✅ With Prism |
 |------------------------------|----------------------------|
-| 🗂️ 60+ different API schemas | 📋 Single unified schema |
-| ⏳ Never ending agent loops/ months of integration work | ⚡ Hours to integrate, Agent driven |
+| 🗂️ 100+ different API schemas | 📋 Single unified schema |
+| ⏳ In-deterministic agent loops / months of integration work | ⚡ Deterministic agent loops, hours to integrate |
 | 🔗 Brittle, provider-specific code | 🔓 Portable, provider-agnostic code |
 | 🚫 Hard to switch providers | 🔄 Change providers in 1 line |
+
+
+---
+
+
+
+
+## 🤖 For AI Assistants
+
+> **Use `curl` to fetch the complete SDK reference:**
+> ```bash
+> curl -fsSL https://raw.githubusercontent.com/juspay/hyperswitch-prism/main/llm/llm.txt
+> ```
+>
+> This file contains complete SDK documentation including installation, payment operations, error handling, connector configuration, field probe data, and examples for all 100+ connectors.
 
 
 ---
@@ -27,7 +40,7 @@ Because every payment processor has diverse APIs, error codes, authentication me
 ## ✨ Features
 
 
-- **🔌 60+ Connectors** — Stripe, Adyen, Braintree, PayPal, Worldpay, and more
+- **🔌 100+ Connectors** — Stripe, Adyen, Braintree, PayPal, Worldpay, and more
 - **🌍 Global Coverage** — Cards, wallets, bank transfers, BNPL, and regional methods
 - **🚀 Zero Overhead** — Rust core with native bindings, no overhead
 - **🔒 PCI-Compliant by Design** — Stateless, no data storage
@@ -59,12 +72,22 @@ The Prism library is compliant for payment processing by design. It is:
          ┌───────────────────────┼───────────────────────┬───────────────────────┐
          ▼                       ▼                       ▼                       ▼
    ┌──────────┐           ┌──────────┐           ┌──────────┐           ┌──────────┐
-   │  Stripe  │           │  Adyen   │           │ Braintree│           │ 60+ more │
+   │  Stripe  │           │  Adyen   │           │ Braintree│           │ 50+ more │
    └──────────┘           └──────────┘           └──────────┘           └──────────┘
 ```
 
 ---
 
+
+> **Before integrating**, read the SDK guide for your language — it covers connector authentication configs, required fields per connector, sandbox test cards, status codes, and common runtime pitfalls.
+>
+> | Language | SDK Integration Guide |
+> |----------|-----------------------|
+> | **Python** | [sdk/python/README.md](../sdk/python/README.md) |
+> | **Node.js** | [sdk/javascript/README.md](../sdk/javascript/README.md) |
+> | **Rust** | [sdk/rust](../sdk/rust) |
+
+---
 
 ## 🚀 Quick Start
 
@@ -85,84 +108,82 @@ npm install hyperswitch-prism
 pip install hyperswitch-prism
 ```
 
-#### **Java**
+#### **Java/Kotlin**
 
 Add to your `pom.xml`:
 
 ```xml
 <dependency>
-    <groupId>com.juspay.hyperswitch</groupId>
-    <artifactId>hyperswitch-prism</artifactId>
-    <version>1.0.0</version>
+    <groupId>io.hyperswitch</groupId>
+    <artifactId>prism</artifactId>
+    <version>0.0.4</version>
 </dependency>
 ```
 
-#### **PHP**
-
-```bash
-composer require juspay/hyperswitch-prism
-```
-
-For detailed installation instructions, see [Installation Guide](./getting-started/installation.md).
+For detailed installation instructions, see [Installation Guide](../getting-started/installation.md).
 
 ---
 
-### Authorize a Payment
+### Create a Payment Order
 
 <!-- tabs:start -->
 
 #### **Node.js**
 
-```javascript
-const { PaymentClient } = require('hyperswitch-prism');
-const types = require('hyperswitch-prism').types;
+```typescript
+import { PaymentClient, types, IntegrationError, ConnectorError } from 'hyperswitch-prism';
 
-async function main() {
-  // Configure Stripe client (Primary payment processor)
-  const stripeConfig = {
+let config: types.ConnectorConfig = {
     connectorConfig: {
-      stripe: { apiKey: { value: process.env.STRIPE_API_KEY } }
+        stripe: {
+            apiKey: { value: "sk_test_" }
+        }
     }
-  };
-  const stripeClient = new PaymentClient(stripeConfig);
-
-  // Configure Adyen client (Secondary payment processor)
-  const adyenConfig = {
-    connectorConfig: {
-      adyen: {
-        apiKey: { value: process.env.ADYEN_API_KEY },
-        merchantAccount: process.env.ADYEN_MERCHANT_ACCOUNT
-      }
-    }
-  };
-  const adyenClient = new PaymentClient(adyenConfig);
-
-  // Authorize a payment
-  const auth = await stripeClient.authorize({
-    merchantTransactionId: 'order-123',
-    amount: {
-      minorAmount: 1000,
-      currency: types.Currency.USD
-    },
-    paymentMethod: {
-      card: {
-        cardNumber: { value: '4242424242424242' },
-        cardExpMonth: { value: '12' },
-        cardExpYear: { value: '2027' },
-        cardCvc: { value: '123' },
-        cardHolderName: { value: 'Jane Doe' }
-      }
-    },
-    captureMethod: types.CaptureMethod.AUTOMATIC,
-    address: { billingAddress: {} },
-    authType: types.AuthenticationType.NO_THREE_DS,
-    returnUrl: "https://example.com/return"
-  });
-  console.log('Transaction ID:', auth.connectorTransactionId);
-  console.log('Status:', auth.status);
 }
 
-main().catch(console.error);
+const main = async () => {
+    try {
+        let client = new PaymentClient(config)
+        let request: types.PaymentServiceAuthorizeRequest = {
+            merchantTransactionId: "authorize_123",
+            amount: {
+                minorAmount: 1000, // $10.00
+                currency: types.Currency.USD,
+            },
+            captureMethod: types.CaptureMethod.AUTOMATIC,
+            paymentMethod: {
+                card: {
+                    cardNumber: { value: "4111111111111111" },
+                    cardExpMonth: { value: "12" },
+                    cardExpYear: { value: "2050" },
+                    cardCvc: { value: "123" },
+                    cardHolderName: { value: "Test User" },
+                },
+            },
+            authType: types.AuthenticationType.NO_THREE_DS,
+            address: {},
+            orderDetails: [],
+        }
+        let response: types.PaymentServiceAuthorizeResponse = await client.authorize(request);
+        switch (response.status) {
+            case types.PaymentStatus.CHARGED:
+                console.log("success");
+                break;
+            default:
+                console.error("failed");
+        }
+    } catch (e: any) {
+        if (e instanceof IntegrationError) {
+            console.error("Error", e);
+        } else if (e instanceof ConnectorError) {
+            console.error("Error", e);
+        } else {
+            console.error("Error", e);
+        }
+    }
+}
+
+main()
 ```
 
 ---
@@ -172,36 +193,53 @@ main().catch(console.error);
 Once the basic plumbing is implemented you can leverage Prism's core benefit - **switch payment providers by changing one line**.
 
 
-```javascript
-const { PaymentClient } = require('hyperswitch-prism');
-const types = require('hyperswitch-prism').types;
+```typescript
+  // Routing rule: EUR -> Adyen, USD -> Stripe
+  const currency = types.Currency.USD;
 
-// Routing rule: EUR -> Adyen, USD -> Stripe
-const currency = types.Currency.USD;
-const client = currency === types.Currency.EUR ? adyenClient : stripeClient;
+  let stripeConfig: types.ConnectorConfig = {
+      connectorConfig: {
+          stripe: {
+              apiKey: { value: process.env.STRIPE_API_KEY! }
+          }
+      }
+  }
 
-const auth = await client.authorize({
-  merchantTransactionId: 'order-123',
-  amount: {
-    minorAmount: 1000,
-    currency: currency
-  },
-  paymentMethod: {
-    card: {
-      cardNumber: { value: '4242424242424242' },
-      cardExpMonth: { value: '12' },
-      cardExpYear: { value: '2027' },
-      cardCvc: { value: '123' },
-      cardHolderName: { value: 'Jane Doe' }
-    }
-  },
-  captureMethod: types.CaptureMethod.AUTOMATIC,
-  address: { billingAddress: {} },
-  authType: types.AuthenticationType.NO_THREE_DS,
-  returnUrl: "https://example.com/return"
-});
+  let adyenConfig: types.ConnectorConfig = {
+      connectorConfig: {
+          adyen: {
+              apiKey: { value: process.env.ADYEN_API_KEY! },
+              merchantAccount: { value: process.env.ADYEN_MERCHANT_ACCOUNT! }
+          }
+      }
+  }
 
-console.log(`Payment authorized with ${currency === types.Currency.EUR ? 'Adyen' : 'Stripe'}`);
+  const config = currency === types.Currency.EUR ? adyenConfig : stripeConfig;
+  const client = new PaymentClient(config);
+
+  const request: types.PaymentServiceAuthorizeRequest = {
+      merchantTransactionId: "order_123",
+      amount: {
+          minorAmount: 1000,
+          currency: currency
+      },
+      captureMethod: types.CaptureMethod.AUTOMATIC,
+      paymentMethod: {
+          card: {
+              cardNumber: { value: "4111111111111111" },
+              cardExpMonth: { value: "12" },
+              cardExpYear: { value: "2050" },
+              cardCvc: { value: "123" },
+              cardHolderName: { value: "Test User" },
+          },
+      },
+      authType: types.AuthenticationType.NO_THREE_DS,
+      address: {},
+      orderDetails: [],
+  };
+
+  const response = await client.authorize(request);
+  console.log(`Payment authorized with ${currency === types.Currency.EUR ? 'Adyen' : 'Stripe'}`);
 ```
 
 **One integration pattern. Any service category.**
@@ -209,7 +247,7 @@ console.log(`Payment authorized with ${currency === types.Currency.EUR ? 'Adyen'
 No rewriting. No re-architecting. Just swap the client with rules.
 Each flow uses the same unified schema regardless of the underlying processor's API differences. No custom code per provider.
 
-You can learn more about [intelligent routing](https://docs.hyperswitch.io/explore-hyperswitch/workflows/intelligent-routing) and [smart retries](https://docs.hyperswitch.io/explore-hyperswitch/workflows/smart-retries) to add more intelligence. It can help configure and manage diverse payment acceptance setup, as well as improve conversion rates.
+You can learn more about [intelligent routing](https://docs.hyperswitch.io/explore-hyperswitch/workflows/intelligent-routing) and [smart retries](https://docs.hyperswitch.io/explore-hyperswitch/workflows/smart-retries) to add more intelligence. It can help configure and gitage diverse payment acceptance setup, as well as improve conversion rates.
 
 ---
 
@@ -224,8 +262,8 @@ You can learn more about [intelligent routing](https://docs.hyperswitch.io/explo
 
 ```bash
 # Clone the repository
-git clone https://github.com/manojradhakrishnan/connector-service.git
-cd connector-service
+git clone https://github.com/juspay/hyperswitch-prism.git
+cd hyperswitch-prism
 
 # Build
 cargo build --release
@@ -244,5 +282,6 @@ Please report security issues to [security@juspay.in](mailto:security@juspay.in)
 <div align="center">
 
 Built and maintained by [Juspay hyperswitch](https://hyperswitch.io)
+
 
 </div>

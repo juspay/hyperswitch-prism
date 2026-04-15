@@ -342,12 +342,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentsResponseData,
         >,
     {
-        // Netbanking and Card use JSON; UPI uses form-urlencoded
+        // Wallets, Cards, and Netbanking use JSON; UPI uses form-urlencoded
         let content_type = match &req.request.payment_method_data {
-            PaymentMethodData::BankRedirect(
-                domain_types::payment_method_data::BankRedirectData::Netbanking { .. },
-            ) => "application/json",
-            _ => "application/x-www-form-urlencoded",
+            PaymentMethodData::Upi(_) => "application/x-www-form-urlencoded",
+            _ => "application/json",
         };
         let mut header = vec![
             (
@@ -1298,6 +1296,26 @@ static RAZORPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                 )),
             },
         );
+
+        for wallet_pmt in [
+            PaymentMethodType::LazyPay,
+            PaymentMethodType::PhonePe,
+            PaymentMethodType::BillDesk,
+            PaymentMethodType::Cashfree,
+            PaymentMethodType::PayU,
+            PaymentMethodType::EaseBuzz,
+        ] {
+            razorpay_supported_payment_methods.add(
+                PaymentMethod::Wallet,
+                wallet_pmt,
+                PaymentMethodDetails {
+                    mandates: FeatureStatus::NotSupported,
+                    refunds: FeatureStatus::Supported,
+                    supported_capture_methods: vec![CaptureMethod::Automatic],
+                    specific_features: None,
+                },
+            );
+        }
 
         razorpay_supported_payment_methods.add(
             PaymentMethod::BankRedirect,
