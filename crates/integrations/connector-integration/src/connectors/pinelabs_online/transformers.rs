@@ -317,7 +317,12 @@ fn get_payment_status(status: &str, pre_auth: Option<bool>) -> AttemptStatus {
     match (status, pre_auth) {
         ("AUTHORIZED", Some(true)) => AttemptStatus::Authorized,
         ("AUTHORIZED", Some(false)) => AttemptStatus::Pending,
+        // When pre_auth is absent from the response, treat AUTHORIZED as still pending
+        ("AUTHORIZED", None) => AttemptStatus::Pending,
         ("CANCELLED", Some(true)) => AttemptStatus::Voided,
+        // CANCELLED with pre_auth=false or missing means the order was cancelled (not pre-auth)
+        ("CANCELLED", Some(false)) => AttemptStatus::Voided,
+        ("CANCELLED", None) => AttemptStatus::Voided,
         ("PROCESSED", _) => AttemptStatus::Charged,
         ("FAILED", _) => AttemptStatus::Failure,
         _ => AttemptStatus::AuthenticationPending,
@@ -488,18 +493,39 @@ impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
         let amount = item.router_data.request.amount.get_amount_as_i64();
         let currency = item.router_data.request.currency.to_string();
 
-        // CreateOrder doesn't have capture_method — default to pre_auth=false
-        let is_pre_auth = false;
+        // `capture_method` is not part of `PaymentCreateOrderData` or `PaymentFlowData` —
+        // it is only available in `PaymentsAuthorizeData` (the Authorize flow).
+        // As a best-effort fallback, we try to read it from `connector_feature_data`
+        // (a JSON blob the caller may include), e.g. `{"capture_method": "manual"}`.
+        // When absent, we default to false (Automatic capture / no pre-auth).
+        let is_pre_auth = item
+            .router_data
+            .resource_common_data
+            .connector_feature_data
+            .as_ref()
+            .and_then(|data| data.peek().get("capture_method"))
+            .and_then(|v| v.as_str())
+            .map(|s| matches!(s, "manual" | "manual_multiple" | "scheduled"))
+            .unwrap_or(false);
 
+        // Only include CustomerInfo when at least one field is non-empty.
         let customer = CustomerInfo {
             email_id: None,
             first_name: None,
             last_name: None,
             mobile_number: None,
         };
+        let has_customer_data = customer.email_id.is_some()
+            || customer.first_name.is_some()
+            || customer.last_name.is_some()
+            || customer.mobile_number.is_some();
 
         let purchase_details = PurchaseDetails {
-            customer: Some(customer),
+            customer: if has_customer_data {
+                Some(customer)
+            } else {
+                None
+            },
             merchant_metadata: None,
         };
 
@@ -590,11 +616,12 @@ impl TryFrom<ResponseRouterData<PinelabsOnlineCreateOrderResponse, Self>>
 fn get_pinelabs_payment_method_string<T: PaymentMethodDataTypes>(
     payment_method_data: &PaymentMethodData<T>,
 ) -> Result<String, IntegrationError> {
+    // Only UPI and Card are supported end-to-end (build_payment_option handles them fully).
+    // BankRedirect and Wallet are excluded here so that unsupported payment methods consistently
+    // return NotSupported at this first check rather than failing later in build_payment_option.
     match payment_method_data {
         PaymentMethodData::Upi(_) => Ok("UPI".to_string()),
         PaymentMethodData::Card(_) => Ok("CARD".to_string()),
-        PaymentMethodData::BankRedirect(_) => Ok("NETBANKING".to_string()),
-        PaymentMethodData::Wallet(_) => Ok("WALLET".to_string()),
         _ => Err(IntegrationError::NotSupported {
             message: format!(
                 "Payment method not supported for PineLabs Online: {:?}",
@@ -666,7 +693,7 @@ fn build_card_details<T: PaymentMethodDataTypes>(
         .card_holder_name
         .as_ref()
         .map(|n| n.peek().to_string())
-        .unwrap_or_else(|| "Name".to_string());
+        .unwrap_or_default();
     let card_number = Some(card.card_number.peek().to_string());
     let cvv = Some(card.card_cvc.peek().to_string());
     let expiry_month = card.card_exp_month.peek().to_string();
@@ -802,7 +829,10 @@ impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
         let currency = item.router_data.request.currency.to_string();
 
         Ok(Self {
-            merchant_order_reference: item.router_data.request.refund_id.clone(),
+            // Use the original payment's connector transaction ID as the merchant order reference.
+            // `connector_transaction_id` is the order_id returned by PineLabs for the original
+            // payment, which is required to associate the refund with the correct order.
+            merchant_order_reference: item.router_data.request.connector_transaction_id.clone(),
             order_amount: PaymentAmount {
                 value: amount,
                 currency,

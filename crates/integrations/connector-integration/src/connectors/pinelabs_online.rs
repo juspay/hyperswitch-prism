@@ -368,7 +368,15 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<ServerAuthenticationToken, PaymentFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
         ) -> CustomResult<String, errors::IntegrationError> {
-            // Token URL: replace /api/pay/v1 with /api/auth/v1/token in the base_url
+            // The auth token endpoint shares the same host as the payments API but uses a
+            // different path prefix (/api/auth/v1/token vs /api/pay/v1/...).  Since the
+            // connector config only exposes a single `base_url` (the payments base), we
+            // derive the token URL by replacing the known path segment.
+            //
+            // Risk: if the configured base_url does not contain "/api/pay/v1" (e.g. a custom
+            // sandbox URL), this replacement will be a no-op and the request will be sent to
+            // the wrong endpoint.  A dedicated `auth_url` config field would be safer but is
+            // not currently available in the connector config schema.
             let base_url = self.connector_base_url_payments(req);
             let token_url = base_url.replace("/api/pay/v1", "/api/auth/v1/token");
             Ok(token_url)
@@ -626,11 +634,14 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
         ) -> CustomResult<String, errors::IntegrationError> {
-            let id = &req.request.connector_transaction_id;
+            // `PaymentVoidData.connector_transaction_id` is a plain String (unlike
+            // `PaymentsCaptureData` which wraps it in `ResponseId`), so no unwrapping
+            // is needed.  We clone it for consistency with the Capture and PSync patterns.
+            let connector_transaction_id = req.request.connector_transaction_id.clone();
             Ok(format!(
                 "{}/orders/{}/cancel",
                 self.connector_base_url_payments(req),
-                id
+                connector_transaction_id
             ))
         }
     }
