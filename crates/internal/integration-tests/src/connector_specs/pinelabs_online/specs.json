@@ -6,6 +6,8 @@
     "capture",
     "void",
     "refund",
-    "refund_sync"
+    "refund_sync",
+    "server_authentication_token",
+    "create_order"
   ]
 }
