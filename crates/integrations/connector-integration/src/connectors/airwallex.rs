@@ -612,6 +612,9 @@ macros::macro_connector_implementation!(
             // Airwallex MIT requires a fresh PaymentIntent; caller must run CreateOrder
             // first and pass connector_order_id via PaymentFlowData.connector_order_id,
             // or (fallback) via connector_feature_data JSON: {"connector_order_id":"..."}.
+            // The fallback is required because RecurringPaymentServiceChargeRequest (proto)
+            // has no top-level `order_id` field, and its ForeignTryFrom for PaymentFlowData
+            // leaves `connector_order_id = None`.
             let order_id = req
                 .resource_common_data
                 .connector_order_id
