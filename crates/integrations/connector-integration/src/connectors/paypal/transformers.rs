@@ -13,8 +13,8 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, ClientAuthenticationToken, CreateOrder, IncrementalAuthorization, PSync,
-        PostAuthenticate, RepeatPayment, VerifyWebhookSource,
+        Authorize, Capture, ClientAuthenticationToken, CreateOrder, IncrementalAuthorization,
+        PSync, PostAuthenticate, RepeatPayment, VerifyWebhookSource,
     },
     connector_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData, MandateReference,
@@ -1816,8 +1816,7 @@ pub struct PaypalIncrementalAuthResponse {
     pub status_details: Option<PaypalIncrementalAuthStatusDetails>,
 }
 
-impl
-    TryFrom<ResponseRouterData<PaypalIncrementalAuthResponse, Self>>
+impl TryFrom<ResponseRouterData<PaypalIncrementalAuthResponse, Self>>
     for RouterDataV2<
         IncrementalAuthorization,
         PaymentFlowData,
