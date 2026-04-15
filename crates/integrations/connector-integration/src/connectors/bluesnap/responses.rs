@@ -121,6 +121,9 @@ pub type BluesnapAuthorizeResponse = BluesnapPaymentsResponse;
 pub type BluesnapCaptureResponse = BluesnapPaymentsResponse;
 pub type BluesnapPSyncResponse = BluesnapPaymentsResponse;
 pub type BluesnapVoidResponse = BluesnapPaymentsResponse;
+// RepeatPayment (MIT via vaulted shopper) hits the same
+// /services/2/transactions endpoint and returns the same payload shape.
+pub type BluesnapRepeatPaymentResponse = BluesnapPaymentsResponse;
 
 // Refund response structure based on BlueSnap tech spec
 #[derive(Debug, Deserialize, Serialize)]

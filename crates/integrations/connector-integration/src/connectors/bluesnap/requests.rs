@@ -333,3 +333,41 @@ pub struct BluesnapSetupMandateRequest {
     pub email: Option<common_utils::pii::Email>,
     pub payment_sources: BluesnapPaymentSources,
 }
+
+// ===== REPEAT PAYMENT (MIT via vaulted shopper) STRUCTURES =====
+
+/// Minimal credit card details for MIT charge (only last-four and card type
+/// are required by BlueSnap when re-using a vaulted shopper)
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapRepeatCreditCard {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card_last_four_digits: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card_type: Option<String>,
+}
+
+/// RepeatPayment request - charges a vaulted shopper (MIT) via
+/// `POST /services/2/transactions`.
+///
+/// BlueSnap accepts two minimum shapes: (a) `vaultedShopperId` + `creditCard`
+/// (with `cardLastFourDigits`/`cardType`), or (b) `vaultedShopperId` alone if
+/// only one payment source is stored. We prefer (a) when we have the last-four
+/// available; (b) is a safe fallback.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapRepeatPaymentRequest {
+    pub amount: StringMajorUnit,
+    pub currency: String,
+    pub vaulted_shopper_id: u64,
+    pub card_transaction_type: BluesnapTxnType,
+    /// "ECOMMERCE" for MIT initiated subsequent charges, per BlueSnap docs.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub recurring_transaction: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub credit_card: Option<BluesnapRepeatCreditCard>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub merchant_transaction_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub transaction_fraud_info: Option<TransactionFraudInfo>,
+}
