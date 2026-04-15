@@ -261,7 +261,7 @@ test-grpc: _cleanup-grpc ## Run gRPC smoke tests for all SDKs (Rust + JS + Pytho
 			fi; \
 		else \
 			printf "Building grpc-server ($(GRPC_PROFILE))...\n"; \
-			cd $(REPO_ROOT) && cargo build -p grpc-server --profile $(GRPC_PROFILE) --target $(PLATFORM) 2>&1 | grep -v "^   Compiling\|^   Finished" || true; \
+			cd $(REPO_ROOT) && cargo build -p grpc-server --profile $(GRPC_PROFILE) --target $(PLATFORM); \
 		fi; \
 		\
 		printf "\nStarting gRPC server (shared across all tests)...\n"; \
@@ -272,7 +272,7 @@ test-grpc: _cleanup-grpc ## Run gRPC smoke tests for all SDKs (Rust + JS + Pytho
 		\
 		printf "\n\033[1m── Rust gRPC ──\033[0m\n"; \
 		$(MAKE) -C $(REPO_ROOT)/sdk/rust test-grpc-no-server \
-			GRPC_CONNECTOR=$(GRPC_CONNECTOR) GRPC_PROFILE=$(GRPC_PROFILE) 2>&1 | grep -v "^   Compiling\|^   Finished\|^     Running" || true; \
+			GRPC_CONNECTOR=$(GRPC_CONNECTOR) GRPC_PROFILE=$(GRPC_PROFILE); \
 		RUST_EXIT=$$?; \
 		\
 		printf "\n\033[1m── JavaScript gRPC ──\033[0m\n"; \
