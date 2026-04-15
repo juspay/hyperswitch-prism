@@ -227,6 +227,9 @@ fn generate_flow_runners(flows: &[FlowInfo]) {
     // Generate authorize with PM
     generate_authorize_probe(&mut f);
 
+    // Generate parse_event probe (custom signature, not a req_transformer!)
+    generate_parse_event_probe(&mut f);
+
     // Generate handle_event probe (custom signature, not a req_transformer!)
     generate_handle_event_probe(&mut f);
 
@@ -397,6 +400,57 @@ fn generate_authorize_probe(f: &mut fs::File) {
     writeln!(f).unwrap();
 }
 
+fn generate_parse_event_probe(f: &mut fs::File) {
+    writeln!(f, "    /// Probe parse_event (EventService::ParseEvent).").unwrap();
+    writeln!(f, "    /// Stateless — no auth required.").unwrap();
+    writeln!(f, "    pub fn probe_parse_event(").unwrap();
+    writeln!(f, "        connector: &ConnectorEnum,").unwrap();
+    writeln!(f, "        config: &Arc<ucs_env::configs::Config>,").unwrap();
+    writeln!(f, "        auth: ConnectorSpecificConfig,").unwrap();
+    writeln!(f, "        metadata: &MaskedMetadata,").unwrap();
+    writeln!(f, "    ) -> FlowResult {{").unwrap();
+    writeln!(f, "        let mut req = base_parse_event_request();").unwrap();
+    writeln!(
+        f,
+        "        req.request_details = req.request_details.map(|mut rd| {{ rd.body = ffi::services::payments::get_webhook_sample_body(connector.clone()).to_vec(); rd }});"
+    )
+    .unwrap();
+    writeln!(
+        f,
+        "        match ffi::services::payments::parse_event_transformer(req, config, connector.clone(), Some(auth), metadata) {{"
+    )
+    .unwrap();
+    writeln!(
+        f,
+        "            Ok(_) => FlowResult {{ status: \"supported\".to_string(), ..Default::default() }},"
+    )
+    .unwrap();
+    writeln!(f, "            Err(e) => {{").unwrap();
+    writeln!(f, "                let msg = e.error_message;").unwrap();
+    writeln!(f, "                if is_not_implemented(&msg) {{").unwrap();
+    writeln!(
+        f,
+        "                    FlowResult {{ status: \"not_implemented\".to_string(), ..Default::default() }}"
+    )
+    .unwrap();
+    writeln!(f, "                }} else {{").unwrap();
+    writeln!(
+        f,
+        "                    // Non-NotImplemented error means connector has a handler but fake body failed — treat as supported."
+    )
+    .unwrap();
+    writeln!(
+        f,
+        "                    FlowResult {{ status: \"supported\".to_string(), ..Default::default() }}"
+    )
+    .unwrap();
+    writeln!(f, "                }}").unwrap();
+    writeln!(f, "            }}").unwrap();
+    writeln!(f, "        }}").unwrap();
+    writeln!(f, "    }}").unwrap();
+    writeln!(f).unwrap();
+}
+
 fn generate_handle_event_probe(f: &mut fs::File) {
     writeln!(f, "    /// Probe handle_event (EventService::HandleEvent).").unwrap();
     writeln!(
@@ -415,7 +469,12 @@ fn generate_handle_event_probe(f: &mut fs::File) {
     writeln!(f, "        auth: ConnectorSpecificConfig,").unwrap();
     writeln!(f, "        metadata: &MaskedMetadata,").unwrap();
     writeln!(f, "    ) -> FlowResult {{").unwrap();
-    writeln!(f, "        let req = base_handle_event_request();").unwrap();
+    writeln!(f, "        let mut req = base_handle_event_request();").unwrap();
+    writeln!(
+        f,
+        "        req.request_details = req.request_details.map(|mut rd| {{ rd.body = ffi::services::payments::get_webhook_sample_body(connector.clone()).to_vec(); rd }});"
+    )
+    .unwrap();
     writeln!(
         f,
         "        match ffi::services::payments::handle_event_transformer(req, config, connector.clone(), Some(auth), metadata) {{"
@@ -542,6 +601,20 @@ fn generate_flow_definitions(f: &mut fs::File, flows: &[FlowInfo]) {
     writeln!(f, "            has_payment_methods: true,").unwrap();
     writeln!(f, "        }},").unwrap();
 
+    // parse_event is special — standalone function, not a req_transformer! macro
+    writeln!(f, "        FlowDefinition {{").unwrap();
+    writeln!(f, "            key: \"parse_event\",").unwrap();
+    writeln!(f, "            service: \"EventService\",").unwrap();
+    writeln!(f, "            rpc: \"ParseEvent\",").unwrap();
+    writeln!(f, "            request_type: \"EventServiceParseRequest\",").unwrap();
+    writeln!(
+        f,
+        "            transformer_fn: \"parse_event_transformer\","
+    )
+    .unwrap();
+    writeln!(f, "            has_payment_methods: false,").unwrap();
+    writeln!(f, "        }},").unwrap();
+
     // handle_event is special — standalone function, not a req_transformer! macro
     writeln!(f, "        FlowDefinition {{").unwrap();
     writeln!(f, "            key: \"handle_event\",").unwrap();
@@ -642,7 +715,12 @@ fn generate_dispatcher(f: &mut fs::File, flows: &[FlowInfo]) {
         .unwrap();
     }
 
-    // handle_event uses a bespoke probe, not the standard req_transformer path
+    // parse_event and handle_event use bespoke probes, not the standard req_transformer path
+    writeln!(
+        f,
+        "            \"parse_event\" => Some(probe_parse_event(connector, config, auth, metadata)),"
+    )
+    .unwrap();
     writeln!(
         f,
         "            \"handle_event\" => Some(probe_handle_event(connector, config, auth, metadata)),"

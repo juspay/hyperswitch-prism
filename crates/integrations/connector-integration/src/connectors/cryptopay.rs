@@ -489,6 +489,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .attach_printable("Webhook source verification failed for Cryptopay")
     }
 
+    fn sample_webhook_body(&self) -> &'static [u8] {
+        br#"{"type":"Invoice","event":"status_changed","data":{"id":"probe_invoice_001","status":"completed","price_amount":"10.00","price_currency":"USD","name":"probe_charge"}}"#
+    }
+
     fn get_event_type(
         &self,
         request: RequestDetails,

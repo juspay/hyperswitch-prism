@@ -6,7 +6,7 @@ use grpc_api_types::payments::{
 
 /// Composite implementation of [`CompositeEventService`].
 ///
-/// Orchestrates the two-phase webhook flow by calling the granular [`EventService`] RPCs///
+/// Orchestrates the two-phase webhook flow by calling the granular [`EventService`] RPCs.
 /// 1. `ParseEvent`  — stateless reference + event-type extraction.
 /// 2. `HandleEvent` — source verification + unified event content.
 ///

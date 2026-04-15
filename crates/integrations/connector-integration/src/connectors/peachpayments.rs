@@ -665,6 +665,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::IncomingWebhook for Peachpayments<T>
 {
+    fn sample_webhook_body(&self) -> &'static [u8] {
+        br#"{"webhookId":"probe_wh_001","webhookType":"PAYMENT","transaction":{"transactionId":"probe_txn_001","referenceId":"probe_ref_001","transactionResult":"ACK","transactionType":"DEBIT","paymentMethod":"probe_pm"}}"#
+    }
+
     fn get_event_type(
         &self,
         request: RequestDetails,

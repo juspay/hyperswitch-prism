@@ -219,6 +219,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .change_context(WebhookError::WebhookSourceVerificationFailed)
     }
 
+    fn sample_webhook_body(&self) -> &'static [u8] {
+        br#"{"PaymentInformation":{"CreditDebitIndicator":"CRDT","References":{"EndToEndId":"probe_txn_001"},"Status":"Paid","Amount":{"InstructedAmount":10.00,"Currency":"EUR"}},"Signature":"probe_sig"}"#
+    }
+
     fn get_event_type(&self, request: RequestDetails) -> Result<EventType, Report<WebhookError>> {
         let webhook_response: trustpay::TrustpayWebhookResponse = request
             .body

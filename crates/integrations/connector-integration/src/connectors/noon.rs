@@ -206,6 +206,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(message.into_bytes())
     }
 
+    fn sample_webhook_body(&self) -> &'static [u8] {
+        br#"{"orderId":12345,"orderStatus":"CAPTURED","eventType":"SALE","eventId":"probe-event-001","timeStamp":"2024-01-01T00:00:00Z"}"#
+    }
+
     fn get_event_type(
         &self,
         request: RequestDetails,

@@ -160,6 +160,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         })
     }
 
+    fn sample_webhook_body(&self) -> &'static [u8] {
+        br#"{"id":1,"order_id":"probe_order_001","status":"succeeded","amount":10.0,"currency":"EUR"}"#
+    }
+
     fn get_event_type(
         &self,
         _request: RequestDetails,

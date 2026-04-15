@@ -861,6 +861,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .change_context(WebhookError::WebhookSourceVerificationFailed)
     }
 
+    fn sample_webhook_body(&self) -> &'static [u8] {
+        b"tranID=probe_txn_001&orderid=probe_order_001&status=00&domain=probe_domain&amount=10.00&currency=USD&channel=Credit&skey=probe_skey&appcode=probe_appcode&error_code=&error_desc="
+    }
+
     fn get_event_type(
         &self,
         request: RequestDetails,

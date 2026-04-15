@@ -584,12 +584,17 @@
     },
     "handle_event": {
       "default": {
-        "status": "supported"
+        "status": "not_implemented"
       }
     },
     "incremental_authorization": {
       "default": {
         "status": "not_implemented"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "supported"
       }
     },
     "post_authenticate": {

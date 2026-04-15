@@ -552,6 +552,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         trustly::verify_webhook_signature(webhook_body, webhook_secret)
     }
 
+    fn sample_webhook_body(&self) -> &'static [u8] {
+        br#"{"method":"charge","params":{"data":{"orderid":"probe_order_001","amount":"10.00","currency":"EUR","enduserid":"probe_user"}}}"#
+    }
+
     fn get_event_type(
         &self,
         request: RequestDetails,

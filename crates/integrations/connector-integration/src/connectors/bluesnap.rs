@@ -267,6 +267,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(format!("{timestamp}{body_str}").into_bytes())
     }
 
+    fn sample_webhook_body(&self) -> &'static [u8] {
+        b"transactionType=CHARGE&referenceNumber=probe_ref_001&merchantTransactionId=probe_txn_001&invoiceId=probe_invoice_001&cardLastFourDigits=1111&amount=10.00&currency=USD"
+    }
+
     fn get_event_type(
         &self,
         request: domain_types::connector_types::RequestDetails,

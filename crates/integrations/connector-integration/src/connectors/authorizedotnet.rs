@@ -201,6 +201,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         Ok(computed_signature == expected_signature)
     }
 
+    fn sample_webhook_body(&self) -> &'static [u8] {
+        br#"{"eventType":"net.authorize.payment.authcapture.created","payload":{"id":"probe_txn_001","responseCode":1,"authCode":"probe_auth"}}"#
+    }
+
     fn get_event_type(
         &self,
         request: RequestDetails,

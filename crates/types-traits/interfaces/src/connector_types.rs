@@ -464,6 +464,13 @@ pub trait IncomingWebhook {
         .into())
     }
 
+    /// A minimal, structurally valid webhook body for this connector.
+    ///
+    /// Used by the field-probe to verify that webhook handling is implemented
+    fn sample_webhook_body(&self) -> &'static [u8] {
+        b"{}"
+    }
+
     /// fn get_webhook_api_response
     ///
     /// This is used by callers to decide what HTTP response

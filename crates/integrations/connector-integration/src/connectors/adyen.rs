@@ -858,6 +858,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(computed_signature_b64 == received_signature_str)
     }
 
+    fn sample_webhook_body(&self) -> &'static [u8] {
+        br#"{"notificationItems":[{"NotificationRequestItem":{"pspReference":"probe_ref_001","merchantReference":"probe_order_001","merchantAccountCode":"ProbeAccount","eventCode":"AUTHORISATION","success":"true","amount":{"currency":"USD","value":1000},"additionalData":{}}}]}"#
+    }
+
     fn get_event_type(
         &self,
         request: RequestDetails,

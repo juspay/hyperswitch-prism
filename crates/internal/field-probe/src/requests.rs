@@ -482,6 +482,18 @@ pub(crate) fn base_verify_redirect_request() -> PaymentServiceVerifyRedirectResp
     }
 }
 
+pub(crate) fn base_parse_event_request() -> grpc_api_types::payments::EventServiceParseRequest {
+    grpc_api_types::payments::EventServiceParseRequest {
+        request_details: Some(RequestDetails {
+            method: HttpMethod::Post as i32,
+            uri: Some("https://example.com/webhook".to_string()),
+            headers: Default::default(),
+            body: b"{}".to_vec(),
+            query_params: None,
+        }),
+    }
+}
+
 pub(crate) fn base_handle_event_request() -> EventServiceHandleRequest {
     EventServiceHandleRequest {
         merchant_event_id: Some("probe_event_001".to_string()),

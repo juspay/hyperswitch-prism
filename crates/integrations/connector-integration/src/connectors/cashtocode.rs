@@ -174,6 +174,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(signature_auth == secret_auth)
     }
 
+    fn sample_webhook_body(&self) -> &'static [u8] {
+        br#"{"amount":10.0,"currency":"EUR","foreignTransactionId":"probe_foreign_001","type":"payment","transactionId":"probe_txn_001"}"#
+    }
+
     fn get_event_type(
         &self,
         _request: RequestDetails,

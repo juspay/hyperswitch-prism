@@ -741,6 +741,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         }
     }
 
+    fn sample_webhook_body(&self) -> &'static [u8] {
+        br#"{"event":{"checksum":"probe_checksum","tid":12345678901234,"type":"PAYMENT"},"result":{"status":"SUCCESS","status_code":100,"status_text":"Success"},"transaction":{"tid":12345678901234,"payment_type":"CREDITCARD","status":"CONFIRMED","status_code":100,"order_no":"probe_order_001","amount":1000,"currency":"EUR"}}"#
+    }
+
     fn get_event_type(
         &self,
         request: RequestDetails,

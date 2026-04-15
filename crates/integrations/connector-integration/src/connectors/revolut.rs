@@ -331,6 +331,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .attach_printable("Webhook source verification failed for Revolut")
     }
 
+    fn sample_webhook_body(&self) -> &'static [u8] {
+        br#"{"event":"ORDER_COMPLETED","order_id":"probe_order_001"}"#
+    }
+
     fn get_event_type(
         &self,
         request: RequestDetails,

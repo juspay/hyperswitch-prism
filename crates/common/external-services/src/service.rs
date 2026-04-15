@@ -114,9 +114,6 @@ use common_utils::events::{Event, EventConfig, FlowName};
 // TokenData is now imported from hyperswitch_injector
 use common_utils::{consts, emit_event_with_config};
 use error_stack::{report, ResultExt};
-use hyperswitch_masking::ErasedMaskSerialize;
-#[cfg(feature = "injector-client")]
-use hyperswitch_masking::ExposeInterface;
 use hyperswitch_masking::Maskable;
 #[cfg(feature = "injector-client")]
 use injector::{injector_core, HttpMethod, TokenData};
@@ -329,47 +326,6 @@ where
                 }
             )));
         }
-        // common_enums::CallConnectorAction::HandleResponse(res) => {
-        //     let body = Response {
-        //         headers: None,
-        //         response: res.into(),
-        //         status_code: 200,
-        //     };
-        //
-        //     let status_code = body.status_code;
-        //     tracing::Span::current().record("status_code", tracing::field::display(status_code));
-        //     if let Ok(response) = parse_json_with_bom_handling(&body.response) {
-        //         tracing::Span::current().record(
-        //             "response.body",
-        //             tracing::field::display(response.masked_serialize().unwrap_or(
-        //                 json!({ "error": "failed to mask serialize connector response"}),
-        //             )),
-        //         );
-        //     }
-        //
-        //     // Set raw_connector_response BEFORE calling the transformer
-        //     let mut updated_router_data = router_data.clone();
-        //     if all_keys_required.unwrap_or(true) {
-        //         let raw_response_string = strip_bom_and_convert_to_string(&body.response);
-        //         updated_router_data
-        //             .resource_common_data
-        //             .set_raw_connector_response(raw_response_string.map(Into::into));
-        //     }
-        //
-        //     let handle_response_result =
-        //         connector.handle_response_v2(&updated_router_data, None, body.clone());
-        //
-        //     let response = match handle_response_result {
-        //         Ok(data) => {
-        //             tracing::info!("Transformer completed successfully");
-        //             Ok(data)
-        //         }
-        //         Err(err) => Err(err),
-        //     }
-        //     .map_err(report_connector_response_to_flow)?;
-        //
-        //     Ok(response)
-        // }
         common_enums::CallConnectorAction::Trigger => {
             let mut connector_request = connector
                 .build_request_v2(&router_data.clone())

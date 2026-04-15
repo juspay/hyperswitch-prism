@@ -497,6 +497,19 @@ res_transformer!(
     generate_response_fn: generate_defend_dispute_response,
 );
 
+/// Returns the connector's sample webhook body for field-probe use.
+///
+/// Delegates to `IncomingWebhook::sample_webhook_body` on the connector instance,
+/// so the connector owns its probe payload alongside its webhook implementation.
+pub fn get_webhook_sample_body(
+    connector: domain_types::connector_types::ConnectorEnum,
+) -> &'static [u8] {
+    use domain_types::payment_method_data::DefaultPCIHolder;
+    let connector_data: connector_integration::types::ConnectorData<DefaultPCIHolder> =
+        connector_integration::types::ConnectorData::get_connector_by_name(&connector);
+    connector_data.connector.sample_webhook_body()
+}
+
 /// parse_event — stateless webhook event type and resource reference extraction.
 ///
 /// No secrets, no context. Returns the event type and resource IDs

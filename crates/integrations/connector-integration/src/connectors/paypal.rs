@@ -189,6 +189,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         )
     }
 
+    fn sample_webhook_body(&self) -> &'static [u8] {
+        br#"{"event_type":"PAYMENT.CAPTURE.COMPLETED","resource":{"id":"probe_capture_001","status":"COMPLETED","amount":{"value":"10.00","currency_code":"USD"}}}"#
+    }
+
     fn get_event_type(
         &self,
         request: RequestDetails,

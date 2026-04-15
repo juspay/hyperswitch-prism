@@ -832,6 +832,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .change_context(WebhookError::WebhookSourceVerificationFailed)
     }
 
+    fn sample_webhook_body(&self) -> &'static [u8] {
+        br#"{"object":"transaction","trigger":"payment","webhook_id":"probe_wh_001","triggered_at":"2024-01-01T00:00:00Z","triggered_on":{"id":"probe_txn_001","object":"transaction"},"url":"https://example.com/webhook"}"#
+    }
+
     fn get_event_type(
         &self,
         request: domain_types::connector_types::RequestDetails,
