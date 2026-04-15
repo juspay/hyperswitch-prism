@@ -1775,12 +1775,28 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let order_id = item
             .router_data
             .resource_common_data
-            .connector_order_id
-            .clone()
+            .reference_id
+            .as_ref()
             .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "connector_order_id",
-                context: Default::default(),
-            })?;
+                field_name: "order_id (reference_id)",
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Call `PaymentService.CreateOrder` first and pass the returned order id \
+                         as `merchant_order_id` (which becomes `reference_id` internally) on the \
+                         Authorize request."
+                            .to_owned(),
+                    ),
+                    doc_url: Some(
+                        "https://razorpay.com/docs/api/orders/#create-an-order".to_owned(),
+                    ),
+                    additional_context: Some(
+                        "Razorpay requires a pre-created `order_id` in the payment create \
+                         request; it cannot be omitted."
+                            .to_owned(),
+                    ),
+                },
+            })?
+            .clone();
 
         let metadata_map = item
             .router_data
