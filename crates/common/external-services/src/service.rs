@@ -746,6 +746,7 @@ where
     result_with_integrity_check
 }
 
+#[cfg(feature = "injector-client")]
 fn mask_connector_request(request_content: &Option<RequestContent>) -> serde_json::Value {
     match request_content {
         Some(request) => match request {
@@ -761,6 +762,7 @@ fn mask_connector_request(request_content: &Option<RequestContent>) -> serde_jso
     }
 }
 
+#[cfg(feature = "injector-client")]
 fn create_event(
     event_params: &EventProcessingParams<'_>,
     url: Option<String>,
