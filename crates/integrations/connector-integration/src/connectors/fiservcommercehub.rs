@@ -36,7 +36,7 @@ use domain_types::{
     types::Connectors,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeInterface, Mask, Maskable, Secret};
+use hyperswitch_masking::{Mask, Maskable};
 use interfaces::{
     api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
     decode::BodyDecoding, verification::SourceVerification,
@@ -46,6 +46,7 @@ use transformers as fiservcommercehub;
 use transformers::{
     FiservcommercehubAccessTokenRequest, FiservcommercehubAccessTokenResponse,
     FiservcommercehubAuthorizeRequest, FiservcommercehubAuthorizeResponse,
+    FiservcommercehubCaptureRequest, FiservcommercehubCaptureResponse,
     FiservcommercehubPSyncRequest, FiservcommercehubPSyncResponse, FiservcommercehubRSyncRequest,
     FiservcommercehubRSyncResponse, FiservcommercehubRefundRequest,
     FiservcommercehubRefundResponse, FiservcommercehubVoidRequest, FiservcommercehubVoidResponse,
@@ -109,6 +110,12 @@ macros::create_all_prerequisites!(
             request_body: FiservcommercehubRSyncRequest,
             response_body: FiservcommercehubRSyncResponse,
             router_data: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        ),
+        (
+            flow: Capture,
+            request_body: FiservcommercehubCaptureRequest,
+            response_body: FiservcommercehubCaptureResponse,
+            router_data: RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -136,48 +143,18 @@ macros::create_all_prerequisites!(
                 fiservcommercehub::FiservcommercehubAuthType::try_from(&req.connector_config)
                     .change_context(errors::IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
 
-            let api_key = auth.api_key.clone().expose();
-            let client_request_id =
-                fiservcommercehub::FiservcommercehubAuthType::generate_client_request_id();
-            let timestamp =
-                fiservcommercehub::FiservcommercehubAuthType::generate_timestamp();
-
             let temp_request_body = self.get_request_body(req)?;
             let request_body_str = match temp_request_body {
                 Some(RequestContent::Json(json_body)) => serde_json::to_string(&json_body)
                     .change_context(errors::IntegrationError::RequestEncodingFailed { context: Default::default() })?,
                 None => String::new(),
                 _ => return Err(errors::IntegrationError::RequestEncodingFailed { context: Default::default() })?
-};
+            };
 
-            let authorization = auth.generate_hmac_signature(
-                &api_key,
-                &client_request_id,
-                &timestamp,
+            auth.build_hmac_headers(
+                self.common_get_content_type(),
                 &request_body_str,
-            )?;
-
-            Ok(vec![
-                (
-                    headers::CONTENT_TYPE.to_string(),
-                    self.common_get_content_type().to_string().into(),
-                ),
-                (
-                    headers::API_KEY.to_string(),
-                    Secret::new(api_key).into_masked(),
-                ),
-                (headers::TIMESTAMP.to_string(), timestamp.into()),
-                (
-                    headers::CLIENT_REQUEST_ID.to_string(),
-                    client_request_id.into(),
-                ),
-                (
-                    headers::AUTHORIZATION.to_string(),
-                    authorization.into_masked(),
-                ),
-                (headers::AUTH_TOKEN_TYPE.to_string(), headers::AUTH_TOKEN_TYPE_HMAC.into()),
-                (headers::ACCEPT_LANGUAGE.to_string(), headers::ACCEPT_LANGUAGE_EN.into()),
-            ])
+            )
         }
 
         pub fn build_authorize_headers(
@@ -194,40 +171,10 @@ macros::create_all_prerequisites!(
                 fiservcommercehub::FiservcommercehubAuthType::try_from(&req.connector_config)
                     .change_context(errors::IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
 
-            let api_key = auth.api_key.clone().expose();
-            let client_request_id =
-                fiservcommercehub::FiservcommercehubAuthType::generate_client_request_id();
-            let timestamp =
-                fiservcommercehub::FiservcommercehubAuthType::generate_timestamp();
-
-            let authorization = auth.generate_hmac_signature(
-                &api_key,
-                &client_request_id,
-                &timestamp,
+            auth.build_hmac_headers(
+                self.common_get_content_type(),
                 request_body_str,
-            )?;
-
-            Ok(vec![
-                (
-                    headers::CONTENT_TYPE.to_string(),
-                    self.common_get_content_type().to_string().into(),
-                ),
-                (
-                    headers::API_KEY.to_string(),
-                    Secret::new(api_key).into_masked(),
-                ),
-                (headers::TIMESTAMP.to_string(), timestamp.into()),
-                (
-                    headers::CLIENT_REQUEST_ID.to_string(),
-                    client_request_id.into(),
-                ),
-                (
-                    headers::AUTHORIZATION.to_string(),
-                    authorization.into_masked(),
-                ),
-                (headers::AUTH_TOKEN_TYPE.to_string(), headers::AUTH_TOKEN_TYPE_HMAC.into()),
-                (headers::ACCEPT_LANGUAGE.to_string(), headers::ACCEPT_LANGUAGE_EN.into()),
-            ])
+            )
         }
 
         pub fn connector_base_url<F, Req, Res>(
@@ -262,48 +209,18 @@ macros::create_all_prerequisites!(
                 fiservcommercehub::FiservcommercehubAuthType::try_from(&req.connector_config)
                     .change_context(errors::IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
 
-            let api_key = auth.api_key.clone().expose();
-            let client_request_id =
-                fiservcommercehub::FiservcommercehubAuthType::generate_client_request_id();
-            let timestamp =
-                fiservcommercehub::FiservcommercehubAuthType::generate_timestamp();
-
             let temp_request_body = self.get_request_body(req)?;
             let request_body_str = match temp_request_body {
                 Some(RequestContent::Json(json_body)) => serde_json::to_string(&json_body)
                     .change_context(errors::IntegrationError::RequestEncodingFailed { context: Default::default() })?,
                 None => String::new(),
                 _ => return Err(errors::IntegrationError::RequestEncodingFailed { context: Default::default() })?
-};
+            };
 
-            let authorization = auth.generate_hmac_signature(
-                &api_key,
-                &client_request_id,
-                &timestamp,
+            auth.build_hmac_headers(
+                self.common_get_content_type(),
                 &request_body_str,
-            )?;
-
-            Ok(vec![
-                (
-                    headers::CONTENT_TYPE.to_string(),
-                    self.common_get_content_type().to_string().into(),
-                ),
-                (
-                    headers::API_KEY.to_string(),
-                    Secret::new(api_key).into_masked(),
-                ),
-                (headers::TIMESTAMP.to_string(), timestamp.into()),
-                (
-                    headers::CLIENT_REQUEST_ID.to_string(),
-                    client_request_id.into(),
-                ),
-                (
-                    headers::AUTHORIZATION.to_string(),
-                    authorization.into_masked(),
-                ),
-                (headers::AUTH_TOKEN_TYPE.to_string(), headers::AUTH_TOKEN_TYPE_HMAC.into()),
-                (headers::ACCEPT_LANGUAGE.to_string(), headers::ACCEPT_LANGUAGE_EN.into()),
-            ])
+            )
         }
 
         pub fn build_void_headers(
@@ -317,48 +234,19 @@ macros::create_all_prerequisites!(
                 fiservcommercehub::FiservcommercehubAuthType::try_from(&req.connector_config)
                     .change_context(errors::IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
 
-            let api_key = auth.api_key.clone().expose();
-            let client_request_id =
-                fiservcommercehub::FiservcommercehubAuthType::generate_client_request_id();
-            let timestamp =
-                fiservcommercehub::FiservcommercehubAuthType::generate_timestamp();
-
             let temp_request_body = self.get_request_body(req)?;
             let request_body_str = match temp_request_body {
                 Some(RequestContent::Json(json_body)) => serde_json::to_string(&json_body)
                     .change_context(errors::IntegrationError::RequestEncodingFailed { context: Default::default() })?,
                 None => String::new(),
                 _ => return Err(errors::IntegrationError::RequestEncodingFailed { context: Default::default() })?
-};
+            };
 
-            let authorization = auth.generate_hmac_signature(
-                &api_key,
-                &client_request_id,
-                &timestamp,
+            auth.build_hmac_headers(
+                self.common_get_content_type(),
                 &request_body_str,
-            )?;
+            )
 
-            Ok(vec![
-                (
-                    headers::CONTENT_TYPE.to_string(),
-                    self.common_get_content_type().to_string().into(),
-                ),
-                (
-                    headers::API_KEY.to_string(),
-                    Secret::new(api_key).into_masked(),
-                ),
-                (headers::TIMESTAMP.to_string(), timestamp.into()),
-                (
-                    headers::CLIENT_REQUEST_ID.to_string(),
-                    client_request_id.into(),
-                ),
-                (
-                    headers::AUTHORIZATION.to_string(),
-                    authorization.into_masked(),
-                ),
-                (headers::AUTH_TOKEN_TYPE.to_string(), headers::AUTH_TOKEN_TYPE_HMAC.into()),
-                (headers::ACCEPT_LANGUAGE.to_string(), headers::ACCEPT_LANGUAGE_EN.into()),
-            ])
         }
 
         /// Builds the HMAC-authenticated headers for the Refund endpoint.
@@ -373,48 +261,18 @@ macros::create_all_prerequisites!(
                 fiservcommercehub::FiservcommercehubAuthType::try_from(&req.connector_config)
                     .change_context(errors::IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
 
-            let api_key = auth.api_key.clone().expose();
-            let client_request_id =
-                fiservcommercehub::FiservcommercehubAuthType::generate_client_request_id();
-            let timestamp =
-                fiservcommercehub::FiservcommercehubAuthType::generate_timestamp();
-
             let temp_request_body = self.get_request_body(req)?;
             let request_body_str = match temp_request_body {
                 Some(RequestContent::Json(json_body)) => serde_json::to_string(&json_body)
                     .change_context(errors::IntegrationError::RequestEncodingFailed { context: Default::default() })?,
                 None => String::new(),
                 _ => return Err(errors::IntegrationError::RequestEncodingFailed { context: Default::default() })?
-};
+            };
 
-            let authorization = auth.generate_hmac_signature(
-                &api_key,
-                &client_request_id,
-                &timestamp,
+            auth.build_hmac_headers(
+                self.common_get_content_type(),
                 &request_body_str,
-            )?;
-
-            Ok(vec![
-                (
-                    headers::CONTENT_TYPE.to_string(),
-                    self.common_get_content_type().to_string().into(),
-                ),
-                (
-                    headers::API_KEY.to_string(),
-                    Secret::new(api_key).into_masked(),
-                ),
-                (headers::TIMESTAMP.to_string(), timestamp.into()),
-                (
-                    headers::CLIENT_REQUEST_ID.to_string(),
-                    client_request_id.into(),
-                ),
-                (
-                    headers::AUTHORIZATION.to_string(),
-                    authorization.into_masked(),
-                ),
-                (headers::AUTH_TOKEN_TYPE.to_string(), headers::AUTH_TOKEN_TYPE_HMAC.into()),
-                (headers::ACCEPT_LANGUAGE.to_string(), headers::ACCEPT_LANGUAGE_EN.into()),
-            ])
+            )
         }
 
         /// Builds the HMAC-authenticated headers for the RSync (refund transaction-inquiry) endpoint.
@@ -429,11 +287,30 @@ macros::create_all_prerequisites!(
                 fiservcommercehub::FiservcommercehubAuthType::try_from(&req.connector_config)
                     .change_context(errors::IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
 
-            let api_key = auth.api_key.clone().expose();
-            let client_request_id =
-                fiservcommercehub::FiservcommercehubAuthType::generate_client_request_id();
-            let timestamp =
-                fiservcommercehub::FiservcommercehubAuthType::generate_timestamp();
+            let temp_request_body = self.get_request_body(req)?;
+            let request_body_str = match temp_request_body {
+                Some(RequestContent::Json(json_body)) => serde_json::to_string(&json_body)
+                    .change_context(errors::IntegrationError::RequestEncodingFailed { context: Default::default() })?,
+                None => String::new(),
+                _ => return Err(errors::IntegrationError::RequestEncodingFailed { context: Default::default() })?
+            };
+            auth.build_hmac_headers(
+                self.common_get_content_type(),
+                &request_body_str,
+            )
+        }
+
+        /// Builds the HMAC-authenticated headers for the Capture endpoint.
+        pub fn build_capture_headers(
+            &self,
+            req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError>
+        where
+            Self: ConnectorIntegrationV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
+        {
+            let auth =
+                fiservcommercehub::FiservcommercehubAuthType::try_from(&req.connector_config)
+                    .change_context(errors::IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
 
             let temp_request_body = self.get_request_body(req)?;
             let request_body_str = match temp_request_body {
@@ -441,36 +318,11 @@ macros::create_all_prerequisites!(
                     .change_context(errors::IntegrationError::RequestEncodingFailed { context: Default::default() })?,
                 None => String::new(),
                 _ => return Err(errors::IntegrationError::RequestEncodingFailed { context: Default::default() })?
-};
-
-            let authorization = auth.generate_hmac_signature(
-                &api_key,
-                &client_request_id,
-                &timestamp,
+            };
+            auth.build_hmac_headers(
+                self.common_get_content_type(),
                 &request_body_str,
-            )?;
-
-            Ok(vec![
-                (
-                    headers::CONTENT_TYPE.to_string(),
-                    self.common_get_content_type().to_string().into(),
-                ),
-                (
-                    headers::API_KEY.to_string(),
-                    Secret::new(api_key).into_masked(),
-                ),
-                (headers::TIMESTAMP.to_string(), timestamp.into()),
-                (
-                    headers::CLIENT_REQUEST_ID.to_string(),
-                    client_request_id.into(),
-                ),
-                (
-                    headers::AUTHORIZATION.to_string(),
-                    authorization.into_masked(),
-                ),
-                (headers::AUTH_TOKEN_TYPE.to_string(), headers::AUTH_TOKEN_TYPE_HMAC.into()),
-                (headers::ACCEPT_LANGUAGE.to_string(), headers::ACCEPT_LANGUAGE_EN.into()),
-            ])
+            )
         }
     }
 );
@@ -884,12 +736,6 @@ macros::macro_connector_implementation!(
 );
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
-    for Fiservcommercehub<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
         IncrementalAuthorization,
         PaymentFlowData,
@@ -1087,6 +933,36 @@ macros::macro_connector_implementation!(
                 .base_url
                 .clone();
             Ok(format!("{base_url}payments/v1/refunds"))
+        }
+    }
+);
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Fiservcommercehub,
+    curl_request: Json(FiservcommercehubCaptureRequest),
+    curl_response: FiservcommercehubCaptureResponse,
+    flow_name: Capture,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsCaptureData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
+            self.build_capture_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
+        ) -> CustomResult<String, errors::IntegrationError> {
+            let base_url = self.connector_base_url(req);
+            Ok(format!("{base_url}payments/v1/charges"))
         }
     }
 );

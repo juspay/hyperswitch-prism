@@ -8,11 +8,12 @@ use common_utils::{
     FloatMajorUnit,
 };
 use domain_types::{
-    connector_flow::{Authorize, PSync, RSync, Refund, ServerAuthenticationToken, Void},
+    connector_flow::{Authorize, Capture, PSync, RSync, Refund, ServerAuthenticationToken, Void},
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsResponseData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        ResponseId, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, ResponseId, ServerAuthenticationTokenRequestData,
+        ServerAuthenticationTokenResponseData,
     },
     errors,
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
@@ -21,7 +22,7 @@ use domain_types::{
     utils,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{PeekInterface, Secret};
+use hyperswitch_masking::{Mask, Maskable, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 // Constants for encryption and token formatting
@@ -63,6 +64,59 @@ impl FiservcommercehubAuthType {
             .unwrap_or_default()
             .as_millis()
             .to_string()
+    }
+
+    /// Builds the HMAC-authenticated headers for Fiserv Commerce Hub API requests.
+    /// This is a common function used by all flows to generate the standard headers
+    /// including Content-Type, Api-Key, Timestamp, Client-Request-Id, Authorization,
+    /// Auth-Token-Type, and Accept-Language.
+    pub fn build_hmac_headers(
+        &self,
+        content_type: &str,
+        request_body_str: &str,
+    ) -> Result<Vec<(String, Maskable<String>)>, error_stack::Report<errors::IntegrationError>>
+    {
+        let api_key = self.api_key.peek().to_string();
+        let client_request_id = Self::generate_client_request_id();
+        let timestamp = Self::generate_timestamp();
+
+        let authorization = self.generate_hmac_signature(
+            &api_key,
+            &client_request_id,
+            &timestamp,
+            request_body_str,
+        )?;
+
+        Ok(vec![
+            (
+                super::headers::CONTENT_TYPE.to_string(),
+                Secret::new(content_type.to_string()).into_masked(),
+            ),
+            (
+                super::headers::API_KEY.to_string(),
+                Secret::new(api_key).into_masked(),
+            ),
+            (
+                super::headers::TIMESTAMP.to_string(),
+                Secret::new(timestamp).into_masked(),
+            ),
+            (
+                super::headers::CLIENT_REQUEST_ID.to_string(),
+                Secret::new(client_request_id).into_masked(),
+            ),
+            (
+                super::headers::AUTHORIZATION.to_string(),
+                Secret::new(authorization).into_masked(),
+            ),
+            (
+                super::headers::AUTH_TOKEN_TYPE.to_string(),
+                Secret::new(super::headers::AUTH_TOKEN_TYPE_HMAC.to_string()).into_masked(),
+            ),
+            (
+                super::headers::ACCEPT_LANGUAGE.to_string(),
+                Secret::new(super::headers::ACCEPT_LANGUAGE_EN.to_string()).into_masked(),
+            ),
+        ])
     }
 }
 
@@ -379,7 +433,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 terminal_id: auth.terminal_id.clone(),
             },
             transaction_details: FiservcommercehubTransactionDetailsReq {
-                capture_flag: true,
+                capture_flag: router_data.request.is_auto_capture(),
                 merchant_transaction_id: router_data
                     .resource_common_data
                     .connector_request_reference_id
@@ -625,7 +679,6 @@ impl TryFrom<ResponseRouterData<FiservcommercehubPSyncResponse, Self>>
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FiservcommercehubRefundTransactionDetails {
-    pub capture_flag: bool,
     pub merchant_transaction_id: String,
 }
 
@@ -667,7 +720,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 total,
             },
             transaction_details: FiservcommercehubRefundTransactionDetails {
-                capture_flag: true,
                 merchant_transaction_id: router_data
                     .resource_common_data
                     .connector_request_reference_id
@@ -870,7 +922,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         Ok(Self {
             amount,
             transaction_details: FiservcommercehubRefundTransactionDetails {
-                capture_flag: true,
                 merchant_transaction_id: router_data
                     .resource_common_data
                     .connector_request_reference_id
@@ -1032,6 +1083,112 @@ impl<F, T> TryFrom<ResponseRouterData<FiservcommercehubAccessTokenResponse, Self
                 expires_in: Some(604_800), // 1 week in seconds
                 token_type: None,
             }),
+            ..item.router_data
+        })
+    }
+}
+
+// =============================================================================
+// CAPTURE FLOW
+// =============================================================================
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FiservcommercehubCaptureRequest {
+    pub amount: FiservcommercehubAuthorizeAmount,
+    pub transaction_details: FiservcommercehubTransactionDetailsReq,
+    pub merchant_details: FiservcommercehubMerchantDetails,
+    pub reference_transaction_details: FiservcommercehubReferenceTransactionDetails,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        super::FiservcommercehubRouterData<
+            RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
+            T,
+        >,
+    > for FiservcommercehubCaptureRequest
+{
+    type Error = error_stack::Report<errors::IntegrationError>;
+
+    fn try_from(
+        item: super::FiservcommercehubRouterData<
+            RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = item.router_data;
+        let total = utils::convert_amount(
+            item.connector.amount_converter,
+            router_data.request.minor_amount_to_capture,
+            router_data.request.currency,
+        )?;
+        let auth = FiservcommercehubAuthType::try_from(&router_data.connector_config)?;
+        let connector_transaction_id = router_data
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .change_context(errors::IntegrationError::MissingConnectorTransactionID {
+                context: Default::default(),
+            })?;
+        Ok(Self {
+            amount: FiservcommercehubAuthorizeAmount {
+                currency: router_data.request.currency,
+                total,
+            },
+            transaction_details: FiservcommercehubTransactionDetailsReq {
+                capture_flag: true,
+                merchant_transaction_id: router_data
+                    .resource_common_data
+                    .connector_request_reference_id
+                    .clone(),
+            },
+            merchant_details: FiservcommercehubMerchantDetails {
+                merchant_id: auth.merchant_id.clone(),
+                terminal_id: auth.terminal_id.clone(),
+            },
+            reference_transaction_details: FiservcommercehubReferenceTransactionDetails {
+                reference_transaction_id: connector_transaction_id,
+            },
+        })
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FiservcommercehubCaptureResponse {
+    pub gateway_response: FiservcommercehubGatewayResponseBody,
+}
+
+impl TryFrom<ResponseRouterData<FiservcommercehubCaptureResponse, Self>>
+    for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<FiservcommercehubCaptureResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let txn = &item
+            .response
+            .gateway_response
+            .transaction_processing_details;
+        let status = AttemptStatus::from(&item.response.gateway_response.transaction_state);
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(txn.transaction_id.clone()),
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: txn.order_id.clone(),
+                incremental_authorization_allowed: None,
+                status_code: item.http_code,
+            }),
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
             ..item.router_data
         })
     }
