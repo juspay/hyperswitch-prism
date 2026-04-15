@@ -508,61 +508,6 @@ jobs:
         with:
           shared-key: "ci-rust"
 
-      - name: Restore SDK binaries cache
-        id: sdk-cache-restore
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            target/*/*/libconnector_service_ffi.so
-            target/*/*/libconnector_service_ffi.dylib
-            target/*/*/libhyperswitch_grpc_ffi.so
-            target/*/*/libhyperswitch_grpc_ffi.dylib
-            target/*/*/grpc-server
-            target/*/*/uniffi-bindgen
-            target/*/*/hyperswitch-smoke-test
-            target/*/*/grpc-smoke-test
-          key: sdk-${{ runner.os }}-${{ hashFiles('crates/ffi/**/*.rs', 'sdk/grpc-ffi/**/*.rs', 'crates/internal/uniffi-bindgen/**/*.rs', 'sdk/rust/smoke-test/**/*.rs') }}
-          restore-keys: |
-            sdk-${{ runner.os }}-
-
-      - name: Build SDK binaries
-        run: |
-          ARCH=$(uname -m)
-          if [ "$ARCH" = "aarch64" ]; then
-            PLATFORM="aarch64-unknown-linux-gnu"
-          else
-            PLATFORM="x86_64-unknown-linux-gnu"
-          fi
-          PROFILE="release-fast"
-          
-          # Check which binaries are missing
-          MISSING_BINS=""
-          [ ! -f "target/${PLATFORM}/${PROFILE}/grpc-server" ] && MISSING_BINS="grpc-server ${MISSING_BINS}"
-          [ ! -f "target/${PLATFORM}/${PROFILE}/libconnector_service_ffi.so" ] && MISSING_BINS="ffi-lib ${MISSING_BINS}"
-          [ ! -f "target/${PLATFORM}/${PROFILE}/libhyperswitch_grpc_ffi.so" ] && MISSING_BINS="grpc-ffi-lib ${MISSING_BINS}"
-          [ ! -f "target/${PLATFORM}/${PROFILE}/uniffi-bindgen" ] && MISSING_BINS="uniffi-bindgen ${MISSING_BINS}"
-          [ ! -f "target/${PLATFORM}/${PROFILE}/hyperswitch-smoke-test" ] && MISSING_BINS="smoke-test ${MISSING_BINS}"
-          [ ! -f "target/${PLATFORM}/${PROFILE}/grpc-smoke-test" ] && MISSING_BINS="grpc-smoke-test ${MISSING_BINS}"
-          
-          if [ -z "$MISSING_BINS" ]; then
-            echo "All SDK binaries found in cache, skipping build"
-            exit 0
-          fi
-          
-          echo "Missing binaries: ${MISSING_BINS}"
-          echo "Building SDK binaries for $PLATFORM..."
-          
-          # Build all SDK binaries in a single cargo invocation to avoid duplicate dependency compilation
-          # Note: ffi package is built with uniffi feature, others with default features
-          # We use --no-default-features for ffi to exclude incompatible features
-          cargo build \
-            -p ffi --no-default-features --features uniffi \
-            -p uniffi-bindgen \
-            -p hyperswitch-smoke-test \
-            -p grpc-server \
-            -p hyperswitch-grpc-ffi \
-            --profile "$PROFILE" --target "$PLATFORM"
-
       - name: Create connector credentials
         shell: bash
         env:
@@ -579,7 +524,7 @@ jobs:
         shell: bash
         run: |
           echo "Running SDK gRPC tests"
-          make -C sdk test-grpc GRPC_SKIP_BUILD=1 PROFILE=release-fast
+          make -C sdk test-grpc PROFILE=release-fast
 
       - name: Run SDK FFI Tests
         shell: bash
@@ -589,7 +534,7 @@ jobs:
           else
             echo "Running SDK FFI tests without connector credentials (dry-run mode)"
           fi
-          make -C sdk test FFI_SKIP_BUILD=1 PROFILE=release-fast
+          make -C sdk test PROFILE=release-fast
 
       - name: Run SDK Mock Tests
         shell: bash
@@ -599,27 +544,12 @@ jobs:
 
       - name: Verify SDK code regeneration produces no changes
         shell: bash
-        run: make -C sdk generate FFI_SKIP_BUILD=1 PROFILE=release-fast
+        run: make -C sdk generate PROFILE=release-fast
 
       - name: Check for uncommitted changes
         shell: bash
         run: |
           git diff --exit-code || (echo "ERROR: Generated SDK code is out of date. Run 'make -C sdk generate' and commit the changes." && exit 1)
-
-      - name: Save SDK binaries cache
-        if: always() && steps.sdk-cache-restore.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: |
-            target/*/*/libconnector_service_ffi.so
-            target/*/*/libconnector_service_ffi.dylib
-            target/*/*/libhyperswitch_grpc_ffi.so
-            target/*/*/libhyperswitch_grpc_ffi.dylib
-            target/*/*/grpc-server
-            target/*/*/uniffi-bindgen
-            target/*/*/hyperswitch-smoke-test
-            target/*/*/grpc-smoke-test
-          key: sdk-${{ runner.os }}-${{ hashFiles('crates/ffi/**/*.rs', 'sdk/grpc-ffi/**/*.rs', 'crates/internal/uniffi-bindgen/**/*.rs', 'sdk/rust/smoke-test/**/*.rs') }}
 
   # ── CI Gate ───────────────────────────────────────────────────────────────
   # Single required status check. Passes if all jobs succeeded, were skipped,
