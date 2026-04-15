@@ -522,6 +522,39 @@ jobs:
           restore-keys: |
             sdk-${{ runner.os }}-
 
+      - name: Build SDK binaries
+        if: steps.sdk-cache-restore.outputs.cache-hit != 'true'
+        run: |
+          ARCH=$(uname -m)
+          if [ "$ARCH" = "aarch64" ]; then
+            PLATFORM="aarch64-unknown-linux-gnu"
+          else
+            PLATFORM="x86_64-unknown-linux-gnu"
+          fi
+          PROFILE="release-fast"
+          
+          echo "Building SDK binaries for $PLATFORM..."
+          
+          # Build FFI library
+          cargo build -p ffi --no-default-features --features uniffi \
+            --profile "$PROFILE" --target "$PLATFORM"
+          
+          # Build uniffi-bindgen
+          cargo build -p uniffi-bindgen --profile "$PROFILE" --target "$PLATFORM"
+          
+          # Build smoke test binaries
+          CONNECTORS=stripe HARNESS_DIR="$(pwd)/examples" \
+            cargo build -p hyperswitch-smoke-test --bin hyperswitch-smoke-test \
+            --profile "$PROFILE" --target "$PLATFORM"
+          
+          CONNECTORS=stripe HARNESS_DIR="$(pwd)/examples" \
+            cargo build -p hyperswitch-smoke-test --bin grpc-smoke-test \
+            --profile "$PROFILE" --target "$PLATFORM"
+          
+          # Build gRPC server and FFI
+          cargo build -p grpc-server -p hyperswitch-grpc-ffi \
+            --profile "$PROFILE" --target "$PLATFORM"
+
       - name: Create connector credentials
         shell: bash
         env:
