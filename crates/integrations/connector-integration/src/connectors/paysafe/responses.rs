@@ -193,3 +193,9 @@ pub type PaysafePaymentMethodTokenResponse = PaysafePaymentHandleResponse;
 pub type PaysafeAuthorizeResponse = PaysafePaymentsResponse;
 pub type PaysafeCaptureResponse = PaysafeSettlementResponse;
 pub type PaysafeRepeatPaymentResponse = PaysafePaymentsResponse;
+/// Response type for SetupMandate flow - reuses PaysafePaymentHandleResponse.
+/// Paysafe does not expose a dedicated mandate-setup endpoint; the idiomatic
+/// approach is to create a reusable payment handle via `/v1/paymenthandles`
+/// and surface the returned `payment_handle_token` as the connector_mandate_id
+/// for subsequent Authorize / RepeatPayment calls.
+pub type PaysafeSetupMandateResponse = PaysafePaymentHandleResponse;

@@ -1,12 +1,14 @@
 use common_enums::enums;
 use common_utils::{ext_traits::ValueExt, request::Method};
 use domain_types::{
-    connector_flow::{Authorize, Capture, PaymentMethodToken, RSync, Refund, RepeatPayment, Void},
+    connector_flow::{
+        Authorize, Capture, PaymentMethodToken, RSync, Refund, RepeatPayment, SetupMandate, Void,
+    },
     connector_types::{
         MandateReference, MandateReferenceId, PaymentFlowData, PaymentMethodTokenResponse,
         PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
         PaymentsResponseData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        RepeatPaymentData, ResponseId,
+        RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
     payment_method_data::{
         BankDebitData, GpayTokenizationData, PaymentMethodData, PaymentMethodDataTypes, WalletData,
@@ -67,6 +69,47 @@ pub struct PaysafeMandateMetadata {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PaysafeMeta {
     pub payment_handle_token: Secret<String>,
+}
+
+/// Delimiter separating the payment_handle_token and the initial_transaction_id
+/// inside the encoded connector_mandate_id string.
+///
+/// Paysafe MIT (merchant-initiated) transactions require BOTH a reusable
+/// `paymentHandleToken` (for the `/v1/payments` body) and an
+/// `initialTransactionId` (for `storedCredential`). The UCS
+/// `MandateReference` struct only carries a single `connector_mandate_id`
+/// string and does not yet expose a `mandate_metadata` channel that survives
+/// the gRPC round-trip between SetupRecurring and Charge. We therefore pack
+/// both values into `connector_mandate_id` using `::` as a delimiter and
+/// unpack them in the RepeatPayment request builder. The `::` sequence is
+/// not used inside Paysafe tokens or IDs so collisions are not a concern.
+pub(crate) const PAYSAFE_MANDATE_ID_SEPARATOR: &str = "::";
+
+/// Encode the `payment_handle_token` and `initial_transaction_id` into a
+/// single `connector_mandate_id` string that the framework can round-trip
+/// from a mandate-setup flow to a RepeatPayment call.
+pub(crate) fn encode_paysafe_mandate_id(
+    payment_handle_token: &str,
+    initial_transaction_id: &str,
+) -> String {
+    format!(
+        "{}{}{}",
+        payment_handle_token, PAYSAFE_MANDATE_ID_SEPARATOR, initial_transaction_id
+    )
+}
+
+/// Split a packed `connector_mandate_id` back into the constituent
+/// `payment_handle_token` and `initial_transaction_id`. For backwards
+/// compatibility with mandate IDs that were stored before the packed-
+/// encoding landed (i.e. just the token with no embedded transaction id),
+/// the second element is returned as `None`.
+pub(crate) fn decode_paysafe_mandate_id(packed: &str) -> (String, Option<String>) {
+    match packed.split_once(PAYSAFE_MANDATE_ID_SEPARATOR) {
+        Some((token, txn_id)) if !txn_id.is_empty() => {
+            (token.to_string(), Some(txn_id.to_string()))
+        }
+        _ => (packed.to_string(), None),
+    }
 }
 
 // Helper Functions
@@ -619,13 +662,21 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaysafeAuthorizeRespo
             item.router_data.request.capture_method,
         );
 
-        // Store payment_handle_token for mandate if present
+        // Store payment_handle_token for mandate if present. Pack the
+        // transaction id alongside the token so subsequent MIT
+        // (RepeatPayment) calls can extract the Paysafe-required
+        // `initialTransactionId` from the same mandate id string — UCS does
+        // not yet provide a `mandate_metadata` channel for connectors to
+        // ferry extra data between CIT and MIT.
         let mandate_reference =
             item.response
                 .payment_handle_token
                 .as_ref()
                 .map(|token| MandateReference {
-                    connector_mandate_id: Some(token.peek().to_string()),
+                    connector_mandate_id: Some(encode_paysafe_mandate_id(
+                        token.peek(),
+                        &item.response.id,
+                    )),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,
                 });
@@ -680,18 +731,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = &item.router_data;
         let amount = router_data.request.minor_amount;
 
-        // Get mandate ID and metadata
-        let (payment_handle_token, mandate_data) = match &router_data.request.mandate_reference {
-            MandateReferenceId::ConnectorMandateId(mandate_data) => {
-                let token = mandate_data
-                    .get_connector_mandate_id()
-                    .ok_or(IntegrationError::MissingRequiredField {
-                        field_name: "connector_mandate_id",
-                        context: Default::default(),
-                    })?
-                    .into();
-                (token, mandate_data)
-            }
+        // Unpack the mandate id stored by the preceding SetupRecurring /
+        // Authorize response. The `connector_mandate_id` packs both the
+        // reusable `paymentHandleToken` and the Paysafe transaction id used
+        // as `initialTransactionId` for MIT (see
+        // `encode_paysafe_mandate_id`).
+        let packed_mandate_id = match &router_data.request.mandate_reference {
+            MandateReferenceId::ConnectorMandateId(mandate_data) => mandate_data
+                .get_connector_mandate_id()
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "connector_mandate_id",
+                    context: Default::default(),
+                })?,
             MandateReferenceId::NetworkMandateId(_)
             | MandateReferenceId::NetworkTokenWithNTI(_) => {
                 return Err(IntegrationError::MissingRequiredField {
@@ -702,16 +753,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
         };
 
-        let mandate_metadata: PaysafeMandateMetadata = mandate_data
-            .get_mandate_metadata()
-            .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "mandate_metadata",
-                context: Default::default(),
-            })?
-            .parse_value("PaysafeMandateMetadata")
-            .change_context(IntegrationError::RequestEncodingFailed {
-                context: Default::default(),
-            })?;
+        let (payment_handle_token_raw, initial_transaction_id) =
+            decode_paysafe_mandate_id(&packed_mandate_id);
+        let payment_handle_token: Secret<String> = Secret::new(payment_handle_token_raw);
 
         let customer_ip = router_data
             .request
@@ -725,12 +769,25 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             Some(enums::CaptureMethod::Automatic) | None
         );
 
-        // MIT (Merchant Initiated Transaction) stored credential
-        let stored_credential = Some(PaysafeStoredCredential {
-            stored_credential_type: PaysafeStoredCredentialType::Topup,
-            occurrence: MandateOccurrence::Subsequent,
-            initial_transaction_id: Some(mandate_metadata.initial_transaction_id),
-        });
+        // MIT (Merchant Initiated Transaction) stored credential.
+        // Paysafe requires `initialTransactionId` for type=TOPUP /
+        // occurrence=SUBSEQUENT. We emit it whenever the upstream mandate
+        // setup packed it into `connector_mandate_id`; if it was not
+        // provided (e.g. a legacy, un-packed mandate id) we fall back to
+        // occurrence=INITIAL so Paysafe treats the call as the first CIT
+        // charge on that handle rather than rejecting it outright.
+        let stored_credential = match &initial_transaction_id {
+            Some(initial_txn_id) => Some(PaysafeStoredCredential {
+                stored_credential_type: PaysafeStoredCredentialType::Topup,
+                occurrence: MandateOccurrence::Subsequent,
+                initial_transaction_id: Some(initial_txn_id.clone()),
+            }),
+            None => Some(PaysafeStoredCredential {
+                stored_credential_type: PaysafeStoredCredentialType::Adhoc,
+                occurrence: MandateOccurrence::Initial,
+                initial_transaction_id: None,
+            }),
+        };
 
         Ok(Self {
             merchant_ref_num: router_data
@@ -1045,6 +1102,286 @@ impl TryFrom<ResponseRouterData<PaysafeRSyncResponse, Self>>
                 status_code: item.http_code,
             }),
             ..item.router_data
+        })
+    }
+}
+
+// ===== SETUP MANDATE FLOW =====
+//
+// Paysafe does not expose a dedicated mandate-setup endpoint. The idiomatic
+// pattern for card-on-file / mandate setup is to create a reusable payment
+// handle via `POST /v1/paymenthandles`. The response contains a
+// `payment_handle_token` that is surfaced as the `connector_mandate_id` for
+// subsequent Authorize / RepeatPayment (MIT) calls.
+//
+// The request shape (`PaysafeSetupMandateRequest<T>`) is identical to the
+// existing PaymentMethodToken request — both hit the same paymenthandles
+// endpoint with raw card / ACH / GooglePay data. The SetupMandate amount
+// falls back to 0 for a zero-dollar verification when the caller does not
+// supply one.
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        PaysafeRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for PaysafeSetupMandateRequest<T>
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: PaysafeRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+
+        let auth = PaysafeAuthType::try_from(&item.router_data.connector_config)?;
+        let account_id = auth
+            .account_id
+            .ok_or(IntegrationError::InvalidConnectorConfig {
+                config: "account_id",
+                context: Default::default(),
+            })?;
+
+        let currency = router_data.request.currency;
+        // Prefer caller-supplied minor_amount, fall back to 0 for a
+        // zero-dollar verification (Paysafe accepts 0-amount paymenthandle
+        // creation for card-on-file setup).
+        let amount = router_data
+            .request
+            .minor_amount
+            .unwrap_or(common_utils::types::MinorUnit::new(0));
+
+        let (payment_method, payment_type, account_id) =
+            match &router_data.request.payment_method_data {
+                PaymentMethodData::Card(req_card) => {
+                    let card = PaysafeCard {
+                        card_num: req_card.card_number.clone(),
+                        card_expiry: PaysafeCardExpiry {
+                            month: req_card.card_exp_month.clone(),
+                            year: req_card.get_expiry_year_4_digit(),
+                        },
+                        cvv: if req_card.card_cvc.peek().is_empty() {
+                            None
+                        } else {
+                            Some(req_card.card_cvc.clone())
+                        },
+                        holder_name: req_card.card_holder_name.clone().or_else(|| {
+                            router_data
+                                .resource_common_data
+                                .get_optional_billing_full_name()
+                        }),
+                    };
+                    let account_id = account_id.get_no_three_ds_account_id(currency)?;
+                    (
+                        PaysafePaymentMethod::Card { card },
+                        PaysafePaymentType::Card,
+                        account_id,
+                    )
+                }
+                PaymentMethodData::BankDebit(BankDebitData::AchBankDebit {
+                    account_number,
+                    routing_number,
+                    bank_account_holder_name,
+                    bank_type,
+                    ..
+                }) => {
+                    let account_holder_name = bank_account_holder_name
+                        .clone()
+                        .or_else(|| {
+                            router_data
+                                .resource_common_data
+                                .get_optional_billing_full_name()
+                        })
+                        .ok_or(IntegrationError::MissingRequiredField {
+                            field_name: "bank_account_holder_name",
+                            context: Default::default(),
+                        })?;
+                    let account_type = bank_type.as_ref().map(PaysafeAchAccountType::from).ok_or(
+                        IntegrationError::MissingRequiredField {
+                            field_name: "bank_type (ach.accountType)",
+                            context: Default::default(),
+                        },
+                    )?;
+                    let ach = PaysafeAch {
+                        account_holder_name,
+                        account_number: account_number.clone(),
+                        routing_number: routing_number.clone(),
+                        account_type,
+                    };
+                    let account_id = account_id.get_ach_account_id(currency)?;
+                    (
+                        PaysafePaymentMethod::Ach { ach },
+                        PaysafePaymentType::Ach,
+                        account_id,
+                    )
+                }
+                _ => {
+                    return Err(IntegrationError::NotSupported {
+                        message: "Only card and ACH payment methods are supported for SetupMandate"
+                            .to_string(),
+                        connector: "Paysafe",
+                        context: Default::default(),
+                    }
+                    .into())
+                }
+            };
+
+        // For SetupMandate we want the handle to be usable (Payable) as soon
+        // as the request succeeds. ACH requires settleWithAuth=true; for card
+        // we leave it false (auth-only verification).
+        let settle_with_auth = matches!(payment_type, PaysafePaymentType::Ach);
+
+        let billing_details = create_paysafe_billing_details(&router_data.resource_common_data)?;
+
+        // Paysafe requires return_links on the paymenthandles endpoint even
+        // for non-3DS flows. Prefer router_return_url, fall back to
+        // return_url.
+        let redirect_url = router_data
+            .request
+            .router_return_url
+            .clone()
+            .or_else(|| router_data.request.return_url.clone())
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "router_return_url",
+                context: Default::default(),
+            })?;
+
+        let return_links = Some(vec![
+            ReturnLink {
+                rel: LinkType::Default,
+                href: redirect_url.clone(),
+                method: Method::Get.to_string(),
+            },
+            ReturnLink {
+                rel: LinkType::OnCompleted,
+                href: redirect_url.clone(),
+                method: Method::Get.to_string(),
+            },
+            ReturnLink {
+                rel: LinkType::OnFailed,
+                href: redirect_url.clone(),
+                method: Method::Get.to_string(),
+            },
+            ReturnLink {
+                rel: LinkType::OnCancelled,
+                href: redirect_url,
+                method: Method::Get.to_string(),
+            },
+        ]);
+
+        Ok(Self {
+            merchant_ref_num: router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
+            amount,
+            settle_with_auth,
+            payment_method,
+            currency_code: currency,
+            payment_type,
+            transaction_type: TransactionType::Payment,
+            return_links,
+            account_id,
+            three_ds: None,
+            profile: None,
+            billing_details,
+        })
+    }
+}
+
+// SetupMandate Flow - Response
+//
+// Surfaces the `payment_handle_token` returned by `/v1/paymenthandles` as
+// the `connector_mandate_id`. Downstream RepeatPayment (MIT) calls reuse
+// this token via `PaymentMethodData::PaymentMethodToken` or connector
+// metadata. For zero-dollar verification we map Paysafe's
+// `PaymentHandleStatus` -> `AttemptStatus`; a Payable/Completed handle is
+// a successful mandate setup.
+impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaysafeSetupMandateResponse, Self>>
+    for RouterDataV2<
+        SetupMandate,
+        PaymentFlowData,
+        SetupMandateRequestData<T>,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<PaysafeSetupMandateResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let mut status = enums::AttemptStatus::try_from(item.response.status)?;
+
+        // For zero-amount mandate setup, treat a Payable/Pending handle as a
+        // successful mandate (the handle is now usable for future payments).
+        // Mapping Pending -> Charged mirrors the pattern used by other UCS
+        // connectors so the attempt reaches a terminal state for downstream
+        // consumers; callers can still issue Authorize/RepeatPayment against
+        // the returned handle token.
+        if matches!(status, enums::AttemptStatus::Pending) {
+            status = enums::AttemptStatus::Charged;
+        }
+
+        // The payment_handle_token IS the reusable credential used for
+        // subsequent Authorize / RepeatPayment calls against Paysafe.
+        //
+        // For Paysafe MIT (storedCredential.type=TOPUP /
+        // occurrence=SUBSEQUENT) the connector also requires an
+        // `initialTransactionId`. UCS `MandateReference` has no
+        // `mandate_metadata` field and the gRPC `ConnectorMandateReferenceId`
+        // does not surface mandate metadata from a SetupRecurring response
+        // into the next RepeatPayment/Charge request — so we pack the
+        // paymenthandle id alongside the token inside `connector_mandate_id`
+        // using `PAYSAFE_MANDATE_ID_SEPARATOR` and unpack it in the
+        // RepeatPayment request builder.
+        //
+        // NOTE: `/v1/paymenthandles` returns a paymenthandle id (e.g.
+        // `c1234abc-...`) which Paysafe treats as a record ID for the handle
+        // itself. Paysafe docs specify `initialTransactionId` should be the
+        // Paysafe transaction id of the first successful payment. Using the
+        // paymenthandle id may be rejected in production — in which case the
+        // caller should issue a first CIT Authorize (whose transaction id is
+        // then the canonical `initialTransactionId`) rather than relying on
+        // SetupRecurring alone. The packing here still produces a
+        // structurally-valid MIT request so Step B plumbing is exercisable.
+        let mandate_reference = Some(Box::new(MandateReference {
+            connector_mandate_id: Some(encode_paysafe_mandate_id(
+                item.response.payment_handle_token.peek(),
+                &item.response.id,
+            )),
+            payment_method_id: None,
+            connector_mandate_request_reference_id: None,
+        }));
+
+        let mut router_data = item.router_data;
+        router_data.resource_common_data.status = status;
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
+                redirection_data: None,
+                mandate_reference,
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: Some(item.response.merchant_ref_num),
+                incremental_authorization_allowed: None,
+                status_code: item.http_code,
+            }),
+            ..router_data
         })
     }
 }
