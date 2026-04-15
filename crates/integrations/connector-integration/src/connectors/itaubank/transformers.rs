@@ -116,6 +116,7 @@ pub struct ItaubankTransferRequest {
     pub identificacao_comprovante: Option<Secret<String>>,
     pub informacoes_entre_usuarios: Option<Secret<String>>,
     pub recebedor: Option<ItaubankRecebedor>,
+    pub emv: Option<Secret<String>>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Copy)]
@@ -178,12 +179,13 @@ impl
                 context: Default::default(),
             })?;
 
-        let recebedor = match req.request.payout_method_data.clone() {
+        let (recebedor, emv) = match req.request.payout_method_data.clone() {
             Some(PayoutMethodData::Bank(Bank::Pix(PixBankTransfer {
                 tax_id,
                 bank_branch,
                 bank_account_number,
                 bank_name,
+                pix_emv,
                 ..
             }))) => {
                 let tipo_pessoa = tax_id.clone().expose_option().map(|id| {
@@ -204,16 +206,19 @@ impl
                     })
                     .transpose()?;
 
-                Some(ItaubankRecebedor {
-                    banco: bank_name.map(|bank| bank.to_string()),
-                    tipo_conta: Some(ItaubankAccountType::Checking),
-                    agencia,
-                    conta: bank_account_number,
-                    tipo_pessoa,
-                    documento: tax_id,
-                })
+                (
+                    Some(ItaubankRecebedor {
+                        banco: bank_name.map(|bank| bank.to_string()),
+                        tipo_conta: Some(ItaubankAccountType::Checking),
+                        agencia,
+                        conta: bank_account_number,
+                        tipo_pessoa,
+                        documento: tax_id,
+                    }),
+                    pix_emv,
+                )
             }
-            _ => None,
+            _ => (None, None),
         };
 
         Ok(Self {
@@ -224,6 +229,7 @@ impl
             identificacao_comprovante: req.request.merchant_payout_id.clone().map(Secret::new),
             informacoes_entre_usuarios: Some(Secret::new("Payout".to_string())),
             recebedor,
+            emv,
         })
     }
 }
@@ -235,7 +241,7 @@ pub enum ItaubankPayoutStatus {
     Aprovado,
     #[serde(alias = "Confirmado", alias = "CONFIRMADO")]
     Confirmado,
-    #[serde(alias = "Efetivado", alias = "EFETIVADO")]
+    #[serde(alias = "Efetivado", alias = "EFETIVADO", alias = "Efetuado")]
     Efetivado,
     #[serde(alias = "Pendente", alias = "PENDENTE")]
     Pendente,
@@ -258,40 +264,67 @@ pub struct ItaubankTransferResponse {
     #[serde(alias = "id", alias = "cod_pagamento")]
     pub id: String,
     #[serde(alias = "status", alias = "status_pagamento")]
-    pub transfer_status: Option<ItaubankPayoutStatus>,
+    pub transfer_status: ItaubankPayoutStatus,
 }
 
-impl ItaubankTransferResponse {
-    pub fn status(&self) -> common_enums::PayoutStatus {
-        match self.transfer_status {
-            Some(ItaubankPayoutStatus::Aprovado)
-            | Some(ItaubankPayoutStatus::Confirmado)
-            | Some(ItaubankPayoutStatus::Efetivado)
-            | Some(ItaubankPayoutStatus::Sucesso) => common_enums::PayoutStatus::Success,
-            Some(ItaubankPayoutStatus::Pendente) | Some(ItaubankPayoutStatus::EmProcessamento) => {
-                common_enums::PayoutStatus::Pending
+impl ItaubankPayoutStatus {
+    pub fn get_payout_status(&self) -> common_enums::PayoutStatus {
+        match self {
+            Self::Aprovado | Self::Confirmado | Self::Efetivado | Self::Sucesso => {
+                common_enums::PayoutStatus::Success
             }
-            Some(ItaubankPayoutStatus::Rejeitado)
-            | Some(ItaubankPayoutStatus::Cancelado)
-            | Some(ItaubankPayoutStatus::NaoIncluido) => common_enums::PayoutStatus::Failure,
-            Some(ItaubankPayoutStatus::Unknown) | None => common_enums::PayoutStatus::Pending,
+            Self::Pendente | Self::EmProcessamento => common_enums::PayoutStatus::Pending,
+            Self::Rejeitado | Self::Cancelado | Self::NaoIncluido => {
+                common_enums::PayoutStatus::Failure
+            }
+            Self::Unknown => common_enums::PayoutStatus::Pending,
         }
     }
 }
 
-// ===== PSYNC RESPONSE (placeholder for macro) =====
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ItaubankPayoutGetResponse {
+    pub data: ItaubankPayoutGetData,
+}
 
-impl TryFrom<ResponseRouterData<ItaubankErrorResponse, Self>>
-    for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ItaubankPayoutGetData {
+    #[serde(alias = "dados_pagamento")]
+    pub payment_details: ItaubankPayoutDetails,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ItaubankPayoutDetails {
+    #[serde(alias = "status", alias = "status_pagamento")]
+    pub status: ItaubankPayoutStatus,
+}
+
+impl TryFrom<ResponseRouterData<ItaubankPayoutGetResponse, Self>>
+    for RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>
 {
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
-        _item: ResponseRouterData<ItaubankErrorResponse, Self>,
+        item: ResponseRouterData<ItaubankPayoutGetResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        Err(ConnectorError::ResponseHandlingFailed {
-            context: Default::default(),
-        }
-        .into())
+        let response = &item.response;
+        let router_data = &item.router_data;
+
+        // Map connector status to standard status
+        let payout_status = response.data.payment_details.status.get_payout_status();
+
+        // Build success response
+        let payments_response_data = PayoutGetResponse {
+            merchant_payout_id: router_data.request.merchant_payout_id.clone(),
+            payout_status,
+            connector_payout_id: None,
+            status_code: item.http_code,
+        };
+
+        Ok(Self {
+            resource_common_data: router_data.resource_common_data.clone(),
+            response: Ok(payments_response_data),
+            ..router_data.clone()
+        })
     }
 }

@@ -26,15 +26,19 @@ use interfaces::{
 };
 use serde::Serialize;
 
+use crate::types::ResponseRouterData;
+
 use self::transformers::{
     ItaubankAccessTokenRequest, ItaubankAccessTokenResponse, ItaubankAuthType,
-    ItaubankErrorResponse, ItaubankTransferRequest, ItaubankTransferResponse,
+    ItaubankErrorResponse, ItaubankPayoutGetResponse, ItaubankTransferRequest,
+    ItaubankTransferResponse,
 };
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
     pub(crate) const ACCEPT: &str = "Accept";
     pub(crate) const USER_AGENT: &str = "User-Agent";
     pub(crate) const AUTHORIZATION: &str = "Authorization";
+    pub(crate) const X_ITAU_API_KEY: &str = "x-itau-apikey";
 }
 
 use std::fmt::Debug;
@@ -45,7 +49,13 @@ use super::macros;
 macros::create_all_prerequisites!(
     connector_name: Itaubank,
     generic_type: T,
-    api: [],
+    api: [
+        (
+            flow: PayoutGet,
+            response_body: ItaubankPayoutGetResponse,
+            router_data: RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
+        )
+    ],
     amount_converters: [],
     member_functions: {}
 );
@@ -56,7 +66,6 @@ macros::macro_connector_payout_implementation!(
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     payout_flows: [
         PayoutCreate,
-        PayoutGet,
         PayoutVoid,
         PayoutStage,
         PayoutCreateLink,
@@ -209,8 +218,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ServerAuthenticationTokenResponseData,
         >,
     ) -> CustomResult<String, errors::IntegrationError> {
-        let base_url = self.base_url(&req.resource_common_data.connectors);
-        Ok(format!("{base_url}/api/oauth/jwt"))
+        // if secondary_base_url is present, use it, else use base_url
+        if let Some(secondary_base_url) = req
+            .resource_common_data
+            .connectors
+            .itaubank
+            .secondary_base_url
+            .as_deref()
+        {
+            Ok(format!("{}/api/oauth/token", secondary_base_url))
+        } else {
+            let base_url = self.base_url(&req.resource_common_data.connectors);
+            Ok(format!("{}/api/oauth/jwt", base_url))
+        }
     }
 
     fn get_headers(
@@ -402,6 +422,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 headers::USER_AGENT.to_string(),
                 "Hyperswitch".to_string().into(),
             ),
+            (
+                headers::X_ITAU_API_KEY.to_string(),
+                format!("Bearer {access_token}").into_masked(),
+            ),
         ])
     }
 
@@ -441,7 +465,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 Ok(RouterDataV2 {
                     response: Ok(PayoutTransferResponse {
                         merchant_payout_id: None,
-                        payout_status: transfer_res.status(),
+                        payout_status: transfer_res.transfer_status.get_payout_status(),
                         connector_payout_id: Some(transfer_res.id),
                         status_code: res.status_code,
                     }),
@@ -470,6 +494,68 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         self.build_error_response(res, event_builder)
     }
 }
+
+// ===== PAYOUT GET FLOW =====
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PayoutGetV2 for Itaubank<T>
+{
+}
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Itaubank,
+    curl_response: ItaubankPayoutGetResponse,
+    flow_name: PayoutGet,
+    resource_common_data: PayoutFlowData,
+    flow_request: PayoutGetRequest,
+    flow_response: PayoutGetResponse,
+    http_method: Get,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
+            let access_token = req.resource_common_data.get_access_token().map_err(|_| {
+                errors::IntegrationError::FailedToObtainAuthType {
+                    context: Default::default(),
+                }
+            })?;
+
+            Ok(vec![
+                (
+                    headers::CONTENT_TYPE.to_string(),
+                    "application/json".to_string().into(),
+                ),
+                (headers::ACCEPT.to_string(), "*/*".to_string().into()),
+                (
+                    headers::AUTHORIZATION.to_string(),
+                    format!("Bearer {access_token}").into_masked(),
+                ),
+                (
+                    headers::USER_AGENT.to_string(),
+                    "Hyperswitch".to_string().into(),
+                ),
+                (
+                    headers::X_ITAU_API_KEY.to_string(),
+                    format!("Bearer {access_token}").into_masked(),
+                )
+            ])
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
+        ) -> CustomResult<String, errors::IntegrationError> {
+            let base_url = build_env_specific_endpoint(
+                self.base_url(&req.resource_common_data.connectors),
+                req.resource_common_data.test_mode,
+            );
+            let connector_payout_id = req.request.connector_payout_id.clone().ok_or(errors::IntegrationError::MissingConnectorTransactionID{ context: Default::default() })?;
+            Ok(format!("{}v1/pagamentos_sispag/{}", base_url, connector_payout_id))
+        }
+    }
+);
 
 fn build_env_specific_endpoint(base_url: &str, test_mode: Option<bool>) -> String {
     if test_mode.unwrap_or(true) {
