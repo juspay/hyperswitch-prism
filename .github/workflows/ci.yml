@@ -147,7 +147,7 @@ jobs:
       (needs.changes.outputs.any-rs == 'true' ||
        needs.changes.outputs.docs-trigger == 'true' ||
        needs.changes.outputs.ci == 'true')
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, x86_64-linux]
     permissions:
       contents: write
     outputs:
@@ -158,16 +158,12 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.ref }}
           token: ${{ secrets.GITHUB_TOKEN }}
+          clean: false
 
       - name: Install Rust (stable)
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
-
-      - uses: Swatinem/rust-cache@v2.7.8
-        with:
-          shared-key: "ci-rust"
-          save-if: false
 
       - name: Install Rust (nightly for fmt)
         uses: dtolnay/rust-toolchain@master
@@ -197,6 +193,8 @@ jobs:
 
       - name: Generate documentation
         if: needs.changes.outputs.docs-trigger == 'true' || needs.changes.outputs.ci == 'true'
+        env:
+          RUSTUP_TOOLCHAIN: stable
         run: |
           echo "Generating all-connectors coverage document..."
           make all-connectors-doc
