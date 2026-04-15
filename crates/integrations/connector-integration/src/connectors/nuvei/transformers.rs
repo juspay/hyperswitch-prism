@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use common_utils::{consts, pii, types::StringMajorUnit};
 use domain_types::{
     connector_flow::{
-        Authenticate, Authorize, Capture, ClientAuthenticationToken, CreateOrder, PostAuthenticate,
-        PreAuthenticate, PSync, RSync, Refund, Void,
+        Authenticate, Authorize, Capture, ClientAuthenticationToken, CreateOrder, PSync,
+        PostAuthenticate, PreAuthenticate, RSync, Refund, Void,
     },
     connector_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
@@ -2280,14 +2280,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 context: Default::default(),
             })?;
 
-        let browser_info = router_data
-            .request
-            .browser_info
-            .as_ref()
-            .ok_or(IntegrationError::MissingRequiredField {
+        let browser_info = router_data.request.browser_info.as_ref().ok_or(
+            IntegrationError::MissingRequiredField {
                 field_name: "browser_info",
                 context: Default::default(),
-            })?;
+            },
+        )?;
 
         let ip_address = browser_info
             .ip_address
@@ -2300,18 +2298,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             ip_address: Secret::new(ip_address.to_string()),
         };
 
-        let card_data = match router_data
-            .request
-            .payment_method_data
-            .as_ref()
-            .ok_or(IntegrationError::MissingRequiredField {
+        let card_data = match router_data.request.payment_method_data.as_ref().ok_or(
+            IntegrationError::MissingRequiredField {
                 field_name: "payment_method_data",
                 context: Default::default(),
-            })? {
+            },
+        )? {
             PaymentMethodData::Card(c) => c,
             _ => {
                 return Err(IntegrationError::NotSupported {
-                    message: "Only card payment method is supported for PreAuthenticate".to_string(),
+                    message: "Only card payment method is supported for PreAuthenticate"
+                        .to_string(),
                     connector: "nuvei",
                     context: Default::default(),
                 }
@@ -2419,7 +2416,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     card_holder_name: router_data
                         .resource_common_data
                         .get_optional_billing_full_name()
-                        .or(router_data.request.email.as_ref().map(|_| Secret::new(String::new()))),
+                        .or(router_data
+                            .request
+                            .email
+                            .as_ref()
+                            .map(|_| Secret::new(String::new()))),
                     expiration_month: card_data.card_exp_month.clone(),
                     expiration_year: card_data.card_exp_year.clone(),
                     cvv: card_data.card_cvc.clone(),
@@ -2547,14 +2548,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 context: Default::default(),
             })?;
 
-        let browser_info = router_data
-            .request
-            .browser_info
-            .as_ref()
-            .ok_or(IntegrationError::MissingRequiredField {
+        let browser_info = router_data.request.browser_info.as_ref().ok_or(
+            IntegrationError::MissingRequiredField {
                 field_name: "browser_info",
                 context: Default::default(),
-            })?;
+            },
+        )?;
 
         let ip_address = browser_info
             .ip_address
@@ -2583,10 +2582,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Build ThreeD field - either ExternalMPI or native browser-based 3DS
         let three_d = if let Some(auth_data) = router_data.request.authentication_data.as_ref() {
             // External MPI (already authenticated externally)
-            let cavv = auth_data.cavv.clone().ok_or(IntegrationError::MissingRequiredField {
-                field_name: "authentication_data.cavv",
-                context: Default::default(),
-            })?;
+            let cavv = auth_data
+                .cavv
+                .clone()
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "authentication_data.cavv",
+                    context: Default::default(),
+                })?;
             Some(NuveiThreeD {
                 external_mpi: Some(NuveiExternalMpi {
                     eci: auth_data.eci.clone(),
@@ -2604,10 +2606,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         } else {
             // Native 3DS — send browser details so Nuvei can perform ACS challenge
             let nuvei_browser = NuveiBrowserDetails {
-                accept_header: browser_info
-                    .accept_header
-                    .clone()
-                    .unwrap_or_default(),
+                accept_header: browser_info.accept_header.clone().unwrap_or_default(),
                 ip: Secret::new(ip_address.to_string()),
                 java_enabled: browser_info
                     .java_enabled
@@ -2649,14 +2648,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             })
         };
 
-        let card_data = match router_data
-            .request
-            .payment_method_data
-            .as_ref()
-            .ok_or(IntegrationError::MissingRequiredField {
+        let card_data = match router_data.request.payment_method_data.as_ref().ok_or(
+            IntegrationError::MissingRequiredField {
                 field_name: "payment_method_data",
                 context: Default::default(),
-            })? {
+            },
+        )? {
             PaymentMethodData::Card(c) => c,
             _ => {
                 return Err(IntegrationError::NotSupported {
@@ -2671,7 +2668,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let card_holder_name = router_data
             .resource_common_data
             .get_optional_billing_full_name()
-            .or(router_data.request.email.as_ref().map(|_| Secret::new(String::new())))
+            .or(router_data
+                .request
+                .email
+                .as_ref()
+                .map(|_| Secret::new(String::new())))
             .unwrap_or_else(|| Secret::new(String::new()));
 
         let email = router_data
@@ -3010,8 +3011,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         }
 
         let transaction_details = response.transaction_details.as_ref();
-        let transaction_status = transaction_details
-            .and_then(|td| td.transaction_status.as_ref());
+        let transaction_status = transaction_details.and_then(|td| td.transaction_status.as_ref());
 
         let (attempt_status, trans_status) = match transaction_status {
             Some(NuveiTransactionStatus::Approved) => (
@@ -3026,10 +3026,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 common_enums::AttemptStatus::AuthenticationFailed,
                 Some(common_enums::TransactionStatus::Failure),
             ),
-            _ => (
-                common_enums::AttemptStatus::AuthenticationPending,
-                None,
-            ),
+            _ => (common_enums::AttemptStatus::AuthenticationPending, None),
         };
 
         let authentication_data = Some(domain_types::router_request_types::AuthenticationData {
@@ -3041,8 +3038,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             message_version: None,
             ds_trans_id: None,
             acs_transaction_id: None,
-            transaction_id: transaction_details
-                .and_then(|td| td.transaction_id.clone()),
+            transaction_id: transaction_details.and_then(|td| td.transaction_id.clone()),
             network_params: None,
             exemption_indicator: None,
         });

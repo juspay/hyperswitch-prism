@@ -5,7 +5,7 @@
 // Nuvei — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx nuvei.ts checkout_autocapture
 
-import { PaymentClient, MerchantAuthenticationClient, RefundClient, types } from 'hyperswitch-prism';
+import { PaymentClient, MerchantAuthenticationClient, PaymentMethodAuthenticationClient, RefundClient, types } from 'hyperswitch-prism';
 const { ConnectorConfig, ConnectorSpecificConfig, SdkOptions, Environment, AuthenticationType, CaptureMethod, CountryAlpha2, Currency } = types;
 
 const _defaultConfig: ConnectorConfig = {
@@ -111,6 +111,46 @@ function _buildGetRequest(connectorTransactionId: string): PaymentServiceGetRequ
             "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
             "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         }
+    };
+}
+
+function _buildPreAuthenticateRequest(): PaymentMethodAuthenticationServicePreAuthenticateRequest {
+    return {
+        "amount": {  // Amount Information.
+            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        },
+        "paymentMethod": {  // Payment Method.
+            "card": {  // Generic card payment.
+                "cardNumber": {"value": "4111111111111111"},  // Card Identification.
+                "cardExpMonth": {"value": "03"},
+                "cardExpYear": {"value": "2030"},
+                "cardCvc": {"value": "737"},
+                "cardHolderName": {"value": "John Doe"}  // Cardholder Information.
+            }
+        },
+        "address": {  // Address Information.
+            "billingAddress": {
+                "countryAlpha2Code": CountryAlpha2.US,
+                "email": {"value": "test@example.com"}  // Contact Information.
+            }
+        },
+        "enrolledFor3Ds": false,  // Authentication Details.
+        "returnUrl": "https://example.com/3ds-return",  // URLs for Redirection.
+        "browserInfo": {  // Contextual Information.
+            "colorDepth": 24,  // Display Information.
+            "screenHeight": 900,
+            "screenWidth": 1440,
+            "javaEnabled": false,  // Browser Settings.
+            "javaScriptEnabled": true,
+            "language": "en-US",
+            "timeZoneOffsetMinutes": -480,
+            "acceptHeader": "application/json",  // Browser Headers.
+            "userAgent": "Mozilla/5.0 (probe-bot)",
+            "acceptLanguage": "en-US,en;q=0.9",
+            "ipAddress": "1.2.3.4"  // Device Information.
+        },
+        "sessionToken": "probe_session_token"  // Session Token (required for some connectors like Nuvei for 3DS).
     };
 }
 
@@ -317,6 +357,15 @@ async function get(merchantTransactionId: string, config: ConnectorConfig = _def
     return { status: getResponse.status };
 }
 
+// Flow: PaymentMethodAuthenticationService.PreAuthenticate
+async function preAuthenticate(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<PaymentMethodAuthenticationServicePreAuthenticateResponse> {
+    const paymentMethodAuthenticationClient = new PaymentMethodAuthenticationClient(config);
+
+    const preResponse = await paymentMethodAuthenticationClient.preAuthenticate(_buildPreAuthenticateRequest());
+
+    return { status: preResponse.status };
+}
+
 // Flow: PaymentService.Refund
 async function refund(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<RefundResponse> {
     const paymentClient = new PaymentClient(config);
@@ -347,7 +396,7 @@ async function voidPayment(merchantTransactionId: string, config: ConnectorConfi
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createClientAuthenticationToken, createOrder, createServerSessionAuthenticationToken, get, refund, refundGet, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateClientAuthenticationTokenRequest, _buildCreateOrderRequest, _buildCreateServerSessionAuthenticationTokenRequest, _buildGetRequest, _buildRefundRequest, _buildRefundGetRequest, _buildVoidRequest
+    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createClientAuthenticationToken, createOrder, createServerSessionAuthenticationToken, get, preAuthenticate, refund, refundGet, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateClientAuthenticationTokenRequest, _buildCreateOrderRequest, _buildCreateServerSessionAuthenticationTokenRequest, _buildGetRequest, _buildPreAuthenticateRequest, _buildRefundRequest, _buildRefundGetRequest, _buildVoidRequest
 };
 
 // CLI runner
