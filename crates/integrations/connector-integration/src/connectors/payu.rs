@@ -47,8 +47,9 @@ use serde::Serialize;
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 
 use transformers::{
-    is_upi_collect_flow, PayuAuthType, PayuPaymentRequest, PayuPaymentResponse,
-    PayuSetupMandateRequest, PayuSetupMandateResponse, PayuSyncRequest, PayuSyncResponse,
+    PayuAuthType, PayuPaymentRequest, PayuPaymentResponse, PayuRepeatPaymentRequest,
+    PayuRepeatPaymentResponse, PayuSetupMandateRequest, PayuSetupMandateResponse, PayuSyncRequest,
+    PayuSyncResponse,
 };
 
 use super::macros;
@@ -229,6 +230,12 @@ macros::create_all_prerequisites!(
             request_body: PayuSetupMandateRequest,
             response_body: PayuSetupMandateResponse,
             router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: RepeatPayment,
+            request_body: PayuRepeatPaymentRequest,
+            response_body: PayuRepeatPaymentResponse,
+            router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -263,23 +270,33 @@ macros::create_all_prerequisites!(
             &req.resource_common_data.connectors.payu.base_url
         }
 
-        pub fn preprocess_response_bytes<F, FCD, Res>(
+        // Generic PayU preprocess that decodes base64 for UPI Collect
+        // responses across flows. PayU returns UPI Collect results as a
+        // base64-encoded JSON blob for both Authorize and SetupMandate;
+        // the raw JSON body (UPI Intent, error responses) doesn't decode
+        // as base64, so the `.unwrap_or(bytes)` fallback keeps it intact.
+        //
+        // The signature accepts any request type because this is called
+        // per-flow from the macro expansion; we just need to be tolerant.
+        pub fn preprocess_response_bytes<F, FCD, Req, Res>(
             &self,
-            req: &RouterDataV2<F, FCD, PaymentsAuthorizeData<T>, Res>,
+            _req: &RouterDataV2<F, FCD, Req, Res>,
             bytes: bytes::Bytes,
             _status_code: u16,
         ) -> CustomResult<bytes::Bytes, IntegrationError> {
-            if is_upi_collect_flow(&req.request) {
-                // For UPI collect flows, we need to return base64 decoded response
-                let decoded_value = BASE64_ENGINE.decode(bytes.clone());
-                match decoded_value {
-                    Ok(decoded_bytes) => Ok(decoded_bytes.into()),
-                    Err(_) => Ok(bytes.clone())
-                }
-            } else {
-                // For other flows, we can use the response itself
-                Ok(bytes)
-            }
+            Ok(BASE64_ENGINE
+                .decode(bytes.as_ref())
+                .map(bytes::Bytes::from)
+                .ok()
+                .and_then(|decoded| {
+                    // Only accept decoded bytes if they parse as JSON —
+                    // otherwise we were handed a raw JSON body that
+                    // happened to look base64-ish.
+                    serde_json::from_slice::<serde_json::Value>(&decoded)
+                        .ok()
+                        .map(|_| decoded)
+                })
+                .unwrap_or(bytes))
         }
     }
 );
@@ -447,7 +464,8 @@ macros::macro_connector_implementation!(
 // standing-instruction flag (si=1) and a small verification amount to
 // register a UPI AutoPay mandate. The resulting reference_id is
 // surfaced as the connector_mandate_id for subsequent RepeatPayment
-// (MIT) calls.
+// (MIT) calls. `preprocess_response: true` wires the shared base64 →
+// JSON decoder so UPI Collect SI responses parse correctly.
 macros::macro_connector_implementation!(
     connector_default_implementations: [],
     connector: Payu,
@@ -458,6 +476,7 @@ macros::macro_connector_implementation!(
     flow_request: SetupMandateRequestData<T>,
     flow_response: PaymentsResponseData,
     http_method: Post,
+    preprocess_response: true,
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     other_functions: {
@@ -519,6 +538,77 @@ macros::macro_connector_implementation!(
     }
 );
 
+// RepeatPayment (RecurringPaymentService.Charge) — merchant-initiated
+// debit against a previously registered UPI AutoPay mandate. Hits
+// `/merchant/postservice.php?form=2` with command=si_transaction and
+// the authpayuid (mandate id from SetupMandate) inside var1.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [],
+    connector: Payu,
+    curl_request: FormUrlEncoded(PayuRepeatPaymentRequest),
+    curl_response: PayuRepeatPaymentResponse,
+    flow_name: RepeatPayment,
+    resource_common_data: PaymentFlowData,
+    flow_request: RepeatPaymentData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            let base_url = self.base_url(&req.resource_common_data.connectors);
+            Ok(format!("{base_url}/merchant/postservice.php?form=2"))
+        }
+
+        fn get_content_type(&self) -> &'static str {
+            "application/x-www-form-urlencoded"
+        }
+
+        fn get_error_response_v2(
+            &self,
+            res: Response,
+            _event_builder: Option<&mut events::Event>,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            let response: PayuRepeatPaymentResponse = res
+                .response
+                .parse_struct("PayU RepeatPayment ErrorResponse")
+                .change_context(crate::utils::response_handling_fail_for_connector(res.status_code, "payu"))?;
+
+            let code = response
+                .error
+                .clone()
+                .unwrap_or_else(|| "PAYU_MIT_REJECTED".to_string());
+            let message = response
+                .message
+                .clone()
+                .or(response.msg.clone())
+                .unwrap_or_else(|| "PayU si_transaction rejected".to_string());
+
+            Ok(ErrorResponse {
+                status_code: res.status_code,
+                code,
+                message,
+                reason: None,
+                attempt_status: Some(enums::AttemptStatus::Failure),
+                connector_transaction_id: None,
+                network_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+            })
+        }
+    }
+);
+
 // Implement ConnectorCommon trait
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorCommon
     for Payu<T>
@@ -564,15 +654,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize + Ser
     for Payu<T>
 {
 }
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize + Serialize>
-    ConnectorIntegrationV2<
-        RepeatPayment,
-        PaymentFlowData,
-        RepeatPaymentData<T>,
-        PaymentsResponseData,
-    > for Payu<T>
-{
-}
+// RepeatPayment — ConnectorIntegrationV2 impl is provided by the
+// macro_connector_implementation! block above; only the marker trait
+// needs an explicit impl (`RepeatPaymentV2`, already present).
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize + Serialize>
     ConnectorIntegrationV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>
     for Payu<T>

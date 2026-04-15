@@ -585,7 +585,36 @@
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_charge_id": "probe_mit_001",
+          "connector_recurring_payment_id": {
+            "connector_mandate_id": "403993715537225922"
+          },
+          "amount": {
+            "minor_amount": 100,
+            "currency": "INR"
+          },
+          "email": "test@example.com",
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "email": "test@example.com",
+              "phone_number": "9876543210",
+              "phone_country_code": "+91"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://test.payu.in//merchant/postservice.php?form=2",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "key=probe_key&command=si_transaction&var1=%7B%22authpayuid%22%3A%22403993715537225922%22%2C%22amount%22%3A%221.00%22%2C%22txnid%22%3A%22probe_mit_001%22%2C%22phone%22%3A%229876543210%22%2C%22email%22%3A%22test%40example.com%22%7D&hash=a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3"
+        }
       }
     },
     "recurring_revoke": {
