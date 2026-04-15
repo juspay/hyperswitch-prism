@@ -1446,11 +1446,12 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<MolliePaymentsRespons
         // customer id echoed by Mollie on the response (authoritative), but
         // fall back to the router-data's connector_customer if the response
         // omits it.
-        let connector_customer_id = item
-            .response
-            .customer_id
-            .clone()
-            .or_else(|| item.router_data.resource_common_data.connector_customer.clone());
+        let connector_customer_id = item.response.customer_id.clone().or_else(|| {
+            item.router_data
+                .resource_common_data
+                .connector_customer
+                .clone()
+        });
 
         // Prefer real Mollie mandate id (mdt_xxx) when present — this is
         // minted once the first payment settles. Before then, surface the
