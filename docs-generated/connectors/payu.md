@@ -98,6 +98,7 @@ let config = ConnectorConfig {
 |--------------------|----------|----------------------|
 | [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
+| [RecurringPaymentService.Charge](#recurringpaymentservicecharge) | Mandates | `RecurringPaymentServiceChargeRequest` |
 
 ### Payments
 
@@ -218,7 +219,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/payu/payu.py#L68) · [TypeScript](../../examples/payu/payu.ts#L65) · [Kotlin](../../examples/payu/payu.kt#L68) · [Rust](../../examples/payu/payu.rs#L70)
+**Examples:** [Python](../../examples/payu/payu.py#L101) · [TypeScript](../../examples/payu/payu.ts#L95) · [Kotlin](../../examples/payu/payu.kt#L71) · [Rust](../../examples/payu/payu.rs#L104)
 
 #### PaymentService.Get
 
@@ -229,4 +230,17 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/payu/payu.py#L77) · [TypeScript](../../examples/payu/payu.ts#L74) · [Kotlin](../../examples/payu/payu.kt#L80) · [Rust](../../examples/payu/payu.rs#L82)
+**Examples:** [Python](../../examples/payu/payu.py#L110) · [TypeScript](../../examples/payu/payu.ts#L104) · [Kotlin](../../examples/payu/payu.kt#L83) · [Rust](../../examples/payu/payu.rs#L116)
+
+### Mandates
+
+#### RecurringPaymentService.Charge
+
+Charge using an existing stored recurring payment instruction. Processes repeat payments for subscriptions or recurring billing without collecting payment details.
+
+| | Message |
+|---|---------|
+| **Request** | `RecurringPaymentServiceChargeRequest` |
+| **Response** | `RecurringPaymentServiceChargeResponse` |
+
+**Examples:** [Python](../../examples/payu/payu.py#L119) · [TypeScript](../../examples/payu/payu.ts#L113) · [Kotlin](../../examples/payu/payu.kt#L91) · [Rust](../../examples/payu/payu.rs#L123)

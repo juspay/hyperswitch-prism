@@ -1,9 +1,10 @@
 use common_enums::{self, AttemptStatus, Currency};
 use common_utils::{pii::IpAddress, Email};
 use domain_types::{
-    connector_flow::{Authorize, PSync},
+    connector_flow::{Authorize, PSync, RepeatPayment, SetupMandate},
     connector_types::{
-        PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData, ResponseId,
+        MandateReference, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData,
+        PaymentsSyncData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, UpiData},
@@ -1019,4 +1020,704 @@ fn map_payu_sync_status(payu_status: &str, txn_detail: &PayuTransactionDetail) -
             AttemptStatus::Failure
         }
     }
+}
+
+// ===== SETUP MANDATE FLOW STRUCTURES =====
+//
+// PayU does not expose a separate mandate-setup endpoint. The canonical
+// way to register a UPI-AutoPay / Standing Instruction with PayU is to
+// POST to the same `/_payment` endpoint used by Authorize, with the
+// standing-instruction flag (`si=1`) and a small verification amount.
+// The resulting reference_id / mihpayid / token is surfaced as the
+// `connector_mandate_id` for subsequent RepeatPayment (MIT) calls.
+//
+// Customer-Initiated Transaction (CIT): the customer is present to
+// approve the mandate. We prefer the caller-supplied amount and fall
+// back to 1 INR for a minimal-amount verification, since PayU UPI
+// generally rejects zero-amount transactions.
+
+/// SetupMandate request - reuses the PayU `/_payment` form payload.
+/// The only mandate-specific tweaks are `si=1` + `si_details`.
+pub type PayuSetupMandateRequest = PayuPaymentRequest;
+
+/// SetupMandate response - reuses the standard PayU payment response.
+pub type PayuSetupMandateResponse = PayuPaymentResponse;
+
+// SetupMandate Request - builds the UPI form payload from
+// SetupMandateRequestData, mirroring the Authorize construction.
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        super::PayuRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for PayuSetupMandateRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: super::PayuRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+
+        // Prefer caller-supplied minor_amount, fall back to 1 minor unit
+        // (e.g. 1 paisa) for verification. PayU UPI generally rejects
+        // zero-amount transactions.
+        let minor_amount = router_data
+            .request
+            .minor_amount
+            .unwrap_or_else(|| common_utils::types::MinorUnit::new(1));
+        let amount = item
+            .connector
+            .amount_converter
+            .convert(minor_amount, router_data.request.currency)
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: Default::default(),
+            })?;
+
+        let auth = PayuAuthType::try_from(&router_data.connector_config)?;
+
+        // Determine UPI flow parameters (pg / bankcode / vpa / s2s_flow)
+        // using the same logic as the Authorize path.
+        let (pg, bankcode, vpa, s2s_flow) = determine_setup_mandate_upi_flow(&router_data.request)?;
+
+        // Use a default set of UDFs for mandate setup. PayU hash includes
+        // udf1..udf10, so we populate sensible defaults (payment_id /
+        // merchant_id) to match the Authorize shape.
+        let payment_id = router_data.resource_common_data.payment_id.clone();
+        let merchant_id = router_data
+            .resource_common_data
+            .merchant_id
+            .get_string_repr()
+            .to_string();
+
+        // URLs - use the request's router return URL when available, fall
+        // back to the webhook URL or an empty placeholder.
+        let return_url = router_data
+            .request
+            .router_return_url
+            .clone()
+            .or_else(|| router_data.request.webhook_url.clone())
+            .unwrap_or_default();
+
+        // SI details JSON as accepted by PayU UPI AutoPay. The schema is
+        // intentionally minimal: billing_amount / billing_currency /
+        // billing_cycle / billing_interval / payment_start_date /
+        // payment_end_date (30 years from now).
+        //
+        // PayU evaluates `paymentStartDate` against IST (Asia/Kolkata,
+        // UTC+05:30). If we send today-in-UTC while the PayU server's
+        // clock is already tomorrow in IST, we get EX158 "startDate should
+        // not be less than present Date". To avoid the race entirely we
+        // add +1 day to UTC today — that's always ≥ today-in-IST and still
+        // a valid start in the future.
+        let now = time::OffsetDateTime::now_utc();
+        let date_fmt = time::macros::format_description!("[year]-[month]-[day]");
+        let start_date = (now + time::Duration::days(1))
+            .format(&date_fmt)
+            .unwrap_or_else(|_| "2024-01-02".to_string());
+        let end_date = (now + time::Duration::days(365 * 30))
+            .format(&date_fmt)
+            .unwrap_or_else(|_| "2054-01-01".to_string());
+        // PayU sandbox rejects lowercase billingCycle values with EX158
+        // ("billingCycle is malformed"). Accepted values are UPPERCASE:
+        // ADHOC, ONCE, DAILY, WEEKLY, MONTHLY, YEARLY. We default to
+        // ADHOC since callers supply a per-debit amount on each MIT.
+        let si_details = serde_json::json!({
+            "billingAmount": amount.get_amount_as_string(),
+            "billingCurrency": router_data.request.currency.to_string(),
+            "billingCycle": "ADHOC",
+            "billingInterval": 1,
+            "paymentStartDate": start_date,
+            "paymentEndDate": end_date,
+            "remarks": "UPI AutoPay mandate setup",
+        })
+        .to_string();
+
+        let mut request = Self {
+            key: auth.api_key.peek().to_string(),
+            txnid: router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
+            amount,
+            currency: router_data.request.currency,
+            productinfo: constants::PRODUCT_INFO.to_string(),
+
+            firstname: router_data
+                .resource_common_data
+                .get_billing_first_name()
+                .change_context(IntegrationError::MissingRequiredField {
+                    field_name: "billing.first_name",
+                    context: Default::default(),
+                })?,
+            lastname: router_data
+                .resource_common_data
+                .get_optional_billing_last_name(),
+            email: router_data
+                .resource_common_data
+                .get_billing_email()
+                .change_context(IntegrationError::MissingRequiredField {
+                    field_name: "billing.email",
+                    context: Default::default(),
+                })?,
+            phone: router_data
+                .resource_common_data
+                .get_billing_phone_number()
+                .change_context(IntegrationError::MissingRequiredField {
+                    field_name: "billing.phone_number",
+                    context: Default::default(),
+                })?,
+
+            surl: return_url.clone(),
+            furl: return_url,
+
+            pg,
+            bankcode,
+            vpa: vpa.map(Secret::new),
+
+            txn_s2s_flow: s2s_flow,
+            s2s_client_ip: router_data
+                .request
+                .get_ip_address_as_optional()
+                .unwrap_or_else(|| Secret::new("127.0.0.1".to_string())),
+            s2s_device_info: constants::DEVICE_INFO.to_string(),
+            api_version: Some(constants::API_VERSION.to_string()),
+
+            hash: String::new(),
+
+            // Default UDFs: udf1=payment_id, udf2=merchant_id, rest empty.
+            udf1: Some(payment_id),
+            udf2: Some(merchant_id),
+            udf3: None,
+            udf4: None,
+            udf5: None,
+            udf6: None,
+            udf7: None,
+            udf8: None,
+            udf9: None,
+            udf10: None,
+
+            offer_key: None,
+            // Standing instruction: enable UPI AutoPay mandate registration.
+            si: Some(1),
+            si_details: Some(si_details),
+            beneficiarydetail: None,
+            user_token: None,
+            offer_auto_apply: None,
+            additional_charges: None,
+            additional_gst_charges: None,
+            upi_app_name: determine_setup_mandate_upi_app_name(&router_data.request)?,
+        };
+
+        request.hash = generate_payu_hash(&request, &auth.api_secret)?;
+
+        Ok(request)
+    }
+}
+
+// SetupMandate response - extracts connector_mandate_id from PayU's
+// reference_id / txn_id / token, mirroring the Authorize response shape.
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<PayuSetupMandateResponse, Self>>
+    for RouterDataV2<
+        SetupMandate,
+        PaymentFlowData,
+        SetupMandateRequestData<T>,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<PayuSetupMandateResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response;
+
+        // Error response: PayU returns an `error` code on failure.
+        if let Some(error_code) = &response.error {
+            let error_transaction_id = response
+                .reference_id
+                .clone()
+                .or_else(|| response.txn_id.clone())
+                .or_else(|| response.token.clone());
+
+            let error_response = ErrorResponse {
+                status_code: item.http_code,
+                code: error_code.clone(),
+                message: response.message.clone().unwrap_or_default(),
+                reason: None,
+                attempt_status: Some(AttemptStatus::Failure),
+                connector_transaction_id: error_transaction_id,
+                network_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+            };
+
+            return Ok(Self {
+                response: Err(error_response),
+                resource_common_data: PaymentFlowData {
+                    status: AttemptStatus::Failure,
+                    ..item.router_data.resource_common_data
+                },
+                ..item.router_data
+            });
+        }
+
+        // Success path: extract the PayU mihpayid which doubles as the
+        // `authpayuid` required by the MIT `si_transaction` API. For the
+        // UPI Collect string-status path PayU returns it nested under
+        // `result.mihpayid`; for the UPI Intent integer-status path
+        // PayU puts the tracking id in top-level `reference_id`/`txn_id`.
+        // Fall back through these in order so both flows populate a
+        // usable connector_mandate_id for downstream RepeatPayment.
+        let mandate_id = response
+            .result
+            .as_ref()
+            .map(|r| r.mihpayid.clone())
+            .filter(|s| !s.is_empty())
+            .or_else(|| response.reference_id.clone())
+            .or_else(|| response.txn_id.clone())
+            .or_else(|| response.token.clone())
+            .unwrap_or_else(|| item.router_data.resource_common_data.payment_id.clone());
+
+        // Status mapping mirrors the Authorize response: UPI Intent
+        // success yields AuthenticationPending (pending customer action);
+        // UPI Collect success -> Pending (awaiting customer approval in
+        // the UPI app); otherwise fall back to AuthenticationPending so
+        // the attempt reaches a non-terminal state consumable downstream.
+        let (status, redirection_data) = match &response.status {
+            Some(PayuStatusValue::IntStatus(1)) => {
+                let redirection_data = response
+                    .intent_uri_data
+                    .clone()
+                    .map(|intent_data| Box::new(RedirectForm::Uri { uri: intent_data }));
+                (AttemptStatus::AuthenticationPending, redirection_data)
+            }
+            Some(PayuStatusValue::StringStatus(s)) if s == "success" => {
+                (AttemptStatus::AuthenticationPending, None)
+            }
+            _ => (AttemptStatus::AuthenticationPending, None),
+        };
+
+        // The PayU mandate id (result.mihpayid / reference_id / token) is
+        // the connector_mandate_id used for subsequent RepeatPayment
+        // calls (passed as `authpayuid` in the si_transaction var1 JSON).
+        let mandate_reference = Some(Box::new(MandateReference {
+            connector_mandate_id: Some(mandate_id.clone()),
+            payment_method_id: None,
+            connector_mandate_request_reference_id: None,
+        }));
+
+        let payment_response_data = PaymentsResponseData::TransactionResponse {
+            resource_id: ResponseId::ConnectorTransactionId(mandate_id.clone()),
+            redirection_data,
+            mandate_reference,
+            connector_metadata: None,
+            network_txn_id: None,
+            connector_response_reference_id: Some(mandate_id),
+            incremental_authorization_allowed: None,
+            status_code: item.http_code,
+        };
+
+        Ok(Self {
+            response: Ok(payment_response_data),
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
+    }
+}
+
+// SetupMandate variant of the UPI flow determination. Mirrors
+// `determine_upi_flow` but operates over SetupMandateRequestData.
+#[allow(clippy::type_complexity)]
+fn determine_setup_mandate_upi_flow<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+>(
+    request: &SetupMandateRequestData<T>,
+) -> Result<(Option<String>, Option<String>, Option<String>, String), IntegrationError> {
+    match &request.payment_method_data {
+        PaymentMethodData::Upi(upi_data) => match upi_data {
+            UpiData::UpiCollect(collect_data) => {
+                if let Some(vpa) = &collect_data.vpa_id {
+                    Ok((
+                        Some(constants::UPI_PG.to_string()),
+                        Some(constants::UPI_COLLECT_BANKCODE.to_string()),
+                        Some(vpa.peek().to_string()),
+                        constants::UPI_S2S_FLOW.to_string(),
+                    ))
+                } else {
+                    Err(IntegrationError::MissingRequiredField {
+                        field_name: "vpa_id",
+                        context: Default::default(),
+                    })
+                }
+            }
+            UpiData::UpiIntent(_) | UpiData::UpiQr(_) => Ok((
+                Some(constants::UPI_PG.to_string()),
+                Some(constants::UPI_INTENT_BANKCODE.to_string()),
+                None,
+                constants::UPI_S2S_FLOW.to_string(),
+            )),
+        },
+        _ => Err(IntegrationError::NotSupported {
+            message: "Payment method not supported by PayU SetupMandate. Only UPI is supported"
+                .to_string(),
+            connector: "PayU",
+            context: Default::default(),
+        }),
+    }
+}
+
+// SetupMandate variant of UPI app-name determination.
+fn determine_setup_mandate_upi_app_name<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+>(
+    request: &SetupMandateRequestData<T>,
+) -> Result<Option<String>, IntegrationError> {
+    match &request.payment_method_data {
+        PaymentMethodData::Upi(upi_data) => match upi_data {
+            UpiData::UpiIntent(_) | UpiData::UpiQr(_) => Ok(None),
+            UpiData::UpiCollect(collect_data) => {
+                Ok(collect_data.vpa_id.clone().map(|vpa| vpa.expose()))
+            }
+        },
+        _ => Ok(None),
+    }
+}
+
+// ===== REPEAT PAYMENT (MIT) FLOW STRUCTURES =====
+//
+// PayU executes subsequent merchant-initiated debits against a
+// previously registered UPI AutoPay mandate via the
+// `/merchant/postservice.php?form=2` endpoint with `command=si_transaction`.
+// The endpoint accepts a form-encoded body with:
+//   key      = merchant key
+//   command  = "si_transaction"
+//   var1     = JSON string containing authpayuid (the mandate's
+//              mihpayid from SetupMandate), amount, txnid, phone, email
+//   hash     = sha512(key|command|var1|salt)
+//
+// Discovered behavior (verified against test.payu.in sandbox):
+//   - `authpayuid` must be lowercase — `authPayuId` returns
+//     "Mandatory column missing".
+//   - The top-level response is `{status:1, message, details:{<txnid>:{...}}}`
+//     where details.<txnid>.status is "success" / "failed" / "pending".
+//   - A pre-debit notification must be sent 24h ahead in production; the
+//     sandbox skips that requirement.
+
+/// PayU `si_transaction` request shape: command + var1 JSON + hash.
+#[derive(Debug, Serialize)]
+pub struct PayuRepeatPaymentRequest {
+    pub key: String,
+    pub command: String,
+    pub var1: String,
+    pub hash: String,
+}
+
+/// JSON payload serialized into the `var1` field of the MIT request.
+#[derive(Debug, Serialize)]
+pub struct PayuSiTransactionVar1 {
+    /// Mandate reference from SetupMandate (PayU `mihpayid`).
+    pub authpayuid: String,
+    /// Amount in major units, matching the PayU `/_payment` format.
+    pub amount: String,
+    /// Merchant txn id for this MIT leg.
+    pub txnid: String,
+    /// Customer phone (required by PayU).
+    pub phone: String,
+    /// Customer email (required by PayU).
+    pub email: String,
+}
+
+/// PayU MIT response — top-level wrapper carries status + details map.
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PayuRepeatPaymentResponse {
+    /// 1 = request accepted (even if inner txn failed); 0 = request rejected.
+    pub status: Option<i32>,
+    pub message: Option<String>,
+    pub msg: Option<String>,
+    pub details: Option<std::collections::HashMap<String, PayuSiTransactionDetail>>,
+    pub error: Option<String>,
+}
+
+/// Details object returned for each txnid in an `si_transaction` response.
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PayuSiTransactionDetail {
+    pub authpayuid: Option<String>,
+    pub transactionid: Option<String>,
+    pub amount: Option<String>,
+    pub payuid: Option<String>,
+    /// Inner status: "success" / "failed" / "pending" / "in progress".
+    pub status: Option<String>,
+    pub field9: Option<String>,
+    pub phone: Option<String>,
+    pub email: Option<String>,
+}
+
+// RepeatPayment request builder — extracts the mandate id from
+// RepeatPaymentData.mandate_reference.connector_mandate_id and builds
+// a PayU si_transaction request.
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        super::PayuRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for PayuRepeatPaymentRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: super::PayuRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let auth = PayuAuthType::try_from(&router_data.connector_config)?;
+
+        // The PayU authpayuid is the connector_mandate_id stored on
+        // the mandate reference from the prior SetupMandate response.
+        let authpayuid = router_data.request.connector_mandate_id().ok_or(
+            IntegrationError::MissingRequiredField {
+                field_name: "connector_mandate_id",
+                context: Default::default(),
+            },
+        )?;
+
+        // Convert the caller-supplied minor amount to the string-major
+        // form PayU expects (e.g. "1.00").
+        let amount = item
+            .connector
+            .amount_converter
+            .convert(
+                router_data.request.minor_amount,
+                router_data.request.currency,
+            )
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: Default::default(),
+            })?;
+
+        // Customer phone + email are mandatory inside var1. Prefer the
+        // request-level email; fall back to billing. Phone is only
+        // available via billing on RepeatPaymentData.
+        let email = router_data
+            .request
+            .get_optional_email()
+            .or_else(|| router_data.resource_common_data.get_billing_email().ok())
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "email",
+                context: Default::default(),
+            })?;
+        let phone = router_data
+            .resource_common_data
+            .get_billing_phone_number()
+            .change_context(IntegrationError::MissingRequiredField {
+                field_name: "billing.phone_number",
+                context: Default::default(),
+            })?;
+
+        let txnid = router_data
+            .resource_common_data
+            .connector_request_reference_id
+            .clone();
+
+        let var1_struct = PayuSiTransactionVar1 {
+            authpayuid,
+            amount: amount.get_amount_as_string(),
+            txnid,
+            phone: phone.peek().clone(),
+            email: email.peek().clone(),
+        };
+        let var1 = serde_json::to_string(&var1_struct).map_err(|_| {
+            IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            }
+        })?;
+
+        // Hash formula: sha512(key|command|var1|salt)
+        let command = "si_transaction".to_string();
+        let hash = generate_si_transaction_hash(
+            auth.api_key.peek(),
+            &command,
+            &var1,
+            auth.api_secret.peek(),
+        );
+
+        Ok(Self {
+            key: auth.api_key.peek().to_string(),
+            command,
+            var1,
+            hash,
+        })
+    }
+}
+
+// RepeatPayment response transformer — maps PayU si_transaction
+// details into PaymentsResponseData, preserving the authpayuid as the
+// connector_mandate_id for downstream chained MITs.
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<PayuRepeatPaymentResponse, Self>>
+    for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<PayuRepeatPaymentResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response;
+
+        // status=0 means PayU rejected the request outright (bad hash,
+        // missing fields, invalid command, etc.) — no per-txn details.
+        if response.status != Some(1) {
+            let code = response
+                .error
+                .clone()
+                .unwrap_or_else(|| "PAYU_MIT_REJECTED".to_string());
+            let message = response
+                .message
+                .clone()
+                .or(response.msg.clone())
+                .unwrap_or_else(|| "PayU rejected si_transaction request".to_string());
+
+            let error_response = ErrorResponse {
+                status_code: item.http_code,
+                code,
+                message,
+                reason: None,
+                attempt_status: Some(AttemptStatus::Failure),
+                connector_transaction_id: None,
+                network_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+            };
+            return Ok(Self {
+                response: Err(error_response),
+                resource_common_data: PaymentFlowData {
+                    status: AttemptStatus::Failure,
+                    ..item.router_data.resource_common_data
+                },
+                ..item.router_data
+            });
+        }
+
+        // Success envelope: pick the first (and in practice only) detail
+        // entry; the key is the merchant txnid we sent.
+        let detail = response
+            .details
+            .as_ref()
+            .and_then(|map| map.values().next());
+
+        let inner_status = detail
+            .and_then(|d| d.status.clone())
+            .unwrap_or_else(|| "pending".to_string());
+        let attempt_status = match inner_status.to_lowercase().as_str() {
+            "success" | "captured" => AttemptStatus::Charged,
+            "pending" | "in progress" | "initiated" => AttemptStatus::Pending,
+            _ => AttemptStatus::Failure,
+        };
+
+        // Prefer payuid (PayU's MIT transaction id), fall back to
+        // authpayuid (the mandate), then transactionid (our txnid).
+        let txn_id = detail
+            .and_then(|d| d.payuid.clone().filter(|s| !s.is_empty()))
+            .or_else(|| detail.and_then(|d| d.authpayuid.clone()))
+            .or_else(|| detail.and_then(|d| d.transactionid.clone()))
+            .unwrap_or_else(|| item.router_data.resource_common_data.payment_id.clone());
+
+        // On failure (detail.status="failed") surface the connector's
+        // error message so the caller sees *why* instead of a bare
+        // CHARGED/PENDING/FAILED verdict.
+        if attempt_status == AttemptStatus::Failure {
+            let reason = detail.and_then(|d| d.field9.clone());
+            let error_response = ErrorResponse {
+                status_code: item.http_code,
+                code: "PAYU_MIT_FAILED".to_string(),
+                message: reason
+                    .clone()
+                    .unwrap_or_else(|| "PayU MIT transaction failed".to_string()),
+                reason,
+                attempt_status: Some(AttemptStatus::Failure),
+                connector_transaction_id: Some(txn_id.clone()),
+                network_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+            };
+            return Ok(Self {
+                response: Err(error_response),
+                resource_common_data: PaymentFlowData {
+                    status: AttemptStatus::Failure,
+                    ..item.router_data.resource_common_data
+                },
+                ..item.router_data
+            });
+        }
+
+        // Preserve the mandate id on the response so chained MITs
+        // (subsequent charges) can keep reusing it.
+        let mandate_reference = Some(Box::new(MandateReference {
+            connector_mandate_id: detail.and_then(|d| d.authpayuid.clone()),
+            payment_method_id: None,
+            connector_mandate_request_reference_id: None,
+        }));
+
+        let payment_response_data = PaymentsResponseData::TransactionResponse {
+            resource_id: ResponseId::ConnectorTransactionId(txn_id.clone()),
+            redirection_data: None,
+            mandate_reference,
+            connector_metadata: None,
+            network_txn_id: None,
+            connector_response_reference_id: Some(txn_id),
+            incremental_authorization_allowed: None,
+            status_code: item.http_code,
+        };
+
+        Ok(Self {
+            response: Ok(payment_response_data),
+            resource_common_data: PaymentFlowData {
+                status: attempt_status,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
+    }
+}
+
+// PayU MIT hash uses the short PSync-style formula:
+//   sha512(key|command|var1|salt)
+// (Distinct from the /_payment 17-field formula used by Authorize /
+// SetupMandate.)
+fn generate_si_transaction_hash(key: &str, command: &str, var1: &str, salt: &str) -> String {
+    use sha2::{Digest, Sha512};
+    let hash_string = format!("{key}|{command}|{var1}|{salt}");
+    let mut hasher = Sha512::new();
+    hasher.update(hash_string.as_bytes());
+    hex::encode(hasher.finalize())
 }

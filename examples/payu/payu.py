@@ -9,6 +9,7 @@ import asyncio
 import sys
 from google.protobuf.json_format import ParseDict
 from payments import PaymentClient
+from payments import RecurringPaymentClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 _default_config = sdk_config_pb2.ConnectorConfig(
@@ -65,6 +66,38 @@ def _build_get_request(connector_transaction_id: str):
         },
         payment_pb2.PaymentServiceGetRequest(),
     )
+
+def _build_recurring_charge_request():
+    return ParseDict(
+        {
+            "connector_recurring_payment_id": {  # Reference to existing mandate.
+                "connector_mandate_id": {  # mandate_id sent by the connector.
+                    "connector_mandate_id": "probe-mandate-123"
+                }
+            },
+            "amount": {  # Amount Information.
+                "minor_amount": 1000,  # Amount in minor units (e.g., 1000 = $10.00).
+                "currency": "USD"  # ISO 4217 currency code (e.g., "USD", "EUR").
+            },
+            "payment_method": {  # Optional payment Method Information (for network transaction flows).
+                "token": {  # Payment tokens.
+                    "token": {"value": "probe_pm_token"}  # The token string representing a payment method.
+                }
+            },
+            "return_url": "https://example.com/recurring-return",
+            "address": {  # Address Information.
+                "billing_address": {
+                    "phone_number": {"value": "4155552671"},
+                    "phone_country_code": "+1"
+                }
+            },
+            "email": {"value": "test@example.com"},  # Customer Information.
+            "connector_customer_id": "cust_probe_123",
+            "payment_method_type": "PAY_PAL",
+            "off_session": True  # Behavioral Flags and Preferences.
+        },
+        payment_pb2.RecurringPaymentServiceChargeRequest(),
+    )
 async def authorize(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """Flow: PaymentService.Authorize (UpiCollect)"""
     payment_client = PaymentClient(config)
@@ -81,6 +114,15 @@ async def get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConf
     get_response = await payment_client.get(_build_get_request("probe_connector_txn_001"))
 
     return {"status": get_response.status}
+
+
+async def recurring_charge(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: RecurringPaymentService.Charge"""
+    recurringpayment_client = RecurringPaymentClient(config)
+
+    recurring_response = await recurringpayment_client.charge(_build_recurring_charge_request())
+
+    return {"status": recurring_response.status}
 
 if __name__ == "__main__":
     scenario = sys.argv[1] if len(sys.argv) > 1 else "authorize"
