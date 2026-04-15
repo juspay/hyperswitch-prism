@@ -1,1 +1,10 @@
-{}
+{
+  "setup_recurring": {
+    "setup_recurring": {
+      "grpc_req": {
+        "return_url": "https://example.com/payment/return",
+        "webhook_url": "https://example.com/payment/webhook"
+      }
+    }
+  }
+}

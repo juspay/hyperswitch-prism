@@ -5,8 +5,8 @@
 // Mollie — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx mollie.ts checkout_autocapture
 
-import { PaymentClient, MerchantAuthenticationClient, RefundClient, types } from 'hyperswitch-prism';
-const { ConnectorConfig, ConnectorSpecificConfig, SdkOptions, Environment, AuthenticationType, CaptureMethod, Currency } = types;
+import { PaymentClient, MerchantAuthenticationClient, CustomerClient, RecurringPaymentClient, RefundClient, types } from 'hyperswitch-prism';
+const { ConnectorConfig, ConnectorSpecificConfig, SdkOptions, Environment, AuthenticationType, CaptureMethod, Currency, PaymentMethodType } = types;
 
 const _defaultConfig: ConnectorConfig = {
     options: {
@@ -56,6 +56,15 @@ function _buildCreateClientAuthenticationTokenRequest(): MerchantAuthenticationS
     };
 }
 
+function _buildCreateCustomerRequest(): CustomerServiceCreateRequest {
+    return {
+        "merchantCustomerId": "cust_probe_123",  // Identification.
+        "customerName": "John Doe",  // Name of the customer.
+        "email": {"value": "test@example.com"},  // Email address of the customer.
+        "phoneNumber": "4155552671"  // Phone number of the customer.
+    };
+}
+
 function _buildGetRequest(connectorTransactionId: string): PaymentServiceGetRequest {
     return {
         "merchantTransactionId": "probe_merchant_txn_001",  // Identification.
@@ -89,6 +98,29 @@ function _buildProxyAuthorizeRequest(): PaymentServiceProxyAuthorizeRequest {
         "authType": AuthenticationType.NO_THREE_DS,
         "returnUrl": "https://example.com/return",
         "description": "Probe payment"  // Description of the transaction.
+    };
+}
+
+function _buildRecurringChargeRequest(): RecurringPaymentServiceChargeRequest {
+    return {
+        "connectorRecurringPaymentId": {  // Reference to existing mandate.
+            "connectorMandateId": {  // mandate_id sent by the connector.
+                "connectorMandateId": "probe-mandate-123"
+            }
+        },
+        "amount": {  // Amount Information.
+            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        },
+        "paymentMethod": {  // Optional payment Method Information (for network transaction flows).
+            "token": {  // Payment tokens.
+                "token": {"value": "probe_pm_token"}  // The token string representing a payment method.
+            }
+        },
+        "returnUrl": "https://example.com/recurring-return",
+        "connectorCustomerId": "cust_probe_123",
+        "paymentMethodType": PaymentMethodType.PAY_PAL,
+        "offSession": true  // Behavioral Flags and Preferences.
     };
 }
 
@@ -247,6 +279,15 @@ async function createClientAuthenticationToken(merchantTransactionId: string, co
     return { status: createResponse.status };
 }
 
+// Flow: CustomerService.Create
+async function createCustomer(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<CustomerServiceCreateResponse> {
+    const customerClient = new CustomerClient(config);
+
+    const createResponse = await customerClient.create(_buildCreateCustomerRequest());
+
+    return { status: createResponse.status };
+}
+
 // Flow: PaymentService.Get
 async function get(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<PaymentServiceGetResponse> {
     const paymentClient = new PaymentClient(config);
@@ -263,6 +304,15 @@ async function proxyAuthorize(merchantTransactionId: string, config: ConnectorCo
     const proxyResponse = await paymentClient.proxyAuthorize(_buildProxyAuthorizeRequest());
 
     return { status: proxyResponse.status };
+}
+
+// Flow: RecurringPaymentService.Charge
+async function recurringCharge(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<RecurringPaymentServiceChargeResponse> {
+    const recurringPaymentClient = new RecurringPaymentClient(config);
+
+    const recurringResponse = await recurringPaymentClient.charge(_buildRecurringChargeRequest());
+
+    return { status: recurringResponse.status };
 }
 
 // Flow: PaymentService.Refund
@@ -304,7 +354,7 @@ async function voidPayment(merchantTransactionId: string, config: ConnectorConfi
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processRefund, processVoidPayment, processGetPayment, authorize, createClientAuthenticationToken, get, proxyAuthorize, refund, refundGet, tokenAuthorize, voidPayment, _buildAuthorizeRequest, _buildCreateClientAuthenticationTokenRequest, _buildGetRequest, _buildProxyAuthorizeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildTokenAuthorizeRequest, _buildVoidRequest
+    processCheckoutAutocapture, processRefund, processVoidPayment, processGetPayment, authorize, createClientAuthenticationToken, createCustomer, get, proxyAuthorize, recurringCharge, refund, refundGet, tokenAuthorize, voidPayment, _buildAuthorizeRequest, _buildCreateClientAuthenticationTokenRequest, _buildCreateCustomerRequest, _buildGetRequest, _buildProxyAuthorizeRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildTokenAuthorizeRequest, _buildVoidRequest
 };
 
 // CLI runner

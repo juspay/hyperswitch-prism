@@ -339,7 +339,7 @@ connector_id: mollie
 doc: docs/connectors/mollie.md
 scenarios: checkout_autocapture, refund, void_payment, get_payment
 payment_methods: Card
-flows: authorize, create_client_authentication_token, get, proxy_authorize, refund, refund_get, token_authorize, void
+flows: authorize, create_client_authentication_token, create_customer, get, proxy_authorize, recurring_charge, refund, refund_get, token_authorize, void
 examples_python: examples/mollie/mollie.py
 
 ## Multisafepay

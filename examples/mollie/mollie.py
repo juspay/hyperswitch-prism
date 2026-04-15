@@ -10,6 +10,8 @@ import sys
 from google.protobuf.json_format import ParseDict
 from payments import PaymentClient
 from payments import MerchantAuthenticationClient
+from payments import CustomerClient
+from payments import RecurringPaymentClient
 from payments import RefundClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
@@ -65,6 +67,17 @@ def _build_create_client_authentication_token_request():
         payment_pb2.MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest(),
     )
 
+def _build_create_customer_request():
+    return ParseDict(
+        {
+            "merchant_customer_id": "cust_probe_123",  # Identification.
+            "customer_name": "John Doe",  # Name of the customer.
+            "email": {"value": "test@example.com"},  # Email address of the customer.
+            "phone_number": "4155552671"  # Phone number of the customer.
+        },
+        payment_pb2.CustomerServiceCreateRequest(),
+    )
+
 def _build_get_request(connector_transaction_id: str):
     return ParseDict(
         {
@@ -103,6 +116,31 @@ def _build_proxy_authorize_request():
             "description": "Probe payment"  # Description of the transaction.
         },
         payment_pb2.PaymentServiceProxyAuthorizeRequest(),
+    )
+
+def _build_recurring_charge_request():
+    return ParseDict(
+        {
+            "connector_recurring_payment_id": {  # Reference to existing mandate.
+                "connector_mandate_id": {  # mandate_id sent by the connector.
+                    "connector_mandate_id": "probe-mandate-123"
+                }
+            },
+            "amount": {  # Amount Information.
+                "minor_amount": 1000,  # Amount in minor units (e.g., 1000 = $10.00).
+                "currency": "USD"  # ISO 4217 currency code (e.g., "USD", "EUR").
+            },
+            "payment_method": {  # Optional payment Method Information (for network transaction flows).
+                "token": {  # Payment tokens.
+                    "token": {"value": "probe_pm_token"}  # The token string representing a payment method.
+                }
+            },
+            "return_url": "https://example.com/recurring-return",
+            "connector_customer_id": "cust_probe_123",
+            "payment_method_type": "PAY_PAL",
+            "off_session": True  # Behavioral Flags and Preferences.
+        },
+        payment_pb2.RecurringPaymentServiceChargeRequest(),
     )
 
 def _build_refund_request(connector_transaction_id: str):
@@ -264,6 +302,15 @@ async def create_client_authentication_token(merchant_transaction_id: str, confi
     return {"status": create_response.status}
 
 
+async def create_customer(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: CustomerService.Create"""
+    customer_client = CustomerClient(config)
+
+    create_response = await customer_client.create(_build_create_customer_request())
+
+    return {"status": create_response.status}
+
+
 async def get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """Flow: PaymentService.Get"""
     payment_client = PaymentClient(config)
@@ -280,6 +327,15 @@ async def proxy_authorize(merchant_transaction_id: str, config: sdk_config_pb2.C
     proxy_response = await payment_client.proxy_authorize(_build_proxy_authorize_request())
 
     return {"status": proxy_response.status}
+
+
+async def recurring_charge(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: RecurringPaymentService.Charge"""
+    recurringpayment_client = RecurringPaymentClient(config)
+
+    recurring_response = await recurringpayment_client.charge(_build_recurring_charge_request())
+
+    return {"status": recurring_response.status}
 
 
 async def refund(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
