@@ -4,7 +4,9 @@ use common_utils::consts;
 use domain_types::errors::{ConnectorError, IntegrationError};
 use domain_types::payment_method_data::RawCardNumber;
 use domain_types::{
-    connector_flow::{Authorize, Capture, IncrementalAuthorization, RSync, Refund, SetupMandate, Void},
+    connector_flow::{
+        Authorize, Capture, IncrementalAuthorization, RSync, Refund, SetupMandate, Void,
+    },
     connector_types::{
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsResponseData, RefundFlowData, RefundSyncData,
@@ -1948,8 +1950,7 @@ impl TryFrom<ResponseRouterData<WellsfargoIncrementalAuthResponse, Self>>
                     .collect::<Vec<_>>()
                     .join(", ")
             });
-            let reason =
-                get_error_reason(error_info.message.clone(), detailed_error_info, None);
+            let reason = get_error_reason(error_info.message.clone(), detailed_error_info, None);
             return Ok(Self {
                 resource_common_data: PaymentFlowData {
                     status: AttemptStatus::Authorized,
@@ -1976,7 +1977,8 @@ impl TryFrom<ResponseRouterData<WellsfargoIncrementalAuthResponse, Self>>
             });
         }
 
-        let authorization_status: common_enums::AuthorizationStatus = response.status.clone().into();
+        let authorization_status: common_enums::AuthorizationStatus =
+            response.status.clone().into();
         // The original payment stays in Authorized on success; on failure we don't
         // want to corrupt the parent payment's status, so keep it Authorized too.
         let attempt_status = AttemptStatus::Authorized;
