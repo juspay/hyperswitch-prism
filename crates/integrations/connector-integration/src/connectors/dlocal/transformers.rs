@@ -584,11 +584,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         // Extract the saved card identifier from the response. Per dLocal's
         // Save-Card API contract the token is returned on `card.card_id`.
-        let connector_mandate_id = item
-            .response
-            .card
-            .as_ref()
-            .and_then(|c| c.card_id.clone());
+        let connector_mandate_id = item.response.card.as_ref().and_then(|c| c.card_id.clone());
 
         // SetupMandate only succeeds if dLocal hands us a tokenised card_id —
         // otherwise the downstream RepeatPayment (MIT) flow has nothing to
