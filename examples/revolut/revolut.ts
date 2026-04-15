@@ -270,6 +270,16 @@ async function handleEvent(merchantTransactionId: string, config: ConnectorConfi
     return { status: handleResponse.status };
 }
 
+// Flow: PaymentService.parse_event
+async function parseEvent(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<any> {
+    // Step 1: parse_event
+    const parseResponse = await paymentClient.parseEvent({
+        // No required fields
+    });
+
+    return { status: parseResponse.status };
+}
+
 // Flow: PaymentService.ProxyAuthorize
 async function proxyAuthorize(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<PaymentServiceAuthorizeResponse> {
     const paymentClient = new PaymentClient(config);
@@ -318,7 +328,7 @@ async function verifyRedirect(merchantTransactionId: string, config: ConnectorCo
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processCheckoutCard, processRefund, processGetPayment, authorize, capture, get, handleEvent, proxyAuthorize, refund, refundGet, tokenAuthorize, verifyRedirect, _buildAuthorizeRequest, _buildCaptureRequest, _buildGetRequest, _buildHandleEventRequest, _buildProxyAuthorizeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildTokenAuthorizeRequest, _buildVerifyRedirectRequest
+    processCheckoutAutocapture, processCheckoutCard, processRefund, processGetPayment, authorize, capture, get, handleEvent, parseEvent, proxyAuthorize, refund, refundGet, tokenAuthorize, verifyRedirect, _buildAuthorizeRequest, _buildCaptureRequest, _buildGetRequest, _buildHandleEventRequest, _buildProxyAuthorizeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildTokenAuthorizeRequest, _buildVerifyRedirectRequest
 };
 
 // CLI runner

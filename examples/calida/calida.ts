@@ -55,10 +55,20 @@ async function handleEvent(merchantTransactionId: string, config: ConnectorConfi
     return { status: handleResponse.status };
 }
 
+// Flow: PaymentService.parse_event
+async function parseEvent(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<any> {
+    // Step 1: parse_event
+    const parseResponse = await paymentClient.parseEvent({
+        // No required fields
+    });
+
+    return { status: parseResponse.status };
+}
+
 
 // Export all process* functions for the smoke test
 export {
-    get, handleEvent, _buildGetRequest, _buildHandleEventRequest
+    get, handleEvent, parseEvent, _buildGetRequest, _buildHandleEventRequest
 };
 
 // CLI runner

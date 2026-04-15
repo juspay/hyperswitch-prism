@@ -98,6 +98,7 @@ let config = ConnectorConfig {
 |--------------------|----------|----------------------|
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
 | [EventService.HandleEvent](#eventservicehandleevent) | Events | `EventServiceHandleRequest` |
+| [parse_event](#parse_event) | Other | `—` |
 
 ### Payments
 
@@ -111,3 +112,9 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Response** | `PaymentServiceGetResponse` |
 
 **Examples:** [Python](../../examples/cryptopay/cryptopay.py#L45) · [TypeScript](../../examples/cryptopay/cryptopay.ts#L41) · [Kotlin](../../examples/cryptopay/cryptopay.kt#L38) · [Rust](../../examples/cryptopay/cryptopay.rs#L44)
+
+### Other
+
+#### parse_event
+
+**Examples:** [Python](../../examples/cryptopay/cryptopay.py#L63) · [TypeScript](../../examples/cryptopay/cryptopay.ts#L59) · [Kotlin](../../examples/cryptopay/cryptopay.kt) · [Rust](../../examples/cryptopay/cryptopay.rs#L58)

@@ -99,6 +99,7 @@ let config = ConnectorConfig {
 | [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
 | [EventService.HandleEvent](#eventservicehandleevent) | Events | `EventServiceHandleRequest` |
+| [parse_event](#parse_event) | Other | `—` |
 | [RecurringPaymentService.Charge](#recurringpaymentservicecharge) | Mandates | `RecurringPaymentServiceChargeRequest` |
 | [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
 | [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
@@ -137,7 +138,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/ppro/ppro.py#L159) · [TypeScript](../../examples/ppro/ppro.ts#L143) · [Kotlin](../../examples/ppro/ppro.kt#L140) · [Rust](../../examples/ppro/ppro.rs#L142)
+**Examples:** [Python](../../examples/ppro/ppro.py#L173) · [TypeScript](../../examples/ppro/ppro.ts#L153) · [Kotlin](../../examples/ppro/ppro.kt#L140) · [Rust](../../examples/ppro/ppro.rs#L151)
 
 #### PaymentService.Void
 
@@ -148,7 +149,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/ppro/ppro.py#L177) · [TypeScript](../../examples/ppro/ppro.ts) · [Kotlin](../../examples/ppro/ppro.kt#L162) · [Rust](../../examples/ppro/ppro.rs#L156)
+**Examples:** [Python](../../examples/ppro/ppro.py#L191) · [TypeScript](../../examples/ppro/ppro.ts) · [Kotlin](../../examples/ppro/ppro.kt#L162) · [Rust](../../examples/ppro/ppro.rs#L165)
 
 ### Refunds
 
@@ -161,7 +162,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/ppro/ppro.py#L168) · [TypeScript](../../examples/ppro/ppro.ts#L152) · [Kotlin](../../examples/ppro/ppro.kt#L150) · [Rust](../../examples/ppro/ppro.rs#L149)
+**Examples:** [Python](../../examples/ppro/ppro.py#L182) · [TypeScript](../../examples/ppro/ppro.ts#L162) · [Kotlin](../../examples/ppro/ppro.kt#L150) · [Rust](../../examples/ppro/ppro.rs#L158)
 
 ### Mandates
 
@@ -174,4 +175,10 @@ Charge using an existing stored recurring payment instruction. Processes repeat 
 | **Request** | `RecurringPaymentServiceChargeRequest` |
 | **Response** | `RecurringPaymentServiceChargeResponse` |
 
-**Examples:** [Python](../../examples/ppro/ppro.py#L150) · [TypeScript](../../examples/ppro/ppro.ts#L134) · [Kotlin](../../examples/ppro/ppro.kt#L109) · [Rust](../../examples/ppro/ppro.rs#L135)
+**Examples:** [Python](../../examples/ppro/ppro.py#L164) · [TypeScript](../../examples/ppro/ppro.ts#L144) · [Kotlin](../../examples/ppro/ppro.kt#L109) · [Rust](../../examples/ppro/ppro.rs#L144)
+
+### Other
+
+#### parse_event
+
+**Examples:** [Python](../../examples/ppro/ppro.py#L150) · [TypeScript](../../examples/ppro/ppro.ts#L134) · [Kotlin](../../examples/ppro/ppro.kt) · [Rust](../../examples/ppro/ppro.rs#L135)

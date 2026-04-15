@@ -8,6 +8,7 @@
 package examples.trustly
 
 import payments.EventClient
+import payments.PaymentClient
 import payments.EventServiceHandleRequest
 import payments.ConnectorConfig
 import payments.SdkOptions

@@ -102,6 +102,20 @@ async def handle_event(merchant_transaction_id: str, config: sdk_config_pb2.Conn
     return {"status": handle_response.status}
 
 
+async def parse_event(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: PaymentService.parse_event"""
+    payment_client = PaymentClient(config)
+
+    # Step 1: parse_event
+    parse_response = await payment_client.parse_event(ParseDict(
+        {
+            # No required fields
+        },
+    ))
+
+    return {"status": parse_response.status}
+
+
 async def refund_get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """Flow: RefundService.Get"""
     refund_client = RefundClient(config)

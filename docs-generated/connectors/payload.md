@@ -108,7 +108,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/payload/payload.py#L365) · [JavaScript](../../examples/payload/payload.js) · [Kotlin](../../examples/payload/payload.kt#L156) · [Rust](../../examples/payload/payload.rs#L353)
+**Examples:** [Python](../../examples/payload/payload.py#L357) · [JavaScript](../../examples/payload/payload.js) · [Kotlin](../../examples/payload/payload.kt#L154) · [Rust](../../examples/payload/payload.rs#L347)
 
 ### Card Payment (Authorize + Capture)
 
@@ -122,25 +122,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/payload/payload.py#L384) · [JavaScript](../../examples/payload/payload.js) · [Kotlin](../../examples/payload/payload.kt#L172) · [Rust](../../examples/payload/payload.rs#L369)
+**Examples:** [Python](../../examples/payload/payload.py#L376) · [JavaScript](../../examples/payload/payload.js) · [Kotlin](../../examples/payload/payload.kt#L170) · [Rust](../../examples/payload/payload.rs#L363)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/payload/payload.py#L409) · [JavaScript](../../examples/payload/payload.js) · [Kotlin](../../examples/payload/payload.kt#L194) · [Rust](../../examples/payload/payload.rs#L392)
+**Examples:** [Python](../../examples/payload/payload.py#L401) · [JavaScript](../../examples/payload/payload.js) · [Kotlin](../../examples/payload/payload.kt#L192) · [Rust](../../examples/payload/payload.rs#L386)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/payload/payload.py#L434) · [JavaScript](../../examples/payload/payload.js) · [Kotlin](../../examples/payload/payload.kt#L216) · [Rust](../../examples/payload/payload.rs#L415)
+**Examples:** [Python](../../examples/payload/payload.py#L426) · [JavaScript](../../examples/payload/payload.js) · [Kotlin](../../examples/payload/payload.kt#L214) · [Rust](../../examples/payload/payload.rs#L409)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/payload/payload.py#L456) · [JavaScript](../../examples/payload/payload.js) · [Kotlin](../../examples/payload/payload.kt#L235) · [Rust](../../examples/payload/payload.rs#L434)
+**Examples:** [Python](../../examples/payload/payload.py#L448) · [JavaScript](../../examples/payload/payload.js) · [Kotlin](../../examples/payload/payload.kt#L233) · [Rust](../../examples/payload/payload.rs#L428)
 
 ## API Reference
 
@@ -150,7 +150,7 @@ Retrieve current payment status from the connector.
 | [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
 | [MerchantAuthenticationService.CreateClientAuthenticationToken](#merchantauthenticationservicecreateclientauthenticationtoken) | Authentication | `MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
-| [EventService.HandleEvent](#eventservicehandleevent) | Events | `EventServiceHandleRequest` |
+| [parse_event](#parse_event) | Other | `—` |
 | [PaymentService.ProxyAuthorize](#paymentserviceproxyauthorize) | Payments | `PaymentServiceProxyAuthorizeRequest` |
 | [PaymentService.ProxySetupRecurring](#paymentserviceproxysetuprecurring) | Payments | `PaymentServiceProxySetupRecurringRequest` |
 | [RecurringPaymentService.Charge](#recurringpaymentservicecharge) | Mandates | `RecurringPaymentServiceChargeRequest` |
@@ -295,7 +295,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/payload/payload.py#L478) · [TypeScript](../../examples/payload/payload.ts#L451) · [Kotlin](../../examples/payload/payload.kt#L253) · [Rust](../../examples/payload/payload.rs#L452)
+**Examples:** [Python](../../examples/payload/payload.py#L470) · [TypeScript](../../examples/payload/payload.ts#L446) · [Kotlin](../../examples/payload/payload.kt#L251) · [Rust](../../examples/payload/payload.rs#L446)
 
 #### PaymentService.Capture
 
@@ -306,7 +306,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/payload/payload.py#L487) · [TypeScript](../../examples/payload/payload.ts#L460) · [Kotlin](../../examples/payload/payload.kt#L265) · [Rust](../../examples/payload/payload.rs#L464)
+**Examples:** [Python](../../examples/payload/payload.py#L479) · [TypeScript](../../examples/payload/payload.ts#L455) · [Kotlin](../../examples/payload/payload.kt#L263) · [Rust](../../examples/payload/payload.rs#L458)
 
 #### PaymentService.Get
 
@@ -317,7 +317,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/payload/payload.py#L505) · [TypeScript](../../examples/payload/payload.ts#L478) · [Kotlin](../../examples/payload/payload.kt#L291) · [Rust](../../examples/payload/payload.rs#L478)
+**Examples:** [Python](../../examples/payload/payload.py#L497) · [TypeScript](../../examples/payload/payload.ts#L473) · [Kotlin](../../examples/payload/payload.kt#L289) · [Rust](../../examples/payload/payload.rs#L472)
 
 #### PaymentService.ProxyAuthorize
 
@@ -328,7 +328,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/payload/payload.py#L523) · [TypeScript](../../examples/payload/payload.ts#L496) · [Kotlin](../../examples/payload/payload.kt#L309) · [Rust](../../examples/payload/payload.rs#L492)
+**Examples:** [Python](../../examples/payload/payload.py#L520) · [TypeScript](../../examples/payload/payload.ts#L492) · [Kotlin](../../examples/payload/payload.kt#L297) · [Rust](../../examples/payload/payload.rs#L488)
 
 #### PaymentService.ProxySetupRecurring
 
@@ -339,7 +339,7 @@ Setup recurring mandate using vault-aliased card data.
 | **Request** | `PaymentServiceProxySetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/payload/payload.py#L532) · [TypeScript](../../examples/payload/payload.ts#L505) · [Kotlin](../../examples/payload/payload.kt#L349) · [Rust](../../examples/payload/payload.rs#L499)
+**Examples:** [Python](../../examples/payload/payload.py#L529) · [TypeScript](../../examples/payload/payload.ts#L501) · [Kotlin](../../examples/payload/payload.kt#L337) · [Rust](../../examples/payload/payload.rs#L495)
 
 #### PaymentService.Refund
 
@@ -350,7 +350,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/payload/payload.py#L550) · [TypeScript](../../examples/payload/payload.ts#L523) · [Kotlin](../../examples/payload/payload.kt#L430) · [Rust](../../examples/payload/payload.rs#L513)
+**Examples:** [Python](../../examples/payload/payload.py#L547) · [TypeScript](../../examples/payload/payload.ts#L519) · [Kotlin](../../examples/payload/payload.kt#L418) · [Rust](../../examples/payload/payload.rs#L509)
 
 #### PaymentService.SetupRecurring
 
@@ -361,7 +361,7 @@ Configure a payment method for recurring billing. Sets up the mandate and paymen
 | **Request** | `PaymentServiceSetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/payload/payload.py#L568) · [TypeScript](../../examples/payload/payload.ts#L541) · [Kotlin](../../examples/payload/payload.kt#L459) · [Rust](../../examples/payload/payload.rs#L527)
+**Examples:** [Python](../../examples/payload/payload.py#L565) · [TypeScript](../../examples/payload/payload.ts#L537) · [Kotlin](../../examples/payload/payload.kt#L447) · [Rust](../../examples/payload/payload.rs#L523)
 
 #### PaymentService.TokenAuthorize
 
@@ -372,7 +372,7 @@ Authorize using a connector-issued payment method token.
 | **Request** | `PaymentServiceTokenAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/payload/payload.py#L577) · [TypeScript](../../examples/payload/payload.ts#L550) · [Kotlin](../../examples/payload/payload.kt#L510) · [Rust](../../examples/payload/payload.rs#L537)
+**Examples:** [Python](../../examples/payload/payload.py#L574) · [TypeScript](../../examples/payload/payload.ts#L546) · [Kotlin](../../examples/payload/payload.kt#L498) · [Rust](../../examples/payload/payload.rs#L533)
 
 #### PaymentService.Void
 
@@ -383,7 +383,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/payload/payload.py#L586) · [TypeScript](../../examples/payload/payload.ts) · [Kotlin](../../examples/payload/payload.kt#L538) · [Rust](../../examples/payload/payload.rs#L544)
+**Examples:** [Python](../../examples/payload/payload.py#L583) · [TypeScript](../../examples/payload/payload.ts) · [Kotlin](../../examples/payload/payload.kt#L526) · [Rust](../../examples/payload/payload.rs#L540)
 
 ### Refunds
 
@@ -396,7 +396,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/payload/payload.py#L559) · [TypeScript](../../examples/payload/payload.ts#L532) · [Kotlin](../../examples/payload/payload.kt#L440) · [Rust](../../examples/payload/payload.rs#L520)
+**Examples:** [Python](../../examples/payload/payload.py#L556) · [TypeScript](../../examples/payload/payload.ts#L528) · [Kotlin](../../examples/payload/payload.kt#L428) · [Rust](../../examples/payload/payload.rs#L516)
 
 ### Mandates
 
@@ -409,7 +409,7 @@ Charge using an existing stored recurring payment instruction. Processes repeat 
 | **Request** | `RecurringPaymentServiceChargeRequest` |
 | **Response** | `RecurringPaymentServiceChargeResponse` |
 
-**Examples:** [Python](../../examples/payload/payload.py#L541) · [TypeScript](../../examples/payload/payload.ts#L514) · [Kotlin](../../examples/payload/payload.kt#L392) · [Rust](../../examples/payload/payload.rs#L506)
+**Examples:** [Python](../../examples/payload/payload.py#L538) · [TypeScript](../../examples/payload/payload.ts#L510) · [Kotlin](../../examples/payload/payload.kt#L380) · [Rust](../../examples/payload/payload.rs#L502)
 
 ### Authentication
 
@@ -422,4 +422,10 @@ Initialize client-facing SDK sessions for wallets, device fingerprinting, etc. R
 | **Request** | `MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/payload/payload.py#L496) · [TypeScript](../../examples/payload/payload.ts#L469) · [Kotlin](../../examples/payload/payload.kt#L275) · [Rust](../../examples/payload/payload.rs#L471)
+**Examples:** [Python](../../examples/payload/payload.py#L488) · [TypeScript](../../examples/payload/payload.ts#L464) · [Kotlin](../../examples/payload/payload.kt#L273) · [Rust](../../examples/payload/payload.rs#L465)
+
+### Other
+
+#### parse_event
+
+**Examples:** [Python](../../examples/payload/payload.py#L506) · [TypeScript](../../examples/payload/payload.ts#L482) · [Kotlin](../../examples/payload/payload.kt) · [Rust](../../examples/payload/payload.rs#L479)

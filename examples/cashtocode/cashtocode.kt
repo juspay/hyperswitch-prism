@@ -8,6 +8,7 @@
 package examples.cashtocode
 
 import payments.EventClient
+import payments.PaymentClient
 import payments.EventServiceHandleRequest
 import payments.ConnectorConfig
 import payments.SdkOptions

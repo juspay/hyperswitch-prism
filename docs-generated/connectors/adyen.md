@@ -148,6 +148,7 @@ Cancel an authorized but not-yet-captured payment.
 | [DisputeService.Defend](#disputeservicedefend) | Disputes | `DisputeServiceDefendRequest` |
 | [DisputeService.SubmitEvidence](#disputeservicesubmitevidence) | Disputes | `DisputeServiceSubmitEvidenceRequest` |
 | [EventService.HandleEvent](#eventservicehandleevent) | Events | `EventServiceHandleRequest` |
+| [parse_event](#parse_event) | Other | `—` |
 | [PaymentService.ProxyAuthorize](#paymentserviceproxyauthorize) | Payments | `PaymentServiceProxyAuthorizeRequest` |
 | [PaymentService.ProxySetupRecurring](#paymentserviceproxysetuprecurring) | Payments | `PaymentServiceProxySetupRecurringRequest` |
 | [RecurringPaymentService.Charge](#recurringpaymentservicecharge) | Mandates | `RecurringPaymentServiceChargeRequest` |
@@ -442,7 +443,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/adyen/adyen.py#L511) · [TypeScript](../../examples/adyen/adyen.ts#L480) · [Kotlin](../../examples/adyen/adyen.kt#L297) · [Rust](../../examples/adyen/adyen.rs#L473)
+**Examples:** [Python](../../examples/adyen/adyen.py#L525) · [TypeScript](../../examples/adyen/adyen.ts#L490) · [Kotlin](../../examples/adyen/adyen.kt#L297) · [Rust](../../examples/adyen/adyen.rs#L482)
 
 #### PaymentService.ProxySetupRecurring
 
@@ -453,7 +454,7 @@ Setup recurring mandate using vault-aliased card data.
 | **Request** | `PaymentServiceProxySetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/adyen/adyen.py#L520) · [TypeScript](../../examples/adyen/adyen.ts#L489) · [Kotlin](../../examples/adyen/adyen.kt#L338) · [Rust](../../examples/adyen/adyen.rs#L480)
+**Examples:** [Python](../../examples/adyen/adyen.py#L534) · [TypeScript](../../examples/adyen/adyen.ts#L499) · [Kotlin](../../examples/adyen/adyen.kt#L338) · [Rust](../../examples/adyen/adyen.rs#L489)
 
 #### PaymentService.Refund
 
@@ -464,7 +465,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/adyen/adyen.py#L538) · [TypeScript](../../examples/adyen/adyen.ts#L507) · [Kotlin](../../examples/adyen/adyen.kt#L417) · [Rust](../../examples/adyen/adyen.rs#L494)
+**Examples:** [Python](../../examples/adyen/adyen.py#L552) · [TypeScript](../../examples/adyen/adyen.ts#L517) · [Kotlin](../../examples/adyen/adyen.kt#L417) · [Rust](../../examples/adyen/adyen.rs#L503)
 
 #### PaymentService.SetupRecurring
 
@@ -475,7 +476,7 @@ Configure a payment method for recurring billing. Sets up the mandate and paymen
 | **Request** | `PaymentServiceSetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/adyen/adyen.py#L547) · [TypeScript](../../examples/adyen/adyen.ts#L516) · [Kotlin](../../examples/adyen/adyen.kt#L427) · [Rust](../../examples/adyen/adyen.rs#L501)
+**Examples:** [Python](../../examples/adyen/adyen.py#L561) · [TypeScript](../../examples/adyen/adyen.ts#L526) · [Kotlin](../../examples/adyen/adyen.kt#L427) · [Rust](../../examples/adyen/adyen.rs#L510)
 
 #### PaymentService.TokenAuthorize
 
@@ -486,7 +487,7 @@ Authorize using a connector-issued payment method token.
 | **Request** | `PaymentServiceTokenAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/adyen/adyen.py#L556) · [TypeScript](../../examples/adyen/adyen.ts#L525) · [Kotlin](../../examples/adyen/adyen.kt#L482) · [Rust](../../examples/adyen/adyen.rs#L511)
+**Examples:** [Python](../../examples/adyen/adyen.py#L570) · [TypeScript](../../examples/adyen/adyen.ts#L535) · [Kotlin](../../examples/adyen/adyen.kt#L482) · [Rust](../../examples/adyen/adyen.rs#L520)
 
 #### PaymentService.Void
 
@@ -497,7 +498,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/adyen/adyen.py#L565) · [TypeScript](../../examples/adyen/adyen.ts) · [Kotlin](../../examples/adyen/adyen.kt#L503) · [Rust](../../examples/adyen/adyen.rs#L518)
+**Examples:** [Python](../../examples/adyen/adyen.py#L579) · [TypeScript](../../examples/adyen/adyen.ts) · [Kotlin](../../examples/adyen/adyen.kt#L503) · [Rust](../../examples/adyen/adyen.rs#L527)
 
 ### Mandates
 
@@ -510,7 +511,7 @@ Charge using an existing stored recurring payment instruction. Processes repeat 
 | **Request** | `RecurringPaymentServiceChargeRequest` |
 | **Response** | `RecurringPaymentServiceChargeResponse` |
 
-**Examples:** [Python](../../examples/adyen/adyen.py#L529) · [TypeScript](../../examples/adyen/adyen.ts#L498) · [Kotlin](../../examples/adyen/adyen.kt#L386) · [Rust](../../examples/adyen/adyen.rs#L487)
+**Examples:** [Python](../../examples/adyen/adyen.py#L543) · [TypeScript](../../examples/adyen/adyen.ts#L508) · [Kotlin](../../examples/adyen/adyen.kt#L386) · [Rust](../../examples/adyen/adyen.rs#L496)
 
 ### Disputes
 
@@ -559,3 +560,9 @@ Initialize client-facing SDK sessions for wallets, device fingerprinting, etc. R
 | **Response** | `MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse` |
 
 **Examples:** [Python](../../examples/adyen/adyen.py#L457) · [TypeScript](../../examples/adyen/adyen.ts#L426) · [Kotlin](../../examples/adyen/adyen.kt#L219) · [Rust](../../examples/adyen/adyen.rs#L431)
+
+### Other
+
+#### parse_event
+
+**Examples:** [Python](../../examples/adyen/adyen.py#L511) · [TypeScript](../../examples/adyen/adyen.ts#L480) · [Kotlin](../../examples/adyen/adyen.kt) · [Rust](../../examples/adyen/adyen.rs#L473)

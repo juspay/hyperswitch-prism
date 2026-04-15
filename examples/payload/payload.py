@@ -10,7 +10,6 @@ import sys
 from google.protobuf.json_format import ParseDict
 from payments import PaymentClient
 from payments import MerchantAuthenticationClient
-from payments import EventClient
 from payments import RecurringPaymentClient
 from payments import RefundClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
@@ -116,13 +115,6 @@ def _build_get_request(connector_transaction_id: str):
             }
         },
         payment_pb2.PaymentServiceGetRequest(),
-    )
-
-def _build_handle_event_request():
-    return ParseDict(
-        {
-        },
-        payment_pb2.EventServiceHandleRequest(),
     )
 
 def _build_proxy_authorize_request():
@@ -511,13 +503,18 @@ async def get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConf
     return {"status": get_response.status}
 
 
-async def handle_event(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
-    """Flow: EventService.HandleEvent"""
-    event_client = EventClient(config)
+async def parse_event(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: PaymentService.parse_event"""
+    payment_client = PaymentClient(config)
 
-    handle_response = await event_client.handle_event(_build_handle_event_request())
+    # Step 1: parse_event
+    parse_response = await payment_client.parse_event(ParseDict(
+        {
+            # No required fields
+        },
+    ))
 
-    return {"status": handle_response.status}
+    return {"status": parse_response.status}
 
 
 async def proxy_authorize(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):

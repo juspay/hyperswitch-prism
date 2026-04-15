@@ -375,6 +375,15 @@ pub async fn handle_event(client: &ConnectorClient, _merchant_transaction_id: &s
     Ok(format!("status: {:?}", response.status()))
 }
 
+// Flow: PaymentService.parse_event
+#[allow(dead_code)]
+pub async fn parse_event(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client.parse_event(serde_json::from_value::<>(serde_json::json!({
+
+    })).unwrap_or_default(), &HashMap::new(), None).await?;
+    Ok(format!("status: {:?}", response.status()))
+}
+
 // Flow: PaymentService.ProxyAuthorize
 #[allow(dead_code)]
 pub async fn proxy_authorize(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
@@ -442,6 +451,7 @@ async fn main() {
         "capture" => capture(&client, "order_001").await,
         "get" => get(&client, "order_001").await,
         "handle_event" => handle_event(&client, "order_001").await,
+        "parse_event" => parse_event(&client, "order_001").await,
         "proxy_authorize" => proxy_authorize(&client, "order_001").await,
         "proxy_setup_recurring" => proxy_setup_recurring(&client, "order_001").await,
         "recurring_charge" => recurring_charge(&client, "order_001").await,
@@ -449,7 +459,7 @@ async fn main() {
         "refund_get" => refund_get(&client, "order_001").await,
         "setup_recurring" => setup_recurring(&client, "order_001").await,
         "void" => void(&client, "order_001").await,
-        _ => { eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, authorize, capture, get, handle_event, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, void", flow); return; }
+        _ => { eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, authorize, capture, get, handle_event, parse_event, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, void", flow); return; }
     };
     match result {
         Ok(msg) => println!("✓ {msg}"),

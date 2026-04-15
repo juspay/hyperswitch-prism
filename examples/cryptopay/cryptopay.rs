@@ -53,6 +53,15 @@ pub async fn handle_event(client: &ConnectorClient, _merchant_transaction_id: &s
     Ok(format!("status: {:?}", response.status()))
 }
 
+// Flow: PaymentService.parse_event
+#[allow(dead_code)]
+pub async fn parse_event(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client.parse_event(serde_json::from_value::<>(serde_json::json!({
+
+    })).unwrap_or_default(), &HashMap::new(), None).await?;
+    Ok(format!("status: {:?}", response.status()))
+}
+
 #[allow(dead_code)]
 #[tokio::main]
 async fn main() {
@@ -61,7 +70,8 @@ async fn main() {
     let result: Result<String, Box<dyn std::error::Error>> = match flow.as_str() {
         "get" => get(&client, "order_001").await,
         "handle_event" => handle_event(&client, "order_001").await,
-        _ => { eprintln!("Unknown flow: {}. Available: get, handle_event", flow); return; }
+        "parse_event" => parse_event(&client, "order_001").await,
+        _ => { eprintln!("Unknown flow: {}. Available: get, handle_event, parse_event", flow); return; }
     };
     match result {
         Ok(msg) => println!("✓ {msg}"),
