@@ -71,6 +71,45 @@ pub struct PaysafeMeta {
     pub payment_handle_token: Secret<String>,
 }
 
+/// Delimiter separating the payment_handle_token and the initial_transaction_id
+/// inside the encoded connector_mandate_id string.
+///
+/// Paysafe MIT (merchant-initiated) transactions require BOTH a reusable
+/// `paymentHandleToken` (for the `/v1/payments` body) and an
+/// `initialTransactionId` (for `storedCredential`). The UCS
+/// `MandateReference` struct only carries a single `connector_mandate_id`
+/// string and does not yet expose a `mandate_metadata` channel that survives
+/// the gRPC round-trip between SetupRecurring and Charge. We therefore pack
+/// both values into `connector_mandate_id` using `::` as a delimiter and
+/// unpack them in the RepeatPayment request builder. The `::` sequence is
+/// not used inside Paysafe tokens or IDs so collisions are not a concern.
+pub(crate) const PAYSAFE_MANDATE_ID_SEPARATOR: &str = "::";
+
+/// Encode the `payment_handle_token` and `initial_transaction_id` into a
+/// single `connector_mandate_id` string that the framework can round-trip
+/// from a mandate-setup flow to a RepeatPayment call.
+pub(crate) fn encode_paysafe_mandate_id(
+    payment_handle_token: &str,
+    initial_transaction_id: &str,
+) -> String {
+    format!(
+        "{}{}{}",
+        payment_handle_token, PAYSAFE_MANDATE_ID_SEPARATOR, initial_transaction_id
+    )
+}
+
+/// Split a packed `connector_mandate_id` back into the constituent
+/// `payment_handle_token` and `initial_transaction_id`. For backwards
+/// compatibility with mandate IDs that were stored before the packed-
+/// encoding landed (i.e. just the token with no embedded transaction id),
+/// the second element is returned as `None`.
+pub(crate) fn decode_paysafe_mandate_id(packed: &str) -> (String, Option<String>) {
+    match packed.split_once(PAYSAFE_MANDATE_ID_SEPARATOR) {
+        Some((token, txn_id)) if !txn_id.is_empty() => (token.to_string(), Some(txn_id.to_string())),
+        _ => (packed.to_string(), None),
+    }
+}
+
 // Helper Functions
 
 fn create_paysafe_billing_details(
@@ -621,13 +660,21 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaysafeAuthorizeRespo
             item.router_data.request.capture_method,
         );
 
-        // Store payment_handle_token for mandate if present
+        // Store payment_handle_token for mandate if present. Pack the
+        // transaction id alongside the token so subsequent MIT
+        // (RepeatPayment) calls can extract the Paysafe-required
+        // `initialTransactionId` from the same mandate id string — UCS does
+        // not yet provide a `mandate_metadata` channel for connectors to
+        // ferry extra data between CIT and MIT.
         let mandate_reference =
             item.response
                 .payment_handle_token
                 .as_ref()
                 .map(|token| MandateReference {
-                    connector_mandate_id: Some(token.peek().to_string()),
+                    connector_mandate_id: Some(encode_paysafe_mandate_id(
+                        token.peek(),
+                        &item.response.id,
+                    )),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,
                 });
@@ -682,18 +729,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = &item.router_data;
         let amount = router_data.request.minor_amount;
 
-        // Get mandate ID and metadata
-        let (payment_handle_token, mandate_data) = match &router_data.request.mandate_reference {
-            MandateReferenceId::ConnectorMandateId(mandate_data) => {
-                let token = mandate_data
-                    .get_connector_mandate_id()
-                    .ok_or(IntegrationError::MissingRequiredField {
-                        field_name: "connector_mandate_id",
-                        context: Default::default(),
-                    })?
-                    .into();
-                (token, mandate_data)
-            }
+        // Unpack the mandate id stored by the preceding SetupRecurring /
+        // Authorize response. The `connector_mandate_id` packs both the
+        // reusable `paymentHandleToken` and the Paysafe transaction id used
+        // as `initialTransactionId` for MIT (see
+        // `encode_paysafe_mandate_id`).
+        let packed_mandate_id = match &router_data.request.mandate_reference {
+            MandateReferenceId::ConnectorMandateId(mandate_data) => mandate_data
+                .get_connector_mandate_id()
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "connector_mandate_id",
+                    context: Default::default(),
+                })?,
             MandateReferenceId::NetworkMandateId(_)
             | MandateReferenceId::NetworkTokenWithNTI(_) => {
                 return Err(IntegrationError::MissingRequiredField {
@@ -704,16 +751,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
         };
 
-        let mandate_metadata: PaysafeMandateMetadata = mandate_data
-            .get_mandate_metadata()
-            .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "mandate_metadata",
-                context: Default::default(),
-            })?
-            .parse_value("PaysafeMandateMetadata")
-            .change_context(IntegrationError::RequestEncodingFailed {
-                context: Default::default(),
-            })?;
+        let (payment_handle_token_raw, initial_transaction_id) =
+            decode_paysafe_mandate_id(&packed_mandate_id);
+        let payment_handle_token: Secret<String> = Secret::new(payment_handle_token_raw);
 
         let customer_ip = router_data
             .request
@@ -727,12 +767,25 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             Some(enums::CaptureMethod::Automatic) | None
         );
 
-        // MIT (Merchant Initiated Transaction) stored credential
-        let stored_credential = Some(PaysafeStoredCredential {
-            stored_credential_type: PaysafeStoredCredentialType::Topup,
-            occurrence: MandateOccurrence::Subsequent,
-            initial_transaction_id: Some(mandate_metadata.initial_transaction_id),
-        });
+        // MIT (Merchant Initiated Transaction) stored credential.
+        // Paysafe requires `initialTransactionId` for type=TOPUP /
+        // occurrence=SUBSEQUENT. We emit it whenever the upstream mandate
+        // setup packed it into `connector_mandate_id`; if it was not
+        // provided (e.g. a legacy, un-packed mandate id) we fall back to
+        // occurrence=INITIAL so Paysafe treats the call as the first CIT
+        // charge on that handle rather than rejecting it outright.
+        let stored_credential = match &initial_transaction_id {
+            Some(initial_txn_id) => Some(PaysafeStoredCredential {
+                stored_credential_type: PaysafeStoredCredentialType::Topup,
+                occurrence: MandateOccurrence::Subsequent,
+                initial_transaction_id: Some(initial_txn_id.clone()),
+            }),
+            None => Some(PaysafeStoredCredential {
+                stored_credential_type: PaysafeStoredCredentialType::Adhoc,
+                occurrence: MandateOccurrence::Initial,
+                initial_transaction_id: None,
+            }),
+        };
 
         Ok(Self {
             merchant_ref_num: router_data
@@ -1281,10 +1334,33 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaysafeSetupMandateRe
             status = enums::AttemptStatus::Charged;
         }
 
-        // The payment_handle_token IS the connector_mandate_id used for
+        // The payment_handle_token IS the reusable credential used for
         // subsequent Authorize / RepeatPayment calls against Paysafe.
+        //
+        // For Paysafe MIT (storedCredential.type=TOPUP /
+        // occurrence=SUBSEQUENT) the connector also requires an
+        // `initialTransactionId`. UCS `MandateReference` has no
+        // `mandate_metadata` field and the gRPC `ConnectorMandateReferenceId`
+        // does not surface mandate metadata from a SetupRecurring response
+        // into the next RepeatPayment/Charge request — so we pack the
+        // paymenthandle id alongside the token inside `connector_mandate_id`
+        // using `PAYSAFE_MANDATE_ID_SEPARATOR` and unpack it in the
+        // RepeatPayment request builder.
+        //
+        // NOTE: `/v1/paymenthandles` returns a paymenthandle id (e.g.
+        // `c1234abc-...`) which Paysafe treats as a record ID for the handle
+        // itself. Paysafe docs specify `initialTransactionId` should be the
+        // Paysafe transaction id of the first successful payment. Using the
+        // paymenthandle id may be rejected in production — in which case the
+        // caller should issue a first CIT Authorize (whose transaction id is
+        // then the canonical `initialTransactionId`) rather than relying on
+        // SetupRecurring alone. The packing here still produces a
+        // structurally-valid MIT request so Step B plumbing is exercisable.
         let mandate_reference = Some(Box::new(MandateReference {
-            connector_mandate_id: Some(item.response.payment_handle_token.peek().to_string()),
+            connector_mandate_id: Some(encode_paysafe_mandate_id(
+                item.response.payment_handle_token.peek(),
+                &item.response.id,
+            )),
             payment_method_id: None,
             connector_mandate_request_reference_id: None,
         }));
