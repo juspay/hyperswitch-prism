@@ -2884,6 +2884,9 @@ message PaymentMethodAuthenticationServicePreAuthenticateRequest {
 
   // Description
   optional string description = 14;
+
+  // Session Token (required for some connectors like Nuvei for 3DS)
+  optional string session_token = 15;
 }
 
 // Response message for pre-authentication step
