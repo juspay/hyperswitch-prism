@@ -57,23 +57,57 @@
       },
       "AliPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method Wallet(AliPayRedirect(AliPayRedirection))"
+        "error": "This feature is not implemented: Wallet payment method not supported for authorizedotnet: AliPayRedirect(AliPayRedirection)"
       },
       "AmazonPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method Wallet(AmazonPayRedirect(AmazonPayRedirectData))"
+        "error": "This feature is not implemented: Wallet payment method not supported for authorizedotnet: AmazonPayRedirect(AmazonPayRedirectData)"
       },
       "ApplePay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method Wallet(ApplePay(ApplePayWalletData { payment_data: Encrypted(\"eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9\"), payment_method: ApplepayPaymentMethod { display_name: \"Visa 1111\", network: \"Visa\", pm_type: \"debit\" }, transaction_identifier: \"probe_txn_id\" }))"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "apple_pay": {
+              "payment_data": {
+                "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9"
+              },
+              "payment_method": {
+                "display_name": "Visa 1111",
+                "network": "Visa",
+                "type": "debit"
+              },
+              "transaction_identifier": "probe_txn_id"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://apitest.authorize.net/xml/v1/request.api",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"createTransactionRequest\":{\"merchantAuthentication\":{\"name\":\"probe_user\",\"transactionKey\":\"probe_key\"},\"refId\":\"probe_txn_001\",\"transactionRequest\":{\"transactionType\":\"authCaptureTransaction\",\"amount\":10.0,\"currencyCode\":\"USD\",\"payment\":{\"opaqueData\":{\"dataDescriptor\":\"COMMON.APPLE.INAPP.PAYMENT\",\"dataValue\":\"eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9\"}},\"order\":{\"invoiceNumber\":\"ProbeInvoiceRef1\",\"description\":\"probe_txn_001\"},\"billTo\":{}}}}"
+        }
       },
       "ApplePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method Wallet(ApplePay(ApplePayWalletData { payment_data: Decrypted(ApplePayDecryptedData { application_primary_account_number: CardNumber(411111**********), application_expiration_month: *** alloc::string::String ***, application_expiration_year: *** alloc::string::String ***, payment_data: ApplePayCryptogramData { online_payment_cryptogram: *** alloc::string::String ***, eci_indicator: Some(\"05\") } }), payment_method: ApplepayPaymentMethod { display_name: \"Visa 1111\", network: \"Visa\", pm_type: \"debit\" }, transaction_identifier: \"probe_txn_id\" }))"
+        "status": "error",
+        "error": "Stuck on field: Apple pay encrypted data — Missing required field: Apple pay encrypted data"
       },
       "ApplePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method Wallet(ApplePayThirdPartySdk(ApplePayThirdPartySdkData { token: Some(*** alloc::string::String ***) }))"
+        "error": "This feature is not implemented: Wallet payment method not supported for authorizedotnet: ApplePayThirdPartySdk(ApplePayThirdPartySdkData { token: Some(*** alloc::string::String ***) })"
       },
       "Bacs": {
         "status": "not_implemented",
@@ -105,7 +139,7 @@
       },
       "Bluecode": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method Wallet(BluecodeRedirect)"
+        "error": "This feature is not implemented: Wallet payment method not supported for authorizedotnet: BluecodeRedirect"
       },
       "BniVaBankTransfer": {
         "status": "not_implemented",
@@ -155,7 +189,7 @@
       },
       "CashappQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method Wallet(CashappQr(CashappQr))"
+        "error": "This feature is not implemented: Wallet payment method not supported for authorizedotnet: CashappQr(CashappQr)"
       },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
@@ -206,16 +240,53 @@
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "GooglePay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method Wallet(GooglePay(GooglePayWalletData { pm_type: \"CARD\", description: \"Visa 1111\", info: GooglePayPaymentMethodInfo { card_network: \"VISA\", card_details: \"1111\", assurance_details: None }, tokenization_data: Encrypted(GpayEncryptedTokenizationData { token_type: \"PAYMENT_GATEWAY\", token: \"{\\\"id\\\":\\\"tok_probe_gpay\\\",\\\"object\\\":\\\"token\\\",\\\"type\\\":\\\"card\\\"}\" }) }))"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay": {
+              "type": "CARD",
+              "description": "Visa 1111",
+              "info": {
+                "card_network": "VISA",
+                "card_details": "1111"
+              },
+              "tokenization_data": {
+                "encrypted_data": {
+                  "token_type": "PAYMENT_GATEWAY",
+                  "token": "{\"id\":\"tok_probe_gpay\",\"object\":\"token\",\"type\":\"card\"}"
+                }
+              }
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://apitest.authorize.net/xml/v1/request.api",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"createTransactionRequest\":{\"merchantAuthentication\":{\"name\":\"probe_user\",\"transactionKey\":\"probe_key\"},\"refId\":\"probe_txn_001\",\"transactionRequest\":{\"transactionType\":\"authCaptureTransaction\",\"amount\":10.0,\"currencyCode\":\"USD\",\"payment\":{\"opaqueData\":{\"dataDescriptor\":\"COMMON.GOOGLE.INAPP.PAYMENT\",\"dataValue\":\"eyJpZCI6InRva19wcm9iZV9ncGF5Iiwib2JqZWN0IjoidG9rZW4iLCJ0eXBlIjoiY2FyZCJ9\"}},\"order\":{\"invoiceNumber\":\"ProbeInvoiceRef1\",\"description\":\"probe_txn_001\"},\"billTo\":{}}}}"
+        }
       },
       "GooglePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method Wallet(GooglePay(GooglePayWalletData { pm_type: \"CARD\", description: \"Visa 1111\", info: GooglePayPaymentMethodInfo { card_network: \"VISA\", card_details: \"1111\", assurance_details: None }, tokenization_data: Decrypted(GooglePayDecryptedData { card_exp_month: *** alloc::string::String ***, card_exp_year: *** alloc::string::String ***, application_primary_account_number: CardNumber(411111**********), cryptogram: Some(*** alloc::string::String ***), eci_indicator: Some(\"05\") }) }))"
+        "status": "error",
+        "error": "An invalid wallet was used"
       },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method Wallet(GooglePayThirdPartySdk(GooglePayThirdPartySdkData { token: Some(*** alloc::string::String ***) }))"
+        "error": "This feature is not implemented: Wallet payment method not supported for authorizedotnet: GooglePayThirdPartySdk(GooglePayThirdPartySdkData { token: Some(*** alloc::string::String ***) })"
       },
       "Ideal": {
         "status": "not_implemented",
@@ -267,11 +338,11 @@
       },
       "MbWay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method Wallet(MbWay(MbWayData))"
+        "error": "This feature is not implemented: Wallet payment method not supported for authorizedotnet: MbWay(MbWayData)"
       },
       "Mifinity": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method Wallet(Mifinity(MifinityData { date_of_birth: *** time::date::Date ***, language_preference: Some(\"en\") }))"
+        "error": "This feature is not implemented: Wallet payment method not supported for authorizedotnet: Mifinity(MifinityData { date_of_birth: *** time::date::Date ***, language_preference: Some(\"en\") })"
       },
       "MiniStop": {
         "status": "not_implemented",
@@ -334,12 +405,38 @@
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "PaypalRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method Wallet(PaypalRedirect(PaypalRedirection { email: Some(Email(****@example.com)) }))"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "paypal_redirect": {
+              "email": "test@example.com"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://apitest.authorize.net/xml/v1/request.api",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"createTransactionRequest\":{\"merchantAuthentication\":{\"name\":\"probe_user\",\"transactionKey\":\"probe_key\"},\"refId\":\"probe_txn_001\",\"transactionRequest\":{\"transactionType\":\"authCaptureTransaction\",\"amount\":10.0,\"currencyCode\":\"USD\",\"payment\":{\"payPal\":{\"successUrl\":\"https://example.com/return\",\"cancelUrl\":\"https://example.com/return\"}},\"order\":{\"invoiceNumber\":\"ProbeInvoiceRef1\",\"description\":\"probe_txn_001\"},\"billTo\":{}}}}"
+        }
       },
       "PaypalSdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method Wallet(PaypalSdk(PayPalWalletData { token: \"probe_paypal_sdk_token\" }))"
+        "error": "This feature is not implemented: Wallet payment method not supported for authorizedotnet: PaypalSdk(PayPalWalletData { token: \"probe_paypal_sdk_token\" })"
       },
       "Paze": {
         "status": "not_supported",
@@ -371,15 +468,15 @@
       },
       "RevolutPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method Wallet(RevolutPay(RevolutPayData))"
+        "error": "This feature is not implemented: Wallet payment method not supported for authorizedotnet: RevolutPay(RevolutPayData)"
       },
       "SamsungPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method Wallet(SamsungPay(SamsungPayWalletData { payment_credential: SamsungPayWalletCredentials { method: Some(\"3DS\"), recurring_payment: Some(false), card_brand: Visa, dpan_last_four_digits: None, card_last_four_digits: \"1234\", token_data: SamsungPayTokenData { three_ds_type: Some(\"S\"), version: \"100\", data: *** alloc::string::String *** } } }))"
+        "error": "This feature is not implemented: Wallet payment method not supported for authorizedotnet: SamsungPay(SamsungPayWalletData { payment_credential: SamsungPayWalletCredentials { method: Some(\"3DS\"), recurring_payment: Some(false), card_brand: Visa, dpan_last_four_digits: None, card_last_four_digits: \"1234\", token_data: SamsungPayTokenData { three_ds_type: Some(\"S\"), version: \"100\", data: *** alloc::string::String *** } } })"
       },
       "Satispay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method Wallet(Satispay(SatispayData))"
+        "error": "This feature is not implemented: Wallet payment method not supported for authorizedotnet: Satispay(SatispayData)"
       },
       "Seicomart": {
         "status": "not_implemented",
@@ -423,11 +520,11 @@
       },
       "WeChatPayQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method Wallet(WeChatPayQr(WeChatPayQr))"
+        "error": "This feature is not implemented: Wallet payment method not supported for authorizedotnet: WeChatPayQr(WeChatPayQr)"
       },
       "Wero": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method Wallet(Wero(WeroData))"
+        "error": "This feature is not implemented: Wallet payment method not supported for authorizedotnet: Wero(WeroData)"
       }
     },
     "capture": {

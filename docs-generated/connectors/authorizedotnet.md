@@ -176,16 +176,16 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 |----------------|:---------:|
 | Card | ✓ |
 | Bancontact | ⚠ |
-| Apple Pay | ⚠ |
-| Apple Pay Dec | ⚠ |
+| Apple Pay | ✓ |
+| Apple Pay Dec | ? |
 | Apple Pay SDK | ⚠ |
-| Google Pay | ⚠ |
-| Google Pay Dec | ⚠ |
+| Google Pay | ✓ |
+| Google Pay Dec | ? |
 | Google Pay SDK | ⚠ |
 | PayPal SDK | ⚠ |
 | Amazon Pay | ⚠ |
 | Cash App | ⚠ |
-| PayPal | ⚠ |
+| PayPal | ✓ |
 | WeChat Pay | ⚠ |
 | Alipay | ⚠ |
 | Revolut Pay | ⚠ |
@@ -282,6 +282,45 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
+##### Google Pay
+
+```python
+"payment_method": {
+    "google_pay": {  # Google Pay.
+        "type": "CARD",  # Type of payment method.
+        "description": "Visa 1111",  # User-facing description of the payment method.
+        "info": {
+            "card_network": "VISA",  # Card network name.
+            "card_details": "1111"  # Card details (usually last 4 digits).
+        },
+        "tokenization_data": {
+            "encrypted_data": {  # Encrypted Google Pay payment data.
+                "token_type": "PAYMENT_GATEWAY",  # The type of the token.
+                "token": "{\"id\":\"tok_probe_gpay\",\"object\":\"token\",\"type\":\"card\"}"  # Token generated for the wallet.
+            }
+        }
+    }
+}
+```
+
+##### Apple Pay
+
+```python
+"payment_method": {
+    "apple_pay": {  # Apple Pay.
+        "payment_data": {
+            "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9"  # Encrypted Apple Pay payment data as string.
+        },
+        "payment_method": {
+            "display_name": "Visa 1111",
+            "network": "Visa",
+            "type": "debit"
+        },
+        "transaction_identifier": "probe_txn_id"  # Transaction identifier.
+    }
+}
+```
+
 ##### ACH Direct Debit
 
 ```python
@@ -290,6 +329,16 @@ Authorize a payment amount on a payment method. This reserves funds without capt
         "account_number": {"value": "000123456789"},  # Account number for ach bank debit payment.
         "routing_number": {"value": "110000000"},  # Routing number for ach bank debit payment.
         "bank_account_holder_name": {"value": "John Doe"}  # Bank account holder name.
+    }
+}
+```
+
+##### PayPal Redirect
+
+```python
+"payment_method": {
+    "paypal_redirect": {  # PayPal.
+        "email": {"value": "test@example.com"}  # PayPal's email address.
     }
 }
 ```

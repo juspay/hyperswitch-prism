@@ -58,7 +58,7 @@ examples_python: examples/authipay/authipay.py
 connector_id: authorizedotnet
 doc: docs/connectors/authorizedotnet.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
-payment_methods: Ach, Card
+payment_methods: Ach, ApplePay, Card, GooglePay, PaypalRedirect
 flows: authorize, capture, create_customer, get, handle_event, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, void
 examples_python: examples/authorizedotnet/authorizedotnet.py
 

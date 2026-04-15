@@ -13,7 +13,7 @@ use domain_types::{
     errors::{ConnectorError, IntegrationError, WebhookError},
     payment_method_data::{
         BankDebitData, DefaultPCIHolder, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
-        VaultTokenHolder,
+        VaultTokenHolder, WalletData,
     },
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -350,11 +350,35 @@ pub struct BankAccountDetails {
     name_on_account: Secret<String>,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct PayPalDetails {
+    pub success_url: Option<String>,
+    pub cancel_url: Option<String>,
+}
+
+#[derive(Serialize, Debug, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct WalletDetails {
+    pub data_descriptor: WalletMethod,
+    pub data_value: Secret<String>,
+}
+
+#[derive(Serialize, Debug, Deserialize, Clone)]
+pub enum WalletMethod {
+    #[serde(rename = "COMMON.GOOGLE.INAPP.PAYMENT")]
+    Googlepay,
+    #[serde(rename = "COMMON.APPLE.INAPP.PAYMENT")]
+    Applepay,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub enum PaymentDetails<T: PaymentMethodDataTypes> {
     CreditCard(CreditCardDetails<T>),
     BankAccount(BankAccountDetails),
+    OpaqueData(WalletDetails),
+    PayPal(PayPalDetails),
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -680,6 +704,9 @@ fn create_regular_transaction_request<
                 }
             }
         }
+        PaymentMethodData::Wallet(wallet_data) => {
+            get_wallet_payment_details(wallet_data, &item.router_data.request.router_return_url)
+        }
         pm => Err(error_stack::report!(IntegrationError::not_implemented(
             format!("Payment method {:?}", pm)
         ))),
@@ -816,6 +843,76 @@ fn create_regular_transaction_request<
         subsequent_auth_information: None,
         ref_trans_id: None,
     })
+}
+
+/// Helper function to get payment details from wallet data
+fn get_wallet_payment_details<T: PaymentMethodDataTypes>(
+    wallet_data: &WalletData,
+    return_url: &Option<String>,
+) -> Result<PaymentDetails<T>, Error> {
+    match wallet_data {
+        WalletData::GooglePay(_) => Ok(PaymentDetails::OpaqueData(WalletDetails {
+            data_descriptor: WalletMethod::Googlepay,
+            data_value: Secret::new(wallet_data.get_encoded_wallet_token().change_context(
+                IntegrationError::InvalidWallet {
+                    context: Default::default(),
+                },
+            )?),
+        })),
+        WalletData::ApplePay(applepay_token) => {
+            let apple_pay_encrypted_data = applepay_token
+                .payment_data
+                .get_encrypted_apple_pay_payment_data_mandatory()
+                .change_context(IntegrationError::MissingRequiredField {
+                    field_name: "Apple pay encrypted data",
+                    context: Default::default(),
+                })?;
+            Ok(PaymentDetails::OpaqueData(WalletDetails {
+                data_descriptor: WalletMethod::Applepay,
+                data_value: Secret::new(apple_pay_encrypted_data.clone()),
+            }))
+        }
+        WalletData::PaypalRedirect(_) => Ok(PaymentDetails::PayPal(PayPalDetails {
+            success_url: return_url.clone(),
+            cancel_url: return_url.clone(),
+        })),
+        WalletData::AliPayQr(_)
+        | WalletData::AliPayRedirect(_)
+        | WalletData::AliPayHkRedirect(_)
+        | WalletData::AmazonPayRedirect(_)
+        | WalletData::BluecodeRedirect {}
+        | WalletData::MomoRedirect(_)
+        | WalletData::KakaoPayRedirect(_)
+        | WalletData::GoPayRedirect(_)
+        | WalletData::GcashRedirect(_)
+        | WalletData::ApplePayRedirect(_)
+        | WalletData::ApplePayThirdPartySdk(_)
+        | WalletData::DanaRedirect {}
+        | WalletData::GooglePayRedirect(_)
+        | WalletData::GooglePayThirdPartySdk(_)
+        | WalletData::MbWayRedirect(_)
+        | WalletData::MobilePayRedirect(_)
+        | WalletData::PaypalSdk(_)
+        | WalletData::Paze(_)
+        | WalletData::SamsungPay(_)
+        | WalletData::TwintRedirect {}
+        | WalletData::VippsRedirect {}
+        | WalletData::TouchNGoRedirect(_)
+        | WalletData::WeChatPayRedirect(_)
+        | WalletData::WeChatPayQr(_)
+        | WalletData::CashappQr(_)
+        | WalletData::SwishQr(_)
+        | WalletData::Mifinity(_)
+        | WalletData::RevolutPay(_)
+        | WalletData::MbWay(_)
+        | WalletData::Satispay(_)
+        | WalletData::Wero(_) => Err(error_stack::report!(IntegrationError::not_implemented(
+            format!(
+                "Wallet payment method not supported for authorizedotnet: {:?}",
+                wallet_data
+            )
+        ))),
+    }
 }
 
 // RepeatPayment request structures
