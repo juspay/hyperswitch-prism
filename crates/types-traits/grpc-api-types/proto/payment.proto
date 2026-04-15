@@ -60,9 +60,9 @@ message Money {
   Currency currency = 2; // ISO 4217 currency code (e.g., "USD", "EUR")
 }
 
-// StringArray wraps a repeated string field to allow optional presence
+// Permissions wraps a repeated string field to allow optional presence
 // Used for fields like permissions where absence is semantically different from empty
-message StringArray {
+message Permissions {
   repeated string values = 1;
 }
 
@@ -2310,7 +2310,7 @@ message MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest {
 
   // Connector-specific permissions for client authentication token
   // e.g., ["PMT_POST_Create_Single"] for GlobalPay hosted fields
-  optional StringArray permissions = 7;
+  optional Permissions permissions = 7;
 }
 
 // Payment-specific context for client authentication token creation
