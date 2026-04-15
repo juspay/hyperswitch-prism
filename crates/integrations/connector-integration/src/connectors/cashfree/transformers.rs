@@ -1,4 +1,5 @@
 use common_enums;
+use common_utils::types::AmountConvertor;
 use domain_types::{
     connector_flow::{Authorize, Capture, CreateOrder, PSync, RSync, Refund, Void},
     connector_types::{
@@ -14,7 +15,7 @@ use domain_types::{
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
 };
-use error_stack::{report, Report};
+use error_stack::{report, Report, ResultExt};
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
@@ -341,8 +342,7 @@ fn get_cashfree_payment_method_data<
             let provider = match wallet_data {
                 WalletData::AmazonPayRedirect(_) => "amazon",
                 WalletData::PaypalRedirect(_) => "paypal",
-                WalletData::GooglePayRedirect(_)
-                | WalletData::GooglePayThirdPartySdk(_) => "gpay",
+                WalletData::GooglePayRedirect(_) | WalletData::GooglePayThirdPartySdk(_) => "gpay",
                 WalletData::PhonePeRedirect(_) => "phonepe",
                 WalletData::LazyPayRedirect(_) => "lazypay",
                 WalletData::BillDeskRedirect(_) => "billdesk",
@@ -437,10 +437,21 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        // Convert MinorUnit to FloatMajorUnit properly
-        let amount_i64 = wrapper.router_data.request.amount.get_amount_as_i64();
-        #[allow(clippy::as_conversions)]
-        let converted_amount = common_utils::types::FloatMajorUnit(amount_i64 as f64 / 100.0);
+        let converter = common_utils::types::FloatMajorUnitForConnector;
+        let converted_amount = converter
+            .convert(
+                wrapper.router_data.request.amount,
+                wrapper.router_data.request.currency,
+            )
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to convert minor unit amount to major unit for Cashfree API"
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
+            })?;
         Self::try_from((converted_amount, &wrapper.router_data))
     }
 }
@@ -466,10 +477,18 @@ impl
             PaymentCreateOrderResponse,
         >,
     ) -> Result<Self, Self::Error> {
-        // Convert MinorUnit to FloatMajorUnit properly
-        let amount_i64 = item.request.amount.get_amount_as_i64();
-        #[allow(clippy::as_conversions)]
-        let converted_amount = common_utils::types::FloatMajorUnit(amount_i64 as f64 / 100.0);
+        let converter = common_utils::types::FloatMajorUnitForConnector;
+        let converted_amount = converter
+            .convert(item.request.amount, item.request.currency)
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to convert minor unit amount to major unit for Cashfree API"
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
+            })?;
         Self::try_from((converted_amount, item))
     }
 }
@@ -923,14 +942,25 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let router_data = &wrapper.router_data;
-        // Convert minor unit (paise) to major unit (rupees) for Cashfree API
-        let amount_i64 = router_data.request.amount_to_capture;
-        #[allow(clippy::as_conversions)]
-        let amount_f64 = amount_i64 as f64 / 100.0;
+        let converter = common_utils::types::FloatMajorUnitForConnector;
+        let amount = converter
+            .convert(
+                router_data.request.minor_amount_to_capture,
+                router_data.request.currency,
+            )
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to convert capture amount to major unit for Cashfree API"
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
+            })?;
 
         Ok(Self {
             action: "CAPTURE".to_string(),
-            amount: Some(amount_f64),
+            amount: Some(amount.0),
         })
     }
 }
@@ -1257,11 +1287,22 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let router_data = &wrapper.router_data;
-        // Convert minor unit (paise) to major unit (rupees) as string for Cashfree V3 API
-        let amount_i64 = router_data.request.minor_refund_amount.get_amount_as_i64();
-        #[allow(clippy::as_conversions)]
-        let amount_f64 = amount_i64 as f64 / 100.0;
-        let refund_amount = format!("{amount_f64:.2}");
+        let converter = common_utils::types::FloatMajorUnitForConnector;
+        let amount = converter
+            .convert(
+                router_data.request.minor_refund_amount,
+                router_data.request.currency,
+            )
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to convert refund amount to major unit for Cashfree API"
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
+            })?;
+        let refund_amount = format!("{:.2}", amount.0);
 
         Ok(Self {
             refund_id: router_data.request.refund_id.clone(),

@@ -754,7 +754,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 static CASHFREE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
     LazyLock::new(|| {
-        let cashfree_autocapture = vec![CaptureMethod::Automatic];
+        let cashfree_supported_capture_methods =
+            vec![CaptureMethod::Automatic, CaptureMethod::Manual];
 
         let mut cashfree_supported_payment_methods = SupportedPaymentMethods::new();
 
@@ -765,7 +766,7 @@ static CASHFREE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             PaymentMethodDetails {
                 mandates: FeatureStatus::NotSupported,
                 refunds: FeatureStatus::Supported,
-                supported_capture_methods: cashfree_autocapture.clone(),
+                supported_capture_methods: cashfree_supported_capture_methods.clone(),
                 specific_features: None,
             },
         );
@@ -777,7 +778,7 @@ static CASHFREE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             PaymentMethodDetails {
                 mandates: FeatureStatus::NotSupported,
                 refunds: FeatureStatus::Supported,
-                supported_capture_methods: cashfree_autocapture.clone(),
+                supported_capture_methods: cashfree_supported_capture_methods.clone(),
                 specific_features: None,
             },
         );
@@ -789,7 +790,7 @@ static CASHFREE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             PaymentMethodDetails {
                 mandates: FeatureStatus::NotSupported,
                 refunds: FeatureStatus::Supported,
-                supported_capture_methods: cashfree_autocapture.clone(),
+                supported_capture_methods: cashfree_supported_capture_methods.clone(),
                 specific_features: None,
             },
         );
@@ -801,7 +802,7 @@ static CASHFREE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             PaymentMethodDetails {
                 mandates: FeatureStatus::NotSupported,
                 refunds: FeatureStatus::Supported,
-                supported_capture_methods: cashfree_autocapture.clone(),
+                supported_capture_methods: cashfree_supported_capture_methods.clone(),
                 specific_features: None,
             },
         );
@@ -813,7 +814,7 @@ static CASHFREE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             PaymentMethodDetails {
                 mandates: FeatureStatus::NotSupported,
                 refunds: FeatureStatus::Supported,
-                supported_capture_methods: cashfree_autocapture.clone(),
+                supported_capture_methods: cashfree_supported_capture_methods.clone(),
                 specific_features: None,
             },
         );
@@ -825,7 +826,7 @@ static CASHFREE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             PaymentMethodDetails {
                 mandates: FeatureStatus::NotSupported,
                 refunds: FeatureStatus::Supported,
-                supported_capture_methods: cashfree_autocapture.clone(),
+                supported_capture_methods: cashfree_supported_capture_methods.clone(),
                 specific_features: None,
             },
         );
@@ -837,7 +838,7 @@ static CASHFREE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             PaymentMethodDetails {
                 mandates: FeatureStatus::NotSupported,
                 refunds: FeatureStatus::Supported,
-                supported_capture_methods: cashfree_autocapture.clone(),
+                supported_capture_methods: cashfree_supported_capture_methods.clone(),
                 specific_features: None,
             },
         );
@@ -849,7 +850,7 @@ static CASHFREE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             PaymentMethodDetails {
                 mandates: FeatureStatus::NotSupported,
                 refunds: FeatureStatus::Supported,
-                supported_capture_methods: cashfree_autocapture.clone(),
+                supported_capture_methods: cashfree_supported_capture_methods.clone(),
                 specific_features: None,
             },
         );
@@ -861,7 +862,7 @@ static CASHFREE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             PaymentMethodDetails {
                 mandates: FeatureStatus::NotSupported,
                 refunds: FeatureStatus::Supported,
-                supported_capture_methods: cashfree_autocapture.clone(),
+                supported_capture_methods: cashfree_supported_capture_methods.clone(),
                 specific_features: None,
             },
         );
@@ -873,7 +874,7 @@ static CASHFREE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             PaymentMethodDetails {
                 mandates: FeatureStatus::NotSupported,
                 refunds: FeatureStatus::Supported,
-                supported_capture_methods: cashfree_autocapture.clone(),
+                supported_capture_methods: cashfree_supported_capture_methods.clone(),
                 specific_features: None,
             },
         );
@@ -885,7 +886,7 @@ static CASHFREE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             PaymentMethodDetails {
                 mandates: FeatureStatus::NotSupported,
                 refunds: FeatureStatus::Supported,
-                supported_capture_methods: cashfree_autocapture.clone(),
+                supported_capture_methods: cashfree_supported_capture_methods.clone(),
                 specific_features: None,
             },
         );
@@ -897,7 +898,7 @@ static CASHFREE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             PaymentMethodDetails {
                 mandates: FeatureStatus::NotSupported,
                 refunds: FeatureStatus::Supported,
-                supported_capture_methods: cashfree_autocapture.clone(),
+                supported_capture_methods: cashfree_supported_capture_methods.clone(),
                 specific_features: None,
             },
         );
