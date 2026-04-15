@@ -264,7 +264,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
         };
 
-        Ok(incoming_verify == expected_checksum)
+        // Constant-time comparison to prevent timing attacks on webhook signature.
+        // Both values are hex-encoded SHA256 hashes, so length check + byte-by-byte
+        // XOR accumulation avoids early-exit leaks.
+        let a = incoming_verify.as_bytes();
+        let b = expected_checksum.as_bytes();
+        Ok(a.len() == b.len() && a.iter().zip(b.iter()).fold(0u8, |acc, (x, y)| acc | (x ^ y)) == 0)
     }
 
     fn get_event_type(
