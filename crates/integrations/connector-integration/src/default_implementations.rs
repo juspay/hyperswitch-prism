@@ -9,7 +9,12 @@
 
 use crate::connectors::*;
 use domain_types::{
-    connector_flow::VerifyWebhookSource, connector_types::VerifyWebhookSourceFlowData,
+    connector_flow::VerifyWebhookSource,
+    connector_types::{
+        PaymentFlowData, ResendOtpForWalletData, ResendOtpForWalletResponseData,
+        TriggerOtpForWalletData, TriggerOtpForWalletResponseData, VerifyOtpForWalletData,
+        VerifyOtpForWalletResponseData, VerifyWebhookSourceFlowData,
+    },
     payment_method_data::PaymentMethodDataTypes,
     router_request_types::VerifyWebhookSourceRequestData,
     router_response_types::VerifyWebhookSourceResponseData,
@@ -127,3 +132,315 @@ default_impl_verify_webhook_source_v2!(
     Ppro
 );
 // PayPal has its own implementation in paypal.rs
+
+/// Macro to generate empty implementations of ResendOtpForWalletV2 for connectors
+/// that don't support OTP resend. Razorpay has its own implementation.
+#[macro_export]
+macro_rules! default_impl_resend_otp_for_wallet_v2 {
+    ($($connector:ident),*) => {
+        $(
+            impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + serde::Serialize>
+                ConnectorIntegrationV2<
+                    domain_types::connector_flow::ResendOtpForWallet,
+                    PaymentFlowData,
+                    ResendOtpForWalletData,
+                    ResendOtpForWalletResponseData,
+                > for $connector<T>
+            {
+            }
+        )*
+    };
+}
+
+// Generate default (empty) implementations for all connectors except Razorpay,
+// which has its own real implementation in razorpay.rs
+default_impl_resend_otp_for_wallet_v2!(
+    Adyen,
+    Aci,
+    Airwallex,
+    Authipay,
+    Authorizedotnet,
+    Bambora,
+    Bamboraapac,
+    Bankofamerica,
+    Barclaycard,
+    Billwerk,
+    Bluesnap,
+    Braintree,
+    Calida,
+    Cashfree,
+    Cashtocode,
+    Celero,
+    Checkout,
+    Cryptopay,
+    Cybersource,
+    Datatrans,
+    Dlocal,
+    Elavon,
+    Fiserv,
+    Fiservcommercehub,
+    Fiservemea,
+    Fiuu,
+    Forte,
+    Getnet,
+    Gigadat,
+    Globalpay,
+    Helcim,
+    Hipay,
+    Hyperpg,
+    Iatapay,
+    Itaubank,
+    Jpmorgan,
+    Loonio,
+    Mifinity,
+    Mollie,
+    Multisafepay,
+    Nexinets,
+    Nexixpay,
+    Nmi,
+    Noon,
+    Novalnet,
+    Nuvei,
+    Paybox,
+    Payload,
+    Payme,
+    Paypal,
+    Paysafe,
+    Paytm,
+    Payu,
+    Peachpayments,
+    Phonepe,
+    Placetopay,
+    Powertranz,
+    Ppro,
+    Rapyd,
+    RazorpayV2,
+    Redsys,
+    Revolut,
+    Revolv3,
+    Finix,
+    Shift4,
+    Silverflow,
+    Stax,
+    Stripe,
+    Truelayer,
+    Trustly,
+    Trustpay,
+    Trustpayments,
+    Tsys,
+    Volt,
+    Wellsfargo,
+    Worldpay,
+    Worldpayvantiv,
+    Worldpayxml,
+    Xendit,
+    Zift
+);
+
+/// Macro to generate empty implementations of VerifyOtpForWalletV2 for connectors
+/// that don't support OTP verification. Connectors with real implementations override this.
+#[macro_export]
+macro_rules! default_impl_verify_otp_for_wallet_v2 {
+    ($($connector:ident),*) => {
+        $(
+            impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + serde::Serialize>
+                ConnectorIntegrationV2<
+                    domain_types::connector_flow::VerifyOtpForWallet,
+                    PaymentFlowData,
+                    VerifyOtpForWalletData,
+                    VerifyOtpForWalletResponseData,
+                > for $connector<T>
+            {
+            }
+        )*
+    };
+}
+
+// Generate default (empty) implementations for all connectors.
+// Connectors with real implementations should override this in their own file.
+default_impl_verify_otp_for_wallet_v2!(
+    Adyen,
+    Aci,
+    Airwallex,
+    Authipay,
+    Authorizedotnet,
+    Bambora,
+    Bamboraapac,
+    Bankofamerica,
+    Barclaycard,
+    Billwerk,
+    Bluesnap,
+    Braintree,
+    Calida,
+    Cashfree,
+    Cashtocode,
+    Celero,
+    Checkout,
+    Cryptopay,
+    Cybersource,
+    Datatrans,
+    Dlocal,
+    Elavon,
+    Fiserv,
+    Fiservcommercehub,
+    Fiservemea,
+    Fiuu,
+    Forte,
+    Getnet,
+    Gigadat,
+    Globalpay,
+    Helcim,
+    Hipay,
+    Hyperpg,
+    Iatapay,
+    Itaubank,
+    Jpmorgan,
+    Loonio,
+    Mifinity,
+    Mollie,
+    Multisafepay,
+    Nexinets,
+    Nexixpay,
+    Nmi,
+    Noon,
+    Novalnet,
+    Nuvei,
+    Paybox,
+    Payload,
+    Payme,
+    Paypal,
+    Paysafe,
+    Paytm,
+    Payu,
+    Peachpayments,
+    Placetopay,
+    Powertranz,
+    Ppro,
+    Rapyd,
+    Razorpay,
+    RazorpayV2,
+    Redsys,
+    Revolut,
+    Revolv3,
+    Finix,
+    Shift4,
+    Silverflow,
+    Stax,
+    Stripe,
+    Truelayer,
+    Trustly,
+    Trustpay,
+    Trustpayments,
+    Tsys,
+    Volt,
+    Wellsfargo,
+    Worldpay,
+    Worldpayvantiv,
+    Worldpayxml,
+    Xendit,
+    Zift
+);
+
+/// Macro to generate empty implementations of TriggerOtpForWalletV2 for connectors
+/// that don't support OTP trigger. Connectors with real implementations override this.
+#[macro_export]
+macro_rules! default_impl_trigger_otp_for_wallet_v2 {
+    ($($connector:ident),*) => {
+        $(
+            impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + serde::Serialize>
+                ConnectorIntegrationV2<
+                    domain_types::connector_flow::TriggerOtpForWallet,
+                    PaymentFlowData,
+                    TriggerOtpForWalletData,
+                    TriggerOtpForWalletResponseData,
+                > for $connector<T>
+            {
+            }
+        )*
+    };
+}
+
+// Generate default (empty) implementations for all connectors.
+// Connectors with real implementations should override this in their own file.
+default_impl_trigger_otp_for_wallet_v2!(
+    Adyen,
+    Aci,
+    Airwallex,
+    Authipay,
+    Authorizedotnet,
+    Bambora,
+    Bamboraapac,
+    Bankofamerica,
+    Barclaycard,
+    Billwerk,
+    Bluesnap,
+    Braintree,
+    Calida,
+    Cashfree,
+    Cashtocode,
+    Celero,
+    Checkout,
+    Cryptopay,
+    Cybersource,
+    Datatrans,
+    Dlocal,
+    Elavon,
+    Fiserv,
+    Fiservcommercehub,
+    Fiservemea,
+    Fiuu,
+    Forte,
+    Getnet,
+    Gigadat,
+    Globalpay,
+    Helcim,
+    Hipay,
+    Hyperpg,
+    Iatapay,
+    Itaubank,
+    Jpmorgan,
+    Loonio,
+    Mifinity,
+    Mollie,
+    Multisafepay,
+    Nexinets,
+    Nexixpay,
+    Nmi,
+    Noon,
+    Novalnet,
+    Nuvei,
+    Paybox,
+    Payload,
+    Payme,
+    Paypal,
+    Paysafe,
+    Paytm,
+    Payu,
+    Peachpayments,
+    Placetopay,
+    Powertranz,
+    Ppro,
+    Rapyd,
+    Razorpay,
+    RazorpayV2,
+    Redsys,
+    Revolut,
+    Revolv3,
+    Finix,
+    Shift4,
+    Silverflow,
+    Stax,
+    Stripe,
+    Truelayer,
+    Trustly,
+    Trustpay,
+    Trustpayments,
+    Tsys,
+    Volt,
+    Wellsfargo,
+    Worldpay,
+    Worldpayvantiv,
+    Worldpayxml,
+    Xendit,
+    Zift
+);

@@ -171,6 +171,9 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   PaymentMethodAuthenticationServicePostAuthenticateRequest: ["metadata", "connectorFeatureData"],
   PaymentMethodAuthenticationServicePostAuthenticateResponse: ["connectorFeatureData", "rawConnectorResponse"],
   PaymentServiceIncrementalAuthorizationRequest: ["connectorFeatureData"],
+  PaymentServiceTriggerOtpForWalletResponse: ["rawConnectorResponse", "rawConnectorRequest"],
+  PaymentServiceResendOtpForWalletResponse: ["rawConnectorResponse", "rawConnectorRequest"],
+  PaymentServiceVerifyOtpForWalletResponse: ["rawConnectorResponse", "rawConnectorRequest"],
   PaymentServiceVerifyRedirectResponseResponse: ["rawConnectorResponse"],
   RefundServiceGetRequest: ["refundMetadata", "connectorFeatureData"],
   DisputeServiceSubmitEvidenceResponse: ["rawConnectorRequest"],
@@ -373,6 +376,9 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   PaymentMethodAuthenticationServicePostAuthenticateResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry", "redirectionData": "RedirectForm", "authenticationData": "AuthenticationData", "state": "ConnectorState" },
   PaymentServiceIncrementalAuthorizationRequest: { "amount": "Money", "state": "ConnectorState" },
   PaymentServiceIncrementalAuthorizationResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry", "state": "ConnectorState" },
+  PaymentServiceTriggerOtpForWalletResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
+  PaymentServiceResendOtpForWalletResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
+  PaymentServiceVerifyOtpForWalletResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
   EventServiceHandleRequest: { "requestDetails": "RequestDetails", "webhookSecrets": "WebhookSecrets", "state": "ConnectorState" },
   PaymentServiceVerifyRedirectResponseRequest: { "requestDetails": "RequestDetails", "redirectResponseSecrets": "RedirectResponseSecrets" },
   PaymentServiceVerifyRedirectResponseResponse: { "responseAmount": "Money", "error": "ErrorInfo" },
@@ -640,6 +646,21 @@ export class GrpcPaymentClient {
   async verifyRedirectResponse(req: unknown): Promise<unknown> {
     return callGrpc(this.ffi, this.config, "payment/verify_redirect_response",
       req, types.PaymentServiceVerifyRedirectResponseRequest, types.PaymentServiceVerifyRedirectResponseResponse);
+  }
+  /** PaymentService.TriggerOtpForWallet — Trigger OTP for wallet-based payment flows. Initiates the OTP send to the customer's phone number for wallet linking/payment. */
+  async triggerOtpForWallet(req: unknown): Promise<unknown> {
+    return callGrpc(this.ffi, this.config, "payment/trigger_otp_for_wallet",
+      req, types.PaymentServiceTriggerOtpForWalletRequest, types.PaymentServiceTriggerOtpForWalletResponse);
+  }
+  /** PaymentService.ResendOtpForWallet — Resend OTP for wallet-based payment flows. Triggers a new OTP delivery when the original OTP expires or the customer requests a resend. */
+  async resendOtpForWallet(req: unknown): Promise<unknown> {
+    return callGrpc(this.ffi, this.config, "payment/resend_otp_for_wallet",
+      req, types.PaymentServiceResendOtpForWalletRequest, types.PaymentServiceResendOtpForWalletResponse);
+  }
+  /** PaymentService.VerifyOtpForWallet — Verify OTP for wallet-based payment flows. Validates the customer-entered OTP to complete wallet payment authentication. */
+  async verifyOtpForWallet(req: unknown): Promise<unknown> {
+    return callGrpc(this.ffi, this.config, "payment/verify_otp_for_wallet",
+      req, types.PaymentServiceVerifyOtpForWalletRequest, types.PaymentServiceVerifyOtpForWalletResponse);
   }
   /** PaymentService.SetupRecurring — Configure a payment method for recurring billing. Sets up the mandate and payment details needed for future automated charges. */
   async setupRecurring(req: unknown): Promise<unknown> {

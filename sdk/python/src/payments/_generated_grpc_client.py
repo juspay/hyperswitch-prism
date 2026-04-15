@@ -317,6 +317,27 @@ class GrpcPaymentClient:
             "payment/verify_redirect_response",
             req, payment_pb2.PaymentServiceVerifyRedirectResponseResponse,
         )
+    def trigger_otp_for_wallet(self, req: payment_pb2.PaymentServiceTriggerOtpForWalletRequest) -> payment_pb2.PaymentServiceTriggerOtpForWalletResponse:
+        """PaymentService.TriggerOtpForWallet — Trigger OTP for wallet-based payment flows. Initiates the OTP send to the customer's phone number for wallet linking/payment."""
+        return _call_grpc(
+            self._ffi, self._config,
+            "payment/trigger_otp_for_wallet",
+            req, payment_pb2.PaymentServiceTriggerOtpForWalletResponse,
+        )
+    def resend_otp_for_wallet(self, req: payment_pb2.PaymentServiceResendOtpForWalletRequest) -> payment_pb2.PaymentServiceResendOtpForWalletResponse:
+        """PaymentService.ResendOtpForWallet — Resend OTP for wallet-based payment flows. Triggers a new OTP delivery when the original OTP expires or the customer requests a resend."""
+        return _call_grpc(
+            self._ffi, self._config,
+            "payment/resend_otp_for_wallet",
+            req, payment_pb2.PaymentServiceResendOtpForWalletResponse,
+        )
+    def verify_otp_for_wallet(self, req: payment_pb2.PaymentServiceVerifyOtpForWalletRequest) -> payment_pb2.PaymentServiceVerifyOtpForWalletResponse:
+        """PaymentService.VerifyOtpForWallet — Verify OTP for wallet-based payment flows. Validates the customer-entered OTP to complete wallet payment authentication."""
+        return _call_grpc(
+            self._ffi, self._config,
+            "payment/verify_otp_for_wallet",
+            req, payment_pb2.PaymentServiceVerifyOtpForWalletResponse,
+        )
     def setup_recurring(self, req: payment_pb2.PaymentServiceSetupRecurringRequest) -> payment_pb2.PaymentServiceSetupRecurringResponse:
         """PaymentService.SetupRecurring — Configure a payment method for recurring billing. Sets up the mandate and payment details needed for future automated charges."""
         return _call_grpc(

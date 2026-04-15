@@ -32,6 +32,12 @@ pub const DEFAULT_DEVICE_OS: &str = "Android";
 pub const DEFAULT_IP: &str = "127.0.0.1";
 pub const DEFAULT_USER_AGENT: &str = "Mozilla/5.0";
 
+// ===== OTP ENDPOINTS =====
+pub const API_TRIGGER_OTP_ENDPOINT: &str = "v3/merchant/otp/send";
+pub const API_VERIFY_OTP_ENDPOINT: &str = "v3/merchant/otp/verify";
+/// PhonePe OTP trigger always uses "WALLET" as the request type
+pub const WALLET_REQUEST_TYPE: &str = "WALLET";
+
 // ===== CHECKSUM =====
 pub const CHECKSUM_SEPARATOR: &str = "###";
 

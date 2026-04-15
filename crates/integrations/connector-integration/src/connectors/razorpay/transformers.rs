@@ -7,11 +7,11 @@ use domain_types::errors::{
     ConnectorError, IntegrationError, IntegrationErrorContext, WebhookError,
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture, CreateOrder, RSync, Refund},
+    connector_flow::{Authorize, Capture, CreateOrder, RSync, Refund, ResendOtpForWallet},
     connector_types::{
         PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentsAuthorizeData,
         PaymentsCaptureData, PaymentsResponseData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId,
+        RefundsResponseData, ResendOtpForWalletData, ResendOtpForWalletResponseData, ResponseId,
     },
     payment_method_data::{
         self, Card, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData,
@@ -1970,5 +1970,152 @@ pub fn json_value_to_string(value: &serde_json::Value) -> String {
     match value {
         serde_json::Value::String(s) => s.clone(),
         _ => value.to_string(), // For Number, Bool, Null, Object, Array - serialize as JSON
+    }
+}
+
+// ========== ResendOtp Types ==========
+
+/// Request body for the Razorpay OTP resend API.
+/// Mirrors Haskell `RazorpayPaymentResendOtpRequest`.
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Serialize)]
+pub struct RazorpayResendOtpRequest {
+    pub account_id: Option<Secret<String>>,
+}
+
+/// Successful response body — V1 variant where `next` is `Vec<String>`.
+/// Mirrors Haskell `RazorpayPaymentOtpFlowSuccessResponse`.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RazorpayResendOtpSuccessV1 {
+    pub razorpay_payment_id: String,
+    pub next: Vec<String>,
+}
+
+/// Object entry in the V2 `next` array.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ResendOtpNextAction {
+    pub action: String,
+    pub url: Option<String>,
+}
+
+/// Successful response body — V2 variant where `next` is `Vec<Object>`.
+/// Mirrors Haskell `RazorpayV2ResendOtpRespBody`.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RazorpayResendOtpSuccessV2 {
+    pub razorpay_payment_id: String,
+    pub next: Vec<ResendOtpNextAction>,
+}
+
+/// Razorpay resend OTP response — tries V1, V2, or error in order.
+/// Mirrors the Haskell `RazorpayResendOtpResponse` sum type with its
+/// `FromJSON` instance that tries each variant with `<|>`.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum RazorpayResendOtpResponse {
+    SuccessV1(RazorpayResendOtpSuccessV1),
+    SuccessV2(RazorpayResendOtpSuccessV2),
+    Error(RazorpayErrorResponse),
+}
+
+// ----- Request conversion -----
+
+impl
+    TryFrom<
+        &RouterDataV2<
+            ResendOtpForWallet,
+            PaymentFlowData,
+            ResendOtpForWalletData,
+            ResendOtpForWalletResponseData,
+        >,
+    > for RazorpayResendOtpRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: &RouterDataV2<
+            ResendOtpForWallet,
+            PaymentFlowData,
+            ResendOtpForWalletData,
+            ResendOtpForWalletResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            account_id: item
+                .request
+                .connector_transaction_id
+                .clone()
+                .map(Secret::new),
+        })
+    }
+}
+
+// ----- Response conversion -----
+
+impl ForeignTryFrom<(RazorpayResendOtpResponse, Self, u16)>
+    for RouterDataV2<
+        ResendOtpForWallet,
+        PaymentFlowData,
+        ResendOtpForWalletData,
+        ResendOtpForWalletResponseData,
+    >
+{
+    type Error = ConnectorError;
+
+    fn foreign_try_from(
+        (response, data, http_code): (RazorpayResendOtpResponse, Self, u16),
+    ) -> Result<Self, Self::Error> {
+        match response {
+            RazorpayResendOtpResponse::SuccessV1(res) => {
+                let is_resend_enabled = res.next.contains(&"otp_resend".to_string());
+                let is_submit_enabled = res.next.contains(&"otp_submit".to_string());
+                Ok(Self {
+                    resource_common_data: PaymentFlowData {
+                        connector_http_status_code: Some(http_code),
+                        ..data.resource_common_data
+                    },
+                    response: Ok(ResendOtpForWalletResponseData {
+                        is_successful: true,
+                        is_resend_enabled: Some(is_resend_enabled),
+                        is_submit_enabled: Some(is_submit_enabled),
+                        next_action: Some(res.next),
+                        connector_transaction_id: Some(res.razorpay_payment_id),
+                    }),
+                    ..data
+                })
+            }
+            RazorpayResendOtpResponse::SuccessV2(res) => {
+                let is_resend_enabled = res.next.iter().any(|n| n.action == "otp_resend");
+                let is_submit_enabled = res.next.iter().any(|n| n.action == "otp_submit");
+                let next_actions: Vec<String> = res.next.iter().map(|n| n.action.clone()).collect();
+                Ok(Self {
+                    resource_common_data: PaymentFlowData {
+                        connector_http_status_code: Some(http_code),
+                        ..data.resource_common_data
+                    },
+                    response: Ok(ResendOtpForWalletResponseData {
+                        is_successful: true,
+                        is_resend_enabled: Some(is_resend_enabled),
+                        is_submit_enabled: Some(is_submit_enabled),
+                        next_action: Some(next_actions),
+                        connector_transaction_id: Some(res.razorpay_payment_id),
+                    }),
+                    ..data
+                })
+            }
+            RazorpayResendOtpResponse::Error(_err) => Ok(Self {
+                resource_common_data: PaymentFlowData {
+                    connector_http_status_code: Some(http_code),
+                    ..data.resource_common_data
+                },
+                response: Ok(ResendOtpForWalletResponseData {
+                    is_successful: false,
+                    is_resend_enabled: Some(false),
+                    is_submit_enabled: Some(false),
+                    next_action: None,
+                    connector_transaction_id: None,
+                }),
+                ..data
+            }),
+        }
     }
 }

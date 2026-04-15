@@ -6,9 +6,11 @@ use common_utils::{
     types::MinorUnit,
 };
 use domain_types::{
-    connector_flow::{Authorize, PSync},
+    connector_flow::{Authorize, PSync, TriggerOtpForWallet, VerifyOtpForWallet},
     connector_types::{
         PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData, ResponseId,
+        TriggerOtpForWalletData, TriggerOtpForWalletResponseData, VerifyOtpForWalletData,
+        VerifyOtpForWalletResponseData,
     },
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, UpiData, UpiSource},
     router_data::ConnectorSpecificConfig,
@@ -29,8 +31,8 @@ pub enum NextActionData {
 
 use super::constants;
 use crate::{connectors::phonepe::PhonepeRouterData, types::ResponseRouterData};
-use domain_types::errors::ConnectorError;
-use domain_types::errors::IntegrationError;
+use common_utils::pii::Email;
+use domain_types::errors::{ConnectorError, IntegrationError, IntegrationErrorContext};
 
 type Error = error_stack::Report<IntegrationError>;
 type ResponseError = error_stack::Report<ConnectorError>;
@@ -1151,4 +1153,533 @@ fn extract_bin_from_masked_account_number(masked_account_number: Option<&str>) -
             .filter(|bin| bin.chars().all(|c| c.is_ascii_digit()))
             .map(str::to_string)
     })
+}
+
+// ===== TRIGGER OTP FOR WALLET =====
+
+/// Outer request wrapper for PhonePe OTP trigger (sent as JSON body).
+/// `checksum` is computed for the X-VERIFY header and excluded from the
+/// serialized JSON body via `#[serde(skip)]`.
+#[derive(Debug, Serialize)]
+pub struct PhonepeTriggerOtpRequest {
+    request: String,
+    #[serde(skip)]
+    pub checksum: String,
+}
+
+/// Inner request payload (base64-encoded inside the `request` field)
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PhonepeTriggerOtpInnerRequest {
+    merchant_id: Secret<String>,
+    mobile_number: Secret<String>,
+    request_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    email: Option<Email>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    short_name: Option<Secret<String>>,
+}
+
+/// Success response from PhonePe trigger OTP
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PhonepeTriggerOtpResponse {
+    pub success: bool,
+    pub code: String,
+    pub message: String,
+    pub data: Option<PhonepeTriggerOtpData>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PhonepeTriggerOtpData {
+    pub merchant_id: Option<Secret<String>>,
+    pub otp_token: Option<String>,
+}
+
+// TryFrom implementation for owned PhonepeRouterData wrapper (trigger OTP)
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        PhonepeRouterData<
+            RouterDataV2<
+                TriggerOtpForWallet,
+                PaymentFlowData,
+                TriggerOtpForWalletData,
+                TriggerOtpForWalletResponseData,
+            >,
+            T,
+        >,
+    > for PhonepeTriggerOtpRequest
+{
+    type Error = Error;
+
+    fn try_from(
+        wrapper: PhonepeRouterData<
+            RouterDataV2<
+                TriggerOtpForWallet,
+                PaymentFlowData,
+                TriggerOtpForWalletData,
+                TriggerOtpForWalletResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let req = &wrapper.router_data;
+        let auth = PhonepeAuthType::try_from(&req.connector_config)?;
+
+        let phone_number =
+            req.request
+                .phone_number
+                .clone()
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "phone_number",
+                    context: IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Provide the customer's phone number in the `phone_number` field \
+                             of the TriggerOtpForWallet request."
+                                .to_owned(),
+                        ),
+                        additional_context: Some(
+                            "PhonePe requires a mobile number to send the wallet OTP.".to_owned(),
+                        ),
+                        ..Default::default()
+                    },
+                })?;
+
+        let inner = PhonepeTriggerOtpInnerRequest {
+            merchant_id: auth.merchant_id.clone(),
+            mobile_number: Secret::new(phone_number),
+            // PhonePe OTP trigger always uses "WALLET" as the request type
+            request_type: constants::WALLET_REQUEST_TYPE.to_string(),
+            email: None,
+            short_name: None,
+        };
+
+        let json_payload = Encode::encode_to_string_of_json(&inner).change_context(
+            IntegrationError::RequestEncodingFailed {
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to serialize PhonePe TriggerOtp inner request payload to JSON."
+                            .to_owned(),
+                    ),
+                    ..Default::default()
+                },
+            },
+        )?;
+
+        let base64_payload = base64::engine::general_purpose::STANDARD.encode(&json_payload);
+
+        let api_path = format!("/{}", constants::API_TRIGGER_OTP_ENDPOINT);
+        let checksum =
+            generate_phonepe_checksum(&base64_payload, &api_path, &auth.salt_key, &auth.key_index)?;
+
+        Ok(Self {
+            request: base64_payload,
+            checksum,
+        })
+    }
+}
+
+// TryFrom implementation for borrowed PhonepeRouterData wrapper (trigger OTP header generation)
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        &PhonepeRouterData<
+            &RouterDataV2<
+                TriggerOtpForWallet,
+                PaymentFlowData,
+                TriggerOtpForWalletData,
+                TriggerOtpForWalletResponseData,
+            >,
+            T,
+        >,
+    > for PhonepeTriggerOtpRequest
+{
+    type Error = Error;
+
+    fn try_from(
+        item: &PhonepeRouterData<
+            &RouterDataV2<
+                TriggerOtpForWallet,
+                PaymentFlowData,
+                TriggerOtpForWalletData,
+                TriggerOtpForWalletResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let req = item.router_data;
+        let auth = PhonepeAuthType::try_from(&req.connector_config)?;
+
+        let phone_number =
+            req.request
+                .phone_number
+                .clone()
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "phone_number",
+                    context: IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Provide the customer's phone number in the `phone_number` field \
+                             of the TriggerOtpForWallet request."
+                                .to_owned(),
+                        ),
+                        additional_context: Some(
+                            "PhonePe requires a mobile number to send the wallet OTP.".to_owned(),
+                        ),
+                        ..Default::default()
+                    },
+                })?;
+
+        let inner = PhonepeTriggerOtpInnerRequest {
+            merchant_id: auth.merchant_id.clone(),
+            mobile_number: Secret::new(phone_number),
+            request_type: constants::WALLET_REQUEST_TYPE.to_string(),
+            email: None,
+            short_name: None,
+        };
+
+        let json_payload = Encode::encode_to_string_of_json(&inner).change_context(
+            IntegrationError::RequestEncodingFailed {
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to serialize PhonePe TriggerOtp inner request payload to JSON."
+                            .to_owned(),
+                    ),
+                    ..Default::default()
+                },
+            },
+        )?;
+
+        let base64_payload = base64::engine::general_purpose::STANDARD.encode(&json_payload);
+
+        let api_path = format!("/{}", constants::API_TRIGGER_OTP_ENDPOINT);
+        let checksum =
+            generate_phonepe_checksum(&base64_payload, &api_path, &auth.salt_key, &auth.key_index)?;
+
+        Ok(Self {
+            request: base64_payload,
+            checksum,
+        })
+    }
+}
+
+impl TryFrom<ResponseRouterData<PhonepeTriggerOtpResponse, Self>>
+    for RouterDataV2<
+        TriggerOtpForWallet,
+        PaymentFlowData,
+        TriggerOtpForWalletData,
+        TriggerOtpForWalletResponseData,
+    >
+{
+    type Error = ResponseError;
+
+    fn try_from(
+        item: ResponseRouterData<PhonepeTriggerOtpResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = &item.response;
+
+        if response.success {
+            let otp_token = response.data.as_ref().and_then(|d| d.otp_token.clone());
+
+            Ok(Self {
+                response: Ok(TriggerOtpForWalletResponseData {
+                    is_successful: true,
+                    otp_token,
+                    connector_transaction_id: None,
+                    next_action: None,
+                }),
+                ..item.router_data
+            })
+        } else {
+            Ok(Self {
+                response: Err(domain_types::router_data::ErrorResponse {
+                    code: response.code.clone(),
+                    message: response.message.clone(),
+                    reason: Some(response.message.clone()),
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                }),
+                ..item.router_data
+            })
+        }
+    }
+}
+
+// ===== VERIFY OTP FOR WALLET =====
+
+/// Outer request wrapper for PhonePe OTP verify (sent as JSON body).
+/// `checksum` is computed for the X-VERIFY header and excluded from the
+/// serialized JSON body via `#[serde(skip)]`.
+#[derive(Debug, Serialize)]
+pub struct PhonepeVerifyOtpRequest {
+    request: String,
+    #[serde(skip)]
+    pub checksum: String,
+}
+
+/// Inner request payload (base64-encoded inside the `request` field)
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PhonepeVerifyOtpInnerRequest {
+    merchant_id: Secret<String>,
+    otp_token: Secret<String>,
+    otp: Secret<String>,
+}
+
+/// Success response from PhonePe verify OTP
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PhonepeVerifyOtpResponse {
+    pub success: bool,
+    pub code: String,
+    pub message: String,
+    pub data: Option<PhonepeVerifyOtpData>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PhonepeVerifyOtpData {
+    pub merchant_id: Option<Secret<String>>,
+    pub user_auth_token: Option<Secret<String>>,
+}
+
+// TryFrom implementation for owned PhonepeRouterData wrapper (verify OTP)
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        PhonepeRouterData<
+            RouterDataV2<
+                VerifyOtpForWallet,
+                PaymentFlowData,
+                VerifyOtpForWalletData,
+                VerifyOtpForWalletResponseData,
+            >,
+            T,
+        >,
+    > for PhonepeVerifyOtpRequest
+{
+    type Error = Error;
+
+    fn try_from(
+        wrapper: PhonepeRouterData<
+            RouterDataV2<
+                VerifyOtpForWallet,
+                PaymentFlowData,
+                VerifyOtpForWalletData,
+                VerifyOtpForWalletResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let req = &wrapper.router_data;
+        let auth = PhonepeAuthType::try_from(&req.connector_config)?;
+
+        let otp = req
+            .request
+            .otp
+            .clone()
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "otp",
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Provide the OTP entered by the customer in the `otp` field \
+                         of the VerifyOtpForWallet request."
+                            .to_owned(),
+                    ),
+                    additional_context: Some(
+                        "PhonePe requires the OTP to verify the wallet payment.".to_owned(),
+                    ),
+                    ..Default::default()
+                },
+            })?;
+
+        let otp_token =
+            req.request
+                .otp_token
+                .clone()
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "otp_token",
+                    context: IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Provide the `otp_token` returned by the TriggerOtpForWallet \
+                             response in the `otp_token` field."
+                                .to_owned(),
+                        ),
+                        additional_context: Some(
+                            "PhonePe requires the OTP token from the trigger step to \
+                             correlate the verification."
+                                .to_owned(),
+                        ),
+                        ..Default::default()
+                    },
+                })?;
+
+        let inner = PhonepeVerifyOtpInnerRequest {
+            merchant_id: auth.merchant_id.clone(),
+            otp_token: Secret::new(otp_token),
+            otp: Secret::new(otp),
+        };
+
+        let json_payload = Encode::encode_to_string_of_json(&inner).change_context(
+            IntegrationError::RequestEncodingFailed {
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to serialize PhonePe VerifyOtp inner request payload to JSON."
+                            .to_owned(),
+                    ),
+                    ..Default::default()
+                },
+            },
+        )?;
+
+        let base64_payload = base64::engine::general_purpose::STANDARD.encode(&json_payload);
+
+        let api_path = format!("/{}", constants::API_VERIFY_OTP_ENDPOINT);
+        let checksum =
+            generate_phonepe_checksum(&base64_payload, &api_path, &auth.salt_key, &auth.key_index)?;
+
+        Ok(Self {
+            request: base64_payload,
+            checksum,
+        })
+    }
+}
+
+// TryFrom implementation for borrowed PhonepeRouterData wrapper (verify OTP header generation)
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        &PhonepeRouterData<
+            &RouterDataV2<
+                VerifyOtpForWallet,
+                PaymentFlowData,
+                VerifyOtpForWalletData,
+                VerifyOtpForWalletResponseData,
+            >,
+            T,
+        >,
+    > for PhonepeVerifyOtpRequest
+{
+    type Error = Error;
+
+    fn try_from(
+        item: &PhonepeRouterData<
+            &RouterDataV2<
+                VerifyOtpForWallet,
+                PaymentFlowData,
+                VerifyOtpForWalletData,
+                VerifyOtpForWalletResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let req = item.router_data;
+        let auth = PhonepeAuthType::try_from(&req.connector_config)?;
+
+        let otp = req
+            .request
+            .otp
+            .clone()
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "otp",
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Provide the OTP entered by the customer in the `otp` field.".to_owned(),
+                    ),
+                    ..Default::default()
+                },
+            })?;
+
+        let otp_token =
+            req.request
+                .otp_token
+                .clone()
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "otp_token",
+                    context: IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Provide the `otp_token` from the TriggerOtpForWallet response."
+                                .to_owned(),
+                        ),
+                        ..Default::default()
+                    },
+                })?;
+
+        let inner = PhonepeVerifyOtpInnerRequest {
+            merchant_id: auth.merchant_id.clone(),
+            otp_token: Secret::new(otp_token),
+            otp: Secret::new(otp),
+        };
+
+        let json_payload = Encode::encode_to_string_of_json(&inner).change_context(
+            IntegrationError::RequestEncodingFailed {
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to serialize PhonePe VerifyOtp inner request payload to JSON."
+                            .to_owned(),
+                    ),
+                    ..Default::default()
+                },
+            },
+        )?;
+
+        let base64_payload = base64::engine::general_purpose::STANDARD.encode(&json_payload);
+
+        let api_path = format!("/{}", constants::API_VERIFY_OTP_ENDPOINT);
+        let checksum =
+            generate_phonepe_checksum(&base64_payload, &api_path, &auth.salt_key, &auth.key_index)?;
+
+        Ok(Self {
+            request: base64_payload,
+            checksum,
+        })
+    }
+}
+
+impl TryFrom<ResponseRouterData<PhonepeVerifyOtpResponse, Self>>
+    for RouterDataV2<
+        VerifyOtpForWallet,
+        PaymentFlowData,
+        VerifyOtpForWalletData,
+        VerifyOtpForWalletResponseData,
+    >
+{
+    type Error = ResponseError;
+
+    fn try_from(
+        item: ResponseRouterData<PhonepeVerifyOtpResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = &item.response;
+
+        if response.success {
+            let user_auth_token = response
+                .data
+                .as_ref()
+                .and_then(|d| d.user_auth_token.as_ref().map(|t| t.peek().to_string()));
+
+            Ok(Self {
+                response: Ok(VerifyOtpForWalletResponseData {
+                    is_successful: true,
+                    connector_transaction_id: user_auth_token,
+                    redirect_url: None,
+                    next_action: None,
+                }),
+                ..item.router_data
+            })
+        } else {
+            Ok(Self {
+                response: Err(domain_types::router_data::ErrorResponse {
+                    code: response.code.clone(),
+                    message: response.message.clone(),
+                    reason: Some(response.message.clone()),
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                }),
+                ..item.router_data
+            })
+        }
+    }
 }
