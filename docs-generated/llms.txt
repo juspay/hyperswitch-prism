@@ -1,5 +1,5 @@
 # Connector Service — LLM Navigation Index
-# Connectors: 81
+# Connectors: 82
 #
 # This file helps AI coding assistants navigate connector-service documentation.
 # Each connector block lists: doc path, scenarios, supported payment methods,
@@ -8,7 +8,7 @@
 # Usage: fetch this file first, then fetch the specific connector doc or example.
 
 overview:
-  total_connectors: 81
+  total_connectors: 82
   docs_root: docs-generated/connectors/
   examples_root: examples/
   all_connectors_matrix: docs-generated/all_connector.md
@@ -189,6 +189,14 @@ scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_paymen
 payment_methods: Card
 flows: authorize, capture, get, proxy_authorize, recurring_charge, refund, refund_get, void
 examples_python: examples/dlocal/dlocal.py
+
+## Easebuzz
+connector_id: easebuzz
+doc: docs/connectors/easebuzz.md
+scenarios: none
+payment_methods: none
+flows: capture, create_order, get, refund, refund_get
+examples_python: none
 
 ## Elavon
 connector_id: elavon
