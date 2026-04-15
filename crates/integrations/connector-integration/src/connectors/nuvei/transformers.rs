@@ -1035,15 +1035,22 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             TransactionType::get_from_capture_method(router_data.request.capture_method, &amount);
 
         // Build urlDetails from router_return_url if available
+        // Note: Nuvei rejects localhost URLs in payment.do endpoint
         let url_details =
             router_data
                 .request
                 .router_return_url
                 .as_ref()
-                .map(|url| NuveiUrlDetails {
-                    success_url: url.clone(),
-                    failure_url: url.clone(),
-                    pending_url: url.clone(),
+                .map(|url| {
+                    let url_str = match consts::Env::current_env() {
+                        consts::Env::Development => "https://example.com".to_string(),
+                        _ => url.clone(),
+                    };
+                    NuveiUrlDetails {
+                        success_url: url_str.clone(),
+                        failure_url: url_str.clone(),
+                        pending_url: url_str,
+                    }
                 });
 
         // Generate checksum: merchantId + merchantSiteId + clientRequestId + amount + currency + timeStamp + merchantSecretKey
@@ -2325,12 +2332,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let currency = router_data.request.currency.unwrap_or_default();
 
-        let return_url = router_data
-            .request
-            .router_return_url
-            .clone()
-            .map(|u| u.to_string())
-            .unwrap_or_default();
+        // Note: Nuvei rejects localhost URLs in initPayment.do endpoint
+        let return_url = match consts::Env::current_env() {
+            consts::Env::Development => "https://example.com".to_string(),
+            _ => router_data
+                .request
+                .router_return_url
+                .clone()
+                .map(|u| u.to_string())
+                .unwrap_or_default(),
+        };
 
         let url_details = NuveiUrlDetails {
             success_url: return_url.clone(),
