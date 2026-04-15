@@ -2,7 +2,7 @@
 
 **Universal Connector Service — Multi-Language SDK**
 
-A high-performance, type-safe SDK for payment processing through the Universal Connector Service. Connect to 50+ payment processors (Stripe, PayPal, Adyen, and more) through a single, unified API.
+A high-performance, type-safe SDK for payment processing through the Universal Connector Service. Connect to 100+ payment processors through a single, unified API.
 
 [![PyPI version](https://badge.fury.io/py/hyperswitch-prism.svg)](https://pypi.org/project/hyperswitch-prism/)
 [![npm version](https://badge.fury.io/js/hyperswitch-prism.svg)](https://www.npmjs.com/package/hyperswitch-prism)
@@ -15,10 +15,10 @@ A high-performance, type-safe SDK for payment processing through the Universal C
 
 > **Use `curl` to fetch the SDK reference:**
 > ```bash
-> curl -fsSL https://raw.githubusercontent.com/juspay/hyperswitch-prism/main/llm/sdk-reference.md
+> curl -fsSL https://raw.githubusercontent.com/juspay/hyperswitch-prism/main/llm/llm.txt
 > ```
 >
-> This file contains complete SDK documentation including installation, payment operations, error handling, connector configuration, field probe data, and examples for all 70+ connectors.
+> This file contains complete SDK documentation including installation, payment operations, error handling, connector configuration, field probe data, and examples for all 100+ connectors.
 
 ---
 
@@ -54,18 +54,17 @@ implementation("io.hyperswitch:prism:0.0.1")
 
 ## Quick Start
 
-For usage examples and API documentation, see the per-SDK documentation:
+See the per-SDK documentation for usage examples:
 
-- **Python** — [python/README.md](python/README.md)
-- **JavaScript/TypeScript** — [javascript/README.md](javascript/README.md)
-- **Java/Kotlin** — [java/README.md](java/README.md)
-- **Rust** — [rust/README.md](rust/README.md)
+- **[Python SDK](python/README.md)**
+- **[JavaScript/TypeScript SDK](javascript/README.md)**
+- **[Java/Kotlin SDK](java/README.md)**
+- **[Rust SDK](rust/README.md)**
 
 ### Additional Resources
 
-- **Documentation** — [../docs/](../docs/) — Architecture, getting started guides, RFCs
-- **Examples** — [../examples/](../examples/) — Connector-specific examples (Stripe, PayPal, Adyen, etc.)
-- **Rust Examples** — [rust/examples/](rust/examples/) — Rust SDK usage examples
+- **Documentation** — [../docs/](../docs/) — Architecture and guides
+- **Examples** — [../examples/](../examples/) — Connector-specific examples
 
 ---
 
@@ -93,10 +92,6 @@ make build
 
 # Build for all platforms (macOS + Linux, x86_64 + ARM64)
 make build-all
-
-# Build for specific platforms
-make build-macos    # macOS (x86_64 + arm64)
-make build-linux    # Linux (x86_64 + aarch64)
 
 # Generate SDK client code (flows + protobuf stubs)
 make generate
@@ -131,8 +126,6 @@ make clean
 ```
 
 ### Pre-Publish Checks
-
-Each SDK validates before publishing:
 
 | Check | Description |
 |-------|-------------|

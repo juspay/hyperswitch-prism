@@ -1957,8 +1957,7 @@
     },
     "get": {
       "default": {
-        "status": "error",
-        "error": "Failed to encode connector request"
+        "status": "not_implemented"
       }
     },
     "handle_event": {

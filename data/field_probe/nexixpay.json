@@ -399,7 +399,8 @@
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Field 'payment_id' is too long for connector 'Nexixpay'"
       }
     },
     "create_customer": {
