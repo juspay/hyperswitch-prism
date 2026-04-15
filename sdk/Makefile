@@ -260,8 +260,8 @@ test-grpc: _cleanup-grpc ## Run gRPC smoke tests for all SDKs (Rust + JS + Pytho
 				exit 1; \
 			fi; \
 		else \
-			printf "Building grpc-server ($(GRPC_PROFILE))...\n"; \
-			cd $(REPO_ROOT) && cargo build -p grpc-server --profile $(GRPC_PROFILE) --target $(PLATFORM); \
+			printf "Building grpc-server and gRPC FFI library ($(GRPC_PROFILE))...\n"; \
+			cd $(REPO_ROOT) && cargo build -p grpc-server -p hyperswitch-grpc-ffi --profile $(GRPC_PROFILE) --target $(PLATFORM); \
 		fi; \
 		\
 		printf "\nStarting gRPC server (shared across all tests)...\n"; \

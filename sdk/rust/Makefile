@@ -45,9 +45,9 @@ test-package-mock: build-ffi-lib ## Build FFI → Run Rust smoke test in MOCK mo
 
 # test-grpc
 # Builds the grpc-server binary, starts it in background, runs gRPC smoke test binary.
-test-grpc-no-server: build-ffi-lib build-grpc-ffi-lib
+test-grpc-no-server: build-ffi-lib
 	@echo "Running gRPC smoke test..."
-	@cd $(REPO_ROOT) && cargo run --profile $(PROFILE) --target $(PLATFORM) -p hyperswitch-smoke-test --bin grpc-smoke-test -- --connectors $(GRPC_CONNECTOR) 2>&1 | tail -30
+	@cd $(REPO_ROOT) && cargo run --profile $(PROFILE) --target $(PLATFORM) -p hyperswitch-smoke-test --bin grpc-smoke-test -- --connectors $(GRPC_CONNECTOR)
 
 # test-grpc
 # Builds the grpc-server binary, starts it as a background process, runs

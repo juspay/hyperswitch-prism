@@ -163,6 +163,10 @@ jobs:
         with:
           toolchain: stable
 
+      - uses: Swatinem/rust-cache@v2.7.8
+        with:
+          shared-key: "ci-rust"
+
       - name: Install Rust (nightly for fmt)
         uses: dtolnay/rust-toolchain@master
         with:
@@ -173,8 +177,6 @@ jobs:
         uses: arduino/setup-protoc@v3
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - uses: Swatinem/rust-cache@v2.7.8
 
       - name: Setup Python
         if: needs.changes.outputs.docs-trigger == 'true' || needs.changes.outputs.ci == 'true'
