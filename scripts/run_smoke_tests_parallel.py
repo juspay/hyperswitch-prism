@@ -88,15 +88,19 @@ def get_all_connectors(repo_root: Path) -> List[str]:
     )
 
 
-def get_ffi_lib_path(repo_root: Path) -> Path:
-    """Return the expected FFI library path for the current platform."""
+def get_platform_triple() -> str:
+    """Return the Rust target triple for the current platform."""
     uname = platform.uname()
     if uname.system == "Darwin":
-        triple = "aarch64-apple-darwin" if uname.machine == "arm64" else "x86_64-apple-darwin"
-        ext = "dylib"
+        return "aarch64-apple-darwin" if uname.machine == "arm64" else "x86_64-apple-darwin"
     else:
-        triple = "aarch64-unknown-linux-gnu" if uname.machine == "aarch64" else "x86_64-unknown-linux-gnu"
-        ext = "so"
+        return "aarch64-unknown-linux-gnu" if uname.machine == "aarch64" else "x86_64-unknown-linux-gnu"
+
+
+def get_ffi_lib_path(repo_root: Path) -> Path:
+    """Return the expected FFI library path for the current platform."""
+    triple = get_platform_triple()
+    ext = "dylib" if platform.uname().system == "Darwin" else "so"
     return repo_root / "target" / triple / "release-fast" / f"libconnector_service_ffi.{ext}"
 
 
@@ -159,7 +163,9 @@ def prepare_kotlin_sdk_once(repo_root: Path) -> bool:
     print("  Preparing Kotlin SDK (generate-all install)...")
     try:
         result = subprocess.run(
-            ["make", "generate-all", "install"],
+            # Pass PROFILE=release-fast explicitly so this always matches the
+            # pre-built artifacts (CI env may carry PROFILE=dev from the job env).
+            ["make", "PROFILE=release-fast", "generate-all", "install"],
             cwd=repo_root / "sdk" / "java",
             capture_output=True,
             text=True,
@@ -252,7 +258,10 @@ def prepare_rust_smoke_test_once(repo_root: Path, connectors: List[str]) -> bool
         result = subprocess.run(
             # Build only the FFI smoke-test binary; skip grpc-smoke-test which may
             # have unrelated compile errors (different binary target, same package).
+            # Use --target to match the platform triple used everywhere else so that
+            # Cargo reuses already-compiled artifacts from the explicit build step.
             ["cargo", "build", "--profile", "release-fast",
+             "--target", get_platform_triple(),
              "-p", "hyperswitch-smoke-test", "--bin", "hyperswitch-smoke-test"],
             cwd=repo_root,
             capture_output=True, text=True, timeout=300, env=env
@@ -679,8 +688,11 @@ def run_rust_test_batch(
     binary = binary_with_platform if binary_with_platform else binary_no_platform
 
     if not binary.exists():
-        # Fall back to cargo run if binary not found
-        binary_cmd = ["cargo", "run", "--profile", "release-fast", "-p", "hyperswitch-smoke-test", "--bin", "hyperswitch-smoke-test", "--"]
+        # Fall back to cargo run if binary not found. Use --target to match the
+        # pre-built artifact directory so Cargo reuses compiled objects.
+        binary_cmd = ["cargo", "run", "--profile", "release-fast",
+                      "--target", get_platform_triple(),
+                      "-p", "hyperswitch-smoke-test", "--bin", "hyperswitch-smoke-test", "--"]
     else:
         binary_cmd = [str(binary)]
 
