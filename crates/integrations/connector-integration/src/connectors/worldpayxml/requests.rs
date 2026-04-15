@@ -61,6 +61,16 @@ pub struct WorldpayxmlOrder {
     pub shopper: WorldpayxmlShopper,
     #[serde(rename = "billingAddress", skip_serializing_if = "Option::is_none")]
     pub billing_address: Option<WorldpayxmlBillingAddress>,
+    #[serde(rename = "createToken", skip_serializing_if = "Option::is_none")]
+    pub create_token: Option<WorldpayxmlCreateToken>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldpayxmlCreateToken {
+    #[serde(rename = "@tokenScope")]
+    pub token_scope: String,
+    pub token_event_reference: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -79,6 +89,8 @@ pub struct WorldpayxmlPaymentDetails {
     pub action: WorldpayxmlAction,
     #[serde(rename = "$value")]
     pub payment_method: WorldpayxmlPaymentMethod,
+    #[serde(rename = "storedCredentials", skip_serializing_if = "Option::is_none")]
+    pub stored_credentials: Option<WorldpayxmlStoredCredentials>,
 }
 
 #[derive(Debug, Serialize)]
@@ -90,6 +102,45 @@ pub enum WorldpayxmlPaymentMethod {
     Visa(WorldpayxmlCard),
     #[serde(rename = "ECMC-SSL")]
     Ecmc(WorldpayxmlCard),
+    #[serde(rename = "TOKEN-SSL")]
+    Token(WorldpayxmlTokenCard),
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldpayxmlTokenCard {
+    #[serde(rename = "@tokenScope")]
+    pub token_scope: String,
+    pub payment_token_i_d: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldpayxmlStoredCredentials {
+    #[serde(rename = "@usage")]
+    pub usage: WorldpayxmlCredentialsUsage,
+    #[serde(
+        rename = "@merchantInitiatedReason",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub merchant_initiated_reason: Option<WorldpayxmlMandateType>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scheme_transaction_identifier: Option<Secret<String>>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum WorldpayxmlCredentialsUsage {
+    First,
+    Used,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum WorldpayxmlMandateType {
+    Recurring,
+    Unscheduled,
+    Instalment,
 }
 
 #[derive(Debug, Serialize)]
@@ -122,6 +173,11 @@ pub struct WorldpayxmlShopper {
         skip_serializing_if = "Option::is_none"
     )]
     pub shopper_email_address: Option<common_utils::Email>,
+    #[serde(
+        rename = "authenticatedShopperID",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub authenticated_shopper_id: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub browser: Option<WorldpayxmlBrowser>,
 }
@@ -318,3 +374,9 @@ pub struct WorldpayxmlOrderInquiry {
 
 // Type alias for RSync - reuses PSync request structure
 pub type WorldpayxmlRSyncRequest = WorldpayxmlPSyncRequest;
+
+// Type alias for SetupMandate - reuses Payments request structure (zero-dollar auth)
+pub type WorldpayxmlSetupMandateRequest = WorldpayxmlPaymentsRequest;
+
+// Type alias for RepeatPayment (MIT) - reuses Payments request structure with TOKEN-SSL + storedCredentials
+pub type WorldpayxmlRepeatPaymentRequest = WorldpayxmlPaymentsRequest;
