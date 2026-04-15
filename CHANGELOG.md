@@ -19,6 +19,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.04.06.1-hotfix1
+
+### Bug Fixes
+
+- **connector:** [Truelayer] Change payment method type from OpenBankingUK to OpenBanking ([#1080](https://github.com/juspay/connector-service/pull/1080)) ([`abae79f`](https://github.com/juspay/connector-service/commit/abae79f47145da2145fb4c39333345e4cb4547a4))
+- Add Open Banking in PaymentMethodType ([#1040](https://github.com/juspay/connector-service/pull/1040)) ([`7d578db`](https://github.com/juspay/connector-service/commit/7d578db0f7fd2f0ddbb74f9032372d5bd56366e2))
+
+**Full Changelog:** [`2026.04.06.1...2026.04.06.1-hotfix1`](https://github.com/juspay/connector-service/compare/2026.04.06.1...2026.04.06.1-hotfix1)
+
+- - -
+
 ## 2026.04.06.1
 
 ### Features
