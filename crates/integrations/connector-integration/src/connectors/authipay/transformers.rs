@@ -1268,8 +1268,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 /// duplicating fields.
 pub type AuthipayIncrementalAuthResponse = AuthipayPaymentsResponse;
 
-impl
-    TryFrom<ResponseRouterData<AuthipayIncrementalAuthResponse, Self>>
+impl TryFrom<ResponseRouterData<AuthipayIncrementalAuthResponse, Self>>
     for RouterDataV2<
         IncrementalAuthorization,
         PaymentFlowData,

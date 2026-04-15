@@ -51,7 +51,7 @@ connector_id: authipay
 doc: docs/connectors/authipay.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Card
-flows: authorize, capture, get, proxy_authorize, refund, refund_get, void
+flows: authorize, capture, get, incremental_authorization, proxy_authorize, refund, refund_get, void
 examples_python: examples/authipay/authipay.py
 
 ## Authorize.net
