@@ -7,7 +7,7 @@ use domain_types::{
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
         ResponseId, SetupMandateRequestData,
     },
-    errors::{ConnectorError, IntegrationError},
+    errors::{ConnectorError, IntegrationError, ResponseTransformationErrorContext},
     payment_method_data::{self, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
@@ -544,10 +544,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 }
 
 // SetupMandate response — adds a `card` object with the saved `card_id` on top of
-// the standard payment response fields.
+// the standard payment response fields. Per dLocal's Save-Card API the saved token
+// is returned as `card.card_id` (same field consumed by the RepeatPayment/MIT flow
+// above, see `DlocalRepeatPaymentCard`).
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct DlocalSetupMandateCardData {
-    pub id: Option<String>,
     pub card_id: Option<String>,
 }
 
@@ -581,13 +582,35 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .or(item.response.redirect_url)
             .map(|redirect_url| RedirectForm::from((redirect_url, Method::Get)));
 
-        // Extract the saved card identifier from the response. dLocal may return
-        // it as `card.id` or `card.card_id` depending on the endpoint version.
+        // Extract the saved card identifier from the response. Per dLocal's
+        // Save-Card API contract the token is returned on `card.card_id`.
         let connector_mandate_id = item
             .response
             .card
             .as_ref()
-            .and_then(|c| c.id.clone().or_else(|| c.card_id.clone()));
+            .and_then(|c| c.card_id.clone());
+
+        // SetupMandate only succeeds if dLocal hands us a tokenised card_id —
+        // otherwise the downstream RepeatPayment (MIT) flow has nothing to
+        // reference. Fail fast on AUTHORIZED / PAID responses that are missing
+        // the token rather than silently completing with `mandate_reference = None`.
+        let is_successful = matches!(
+            item.response.status,
+            DlocalPaymentStatus::Authorized | DlocalPaymentStatus::Paid
+        );
+        if is_successful && connector_mandate_id.is_none() {
+            return Err(ConnectorError::UnexpectedResponseError {
+                context: ResponseTransformationErrorContext {
+                    http_status_code: Some(item.http_code),
+                    additional_context: Some(
+                        "dLocal SetupMandate succeeded but response is missing `card.card_id` — \
+                         cannot build MandateReference for downstream RepeatPayment (MIT) flow."
+                            .to_string(),
+                    ),
+                },
+            }
+            .into());
+        }
 
         let mandate_reference = connector_mandate_id.map(|card_id| MandateReference {
             connector_mandate_id: Some(card_id),
