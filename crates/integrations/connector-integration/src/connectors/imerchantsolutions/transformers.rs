@@ -1,5 +1,5 @@
-use common_enums::{self, AttemptStatus, CountryAlpha2, Currency, RefundStatus};
-use common_utils::{consts, pii, types::MinorUnit};
+use common_enums::{self, AttemptStatus, CaptureMethod, CountryAlpha2, Currency, RefundStatus};
+use common_utils::{consts, errors::ParsingError, pii, types::MinorUnit};
 use domain_types::{
     connector_flow::{Authorize, Capture, RSync, Refund, Void},
     connector_types::{
@@ -11,6 +11,7 @@ use domain_types::{
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
+    router_request_types::SyncRequestType,
     utils::is_payment_failure,
 };
 use error_stack::ResultExt;
@@ -305,7 +306,7 @@ enum ImerchantsolutionsPaymentStatus {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
-enum CaptureMode {
+pub enum CaptureMode {
     Auto,
     Manual,
 }
@@ -380,7 +381,7 @@ pub struct ImerchantsolutionsPSyncResponseData {
     captures: Vec<Captures>,
     currency: Currency,
     status: ImerchantsolutionsPaymentStatus,
-    capture_mode: Option<CaptureMode>,
+    capture_mode: CaptureMode,
     captured_at: Option<String>,
     can_capture: bool,
 }
@@ -394,6 +395,44 @@ struct Captures {
     captured_at: Option<String>,
 }
 
+impl utils::MultipleCaptureSyncResponse for ImerchantsolutionsPSyncResponseData {
+    fn get_connector_capture_id(&self) -> String {
+        self.payment_id.clone()
+    }
+
+    fn get_capture_attempt_status(&self) -> AttemptStatus {
+        let capture_method = match self.capture_mode {
+            CaptureMode::Auto => CaptureMethod::Automatic,
+            CaptureMode::Manual => {
+                if !self.captures.is_empty() && self.can_capture {
+                    CaptureMethod::ManualMultiple
+                } else {
+                    CaptureMethod::Manual
+                }
+            }
+        };
+
+        get_attempt_status(self.status.clone(), Some(capture_method))
+    }
+
+    fn get_connector_reference_id(&self) -> Option<String> {
+        Some(self.psp_reference.clone())
+    }
+
+    fn is_capture_response(&self) -> bool {
+        matches!(
+            self.status,
+            ImerchantsolutionsPaymentStatus::Captured
+                | ImerchantsolutionsPaymentStatus::PartiallyCaptured
+                | ImerchantsolutionsPaymentStatus::Pending
+        )
+    }
+
+    fn get_amount_captured(&self) -> Result<Option<MinorUnit>, error_stack::Report<ParsingError>> {
+        Ok(self.total_captured)
+    }
+}
+
 impl<F> TryFrom<ResponseRouterData<ImerchantsolutionsPSyncResponseData, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
@@ -401,6 +440,11 @@ impl<F> TryFrom<ResponseRouterData<ImerchantsolutionsPSyncResponseData, Self>>
     fn try_from(
         item: ResponseRouterData<ImerchantsolutionsPSyncResponseData, Self>,
     ) -> Result<Self, Self::Error> {
+        let is_multiple_capture_psync_flow = match item.router_data.request.sync_type {
+            SyncRequestType::MultipleCaptureSync => true,
+            SyncRequestType::SinglePaymentSync => false,
+        };
+
         let status = get_attempt_status(
             item.response.status.clone(),
             item.router_data.request.capture_method,
@@ -425,6 +469,24 @@ impl<F> TryFrom<ResponseRouterData<ImerchantsolutionsPSyncResponseData, Self>>
                     ..item.router_data.resource_common_data
                 },
                 response: Err(error_response),
+                ..item.router_data
+            })
+        } else if is_multiple_capture_psync_flow {
+            let capture_sync_response_list =
+                utils::construct_captures_response_hashmap(vec![item.response.clone()])
+                    .change_context(utils::response_handling_fail_for_connector(
+                        item.http_code,
+                        "imerchantsolutions",
+                    ))?;
+
+            Ok(Self {
+                resource_common_data: PaymentFlowData {
+                    status,
+                    ..item.router_data.resource_common_data
+                },
+                response: Ok(PaymentsResponseData::MultipleCaptureResponse {
+                    capture_sync_response_list,
+                }),
                 ..item.router_data
             })
         } else {
@@ -757,7 +819,7 @@ impl TryFrom<ResponseRouterData<ImerchantsolutionsRsyncResponse, Self>>
 
 fn get_attempt_status(
     item: ImerchantsolutionsPaymentStatus,
-    capture_method: Option<common_enums::CaptureMethod>,
+    capture_method: Option<CaptureMethod>,
 ) -> AttemptStatus {
     match item {
         ImerchantsolutionsPaymentStatus::Authorised
@@ -766,9 +828,7 @@ fn get_attempt_status(
         ImerchantsolutionsPaymentStatus::Pending3ds => AttemptStatus::AuthenticationPending,
         ImerchantsolutionsPaymentStatus::Cancelled => AttemptStatus::Voided,
         ImerchantsolutionsPaymentStatus::PartiallyCaptured => match capture_method {
-            Some(common_enums::CaptureMethod::ManualMultiple) => {
-                AttemptStatus::PartialChargedAndChargeable
-            }
+            Some(CaptureMethod::ManualMultiple) => AttemptStatus::PartialChargedAndChargeable,
             _ => AttemptStatus::PartialCharged,
         },
         ImerchantsolutionsPaymentStatus::Captured
@@ -783,14 +843,12 @@ fn get_attempt_status(
 
 fn get_capture_status(
     capture_status: ImerchantsolutionsCaptureStatus,
-    capture_method: Option<common_enums::CaptureMethod>,
+    capture_method: Option<CaptureMethod>,
 ) -> AttemptStatus {
     match capture_status {
         ImerchantsolutionsCaptureStatus::Received => AttemptStatus::CaptureInitiated,
         ImerchantsolutionsCaptureStatus::PartiallyCaptured => match capture_method {
-            Some(common_enums::CaptureMethod::ManualMultiple) => {
-                AttemptStatus::PartialChargedAndChargeable
-            }
+            Some(CaptureMethod::ManualMultiple) => AttemptStatus::PartialChargedAndChargeable,
             _ => AttemptStatus::PartialCharged,
         },
         ImerchantsolutionsCaptureStatus::Captured => AttemptStatus::Charged,

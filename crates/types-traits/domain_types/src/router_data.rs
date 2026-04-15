@@ -1908,10 +1908,10 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 merchant_id: ppro.merchant_id.ok_or_else(err)?,
                 base_url: ppro.base_url,
             }),
-            AuthType::Imerchantsolutions(imerchantsolutions) => Ok(Self::Imerchantsolutions { 
-                api_key:imerchantsolutions.api_key.ok_or_else(err)?,
-                base_url:imerchantsolutions.base_url, 
-            })
+            AuthType::Imerchantsolutions(imerchantsolutions) => Ok(Self::Imerchantsolutions {
+                api_key: imerchantsolutions.api_key.ok_or_else(err)?,
+                base_url: imerchantsolutions.base_url,
+            }),
         }
     }
 }
