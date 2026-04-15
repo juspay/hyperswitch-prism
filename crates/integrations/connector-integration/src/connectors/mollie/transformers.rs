@@ -332,6 +332,16 @@ pub struct MolliePaymentsResponse {
     pub created_at: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub expires_at: Option<String>,
+    // Mollie mandate id (mdt_xxx) is present once a card mandate has been
+    // minted by a settled first payment, or on recurring payments that used
+    // an explicit mandate. Absent on un-settled first payments.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mandate_id: Option<String>,
+    // Mollie customer id (cst_xxx) is echoed back on payments created for a
+    // customer. Useful for surfacing on mandate_reference so downstream MIT
+    // flows can locate the customer without an explicit lookup.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub customer_id: Option<String>,
     #[serde(rename = "_links")]
     pub links: MollieLinks,
 }
@@ -1404,8 +1414,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 // is the anchor of the mandate. Subsequent recurring charges reference either
 // the customer id alone (and Mollie picks the valid mandate) or the explicit
 // mandate id (mdt_xxx) which is created server-side after the first payment
-// settles. We surface the payment id as connector_mandate_id to give Repeat
-// flows a concrete reference.
+// settles. Prefer the real mandate id (mdt_xxx) when the response carries it
+// (settled first payments), and fall back to the anchor payment id (tr_xxx)
+// for unsettled first payments so downstream flows still have a reference.
 impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<MolliePaymentsResponse, Self>>
     for RouterDataV2<
         SetupMandate,
@@ -1431,15 +1442,30 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<MolliePaymentsRespons
         });
 
         // Pull the connector customer id off the router_data so downstream
-        // consumers have it available on the mandate reference.
+        // consumers have it available on the mandate reference. Prefer the
+        // customer id echoed by Mollie on the response (authoritative), but
+        // fall back to the router-data's connector_customer if the response
+        // omits it.
         let connector_customer_id = item
-            .router_data
-            .resource_common_data
-            .connector_customer
-            .clone();
+            .response
+            .customer_id
+            .clone()
+            .or_else(|| item.router_data.resource_common_data.connector_customer.clone());
+
+        // Prefer real Mollie mandate id (mdt_xxx) when present — this is
+        // minted once the first payment settles. Before then, surface the
+        // anchor payment id (tr_xxx) so downstream MIT charges have a
+        // reference; Mollie will reject a tr_xxx in mandateId, but our
+        // RepeatPayment transformer filters that out and lets Mollie pick
+        // the customer's valid mandate when only the customer id is sent.
+        let connector_mandate_id = item
+            .response
+            .mandate_id
+            .clone()
+            .or_else(|| Some(item.response.id.clone()));
 
         let mandate_reference = MandateReference {
-            connector_mandate_id: Some(item.response.id.clone()),
+            connector_mandate_id,
             payment_method_id: connector_customer_id,
             connector_mandate_request_reference_id: None,
         };
