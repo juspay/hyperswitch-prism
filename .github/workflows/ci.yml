@@ -197,8 +197,6 @@ jobs:
 
       - name: Generate documentation
         if: needs.changes.outputs.docs-trigger == 'true' || needs.changes.outputs.ci == 'true'
-        env:
-          RUSTUP_TOOLCHAIN: stable
         run: |
           echo "Generating all-connectors coverage document..."
           make all-connectors-doc
