@@ -662,8 +662,21 @@ def run_rust_test_batch(
     invalid_connectors = [c for c in connectors if c not in valid]
 
     # Use the pre-built binary directly to avoid any cargo lock during parallel tests.
-    # Always use the default target directory (without --target flag).
-    binary = repo_root / "target" / "release-fast" / "hyperswitch-smoke-test"
+    # Check both locations: with and without platform subdirectory (CI uses --target flag)
+    binary_no_platform = repo_root / "target" / "release-fast" / "hyperswitch-smoke-test"
+    
+    # Look for binary in any platform-specific subdirectory
+    binary_with_platform = None
+    target_dir = repo_root / "target"
+    if target_dir.exists():
+        for platform_dir in target_dir.iterdir():
+            if platform_dir.is_dir() and "-" in platform_dir.name:  # Looks like a target triple
+                candidate = platform_dir / "release-fast" / "hyperswitch-smoke-test"
+                if candidate.exists():
+                    binary_with_platform = candidate
+                    break
+    
+    binary = binary_with_platform if binary_with_platform else binary_no_platform
 
     if not binary.exists():
         # Fall back to cargo run if binary not found

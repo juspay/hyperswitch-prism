@@ -555,7 +555,7 @@ jobs:
         shell: bash
         run: |
           echo "Running SDK mock tests (no real HTTP calls)"
-          make -C sdk test-mock FFI_SKIP_BUILD=1 PROFILE=release-fast
+          python3 scripts/run_smoke_tests_parallel.py --mock --all --sdks python,javascript,kotlin,rust
 
       - name: Run SDK gRPC Tests
         shell: bash
