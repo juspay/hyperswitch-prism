@@ -1036,22 +1036,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         // Build urlDetails from router_return_url if available
         // Note: Nuvei rejects localhost URLs in payment.do endpoint
-        let url_details =
-            router_data
-                .request
-                .router_return_url
-                .as_ref()
-                .map(|url| {
-                    let url_str = match consts::Env::current_env() {
-                        consts::Env::Development => "https://example.com".to_string(),
-                        _ => url.clone(),
-                    };
-                    NuveiUrlDetails {
-                        success_url: url_str.clone(),
-                        failure_url: url_str.clone(),
-                        pending_url: url_str,
-                    }
-                });
+        let url_details = router_data.request.router_return_url.as_ref().map(|url| {
+            let url_str = match consts::Env::current_env() {
+                consts::Env::Development => "https://example.com".to_string(),
+                _ => url.clone(),
+            };
+            NuveiUrlDetails {
+                success_url: url_str.clone(),
+                failure_url: url_str.clone(),
+                pending_url: url_str,
+            }
+        });
 
         // Generate checksum: merchantId + merchantSiteId + clientRequestId + amount + currency + timeStamp + merchantSecretKey
         let checksum = auth.generate_checksum(&[
