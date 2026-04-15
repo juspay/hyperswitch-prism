@@ -99,6 +99,7 @@ let config = ConnectorConfig {
 | [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
 | [PaymentService.ProxySetupRecurring](#paymentserviceproxysetuprecurring) | Payments | `PaymentServiceProxySetupRecurringRequest` |
+| [RecurringPaymentService.Charge](#recurringpaymentservicecharge) | Mandates | `RecurringPaymentServiceChargeRequest` |
 | [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
 | [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
 | [PaymentService.SetupRecurring](#paymentservicesetuprecurring) | Payments | `PaymentServiceSetupRecurringRequest` |
@@ -117,7 +118,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/paysafe/paysafe.py#L198) · [TypeScript](../../examples/paysafe/paysafe.ts#L179) · [Kotlin](../../examples/paysafe/paysafe.kt#L85) · [Rust](../../examples/paysafe/paysafe.rs#L185)
+**Examples:** [Python](../../examples/paysafe/paysafe.py#L224) · [TypeScript](../../examples/paysafe/paysafe.ts#L202) · [Kotlin](../../examples/paysafe/paysafe.kt#L88) · [Rust](../../examples/paysafe/paysafe.rs#L212)
 
 #### PaymentService.Get
 
@@ -128,7 +129,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/paysafe/paysafe.py#L207) · [TypeScript](../../examples/paysafe/paysafe.ts#L188) · [Kotlin](../../examples/paysafe/paysafe.kt#L95) · [Rust](../../examples/paysafe/paysafe.rs#L192)
+**Examples:** [Python](../../examples/paysafe/paysafe.py#L233) · [TypeScript](../../examples/paysafe/paysafe.ts#L211) · [Kotlin](../../examples/paysafe/paysafe.kt#L98) · [Rust](../../examples/paysafe/paysafe.rs#L219)
 
 #### PaymentService.ProxySetupRecurring
 
@@ -139,7 +140,7 @@ Setup recurring mandate using vault-aliased card data.
 | **Request** | `PaymentServiceProxySetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/paysafe/paysafe.py#L216) · [TypeScript](../../examples/paysafe/paysafe.ts#L197) · [Kotlin](../../examples/paysafe/paysafe.kt#L103) · [Rust](../../examples/paysafe/paysafe.rs#L199)
+**Examples:** [Python](../../examples/paysafe/paysafe.py#L242) · [TypeScript](../../examples/paysafe/paysafe.ts#L220) · [Kotlin](../../examples/paysafe/paysafe.kt#L106) · [Rust](../../examples/paysafe/paysafe.rs#L226)
 
 #### PaymentService.Refund
 
@@ -150,7 +151,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/paysafe/paysafe.py#L225) · [TypeScript](../../examples/paysafe/paysafe.ts#L206) · [Kotlin](../../examples/paysafe/paysafe.kt#L135) · [Rust](../../examples/paysafe/paysafe.rs#L206)
+**Examples:** [Python](../../examples/paysafe/paysafe.py#L260) · [TypeScript](../../examples/paysafe/paysafe.ts#L238) · [Kotlin](../../examples/paysafe/paysafe.kt#L169) · [Rust](../../examples/paysafe/paysafe.rs#L240)
 
 #### PaymentService.SetupRecurring
 
@@ -161,7 +162,7 @@ Configure a payment method for recurring billing. Sets up the mandate and paymen
 | **Request** | `PaymentServiceSetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/paysafe/paysafe.py#L243) · [TypeScript](../../examples/paysafe/paysafe.ts#L224) · [Kotlin](../../examples/paysafe/paysafe.kt#L157) · [Rust](../../examples/paysafe/paysafe.rs#L220)
+**Examples:** [Python](../../examples/paysafe/paysafe.py#L278) · [TypeScript](../../examples/paysafe/paysafe.ts#L256) · [Kotlin](../../examples/paysafe/paysafe.kt#L191) · [Rust](../../examples/paysafe/paysafe.rs#L254)
 
 #### PaymentService.TokenAuthorize
 
@@ -172,7 +173,7 @@ Authorize using a connector-issued payment method token.
 | **Request** | `PaymentServiceTokenAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/paysafe/paysafe.py#L252) · [TypeScript](../../examples/paysafe/paysafe.ts#L233) · [Kotlin](../../examples/paysafe/paysafe.kt#L196) · [Rust](../../examples/paysafe/paysafe.rs#L230)
+**Examples:** [Python](../../examples/paysafe/paysafe.py#L287) · [TypeScript](../../examples/paysafe/paysafe.ts#L265) · [Kotlin](../../examples/paysafe/paysafe.kt#L230) · [Rust](../../examples/paysafe/paysafe.rs#L264)
 
 #### PaymentMethodService.Tokenize
 
@@ -183,7 +184,7 @@ Tokenize payment method for secure storage. Replaces raw card details with secur
 | **Request** | `PaymentMethodServiceTokenizeRequest` |
 | **Response** | `PaymentMethodServiceTokenizeResponse` |
 
-**Examples:** [Python](../../examples/paysafe/paysafe.py#L261) · [TypeScript](../../examples/paysafe/paysafe.ts#L242) · [Kotlin](../../examples/paysafe/paysafe.kt#L217) · [Rust](../../examples/paysafe/paysafe.rs#L237)
+**Examples:** [Python](../../examples/paysafe/paysafe.py#L296) · [TypeScript](../../examples/paysafe/paysafe.ts#L274) · [Kotlin](../../examples/paysafe/paysafe.kt#L251) · [Rust](../../examples/paysafe/paysafe.rs#L271)
 
 #### PaymentService.Void
 
@@ -194,7 +195,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/paysafe/paysafe.py#L270) · [TypeScript](../../examples/paysafe/paysafe.ts) · [Kotlin](../../examples/paysafe/paysafe.kt#L244) · [Rust](../../examples/paysafe/paysafe.rs#L244)
+**Examples:** [Python](../../examples/paysafe/paysafe.py#L305) · [TypeScript](../../examples/paysafe/paysafe.ts) · [Kotlin](../../examples/paysafe/paysafe.kt#L278) · [Rust](../../examples/paysafe/paysafe.rs#L278)
 
 ### Refunds
 
@@ -207,4 +208,17 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/paysafe/paysafe.py#L234) · [TypeScript](../../examples/paysafe/paysafe.ts#L215) · [Kotlin](../../examples/paysafe/paysafe.kt#L145) · [Rust](../../examples/paysafe/paysafe.rs#L213)
+**Examples:** [Python](../../examples/paysafe/paysafe.py#L269) · [TypeScript](../../examples/paysafe/paysafe.ts#L247) · [Kotlin](../../examples/paysafe/paysafe.kt#L179) · [Rust](../../examples/paysafe/paysafe.rs#L247)
+
+### Mandates
+
+#### RecurringPaymentService.Charge
+
+Charge using an existing stored recurring payment instruction. Processes repeat payments for subscriptions or recurring billing without collecting payment details.
+
+| | Message |
+|---|---------|
+| **Request** | `RecurringPaymentServiceChargeRequest` |
+| **Response** | `RecurringPaymentServiceChargeResponse` |
+
+**Examples:** [Python](../../examples/paysafe/paysafe.py#L251) · [TypeScript](../../examples/paysafe/paysafe.ts#L229) · [Kotlin](../../examples/paysafe/paysafe.kt#L138) · [Rust](../../examples/paysafe/paysafe.rs#L233)

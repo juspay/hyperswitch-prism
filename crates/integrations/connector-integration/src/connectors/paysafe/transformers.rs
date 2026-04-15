@@ -105,7 +105,9 @@ pub(crate) fn encode_paysafe_mandate_id(
 /// the second element is returned as `None`.
 pub(crate) fn decode_paysafe_mandate_id(packed: &str) -> (String, Option<String>) {
     match packed.split_once(PAYSAFE_MANDATE_ID_SEPARATOR) {
-        Some((token, txn_id)) if !txn_id.is_empty() => (token.to_string(), Some(txn_id.to_string())),
+        Some((token, txn_id)) if !txn_id.is_empty() => {
+            (token.to_string(), Some(txn_id.to_string()))
+        }
         _ => (packed.to_string(), None),
     }
 }
