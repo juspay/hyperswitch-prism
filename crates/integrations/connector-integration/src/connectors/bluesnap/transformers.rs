@@ -54,8 +54,8 @@ pub use responses::{
     BluesnapProcessingStatus, BluesnapRedirectionResponse, BluesnapRefundResponse,
     BluesnapRefundStatus, BluesnapRefundSyncResponse, BluesnapRepeatPaymentResponse,
     BluesnapSetupMandateResponse, BluesnapThreeDsReference, BluesnapThreeDsResult,
-    BluesnapVoidResponse, BluesnapWebhookBody, BluesnapWebhookEvent,
-    BluesnapWebhookObjectResource, RedirectErrorMessage,
+    BluesnapVoidResponse, BluesnapWebhookBody, BluesnapWebhookEvent, BluesnapWebhookObjectResource,
+    RedirectErrorMessage,
 };
 
 const DISPLAY_METADATA: &str = "Y";
@@ -1203,12 +1203,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // here — network mandate ids / network-token NTIs aren't applicable to
         // its vaulted-shopper flow.
         let vaulted_shopper_id_str: String = match &router_data.request.mandate_reference {
-            MandateReferenceId::ConnectorMandateId(ids) => ids
-                .get_connector_mandate_id()
-                .ok_or(IntegrationError::MissingRequiredField {
-                    field_name: "mandate_reference.connector_mandate_id",
-                    context: Default::default(),
-                })?,
+            MandateReferenceId::ConnectorMandateId(ids) => {
+                ids.get_connector_mandate_id()
+                    .ok_or(IntegrationError::MissingRequiredField {
+                        field_name: "mandate_reference.connector_mandate_id",
+                        context: Default::default(),
+                    })?
+            }
             MandateReferenceId::NetworkMandateId(_)
             | MandateReferenceId::NetworkTokenWithNTI(_) => {
                 return Err(IntegrationError::NotImplemented(
@@ -1290,8 +1291,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 PaymentsResponseData,
             >,
         >,
-    >
-    for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
+    > for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
 

@@ -836,7 +836,8 @@
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Invalid data format: mandate_reference.connector_mandate_id"
       }
     },
     "recurring_revoke": {
