@@ -11,8 +11,8 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Accept, Authorize, Capture, ClientAuthenticationToken, CreateOrder, DefendDispute, PSync,
-        Refund, RepeatPayment, SetupMandate, SubmitEvidence, Void,
+        Accept, Authorize, Capture, ClientAuthenticationToken, CreateOrder, DefendDispute,
+        IncrementalAuthorization, PSync, Refund, RepeatPayment, SetupMandate, SubmitEvidence, Void,
     },
     connector_types::{
         AcceptDisputeData,
@@ -21,9 +21,10 @@ use domain_types::{
         ConnectorSpecificClientAuthenticationResponse, DisputeDefendData, DisputeFlowData,
         DisputeResponseData, EventType, MandateReference, MandateReferenceId,
         PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentMethodUpdate,
-        PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
-        PaymentsSyncData, RefundFlowData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        ResponseId, SetupMandateRequestData, SubmitEvidenceData,
+        PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsIncrementalAuthorizationData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
+        SetupMandateRequestData, SubmitEvidenceData,
     },
     payment_method_data::{
         ApplePayPaymentData, BankDebitData, BankRedirectData, BankTransferData, Card,
@@ -7647,6 +7648,124 @@ impl TryFrom<ResponseRouterData<AdyenOrderCreateResponse, Self>>
                 connector_order_id: Some(connector_order_id),
                 ..item.router_data.resource_common_data
             },
+            ..item.router_data
+        })
+    }
+}
+
+// ==================== Incremental Authorization ====================
+// Adyen endpoint: POST /v68/payments/{paymentPspReference}/amountUpdates
+// The `amount.value` is the new total authorized amount (replaces original).
+// Response HTTP 201 indicates the adjustment request was accepted; the final
+// outcome is delivered asynchronously via the AUTHORISATION_ADJUSTMENT webhook.
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdyenIncrementalAuthRequest {
+    pub merchant_account: Secret<String>,
+    pub amount: Amount,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reference: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub industry_usage: Option<String>,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        AdyenRouterData<
+            RouterDataV2<
+                IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for AdyenIncrementalAuthRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        item: AdyenRouterData<
+            RouterDataV2<
+                IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let auth_type = AdyenAuthType::try_from(&item.router_data.connector_config)?;
+        Ok(Self {
+            merchant_account: auth_type.merchant_account,
+            amount: Amount {
+                currency: item.router_data.request.currency,
+                value: item.router_data.request.minor_amount.to_owned(),
+            },
+            reference: Some(
+                item.router_data
+                    .resource_common_data
+                    .connector_request_reference_id
+                    .clone(),
+            ),
+            industry_usage: None,
+        })
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdyenIncrementalAuthResponse {
+    pub psp_reference: String,
+    #[serde(default)]
+    pub payment_psp_reference: Option<String>,
+    #[serde(default)]
+    pub amount: Option<Amount>,
+    #[serde(default)]
+    pub merchant_account: Option<String>,
+    #[serde(default)]
+    pub reference: Option<String>,
+    #[serde(default)]
+    pub status: Option<String>,
+}
+
+impl TryFrom<ResponseRouterData<AdyenIncrementalAuthResponse, Self>>
+    for RouterDataV2<
+        IncrementalAuthorization,
+        PaymentFlowData,
+        PaymentsIncrementalAuthorizationData,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<AdyenIncrementalAuthResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        // Adyen returns HTTP 201 with a pspReference to confirm the adjustment
+        // request was accepted. The final authorization outcome is delivered
+        // asynchronously via the AUTHORISATION_ADJUSTMENT webhook, so a 2xx
+        // response here maps to Processing (pending) by default. If the body
+        // carries an explicit `status` field indicating refusal, map to Failure.
+        let authorization_status = if item.http_code >= 200 && item.http_code < 300 {
+            match item.response.status.as_deref() {
+                Some("Refused") | Some("Declined") | Some("Error") | Some("Failed") => {
+                    common_enums::AuthorizationStatus::Failure
+                }
+                Some("Authorised") | Some("received") | Some("Success") => {
+                    common_enums::AuthorizationStatus::Success
+                }
+                _ => common_enums::AuthorizationStatus::Processing,
+            }
+        } else {
+            common_enums::AuthorizationStatus::Failure
+        };
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
+                status: authorization_status,
+                connector_authorization_id: Some(item.response.psp_reference.clone()),
+                status_code: item.http_code,
+            }),
             ..item.router_data
         })
     }
