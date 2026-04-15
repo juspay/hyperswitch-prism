@@ -6,6 +6,6 @@
     "capture",
     "void",
     "refund",
-    "refund_get"
+    "refund_sync"
   ]
 }
