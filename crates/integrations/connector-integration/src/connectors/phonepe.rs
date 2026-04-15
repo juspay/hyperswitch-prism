@@ -269,7 +269,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // XOR accumulation avoids early-exit leaks.
         let a = incoming_verify.as_bytes();
         let b = expected_checksum.as_bytes();
-        Ok(a.len() == b.len() && a.iter().zip(b.iter()).fold(0u8, |acc, (x, y)| acc | (x ^ y)) == 0)
+        Ok(a.len() == b.len()
+            && a.iter()
+                .zip(b.iter())
+                .fold(0u8, |acc, (x, y)| acc | (x ^ y))
+                == 0)
     }
 
     fn get_event_type(
