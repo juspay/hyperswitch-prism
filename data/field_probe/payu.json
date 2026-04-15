@@ -587,23 +587,33 @@
       "default": {
         "status": "supported",
         "proto_request": {
-          "merchant_charge_id": "probe_mit_001",
           "connector_recurring_payment_id": {
-            "connector_mandate_id": "403993715537225922"
+            "mandate_id_type": {
+              "connector_mandate_id": {
+                "connector_mandate_id": "probe-mandate-123"
+              }
+            }
           },
           "amount": {
-            "minor_amount": 100,
-            "currency": "INR"
+            "minor_amount": 1000,
+            "currency": "USD"
           },
-          "email": "test@example.com",
+          "payment_method": {
+            "token": {
+              "token": "probe_pm_token"
+            }
+          },
+          "return_url": "https://example.com/recurring-return",
           "address": {
             "billing_address": {
-              "first_name": "John",
-              "email": "test@example.com",
-              "phone_number": "9876543210",
-              "phone_country_code": "+91"
+              "phone_number": "4155552671",
+              "phone_country_code": "+1"
             }
-          }
+          },
+          "email": "test@example.com",
+          "connector_customer_id": "cust_probe_123",
+          "payment_method_type": "PAY_PAL",
+          "off_session": true
         },
         "sample": {
           "url": "https://test.payu.in//merchant/postservice.php?form=2",
@@ -613,7 +623,7 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "key=probe_key&command=si_transaction&var1=%7B%22authpayuid%22%3A%22403993715537225922%22%2C%22amount%22%3A%221.00%22%2C%22txnid%22%3A%22probe_mit_001%22%2C%22phone%22%3A%229876543210%22%2C%22email%22%3A%22test%40example.com%22%7D&hash=a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3"
+          "body": "key=probe_key&command=si_transaction&var1=%7B%22authpayuid%22%3A%22probe-mandate-123%22%2C%22amount%22%3A%2210.00%22%2C%22txnid%22%3A%22%22%2C%22phone%22%3A%22%2B14155552671%22%2C%22email%22%3A%22test%40example.com%22%7D&hash=a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3"
         }
       }
     },

@@ -1505,20 +1505,22 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         // The PayU authpayuid is the connector_mandate_id stored on
         // the mandate reference from the prior SetupMandate response.
-        let authpayuid = router_data
-            .request
-            .connector_mandate_id()
-            .ok_or(IntegrationError::MissingRequiredField {
+        let authpayuid = router_data.request.connector_mandate_id().ok_or(
+            IntegrationError::MissingRequiredField {
                 field_name: "connector_mandate_id",
                 context: Default::default(),
-            })?;
+            },
+        )?;
 
         // Convert the caller-supplied minor amount to the string-major
         // form PayU expects (e.g. "1.00").
         let amount = item
             .connector
             .amount_converter
-            .convert(router_data.request.minor_amount, router_data.request.currency)
+            .convert(
+                router_data.request.minor_amount,
+                router_data.request.currency,
+            )
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
