@@ -52,7 +52,8 @@ use crate::{
     connectors::paypal::transformers::{
         self as paypal, auth_headers, PaypalAuthResponse, PaypalAuthUpdateRequest,
         PaypalAuthUpdateResponse, PaypalCaptureResponse, PaypalClientAuthTokenRequest,
-        PaypalClientAuthTokenResponse, PaypalOrderCreateRequest, PaypalOrderCreateResponse,
+        PaypalClientAuthTokenResponse, PaypalIncrementalAuthRequest,
+        PaypalIncrementalAuthResponse, PaypalOrderCreateRequest, PaypalOrderCreateResponse,
         PaypalPaymentsCancelResponse, PaypalPaymentsCaptureRequest, PaypalPaymentsRequest,
         PaypalRefundRequest, PaypalRepeatPaymentRequest, PaypalRepeatPaymentResponse,
         PaypalSetupMandatesResponse, PaypalSyncResponse, PaypalZeroMandateRequest, RefundResponse,
@@ -70,16 +71,6 @@ pub(crate) mod headers {
 }
 
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        IncrementalAuthorization,
-        PaymentFlowData,
-        PaymentsIncrementalAuthorizationData,
-        PaymentsResponseData,
-    > for Paypal<T>
-{
-}
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentPreAuthenticateV2<T> for Paypal<T>
@@ -556,6 +547,12 @@ macros::create_all_prerequisites!(
             request_body: PaypalClientAuthTokenRequest,
             response_body: PaypalClientAuthTokenResponse,
             router_data: RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ),
+        (
+            flow: IncrementalAuthorization,
+            request_body: PaypalIncrementalAuthRequest,
+            response_body: PaypalIncrementalAuthResponse,
+            router_data: RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -1381,6 +1378,53 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}v1/identity/generate-token", self.connector_base_url_payments(req)))
+        }
+    }
+);
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Paypal,
+    curl_request: Json(PaypalIncrementalAuthRequest),
+    curl_response: PaypalIncrementalAuthResponse,
+    flow_name: IncrementalAuthorization,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsIncrementalAuthorizationData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            let access_token = req.resource_common_data
+                .access_token
+                .clone()
+                .ok_or(IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
+            let connector_metadata = req.resource_common_data.connector_feature_data
+                .as_ref()
+                .map(|secret| secret.clone().expose());
+            self.build_headers(
+                &access_token.access_token.expose(),
+                &req.resource_common_data.connector_request_reference_id,
+                &req.connector_config,
+                connector_metadata.as_ref(),
+            )
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            let connector_metadata_value = req.request.connector_feature_data.clone().map(|secret| secret.expose());
+            let paypal_meta: paypal::PaypalMeta = utils::to_connector_meta(connector_metadata_value)?;
+            let authorize_id = paypal_meta.authorize_id.ok_or(IntegrationError::RequestEncodingFailed { context: Default::default() })?;
+            Ok(format!(
+                "{}v2/payments/authorizations/{}/reauthorize",
+                self.connector_base_url_payments(req),
+                authorize_id,
+            ))
         }
     }
 );
