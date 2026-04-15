@@ -186,9 +186,9 @@ pub struct PinelabsOnlinePayer {
 pub struct PinelabsOnlineCardDetails {
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub card_number: Option<String>,
+    pub card_number: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub cvv: Option<String>,
+    pub cvv: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_4_digit: Option<String>,
     pub expiry_month: String,
@@ -446,8 +446,9 @@ impl<F, T> TryFrom<ResponseRouterData<PinelabsOnlineAccessTokenResponse, Self>>
                 .map(|expires_at| {
                     let now = time::OffsetDateTime::now_utc();
                     let duration = expires_at - now;
-                    // Subtract a small buffer (60 seconds) to avoid using an expired token
-                    duration.whole_seconds().max(0) - 60
+                    // Subtract a small buffer (60 seconds) to avoid using an expired token.
+                    // Use saturating_sub to prevent negative values when token has < 60s remaining.
+                    duration.whole_seconds().saturating_sub(60).max(0)
                 })
             });
 
@@ -694,8 +695,8 @@ fn build_card_details<T: PaymentMethodDataTypes>(
         .as_ref()
         .map(|n| n.peek().to_string())
         .unwrap_or_default();
-    let card_number = Some(card.card_number.peek().to_string());
-    let cvv = Some(card.card_cvc.peek().to_string());
+    let card_number = Some(Secret::new(card.card_number.peek().to_string()));
+    let cvv = Some(Secret::new(card.card_cvc.peek().to_string()));
     let expiry_month = card.card_exp_month.peek().to_string();
     let expiry_year = card.get_expiry_year_4_digit().peek().to_string();
 
@@ -853,7 +854,18 @@ impl<F, Req> TryFrom<ResponseRouterData<PinelabsOnlineResponse, Self>>
     ) -> Result<Self, Self::Error> {
         match item.response {
             PinelabsOnlineResponse::Success(response) => {
-                let status_str = response.data.status.as_deref().unwrap_or("PENDING");
+                // Prefer per-payment status from payments[0] over order-level status,
+                // as the order may contain multiple payments and the per-payment status
+                // is more accurate for the specific transaction.
+                let payment_status = response
+                    .data
+                    .payments
+                    .as_ref()
+                    .and_then(|payments| payments.first())
+                    .and_then(|p| p.status.as_deref());
+                let status_str = payment_status
+                    .or(response.data.status.as_deref())
+                    .unwrap_or("PENDING");
                 let pre_auth = response.data.pre_auth;
                 let status = get_payment_status(status_str, pre_auth);
 
