@@ -88,7 +88,7 @@ build-ffi-lib:
 		echo "FFI library already exists: $(LIBRARY)"; \
 	else \
 		echo "Building FFI shared library for $(PLATFORM) ($(PROFILE))..."; \
-		cd $(FFI_CRATE) && cargo build --no-default-features --features uniffi \
+		cd $(REPO_ROOT) && cargo build -p ffi --no-default-features --features ffi/uniffi \
 			--profile $(PROFILE) --target $(PLATFORM); \
 		echo "Build complete: $(LIBRARY)"; \
 	fi

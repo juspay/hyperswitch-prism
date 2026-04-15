@@ -166,6 +166,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2.7.8
         with:
           shared-key: "ci-rust"
+          save-if: false
 
       - name: Install Rust (nightly for fmt)
         uses: dtolnay/rust-toolchain@master
@@ -502,8 +503,9 @@ jobs:
         with:
           shared-key: "ci-rust-sdk"
 
-      - name: Cache FFI libraries and binaries
-        uses: actions/cache@v4
+      - name: Restore FFI libraries and binaries cache
+        id: ffi-cache-restore
+        uses: actions/cache/restore@v4
         with:
           path: |
             target/*/*/libconnector_service_ffi.so
@@ -513,7 +515,6 @@ jobs:
           key: ffi-sdk-${{ runner.os }}-${{ hashFiles('crates/ffi/**/*.rs', 'crates/internal/uniffi-bindgen/**/*.rs', 'sdk/rust/smoke-test/**/*.rs') }}
           restore-keys: |
             ffi-sdk-${{ runner.os }}-
-          save-always: true
 
       - name: Build FFI library and tooling
         run: |
@@ -588,6 +589,17 @@ jobs:
         shell: bash
         run: |
           git diff --exit-code || (echo "ERROR: Generated SDK code is out of date. Run 'make -C sdk generate' and commit the changes." && exit 1)
+
+      - name: Save FFI libraries and binaries cache
+        if: always() && steps.ffi-cache-restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            target/*/*/libconnector_service_ffi.so
+            target/*/*/libconnector_service_ffi.dylib
+            target/*/*/uniffi-bindgen
+            target/*/*/hyperswitch-smoke-test
+          key: ffi-sdk-${{ runner.os }}-${{ hashFiles('crates/ffi/**/*.rs', 'crates/internal/uniffi-bindgen/**/*.rs', 'sdk/rust/smoke-test/**/*.rs') }}
 
   # ── SDK gRPC Tests ────────────────────────────────────────────────────────
   # Builds the gRPC server/FFI and runs gRPC smoke tests across all SDKs.
@@ -668,8 +680,9 @@ jobs:
         with:
           shared-key: "ci-rust-sdk"
 
-      - name: Cache gRPC libraries and binaries
-        uses: actions/cache@v4
+      - name: Restore gRPC libraries and binaries cache
+        id: grpc-cache-restore
+        uses: actions/cache/restore@v4
         with:
           path: |
             target/*/*/libconnector_service_ffi.so
@@ -682,7 +695,6 @@ jobs:
           key: grpc-sdk-${{ runner.os }}-${{ hashFiles('crates/ffi/**/*.rs', 'sdk/grpc-ffi/**/*.rs', 'crates/internal/uniffi-bindgen/**/*.rs', 'sdk/rust/smoke-test/**/*.rs') }}
           restore-keys: |
             grpc-sdk-${{ runner.os }}-
-          save-always: true
 
       - name: Build gRPC server, FFI library, and tooling
         run: |
@@ -756,6 +768,20 @@ jobs:
         run: |
           echo "Running SDK gRPC tests"
           make -C sdk test-grpc GRPC_SKIP_BUILD=1 PROFILE=release-fast
+
+      - name: Save gRPC libraries and binaries cache
+        if: always() && steps.grpc-cache-restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            target/*/*/libconnector_service_ffi.so
+            target/*/*/libconnector_service_ffi.dylib
+            target/*/*/libhyperswitch_grpc_ffi.so
+            target/*/*/libhyperswitch_grpc_ffi.dylib
+            target/*/*/grpc-server
+            target/*/*/uniffi-bindgen
+            target/*/*/grpc-smoke-test
+          key: grpc-sdk-${{ runner.os }}-${{ hashFiles('crates/ffi/**/*.rs', 'sdk/grpc-ffi/**/*.rs', 'crates/internal/uniffi-bindgen/**/*.rs', 'sdk/rust/smoke-test/**/*.rs') }}
 
   # ── CI Gate ───────────────────────────────────────────────────────────────
   # Single required status check. Passes if all jobs succeeded, were skipped,

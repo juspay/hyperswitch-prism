@@ -226,6 +226,7 @@ endif
 # grpc-server doesn't use --target, so it's in the default target directory
 GRPC_SERVER_BIN := $(REPO_ROOT)/target/$(PLATFORM)/$(GRPC_PROFILE)/grpc-server
 
+
 # Internal target: wait for gRPC server to be ready (checks TCP port 8080)
 _wait-for-server:
 	@echo "Waiting for gRPC server (up to 30s)..."
@@ -261,7 +262,8 @@ test-grpc: _cleanup-grpc ## Run gRPC smoke tests for all SDKs (Rust + JS + Pytho
 			fi; \
 		else \
 			printf "Building grpc-server and gRPC FFI library ($(GRPC_PROFILE))...\n"; \
-			cd $(REPO_ROOT) && cargo build -p grpc-server -p hyperswitch-grpc-ffi --profile $(GRPC_PROFILE) --target $(PLATFORM); \
+			cd $(REPO_ROOT) && cargo build -p grpc-server -p hyperswitch-grpc-ffi \
+				--profile $(GRPC_PROFILE) --target $(PLATFORM); \
 		fi; \
 		\
 		printf "\nStarting gRPC server (shared across all tests)...\n"; \
