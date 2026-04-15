@@ -23,10 +23,7 @@ use crate::{connectors::easebuzz::EasebuzzRouterData, types::ResponseRouterData}
 
 /// Extract the inner string from a `StringMajorUnit` for use in hash computation.
 fn string_major_unit_to_string(amount: &StringMajorUnit) -> String {
-    serde_json::to_value(amount)
-        .ok()
-        .and_then(|v| v.as_str().map(|s| s.to_string()))
-        .unwrap_or_default()
+    amount.get_amount_as_string()
 }
 
 pub trait ForeignTryFrom<F>: Sized {
@@ -107,13 +104,14 @@ pub fn compute_initiate_link_hash(
     productinfo: &str,
     firstname: &str,
     email: &str,
-    salt: &str,
+    salt: &Secret<String>,
 ) -> String {
     use sha2::{Digest, Sha512};
     // udf1..udf10 are empty strings
     let empty = "";
+    let salt_str = salt.peek();
     let input = format!(
-        "{key}|{txnid}|{amount}|{productinfo}|{firstname}|{email}|{e}|{e}|{e}|{e}|{e}|{e}|{e}|{e}|{e}|{e}|{salt}",
+        "{key}|{txnid}|{amount}|{productinfo}|{firstname}|{email}|{e}|{e}|{e}|{e}|{e}|{e}|{e}|{e}|{e}|{e}|{salt_str}",
         e = empty
     );
     let mut hasher = Sha512::new();
@@ -222,7 +220,6 @@ impl
             .unwrap_or_else(|| "https://example.com/return".to_string());
 
         let key_str = auth.api_key.peek().to_string();
-        let salt_str = auth.api_salt.peek().to_string();
         let amount_for_hash = string_major_unit_to_string(&amount_str);
 
         let hash = compute_initiate_link_hash(
@@ -232,7 +229,7 @@ impl
             &productinfo,
             &firstname,
             &email,
-            &salt_str,
+            &auth.api_salt,
         );
 
         Ok(Self {

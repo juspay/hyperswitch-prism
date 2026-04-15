@@ -741,7 +741,7 @@ enum Connector {
   PPRO = 113;
   FISERVCOMMERCEHUB = 114;
   TRUSTLY = 115;
-  EASEBUZZ = 116;
+  EASEBUZZ = 117;
 }
 
 // Payment method types
@@ -4297,8 +4297,8 @@ message ConnectorSpecificConfig {
     // TRUSTLY = 116
     TrustlyConfig trustly = 115;
 
-    // EASEBUZZ = 116
-    EasebuzzConfig easebuzz = 116;
+    // EASEBUZZ = 117
+    EasebuzzConfig easebuzz = 117;
   }
 }
 

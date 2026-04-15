@@ -425,7 +425,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     }
 
     fn get_currency_unit(&self) -> CurrencyUnit {
-        CurrencyUnit::Minor
+        CurrencyUnit::Base
     }
 
     fn common_get_content_type(&self) -> &'static str {
