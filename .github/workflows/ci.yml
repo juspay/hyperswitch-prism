@@ -167,6 +167,10 @@ jobs:
       - uses: Swatinem/rust-cache@v2.7.8
         with:
           shared-key: "ci-rust"
+          cache-targets: true
+          cache-directories: |
+            target/x86_64-unknown-linux-gnu/release-fast
+            target/aarch64-unknown-linux-gnu/release-fast
 
       - name: Install Rust (nightly for fmt)
         uses: dtolnay/rust-toolchain@master
@@ -523,7 +527,6 @@ jobs:
             sdk-${{ runner.os }}-
 
       - name: Build SDK binaries
-        if: steps.sdk-cache-restore.outputs.cache-hit != 'true'
         run: |
           ARCH=$(uname -m)
           if [ "$ARCH" = "aarch64" ]; then
@@ -533,6 +536,21 @@ jobs:
           fi
           PROFILE="release-fast"
           
+          # Check which binaries are missing
+          MISSING_BINS=""
+          [ ! -f "target/${PLATFORM}/${PROFILE}/grpc-server" ] && MISSING_BINS="grpc-server ${MISSING_BINS}"
+          [ ! -f "target/${PLATFORM}/${PROFILE}/libconnector_service_ffi.so" ] && MISSING_BINS="ffi-lib ${MISSING_BINS}"
+          [ ! -f "target/${PLATFORM}/${PROFILE}/libhyperswitch_grpc_ffi.so" ] && MISSING_BINS="grpc-ffi-lib ${MISSING_BINS}"
+          [ ! -f "target/${PLATFORM}/${PROFILE}/uniffi-bindgen" ] && MISSING_BINS="uniffi-bindgen ${MISSING_BINS}"
+          [ ! -f "target/${PLATFORM}/${PROFILE}/hyperswitch-smoke-test" ] && MISSING_BINS="smoke-test ${MISSING_BINS}"
+          [ ! -f "target/${PLATFORM}/${PROFILE}/grpc-smoke-test" ] && MISSING_BINS="grpc-smoke-test ${MISSING_BINS}"
+          
+          if [ -z "$MISSING_BINS" ]; then
+            echo "All SDK binaries found in cache, skipping build"
+            exit 0
+          fi
+          
+          echo "Missing binaries: ${MISSING_BINS}"
           echo "Building SDK binaries for $PLATFORM..."
           
           # Build FFI library
