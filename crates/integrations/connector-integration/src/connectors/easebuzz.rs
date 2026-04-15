@@ -59,7 +59,6 @@ use crate::{types::ResponseRouterData, with_error_response_body, with_response_b
 
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
-    pub(crate) const AUTHORIZATION: &str = "Authorization";
 }
 
 // ============================================================================
