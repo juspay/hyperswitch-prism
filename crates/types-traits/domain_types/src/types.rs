@@ -4755,9 +4755,19 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
             _ => Err(report!(IntegrationError::InvalidDataFormat {
                 field_name: "payment_method",
                 context: IntegrationErrorContext {
-                    additional_context: Some("Unsupported payment method".to_string()),
-                    ..Default::default()
-                }
+                    suggested_action: Some(
+                        "Use a supported payment method: Card, Wallet, UPI, BankRedirect (Netbanking), or PayLater"
+                            .to_owned(),
+                    ),
+                    doc_url: Some(
+                        "https://razorpay.com/docs/api/payments/#supported-payment-methods"
+                            .to_owned(),
+                    ),
+                    additional_context: Some(
+                        "The provided payment method variant is not supported by Razorpay"
+                            .to_owned(),
+                    ),
+                },
             })),
         }
     }

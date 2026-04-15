@@ -263,7 +263,11 @@ impl TryFrom<&ConnectorSpecificConfig> for RazorpayAuthType {
                 }),
             },
             _ => Err(IntegrationError::FailedToObtainAuthType {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    suggested_action: Some("Pass Razorpay credentials via x-connector-config with api_key and api_secret".to_owned()),
+                    doc_url: Some("https://razorpay.com/docs/api/#authentication".to_owned()),
+                    additional_context: Some("Expected ConnectorSpecificConfig::Razorpay with api_key (key_id) and api_secret (key_secret)".to_owned()),
+                },
             }),
         }
     }
@@ -429,7 +433,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .and_then(|phone| phone.number.clone())
             .ok_or(IntegrationError::MissingRequiredField {
                 field_name: "contact",
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Provide billing phone number in the address".to_owned(),
+                    ),
+                    doc_url: Some(
+                        "https://razorpay.com/docs/api/payments/#create-a-payment".to_owned(),
+                    ),
+                    additional_context: Some(
+                        "Razorpay requires a contact phone number for payment creation".to_owned(),
+                    ),
+                },
             })?;
 
         let billing_email = item
@@ -442,18 +456,44 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .or(item.router_data.request.email.clone())
             .ok_or(IntegrationError::MissingRequiredField {
                 field_name: "email",
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Provide customer email in billing address or request".to_owned(),
+                    ),
+                    doc_url: Some(
+                        "https://razorpay.com/docs/api/payments/#create-a-payment".to_owned(),
+                    ),
+                    additional_context: Some(
+                        "Razorpay requires a customer email for payment creation".to_owned(),
+                    ),
+                },
             })?;
 
         let order_id = item
             .router_data
             .resource_common_data
-            .connector_order_id
-            .clone()
+            .reference_id
+            .as_ref()
             .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "connector_order_id",
-                context: Default::default(),
-            })?;
+                field_name: "order_id (reference_id)",
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Call `PaymentService.CreateOrder` first and pass the returned order id \
+                         as `merchant_order_id` (which becomes `reference_id` internally) on the \
+                         Authorize request."
+                            .to_owned(),
+                    ),
+                    doc_url: Some(
+                        "https://razorpay.com/docs/api/orders/#create-an-order".to_owned(),
+                    ),
+                    additional_context: Some(
+                        "Razorpay requires a pre-created `order_id` in the payment create \
+                         request; it cannot be omitted."
+                            .to_owned(),
+                    ),
+                },
+            })?
+            .clone();
 
         let customer_name = item.router_data.request.customer_name.clone();
         let browser_info_opt = item.router_data.request.browser_info.as_ref();
@@ -863,7 +903,13 @@ impl<F, Req>
                     .map(|action| action.url.clone())
                     .ok_or(IntegrationError::MissingRequiredField {
                         field_name: "next.url",
-                        context: Default::default(),
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "3DS redirect URL missing in Razorpay authorize response"
+                                    .to_owned(),
+                            ),
+                            ..Default::default()
+                        },
                     })?;
 
                 let form_fields = HashMap::new();
@@ -1514,7 +1560,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .as_ref()
                     .ok_or(IntegrationError::MissingRequiredField {
                         field_name: "vpa_id",
-                        context: Default::default(),
+                        context: IntegrationErrorContext {
+                            suggested_action: Some("Provide a valid VPA in upi_collect.vpa_id (e.g. user@upi)".to_owned()),
+                            doc_url: Some("https://razorpay.com/docs/api/payments/upi/#create-a-upi-payment".to_owned()),
+                            additional_context: Some("UPI collect requires a non-empty VPA to initiate a collect request".to_owned()),
+                        },
                     })?
                     .peek()
                     .to_string();
@@ -1525,15 +1575,30 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             _ => (None, None), // Default fallback
         };
 
-        // Get order_id from the CreateOrder response (stored in connector_order_id)
+        // Get order_id from the CreateOrder response (stored in reference_id)
         let order_id = item
             .router_data
             .resource_common_data
-            .connector_order_id
+            .reference_id
             .as_ref()
             .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "connector_order_id",
-                context: Default::default(),
+                field_name: "order_id (reference_id)",
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Call `PaymentService.CreateOrder` first and pass the returned order id \
+                         as `merchant_order_id` (which becomes `reference_id` internally) on the \
+                         Authorize request."
+                            .to_owned(),
+                    ),
+                    doc_url: Some(
+                        "https://razorpay.com/docs/api/orders/#create-an-order".to_owned(),
+                    ),
+                    additional_context: Some(
+                        "Razorpay requires a pre-created `order_id` in the payment create \
+                         request; it cannot be omitted."
+                            .to_owned(),
+                    ),
+                },
             })?
             .clone();
 
