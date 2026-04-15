@@ -26,8 +26,10 @@ pub struct JpmorganPaymentsRequest<T: PaymentMethodDataTypes> {
     pub currency: common_enums::Currency,
     pub merchant: JpmorganMerchant,
     pub payment_method_type: JpmorganPaymentMethodType<T>,
-    pub account_holder: JpmorganAccountHolder,
-    pub statement_descriptor: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub account_holder: Option<JpmorganAccountHolder>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub statement_descriptor: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -37,6 +39,8 @@ pub struct JpmorganPaymentMethodType<T: PaymentMethodDataTypes> {
     pub card: Option<JpmorganCard<T>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ach: Option<JpmorganAch>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub googlepay: Option<JpmorganGooglePay>,
     /// Token obtained from client-side SDK (CardToken flow)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub token: Option<Secret<String>>,
@@ -138,4 +142,56 @@ pub struct JpmorganRefundRequest {
 #[serde(rename_all = "camelCase")]
 pub struct JpmorganMerchantRefund {
     pub merchant_software: JpmorganMerchantSoftware,
+}
+
+// ---- Google Pay (encrypted) request structs ----
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganGooglePay {
+    /// Latitude/longitude string required by JPMorgan (e.g. "0,0" when unavailable)
+    pub lat_long: String,
+    pub encrypted_payment_bundle: JpmorganEncryptedPaymentBundle,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganEncryptedPaymentBundle {
+    /// The full signedMessage JSON string from Google Pay (contains encryptedMessage, ephemeralPublicKey, tag)
+    pub encrypted_payload: Secret<String>,
+    pub encrypted_payment_header: JpmorganEncryptedPaymentHeader,
+    /// Maps from intermediateSigningKey.signatures[0] (ECv2) or signature (ECv1) in the Google token
+    pub signature: Secret<String>,
+    /// e.g. "ECv1" or "ECv2"
+    pub protocol_version: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganEncryptedPaymentHeader {
+    /// The ephemeralPublicKey extracted from the Google Pay signedMessage
+    pub ephemeral_public_key: Secret<String>,
+}
+
+/// Helper structs for deserializing the Google Pay token string
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GooglePayToken {
+    pub protocol_version: String,
+    pub signature: Secret<String>,
+    #[serde(default)]
+    pub intermediate_signing_key: Option<GooglePayIntermediateSigningKey>,
+    pub signed_message: Secret<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct GooglePayIntermediateSigningKey {
+    pub signatures: Vec<Secret<String>>,
+}
+
+/// The parsed signedMessage JSON inside the Google Pay token
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GooglePaySignedMessage {
+    pub ephemeral_public_key: Secret<String>,
 }

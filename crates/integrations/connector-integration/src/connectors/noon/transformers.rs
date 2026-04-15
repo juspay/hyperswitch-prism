@@ -356,7 +356,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::RevolutPay(_)
                 | WalletData::MbWay(_)
                 | WalletData::Satispay(_)
-                | WalletData::Wero(_) => Err(IntegrationError::not_implemented(
+                | WalletData::Wero(_)
+                | WalletData::LazyPayRedirect(_)
+                | WalletData::PhonePeRedirect(_)
+                | WalletData::BillDeskRedirect(_)
+                | WalletData::CashfreeRedirect(_)
+                | WalletData::PayURedirect(_)
+                | WalletData::EaseBuzzRedirect(_) => Err(IntegrationError::not_implemented(
                     utils::get_unimplemented_payment_method_error_message("Noon"),
                 )),
             },
@@ -374,7 +380,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
-            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
@@ -1241,9 +1247,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         | WalletData::RevolutPay(_)
                         | WalletData::MbWay(_)
                         | WalletData::Satispay(_)
-                        | WalletData::Wero(_) => Err(IntegrationError::not_implemented(
-                            utils::get_unimplemented_payment_method_error_message("Noon"),
-                        )),
+                        | WalletData::Wero(_)
+                        | WalletData::LazyPayRedirect(_)
+                        | WalletData::PhonePeRedirect(_)
+                        | WalletData::BillDeskRedirect(_)
+                        | WalletData::CashfreeRedirect(_)
+                        | WalletData::PayURedirect(_)
+                        | WalletData::EaseBuzzRedirect(_) => {
+                            Err(IntegrationError::not_implemented(
+                                utils::get_unimplemented_payment_method_error_message("Noon"),
+                            ))
+                        }
                     },
                     PaymentMethodData::CardRedirect(_)
                     | PaymentMethodData::PayLater(_)
@@ -1259,7 +1273,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     | PaymentMethodData::Voucher(_)
                     | PaymentMethodData::GiftCard(_)
                     | PaymentMethodData::OpenBanking(_)
-                    | PaymentMethodData::CardToken(_)
+                    | PaymentMethodData::PaymentMethodToken(_)
                     | PaymentMethodData::NetworkToken(_)
                     | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
                     | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
