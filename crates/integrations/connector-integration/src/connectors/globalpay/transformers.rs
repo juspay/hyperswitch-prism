@@ -1078,6 +1078,10 @@ pub struct GlobalpayClientAuthRequest {
     pub secret: Secret<String>,
     pub grant_type: String,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub interval_to_expire: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub restricted_token: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub permissions: Option<Vec<String>>,
 }
 
@@ -1133,6 +1137,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 nonce: Secret::new(nonce),
                 secret: Secret::new(secret_hex),
                 grant_type: "client_credentials".to_string(),
+                interval_to_expire: Some("1_HOUR".to_string()),
+                restricted_token: Some("YES".to_string()),
                 permissions,
             })
         } else {
