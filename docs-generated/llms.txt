@@ -363,7 +363,7 @@ connector_id: nexixpay
 doc: docs/connectors/nexixpay.md
 scenarios: none
 payment_methods: none
-flows: capture, get, pre_authenticate, refund, refund_get, void
+flows: capture, get, pre_authenticate, recurring_charge, refund, refund_get, setup_recurring, void
 examples_python: none
 
 ## Nmi

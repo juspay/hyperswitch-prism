@@ -531,12 +531,46 @@
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Field 'payment_id' is too long for connector 'Nexixpay'"
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "connector_recurring_payment_id": {
+            "mandate_id_type": {
+              "connector_mandate_id": {
+                "connector_mandate_id": "probe-mandate-123"
+              }
+            }
+          },
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "token": {
+              "token": "probe_pm_token"
+            }
+          },
+          "return_url": "https://example.com/recurring-return",
+          "connector_customer_id": "cust_probe_123",
+          "payment_method_type": "PAY_PAL",
+          "off_session": true
+        },
+        "sample": {
+          "url": "https://xpaysandbox.nexigroup.com/api/phoenix-0.0/psp/api/v1/orders/mit",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "correlation-id": "00000000-0000-0000-0000-000000000000",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"order\":{\"orderId\":\"\",\"amount\":\"1000\",\"currency\":\"USD\",\"customerInfo\":{\"cardHolderName\":\"Cardholder\",\"shippingAddress\":null}},\"contractId\":\"probe-mandate-123\",\"captureType\":\"IMPLICIT\",\"recurrence\":{\"action\":\"SUBSEQUENT_PAYMENT\",\"contractId\":\"probe-mandate-123\",\"contractType\":\"MIT_UNSCHEDULED\"}}"
+        }
       }
     },
     "recurring_revoke": {
@@ -598,7 +632,46 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/mandate-return",
+          "setup_future_usage": "OFF_SESSION",
+          "request_incremental_authorization": false,
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          }
+        },
+        "sample": {
+          "url": "https://xpaysandbox.nexigroup.com/api/phoenix-0.0/psp/api/v1/orders/3steps/init",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "correlation-id": "00000000-0000-0000-0000-000000000000",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"order\":{\"orderId\":\"probe_mandate_001\",\"amount\":\"0\",\"currency\":\"USD\",\"customerInfo\":{\"cardHolderName\":\"Cardholder\",\"billingAddress\":{},\"shippingAddress\":null}},\"card\":{\"pan\":\"4111111111111111\",\"expiryDate\":\"0330\",\"cvv\":\"737\"},\"recurrence\":{\"action\":\"CONTRACT_CREATION\",\"contractId\":\"probemandate001877\",\"contractType\":\"MIT_UNSCHEDULED\"},\"actionType\":\"VERIFY\"}"
+        }
       }
     },
     "token_authorize": {
@@ -609,7 +682,8 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "Payment method PaymentMethodToken(PaymentMethodToken { token: *** alloc::string::String *** }) is not supported by Nexixpay"
       }
     },
     "tokenize": {
