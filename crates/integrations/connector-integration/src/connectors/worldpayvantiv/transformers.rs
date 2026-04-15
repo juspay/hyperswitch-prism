@@ -2921,8 +2921,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             });
         }
 
-        // Extract cnpToken from tokenResponse; fall back to cnpTxnId
-        // if the merchant account does not have tokenization enabled.
+        // Extract cnpToken from tokenResponse. A missing tokenResponse means
+        // tokenization is not enabled on the merchant account; in that case
+        // we cannot construct a reusable mandate ID (cnpTxnId is a one-shot
+        // transaction id, not a token) so we surface a clear error rather
+        // than silently returning an ID that RepeatPayment would reject.
         // Vantiv requires an <expDate> alongside <cnpToken> on MIT sale requests,
         // so when the card details are available we pack them together as
         // "cnpToken|MMYY" into the connector_mandate_id. RepeatPayment splits
@@ -2931,7 +2934,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .token_response
             .as_ref()
             .map(|t| t.cnp_token.clone().expose())
-            .unwrap_or_else(|| auth_response.cnp_txn_id.clone());
+            .ok_or_else(|| {
+                error_stack::report!(ConnectorError::response_deserialization_failed_with_context(
+                    item.http_code,
+                    Some(
+                        "SetupMandate succeeded but Vantiv returned no tokenResponse; \
+                         merchant account must have tokenization enabled to obtain a \
+                         reusable cnpToken for RepeatPayment."
+                            .to_string(),
+                    ),
+                ))
+            })?;
 
         let packed_exp_date = extract_exp_date_mmyy(&item.router_data.request.payment_method_data);
         let connector_mandate_id = match packed_exp_date.as_deref() {
