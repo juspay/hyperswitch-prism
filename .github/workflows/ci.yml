@@ -487,14 +487,19 @@ jobs:
           cd sdk/javascript && npm ci && cd ../..
           cd sdk/tests && npm install && cd ../..
 
-      - name: Cache FFI library
+      - name: Cache FFI libraries and binaries
         uses: actions/cache@v4
         with:
           path: |
             target/*/*/libconnector_service_ffi.so
             target/*/*/libconnector_service_ffi.dylib
-          key: ffi-lib-${{ runner.os }}-${{ hashFiles('crates/ffi/**/*.rs', 'crates/ffi/**/Cargo.toml', 'Cargo.lock') }}
+            target/*/libhyperswitch_grpc_ffi.so
+            target/*/libhyperswitch_grpc_ffi.dylib
+            target/*/*/grpc-server
+          # Use source file hashes only (not Cargo.lock) for better cache stability
+          key: ffi-lib-${{ runner.os }}-${{ hashFiles('crates/ffi/**/*.rs', 'sdk/grpc-ffi/**/*.rs') }}
           restore-keys: |
+            ffi-lib-${{ runner.os }}-${{ hashFiles('crates/ffi/**/*.rs', 'sdk/grpc-ffi/**/*.rs') }}
             ffi-lib-${{ runner.os }}-
 
       - name: Build FFI and gRPC libraries

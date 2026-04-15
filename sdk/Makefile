@@ -265,8 +265,9 @@ test-grpc: _cleanup-grpc ## Run gRPC smoke tests for all SDKs (Rust + JS + Pytho
 		fi; \
 		\
 		printf "\nStarting gRPC server (shared across all tests)...\n"; \
-		rm -f /tmp/grpc-server.log 2>/dev/null; \
+		rm -f /tmp/grpc-server.log /tmp/grpc-server.pid 2>/dev/null; \
 		cd $(REPO_ROOT) && $(GRPC_SERVER_BIN) > /tmp/grpc-server-new.log 2>&1 & \
+		echo $$! > /tmp/grpc-server.pid; \
 		$(MAKE) -C $(REPO_ROOT)/sdk _wait-for-server; \
 		\
 		printf "\n\033[1m── Rust gRPC ──\033[0m\n"; \
@@ -290,7 +291,11 @@ test-grpc: _cleanup-grpc ## Run gRPC smoke tests for all SDKs (Rust + JS + Pytho
 		KT_EXIT=$$?; \
 		\
 		printf "\nStopping gRPC server...\n"; \
-		pkill -f grpc-server 2>/dev/null || true; \
+		if [ -f /tmp/grpc-server.pid ]; then \
+			kill $$(cat /tmp/grpc-server.pid) 2>/dev/null || true; \
+			rm -f /tmp/grpc-server.pid; \
+		fi; \
+		sleep 1; \
 		\
 		printf "\n\033[1m══ gRPC Results Summary ══\033[0m\n"; \
 		[ $$RUST_EXIT -eq 0 ] \
