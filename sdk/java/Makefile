@@ -177,7 +177,7 @@ GRPC_PROFILE    ?= release-fast
 GRPC_SERVER_BIN := $(REPO_ROOT)/target/$(PLATFORM)/$(GRPC_PROFILE)/grpc-server
 
 # Run gRPC test assuming server is already running (used by top-level test-grpc)
-test-grpc-no-server: install
+test-grpc-no-server: generate-all install
 	@echo "Running Kotlin gRPC smoke test..."
 	@mkdir -p $(SDK_ROOT)/smoke-test/src/main/resources/native
 	@cp -f $(GRPC_FFI_LIBRARY) $(SDK_ROOT)/smoke-test/src/main/resources/native/
