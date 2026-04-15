@@ -451,7 +451,6 @@ jobs:
     env:
       RUSTFLAGS: "-D warnings"
       PROFILE: release-fast
-      CARGO_INCREMENTAL: 0
 
     steps:
       - name: Checkout code
@@ -507,7 +506,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2.7.8
         with:
-          shared-key: "ci-rust-sdk"
+          shared-key: "ci-rust"
 
       - name: Restore SDK binaries cache
         id: sdk-cache-restore
@@ -553,24 +552,15 @@ jobs:
           echo "Missing binaries: ${MISSING_BINS}"
           echo "Building SDK binaries for $PLATFORM..."
           
-          # Build FFI library
-          cargo build -p ffi --no-default-features --features uniffi \
-            --profile "$PROFILE" --target "$PLATFORM"
-          
-          # Build uniffi-bindgen
-          cargo build -p uniffi-bindgen --profile "$PROFILE" --target "$PLATFORM"
-          
-          # Build smoke test binaries
-          CONNECTORS=stripe HARNESS_DIR="$(pwd)/examples" \
-            cargo build -p hyperswitch-smoke-test --bin hyperswitch-smoke-test \
-            --profile "$PROFILE" --target "$PLATFORM"
-          
-          CONNECTORS=stripe HARNESS_DIR="$(pwd)/examples" \
-            cargo build -p hyperswitch-smoke-test --bin grpc-smoke-test \
-            --profile "$PROFILE" --target "$PLATFORM"
-          
-          # Build gRPC server and FFI
-          cargo build -p grpc-server -p hyperswitch-grpc-ffi \
+          # Build all SDK binaries in a single cargo invocation to avoid duplicate dependency compilation
+          # Note: ffi package is built with uniffi feature, others with default features
+          # We use --no-default-features for ffi to exclude incompatible features
+          cargo build \
+            -p ffi --no-default-features --features uniffi \
+            -p uniffi-bindgen \
+            -p hyperswitch-smoke-test \
+            -p grpc-server \
+            -p hyperswitch-grpc-ffi \
             --profile "$PROFILE" --target "$PLATFORM"
 
       - name: Create connector credentials
