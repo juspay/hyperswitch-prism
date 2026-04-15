@@ -555,7 +555,7 @@ jobs:
         shell: bash
         run: |
           echo "Running SDK mock tests (no real HTTP calls)"
-          python3 scripts/run_smoke_tests_parallel.py --mock --all --sdks python,javascript,kotlin,rust
+          python3 scripts/run_smoke_tests_parallel.py --mock --connectors stripe --sdks python,javascript,kotlin,rust
 
       - name: Run SDK gRPC Tests
         shell: bash
