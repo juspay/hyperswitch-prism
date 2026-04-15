@@ -527,6 +527,9 @@ impl Connectors {
                 };
                 patched.trustpay.apply(trustpay_patch);
             }
+            ConnectorEnum::Phonepe => {
+                patched.phonepe.apply(params_patch);
+            }
             _ => {
                 // Connector not supported for URL patching - return error
                 return Err(ApplicationErrorResponse::BadRequest(ApiError {
@@ -534,7 +537,7 @@ impl Connectors {
                     error_identifier: 400,
                     error_message: format!(
                         "Connector '{}' is not supported for dynamic URL patching from superposition. \
-                         Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, worldpay, trustpay, razorpay, razorpayv2",
+                         Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, worldpay, trustpay, razorpay, razorpayv2, phonepe",
                         connector
                     ),
                     error_object: None,
