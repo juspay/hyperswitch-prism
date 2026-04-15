@@ -2,6 +2,11 @@
   "connector": "cashfree",
   "supported_suites": [
     "authorize",
-    "create_order"
+    "create_order",
+    "get",
+    "capture",
+    "void",
+    "refund",
+    "refund_sync"
   ]
 }
