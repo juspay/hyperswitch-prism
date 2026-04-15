@@ -2935,15 +2935,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .as_ref()
             .map(|t| t.cnp_token.clone().expose())
             .ok_or_else(|| {
-                error_stack::report!(ConnectorError::response_deserialization_failed_with_context(
-                    item.http_code,
-                    Some(
-                        "SetupMandate succeeded but Vantiv returned no tokenResponse; \
+                error_stack::report!(
+                    ConnectorError::response_deserialization_failed_with_context(
+                        item.http_code,
+                        Some(
+                            "SetupMandate succeeded but Vantiv returned no tokenResponse; \
                          merchant account must have tokenization enabled to obtain a \
                          reusable cnpToken for RepeatPayment."
-                            .to_string(),
-                    ),
-                ))
+                                .to_string(),
+                        ),
+                    )
+                )
             })?;
 
         let packed_exp_date = extract_exp_date_mmyy(&item.router_data.request.payment_method_data);
