@@ -517,7 +517,32 @@
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_charge_id": "probe_recurring_charge_001",
+          "connector_recurring_payment_id": {
+            "connector_mandate_id": {
+              "connector_mandate_id": "pm_1AbcXyzStaxTestToken"
+            }
+          },
+          "amount": {
+            "minor_amount": 500,
+            "currency": "USD"
+          },
+          "merchant_order_id": "probe_recurring_order_001",
+          "capture_method": "AUTOMATIC",
+          "off_session": true
+        },
+        "sample": {
+          "url": "https://apiprod.fattlabs.com/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"total\":5.0,\"payment_method_id\":\"pm_1AbcXyzStaxTestToken\",\"is_refundable\":true,\"pre_auth\":false,\"meta\":{\"tax\":0},\"idempotency_id\":\"probe_recurring_order_001\"}"
+        }
       }
     },
     "recurring_revoke": {
