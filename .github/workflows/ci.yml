@@ -167,7 +167,6 @@ jobs:
       - uses: Swatinem/rust-cache@v2.7.8
         with:
           shared-key: "ci-rust"
-          save-if: false
 
       - name: Install Rust (nightly for fmt)
         uses: dtolnay/rust-toolchain@master
