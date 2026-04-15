@@ -61,8 +61,8 @@ endif
 # Pre-built FFI library for the current platform (output of build-ffi-lib).
 LIBRARY          := $(REPO_ROOT)/target/$(PLATFORM)/$(_PROFILE_DIR)/libconnector_service_ffi.$(LIB_EXT)
 # Pre-built gRPC FFI library (output of build-grpc-ffi-lib).
-# Note: hyperswitch-grpc-ffi doesn't use --target, so it's in target/$(PROFILE)/
-GRPC_FFI_LIBRARY := $(REPO_ROOT)/target/$(_PROFILE_DIR)/libhyperswitch_grpc_ffi.$(LIB_EXT)
+# Built with --target $(PLATFORM) so artifacts share the same build cache as all other crates.
+GRPC_FFI_LIBRARY := $(REPO_ROOT)/target/$(PLATFORM)/$(_PROFILE_DIR)/libhyperswitch_grpc_ffi.$(LIB_EXT)
 
 # UniFFI bindgen binary path (used by Python/Java for code generation)
 BINDGEN := $(REPO_ROOT)/target/$(PLATFORM)/$(_PROFILE_DIR)/uniffi-bindgen
@@ -97,6 +97,8 @@ build-ffi-lib:
 # build-grpc-ffi-lib
 # Builds the gRPC FFI library for SDKs that use gRPC functionality.
 # Output: target/$(PLATFORM)/$(PROFILE)/libhyperswitch_grpc_ffi.<ext>
+# Uses --target $(PLATFORM) so compiled dep artifacts are shared with all other
+# crates (ffi, grpc-server, uniffi-bindgen) that also use --target.
 # ---------------------------------------------------------------------------
 build-grpc-ffi-lib:
 	@if [ -f "$(GRPC_FFI_LIBRARY)" ]; then \
@@ -104,7 +106,7 @@ build-grpc-ffi-lib:
 	else \
 		echo "Building gRPC FFI shared library for $(PLATFORM) ($(PROFILE))..."; \
 		cd $(REPO_ROOT) && cargo build -p hyperswitch-grpc-ffi \
-			--profile $(PROFILE); \
+			--profile $(PROFILE) --target $(PLATFORM); \
 		echo "Build complete: $(GRPC_FFI_LIBRARY)"; \
 	fi
 

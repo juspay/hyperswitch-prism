@@ -671,8 +671,8 @@ jobs:
           path: |
             target/*/*/libconnector_service_ffi.so
             target/*/*/libconnector_service_ffi.dylib
-            target/*/libhyperswitch_grpc_ffi.so
-            target/*/libhyperswitch_grpc_ffi.dylib
+            target/*/*/libhyperswitch_grpc_ffi.so
+            target/*/*/libhyperswitch_grpc_ffi.dylib
             target/*/*/grpc-server
             target/*/*/uniffi-bindgen
             target/*/*/grpc-smoke-test
@@ -691,7 +691,7 @@ jobs:
           PROFILE="release-fast"
           FFI_LIB_PATH="target/${PLATFORM}/${PROFILE}/libconnector_service_ffi.so"
           GRPC_SERVER_BIN="target/${PLATFORM}/${PROFILE}/grpc-server"
-          GRPC_FFI_LIB_PATH="target/${PROFILE}/libhyperswitch_grpc_ffi.so"
+          GRPC_FFI_LIB_PATH="target/${PLATFORM}/${PROFILE}/libhyperswitch_grpc_ffi.so"
           UNIFFI_BINDGEN_BIN="target/${PLATFORM}/${PROFILE}/uniffi-bindgen"
           GRPC_SMOKE_TEST_BIN="target/${PLATFORM}/${PROFILE}/grpc-smoke-test"
 
@@ -713,7 +713,7 @@ jobs:
 
           if [ ! -f "$GRPC_FFI_LIB_PATH" ]; then
             echo "Building gRPC FFI library..."
-            cargo build -p hyperswitch-grpc-ffi --profile "$PROFILE"
+            cargo build -p hyperswitch-grpc-ffi --profile "$PROFILE" --target "$PLATFORM"
           else
             echo "Using cached gRPC FFI library: $GRPC_FFI_LIB_PATH"
           fi
