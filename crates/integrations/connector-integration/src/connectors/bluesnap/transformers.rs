@@ -113,9 +113,12 @@ fn map_ecp_account_type(
         (Some(common_enums::BankHolderType::Personal), Some(common_enums::BankType::Checking))
         | (None, Some(common_enums::BankType::Checking))
         | (_, None) => "CONSUMER_CHECKING",
-        (_, Some(unsupported)) => {
-            return Err(error_stack::report!(IntegrationError::NotSupported {
-                message: format!("Bank type {unsupported:?} is not supported by BlueSnap"),
+        (_, Some(common_enums::BankType::Transmission))
+        | (_, Some(common_enums::BankType::Current))
+        | (_, Some(common_enums::BankType::Bond))
+        | (_, Some(common_enums::BankType::SubscriptionShare)) => {
+            Err(IntegrationError::NotSupported {
+                message: format!("Bank type {bank_type:?} is not supported by BlueSnap"),
                 connector: "bluesnap",
                 context: IntegrationErrorContext {
                     suggested_action: Some(
@@ -123,12 +126,10 @@ fn map_ecp_account_type(
                     ),
                     doc_url: None,
                     additional_context: Some(format!(
-                        "Received BankType::{unsupported:?}, which does not map to any \
-                             BlueSnap ECP account type. Only `Checking` and `Savings` are \
-                             accepted by the BlueSnap."
-                    ),),
+                        "Received BankType::{bank_type:?}, which does not map to any BlueSnap ECP account type. Only `Checking` and `Savings` are accepted by the BlueSnap."
+                    )),
                 },
-            }))
+            })?
         }
     };
     Ok(account_type.to_string())

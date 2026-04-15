@@ -9,7 +9,7 @@ use domain_types::{
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
         RefundsResponseData, ResponseId,
     },
-    errors::{ConnectorError, IntegrationError},
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{
         BankDebitData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
     },
@@ -91,23 +91,43 @@ pub enum ForteCardType {
 #[derive(Debug, Serialize)]
 pub struct ForteEcheck {
     sec_code: ForteSecCode,
-    #[serde(serialize_with = "serialize_bank_type_pascal")]
-    account_type: BankType,
+    account_type: ForteBankType,
     routing_number: Secret<String>,
     account_number: Secret<String>,
     account_holder: Secret<String>,
 }
 
-fn serialize_bank_type_pascal<S>(bank_type: &BankType, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: serde::Serializer,
-{
-    let s = match bank_type {
-        BankType::Checking => "Checking",
-        BankType::Savings => "Savings",
-        _ => return Err(serde::ser::Error::custom("Unsupported bank type for Forte")),
-    };
-    serializer.serialize_str(s)
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub enum ForteBankType {
+    Checking,
+    Savings,
+}
+
+impl TryFrom<BankType> for ForteBankType {
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(bank: BankType) -> Result<Self, Self::Error> {
+        match bank {
+            BankType::Checking => Ok(Self::Checking),
+            BankType::Savings => Ok(Self::Savings),
+            BankType::Bond
+            | BankType::Transmission
+            | BankType::Current
+            | BankType::SubscriptionShare => Err(IntegrationError::NotSupported {
+                message: format!("Bank type {bank:?} is not supported by Forte"),
+                connector: "forte",
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Use `BankType::Checking` or `BankType::Savings`".to_owned(),
+                    ),
+                    doc_url: None,
+                    additional_context: Some(format!(
+                        "Received BankType::{bank:?}, which does not map to any supported ACH payments account type. Only `Checking` and `Savings` are accepted for Forte ACH payments."
+                    ),),
+                },
+            })?
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -239,7 +259,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 context: Default::default()
                         })?;
 
-                    let account_type = bank_type.unwrap_or(BankType::Checking);
+                    let account_type = ForteBankType::try_from(bank_type.unwrap_or(BankType::Checking))?;
 
                     let echeck = ForteEcheck {
                         sec_code: ForteSecCode::WEB,
