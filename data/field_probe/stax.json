@@ -519,18 +519,25 @@
       "default": {
         "status": "supported",
         "proto_request": {
-          "merchant_charge_id": "probe_recurring_charge_001",
           "connector_recurring_payment_id": {
-            "connector_mandate_id": {
-              "connector_mandate_id": "pm_1AbcXyzStaxTestToken"
+            "mandate_id_type": {
+              "connector_mandate_id": {
+                "connector_mandate_id": "probe-mandate-123"
+              }
             }
           },
           "amount": {
-            "minor_amount": 500,
+            "minor_amount": 1000,
             "currency": "USD"
           },
-          "merchant_order_id": "probe_recurring_order_001",
-          "capture_method": "AUTOMATIC",
+          "payment_method": {
+            "token": {
+              "token": "probe_pm_token"
+            }
+          },
+          "return_url": "https://example.com/recurring-return",
+          "connector_customer_id": "cust_probe_123",
+          "payment_method_type": "PAY_PAL",
           "off_session": true
         },
         "sample": {
@@ -541,7 +548,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"total\":5.0,\"payment_method_id\":\"pm_1AbcXyzStaxTestToken\",\"is_refundable\":true,\"pre_auth\":false,\"meta\":{\"tax\":0},\"idempotency_id\":\"probe_recurring_order_001\"}"
+          "body": "{\"total\":10.0,\"payment_method_id\":\"probe_pm_token\",\"is_refundable\":true,\"pre_auth\":false,\"meta\":{\"tax\":0},\"idempotency_id\":\"\"}"
         }
       }
     },

@@ -9,11 +9,13 @@ package examples.stax
 
 import payments.PaymentClient
 import payments.CustomerClient
+import payments.RecurringPaymentClient
 import payments.RefundClient
 import payments.PaymentMethodClient
 import payments.PaymentServiceCaptureRequest
 import payments.CustomerServiceCreateRequest
 import payments.PaymentServiceGetRequest
+import payments.RecurringPaymentServiceChargeRequest
 import payments.PaymentServiceRefundRequest
 import payments.RefundServiceGetRequest
 import payments.PaymentServiceTokenAuthorizeRequest
@@ -24,6 +26,7 @@ import payments.AcceptanceType
 import payments.CaptureMethod
 import payments.Currency
 import payments.FutureUsage
+import payments.PaymentMethodType
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
@@ -106,6 +109,37 @@ fun get(txnId: String) {
     val request = buildGetRequest("probe_connector_txn_001")
     val response = client.get(request)
     println("Status: ${response.status.name}")
+}
+
+// Flow: RecurringPaymentService.Charge
+fun recurringCharge(txnId: String) {
+    val client = RecurringPaymentClient(_defaultConfig)
+    val request = RecurringPaymentServiceChargeRequest.newBuilder().apply {
+        connectorRecurringPaymentIdBuilder.apply {  // Reference to existing mandate.
+            connectorMandateIdBuilder.apply {  // mandate_id sent by the connector.
+                connectorMandateIdBuilder.apply {
+                    connectorMandateId = "probe-mandate-123"
+                }
+            }
+        }
+        amountBuilder.apply {  // Amount Information.
+            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
+            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+        paymentMethodBuilder.apply {  // Optional payment Method Information (for network transaction flows).
+            tokenBuilder.apply {  // Payment tokens.
+                tokenBuilder.value = "probe_pm_token"  // The token string representing a payment method.
+            }
+        }
+        returnUrl = "https://example.com/recurring-return"
+        connectorCustomerId = "cust_probe_123"
+        paymentMethodType = PaymentMethodType.PAY_PAL
+        offSession = true  // Behavioral Flags and Preferences.
+    }.build()
+    val response = client.charge(request)
+    if (response.status.name == "FAILED")
+        throw RuntimeException("Recurring_Charge failed: ${response.error.unifiedDetails.message}")
+    println("Done: ${response.status.name}")
 }
 
 // Flow: PaymentService.Refund
@@ -234,12 +268,13 @@ fun main(args: Array<String>) {
         "capture" -> capture(txnId)
         "createCustomer" -> createCustomer(txnId)
         "get" -> get(txnId)
+        "recurringCharge" -> recurringCharge(txnId)
         "refund" -> refund(txnId)
         "refundGet" -> refundGet(txnId)
         "tokenAuthorize" -> tokenAuthorize(txnId)
         "tokenSetupRecurring" -> tokenSetupRecurring(txnId)
         "tokenize" -> tokenize(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: capture, createCustomer, get, refund, refundGet, tokenAuthorize, tokenSetupRecurring, tokenize, void")
+        else -> System.err.println("Unknown flow: $flow. Available: capture, createCustomer, get, recurringCharge, refund, refundGet, tokenAuthorize, tokenSetupRecurring, tokenize, void")
     }
 }

@@ -1328,7 +1328,12 @@ pub struct StaxRepeatPaymentRequest {
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         StaxRouterData<
-            RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
             T,
         >,
     > for StaxRepeatPaymentRequest
@@ -1337,7 +1342,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
     fn try_from(
         item: StaxRouterData<
-            RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
             T,
         >,
     ) -> Result<Self, Self::Error> {
@@ -1366,16 +1376,19 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             meta: StaxMeta {
                 tax: MinorUnit::zero(),
             },
-            idempotency_id: item.router_data.request.merchant_order_id.clone().or_else(
-                || {
+            idempotency_id: item
+                .router_data
+                .request
+                .merchant_order_id
+                .clone()
+                .or_else(|| {
                     Some(
                         item.router_data
                             .resource_common_data
                             .connector_request_reference_id
                             .clone(),
                     )
-                },
-            ),
+                }),
         })
     }
 }
