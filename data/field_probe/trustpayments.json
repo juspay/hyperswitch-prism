@@ -666,7 +666,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"alias\":\"probe_user\",\"version\":\"1.00\",\"request\":[{\"accounttypedescription\":\"RECUR\",\"baseamount\":\"1000\",\"credentialsonfile\":\"2\",\"currencyiso3a\":\"USD\",\"parenttransactionreference\":\"probe-mandate-123\",\"requesttypedescriptions\":[\"AUTH\"],\"sitereference\":\"probe_site_ref\",\"initiationreason\":\"C\",\"settlestatus\":\"0\"}]}"
+          "body": "{\"alias\":\"probe_user\",\"version\":\"1.00\",\"request\":[{\"accounttypedescription\":\"ECOM\",\"baseamount\":\"1000\",\"credentialsonfile\":\"2\",\"currencyiso3a\":\"USD\",\"parenttransactionreference\":\"probe-mandate-123\",\"requesttypedescriptions\":[\"AUTH\"],\"sitereference\":\"probe_site_ref\",\"initiationreason\":\"C\",\"settlestatus\":\"0\"}]}"
         }
       }
     },

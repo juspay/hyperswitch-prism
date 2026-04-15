@@ -1329,8 +1329,14 @@ impl TryFrom<ResponseRouterData<TrustpaymentsRefundResponse, Self>>
 }
 
 // ===== CONSTANTS FOR MIT =====
+// Per Trust Payments MIT docs, merchant-initiated transactions with stored
+// credentials must use accounttypedescription="ECOM" together with
+// credentialsonfile="2" and a parenttransactionreference from the original
+// CIT (SetupMandate) transaction. The "RECUR" account type refers to a
+// separately provisioned recurring sub-account that most merchants (and the
+// sandbox test account) do not have enabled. Using "RECUR" on a standard ECOM
+// merchant yields error 40000 "No account found".
 const TRUSTPAYMENTS_CREDENTIALS_ON_FILE_STORED: &str = "2";
-const TRUSTPAYMENTS_ACCOUNT_TYPE_RECUR: &str = "RECUR";
 
 // ===== SETUP MANDATE REQUEST (Zero Dollar Auth / Store Credentials) =====
 // SetupMandate reuses the same Authorize request/response structures
@@ -1627,7 +1633,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         };
 
         let repeat_request_item = TrustpaymentsRepeatPaymentRequestItem {
-            accounttypedescription: TRUSTPAYMENTS_ACCOUNT_TYPE_RECUR.to_string(),
+            // Use the ECOM account (same as Authorize / SetupMandate) because
+            // MIT with stored credentials is performed against the same
+            // merchant e-commerce account. RECUR is a distinct provisioned
+            // account type that most merchants do not have enabled.
+            accounttypedescription: TRUSTPAYMENTS_ACCOUNT_TYPE_ECOM.to_string(),
             baseamount: amount,
             // credentialsonfile=2 for using previously stored credentials
             credentialsonfile: TRUSTPAYMENTS_CREDENTIALS_ON_FILE_STORED.to_string(),
