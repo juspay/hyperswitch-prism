@@ -315,14 +315,11 @@ pub struct RefundPaymentDetails {
 
 fn get_payment_status(status: &str, pre_auth: Option<bool>) -> AttemptStatus {
     match (status, pre_auth) {
+        // Manual capture: AUTHORIZED means payment is authorized, awaiting capture
         ("AUTHORIZED", Some(true)) => AttemptStatus::Authorized,
-        ("AUTHORIZED", Some(false)) => AttemptStatus::Pending,
-        // When pre_auth is absent from the response, treat AUTHORIZED as still pending
-        ("AUTHORIZED", None) => AttemptStatus::Pending,
-        ("CANCELLED", Some(true)) => AttemptStatus::Voided,
-        // CANCELLED with pre_auth=false or missing means the order was cancelled (not pre-auth)
-        ("CANCELLED", Some(false)) => AttemptStatus::Voided,
-        ("CANCELLED", None) => AttemptStatus::Voided,
+        // Auto capture: AUTHORIZED means authorization + capture completed
+        ("AUTHORIZED", None | Some(false)) => AttemptStatus::Charged,
+        ("CANCELLED", _) => AttemptStatus::Failure,
         ("PROCESSED", _) => AttemptStatus::Charged,
         ("FAILED", _) => AttemptStatus::Failure,
         _ => AttemptStatus::AuthenticationPending,
