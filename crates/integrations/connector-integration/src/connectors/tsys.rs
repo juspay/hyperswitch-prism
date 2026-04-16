@@ -46,7 +46,8 @@ use self::transformers::{
     RefundResponse, TsysAuthorizeResponse, TsysCaptureResponse, TsysErrorResponse,
     TsysPSyncRequest, TsysPSyncResponse, TsysPaymentsCancelRequest, TsysPaymentsCaptureRequest,
     TsysPaymentsRequest, TsysRSyncRequest, TsysRSyncResponse, TsysRefundRequest,
-    TsysSetupMandateRequest, TsysSetupMandateResponse, TsysVoidResponse,
+    TsysRepeatPaymentRequest, TsysRepeatPaymentResponse, TsysSetupMandateRequest,
+    TsysSetupMandateResponse, TsysVoidResponse,
 };
 use crate::{connectors::macros, types::ResponseRouterData, with_error_response_body};
 use domain_types::errors::ConnectorError;
@@ -263,6 +264,12 @@ macros::create_all_prerequisites!(
             request_body: TsysSetupMandateRequest<T>,
             response_body: TsysSetupMandateResponse,
             router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: RepeatPayment,
+            request_body: TsysRepeatPaymentRequest<T>,
+            response_body: TsysRepeatPaymentResponse,
+            router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -475,6 +482,33 @@ macros::macro_connector_implementation!(
     }
 );
 
+// RepeatPayment (RecurringPaymentService.Charge) Flow — MIT replay
+// TSYS Genius transnox_api does not vault card data server-side, so every MIT
+// replays the full Sale/Auth shape against the same transnox_api_server
+// endpoint. The caller must supply `payment_method.card`; the prior CIT
+// transactionID is surfaced via mandate_reference for correlation only.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_headers, get_content_type, get_error_response_v2],
+    connector: Tsys,
+    curl_request: Json(TsysRepeatPaymentRequest<T>),
+    curl_response: TsysRepeatPaymentResponse,
+    flow_name: RepeatPayment,
+    resource_common_data: PaymentFlowData,
+    flow_request: RepeatPaymentData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_url(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            self.get_url_payments(req)
+        }
+    }
+);
+
 // ===== TRAIT IMPLEMENTATIONS FOR SUPPORTED FLOWS =====
 // These traits are auto-implemented based on ConnectorIntegrationV2, but we need explicit impls
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -582,17 +616,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-// Repeat Payment
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        RepeatPayment,
-        PaymentFlowData,
-        RepeatPaymentData<T>,
-        PaymentsResponseData,
-    > for Tsys<T>
-{
-}
-
+// Repeat Payment (MIT) — implemented via transnox_api Sale/Auth above.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RepeatPaymentV2<T> for Tsys<T>
 {
