@@ -21,7 +21,22 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use grpc_api_types::payments::{
-    self as grpc_payment_types, AuthenticationType, ConnectorState, DisputeResponse, DisputeServiceAcceptResponse, DisputeServiceDefendRequest, DisputeServiceDefendResponse, DisputeServiceSubmitEvidenceResponse, MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest, MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse, MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse, MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse, PaymentMethodAuthenticationServiceAuthenticateResponse, PaymentMethodAuthenticationServicePostAuthenticateResponse, PaymentMethodAuthenticationServicePreAuthenticateResponse, PaymentServiceAuthorizeRequest, PaymentServiceAuthorizeResponse, PaymentServiceCaptureResponse, PaymentServiceCreateOrderResponse, PaymentServiceGetResponse, PaymentServiceIncrementalAuthorizationRequest, PaymentServiceIncrementalAuthorizationResponse, PaymentServiceReverseResponse, PaymentServiceSetupRecurringRequest, PaymentServiceSetupRecurringResponse, PaymentServiceVoidRequest, PaymentServiceVoidResponse, RecurringPaymentServiceRevokeRequest, RecurringPaymentServiceRevokeResponse, RefundResponse
+    self as grpc_payment_types, AuthenticationType, ConnectorState, DisputeResponse,
+    DisputeServiceAcceptResponse, DisputeServiceDefendRequest, DisputeServiceDefendResponse,
+    DisputeServiceSubmitEvidenceResponse,
+    MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
+    MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse,
+    MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
+    MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse,
+    PaymentMethodAuthenticationServiceAuthenticateResponse,
+    PaymentMethodAuthenticationServicePostAuthenticateResponse,
+    PaymentMethodAuthenticationServicePreAuthenticateResponse, PaymentServiceAuthorizeRequest,
+    PaymentServiceAuthorizeResponse, PaymentServiceCaptureResponse,
+    PaymentServiceCreateOrderResponse, PaymentServiceGetResponse,
+    PaymentServiceIncrementalAuthorizationRequest, PaymentServiceIncrementalAuthorizationResponse,
+    PaymentServiceReverseResponse, PaymentServiceSetupRecurringRequest,
+    PaymentServiceSetupRecurringResponse, PaymentServiceVoidRequest, PaymentServiceVoidResponse,
+    RecurringPaymentServiceRevokeRequest, RecurringPaymentServiceRevokeResponse, RefundResponse,
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -2730,14 +2745,14 @@ impl From<grpc_payment_types::PaymentServiceSetupRecurringRequest> for SetupRecu
 impl From<grpc_payment_types::PaymentServiceProxySetupRecurringRequest> for SetupRecurringRequest {
     fn from(req: grpc_payment_types::PaymentServiceProxySetupRecurringRequest) -> Self {
         // Convert ProxyCardDetails to PaymentMethod with CardProxy variant
-        let payment_method = req
-            .card_proxy
-            .clone()
-            .map(|card_proxy| grpc_payment_types::PaymentMethod {
-                payment_method: Some(
-                    grpc_payment_types::payment_method::PaymentMethod::CardProxy(card_proxy),
-                ),
-            });
+        let payment_method =
+            req.card_proxy
+                .clone()
+                .map(|card_proxy| grpc_payment_types::PaymentMethod {
+                    payment_method: Some(
+                        grpc_payment_types::payment_method::PaymentMethod::CardProxy(card_proxy),
+                    ),
+                });
 
         Self {
             auth_type: req.auth_type(),
