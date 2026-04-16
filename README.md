@@ -28,13 +28,11 @@ Prism is a stateless, unified connector library to connect with any payment proc
 
 Every payment processor has diverse APIs, error codes, authentication methods, pdf documents to read, and behavioural differences between the actual environment and documented specs. 
 
-A small mistake or oversight can create a huge financial impact for businesses accepting payments. Thousands of enterprises around the world have gone through this learning curve and iterated and fixed payment systems over many years.
-
-All such fixes/improvements/iterations are locked-in as tribal knowledge into Enterprise Payment Platforms and SaaS Payment Orchestration solutions. 
+A small mistake or oversight can create a huge financial impact for businesses accepting payments. Thousands of enterprises around the world have gone through this learning curve and iterated and fixed payment systems over many years. All such fixes/improvements/iterations are locked-in as tribal knowledge into Enterprise Payment Platforms and SaaS Payment Orchestration solutions. 
 
 Hence, **Prism** - to open up payment diversity to the entire world as a simple, lightweight, zero lock-in, developer friendly payments library.
 
-**Prism is built and maintained by the team behind [Juspay Hyperswitch](https://github.com/juspay/hyperswitch) - the open-source payments platform with 40K+ Github stars and used by leading enterprise merchants around the world.**
+**Prism is extracted, built and maintained by the team behind [Juspay Hyperswitch](https://github.com/juspay/hyperswitch) - the open-source payments platform with 40K+ Github stars and used by leading enterprise merchants around the world.**
 
 **Note:** In all honesty, payments are not more complicated than database drivers. It is simply just that the industry has not arrived at a standard (and it never will!!).
 
@@ -83,7 +81,7 @@ A very high level overview of the Prism architecture and components. To understa
          ┌───────────────────────┼───────────────────────┬───────────────────────┐
          ▼                       ▼                       ▼                       ▼
    ┌──────────┐           ┌──────────┐           ┌──────────┐           ┌──────────┐
-   │  Stripe  │           │  Adyen   │           │ Braintree│           │ + more │
+   │  Stripe  │           │  Adyen   │           │ Braintree│           │ + more   │
    └──────────┘           └──────────┘           └──────────┘           └──────────┘
 ```
 
@@ -97,6 +95,7 @@ A very high level overview of the Prism architecture and components. To understa
 > |----------|-----------------------|
 > | **Python** | [sdk/python/README.md](./sdk/python/README.md) |
 > | **Node.js** | [sdk/javascript/README.md](./sdk/javascript/README.md) |
+> | **Java** | [sdk/java/README.md](./sdk/java/README.md) |
 > | **Rust** | [sdk/rust](./sdk/rust) |
 >
 **Demo Application**: Checkout the [E-Commerce Demo](./demo/e-commerce) for a complete working example with Stripe and Adyen integration.
@@ -183,15 +182,9 @@ const main = async () => {
                 console.error("failed");
         }
     } catch (e: any) {
-        if (e instanceof IntegrationError) {
-            console.error("Error", e);
-        } else if (e instanceof ConnectorError) {
-            console.error("Error", e);
-        } else {
-            console.error("Error", e);
-        }
+        //handle error
     }
-}
+  }
 
 main()
 ```
@@ -235,29 +228,7 @@ Once the basic plumbing is implemented you can leverage Prism's core benefit - *
   const config = currency === types.Currency.EUR ? adyenConfig : stripeConfig;
   const client = new PaymentClient(config);
 
-  const request: types.PaymentServiceAuthorizeRequest = {
-      merchantTransactionId: "order_123",
-      amount: {
-          minorAmount: 1000,
-          currency: currency
-      },
-      captureMethod: types.CaptureMethod.AUTOMATIC,
-      paymentMethod: {
-          card: {
-              cardNumber: { value: "4111111111111111" },
-              cardExpMonth: { value: "12" },
-              cardExpYear: { value: "2050" },
-              cardCvc: { value: "123" },
-              cardHolderName: { value: "Test User" },
-          },
-      },
-      authType: types.AuthenticationType.NO_THREE_DS,
-      address: {},
-      orderDetails: [],
-  };
-
-  const response = await client.authorize(request);
-  console.log(`Payment authorized with ${currency === types.Currency.EUR ? 'Adyen' : 'Stripe'}`);
+  // Authorize call from previous step
 ```
 
 You may just swap the client with any business rules and smart retry logic for payment processor routing. Each flow uses the same unified schema regardless of the underlying processor's API differences.
