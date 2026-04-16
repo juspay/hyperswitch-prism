@@ -17,9 +17,48 @@ use domain_types::{
     router_data_v2::RouterDataV2,
     utils,
 };
+use common_utils::pii::SecretSerdeValue;
 use error_stack::{report, ResultExt};
-use hyperswitch_masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize, Serializer};
+
+/// Extracts terminal_id from a connector_feature_data JSON blob.
+///
+/// The Fiserv `SignatureKey` legacy-auth mapping hardcodes `terminal_id: None`
+/// (see `router_data.rs::ConnectorSpecificConfig::foreign_try_from`), so the
+/// typed config path cannot carry terminal_id. This helper lets callers also
+/// look up terminal_id in the per-request `connector_feature_data` JSON
+/// (e.g. `{"terminal_id":"10000001"}`) and in a `FISERV_TERMINAL_ID` env var as
+/// a last-resort local-dev fallback.
+pub(crate) fn resolve_terminal_id(
+    from_auth: Option<Secret<String>>,
+    feature_data: Option<&SecretSerdeValue>,
+    request_metadata: Option<&SecretSerdeValue>,
+) -> Option<Secret<String>> {
+    if from_auth.is_some() {
+        return from_auth;
+    }
+    if let Some(found) = feature_data
+        .and_then(|m| m.peek().get("terminal_id"))
+        .and_then(|v| v.as_str())
+        .map(|s| Secret::new(s.to_string()))
+    {
+        return Some(found);
+    }
+    if let Some(found) = request_metadata
+        .and_then(|m| m.peek().get("terminal_id"))
+        .and_then(|v| v.as_str())
+        .map(|s| Secret::new(s.to_string()))
+    {
+        return Some(found);
+    }
+    if let Ok(val) = std::env::var("FISERV_TERMINAL_ID") {
+        if !val.is_empty() {
+            return Some(Secret::new(val));
+        }
+    }
+    None
+}
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize> Serialize
     for FiservCheckoutChargesRequest<T>
@@ -504,9 +543,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             total,
             currency: item.router_data.request.currency.to_string(),
         };
+        let terminal_id = resolve_terminal_id(
+            auth.terminal_id.clone(),
+            item.router_data
+                .resource_common_data
+                .connector_feature_data
+                .as_ref(),
+            item.router_data.request.metadata.as_ref(),
+        );
         let merchant_details = MerchantDetails {
             merchant_id: auth.merchant_account,
-            terminal_id: auth.terminal_id,
+            terminal_id,
         };
 
         let checkout_charges_request = match item.router_data.request.payment_method_data.clone() {
@@ -600,9 +647,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = item.router_data;
         let auth: FiservAuthType = FiservAuthType::try_from(&router_data.connector_config)?;
 
+        let terminal_id = resolve_terminal_id(
+            auth.terminal_id.clone(),
+            router_data
+                .resource_common_data
+                .connector_feature_data
+                .as_ref(),
+            router_data.request.metadata.as_ref(),
+        );
         let merchant_details = MerchantDetails {
             merchant_id: auth.merchant_account.clone(),
-            terminal_id: auth.terminal_id.clone(),
+            terminal_id,
         };
 
         let total = item
@@ -708,10 +763,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = &item.router_data;
         let auth: FiservAuthType = FiservAuthType::try_from(&router_data.connector_config)?;
 
+        let terminal_id = resolve_terminal_id(
+            auth.terminal_id.clone(),
+            router_data
+                .resource_common_data
+                .connector_feature_data
+                .as_ref(),
+            router_data.request.metadata.as_ref(),
+        );
         Ok(Self {
             merchant_details: MerchantDetails {
                 merchant_id: auth.merchant_account.clone(),
-                terminal_id: auth.terminal_id.clone(),
+                terminal_id,
             },
             reference_transaction_details: ReferenceTransactionDetails {
                 reference_transaction_id: router_data.request.connector_transaction_id.clone(),
@@ -758,6 +821,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 context: Default::default(),
             })?;
 
+        let terminal_id = resolve_terminal_id(
+            auth.terminal_id.clone(),
+            router_data
+                .resource_common_data
+                .connector_feature_data
+                .as_ref(),
+            router_data.request.refund_connector_metadata.as_ref(),
+        );
         Ok(Self {
             amount: Amount {
                 total: amount_major,
@@ -765,7 +836,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             },
             merchant_details: MerchantDetails {
                 merchant_id: auth.merchant_account.clone(),
-                terminal_id: auth.terminal_id.clone(),
+                terminal_id,
             },
             reference_transaction_details: ReferenceTransactionDetails {
                 reference_transaction_id: router_data.request.connector_transaction_id.to_string(),
@@ -844,6 +915,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 context: Default::default(),
             })?;
 
+        let terminal_id = resolve_terminal_id(
+            auth.terminal_id.clone(),
+            router_data
+                .resource_common_data
+                .connector_feature_data
+                .as_ref(),
+            router_data.request.connector_feature_data.as_ref(),
+        );
+
         Ok(Self {
             amount: Amount {
                 total,
@@ -851,7 +931,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             },
             merchant_details: MerchantDetails {
                 merchant_id: auth.merchant_account.clone(),
-                terminal_id: auth.terminal_id.clone(),
+                terminal_id,
             },
             reference_transaction_details: ReferenceTransactionDetails {
                 reference_transaction_id: router_data
@@ -871,7 +951,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .connector_request_reference_id
                         .clone(),
                 ),
-                operation_type: Some(OperationType::Authorize),
+                // Fiserv's incremental-authorization endpoint (POST to
+                // ch/payments/v1/charges with referenceTransactionDetails) does
+                // not accept an explicit operationType — omitting it causes the
+                // charge to be treated as an incremental authorization on the
+                // referenced transaction.
+                operation_type: None,
             },
         })
     }
