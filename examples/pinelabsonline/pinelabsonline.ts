@@ -6,20 +6,18 @@
 // Run a scenario:  npx tsx pinelabsonline.ts checkout_autocapture
 
 import { MerchantAuthenticationClient, types } from 'hyperswitch-prism';
-const { ConnectorConfig, ConnectorSpecificConfig, SdkOptions, Environment } = types;
+const { Environment } = types;
+export const SUPPORTED_FLOWS = ["create_server_authentication_token"];
 
-const _defaultConfig: ConnectorConfig = {
+const _defaultConfig: types.IConnectorConfig = {
     options: {
         environment: Environment.SANDBOX,
     },
+    // connectorConfig: { pinelabsonline: { apiKey: { value: 'YOUR_API_KEY' } } },
 };
-// Standalone credentials (field names depend on connector auth type):
-// _defaultConfig.connectorConfig = {
-//     pinelabsonline: { apiKey: { value: 'YOUR_API_KEY' } }
-// };
 
 
-function _buildCreateServerAuthenticationTokenRequest(): MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
+function _buildCreateServerAuthenticationTokenRequest(): types.IMerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
     return {
     };
 }
@@ -27,12 +25,12 @@ function _buildCreateServerAuthenticationTokenRequest(): MerchantAuthenticationS
 
 // ANCHOR: scenario_functions
 // Flow: MerchantAuthenticationService.CreateServerAuthenticationToken
-async function createServerAuthenticationToken(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse> {
+async function createServerAuthenticationToken(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const merchantAuthenticationClient = new MerchantAuthenticationClient(config);
 
     const createResponse = await merchantAuthenticationClient.createServerAuthenticationToken(_buildCreateServerAuthenticationTokenRequest());
 
-    return { status: createResponse.status };
+    return createResponse;
 }
 
 

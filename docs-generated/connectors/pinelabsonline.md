@@ -22,11 +22,10 @@ from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
+    # connector_config=payment_pb2.ConnectorSpecificConfig(
+    #     pinelabsonline=payment_pb2.PinelabsonlineConfig(api_key=...),
+    # ),
 )
-# Set credentials before running (field names depend on connector auth type):
-# config.connector_config.CopyFrom(payment_pb2.ConnectorSpecificConfig(
-#     pinelabsonline=payment_pb2.PinelabsonlineConfig(api_key=...),
-# ))
 
 ```
 
@@ -38,15 +37,13 @@ config = sdk_config_pb2.ConnectorConfig(
 <details><summary>JavaScript</summary>
 
 ```javascript
-const { ConnectorClient } = require('connector-service-node-ffi');
+const { PaymentClient } = require('hyperswitch-prism');
+const { ConnectorConfig, Environment, Connector } = require('hyperswitch-prism').types;
 
-// Reuse this client for all flows
-const client = new ConnectorClient({
-    connector: 'Pinelabsonline',
-    environment: 'sandbox',
-    connector_auth_type: {
-        header_key: { api_key: 'YOUR_API_KEY' },
-    },
+const config = ConnectorConfig.create({
+    connector: Connector.PINELABSONLINE,
+    environment: Environment.SANDBOX,
+    // auth: { pinelabsonline: { apiKey: { value: 'YOUR_API_KEY' } } },
 });
 ```
 
@@ -59,12 +56,8 @@ const client = new ConnectorClient({
 
 ```kotlin
 val config = ConnectorConfig.newBuilder()
-    .setConnector("Pinelabsonline")
-    .setEnvironment(Environment.SANDBOX)
-    .setAuth(
-        ConnectorAuthType.newBuilder()
-            .setHeaderKey(HeaderKey.newBuilder().setApiKey("YOUR_API_KEY"))
-    )
+    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
+    // .setConnectorConfig(...) — set your Pinelabsonline credentials here
     .build()
 ```
 
@@ -76,13 +69,14 @@ val config = ConnectorConfig.newBuilder()
 <details><summary>Rust</summary>
 
 ```rust
-use connector_service_sdk::{ConnectorClient, ConnectorConfig};
+use grpc_api_types::payments::*;
+use grpc_api_types::payments::connector_specific_config;
 
 let config = ConnectorConfig {
-    connector: "Pinelabsonline".to_string(),
-    environment: Environment::Sandbox,
-    auth: ConnectorAuth::HeaderKey { api_key: "YOUR_API_KEY".into() },
-    ..Default::default()
+    connector_config: None,  // TODO: Add your connector config here,
+    options: Some(SdkOptions {
+        environment: Environment::Sandbox.into(),
+    }),
 };
 ```
 
@@ -109,4 +103,4 @@ Generate short-lived connector authentication token. Provides secure credentials
 | **Request** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/pinelabsonline/pinelabsonline.py#L31) · [TypeScript](../../examples/pinelabsonline/pinelabsonline.ts#L30) · [Kotlin](../../examples/pinelabsonline/pinelabsonline.kt#L23) · [Rust](../../examples/pinelabsonline/pinelabsonline.rs#L33)
+**Examples:** [Python](../../examples/pinelabsonline/pinelabsonline.py) · [TypeScript](../../examples/pinelabsonline/pinelabsonline.ts#L28) · [Kotlin](../../examples/pinelabsonline/pinelabsonline.kt#L27) · [Rust](../../examples/pinelabsonline/pinelabsonline.rs)

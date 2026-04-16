@@ -7,26 +7,30 @@
 
 package examples.pinelabsonline
 
+import types.Payment.*
+import types.PaymentMethods.*
 import payments.MerchantAuthenticationClient
-import payments.MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
 
+
+val SUPPORTED_FLOWS = listOf<String>("create_server_authentication_token")
+
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    // .setConnectorConfig(...) — set your connector config here
+    // .setConnectorConfig(...) — set your Pinelabsonline credentials here
     .build()
 
 
 // Flow: MerchantAuthenticationService.CreateServerAuthenticationToken
-fun createServerAuthenticationToken(txnId: String) {
-    val client = MerchantAuthenticationClient(_defaultConfig)
+fun createServerAuthenticationToken(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = MerchantAuthenticationClient(config)
     val request = MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest.newBuilder().apply {
 
     }.build()
     val response = client.create_server_authentication_token(request)
-    println("Status: ${response.status.name}")
+    println("StatusCode: ${response.statusCode}")
 }
 
 
