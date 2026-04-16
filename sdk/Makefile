@@ -167,7 +167,8 @@ generate-client-java:
 # Main entry point for regenerating all SDK clients.
 # Delegates to each SDK's generate-client target.
 # ---------------------------------------------------------------------------
-generate: install-deps generate-rust generate-grpc-client generate-python generate-javascript generate-kotlin ## Auto-discover flows and regenerate all SDK clients
+generate: install-deps ## Auto-discover flows and regenerate all SDK clients (parses proto once)
+	@python3 $(REPO_ROOT)/scripts/generators/code/generate.py --lang all
 	@echo
 	@echo "Generating Python protobuf stubs (_pb2.pyi)..."
 	@mkdir -p $(REPO_ROOT)/sdk/python/src/payments/generated
@@ -261,8 +262,8 @@ test-grpc: _cleanup-grpc ## Run gRPC smoke tests for all SDKs (Rust + JS + Pytho
 				exit 1; \
 			fi; \
 		else \
-			printf "Building grpc-server and gRPC FFI library ($(GRPC_PROFILE))...\n"; \
-			cd $(REPO_ROOT) && cargo build -p grpc-server -p hyperswitch-grpc-ffi \
+			printf "Building grpc-server, gRPC FFI library, and connector FFI library ($(GRPC_PROFILE))...\n"; \
+			cd $(REPO_ROOT) && cargo build -p grpc-server -p hyperswitch-grpc-ffi -p ffi \
 				--profile $(GRPC_PROFILE) --target $(PLATFORM); \
 		fi; \
 		\

@@ -1669,7 +1669,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             BankRedirectData::Blik { blik_code } => Ok(Self::Blik(Box::new(BlikRedirectionData {
                 blik_code: Secret::new(blik_code.clone().ok_or(
                     IntegrationError::MissingRequiredField {
-                        field_name: "blik_code_11",
+                        field_name: "blik_code",
                         context: Default::default(),
                     },
                 )?),
@@ -1929,7 +1929,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .resource_common_data
                     .get_billing_email()
                     .change_context(IntegrationError::MissingRequiredField {
-                        field_name: "billing.email",
+                        field_name: "billing.email11s",
                         context: Default::default(),
                     })?;
                 router_data.resource_common_data.customer_id.clone().ok_or(
