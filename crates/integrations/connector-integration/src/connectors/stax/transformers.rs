@@ -274,24 +274,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 context: Default::default(),
             })?;
 
-        let payment_method_id = match item.router_data.request.payment_method_data {
+        let payment_method_id = match &item.router_data.request.payment_method_data {
+            PaymentMethodData::PaymentMethodToken(t) => t.token.peek().to_string(),
             PaymentMethodData::Card(_) | PaymentMethodData::BankDebit(_) => {
-                if let Ok(pm_token) = item
-                    .router_data
-                    .resource_common_data
-                    .get_payment_method_token()
-                {
-                    match pm_token {
-                        domain_types::router_data::PaymentMethodToken::Token(token) => {
-                            token.expose()
-                        }
-                    }
-                } else if let Some(mandate_id) = item.router_data.request.connector_mandate_id() {
+                if let Some(mandate_id) = item.router_data.request.connector_mandate_id() {
                     mandate_id
                 } else {
                     return Err(IntegrationError::MissingRequiredField {
                         field_name: "payment_method_token (from PaymentMethodToken flow) or connector_mandate_id (for saved payment methods)",
-                context: Default::default()
+                        context: Default::default()
                     })?;
                 }
             }
@@ -1095,7 +1086,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
-            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {

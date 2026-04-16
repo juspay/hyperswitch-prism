@@ -1,24 +1,23 @@
 use common_utils::{ext_traits::OptionExt, request::Method, FloatMajorUnit, StringMajorUnit};
 use domain_types::{
-    connector_flow::{Authorize, Capture, ClientAuthenticationToken},
+    connector_flow::{Authorize, Capture, ClientAuthenticationToken, CreateOrder},
     connector_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
-        ConnectorSpecificClientAuthenticationResponse, PaymentFlowData, PaymentsAuthorizeData,
-        PaymentsCaptureData, PaymentsResponseData,
+        ConnectorSpecificClientAuthenticationResponse, PaymentCreateOrderData,
+        PaymentCreateOrderResponse, PaymentFlowData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsResponseData,
         RapydClientAuthenticationResponse as RapydClientAuthenticationResponseDomain,
         RefundFlowData, RefundsData, RefundsResponseData, ResponseId,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
-    payment_method_data::{
-        CardToken, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData,
-    },
-    router_data::{ConnectorSpecificConfig, ErrorResponse, PaymentMethodToken},
+    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData},
+    router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
 };
 use error_stack;
 use error_stack::ResultExt;
-use hyperswitch_masking::Secret;
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::Deserialize;
 use serde::Serialize;
 use std::fmt::Debug;
@@ -262,7 +261,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 item.router_data.request.minor_amount,
                 item.router_data.request.currency,
             )
-            .change_context(IntegrationError::RequestEncodingFailed {
+            .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
 
@@ -348,36 +347,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     },
                 )))
             }
-            PaymentMethodData::CardToken(CardToken { .. }) => {
-                let token = item
-                    .router_data
-                    .resource_common_data
-                    .payment_method_token
-                    .as_ref()
-                    .map(|t| match t {
-                        PaymentMethodToken::Token(s) => s.clone(),
-                    })
-                    .ok_or_else(|| {
-                        error_stack::report!(IntegrationError::MissingRequiredField {
-                            field_name: "payment_method_token",
-                            context: IntegrationErrorContext {
-                                suggested_action: Some(
-                                    "Ensure a valid Rapyd customer payment method token is \
-                                     provided via payment_method_token."
-                                        .to_owned(),
-                                ),
-                                doc_url: Some(
-                                    "https://docs.rapyd.net/en/create-payment.html".to_owned(),
-                                ),
-                                additional_context: Some(
-                                    "Rapyd requires a customer payment method token (e.g., \
-                                     'card_xxxxxxxx') to process saved card payments."
-                                        .to_owned(),
-                                ),
-                            },
-                        })
-                    })?;
-                Some(RapydPaymentMethodData::Token(token))
+            PaymentMethodData::PaymentMethodToken(token_data) => {
+                Some(RapydPaymentMethodData::Token(token_data.token.clone()))
             }
             _ => None,
         }
@@ -763,5 +734,200 @@ impl TryFrom<ResponseRouterData<RapydClientAuthResponse, Self>>
             }),
             ..item.router_data
         })
+    }
+}
+
+// ============================================================================
+// CreateOrder Flow - Request/Response Types
+// ============================================================================
+
+#[derive(Debug, Serialize)]
+pub struct RapydCreateOrderRequest {
+    pub amount: StringMajorUnit,
+    pub currency: common_enums::Currency,
+    pub country: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub merchant_reference_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub complete_payment_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_payment_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub language: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RapydCreateOrderResponse {
+    pub status: Status,
+    pub data: Option<RapydCheckoutData>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RapydCheckoutData {
+    pub id: String,
+    pub status: String,
+    pub redirect_url: Option<String>,
+    pub amount: Option<FloatMajorUnit>,
+    pub currency: Option<String>,
+    pub country: Option<String>,
+    pub language: Option<String>,
+    pub merchant_reference_id: Option<String>,
+    pub page_expiration: Option<i64>,
+    pub timestamp: Option<i64>,
+}
+
+/// Metadata for CreateOrder flow, passed via connector_feature_data
+#[derive(Debug, Clone, Deserialize)]
+pub struct RapydCreateOrderMetadata {
+    /// Country code for the checkout page (ISO 3166-1 alpha-2)
+    pub country: Option<String>,
+}
+
+// ============================================================================
+// CreateOrder Flow - Request Transformation
+// ============================================================================
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        RapydRouterData<
+            RouterDataV2<
+                CreateOrder,
+                PaymentFlowData,
+                PaymentCreateOrderData,
+                PaymentCreateOrderResponse,
+            >,
+            T,
+        >,
+    > for RapydCreateOrderRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: RapydRouterData<
+            RouterDataV2<
+                CreateOrder,
+                PaymentFlowData,
+                PaymentCreateOrderData,
+                PaymentCreateOrderResponse,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+
+        let amount = item
+            .connector
+            .amount_converter
+            .convert(router_data.request.amount, router_data.request.currency)
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?;
+
+        // Try to get country from billing address first, then fallback to connector_feature_data
+        let country = router_data
+            .resource_common_data
+            .get_optional_billing_country()
+            .map(|c| c.to_string())
+            .or_else(|| {
+                // Fallback: try to get country from connector_feature_data
+                router_data
+                    .resource_common_data
+                    .connector_feature_data
+                    .as_ref()
+                    .and_then(|meta| {
+                        serde_json::from_value::<RapydCreateOrderMetadata>(meta.clone().expose())
+                            .ok()
+                    })
+                    .and_then(|m| m.country)
+            })
+            .ok_or_else(|| {
+                error_stack::report!(IntegrationError::MissingRequiredField {
+                    field_name: "billing_country or connector_feature_data.country",
+                    context: Default::default(),
+                })
+            })?;
+
+        Ok(Self {
+            amount,
+            currency: router_data.request.currency,
+            country,
+            merchant_reference_id: Some(
+                router_data
+                    .resource_common_data
+                    .connector_request_reference_id
+                    .clone(),
+            ),
+            complete_payment_url: router_data.resource_common_data.return_url.clone(),
+            error_payment_url: router_data.resource_common_data.return_url.clone(),
+            language: Some("en".to_string()),
+        })
+    }
+}
+
+// ============================================================================
+// CreateOrder Flow - Response Transformation
+// ============================================================================
+
+impl TryFrom<ResponseRouterData<RapydCreateOrderResponse, Self>>
+    for RouterDataV2<
+        CreateOrder,
+        PaymentFlowData,
+        PaymentCreateOrderData,
+        PaymentCreateOrderResponse,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<RapydCreateOrderResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response;
+
+        match response.data {
+            Some(data) => {
+                let status = match data.status.as_str() {
+                    "NEW" | "INP" => common_enums::AttemptStatus::Pending,
+                    "DON" => common_enums::AttemptStatus::Charged,
+                    "EXP" | "DEC" => common_enums::AttemptStatus::Failure,
+                    _ => common_enums::AttemptStatus::Pending,
+                };
+
+                // Extract checkout_id for use in resource_common_data
+                let checkout_id = data.id.clone();
+
+                Ok(Self {
+                    response: Ok(PaymentCreateOrderResponse {
+                        connector_order_id: checkout_id.clone(),
+                        session_data: None,
+                    }),
+                    resource_common_data: PaymentFlowData {
+                        status,
+                        reference_id: Some(checkout_id.clone()),
+                        // Store order ID so Authorize flow can use it via connector_order_id
+                        connector_order_id: Some(checkout_id),
+                        ..item.router_data.resource_common_data
+                    },
+                    ..item.router_data
+                })
+            }
+            None => Ok(Self {
+                response: Err(ErrorResponse {
+                    code: response.status.error_code,
+                    status_code: item.http_code,
+                    message: response.status.status.unwrap_or_default(),
+                    reason: response.status.message,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                }),
+                resource_common_data: PaymentFlowData {
+                    status: common_enums::AttemptStatus::Failure,
+                    ..item.router_data.resource_common_data
+                },
+                ..item.router_data
+            }),
+        }
     }
 }

@@ -851,6 +851,13 @@ enum PaymentMethodType {
   WERO = 103;
   NETWORK_TOKEN = 104;
   NETBANKING = 105;
+  LAZY_PAY = 106;
+  PHONE_PE = 107;
+  BILL_DESK = 108;
+  CASH_FREE = 109;
+  PAY_U = 110;
+  EASE_BUZZ = 111;
+  OPEN_BANKING = 112;
 }
 
 // Product type enumeration
@@ -2305,6 +2312,7 @@ message PaymentClientAuthenticationContext {
   optional CountryAlpha2 country_alpha2_code = 5;
   optional Customer customer = 6;
   optional SecretString metadata = 7;
+  optional string return_url = 8;
 }
 
 // Response message for SDK session

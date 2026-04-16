@@ -22,7 +22,7 @@ use crate::{
     mandates::{CustomerAcceptance, MandateData},
     payment_address::{self, Address, AddressDetails, PhoneDetails},
     payment_method_data::{self, Card, PaymentMethodData, PaymentMethodDataTypes},
-    router_data::{self, ConnectorResponseData, PaymentMethodToken},
+    router_data::{self, ConnectorResponseData},
     router_request_types::{
         self, AcceptDisputeIntegrityObject, AuthoriseIntegrityObject, BrowserInformation,
         CaptureIntegrityObject, CreateOrderIntegrityObject, DefendDisputeIntegrityObject,
@@ -439,7 +439,6 @@ pub struct PaymentFlowData {
     pub session_token: Option<String>,
     pub reference_id: Option<String>,
     pub connector_order_id: Option<String>,
-    pub payment_method_token: Option<PaymentMethodToken>,
     pub preprocessing_id: Option<String>,
     ///for switching between two different versions of the same connector
     pub connector_api_version: Option<String>,
@@ -883,11 +882,6 @@ impl PaymentFlowData {
             .ok_or_else(missing_field_err("shipping"))
     }
 
-    pub fn get_payment_method_token(&self) -> Result<PaymentMethodToken, Error> {
-        self.payment_method_token
-            .clone()
-            .ok_or_else(missing_field_err("payment_method_token"))
-    }
     pub fn get_customer_id(&self) -> Result<CustomerId, Error> {
         self.customer_id
             .to_owned()
@@ -925,13 +919,6 @@ impl PaymentFlowData {
     pub fn set_session_token_id(mut self, session_token_id: Option<String>) -> Self {
         if session_token_id.is_some() && self.session_token.is_none() {
             self.session_token = session_token_id;
-        }
-        self
-    }
-    pub fn set_payment_method_token(mut self, payment_method_token: Option<String>) -> Self {
-        if payment_method_token.is_some() && self.payment_method_token.is_none() {
-            self.payment_method_token =
-                payment_method_token.map(|token| PaymentMethodToken::Token(Secret::new(token)));
         }
         self
     }
@@ -2894,6 +2881,12 @@ impl<T: PaymentMethodDataTypes> From<PaymentMethodData<T>> for PaymentMethodData
                 payment_method_data::WalletData::MbWay(_) => Self::MbWay,
                 payment_method_data::WalletData::Satispay(_) => Self::Satispay,
                 payment_method_data::WalletData::Wero(_) => Self::Wero,
+                payment_method_data::WalletData::LazyPayRedirect(_) => Self::LazyPayRedirect,
+                payment_method_data::WalletData::PhonePeRedirect(_) => Self::PhonePeRedirect,
+                payment_method_data::WalletData::BillDeskRedirect(_) => Self::BillDeskRedirect,
+                payment_method_data::WalletData::CashfreeRedirect(_) => Self::CashfreeRedirect,
+                payment_method_data::WalletData::PayURedirect(_) => Self::PayURedirect,
+                payment_method_data::WalletData::EaseBuzzRedirect(_) => Self::EaseBuzzRedirect,
             },
             PaymentMethodData::PayLater(pay_later_data) => match pay_later_data {
                 payment_method_data::PayLaterData::KlarnaRedirect { .. } => Self::KlarnaRedirect,
@@ -3039,7 +3032,7 @@ impl<T: PaymentMethodDataTypes> From<PaymentMethodData<T>> for PaymentMethodData
                 payment_method_data::GiftCardData::Givex(_) => Self::Givex,
                 payment_method_data::GiftCardData::PaySafeCard {} => Self::PaySafeCar,
             },
-            PaymentMethodData::CardToken(_) => Self::CardToken,
+            PaymentMethodData::PaymentMethodToken(_) => Self::PaymentMethodToken,
             PaymentMethodData::OpenBanking(data) => match data {
                 payment_method_data::OpenBankingData::OpenBankingPIS {} => Self::OpenBanking,
             },

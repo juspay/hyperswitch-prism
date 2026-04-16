@@ -6,7 +6,7 @@
 // Run a scenario:  npx tsx ppro.ts checkout_autocapture
 
 import { PaymentClient, EventClient, RecurringPaymentClient, RefundClient, types } from 'hyperswitch-prism';
-const { ConnectorConfig, ConnectorSpecificConfig, SdkOptions, Environment, AuthenticationType, CaptureMethod, Currency, PaymentMethodType } = types;
+const { ConnectorConfig, ConnectorSpecificConfig, SdkOptions, Environment, Currency, PaymentMethodType } = types;
 
 const _defaultConfig: ConnectorConfig = {
     options: {
@@ -18,27 +18,6 @@ const _defaultConfig: ConnectorConfig = {
 //     ppro: { apiKey: { value: 'YOUR_API_KEY' } }
 // };
 
-
-function _buildAuthorizeRequest(captureMethod: CaptureMethod): PaymentServiceAuthorizeRequest {
-    return {
-        "merchantTransactionId": "probe_txn_001",  // Identification.
-        "amount": {  // The amount for the payment.
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        },
-        "paymentMethod": {  // Payment method to be used.
-            "ideal": {
-            }
-        },
-        "captureMethod": captureMethod,  // Method for capturing the payment.
-        "address": {  // Address Information.
-            "billingAddress": {
-            }
-        },
-        "authType": AuthenticationType.NO_THREE_DS,  // Authentication Details.
-        "returnUrl": "https://example.com/return"  // URLs for Redirection and Webhooks.
-    };
-}
 
 function _buildCaptureRequest(connectorTransactionId: string): PaymentServiceCaptureRequest {
     return {
@@ -124,15 +103,6 @@ function _buildVoidRequest(connectorTransactionId: string): PaymentServiceVoidRe
 
 
 // ANCHOR: scenario_functions
-// Flow: PaymentService.Authorize (Ideal)
-async function authorize(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<PaymentServiceAuthorizeResponse> {
-    const paymentClient = new PaymentClient(config);
-
-    const authorizeResponse = await paymentClient.authorize(_buildAuthorizeRequest(CaptureMethod.AUTOMATIC));
-
-    return { status: authorizeResponse.status, transactionId: authorizeResponse.connectorTransactionId };
-}
-
 // Flow: PaymentService.Capture
 async function capture(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<PaymentServiceCaptureResponse> {
     const paymentClient = new PaymentClient(config);
@@ -199,7 +169,7 @@ async function voidPayment(merchantTransactionId: string, config: ConnectorConfi
 
 // Export all process* functions for the smoke test
 export {
-    authorize, capture, get, handleEvent, recurringCharge, refund, refundGet, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildGetRequest, _buildHandleEventRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildVoidRequest
+    capture, get, handleEvent, recurringCharge, refund, refundGet, voidPayment, _buildCaptureRequest, _buildGetRequest, _buildHandleEventRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildVoidRequest
 };
 
 // CLI runner
