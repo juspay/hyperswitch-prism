@@ -475,13 +475,18 @@ jobs:
         run: |
           echo "Before cleanup:"
           df -h
-          # Clean apt cache
+          du -sh target 2>/dev/null || echo "No target dir"
+          # Aggressive target cleanup - keep only essentials
+          rm -rf target/debug
+          rm -rf target/incremental
+          find target -name "*.rlib" -size +50M -delete 2>/dev/null || true
+          # System cleanup
           sudo apt-get clean
           sudo rm -rf /var/cache/apt/archives
-          # Clean npm cache
           npm cache clean --force 2>/dev/null || true
           echo "After cleanup:"
           df -h
+          du -sh target 2>/dev/null || echo "No target dir"
 
       - name: Run Tests
         if: ${{ env.RUN_TESTS == 'true' }}
