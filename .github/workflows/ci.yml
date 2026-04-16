@@ -620,7 +620,7 @@ jobs:
         shell: bash
         run: |
           echo "Running SDK gRPC tests"
-          make -C sdk test-grpc PROFILE=release-fast
+          GRPC_SKIP_BUILD=1 make -C sdk test-grpc PROFILE=release-fast
 
       - name: Run SDK FFI Tests
         shell: bash
@@ -630,7 +630,7 @@ jobs:
           else
             echo "Running SDK FFI tests without connector credentials (dry-run mode)"
           fi
-          make -C sdk test PROFILE=release-fast
+          FFI_SKIP_BUILD=1 make -C sdk test PROFILE=release-fast
 
       - name: Run SDK Mock Tests
         shell: bash
