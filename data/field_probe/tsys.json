@@ -589,37 +589,8 @@
     },
     "recurring_charge": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_charge_id": "probe_charge_001",
-          "connector_recurring_payment_id": {
-            "connector_mandate_id": {
-              "connector_mandate_id": "78622031"
-            }
-          },
-          "amount": {
-            "minor_amount": 100,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "card": {
-              "card_number": "4111111111111111",
-              "card_exp_month": "03",
-              "card_exp_year": "2030",
-              "card_cvc": "123",
-              "card_holder_name": "John Doe"
-            }
-          }
-        },
-        "sample": {
-          "url": "https://stagegw.transnox.com/servlets/transnox_api_server",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"Sale\":{\"deviceID\":\"probe_id\",\"transactionKey\":\"probe_key\",\"cardDataSource\":\"INTERNET\",\"transactionAmount\":\"100\",\"currencyCode\":\"USD\",\"cardNumber\":\"4111111111111111\",\"expirationDate\":\"03/30\",\"cvv2\":\"123\",\"orderNumber\":\"probe_charge_001\",\"terminalCapability\":\"NO_TERMINAL_MANUAL\",\"terminalOperatingEnvironment\":\"NO_TERMINAL\",\"cardholderAuthenticationMethod\":\"NOT_AUTHENTICATED\",\"developerID\":\"probe_dev_id\"}}"
-        }
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not implemented for Tsys RepeatPayment"
       }
     },
     "recurring_revoke": {
