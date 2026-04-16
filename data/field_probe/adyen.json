@@ -1016,39 +1016,8 @@
         "error": "This feature is not implemented: Selected payment method through Adyen"
       },
       "Klarna": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "klarna": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "customer": {
-            "connector_customer_id": "cust_probe_123"
-          },
-          "address": {
-            "billing_address": {
-              "country_alpha2_code": "US",
-              "email": "test@example.com"
-            }
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
-        },
-        "sample": {
-          "url": "https://checkout-test.adyen.com/v68/payments",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-api-key": "probe_key"
-          },
-          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"klarna\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"},\"shopperReference\":\"cust_probe_123\",\"shopperName\":{},\"shopperEmail\":\"test@example.com\",\"countryCode\":\"US\",\"lineItems\":[{\"amountExcludingTax\":1000,\"amountIncludingTax\":1000,\"id\":\"Items #1\",\"quantity\":1}]}"
-        }
+        "status": "error",
+        "error": "Stuck on field: billing.email11s — Missing required field: billing.email11s"
       },
       "Lawson": {
         "status": "supported",
