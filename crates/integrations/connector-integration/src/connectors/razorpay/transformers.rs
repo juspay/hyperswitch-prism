@@ -164,7 +164,6 @@ pub struct RazorpayPaymentRequest<
     pub method: PaymentMethodType,
     pub card: Option<RazorpayCardSpecificData<T>>,
     pub wallet: Option<RazorpayWalletType>,
-    pub bank: Option<String>,
     pub authentication: Option<AuthenticationDetails>,
     pub browser: Option<BrowserInfo>,
     pub ip: Secret<String>,
@@ -179,7 +178,6 @@ pub enum RazorpayCardSpecificData<
 > {
     Card(CardDetails<T>),
     Wallet(RazorpayWalletType),
-    Netbanking(String),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -498,7 +496,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let customer_name = item.router_data.request.customer_name.clone();
         let browser_info_opt = item.router_data.request.browser_info.as_ref();
 
-        let (method, card, wallet, bank, authentication, browser) =
+        let (method, card, wallet, authentication, browser) =
             match &item.router_data.request.payment_method_data {
                 PaymentMethodData::Card(card_data) => {
                     let card_details =
@@ -525,7 +523,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         PaymentMethodType::Card,
                         Some(RazorpayCardSpecificData::Card(card_details)),
                         None,
-                        None,
                         auth,
                         browser,
                     )
@@ -538,17 +535,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         Some(wallet_type),
                         None,
                         None,
-                        None,
                     )
                 }
-                PaymentMethodData::BankRedirect(BankRedirectData::Netbanking { issuer }) => (
-                    PaymentMethodType::Netbanking,
-                    None,
-                    None,
-                    Some(issuer.to_string()),
-                    None,
-                    None,
-                ),
+                // Netbanking uses RazorpayNetbankingRequest via a separate flow
+                PaymentMethodData::BankRedirect(BankRedirectData::Netbanking { .. }) => {
+                    return Err(IntegrationError::not_implemented(
+                        "Netbanking uses RazorpayNetbankingRequest, not RazorpayPaymentRequest"
+                            .to_string(),
+                    )
+                    .into())
+                }
                 pm @ (PaymentMethodData::CardRedirect(_)
                 | PaymentMethodData::PayLater(_)
                 | PaymentMethodData::BankRedirect(_)
@@ -606,7 +602,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             method,
             card,
             wallet,
-            bank,
             authentication,
             browser,
             ip,

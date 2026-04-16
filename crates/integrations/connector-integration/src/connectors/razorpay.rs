@@ -1298,66 +1298,25 @@ static RAZORPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             },
         );
 
-        razorpay_supported_payment_methods.add(
-            PaymentMethod::Wallet,
+        for wallet_type in [
             PaymentMethodType::LazyPay,
-            PaymentMethodDetails {
-                mandates: FeatureStatus::NotSupported,
-                refunds: FeatureStatus::Supported,
-                supported_capture_methods: vec![CaptureMethod::Automatic],
-                specific_features: None,
-            },
-        );
-        razorpay_supported_payment_methods.add(
-            PaymentMethod::Wallet,
             PaymentMethodType::PhonePe,
-            PaymentMethodDetails {
-                mandates: FeatureStatus::NotSupported,
-                refunds: FeatureStatus::Supported,
-                supported_capture_methods: vec![CaptureMethod::Automatic],
-                specific_features: None,
-            },
-        );
-        razorpay_supported_payment_methods.add(
-            PaymentMethod::Wallet,
             PaymentMethodType::BillDesk,
-            PaymentMethodDetails {
-                mandates: FeatureStatus::NotSupported,
-                refunds: FeatureStatus::Supported,
-                supported_capture_methods: vec![CaptureMethod::Automatic],
-                specific_features: None,
-            },
-        );
-        razorpay_supported_payment_methods.add(
-            PaymentMethod::Wallet,
             PaymentMethodType::Cashfree,
-            PaymentMethodDetails {
-                mandates: FeatureStatus::NotSupported,
-                refunds: FeatureStatus::Supported,
-                supported_capture_methods: vec![CaptureMethod::Automatic],
-                specific_features: None,
-            },
-        );
-        razorpay_supported_payment_methods.add(
-            PaymentMethod::Wallet,
             PaymentMethodType::PayU,
-            PaymentMethodDetails {
-                mandates: FeatureStatus::NotSupported,
-                refunds: FeatureStatus::Supported,
-                supported_capture_methods: vec![CaptureMethod::Automatic],
-                specific_features: None,
-            },
-        );
-        razorpay_supported_payment_methods.add(
-            PaymentMethod::Wallet,
             PaymentMethodType::EaseBuzz,
-            PaymentMethodDetails {
-                mandates: FeatureStatus::NotSupported,
-                refunds: FeatureStatus::Supported,
-                supported_capture_methods: vec![CaptureMethod::Automatic],
-                specific_features: None,
-            },
-        );
+        ] {
+            razorpay_supported_payment_methods.add(
+                PaymentMethod::Wallet,
+                wallet_type,
+                PaymentMethodDetails {
+                    mandates: FeatureStatus::NotSupported,
+                    refunds: FeatureStatus::Supported,
+                    supported_capture_methods: vec![CaptureMethod::Automatic],
+                    specific_features: None,
+                },
+            );
+        }
 
         razorpay_supported_payment_methods.add(
             PaymentMethod::Upi,
