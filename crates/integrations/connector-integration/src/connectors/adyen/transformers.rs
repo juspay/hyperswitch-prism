@@ -1980,7 +1980,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .resource_common_data
                     .get_billing_email()
                     .change_context(IntegrationError::MissingRequiredField {
-                        field_name: "billing.email11s",
+                        field_name: "billing.email",
                         context: Default::default(),
                     })?;
                 router_data.resource_common_data.customer_id.clone().ok_or(
