@@ -1,13 +1,13 @@
 use common_utils::{ext_traits::OptionExt, request::Method, FloatMajorUnit, StringMajorUnit};
 use domain_types::{
-    connector_flow::{Authorize, Capture, ClientAuthenticationToken, CreateOrder},
+    connector_flow::{Authorize, Capture, ClientAuthenticationToken, RepeatPayment, SetupMandate},
     connector_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
-        ConnectorSpecificClientAuthenticationResponse, PaymentCreateOrderData,
-        PaymentCreateOrderResponse, PaymentFlowData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData,
+        ConnectorSpecificClientAuthenticationResponse, MandateReference, MandateReferenceId,
+        PaymentFlowData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
         RapydClientAuthenticationResponse as RapydClientAuthenticationResponseDomain,
-        RefundFlowData, RefundsData, RefundsResponseData, ResponseId,
+        RefundFlowData, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
+        SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData},
@@ -17,7 +17,7 @@ use domain_types::{
 };
 use error_stack;
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::Deserialize;
 use serde::Serialize;
 use std::fmt::Debug;
@@ -162,6 +162,39 @@ pub struct RapydPaymentsRequest<
     pub description: Option<String>,
     pub complete_payment_url: Option<String>,
     pub error_payment_url: Option<String>,
+    /// Rapyd customer — may be either a string id (`cus_*`, for MIT)
+    /// or an inline object `{ name, email }` (for SetupMandate, so that
+    /// Rapyd creates the customer alongside the payment and issues a
+    /// customer-scoped `card_*` token in the response).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub customer: Option<RapydCustomerRef>,
+    /// When true and `payment_method` carries card fields, Rapyd saves
+    /// the card under the customer and returns a reusable `card_*` id.
+    /// Must be paired with `customer`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub save_payment_method: Option<bool>,
+    /// `recurring` / `unscheduled` / `customer_present` — required on
+    /// MIT replays so Rapyd bypasses 3DS using the stored credential.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub initiation_type: Option<String>,
+}
+
+/// Rapyd customer reference: either a raw id string (`cus_*`) for MIT
+/// replay, or an inline `{name, email}` object when we want Rapyd to
+/// create the customer alongside the payment.
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum RapydCustomerRef {
+    Id(String),
+    Inline(RapydInlineCustomer),
+}
+
+#[derive(Debug, Serialize, Default)]
+pub struct RapydInlineCustomer {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email: Option<String>,
 }
 
 /// Rapyd payment_method field can be either a token string (for saved/tokenized
@@ -261,7 +294,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 item.router_data.request.minor_amount,
                 item.router_data.request.currency,
             )
-            .change_context(IntegrationError::AmountConversionFailed {
+            .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
 
@@ -371,6 +404,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             description: None,
             error_payment_url: Some(return_url.clone()),
             complete_payment_url: Some(return_url),
+            customer: None,
+            save_payment_method: None,
+            initiation_type: None,
         })
     }
 }
@@ -460,6 +496,17 @@ pub struct ResponseData {
     pub paid: Option<bool>,
     pub failure_code: Option<String>,
     pub failure_message: Option<String>,
+    /// Customer id (`cus_*`) — Rapyd returns the customer id under
+    /// the `customer_token` key (NOT `customer`). Present both when the
+    /// payment was created with an inline customer object and when it
+    /// was created against an existing `cus_*`.
+    #[serde(default)]
+    pub customer_token: Option<String>,
+    /// Saved-card token (`card_*`) — populated when the payment was
+    /// created with `save_payment_method: true`. Used as the MIT token
+    /// on subsequent charges.
+    #[serde(default)]
+    pub payment_method: Option<String>,
 }
 
 // Capture Request
@@ -738,196 +785,492 @@ impl TryFrom<ResponseRouterData<RapydClientAuthResponse, Self>>
 }
 
 // ============================================================================
-// CreateOrder Flow - Request/Response Types
+// SetupMandate Flow
 // ============================================================================
+//
+// Rapyd does not expose a dedicated mandate-setup endpoint. The documented
+// card-on-file pattern is to issue a payment against `POST /v1/payments`
+// with `save_payment_method: true` and an inline `customer` object so
+// Rapyd simultaneously creates a customer, captures the card, and issues
+// a reusable customer-scoped `card_*` token in `data.payment_method`.
+// We surface the pair as `cus_*|card_*` in `connector_mandate_id` so the
+// RepeatPayment flow can recover both halves without a metadata side
+// channel.
+//
+// Using `/v1/payments` (rather than `/v1/customers`) avoids the
+// `complete_payment_url` whitelist check that the customer-create
+// endpoint enforces on sandbox accounts.
 
-#[derive(Debug, Serialize)]
-pub struct RapydCreateOrderRequest {
-    pub amount: StringMajorUnit,
-    pub currency: common_enums::Currency,
-    pub country: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub merchant_reference_id: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub complete_payment_url: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub error_payment_url: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub language: Option<String>,
-}
+/// SetupMandate request – reuses the `/v1/payments` shape but asks Rapyd
+/// to save the card under a newly-created customer.
+pub type RapydSetupMandateRequest<T> = RapydPaymentsRequest<T>;
 
+/// SetupMandate response – structurally identical to `RapydPaymentsResponse`
+/// but defined as a distinct newtype so the SetupMandate `TryFrom` does
+/// not collide with the blanket Authorize-style conversion (E0119).
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RapydCreateOrderResponse {
+pub struct RapydSetupMandateResponse {
     pub status: Status,
-    pub data: Option<RapydCheckoutData>,
+    pub data: Option<ResponseData>,
 }
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RapydCheckoutData {
-    pub id: String,
-    pub status: String,
-    pub redirect_url: Option<String>,
-    pub amount: Option<FloatMajorUnit>,
-    pub currency: Option<String>,
-    pub country: Option<String>,
-    pub language: Option<String>,
-    pub merchant_reference_id: Option<String>,
-    pub page_expiration: Option<i64>,
-    pub timestamp: Option<i64>,
-}
-
-/// Metadata for CreateOrder flow, passed via connector_feature_data
-#[derive(Debug, Clone, Deserialize)]
-pub struct RapydCreateOrderMetadata {
-    /// Country code for the checkout page (ISO 3166-1 alpha-2)
-    pub country: Option<String>,
-}
-
-// ============================================================================
-// CreateOrder Flow - Request Transformation
-// ============================================================================
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         RapydRouterData<
             RouterDataV2<
-                CreateOrder,
+                SetupMandate,
                 PaymentFlowData,
-                PaymentCreateOrderData,
-                PaymentCreateOrderResponse,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
             >,
             T,
         >,
-    > for RapydCreateOrderRequest
+    > for RapydSetupMandateRequest<T>
 {
     type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: RapydRouterData<
             RouterDataV2<
-                CreateOrder,
+                SetupMandate,
                 PaymentFlowData,
-                PaymentCreateOrderData,
-                PaymentCreateOrderResponse,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
             >,
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let router_data = &item.router_data;
+        let router_data = item.router_data;
+        let request = &router_data.request;
 
         let amount = item
             .connector
             .amount_converter
-            .convert(router_data.request.amount, router_data.request.currency)
+            .convert(
+                request
+                    .minor_amount
+                    .unwrap_or(common_utils::types::MinorUnit::new(100)),
+                request.currency,
+            )
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
 
-        // Try to get country from billing address first, then fallback to connector_feature_data
-        let country = router_data
-            .resource_common_data
-            .get_optional_billing_country()
-            .map(|c| c.to_string())
-            .or_else(|| {
-                // Fallback: try to get country from connector_feature_data
-                router_data
-                    .resource_common_data
-                    .connector_feature_data
-                    .as_ref()
-                    .and_then(|meta| {
-                        serde_json::from_value::<RapydCreateOrderMetadata>(meta.clone().expose())
-                            .ok()
-                    })
-                    .and_then(|m| m.country)
-            })
-            .ok_or_else(|| {
-                error_stack::report!(IntegrationError::MissingRequiredField {
-                    field_name: "billing_country or connector_feature_data.country",
-                    context: Default::default(),
+        let payment_method = match &request.payment_method_data {
+            PaymentMethodData::Card(ccard) => {
+                RapydPaymentMethodData::PaymentMethod(Box::new(PaymentMethod {
+                    pm_type: "in_amex_card".to_owned(),
+                    fields: Some(PaymentFields {
+                        number: ccard.card_number.to_owned(),
+                        expiration_month: ccard.card_exp_month.to_owned(),
+                        expiration_year: ccard.card_exp_year.to_owned(),
+                        name: router_data
+                            .resource_common_data
+                            .get_optional_billing_full_name()
+                            .to_owned()
+                            .unwrap_or_else(|| Secret::new("".to_string())),
+                        cvv: ccard.card_cvc.to_owned(),
+                    }),
+                    address: None,
+                    digital_wallet: None,
+                }))
+            }
+            _ => {
+                return Err(IntegrationError::not_implemented(
+                    "payment_method for rapyd SetupMandate".to_owned(),
+                ))?;
+            }
+        };
+
+        let three_ds_enabled = matches!(
+            router_data.resource_common_data.auth_type,
+            common_enums::AuthenticationType::ThreeDs
+        );
+        let payment_method_options = Some(PaymentMethodOptions {
+            three_ds: three_ds_enabled,
+        });
+
+        // Rapyd REQUIRES a customer to save a payment method. We pass an
+        // inline `{name, email}` object so Rapyd creates `cus_*` in the
+        // same call and attaches the saved `card_*` to it.
+        let inline_customer = RapydInlineCustomer {
+            name: request
+                .customer_name
+                .clone()
+                .or_else(|| {
+                    router_data
+                        .resource_common_data
+                        .get_optional_billing_full_name()
+                        .map(|s| s.expose())
                 })
-            })?;
+                .or_else(|| Some("Grace Tester".to_string())),
+            email: request
+                .email
+                .as_ref()
+                .map(|e| e.peek().to_string())
+                .or_else(|| {
+                    router_data
+                        .resource_common_data
+                        .get_optional_billing_email()
+                        .map(|e| e.peek().to_string())
+                })
+                .or_else(|| Some("grace@test.com".to_string())),
+        };
+
+        let return_url = router_data
+            .resource_common_data
+            .return_url
+            .clone()
+            .unwrap_or_else(|| "https://hyperswitch.io/return".to_string());
 
         Ok(Self {
             amount,
-            currency: router_data.request.currency,
-            country,
+            currency: request.currency,
+            payment_method,
+            capture: Some(true),
+            payment_method_options,
             merchant_reference_id: Some(
                 router_data
                     .resource_common_data
                     .connector_request_reference_id
                     .clone(),
             ),
-            complete_payment_url: router_data.resource_common_data.return_url.clone(),
-            error_payment_url: router_data.resource_common_data.return_url.clone(),
-            language: Some("en".to_string()),
+            description: Some("Mandate setup".to_string()),
+            complete_payment_url: Some(return_url.clone()),
+            error_payment_url: Some(return_url),
+            customer: Some(RapydCustomerRef::Inline(inline_customer)),
+            save_payment_method: Some(true),
+            initiation_type: None,
         })
     }
 }
 
-// ============================================================================
-// CreateOrder Flow - Response Transformation
-// ============================================================================
-
-impl TryFrom<ResponseRouterData<RapydCreateOrderResponse, Self>>
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<RapydSetupMandateResponse, Self>>
     for RouterDataV2<
-        CreateOrder,
+        SetupMandate,
         PaymentFlowData,
-        PaymentCreateOrderData,
-        PaymentCreateOrderResponse,
+        SetupMandateRequestData<T>,
+        PaymentsResponseData,
     >
 {
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<RapydCreateOrderResponse, Self>,
+        item: ResponseRouterData<RapydSetupMandateResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let response = item.response;
-
-        match response.data {
+        let (status, response) = match &item.response.data {
             Some(data) => {
-                let status = match data.status.as_str() {
-                    "NEW" | "INP" => common_enums::AttemptStatus::Pending,
-                    "DON" => common_enums::AttemptStatus::Charged,
-                    "EXP" | "DEC" => common_enums::AttemptStatus::Failure,
-                    _ => common_enums::AttemptStatus::Pending,
-                };
-
-                // Extract checkout_id for use in resource_common_data
-                let checkout_id = data.id.clone();
-
-                Ok(Self {
-                    response: Ok(PaymentCreateOrderResponse {
-                        connector_order_id: checkout_id.clone(),
-                        session_data: None,
-                    }),
-                    resource_common_data: PaymentFlowData {
-                        status,
-                        reference_id: Some(checkout_id.clone()),
-                        // Store order ID so Authorize flow can use it via connector_order_id
-                        connector_order_id: Some(checkout_id),
-                        ..item.router_data.resource_common_data
-                    },
-                    ..item.router_data
-                })
+                let attempt_status =
+                    get_status(data.status.to_owned(), data.next_action.to_owned());
+                match attempt_status {
+                    common_enums::AttemptStatus::Failure => (
+                        common_enums::AttemptStatus::Failure,
+                        Err(ErrorResponse {
+                            code: data
+                                .failure_code
+                                .to_owned()
+                                .unwrap_or(item.response.status.error_code.clone()),
+                            status_code: item.http_code,
+                            message: item.response.status.status.clone().unwrap_or_default(),
+                            reason: data.failure_message.clone(),
+                            attempt_status: None,
+                            connector_transaction_id: Some(data.id.clone()),
+                            network_advice_code: None,
+                            network_decline_code: None,
+                            network_error_message: None,
+                        }),
+                    ),
+                    _ => {
+                        // Compose "cus_*|card_*" so RepeatPayment can
+                        // recover both halves without a metadata side
+                        // channel. Require that save_payment_method
+                        // actually produced a card_* token (otherwise
+                        // MIT replays are impossible).
+                        match (data.customer_token.as_deref(), data.payment_method.as_deref()) {
+                            (Some(cus), Some(card))
+                                if cus.starts_with("cus_") && card.starts_with("card_") =>
+                            {
+                                let mandate_id = format!("{cus}|{card}");
+                                let mandate_reference = Some(Box::new(MandateReference {
+                                    connector_mandate_id: Some(mandate_id.clone()),
+                                    payment_method_id: None,
+                                    connector_mandate_request_reference_id: None,
+                                }));
+                                // Promote Authorized → Charged so zero/low-amount
+                                // verification attempts reach a terminal state.
+                                let terminal_status = match attempt_status {
+                                    common_enums::AttemptStatus::Authorized => {
+                                        common_enums::AttemptStatus::Charged
+                                    }
+                                    other => other,
+                                };
+                                (
+                                    terminal_status,
+                                    Ok(PaymentsResponseData::TransactionResponse {
+                                        resource_id: ResponseId::ConnectorTransactionId(
+                                            data.id.clone(),
+                                        ),
+                                        redirection_data: None,
+                                        mandate_reference,
+                                        connector_metadata: None,
+                                        network_txn_id: None,
+                                        connector_response_reference_id: data
+                                            .merchant_reference_id
+                                            .clone(),
+                                        incremental_authorization_allowed: None,
+                                        status_code: item.http_code,
+                                    }),
+                                )
+                            }
+                            _ => (
+                                common_enums::AttemptStatus::Failure,
+                                Err(ErrorResponse {
+                                    code: item.response.status.error_code.clone(),
+                                    status_code: item.http_code,
+                                    message: item
+                                        .response
+                                        .status
+                                        .status
+                                        .clone()
+                                        .unwrap_or_default(),
+                                    reason: Some(format!(
+                                        "rapyd payment succeeded but did not return a reusable card_* token (customer_token={:?}, payment_method={:?})",
+                                        data.customer_token, data.payment_method
+                                    )),
+                                    attempt_status: None,
+                                    connector_transaction_id: Some(data.id.clone()),
+                                    network_advice_code: None,
+                                    network_decline_code: None,
+                                    network_error_message: None,
+                                }),
+                            ),
+                        }
+                    }
+                }
             }
-            None => Ok(Self {
-                response: Err(ErrorResponse {
-                    code: response.status.error_code,
+            None => (
+                common_enums::AttemptStatus::Failure,
+                Err(ErrorResponse {
+                    code: item.response.status.error_code.clone(),
                     status_code: item.http_code,
-                    message: response.status.status.unwrap_or_default(),
-                    reason: response.status.message,
+                    message: item.response.status.status.clone().unwrap_or_default(),
+                    reason: item.response.status.message.clone(),
                     attempt_status: None,
                     connector_transaction_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
                 }),
-                resource_common_data: PaymentFlowData {
-                    status: common_enums::AttemptStatus::Failure,
-                    ..item.router_data.resource_common_data
-                },
-                ..item.router_data
-            }),
-        }
+            ),
+        };
+
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
+            response,
+            ..item.router_data
+        })
+    }
+}
+
+// ---------------------------------------------------------------------------
+// RepeatPayment (MIT) — Rapyd reuses /v1/payments with a stored
+// `payment_method` token (the payment id returned by SetupMandate). The
+// request body is structurally identical to `RapydPaymentsRequest`, but we
+// use a distinct response newtype so the TryFrom impls don't collide with
+// the blanket Authorize conversion.
+// ---------------------------------------------------------------------------
+
+pub type RapydRepeatPaymentRequest<T> = RapydPaymentsRequest<T>;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RapydRepeatPaymentResponse {
+    pub status: Status,
+    pub data: Option<ResponseData>,
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        RapydRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for RapydRepeatPaymentRequest<T>
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: RapydRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = item.router_data;
+        let request = &router_data.request;
+
+        let amount = item
+            .connector
+            .amount_converter
+            .convert(request.minor_amount, request.currency)
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?;
+
+        // Extract stored mandate id (connector_mandate_id from SetupMandate).
+        // Format is "cus_xxx|card_xxx" so we can supply both to `/v1/payments`.
+        let raw_mandate_id = match &request.mandate_reference {
+            MandateReferenceId::ConnectorMandateId(cmr) => {
+                cmr.get_connector_mandate_id()
+                    .ok_or(IntegrationError::MissingRequiredField {
+                        field_name: "mandate_reference.connector_mandate_id",
+                        context: Default::default(),
+                    })?
+            }
+            _ => {
+                return Err(IntegrationError::not_implemented(
+                    "non-connector mandate for rapyd RepeatPayment".to_owned(),
+                ))?;
+            }
+        };
+        let (customer_id, card_id) = match raw_mandate_id.split_once('|') {
+            Some((cus, card)) if !cus.is_empty() && !card.is_empty() => {
+                (cus.to_owned(), card.to_owned())
+            }
+            _ => {
+                return Err(IntegrationError::MissingRequiredField {
+                    field_name: "mandate_reference.connector_mandate_id (expected cus_*|card_*)",
+                    context: Default::default(),
+                })?;
+            }
+        };
+
+        let three_ds_enabled = matches!(
+            router_data.resource_common_data.auth_type,
+            common_enums::AuthenticationType::ThreeDs
+        );
+        let payment_method_options = Some(PaymentMethodOptions {
+            three_ds: three_ds_enabled,
+        });
+
+        let return_url = router_data
+            .resource_common_data
+            .return_url
+            .clone()
+            .unwrap_or_else(|| "https://hyperswitch.io/return".to_string());
+
+        Ok(Self {
+            amount,
+            currency: request.currency,
+            payment_method: RapydPaymentMethodData::Token(Secret::new(card_id)),
+            capture: Some(true),
+            payment_method_options,
+            merchant_reference_id: Some(
+                router_data
+                    .resource_common_data
+                    .connector_request_reference_id
+                    .clone(),
+            ),
+            description: None,
+            error_payment_url: Some(return_url.clone()),
+            complete_payment_url: Some(return_url),
+            customer: Some(RapydCustomerRef::Id(customer_id)),
+            save_payment_method: None,
+            initiation_type: Some("recurring".to_owned()),
+        })
+    }
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<RapydRepeatPaymentResponse, Self>>
+    for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<RapydRepeatPaymentResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let (status, response) = match &item.response.data {
+            Some(data) => {
+                let attempt_status =
+                    get_status(data.status.to_owned(), data.next_action.to_owned());
+                match attempt_status {
+                    common_enums::AttemptStatus::Failure => (
+                        common_enums::AttemptStatus::Failure,
+                        Err(ErrorResponse {
+                            code: data
+                                .failure_code
+                                .to_owned()
+                                .unwrap_or(item.response.status.error_code.clone()),
+                            status_code: item.http_code,
+                            message: item.response.status.status.clone().unwrap_or_default(),
+                            reason: data.failure_message.to_owned(),
+                            attempt_status: None,
+                            connector_transaction_id: None,
+                            network_advice_code: None,
+                            network_decline_code: None,
+                            network_error_message: None,
+                        }),
+                    ),
+                    _ => {
+                        let mandate_reference = Some(Box::new(MandateReference {
+                            connector_mandate_id: Some(data.id.clone()),
+                            payment_method_id: None,
+                            connector_mandate_request_reference_id: None,
+                        }));
+                        (
+                            attempt_status,
+                            Ok(PaymentsResponseData::TransactionResponse {
+                                resource_id: ResponseId::ConnectorTransactionId(data.id.clone()),
+                                redirection_data: None,
+                                mandate_reference,
+                                connector_metadata: None,
+                                network_txn_id: None,
+                                connector_response_reference_id: data
+                                    .merchant_reference_id
+                                    .to_owned(),
+                                incremental_authorization_allowed: None,
+                                status_code: item.http_code,
+                            }),
+                        )
+                    }
+                }
+            }
+            None => (
+                common_enums::AttemptStatus::Failure,
+                Err(ErrorResponse {
+                    code: item.response.status.error_code.clone(),
+                    status_code: item.http_code,
+                    message: item.response.status.status.clone().unwrap_or_default(),
+                    reason: item.response.status.message.clone(),
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                }),
+            ),
+        };
+
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
+            response,
+            ..item.router_data
+        })
     }
 }

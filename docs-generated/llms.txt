@@ -499,7 +499,7 @@ connector_id: rapyd
 doc: docs/connectors/rapyd.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: AliPayRedirect, AmazonPayRedirect, ApplePay, ApplePayThirdPartySdk, Bluecode, Card, CashappQr, GooglePay, GooglePayThirdPartySdk, MbWay, Mifinity, PaypalRedirect, PaypalSdk, RevolutPay, SamsungPay, Satispay, WeChatPayQr, Wero
-flows: authorize, capture, create_client_authentication_token, get, proxy_authorize, refund, refund_get, token_authorize, void
+flows: authorize, capture, create_client_authentication_token, get, proxy_authorize, proxy_setup_recurring, refund, refund_get, setup_recurring, token_authorize, void
 examples_python: examples/rapyd/rapyd.py
 
 ## Razorpay
