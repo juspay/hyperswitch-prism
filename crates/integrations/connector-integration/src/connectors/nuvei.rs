@@ -41,11 +41,13 @@ use std::fmt::Debug;
 pub mod transformers;
 
 use transformers::{
-    NuveiCaptureRequest, NuveiCaptureResponse, NuveiClientAuthRequest, NuveiClientAuthResponse,
-    NuveiErrorResponse, NuveiOpenOrderRequest, NuveiOpenOrderResponse, NuveiPaymentRequest,
-    NuveiPaymentResponse, NuveiRefundRequest, NuveiRefundResponse, NuveiRefundSyncRequest,
-    NuveiRefundSyncResponse, NuveiSessionTokenRequest, NuveiSessionTokenResponse, NuveiSyncRequest,
-    NuveiSyncResponse, NuveiVoidRequest, NuveiVoidResponse,
+    NuveiAuthenticateRequest, NuveiAuthenticateResponse, NuveiCaptureRequest, NuveiCaptureResponse,
+    NuveiClientAuthRequest, NuveiClientAuthResponse, NuveiErrorResponse, NuveiInitPaymentRequest,
+    NuveiInitPaymentResponse, NuveiOpenOrderRequest, NuveiOpenOrderResponse, NuveiPaymentRequest,
+    NuveiPaymentResponse, NuveiPostAuthSyncRequest, NuveiPostAuthSyncResponse, NuveiRefundRequest,
+    NuveiRefundResponse, NuveiRefundSyncRequest, NuveiRefundSyncResponse, NuveiSessionTokenRequest,
+    NuveiSessionTokenResponse, NuveiSyncRequest, NuveiSyncResponse, NuveiVoidRequest,
+    NuveiVoidResponse,
 };
 
 use super::macros;
@@ -259,6 +261,24 @@ macros::create_all_prerequisites!(
             request_body: NuveiClientAuthRequest,
             response_body: NuveiClientAuthResponse,
             router_data: RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ),
+        (
+            flow: PreAuthenticate,
+            request_body: NuveiInitPaymentRequest<T>,
+            response_body: NuveiInitPaymentResponse,
+            router_data: RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: Authenticate,
+            request_body: NuveiAuthenticateRequest<T>,
+            response_body: NuveiAuthenticateResponse,
+            router_data: RouterDataV2<Authenticate, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: PostAuthenticate,
+            request_body: NuveiPostAuthSyncRequest,
+            response_body: NuveiPostAuthSyncResponse,
+            router_data: RouterDataV2<PostAuthenticate, PaymentFlowData, PaymentsPostAuthenticateData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -633,35 +653,92 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        PreAuthenticate,
-        PaymentFlowData,
-        PaymentsPreAuthenticateData<T>,
-        PaymentsResponseData,
-    > for Nuvei<T>
-{
-}
+// Implement PreAuthenticate flow using macro
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Nuvei,
+    curl_request: Json(NuveiInitPaymentRequest),
+    curl_response: NuveiInitPaymentResponse,
+    flow_name: PreAuthenticate,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsPreAuthenticateData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}/initPayment.do", self.connector_base_url_payments(req)))
+        }
+    }
+);
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        Authenticate,
-        PaymentFlowData,
-        PaymentsAuthenticateData<T>,
-        PaymentsResponseData,
-    > for Nuvei<T>
-{
-}
+// Implement Authenticate flow using macro
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Nuvei,
+    curl_request: Json(NuveiAuthenticateRequest),
+    curl_response: NuveiAuthenticateResponse,
+    flow_name: Authenticate,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsAuthenticateData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<Authenticate, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<Authenticate, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}/payment.do", self.connector_base_url_payments(req)))
+        }
+    }
+);
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        PostAuthenticate,
-        PaymentFlowData,
-        PaymentsPostAuthenticateData<T>,
-        PaymentsResponseData,
-    > for Nuvei<T>
-{
-}
+// Implement PostAuthenticate flow using macro
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Nuvei,
+    curl_request: Json(NuveiPostAuthSyncRequest),
+    curl_response: NuveiPostAuthSyncResponse,
+    flow_name: PostAuthenticate,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsPostAuthenticateData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<PostAuthenticate, PaymentFlowData, PaymentsPostAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<PostAuthenticate, PaymentFlowData, PaymentsPostAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}/getTransactionDetails.do", self.connector_base_url_payments(req)))
+        }
+    }
+);
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<

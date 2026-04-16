@@ -3,7 +3,8 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Stuck on field: session_token — Missing required field: session_token"
       }
     },
     "authorize": {
@@ -141,7 +142,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"sessionToken\":\"probe_session_token\",\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"clientRequestId\":\"probe_txn_001\",\"amount\":\"10.00\",\"currency\":\"USD\",\"clientUniqueId\":\"probe_txn_001\",\"paymentOption\":{\"card\":{\"cardNumber\":\"4111111111111111\",\"cardHolderName\":\"John Doe\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"CVV\":\"737\"}},\"transactionType\":\"Sale\",\"deviceDetails\":{\"ipAddress\":\"1.2.3.4\"},\"billingAddress\":{\"email\":\"test@example.com\",\"country\":\"US\",\"firstName\":\"John\",\"lastName\":\"Doe\"},\"urlDetails\":{\"successUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\",\"pendingUrl\":\"https://example.com/return\"},\"timeStamp\":\"00000000000000\",\"checksum\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
+          "body": "{\"sessionToken\":\"probe_session_token\",\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"clientRequestId\":\"probe_txn_001\",\"amount\":\"10.00\",\"currency\":\"USD\",\"clientUniqueId\":\"probe_txn_001\",\"paymentOption\":{\"card\":{\"cardNumber\":\"4111111111111111\",\"cardHolderName\":\"John Doe\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"CVV\":\"737\"}},\"transactionType\":\"Sale\",\"deviceDetails\":{\"ipAddress\":\"1.2.3.4\"},\"billingAddress\":{\"email\":\"test@example.com\",\"country\":\"US\",\"firstName\":\"John\",\"lastName\":\"Doe\"},\"urlDetails\":{\"successUrl\":\"https://example.com\",\"failureUrl\":\"https://example.com\",\"pendingUrl\":\"https://example.com\"},\"timeStamp\":\"00000000000000\",\"checksum\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
         }
       },
       "CashappQr": {
@@ -582,12 +583,59 @@
     },
     "post_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Stuck on field: reference_id — Missing required field: reference_id (transaction_id from Authenticate flow)"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {
+              "country_alpha2_code": "US",
+              "email": "test@example.com"
+            }
+          },
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/3ds-return",
+          "browser_info": {
+            "color_depth": 24,
+            "screen_height": 900,
+            "screen_width": 1440,
+            "java_enabled": false,
+            "java_script_enabled": true,
+            "language": "en-US",
+            "time_zone_offset_minutes": -480,
+            "accept_header": "application/json",
+            "user_agent": "Mozilla/5.0 (probe-bot)",
+            "accept_language": "en-US,en;q=0.9",
+            "ip_address": "1.2.3.4"
+          },
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://ppp-test.nuvei.com/ppp/api/v1/initPayment.do",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"sessionToken\":\"probe_session_token\",\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"clientUniqueId\":\"\",\"clientRequestId\":\"\",\"amount\":\"10.00\",\"currency\":\"USD\",\"paymentOption\":{\"card\":{\"cardNumber\":\"4111111111111111\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"CVV\":\"737\"}},\"deviceDetails\":{\"ipAddress\":\"1.2.3.4\"},\"urlDetails\":{\"successUrl\":\"https://example.com\",\"failureUrl\":\"https://example.com\",\"pendingUrl\":\"https://example.com\"},\"billingAddress\":{\"email\":\"test@example.com\",\"country\":\"US\"},\"timeStamp\":\"00000000000000\",\"checksum\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
+        }
       }
     },
     "proxy_authorize": {

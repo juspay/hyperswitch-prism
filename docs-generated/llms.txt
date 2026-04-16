@@ -395,7 +395,7 @@ connector_id: nuvei
 doc: docs/connectors/nuvei.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Card
-flows: authorize, capture, create_client_authentication_token, create_order, create_server_session_authentication_token, get, refund, refund_get, void
+flows: authorize, capture, create_client_authentication_token, create_order, create_server_session_authentication_token, get, pre_authenticate, refund, refund_get, void
 examples_python: examples/nuvei/nuvei.py
 
 ## Paybox

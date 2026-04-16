@@ -11275,7 +11275,7 @@ impl
             minor_amount_capturable: None,
             amount: None,
             access_token: None,
-            session_token: None,
+            session_token: value.session_token,
             reference_id: None,
             connector_order_id: None,
             preprocessing_id: None,
