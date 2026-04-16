@@ -30,9 +30,17 @@ dist: package ## Build distribution package (alias for package)
 # Testing
 # ---------------------------------------------------------------------------
 
+SMOKE_TEST_BIN := $(REPO_ROOT)/target/$(PLATFORM)/$(PROFILE)/hyperswitch-smoke-test
+
+# In CI (GITHUB_ACTIONS set), use cached binary if available. Locally, always use cargo run
 test-package: build-ffi-lib ## Build FFI → Run Rust smoke test
 	@echo "Running Rust smoke test..."
-	@cd $(REPO_ROOT) && HARNESS_DIR=$(SDK_ROOT)/../../examples CONNECTORS=$(CONNECTORS) cargo run --profile $(PROFILE) --target $(PLATFORM) -p hyperswitch-smoke-test -- --connectors $(CONNECTORS) 2>&1
+	@if [ -n "$(GITHUB_ACTIONS)" ] && [ -f "$(SMOKE_TEST_BIN)" ]; then \
+		echo "Using cached smoke test binary (CI mode)..."; \
+		cd $(REPO_ROOT) && HARNESS_DIR=$(SDK_ROOT)/../../examples CONNECTORS=$(CONNECTORS) $(SMOKE_TEST_BIN) --connectors $(CONNECTORS) 2>&1; \
+	else \
+		cd $(REPO_ROOT) && HARNESS_DIR=$(SDK_ROOT)/../../examples CONNECTORS=$(CONNECTORS) cargo run --profile $(PROFILE) --target $(PLATFORM) -p hyperswitch-smoke-test -- --connectors $(CONNECTORS) 2>&1; \
+	fi
 
 test-package-mock: build-ffi-lib ## Build FFI → Run Rust smoke test in MOCK mode (uses examples/connector/connector.rs)
 	@echo "Running Rust smoke test in MOCK mode..."
@@ -40,8 +48,12 @@ test-package-mock: build-ffi-lib ## Build FFI → Run Rust smoke test in MOCK mo
 		echo "ERROR: creds_dummy.json not found"; \
 		exit 1; \
 	fi
-	@# Use examples directory (via HARNESS_DIR env var)
-	@cd $(REPO_ROOT) && HARNESS_DIR=$(SDK_ROOT)/../../examples CONNECTORS=$(CONNECTORS) cargo run --profile $(PROFILE) --target $(PLATFORM) -p hyperswitch-smoke-test -- --creds-file $(REPO_ROOT)/creds.json --connectors $(CONNECTORS) --mock 2>&1
+	@if [ -n "$(GITHUB_ACTIONS)" ] && [ -f "$(SMOKE_TEST_BIN)" ]; then \
+		echo "Using cached smoke test binary (CI mode)..."; \
+		cd $(REPO_ROOT) && HARNESS_DIR=$(SDK_ROOT)/../../examples CONNECTORS=$(CONNECTORS) $(SMOKE_TEST_BIN) --creds-file $(REPO_ROOT)/creds.json --connectors $(CONNECTORS) --mock 2>&1; \
+	else \
+		cd $(REPO_ROOT) && HARNESS_DIR=$(SDK_ROOT)/../../examples CONNECTORS=$(CONNECTORS) cargo run --profile $(PROFILE) --target $(PLATFORM) -p hyperswitch-smoke-test -- --creds-file $(REPO_ROOT)/creds.json --connectors $(CONNECTORS) --mock 2>&1; \
+	fi
 
 # gRPC variables — defined before all gRPC targets
 GRPC_CONNECTOR      ?= stripe
