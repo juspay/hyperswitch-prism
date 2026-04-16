@@ -179,14 +179,6 @@ jobs:
             target/x86_64-unknown-linux-gnu/release-fast
             target/aarch64-unknown-linux-gnu/release-fast
 
-      - uses: Swatinem/rust-cache@v2.7.8
-        with:
-          shared-key: "ci-rust"
-          cache-targets: true
-          cache-directories: |
-            target/x86_64-unknown-linux-gnu/release-fast
-            target/aarch64-unknown-linux-gnu/release-fast
-
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
         with:

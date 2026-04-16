@@ -3,9 +3,9 @@ export * from "./payments/_generated_connector_client_flows";
 export { UniffiClient } from "./payments/_generated_uniffi_client_flows";
 export type { RustBuffer, RustCallStatus } from "./payments/uniffi_client";
 export * from "./http_client";
-export * from './payments/generated/proto';
+export * from './payments/generated/proto.js';
 // Re-export types namespace explicitly for both runtime and type access
-export { types } from './payments/generated/proto';
+export { types } from './payments/generated/proto.js';
 // gRPC client (Rust-backed via hyperswitch_grpc_ffi native library)
 export { GrpcClient } from "./payments/grpc_client";
 export type {

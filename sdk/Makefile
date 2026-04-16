@@ -262,8 +262,8 @@ test-grpc: _cleanup-grpc ## Run gRPC smoke tests for all SDKs (Rust + JS + Pytho
 				exit 1; \
 			fi; \
 		else \
-			printf "Building grpc-server, gRPC FFI library, and connector FFI library ($(GRPC_PROFILE))...\n"; \
-			cd $(REPO_ROOT) && cargo build -p grpc-server -p hyperswitch-grpc-ffi -p ffi \
+			printf "Building grpc-server, gRPC FFI library, connector FFI library, smoke-test, and uniffi-bindgen ($(GRPC_PROFILE))...\n"; \
+			cd $(REPO_ROOT) && cargo build -p grpc-server -p hyperswitch-grpc-ffi -p ffi -p hyperswitch-smoke-test -p uniffi-bindgen \
 				--profile $(GRPC_PROFILE) --target $(PLATFORM); \
 		fi; \
 		\
