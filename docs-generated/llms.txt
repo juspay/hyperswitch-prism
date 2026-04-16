@@ -491,7 +491,7 @@ connector_id: ppro
 doc: docs/connectors/ppro.md
 scenarios: none
 payment_methods: none
-flows: capture, get, handle_event, recurring_charge, refund, refund_get, void
+flows: capture, get, handle_event, recurring_charge, refund, refund_get, verify_redirect, void
 examples_python: none
 
 ## Rapyd

@@ -97,6 +97,12 @@ pub fn build_refund_get_request() -> RefundServiceGetRequest {
     })).unwrap_or_default()
 }
 
+pub fn build_verify_redirect_request() -> PaymentServiceVerifyRedirectResponseRequest {
+    serde_json::from_value::<PaymentServiceVerifyRedirectResponseRequest>(serde_json::json!({
+
+    })).unwrap_or_default()
+}
+
 pub fn build_void_request(connector_transaction_id: &str) -> PaymentServiceVoidRequest {
     serde_json::from_value::<PaymentServiceVoidRequest>(serde_json::json!({
     "merchant_void_id": "probe_void_001",  // Identification.
@@ -151,6 +157,13 @@ pub async fn refund_get(client: &ConnectorClient, _merchant_transaction_id: &str
     Ok(format!("status: {:?}", response.status()))
 }
 
+// Flow: PaymentService.VerifyRedirectResponse
+#[allow(dead_code)]
+pub async fn verify_redirect(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client.verify_redirect(build_verify_redirect_request(), &HashMap::new(), None).await?;
+    Ok(format!("status: {:?}", response.status()))
+}
+
 // Flow: PaymentService.Void
 #[allow(dead_code)]
 pub async fn void(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
@@ -170,8 +183,9 @@ async fn main() {
         "recurring_charge" => recurring_charge(&client, "order_001").await,
         "refund" => refund(&client, "order_001").await,
         "refund_get" => refund_get(&client, "order_001").await,
+        "verify_redirect" => verify_redirect(&client, "order_001").await,
         "void" => void(&client, "order_001").await,
-        _ => { eprintln!("Unknown flow: {}. Available: capture, get, handle_event, recurring_charge, refund, refund_get, void", flow); return; }
+        _ => { eprintln!("Unknown flow: {}. Available: capture, get, handle_event, recurring_charge, refund, refund_get, verify_redirect, void", flow); return; }
     };
     match result {
         Ok(msg) => println!("✓ {msg}"),

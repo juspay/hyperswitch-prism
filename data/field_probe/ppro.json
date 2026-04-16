@@ -624,7 +624,7 @@
     },
     "verify_redirect": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported"
       }
     },
     "void": {

@@ -108,6 +108,13 @@ def _build_refund_get_request():
         payment_pb2.RefundServiceGetRequest(),
     )
 
+def _build_verify_redirect_request():
+    return ParseDict(
+        {
+        },
+        payment_pb2.PaymentServiceVerifyRedirectResponseRequest(),
+    )
+
 def _build_void_request(connector_transaction_id: str):
     return ParseDict(
         {
@@ -172,6 +179,15 @@ async def refund_get(merchant_transaction_id: str, config: sdk_config_pb2.Connec
     refund_response = await refund_client.refund_get(_build_refund_get_request())
 
     return {"status": refund_response.status}
+
+
+async def verify_redirect(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: PaymentService.VerifyRedirectResponse"""
+    payment_client = PaymentClient(config)
+
+    verify_response = await payment_client.verify_redirect(_build_verify_redirect_request())
+
+    return {"status": verify_response.status}
 
 
 async def void(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
