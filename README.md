@@ -270,7 +270,6 @@ If you wish to learn more about routing logic and smart retries, you can checkou
 
 ### Prerequisites
 
-- **Platform**: x86_64 (AMD64) architecture (ARM64 not supported)
 - Rust 1.70+
 - Protocol Buffers (protoc)
 
@@ -292,7 +291,7 @@ cargo test
 
 ## 💻 Platform Support
 
-The `hyperswitch-prism` SDK contains platform-specific native libraries compiled for **x86_64 (AMD64)** architecture.
+The `hyperswitch-prism` SDK contains platform-specific native libraries compiled for following platforms and architectures.
 
 | Platform | Architecture |
 |----------|--------------|
