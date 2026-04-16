@@ -143,6 +143,20 @@ def _build_handle_event_request():
         payment_pb2.EventServiceHandleRequest(),
     )
 
+def _build_incremental_authorization_request():
+    return ParseDict(
+        {
+            "merchant_authorization_id": "probe_auth_001",  # Identification.
+            "connector_transaction_id": "probe_connector_txn_001",
+            "amount": {  # new amount to be authorized (in minor currency units).
+                "minor_amount": 1100,  # Amount in minor units (e.g., 1000 = $10.00).
+                "currency": "USD"  # ISO 4217 currency code (e.g., "USD", "EUR").
+            },
+            "reason": "incremental_auth_probe"  # Optional Fields.
+        },
+        payment_pb2.PaymentServiceIncrementalAuthorizationRequest(),
+    )
+
 def _build_proxy_authorize_request():
     return ParseDict(
         {
@@ -506,6 +520,15 @@ async def handle_event(merchant_transaction_id: str, config: sdk_config_pb2.Conn
     handle_response = await event_client.handle_event(_build_handle_event_request())
 
     return {"status": handle_response.status}
+
+
+async def incremental_authorization(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: PaymentService.IncrementalAuthorization"""
+    payment_client = PaymentClient(config)
+
+    incremental_response = await payment_client.incremental_authorization(_build_incremental_authorization_request())
+
+    return {"status": incremental_response.status}
 
 
 async def proxy_authorize(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
