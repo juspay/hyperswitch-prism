@@ -20,17 +20,21 @@ permissions:
 # ─────────────────────────────────────────────────────────────────────────────
 # Job dependency graph:
 #
-#   changes ─┬─ typos           (always, ~8s)
-#            ├─ auto-fix        (PR only: format + docs → bot commit if needed)
-#            │   ├─ check       (if rust changed AND auto-fix didn't push, ~11min)
-#            │   ├─ test        (parallel with check, ~15min)
-#            │   └─ sdk-test    (if sdk/rust-core/proto changed, ~9min)
-#            └─ ci-gate         (always — single required status check)
+#   changes ─┬─ typos              (always, ~8s)
+#            ├─ auto-fix           (PR only: format + docs → bot commit if needed)
+#            │   ├─ check          (if rust changed AND auto-fix didn't push, ~11min)
+#            │   ├─ test           (parallel with check, ~15min)
+#            │   └─ sdk-test       (if sdk/rust-core/proto changed: FFI+gRPC tests, ~25min)
+#            └─ ci-gate            (always — single required status check)
 #
 # Auto-fix runs first on PRs: formats code + generates docs. If changes are
 # found, it commits them and the remaining jobs SKIP (a new CI run triggers
 # on the bot commit with clean code). If no changes needed, checks proceed.
 # check and test run in PARALLEL with separate caches (faster wall clock).
+# sdk-test runs FFI and gRPC tests sequentially in one job: ffi binaries are
+# built first so Cargo caches external-services (no injector-client), then
+# grpc-server is built (with injector-client) as a separate artifact — no
+# recompile when switching between test suites.
 # For connector-only PRs, tests are scoped to changed connectors.
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -165,13 +169,19 @@ jobs:
         with:
           toolchain: nightly
           components: rustfmt
+      
+      - uses: Swatinem/rust-cache@v2.7.8
+        with:
+          shared-key: "ci-rust"
+          cache-targets: true
+          cache-directories: |
+            target/x86_64-unknown-linux-gnu/release-fast
+            target/aarch64-unknown-linux-gnu/release-fast
 
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - uses: Swatinem/rust-cache@v2.7.8
 
       - name: Setup Python
         if: needs.changes.outputs.docs-trigger == 'true' || needs.changes.outputs.ci == 'true'
@@ -183,16 +193,20 @@ jobs:
         if: needs.changes.outputs.docs-trigger == 'true' || needs.changes.outputs.ci == 'true'
         run: |
           python3 -m pip install --upgrade pip
-          pip3 install jinja2 google-cloud-vision python-dotenv requests types-requests grpcio-tools
+          pip3 install jinja2 google-cloud-vision python-dotenv requests types-requests grpcio-tools mypy
 
       - name: Format Rust code
         run: cargo +nightly fmt --all
 
       - name: Generate documentation
         if: needs.changes.outputs.docs-trigger == 'true' || needs.changes.outputs.ci == 'true'
+        env:
+          RUSTUP_TOOLCHAIN: stable
         run: |
+          echo "Generating all-connectors coverage document..."
+          make all-connectors-doc
           echo "Generating connector documentation..."
-          make docs CONNECTORS=all 2>&1 | tail -20
+          make docs CONNECTORS=all
 
       - name: Check for changes and commit
         id: commit
@@ -252,11 +266,11 @@ jobs:
   check:
     name: Compilation Check
     needs: [changes, auto-fix]
-    # Run if rust/proto/CI files changed AND auto-fix didn't push new code.
-    # If auto-fix pushed, skip — a new CI run is coming with clean code.
-    # 'always()' handles skipped auto-fix (non-PR events).
+    # Run if rust/proto/CI files changed AND auto-fix succeeded without pushing.
+    # Skip if auto-fix pushed (new CI run incoming) or if auto-fix failed.
+    # 'success() || skipped' handles non-PR events where auto-fix is skipped.
     if: >-
-      always() &&
+      (success() || needs.auto-fix.result == 'skipped') &&
       needs.auto-fix.outputs.pushed != 'true' &&
       (needs.changes.outputs.any-rust == 'true' ||
        needs.changes.outputs.proto == 'true' ||
@@ -282,28 +296,30 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: Swatinem/rust-cache@v2.7.8
+        with:
+          shared-key: "ci-rust"
 
       - name: Run Clippy
         run: cargo +stable clippy --all-features --all-targets
 
       - name: Run Composite Request Schema Checks
-        run: cargo test -p composite-service --test composite_request_schema_check
+        run: cargo test -p composite-service --all-features --test composite_request_schema_check
 
       - name: Run UCS Connector Schema Compatibility Check
-        run: cargo test -p integration-tests --lib harness::scenario_api::tests::all_supported_scenarios_match_proto_schema_for_all_connectors -- --exact
+        run: cargo test -p integration-tests --all-features --lib harness::scenario_api::tests::all_supported_scenarios_match_proto_schema_for_all_connectors -- --exact
 
       - name: Run Connector Specs Coverage Check
-        run: cargo run --bin check_connector_specs
+        run: cargo run --all-features --bin check_connector_specs
 
   # ── Tests ─────────────────────────────────────────────────────────────────
 
   test:
     name: Run Tests
     needs: [changes, auto-fix]
-    # Runs in PARALLEL with check (separate caches, faster wall clock).
-    # Scopes tests to changed connectors for connector-only PRs.
+    # Run if rust/proto/CI files changed AND auto-fix succeeded without pushing.
+    # Skip if auto-fix pushed (new CI run incoming) or if auto-fix failed.
     if: >-
-      always() &&
+      (success() || needs.auto-fix.result == 'skipped') &&
       needs.auto-fix.outputs.pushed != 'true' &&
       (needs.changes.outputs.any-rust == 'true' ||
        needs.changes.outputs.proto == 'true' ||
@@ -339,7 +355,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2.7.8
         if: ${{ env.RUN_TESTS == 'true' }}
         with:
-          cache-on-failure: true
+          shared-key: "ci-rust"
 
       - name: Install nextest
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -412,15 +428,19 @@ jobs:
               -E "$SCHEMA_EXCLUDE"
           fi
 
-  # ── SDK Tests ─────────────────────────────────────────────────────────────
+  # ── SDK Tests (FFI + gRPC) ────────────────────────────────────────────────
+  # Builds all SDK binaries then runs gRPC tests first, followed by FFI tests
+  # and mock tests. Running in a single job avoids the external-services feature
+  # recompile that occurs when ffi (no injector-client) and grpc-server (with
+  # injector-client) are built in separate jobs with separate Rust caches.
+  # Build order: ffi first → grpc-server second, so Cargo stores both
+  # external-services feature variants before any tests run.
 
   sdk-test:
     name: SDK Tests
     needs: [changes, auto-fix]
-    # Run when SDK, core Rust (not just connectors), proto, or CI files changed.
-    # Connector-only PRs skip this entirely. Also skip if auto-fix pushed.
     if: >-
-      always() &&
+      (success() || needs.auto-fix.result == 'skipped') &&
       needs.auto-fix.outputs.pushed != 'true' &&
       (needs.changes.outputs.sdk == 'true' ||
        needs.changes.outputs.rust-core == 'true' ||
@@ -430,7 +450,7 @@ jobs:
 
     env:
       RUSTFLAGS: "-D warnings"
-      PROFILE: dev
+      PROFILE: release-fast
       CARGO_INCREMENTAL: 0
 
     steps:
@@ -475,21 +495,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-
 
-      - uses: Swatinem/rust-cache@v2.7.8
-        with:
-          cache-on-failure: true
-          key: sdk-test-${{ runner.os }}
-
-      - name: Cache FFI library
-        uses: actions/cache@v4
-        with:
-          path: |
-            target/*/*/libconnector_service_ffi.so
-            target/*/*/libconnector_service_ffi.dylib
-          key: ffi-lib-${{ runner.os }}-${{ hashFiles('crates/ffi/**/*.rs', 'crates/ffi/**/Cargo.toml', 'Cargo.lock') }}
-          restore-keys: |
-            ffi-lib-${{ runner.os }}-
-
       - name: Install Python codegen dependencies
         run: |
           pip install -r sdk/python/requirements.txt grpcio-tools protobuf
@@ -500,19 +505,28 @@ jobs:
           cd sdk/javascript && npm ci && cd ../..
           cd sdk/tests && npm install && cd ../..
 
-      - name: Create connector credentials for SDK tests
-        shell: bash
-        env:
-          CONNECTOR_SPECIFIC_AUTH: ${{ secrets.CONNECTOR_SPECIFIC_AUTH }}
-        run: |
-          if [[ -n "${CONNECTOR_SPECIFIC_AUTH}" ]]; then
-            echo "${CONNECTOR_SPECIFIC_AUTH}" > creds.json
-            echo "Connector credentials created for SDK tests"
-          else
-            echo "No CONNECTOR_SPECIFIC_AUTH secret found, will run in dry-run mode"
-          fi
+      - uses: Swatinem/rust-cache@v2.7.8
+        with:
+          shared-key: "ci-rust-sdk"
 
-      - name: Build FFI library once
+      - name: Restore SDK binaries cache
+        id: sdk-cache-restore
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            target/*/*/libconnector_service_ffi.so
+            target/*/*/libconnector_service_ffi.dylib
+            target/*/*/libhyperswitch_grpc_ffi.so
+            target/*/*/libhyperswitch_grpc_ffi.dylib
+            target/*/*/grpc-server
+            target/*/*/uniffi-bindgen
+            target/*/*/hyperswitch-smoke-test
+            target/*/*/grpc-smoke-test
+          key: sdk-${{ runner.os }}-${{ hashFiles('crates/ffi/**/*.rs', 'sdk/grpc-ffi/**/*.rs', 'crates/internal/uniffi-bindgen/**/*.rs', 'sdk/rust/smoke-test/**/*.rs') }}
+          restore-keys: |
+            sdk-${{ runner.os }}-
+
+      - name: Build SDK binaries
         run: |
           ARCH=$(uname -m)
           if [ "$ARCH" = "aarch64" ]; then
@@ -520,38 +534,102 @@ jobs:
           else
             PLATFORM="x86_64-unknown-linux-gnu"
           fi
-          PROFILE_DIR="debug"
-          LIB_PATH="target/${PLATFORM}/${PROFILE_DIR}/libconnector_service_ffi.so"
-          if [ ! -f "$LIB_PATH" ]; then
-            echo "Building FFI library (cache miss)..."
-            cargo build -p ffi --no-default-features --features uniffi \
-              --profile dev --target "$PLATFORM"
+          PROFILE="release-fast"
+          
+          # Check which binaries are missing
+          MISSING_BINS=""
+          [ ! -f "target/${PLATFORM}/${PROFILE}/grpc-server" ] && MISSING_BINS="grpc-server ${MISSING_BINS}"
+          [ ! -f "target/${PLATFORM}/${PROFILE}/libconnector_service_ffi.so" ] && MISSING_BINS="ffi-lib ${MISSING_BINS}"
+          [ ! -f "target/${PLATFORM}/${PROFILE}/libhyperswitch_grpc_ffi.so" ] && MISSING_BINS="grpc-ffi-lib ${MISSING_BINS}"
+          [ ! -f "target/${PLATFORM}/${PROFILE}/uniffi-bindgen" ] && MISSING_BINS="uniffi-bindgen ${MISSING_BINS}"
+          [ ! -f "target/${PLATFORM}/${PROFILE}/hyperswitch-smoke-test" ] && MISSING_BINS="smoke-test ${MISSING_BINS}"
+          [ ! -f "target/${PLATFORM}/${PROFILE}/grpc-smoke-test" ] && MISSING_BINS="grpc-smoke-test ${MISSING_BINS}"
+          
+          if [ -z "$MISSING_BINS" ]; then
+            echo "All SDK binaries found in cache, skipping build"
+            exit 0
+          fi
+          
+          echo "Missing binaries: ${MISSING_BINS}"
+          echo "Building SDK binaries for $PLATFORM..."
+          
+          # Build FFI library
+          cargo build -p ffi --no-default-features --features uniffi \
+            --profile "$PROFILE" --target "$PLATFORM"
+          
+          # Build uniffi-bindgen
+          cargo build -p uniffi-bindgen --profile "$PROFILE" --target "$PLATFORM"
+          
+          # Build smoke test binaries
+          CONNECTORS=stripe HARNESS_DIR="$(pwd)/examples" \
+            cargo build -p hyperswitch-smoke-test --bin hyperswitch-smoke-test \
+            --profile "$PROFILE" --target "$PLATFORM"
+          
+          CONNECTORS=stripe HARNESS_DIR="$(pwd)/examples" \
+            cargo build -p hyperswitch-smoke-test --bin grpc-smoke-test \
+            --profile "$PROFILE" --target "$PLATFORM"
+          
+          # Build gRPC server and FFI
+          cargo build -p grpc-server -p hyperswitch-grpc-ffi \
+            --profile "$PROFILE" --target "$PLATFORM"
+
+      - name: Create connector credentials
+        shell: bash
+        env:
+          CONNECTOR_SPECIFIC_AUTH: ${{ secrets.CONNECTOR_SPECIFIC_AUTH }}
+        run: |
+          if [[ -n "${CONNECTOR_SPECIFIC_AUTH}" ]]; then
+            echo "${CONNECTOR_SPECIFIC_AUTH}" > creds.json
+            echo "Connector credentials created"
           else
-            echo "Using cached FFI library: $LIB_PATH"
+            echo "No CONNECTOR_SPECIFIC_AUTH secret found, running in dry-run mode"
           fi
 
-      - name: Generate SDK code (flows.json and harnesses)
+      - name: Run SDK gRPC Tests
         shell: bash
-        run: make -C sdk generate FFI_SKIP_BUILD=1
+        run: |
+          echo "Running SDK gRPC tests"
+          make -C sdk test-grpc GRPC_SKIP_BUILD=1 PROFILE=release-fast
 
-      - name: Run SDK Tests
+      - name: Run SDK FFI Tests
         shell: bash
         run: |
           if [[ -f "creds.json" ]]; then
-            echo "Running SDK tests with connector credentials"
+            echo "Running SDK FFI tests with connector credentials"
           else
-            echo "Running SDK tests without connector credentials (dry-run mode)"
+            echo "Running SDK FFI tests without connector credentials (dry-run mode)"
           fi
-          make -C sdk test FFI_SKIP_BUILD=1
+          make -C sdk test FFI_SKIP_BUILD=1 PROFILE=release-fast
+
+      - name: Run SDK Mock Tests
+        shell: bash
+        run: |
+          echo "Running SDK mock tests (no real HTTP calls)"
+          python3 scripts/run_smoke_tests_parallel.py --mock --connectors stripe --sdks python,javascript,kotlin,rust
 
       - name: Verify SDK code regeneration produces no changes
         shell: bash
-        run: make -C sdk generate FFI_SKIP_BUILD=1
+        run: make -C sdk generate FFI_SKIP_BUILD=1 PROFILE=release-fast
 
       - name: Check for uncommitted changes
         shell: bash
         run: |
           git diff --exit-code || (echo "ERROR: Generated SDK code is out of date. Run 'make -C sdk generate' and commit the changes." && exit 1)
+
+      - name: Save SDK binaries cache
+        if: always() && steps.sdk-cache-restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            target/*/*/libconnector_service_ffi.so
+            target/*/*/libconnector_service_ffi.dylib
+            target/*/*/libhyperswitch_grpc_ffi.so
+            target/*/*/libhyperswitch_grpc_ffi.dylib
+            target/*/*/grpc-server
+            target/*/*/uniffi-bindgen
+            target/*/*/hyperswitch-smoke-test
+            target/*/*/grpc-smoke-test
+          key: sdk-${{ runner.os }}-${{ hashFiles('crates/ffi/**/*.rs', 'sdk/grpc-ffi/**/*.rs', 'crates/internal/uniffi-bindgen/**/*.rs', 'sdk/rust/smoke-test/**/*.rs') }}
 
   # ── CI Gate ───────────────────────────────────────────────────────────────
   # Single required status check. Passes if all jobs succeeded, were skipped,

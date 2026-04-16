@@ -219,52 +219,51 @@ def discover_and_validate_scenarios(
                 f"lowercase snake_case (e.g., 'authorize', 'payout_create')"
             )
     
-    # Find flows with implementations
-    implemented = set()
-    for flow in declared:
+    def _find_flow_fn(flow: str):
+        """Find implementation for a flow: mapped scenario fn → process_{flow} → flow directly."""
         example_fn = flow_to_example_fn.get(flow) if flow_to_example_fn else None
         if example_fn:
             fn = getattr(module, f"process_{example_fn}", None)
             if fn is not None and callable(fn):
-                implemented.add(flow)
-    
-    # CHECK: Find process_* functions not mapped to any flow
+                return example_fn, fn
+        # Direct flow function: examples expose process_{flow} for all supported flows
+        fn = getattr(module, f"process_{flow}", None)
+        if fn is not None and callable(fn):
+            return flow, fn
+        return flow, None
+
+    # CHECK: Find process_* functions for known flows not declared in SUPPORTED_FLOWS
     # Only run this check when SUPPORTED_FLOWS is explicitly defined (not legacy mode)
     if not legacy_mode:
+        manifest_set = set(manifest)
+        declared_set = set(declared)
         all_process_fns = {
             name[len("process_"):]
             for name in dir(module)
             if name.startswith("process_") and callable(getattr(module, name))
         }
-        mapped_example_fns = set(flow_to_example_fn.values()) if flow_to_example_fn else set()
-        undeclared = all_process_fns - mapped_example_fns
+        # Only flag functions whose base name IS a known flow but not in SUPPORTED_FLOWS.
+        # Scenario functions (e.g. checkout_autocapture) not in manifest are allowed.
+        undeclared = {fn for fn in all_process_fns if fn in manifest_set and fn not in declared_set}
         if undeclared:
             return (
-                f"COVERAGE ERROR: process_* functions exist but not mapped to any flow: "
-                f"{sorted(undeclared)}"
+                f"COVERAGE ERROR: process_* functions exist for flows {sorted(undeclared)} "
+                f"but they're not in SUPPORTED_FLOWS"
             )
-    
-    # CHECK 3: Find stale flows (declared but not in manifest)
+
+    # CHECK 3: Warn about flows declared in SUPPORTED_FLOWS but not in the flow manifest.
+    # These are typically composite scenario names (e.g. create_customer, recurring_charge)
+    # that represent multi-step flows not individually listed in flows.json. Only warn — don't fail.
     manifest_set = set(manifest)
     stale = set(declared) - manifest_set
     if stale:
-        return (
-            f"COVERAGE ERROR: SUPPORTED_FLOWS contains flows that no longer "
-            f"exist in flows.json: {sorted(stale)}. Regenerate or update."
-        )
-    
+        print(f"  [warn] SUPPORTED_FLOWS contains entries not in flows.json (scenario names): {sorted(stale)}")
+
     # All checks pass - return ordered (example_fn_name, fn) pairs
-    # For flows without implementation, return None as the function
     result = []
     for flow in declared:
-        example_fn = flow_to_example_fn.get(flow) if flow_to_example_fn else None
-        if example_fn:
-            fn = getattr(module, f"process_{example_fn}", None)
-            if fn is not None and callable(fn):
-                result.append((example_fn, fn))
-                continue
-        # Flow has no implementation
-        result.append((flow, None))
+        key, fn = _find_flow_fn(flow)
+        result.append((key, fn))
     return result
 
 
@@ -327,10 +326,6 @@ async def test_connector_scenarios(
         result["error"] = str(e)
         return result
     
-    # In mock mode, generated harnesses use direct flow-based naming (process_{flow})
-    # Create a direct mapping from flow to flow (bypassing example naming)
-    if mock:
-        flow_to_example_fn = {flow: flow for flow in manifest}
     scenarios_or_error = discover_and_validate_scenarios(module, connector_name, manifest, flow_to_example_fn)
     if isinstance(scenarios_or_error, str):
         # Coverage validation failed
@@ -345,7 +340,7 @@ async def test_connector_scenarios(
     example_fn_map = {key: fn for key, fn in scenario_fns}
     
     # Test ALL flows from manifest - use flow_to_example_fn mapping to find implementations
-    # In mock mode, harnesses use direct flow-based naming (process_{flow}) so bypass mapping
+    # In mock mode, examples use direct flow-based naming (process_{flow}) so bypass mapping
     any_failed = False
     for flow_name in manifest:
         scenario_key = flow_name
@@ -513,17 +508,14 @@ async def run_tests_async(
     
     if mock:
         _install_mock_intercept()
-        # In mock mode, harnesses are in {test_dir}/examples (copied by Makefile)
-        resolved_examples_dir = Path(__file__).parent / "examples"
-    else:
-        resolved_examples_dir = examples_dir or _DEFAULT_EXAMPLES_DIR
+    resolved_examples_dir = examples_dir or _DEFAULT_EXAMPLES_DIR
 
     test_connectors = connectors or list(credentials.keys())
 
     print(f"\n{'='*60}")
     print(f"Running smoke tests for {len(test_connectors)} connector(s)")
     if mock:
-        print(f"Mode: MOCK (HTTP intercepted, using generated harnesses)")
+        print(f"Mode: MOCK (HTTP intercepted, req_transformer verification)")
     print(f"Examples dir: {resolved_examples_dir}")
     print(f"{'='*60}\n")
 
@@ -734,7 +726,7 @@ def main():
     parser.add_argument(
         "--mock",
         action="store_true",
-        help="Intercept HTTP; verify req_transformer only. Uses generated/ harnesses.",
+        help="Intercept HTTP; verify req_transformer only. Uses examples/connector/connector.py files.",
     )
     parser.add_argument(
         "--json-output",

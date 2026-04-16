@@ -19,6 +19,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.04.16.0
+
+### Features
+
+- **connector:** [Adyen] Integrate Redirect Wallets ([#542](https://github.com/juspay/connector-service/pull/542)) ([`783b2ae`](https://github.com/juspay/connector-service/commit/783b2ae816329ae13af02d3ac1334e570894a5ae))
+
+### Bug Fixes
+
+- Remove raw connector response logging ([#1098](https://github.com/juspay/connector-service/pull/1098)) ([`bd15a55`](https://github.com/juspay/connector-service/commit/bd15a55018ccbc3880e708d221f4f3048dad8386))
+
+### Miscellaneous Tasks
+
+- **demo:** Demo ([#1074](https://github.com/juspay/connector-service/pull/1074)) ([`8730541`](https://github.com/juspay/connector-service/commit/8730541bd5b6f1e144ac297e52db907108ecff97))
+
+**Full Changelog:** [`2026.04.15.0...2026.04.16.0`](https://github.com/juspay/connector-service/compare/2026.04.15.0...2026.04.16.0)
+
+- - -
+
 ## 2026.04.15.0
 
 ### Features
