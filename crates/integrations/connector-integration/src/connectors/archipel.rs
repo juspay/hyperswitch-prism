@@ -50,8 +50,8 @@ use crate::{types::ResponseRouterData, with_error_response_body};
 
 // Local module imports
 use transformers::{
-    ArchipelCardAuthorizationRequest, ArchipelErrorResponse, ArchipelIncrementalAuthRequest,
-    ArchipelIncrementalAuthResponse, ArchipelPaymentsResponse,
+    ArchipelAuthType, ArchipelCardAuthorizationRequest, ArchipelErrorResponse,
+    ArchipelIncrementalAuthRequest, ArchipelIncrementalAuthResponse, ArchipelPaymentsResponse,
 };
 
 // Trait implementations with generic type parameters
@@ -213,6 +213,14 @@ macros::create_all_prerequisites!(
             req: &'a RouterDataV2<F, PaymentFlowData, Req, Res>,
         ) -> &'a str {
             &req.resource_common_data.connectors.archipel.base_url
+        }
+
+        pub fn get_archipel_ca_certificate<F, FCD, Req, Res>(
+            &self,
+            req: &RouterDataV2<F, FCD, Req, Res>,
+        ) -> CustomResult<Option<hyperswitch_masking::Secret<String>>, IntegrationError> {
+            let auth = ArchipelAuthType::try_from(&req.connector_config)?;
+            Ok(auth.ca_certificate)
         }
     }
 );
@@ -532,6 +540,12 @@ macros::macro_connector_implementation!(
                 }
             }
         }
+        fn get_ca_certificate(
+            &self,
+            req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Option<hyperswitch_masking::Secret<String>>, IntegrationError> {
+            self.get_archipel_ca_certificate(req)
+        }
     }
 );
 
@@ -568,6 +582,12 @@ macros::macro_connector_implementation!(
                 .get_connector_transaction_id()
                 .change_context(IntegrationError::MissingConnectorTransactionID { context: Default::default() })?;
             Ok(format!("{}/incrementalAuthorize/{}", base_url, transaction_id))
+        }
+        fn get_ca_certificate(
+            &self,
+            req: &RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
+        ) -> CustomResult<Option<hyperswitch_masking::Secret<String>>, IntegrationError> {
+            self.get_archipel_ca_certificate(req)
         }
     }
 );

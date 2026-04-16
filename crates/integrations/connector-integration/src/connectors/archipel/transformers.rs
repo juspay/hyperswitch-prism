@@ -30,7 +30,7 @@ impl From<String> for ArchipelTenantId {
 }
 
 pub struct ArchipelAuthType {
-    pub(super) _ca_certificate: Option<Secret<String>>,
+    pub(super) ca_certificate: Option<Secret<String>>,
 }
 
 impl TryFrom<&ConnectorSpecificConfig> for ArchipelAuthType {
@@ -38,15 +38,21 @@ impl TryFrom<&ConnectorSpecificConfig> for ArchipelAuthType {
     fn try_from(config: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         match config {
             ConnectorSpecificConfig::Archipel { api_key, .. } => {
-                let ca_certificate = api_key.peek().trim();
-                let ca_certificate = if ca_certificate.starts_with("-----BEGIN") {
-                    Some(api_key.to_owned())
+                let raw = api_key.peek().trim().to_string();
+                // Accept either a raw PEM or a PEM whose newlines were escaped
+                // as literal `\n` during transport (common when the cert is
+                // passed through a gRPC metadata header that disallows newlines).
+                let normalized = if raw.contains("\\n") && !raw.contains('\n') {
+                    raw.replace("\\n", "\n")
+                } else {
+                    raw
+                };
+                let ca_certificate = if normalized.starts_with("-----BEGIN") {
+                    Some(Secret::new(normalized))
                 } else {
                     None
                 };
-                Ok(Self {
-                    _ca_certificate: ca_certificate,
-                })
+                Ok(Self { ca_certificate })
             }
             _ => Err(IntegrationError::FailedToObtainAuthType {
                 context: Default::default(),
