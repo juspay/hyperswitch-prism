@@ -2862,12 +2862,46 @@
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Stuck on field: merchant_order_id — Missing required field: merchant_order_id"
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "connector_recurring_payment_id": {
+            "mandate_id_type": {
+              "connector_mandate_id": {
+                "connector_mandate_id": "probe-mandate-123"
+              }
+            }
+          },
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "token": {
+              "token": "probe_pm_token"
+            }
+          },
+          "merchant_order_id": "probe_order_001",
+          "return_url": "https://example.com/recurring-return",
+          "connector_customer_id": "cust_probe_123",
+          "payment_method_type": "PAY_PAL",
+          "off_session": true
+        },
+        "sample": {
+          "url": "https://api.razorpay.com/v1/payments/create/recurring",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"customer_id\":\"\",\"token\":\"probe-mandate-123\",\"recurring\":\"1\",\"description\":\"Recurring payment via RazorpayV2\",\"notes\":null}"
+        }
       }
     },
     "recurring_revoke": {
@@ -2927,7 +2961,46 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/mandate-return",
+          "merchant_order_id": "probe_order_001",
+          "setup_future_usage": "OFF_SESSION",
+          "request_incremental_authorization": false,
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          }
+        },
+        "sample": {
+          "url": "https://api.razorpay.com/v1/payments",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":0,\"currency\":\"USD\",\"order_id\":\"probe_order_001\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"card\",\"description\":\"Setup mandate for recurring payments\",\"notes\":null,\"callback_url\":\"https://example.com/mandate-return\",\"save\":true,\"recurring\":\"1\",\"token\":{\"max_amount\":1500000,\"frequency\":\"as_presented\"}}"
+        }
       }
     },
     "token_authorize": {
@@ -2961,7 +3034,8 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Stuck on field: merchant_order_id — Missing required field: merchant_order_id"
       }
     },
     "tokenize": {

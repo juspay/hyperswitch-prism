@@ -1,4 +1,7 @@
 {
   "connector": "razorpayv2",
-  "supported_suites": []
+  "supported_suites": [
+    "recurring_charge",
+    "setup_recurring"
+  ]
 }
