@@ -206,6 +206,7 @@ pub struct TrustpaymentsApplePayData {
     pub tokenisedpayment: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tokentype: Option<String>,
+    pub walletdisplayname: String,
     pub walletsource: String,
 }
 
@@ -413,6 +414,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     } else {
                         None
                     },
+                    walletdisplayname: apple_pay_data.payment_method.display_name.clone(),
                     walletsource: "APPLEPAY".to_string(),
                 }))
             }
