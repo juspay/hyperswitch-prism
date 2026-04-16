@@ -28,7 +28,7 @@ use domain_types::{
     },
     IntegrationError,
 };
-use hyperswitch_masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "injector-client")]
 use injector;
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
@@ -715,6 +715,7 @@ pub async fn call_connector_api(
         should_bypass_proxy,
         request.certificate,
         request.certificate_key,
+        request.ca_certificate,
         test_mode,
     )?;
 
@@ -873,22 +874,27 @@ pub fn create_client(
     should_bypass_proxy: bool,
     client_certificate: Option<Secret<String>>,
     client_certificate_key: Option<Secret<String>>,
+    ca_certificate: Option<Secret<String>>,
     test_mode: bool,
 ) -> CustomResult<Client, ApiClientError> {
     match (client_certificate.clone(), client_certificate_key.clone()) {
         (Some(encoded_certificate), Some(encoded_certificate_key)) => {
-            let client_builder = get_client_builder(proxy_config, should_bypass_proxy, test_mode)?;
+            let mut client_builder =
+                get_client_builder(proxy_config, should_bypass_proxy, test_mode)?;
 
             let identity = create_identity_from_certificate_and_key(
                 encoded_certificate.clone(),
                 encoded_certificate_key,
             )?;
             let certificate_list = create_certificate(encoded_certificate)?;
-            let client_builder = certificate_list
+            client_builder = certificate_list
                 .into_iter()
                 .fold(client_builder, |client_builder, certificate| {
                     client_builder.add_root_certificate(certificate)
                 });
+            if let Some(pem) = ca_certificate.as_ref() {
+                client_builder = load_ca_certificate_pem(client_builder, pem.peek())?;
+            }
             client_builder
                 .identity(identity)
                 .use_rustls_tls()
@@ -896,8 +902,32 @@ pub fn create_client(
                 .change_context(ApiClientError::ClientConstructionFailed)
                 .attach_printable("Failed to construct client with certificate and certificate key")
         }
-        _ => get_base_client(proxy_config, should_bypass_proxy, test_mode),
+        _ => match ca_certificate {
+            Some(pem) => {
+                let mut client_builder =
+                    get_client_builder(proxy_config, should_bypass_proxy, test_mode)?;
+                client_builder = load_ca_certificate_pem(client_builder, pem.peek())?;
+                client_builder
+                    .build()
+                    .change_context(ApiClientError::ClientConstructionFailed)
+                    .attach_printable("Failed to construct client with CA certificate")
+            }
+            None => get_base_client(proxy_config, should_bypass_proxy, test_mode),
+        },
     }
+}
+
+fn load_ca_certificate_pem(
+    mut client_builder: reqwest::ClientBuilder,
+    pem: &str,
+) -> CustomResult<reqwest::ClientBuilder, ApiClientError> {
+    let certs = reqwest::Certificate::from_pem_bundle(pem.as_bytes())
+        .change_context(ApiClientError::CertificateDecodeFailed)
+        .attach_printable("Failed to parse CA certificate PEM bundle")?;
+    for cert in certs {
+        client_builder = client_builder.add_root_certificate(cert);
+    }
+    Ok(client_builder)
 }
 
 static DEFAULT_CLIENT: OnceCell<Client> = OnceCell::new();

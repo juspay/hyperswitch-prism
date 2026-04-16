@@ -1,0 +1,524 @@
+{
+  "connector": "archipel",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "AchBankTransfer": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "Affirm": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "Afterpay": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "Alfamart": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "AliPayRedirect": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "AmazonPayRedirect": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "ApplePay": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "ApplePayDecrypted": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "Bacs": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "BacsBankTransfer": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "BancontactCard": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "BcaBankTransfer": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "Becs": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "Bizum": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "Blik": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "Bluecode": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "BniVaBankTransfer": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "Boleto": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "BriVaBankTransfer": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "Card": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "CashappQr": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "CimbVaBankTransfer": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "ClassicReward": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "EVoucher": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "Efecty": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "Eft": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "Eps": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "FamilyMart": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "Giropay": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "GooglePay": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "GooglePayDecrypted": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "Ideal": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "Indomaret": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "IndonesianBankTransfer": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "InstantBankTransfer": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "InstantBankTransferFinland": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "InstantBankTransferPoland": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "Interac": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "Klarna": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "Lawson": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "LocalBankRedirect": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "LocalBankTransfer": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "MbWay": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "Mifinity": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "MiniStop": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "MultibancoBankTransfer": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "OnlineBankingFinland": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "OnlineBankingFpx": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "OnlineBankingPoland": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "OnlineBankingThailand": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "OpenBanking": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "OpenBankingUk": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "Oxxo": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "PagoEfectivo": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "PayEasy": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "PaySafeCard": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "PaypalRedirect": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "PaypalSdk": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "PermataBankTransfer": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "Pix": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "Przelewy24": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "Pse": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "RedCompra": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "RedPagos": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "RevolutPay": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "SamsungPay": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "Satispay": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "Seicomart": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "Sepa": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "SepaBankTransfer": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "SevenEleven": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "Sofort": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "Trustly": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "UpiCollect": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "UpiIntent": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "UpiQr": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "WeChatPayQr": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      },
+      "Wero": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_client_authentication_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_customer": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_server_authentication_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "eligibility": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "handle_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "refund_get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "error",
+        "error": "Invalid data format: connector_meta_data"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "tokenize": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "verify_redirect": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "not_implemented"
+      }
+    }
+  }
+}

@@ -115,6 +115,7 @@ truelayer.base_url = "https://api.truelayer.com"
 truelayer.secondary_base_url = "https://auth.truelayer.com"
 trustly.base_url = "https://api.trustly.com/1"
 itaubank.base_url = "https://api.itau.com.br"
+archipel.base_url = "https://{{merchant_endpoint_prefix}}/processing/payments/v3"
 
 # Generic Events Configuration
 [events]

@@ -105,6 +105,7 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
             ConnectorEnum::Truelayer => Box::new(connectors::Truelayer::new()),
             ConnectorEnum::Trustly => Box::new(connectors::Trustly::new()),
             ConnectorEnum::Itaubank => Box::new(connectors::Itaubank::new()),
+            ConnectorEnum::Archipel => Box::new(connectors::Archipel::new()),
         }
     }
 }
