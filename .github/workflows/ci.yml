@@ -101,6 +101,9 @@ jobs:
               - 'docs-generated/**'
               - 'examples/**'
               - 'scripts/**'
+            stripe:
+              - 'crates/integrations/connector-integration/src/connectors/stripe.rs'
+              - 'crates/integrations/connector-integration/src/connectors/stripe/transformers.rs'
             any-rs:
               - '**/*.rs'
             ci:
@@ -495,7 +498,8 @@ jobs:
       (needs.changes.outputs.sdk == 'true' ||
        needs.changes.outputs.rust-core == 'true' ||
        needs.changes.outputs.proto == 'true' ||
-       needs.changes.outputs.ci == 'true')
+       needs.changes.outputs.ci == 'true' ||
+       needs.changes.outputs.stripe == 'true')
     runs-on: ubuntu-latest
 
     env:
@@ -558,6 +562,21 @@ jobs:
         with:
           shared-key: "ci-release-fast"
           cache-targets: true
+
+      - name: Restore SDK binaries cache
+        id: sdk-cache-restore
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            target/*/*/libconnector_service_ffi.so
+            target/*/*/libconnector_service_ffi.dylib
+            target/*/*/libhyperswitch_grpc_ffi.so
+            target/*/*/libhyperswitch_grpc_ffi.dylib
+            target/*/*/grpc-server
+            target/*/*/uniffi-bindgen
+            target/*/*/hyperswitch-smoke-test
+            target/*/*/grpc-smoke-test
+          key: sdk-${{ runner.os }}-${{ hashFiles('crates/ffi/**/*.rs', 'sdk/grpc-ffi/**/*.rs', 'crates/internal/uniffi-bindgen/**/*.rs', 'sdk/rust/smoke-test/**/*.rs') }}
 
       - name: Create connector credentials
         shell: bash
