@@ -536,7 +536,7 @@
             "timestamp": "0000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"requestType\":\"PreAuthSecondaryTransaction\",\"incrementalFlag\":true,\"transactionAmount\":{\"total\":11.0,\"currency\":\"USD\"}}"
+          "body": "{\"requestType\":\"PreAuthSecondaryTransaction\",\"merchantTransactionId\":\"inc-a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\",\"incrementalFlag\":true,\"transactionAmount\":{\"total\":11.0,\"currency\":\"USD\"}}"
         }
       }
     },
