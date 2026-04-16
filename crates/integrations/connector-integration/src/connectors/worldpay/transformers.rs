@@ -3,12 +3,12 @@ use std::collections::HashMap;
 use common_enums as enums;
 use common_utils::{ext_traits::OptionExt, pii, types::MinorUnit, CustomResult};
 use domain_types::{
-    connector_flow::{Authorize, Capture, Void},
+    connector_flow::{Authorize, Capture, SetupMandate, Void},
     connector_types::{
         MandateIds, MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
         PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        ResponseId,
+        ResponseId, SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{
@@ -89,6 +89,17 @@ fn fetch_payment_instrument<
                     context: Default::default(),
                 })?;
 
+            // Worldpay requires cardHolderName when tokenCreation is present
+            // (mandate / stored-credential flows). Fall back to the card's own
+            // card_holder_name field when billing_address does not carry a full
+            // name. Keeps existing Authorize behaviour (sending the name when
+            // available is always accepted by Worldpay) while unblocking the
+            // zero-amount SetupMandate path that the billing address alone
+            // could not satisfy.
+            let card_holder_name = billing_address
+                .and_then(|address| address.get_optional_full_name())
+                .or_else(|| card.card_holder_name.clone());
+
             Ok(PaymentInstrument::Card(CardPayment {
                 raw_card_details: RawCardDetails {
                     payment_type: PaymentType::Plain,
@@ -99,8 +110,7 @@ fn fetch_payment_instrument<
                     card_number: card.card_number
 },
                 cvc: card.card_cvc,
-                card_holder_name: billing_address
-                    .and_then(|address| address.get_optional_full_name()),
+                card_holder_name,
                 billing_address: billing_address
                     .and_then(|addr| addr.address.clone())
                     .and_then(|address| {
@@ -1547,5 +1557,117 @@ fn extract_three_ds_metadata(response: &WorldpayPaymentsResponse) -> Option<serd
             }
         }
         _ => None,
+    }
+}
+
+// SetupMandate request transformer
+// SetupMandate uses zero-amount authorization with tokenization to establish stored credentials
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        WorldpayRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for WorldpaySetupMandateRequest<T>
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        item: WorldpayRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        // Extract merchant name from connector config
+        let auth = WorldpayAuthType::try_from(&item.router_data.connector_config)?;
+
+        let merchant_name = auth
+            .merchant_name
+            .clone()
+            .map(|name| name.expose())
+            .unwrap_or_else(|| "Mandate Setup".to_string());
+
+        // Get payment instrument from payment method data
+        // Use resource_common_data.get_optional_billing() for billing address (same pattern as Authorize)
+        let payment_instrument = fetch_payment_instrument(
+            item.router_data.request.payment_method_data.clone(),
+            item.router_data.resource_common_data.get_optional_billing(),
+        )?;
+
+        // Determine payment method from resource_common_data.payment_method and request.payment_method_type
+        let method = PaymentMethod::try_from((
+            item.router_data.resource_common_data.payment_method,
+            item.router_data.request.payment_method_type,
+        ))?;
+
+        // For SetupMandate, we always use zero amount and set up tokenization
+        // with customerAgreement for first stored card usage
+        Ok(Self {
+            transaction_reference: item
+                .router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .replace('_', "-"),
+            merchant: Merchant {
+                entity: auth.entity_id,
+                mcc: None,
+                payment_facilitator: None,
+            },
+            instruction: Instruction {
+                settlement: None, // No settlement for zero-amount mandate setup
+                method,
+                payment_instrument,
+                narrative: InstructionNarrative {
+                    line1: merchant_name,
+                },
+                value: PaymentValue {
+                    amount: MinorUnit::zero(), // Zero amount for mandate setup
+                    currency: item.router_data.request.currency,
+                },
+                debt_repayment: None,
+                three_ds: None, // 3DS can be added if needed via browser_info
+                // Enable tokenization for mandate setup
+                token_creation: Some(TokenCreation {
+                    token_type: TokenCreationType::Worldpay,
+                }),
+                // Mark as first stored card usage for CIT
+                customer_agreement: Some(CustomerAgreement {
+                    agreement_type: CustomerAgreementType::Subscription,
+                    stored_card_usage: Some(StoredCardUsageType::First),
+                    scheme_reference: None,
+                }),
+            },
+            customer: None,
+        })
+    }
+}
+
+// SetupMandate response transformer
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<WorldpayPaymentsResponse, Self>>
+    for RouterDataV2<
+        SetupMandate,
+        PaymentFlowData,
+        SetupMandateRequestData<T>,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<WorldpayPaymentsResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        // Use zero amount for status determination (mandate setup is always zero amount)
+        let amount = MinorUnit::zero();
+        // Use the existing ForeignTryFrom implementation for payments response
+        Self::foreign_try_from((item, None, amount))
     }
 }

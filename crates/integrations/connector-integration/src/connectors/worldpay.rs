@@ -5,12 +5,13 @@ pub mod transformers;
 use self::requests::{
     WorldpayAuthorizeRequest, WorldpayCaptureRequest, WorldpayPostAuthenticateRequest,
     WorldpayPreAuthenticateRequest, WorldpayRefundRequest, WorldpayRepeatPaymentRequest,
+    WorldpaySetupMandateRequest,
 };
 use self::response::{
     WorldpayAuthorizeResponse, WorldpayCaptureResponse, WorldpayErrorResponse,
     WorldpayPostAuthenticateResponse, WorldpayPreAuthenticateResponse, WorldpayRefundResponse,
-    WorldpayRefundSyncResponse, WorldpayRepeatPaymentResponse, WorldpaySyncResponse,
-    WorldpayVoidResponse,
+    WorldpayRefundSyncResponse, WorldpayRepeatPaymentResponse, WorldpaySetupMandateResponse,
+    WorldpaySyncResponse, WorldpayVoidResponse,
 };
 use common_utils::{errors::CustomResult, events, ext_traits::BytesExt};
 use domain_types::{
@@ -249,6 +250,12 @@ macros::create_all_prerequisites!(
             request_body: WorldpayRepeatPaymentRequest<T>,
             response_body: WorldpayRepeatPaymentResponse,
             router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: SetupMandate,
+            request_body: WorldpaySetupMandateRequest<T>,
+            response_body: WorldpaySetupMandateResponse,
+            router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [],
@@ -675,6 +682,36 @@ macros::macro_connector_implementation!(
     }
 );
 
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Worldpay,
+    curl_request: Json(WorldpaySetupMandateRequest<T>),
+    curl_response: WorldpaySetupMandateResponse,
+    flow_name: SetupMandate,
+    resource_common_data: PaymentFlowData,
+    flow_request: SetupMandateRequestData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            // SetupMandate uses the same payment endpoint as Authorize
+            // with zero amount and tokenization flags
+            Ok(format!("{}api/payments", self.connector_base_url_payments(req)))
+        }
+    }
+);
+
 // Stub implementations for unsupported flows - removed conflicting ones that are now macro-generated
 
 // Authenticate flow is replaced by PreAuthenticate and PostAuthenticate, but we need this stub for trait bounds
@@ -713,16 +750,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>
     for Worldpay<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        SetupMandate,
-        PaymentFlowData,
-        SetupMandateRequestData<T>,
-        PaymentsResponseData,
-    > for Worldpay<T>
 {
 }
 
