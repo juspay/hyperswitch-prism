@@ -226,7 +226,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Wero | ⚠ |
 | Affirm | ✓ |
 | Afterpay | ✓ |
-| Klarna | ? |
+| Klarna | ✓ |
 | UPI Collect | ⚠ |
 | UPI Intent | ⚠ |
 | UPI QR | ⚠ |
@@ -409,6 +409,14 @@ Authorize a payment amount on a payment method. This reserves funds without capt
   "blik": {
     "blik_code": "777124"
   }
+}
+```
+
+##### Klarna
+
+```python
+"payment_method": {
+  "klarna": {}
 }
 ```
 
