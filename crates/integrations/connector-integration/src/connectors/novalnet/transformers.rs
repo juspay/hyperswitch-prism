@@ -8,13 +8,15 @@ use common_utils::{
     types::{MinorUnit, StringMinorUnit},
 };
 use domain_types::{
-    connector_flow::{self, Authorize, PSync, RSync, RepeatPayment, SetupMandate, Void},
+    connector_flow::{
+        self, Authorize, IncrementalAuthorization, PSync, RSync, RepeatPayment, SetupMandate, Void,
+    },
     connector_types::{
         EventType, MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
-        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse, RefundsData,
-        RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
-        WebhookDetailsResponse,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData,
+        RefundWebhookDetailsResponse, RefundsData, RefundsResponseData, RepeatPaymentData,
+        ResponseId, SetupMandateRequestData, WebhookDetailsResponse,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{
@@ -2575,6 +2577,160 @@ impl TryFrom<NovalnetWebhookNotificationResponseRefunds> for RefundWebhookDetail
                 raw_connector_response: None,
                 response_headers: None,
             }),
+        }
+    }
+}
+
+// =============================================================================
+// Incremental Authorization
+//
+// Novalnet exposes incremental authorization through its transaction amount
+// update endpoint: POST https://payport.novalnet.de/v2/transaction/update
+// The endpoint allows a merchant to update the authorized amount of an
+// existing on-hold / pending transaction (primarily supported for Direct
+// Debit SEPA, Direct Debit ACH, Invoice, Prepayment & Barzahlen/viacash).
+// The response envelope is the same `{ result, transaction }` shape used by
+// capture/void — we reuse the shared `ResultData` type here.
+// =============================================================================
+
+#[derive(Default, Debug, Serialize)]
+pub struct NovalnetIncrementalAuthTransaction {
+    pub tid: String,
+    pub amount: StringMinorUnit,
+}
+
+#[derive(Default, Debug, Serialize)]
+pub struct NovalnetIncrementalAuthRequest {
+    pub transaction: NovalnetIncrementalAuthTransaction,
+    pub custom: NovalnetCustom,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        NovalnetRouterData<
+            RouterDataV2<
+                IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for NovalnetIncrementalAuthRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        item: NovalnetRouterData<
+            RouterDataV2<
+                IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let tid = item
+            .router_data
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .change_context(IntegrationError::MissingConnectorTransactionID {
+                context: Default::default(),
+            })?;
+
+        let amount = item
+            .connector
+            .amount_converter
+            .convert(
+                item.router_data.request.minor_amount,
+                item.router_data.request.currency,
+            )
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: Default::default(),
+            })?;
+
+        let transaction = NovalnetIncrementalAuthTransaction { tid, amount };
+
+        let custom = NovalnetCustom {
+            lang: DEFAULT_LOCALE.to_string(),
+        };
+
+        Ok(Self {
+            transaction,
+            custom,
+        })
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NovalnetIncrementalAuthTransactionData {
+    pub amount: Option<MinorUnit>,
+    pub currency: Option<common_enums::Currency>,
+    pub order_no: Option<String>,
+    pub payment_type: Option<String>,
+    pub status: Option<NovalnetTransactionStatus>,
+    pub status_code: Option<u64>,
+    pub test_mode: Option<u8>,
+    pub tid: Option<i64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NovalnetIncrementalAuthResponse {
+    pub result: ResultData,
+    pub transaction: Option<NovalnetIncrementalAuthTransactionData>,
+}
+
+impl
+    TryFrom<ResponseRouterData<NovalnetIncrementalAuthResponse, Self>>
+    for RouterDataV2<
+        IncrementalAuthorization,
+        PaymentFlowData,
+        PaymentsIncrementalAuthorizationData,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<NovalnetIncrementalAuthResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let transaction_id = item
+            .response
+            .transaction
+            .as_ref()
+            .and_then(|data| data.tid.map(|tid| tid.to_string()));
+
+        match item.response.result.status {
+            NovalnetAPIStatus::Success => {
+                // The amount update succeeded; the original transaction remains
+                // AUTHORIZED (on-hold) until a subsequent capture. Map to
+                // AuthorizationStatus::Success so callers know the increment
+                // was applied.
+                let authorization_status = common_enums::AuthorizationStatus::Success;
+
+                // Preserve the existing flow-data status — the original
+                // transaction is still Authorized after an incremental auth.
+                Ok(Self {
+                    response: Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
+                        status: authorization_status,
+                        connector_authorization_id: transaction_id,
+                        status_code: item.http_code,
+                    }),
+                    ..item.router_data
+                })
+            }
+            NovalnetAPIStatus::Failure => {
+                let response = Err(get_error_response(
+                    item.response.result,
+                    item.http_code,
+                    transaction_id,
+                ));
+                Ok(Self {
+                    response,
+                    ..item.router_data
+                })
+            }
         }
     }
 }

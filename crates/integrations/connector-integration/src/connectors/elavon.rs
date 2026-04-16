@@ -39,9 +39,9 @@ use interfaces::{
 };
 use serde::Serialize;
 use transformers::{
-    self as elavon, ElavonCaptureResponse, ElavonPSyncResponse, ElavonPaymentsResponse,
-    ElavonRSyncResponse, ElavonRefundResponse, XMLCaptureRequest, XMLElavonRequest,
-    XMLPSyncRequest, XMLRSyncRequest, XMLRefundRequest,
+    self as elavon, ElavonCaptureResponse, ElavonIncrementalAuthResponse, ElavonPSyncResponse,
+    ElavonPaymentsResponse, ElavonRSyncResponse, ElavonRefundResponse, XMLCaptureRequest,
+    XMLElavonRequest, XMLIncrementalAuthRequest, XMLPSyncRequest, XMLRSyncRequest, XMLRefundRequest,
 };
 
 use super::macros;
@@ -53,16 +53,6 @@ use domain_types::errors::IntegrationError;
 
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        IncrementalAuthorization,
-        PaymentFlowData,
-        PaymentsIncrementalAuthorizationData,
-        PaymentsResponseData,
-    > for Elavon<T>
-{
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -324,6 +314,12 @@ macros::create_all_prerequisites!(
             request_body: XMLRSyncRequest,
             response_body: ElavonRSyncResponse,
             router_data: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        ),
+        (
+            flow: IncrementalAuthorization,
+            request_body: XMLIncrementalAuthRequest,
+            response_body: ElavonIncrementalAuthResponse,
+            router_data: RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
         )
     ],
     amount_converters: [],
@@ -515,6 +511,42 @@ macros::macro_connector_implementation!(
         fn get_url(
             &self,
             req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!(
+                "{}processxml.do",
+                req.resource_common_data.connectors.elavon.base_url
+            ))
+        }
+    }
+);
+
+// IncrementalAuthorization flow - increases the authorized amount of a
+// pre-authorized transaction (Elavon Converge `ccincrauth`). Shares the
+// same processxml.do endpoint as other flows.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type],
+    connector: Elavon,
+    curl_request: FormUrlEncoded(XMLIncrementalAuthRequest),
+    curl_response: ElavonIncrementalAuthResponse,
+    flow_name: IncrementalAuthorization,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsIncrementalAuthorizationData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    preprocess_response: true,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             Ok(format!(
                 "{}processxml.do",

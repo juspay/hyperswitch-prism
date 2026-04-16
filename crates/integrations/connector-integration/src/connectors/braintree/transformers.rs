@@ -7,8 +7,8 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, ClientAuthenticationToken, PSync, PaymentMethodToken, RSync,
-        RepeatPayment, Void,
+        Authorize, Capture, ClientAuthenticationToken, IncrementalAuthorization, PSync,
+        PaymentMethodToken, RSync, RepeatPayment, Void,
     },
     connector_types::{
         self, AmountInfo, ApplePayPaymentRequest, ApplePaySessionResponse,
@@ -19,7 +19,8 @@ use domain_types::{
         GpayTokenizationSpecification, GpayTransactionInfo, MandateReference, NextActionCall,
         PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
         PaymentRequestMetadata, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, PaypalClientAuthenticationResponse,
+        PaymentsIncrementalAuthorizationData, PaymentsResponseData, PaymentsSyncData,
+        PaypalClientAuthenticationResponse,
         PaypalTransactionInfo, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
         RepeatPaymentData, ResponseId, SdkNextAction, SecretInfoToInitiateSdk,
         ThirdPartySdkSessionResponse,
@@ -62,6 +63,7 @@ pub mod constants {
     pub const AUTHORIZE_AND_VAULT_APPLE_PAY_MUTATION: &str = "mutation authorizeApplepay($input: AuthorizePaymentMethodInput!) { authorizePaymentMethod(input: $input) { transaction { id legacyId amount { value currencyCode } status paymentMethod { id } } } }";
     pub const CHARGE_PAYPAL_MUTATION: &str = "mutation ChargePaypal($input: ChargePaymentMethodInput!) { chargePaymentMethod(input: $input) { transaction { id status amount { value currencyCode } } } }";
     pub const AUTHORIZE_PAYPAL_MUTATION: &str = "mutation authorizePaypal($input: AuthorizePaymentMethodInput!) { authorizePaymentMethod(input: $input) { transaction { id legacyId amount { value currencyCode } status } } }";
+    pub const UPDATE_TRANSACTION_AMOUNT_MUTATION: &str = "mutation updateTransactionAmount($input: UpdateTransactionAmountInput!) { updateTransactionAmount(input: $input) { transaction { id legacyId status amount { value currencyCode } } } }";
 }
 
 pub type CardPaymentRequest = GenericBraintreeRequest<VariablePaymentInput>;
@@ -73,6 +75,8 @@ pub type BraintreeRefundRequest = GenericBraintreeRequest<BraintreeRefundVariabl
 pub type BraintreePSyncRequest = GenericBraintreeRequest<PSyncInput>;
 pub type BraintreeRSyncRequest = GenericBraintreeRequest<RSyncInput>;
 pub type BraintreeWalletRequest = GenericBraintreeRequest<GenericVariableInput<WalletPaymentInput>>;
+pub type BraintreeIncrementalAuthRequest =
+    GenericBraintreeRequest<VariableIncrementalAuthInput>;
 
 pub type BraintreeRefundResponse = GenericBraintreeResponse<RefundResponse>;
 pub type BraintreeCaptureResponse = GenericBraintreeResponse<CaptureResponse>;
@@ -85,6 +89,7 @@ pub type VariableCaptureInput = GenericVariableInput<CaptureInputData>;
 pub type BraintreeRefundVariables = GenericVariableInput<BraintreeRefundInput>;
 pub type PSyncInput = GenericVariableInput<TransactionSearchInput>;
 pub type RSyncInput = GenericVariableInput<RefundSearchInput>;
+pub type VariableIncrementalAuthInput = GenericVariableInput<IncrementalAuthInputData>;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct GenericBraintreeRequest<T> {
@@ -2923,6 +2928,233 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         ..item.router_data.resource_common_data
                     },
                     response,
+                    ..item.router_data
+                })
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// INCREMENTAL AUTHORIZATION (updateTransactionAmount)
+// ---------------------------------------------------------------------------
+//
+// Braintree exposes incremental auth via the GraphQL `updateTransactionAmount`
+// mutation: it revises the authorised amount of an already-Authorised
+// transaction in place. The transaction must still be in the `AUTHORIZED`
+// state, and the card network / MCC must allow amount adjustments
+// (incremental auth is not supported for AMEX).
+//
+//   mutation updateTransactionAmount($input: UpdateTransactionAmountInput!) {
+//     updateTransactionAmount(input: $input) {
+//       transaction { id legacyId status amount { value currencyCode } }
+//     }
+//   }
+//
+//   variables: {
+//     "input": {
+//       "transactionId": "<connector_transaction_id>",
+//       "amount": "<new_total_major_unit>"
+//     }
+//   }
+//
+// Note: Braintree's `amount` for this mutation is the NEW TOTAL authorised
+// amount (not a delta). `PaymentsIncrementalAuthorizationData.minor_amount`
+// from Hyperswitch is likewise the new total (see connector_types.rs).
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IncrementalAuthInputData {
+    transaction_id: String,
+    amount: StringMajorUnit,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IncrementalAuthResponseTransactionBody {
+    pub id: String,
+    pub status: BraintreePaymentStatus,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateTransactionAmountData {
+    pub transaction: IncrementalAuthResponseTransactionBody,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IncrementalAuthResponseDataInner {
+    pub update_transaction_amount: UpdateTransactionAmountData,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct IncrementalAuthSuccessResponse {
+    pub data: IncrementalAuthResponseDataInner,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum BraintreeIncrementalAuthResponse {
+    SuccessResponse(Box<IncrementalAuthSuccessResponse>),
+    ErrorResponse(Box<ErrorResponse>),
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        BraintreeRouterData<
+            RouterDataV2<
+                IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for BraintreeIncrementalAuthRequest
+{
+    type Error = Report<IntegrationError>;
+    fn try_from(
+        item: BraintreeRouterData<
+            RouterDataV2<
+                IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let query = constants::UPDATE_TRANSACTION_AMOUNT_MUTATION.to_string();
+        let amount = item
+            .connector
+            .amount_converter
+            .convert(
+                item.router_data.request.minor_amount,
+                item.router_data.request.currency,
+            )
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: Default::default(),
+            })?;
+        let transaction_id = item
+            .router_data
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .change_context(IntegrationError::MissingConnectorTransactionID {
+                context: Default::default(),
+            })?;
+        Ok(Self {
+            query,
+            variables: VariableIncrementalAuthInput {
+                input: IncrementalAuthInputData {
+                    transaction_id,
+                    amount,
+                },
+            },
+        })
+    }
+}
+
+impl TryFrom<ResponseRouterData<BraintreeIncrementalAuthResponse, Self>>
+    for RouterDataV2<
+        IncrementalAuthorization,
+        PaymentFlowData,
+        PaymentsIncrementalAuthorizationData,
+        PaymentsResponseData,
+    >
+{
+    type Error = Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<BraintreeIncrementalAuthResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        match item.response {
+            BraintreeIncrementalAuthResponse::ErrorResponse(error_response) => {
+                let reason = if error_response.errors.is_empty() {
+                    None
+                } else {
+                    Some(
+                        error_response
+                            .errors
+                            .iter()
+                            .map(|e| e.message.clone())
+                            .collect::<Vec<_>>()
+                            .join(" "),
+                    )
+                };
+                let (code, message) = error_response
+                    .errors
+                    .first()
+                    .map(|err| {
+                        (
+                            err.extensions
+                                .as_ref()
+                                .and_then(|ext| ext.legacy_code.clone())
+                                .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+                            err.message.clone(),
+                        )
+                    })
+                    .unwrap_or_else(|| {
+                        (NO_ERROR_CODE.to_string(), NO_ERROR_MESSAGE.to_string())
+                    });
+                Ok(Self {
+                    // Leave the parent payment's attempt_status untouched —
+                    // a failed incremental auth does not flip the underlying
+                    // authorization to a failure state.
+                    resource_common_data: PaymentFlowData {
+                        status: enums::AttemptStatus::Authorized,
+                        ..item.router_data.resource_common_data
+                    },
+                    response: Err(domain_types::router_data::ErrorResponse {
+                        code,
+                        message,
+                        reason,
+                        status_code: item.http_code,
+                        attempt_status: None,
+                        connector_transaction_id: None,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
+                    }),
+                    ..item.router_data
+                })
+            }
+            BraintreeIncrementalAuthResponse::SuccessResponse(success) => {
+                let transaction = success.data.update_transaction_amount.transaction;
+                let attempt_status = enums::AttemptStatus::from(transaction.status.clone());
+                let authorization_status =
+                    if domain_types::utils::is_payment_failure(attempt_status) {
+                        common_enums::AuthorizationStatus::Failure
+                    } else {
+                        match attempt_status {
+                            enums::AttemptStatus::Authorized
+                            | enums::AttemptStatus::Charged
+                            | enums::AttemptStatus::PartialCharged
+                            | enums::AttemptStatus::PartialChargedAndChargeable => {
+                                common_enums::AuthorizationStatus::Success
+                            }
+                            enums::AttemptStatus::Authorizing
+                            | enums::AttemptStatus::Pending => {
+                                common_enums::AuthorizationStatus::Processing
+                            }
+                            _ => common_enums::AuthorizationStatus::Processing,
+                        }
+                    };
+
+                Ok(Self {
+                    // Keep the parent payment's attempt_status as Authorized.
+                    // The incremental auth outcome is carried in
+                    // IncrementalAuthorizationResponse.status, not in the
+                    // overall payment status.
+                    resource_common_data: PaymentFlowData {
+                        status: enums::AttemptStatus::Authorized,
+                        ..item.router_data.resource_common_data
+                    },
+                    response: Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
+                        status: authorization_status,
+                        connector_authorization_id: Some(transaction.id),
+                        status_code: item.http_code,
+                    }),
                     ..item.router_data
                 })
             }

@@ -13,13 +13,14 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, ClientAuthenticationToken, CreateOrder, PSync, PostAuthenticate,
-        RepeatPayment, VerifyWebhookSource,
+        Authorize, Capture, ClientAuthenticationToken, CreateOrder, IncrementalAuthorization, PSync,
+        PostAuthenticate, RepeatPayment, VerifyWebhookSource,
     },
     connector_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData, MandateReference,
         PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentsAuthorizeData,
-        PaymentsCaptureData, PaymentsPostAuthenticateData, PaymentsResponseData, PaymentsSyncData,
+        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
+        PaymentsResponseData, PaymentsSyncData,
         PaypalClientAuthenticationResponse as PaypalClientAuthenticationResponseDomain,
         PaypalFlow as PaypalFlowDomain, PaypalTransactionInfo as PaypalTransactionInfoDomain,
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
@@ -1755,6 +1756,94 @@ impl From<PaypalIncrementalStatus> for common_enums::AttemptStatus {
             PaypalIncrementalStatus::PENDING => Self::Pending,
             PaypalIncrementalStatus::DENIED | PaypalIncrementalStatus::VOIDED => Self::Failure,
         }
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct PaypalIncrementalAuthRequest {
+    pub amount: OrderAmount,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        PaypalRouterData<
+            RouterDataV2<
+                IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for PaypalIncrementalAuthRequest
+{
+    type Error = Report<IntegrationError>;
+    fn try_from(
+        item: PaypalRouterData<
+            RouterDataV2<
+                IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let value = item
+            .connector
+            .amount_converter
+            .convert(
+                item.router_data.request.minor_amount,
+                item.router_data.request.currency,
+            )
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: Default::default(),
+            })?;
+        let amount = OrderAmount {
+            currency_code: item.router_data.request.currency,
+            value,
+        };
+        Ok(Self { amount })
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PaypalIncrementalAuthResponse {
+    pub id: String,
+    pub status: PaypalIncrementalStatus,
+    pub amount: Option<OrderAmount>,
+    pub invoice_id: Option<String>,
+    pub status_details: Option<PaypalIncrementalAuthStatusDetails>,
+}
+
+impl
+    TryFrom<ResponseRouterData<PaypalIncrementalAuthResponse, Self>>
+    for RouterDataV2<
+        IncrementalAuthorization,
+        PaymentFlowData,
+        PaymentsIncrementalAuthorizationData,
+        PaymentsResponseData,
+    >
+{
+    type Error = Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<PaypalIncrementalAuthResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let authorization_status =
+            common_enums::AuthorizationStatus::from(item.response.status.clone());
+        let attempt_status = common_enums::AttemptStatus::from(item.response.status);
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                status: attempt_status,
+                ..item.router_data.resource_common_data
+            },
+            response: Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
+                status: authorization_status,
+                connector_authorization_id: Some(item.response.id),
+                status_code: item.http_code,
+            }),
+            ..item.router_data
+        })
     }
 }
 

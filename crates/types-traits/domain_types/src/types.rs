@@ -388,6 +388,7 @@ pub struct Connectors {
     pub finix: ConnectorParams,
     pub trustly: ConnectorParams,
     pub itaubank: ConnectorParams,
+    pub archipel: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
@@ -6474,6 +6475,19 @@ impl
 
         let merchant_id_from_header = extract_merchant_id_from_metadata(metadata)?;
 
+        let access_token = value
+            .state
+            .as_ref()
+            .and_then(|state| state.access_token.as_ref())
+            .map(ServerAuthenticationTokenResponseData::foreign_try_from)
+            .transpose()?;
+
+        let connector_feature_data = value
+            .connector_feature_data
+            .clone()
+            .map(|m| ForeignTryFrom::foreign_try_from((m, "feature_data")))
+            .transpose()?;
+
         Ok(Self {
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
@@ -6489,10 +6503,10 @@ impl
             connector_customer: None,
             description: None,
             return_url: None,
-            connector_feature_data: None,
+            connector_feature_data,
             amount_captured: None,
             minor_amount_captured: None,
-            access_token: None,
+            access_token,
             session_token: None,
             reference_id: None,
             connector_order_id: None,

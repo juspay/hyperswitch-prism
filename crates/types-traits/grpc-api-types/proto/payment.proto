@@ -741,6 +741,7 @@ enum Connector {
   PPRO = 113;
   FISERVCOMMERCEHUB = 114;
   TRUSTLY = 115;
+  ARCHIPEL = 117;
 }
 
 // Payment method types
@@ -3887,6 +3888,12 @@ message ItaubankConfig {
   optional string base_url = 50;
 }
 
+message ArchipelConfig {
+  // mTLS CA certificate as api_key (PEM string)
+  SecretString api_key = 1;
+  optional string base_url = 50;
+}
+
 message GigadatConfig {
   SecretString campaign_id = 1;
   SecretString access_token = 2;
@@ -4288,6 +4295,9 @@ message ConnectorSpecificConfig {
 
     // TRUSTLY = 116
     TrustlyConfig trustly = 115;
+
+    // ARCHIPEL = 117
+    ArchipelConfig archipel = 116;
   }
 }
 

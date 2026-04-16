@@ -3,12 +3,12 @@ use std::collections::HashMap;
 use common_enums as enums;
 use common_utils::{ext_traits::OptionExt, pii, types::MinorUnit, CustomResult};
 use domain_types::{
-    connector_flow::{Authorize, Capture, Void},
+    connector_flow::{Authorize, Capture, IncrementalAuthorization, Void},
     connector_types::{
         MandateIds, MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
-        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        ResponseId,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, RepeatPaymentData, ResponseId,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{
@@ -1547,5 +1547,114 @@ fn extract_three_ds_metadata(response: &WorldpayPaymentsResponse) -> Option<serd
             }
         }
         _ => None,
+    }
+}
+
+// Steps 120-129: TryFrom implementations for IncrementalAuthorization flow
+// Access Worldpay endpoint: POST /payments/authorizations/incrementalAuthorizations/{linkData}
+// Request body contains only { "value": { "amount": <minor>, "currency": "<ISO>" } }
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        WorldpayRouterData<
+            RouterDataV2<
+                IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for WorldpayIncrementalAuthRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        item: WorldpayRouterData<
+            RouterDataV2<
+                IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            value: PaymentValue {
+                amount: item.router_data.request.minor_amount,
+                currency: item.router_data.request.currency,
+            },
+        })
+    }
+}
+
+impl TryFrom<ResponseRouterData<WorldpayIncrementalAuthResponse, Self>>
+    for RouterDataV2<
+        IncrementalAuthorization,
+        PaymentFlowData,
+        PaymentsIncrementalAuthorizationData,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<WorldpayIncrementalAuthResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let attempt_status = enums::AttemptStatus::from(item.response.outcome.clone());
+        // Map Worldpay PaymentOutcome to AuthorizationStatus (success/processing/failure)
+        let authorization_status = match item.response.outcome {
+            PaymentOutcome::Authorized | PaymentOutcome::SentForSettlement => {
+                enums::AuthorizationStatus::Success
+            }
+            PaymentOutcome::Refused
+            | PaymentOutcome::FraudHighRisk
+            | PaymentOutcome::ThreeDsAuthenticationFailed
+            | PaymentOutcome::ThreeDsUnavailable
+            | PaymentOutcome::SentForCancellation => enums::AuthorizationStatus::Failure,
+            PaymentOutcome::ThreeDsDeviceDataRequired
+            | PaymentOutcome::ThreeDsChallenged
+            | PaymentOutcome::SentForRefund
+            | PaymentOutcome::SentForPartialRefund => enums::AuthorizationStatus::Processing,
+        };
+
+        // connector_authorization_id is derived from the
+        // `cardPayments:increaseAuthorizedAmount` action link's trailing
+        // linkData segment. The original Authorize-flow connector_transaction_id
+        // already represents this same linkData, so we fall back to it if the
+        // incremental auth response does not expose a new one.
+        let connector_authorization_id = item
+            .response
+            .links
+            .as_ref()
+            .and_then(|links| {
+                links
+                    .get("cardPayments:increaseAuthorizedAmount")
+                    .and_then(|v| v.get("href"))
+                    .and_then(|v| v.as_str())
+                    .map(str::to_string)
+            })
+            .and_then(|href| href.rsplit_once('/').map(|(_, h)| h.to_string()))
+            .and_then(|encoded| urlencoding::decode(&encoded).ok().map(|s| s.into_owned()))
+            .or_else(|| {
+                item.router_data
+                    .request
+                    .connector_transaction_id
+                    .get_connector_transaction_id()
+                    .ok()
+            });
+
+        let response = Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
+            status: authorization_status,
+            connector_authorization_id,
+            status_code: item.http_code,
+        });
+
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                status: attempt_status,
+                ..item.router_data.resource_common_data
+            },
+            response,
+            ..item.router_data
+        })
     }
 }

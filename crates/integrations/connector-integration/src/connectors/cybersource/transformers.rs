@@ -13,8 +13,8 @@ use crate::{connectors::cybersource::CybersourceRouterData, types::ResponseRoute
 use cards;
 use domain_types::{
     connector_flow::{
-        Authenticate, Authorize, Capture, ClientAuthenticationToken, PostAuthenticate,
-        PreAuthenticate, RepeatPayment, SetupMandate, Void,
+        Authenticate, Authorize, Capture, ClientAuthenticationToken, IncrementalAuthorization,
+        PostAuthenticate, PreAuthenticate, RepeatPayment, SetupMandate, Void,
     },
     connector_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
@@ -22,9 +22,10 @@ use domain_types::{
         CybersourceClientAuthenticationResponse as CybersourceClientAuthenticationResponseDomain,
         MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
         PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsResponseData,
-        PaymentsSyncData, RecurringMandateData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
+        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
+        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RecurringMandateData,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        ResponseId, SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_address::Address,
@@ -2731,8 +2732,194 @@ pub enum CybersourceAuthSetupResponse {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CybersourcePaymentsIncrementalAuthorizationResponse {
-    status: CybersourceIncrementalAuthorizationStatus,
-    error_information: Option<CybersourceErrorInformation>,
+    #[serde(default)]
+    pub id: Option<String>,
+    pub status: CybersourceIncrementalAuthorizationStatus,
+    #[serde(default)]
+    pub client_reference_information: Option<ClientReferenceInformation>,
+    pub error_information: Option<CybersourceErrorInformation>,
+}
+
+// Build CybersourcePaymentsIncrementalAuthorizationRequest from RouterDataV2.
+// Request body mirrors the CyberSource REST API shape:
+//   {
+//     "processingInformation": {
+//       "commerceIndicator": "internet",
+//       "authorizationOptions": {
+//         "initiator": { "storedCredentialUsed": true }
+//       }
+//     },
+//     "orderInformation": {
+//       "amountDetails": {
+//         "additionalAmount": "<major_amount>",
+//         "currency": "USD"
+//       }
+//     }
+//   }
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        CybersourceRouterData<
+            RouterDataV2<
+                IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for CybersourcePaymentsIncrementalAuthorizationRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: CybersourceRouterData<
+            RouterDataV2<
+                IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let request = &router_data.request;
+
+        // Convert the incremental (additional) amount to the connector's expected
+        // StringMajorUnit format (e.g. "10.00").
+        let additional_amount = item
+            .connector
+            .amount_converter
+            .convert(request.minor_amount, request.currency)
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: Default::default(),
+            })
+            .attach_printable(
+                "Failed to convert additional_amount for CyberSource incremental authorization",
+            )?;
+
+        // CyberSource sandbox accepts the incremental authorization only when
+        // authorizationOptions.initiator.storedCredentialUsed is explicitly
+        // true — even though the REST docs say it is optional.
+        let processing_information = ProcessingInformation {
+            action_list: None,
+            action_token_types: None,
+            authorization_options: Some(CybersourceAuthorizationOptions {
+                initiator: Some(CybersourcePaymentInitiator {
+                    initiator_type: None,
+                    credential_stored_on_file: None,
+                    stored_credential_used: Some(true),
+                }),
+                merchant_initiated_transaction: None,
+                ignore_avs_result: None,
+                ignore_cv_result: None,
+            }),
+            commerce_indicator: String::from("internet"),
+            capture: None,
+            capture_options: None,
+            payment_solution: None,
+        };
+
+        let order_information = OrderInformationIncrementalAuthorization {
+            amount_details: AdditionalAmount {
+                additional_amount,
+                currency: request.currency.to_string(),
+            },
+        };
+
+        Ok(Self {
+            processing_information,
+            order_information,
+        })
+    }
+}
+
+// Map the CyberSource incremental authorization response into RouterDataV2.
+// On success, CyberSource returns HTTP 201 with a status of "AUTHORIZED" /
+// "AUTHORIZED_PENDING_REVIEW" / "DECLINED". We mirror this into
+// common_enums::AuthorizationStatus and preserve the `id` as the
+// connector_authorization_id.
+impl TryFrom<ResponseRouterData<CybersourcePaymentsIncrementalAuthorizationResponse, Self>>
+    for RouterDataV2<
+        IncrementalAuthorization,
+        PaymentFlowData,
+        PaymentsIncrementalAuthorizationData,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<CybersourcePaymentsIncrementalAuthorizationResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response;
+        let http_code = item.http_code;
+
+        // If the connector returned error_information, surface it as a failure response.
+        if let Some(error_info) = response.error_information.as_ref() {
+            let detailed_error_info = error_info.details.as_ref().map(|details| {
+                details
+                    .iter()
+                    .map(|det| format!("{} : {}", det.field, det.reason))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            });
+            let reason =
+                get_error_reason(error_info.message.clone(), detailed_error_info, None);
+            return Ok(Self {
+                resource_common_data: PaymentFlowData {
+                    // Keep the parent payment status unchanged (Authorized) —
+                    // an incremental auth failure does not corrupt the parent.
+                    status: common_enums::AttemptStatus::Authorized,
+                    ..item.router_data.resource_common_data
+                },
+                response: Err(ErrorResponse {
+                    status_code: http_code,
+                    code: error_info
+                        .reason
+                        .clone()
+                        .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+                    message: error_info
+                        .message
+                        .clone()
+                        .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                    reason,
+                    attempt_status: None,
+                    connector_transaction_id: response.id.clone(),
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                }),
+                ..item.router_data
+            });
+        }
+
+        // Convert the CyberSource-specific status into common_enums::AuthorizationStatus.
+        let authorization_status: common_enums::AuthorizationStatus = match response.status {
+            CybersourceIncrementalAuthorizationStatus::Authorized => {
+                common_enums::AuthorizationStatus::Success
+            }
+            CybersourceIncrementalAuthorizationStatus::AuthorizedPendingReview => {
+                common_enums::AuthorizationStatus::Processing
+            }
+            CybersourceIncrementalAuthorizationStatus::Declined => {
+                common_enums::AuthorizationStatus::Failure
+            }
+        };
+
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                status: common_enums::AttemptStatus::Authorized,
+                ..item.router_data.resource_common_data
+            },
+            response: Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
+                status: authorization_status,
+                connector_authorization_id: response.id,
+                status_code: http_code,
+            }),
+            ..item.router_data
+        })
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

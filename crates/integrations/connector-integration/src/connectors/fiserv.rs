@@ -51,7 +51,8 @@ use uuid::Uuid;
 pub mod transformers;
 
 use transformers::{
-    FiservCaptureRequest, FiservCaptureResponse, FiservPaymentsRequest, FiservPaymentsResponse,
+    FiservCaptureRequest, FiservCaptureResponse, FiservIncrementalAuthorizationRequest,
+    FiservIncrementalAuthorizationResponse, FiservPaymentsRequest, FiservPaymentsResponse,
     FiservRefundRequest, FiservRefundResponse, FiservRefundSyncRequest, FiservRefundSyncResponse,
     FiservSyncRequest, FiservSyncResponse, FiservVoidRequest, FiservVoidResponse,
 };
@@ -73,15 +74,7 @@ mod headers {
 
 // Type alias for non-generic trait implementations
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        IncrementalAuthorization,
-        PaymentFlowData,
-        PaymentsIncrementalAuthorizationData,
-        PaymentsResponseData,
-    > for Fiserv<T>
-{
-}
+// IncrementalAuthorization is implemented via macro_connector_implementation below
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ClientAuthentication for Fiserv<T>
@@ -253,6 +246,12 @@ macros::create_all_prerequisites!(
             request_body: FiservRefundSyncRequest,
             response_body: FiservRefundSyncResponse,
             router_data: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        ),
+        (
+            flow: IncrementalAuthorization,
+            request_body: FiservIncrementalAuthorizationRequest,
+            response_body: FiservIncrementalAuthorizationResponse,
+            router_data: RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -592,6 +591,40 @@ macros::macro_connector_implementation!(
             Ok(format!(
                 "{}ch/payments/v1/transaction-inquiry",
                 self.connector_base_url_refunds(req)
+            ))
+        }
+    }
+);
+
+// IncrementalAuthorization implementation — POST to
+// ch/payments/v1/charges with referenceTransactionDetails pointing to the
+// original pre-authorized transaction and the new total amount.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Fiserv,
+    curl_request: Json(FiservIncrementalAuthorizationRequest),
+    curl_response: FiservIncrementalAuthorizationResponse,
+    flow_name: IncrementalAuthorization,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsIncrementalAuthorizationData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!(
+                "{}ch/payments/v1/charges",
+                self.connector_base_url_payments(req)
             ))
         }
     }

@@ -5,11 +5,11 @@ use common_utils::{
     types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
+    connector_flow::{Authorize, Capture, IncrementalAuthorization, PSync, RSync, Refund, Void},
     connector_types::{
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId,
+        PaymentsIncrementalAuthorizationData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
@@ -437,6 +437,24 @@ pub struct FiservRefundSyncRequest {
     pub reference_transaction_details: ReferenceTransactionDetails,
 }
 
+// Incremental Authorization request - re-authorizes with new total amount
+// Fiserv uses the same charges endpoint with a reference to the original transaction
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FiservIncrementalAuthorizationRequest {
+    pub amount: Amount,
+    pub merchant_details: MerchantDetails,
+    pub reference_transaction_details: ReferenceTransactionDetails,
+    pub transaction_details: TransactionDetails,
+}
+
+// Incremental Authorization response - same structure as payment response
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FiservIncrementalAuthorizationResponse {
+    pub gateway_response: GatewayResponse,
+}
+
 // Implementations for FiservRouterData - needed for the macro framework
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
@@ -781,6 +799,79 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             },
             reference_transaction_details: ReferenceTransactionDetails {
                 reference_transaction_id: router_data.request.connector_refund_id.clone(),
+            },
+        })
+    }
+}
+
+// Implementation for the IncrementalAuthorization request
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        FiservRouterData<
+            RouterDataV2<
+                IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for FiservIncrementalAuthorizationRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        item: FiservRouterData<
+            RouterDataV2<
+                IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let auth: FiservAuthType = FiservAuthType::try_from(&router_data.connector_config)?;
+
+        let total = item
+            .connector
+            .amount_converter
+            .convert(
+                router_data.request.minor_amount,
+                router_data.request.currency,
+            )
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: Default::default(),
+            })?;
+
+        Ok(Self {
+            amount: Amount {
+                total,
+                currency: router_data.request.currency.to_string(),
+            },
+            merchant_details: MerchantDetails {
+                merchant_id: auth.merchant_account.clone(),
+                terminal_id: auth.terminal_id.clone(),
+            },
+            reference_transaction_details: ReferenceTransactionDetails {
+                reference_transaction_id: router_data
+                    .request
+                    .connector_transaction_id
+                    .get_connector_transaction_id()
+                    .change_context(IntegrationError::MissingConnectorTransactionID {
+                        context: Default::default(),
+                    })?,
+            },
+            transaction_details: TransactionDetails {
+                capture_flag: Some(false),
+                reversal_reason_code: None,
+                merchant_transaction_id: Some(
+                    router_data
+                        .resource_common_data
+                        .connector_request_reference_id
+                        .clone(),
+                ),
+                operation_type: Some(OperationType::Authorize),
             },
         })
     }
@@ -1186,6 +1277,92 @@ impl<F> TryFrom<ResponseRouterData<FiservRefundSyncResponse, Self>>
         } else {
             router_data_out.response = Ok(response_payload);
         }
+
+        Ok(router_data_out)
+    }
+}
+
+// Incremental Authorization response handling
+impl TryFrom<ResponseRouterData<FiservIncrementalAuthorizationResponse, Self>>
+    for RouterDataV2<
+        IncrementalAuthorization,
+        PaymentFlowData,
+        PaymentsIncrementalAuthorizationData,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<FiservIncrementalAuthorizationResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let ResponseRouterData {
+            response,
+            router_data,
+            http_code,
+        } = item;
+
+        let gateway_resp = &response.gateway_response;
+        let transaction_state = gateway_resp.transaction_state.clone();
+
+        // Map Fiserv transaction state to authorization status
+        let authorization_status = match transaction_state {
+            FiservPaymentStatus::Authorized | FiservPaymentStatus::Succeeded => {
+                enums::AuthorizationStatus::Success
+            }
+            FiservPaymentStatus::Processing | FiservPaymentStatus::Created => {
+                enums::AuthorizationStatus::Processing
+            }
+            FiservPaymentStatus::Declined
+            | FiservPaymentStatus::Failed
+            | FiservPaymentStatus::Voided => enums::AuthorizationStatus::Failure,
+            FiservPaymentStatus::Captured => enums::AuthorizationStatus::Success,
+        };
+
+        let connector_authorization_id = gateway_resp
+            .gateway_transaction_id
+            .clone()
+            .or_else(|| {
+                Some(
+                    gateway_resp
+                        .transaction_processing_details
+                        .transaction_id
+                        .clone(),
+                )
+            });
+
+        // On failure, return error response but keep parent payment status as Authorized
+        if authorization_status == enums::AuthorizationStatus::Failure {
+            let mut router_data_out = router_data;
+            router_data_out.resource_common_data.status = enums::AttemptStatus::Authorized;
+            router_data_out.response = Err(ErrorResponse {
+                code: gateway_resp
+                    .transaction_processing_details
+                    .transaction_id
+                    .clone(),
+                message: format!(
+                    "Incremental authorization status: {:?}",
+                    transaction_state
+                ),
+                reason: None,
+                status_code: http_code,
+                attempt_status: None,
+                connector_transaction_id: gateway_resp.gateway_transaction_id.clone(),
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+            });
+            return Ok(router_data_out);
+        }
+
+        let mut router_data_out = router_data;
+        router_data_out.resource_common_data.status = enums::AttemptStatus::Authorized;
+        router_data_out.response =
+            Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
+                status: authorization_status,
+                connector_authorization_id,
+                status_code: http_code,
+            });
 
         Ok(router_data_out)
     }

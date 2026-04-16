@@ -142,6 +142,7 @@ truelayer.base_url = "https://api.truelayer-sandbox.com"
 truelayer.secondary_base_url = "https://auth.truelayer-sandbox.com"
 trustly.base_url = "https://test.trustly.com/api/1"
 itaubank.base_url = "https://sandbox.devportal.itau.com.br"
+archipel.base_url = "https://{{merchant_endpoint_prefix}}/processing/payments/v3"
 
 # Generic Events Configuration
 [events]
