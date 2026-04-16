@@ -94,6 +94,13 @@ pub struct PlacetopayPaymentsRequest<
     T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
 > {
     auth: PlacetopayAuth,
+    // Action controls capture behaviour:
+    //   - "checkout" (default): immediately captures funds (status CHARGED)
+    //   - "checkin":            pre-authorization hold (status AUTHORIZED) that
+    //                           can later be incremented via "reauthorization"
+    //                           and finalized via "checkout"
+    #[serde(skip_serializing_if = "Option::is_none")]
+    action: Option<PlacetopayNextAction>,
     payment: PlacetopayPayment,
     instrument: PlacetopayInstrument<T>,
     ip_address: Secret<String, common_utils::pii::IpAddress>,
@@ -173,6 +180,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             },
         };
 
+        // Manual capture => pre-authorization ("checkin"); Automatic (or None)
+        // falls back to the default behaviour (immediate capture, action omitted).
+        let action = match item.router_data.request.capture_method {
+            Some(common_enums::CaptureMethod::Manual) => Some(PlacetopayNextAction::Checkin),
+            _ => None,
+        };
+
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(req_card) => {
                 let card = PlacetopayCard {
@@ -186,6 +200,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     ip_address,
                     user_agent,
                     auth,
+                    action,
                     payment,
                     instrument: PlacetopayInstrument {
                         card: card.to_owned(),
@@ -386,6 +401,12 @@ pub enum PlacetopayNextAction {
     Void,
     Process,
     Checkout,
+    // Pre-authorization only. Reserves funds without capturing. Required when
+    // the merchant wants to later issue "reauthorization" (incremental auth).
+    Checkin,
+    // Modifies a previously-held (checkin) amount. For Transerver Retail, the
+    // new amount must be strictly greater than the previously held amount.
+    Reauthorization,
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -599,18 +620,41 @@ impl<F> TryFrom<ResponseRouterData<PlacetopayRefundResponse, Self>>
 // IncrementalAuthorization flow
 // ============================================================================
 //
-// PlacetoPay uses the /transaction endpoint with the "reauthorize" action to
-// perform incremental authorizations. The request includes the auth block,
-// the internal_reference from the original authorization, the action, and
-// the new total amount.
+// PlacetoPay exposes incremental authorization via the "reauthorization" action
+// on the /gateway/transaction endpoint. Per PlacetoPay's docs, a prior "checkin"
+// pre-authorization is required, and both `internalReference` and
+// `authorization` (the auth code returned by the original checkin's
+// `preAuthorization` node) must be supplied. The amount must be wrapped in a
+// `payment` object, not passed as a top-level `amount`.
+//
+// Example request body:
+// {
+//   "auth": { ... WSSE ... },
+//   "internalReference": 30,
+//   "authorization": "235263",
+//   "action": "reauthorization",
+//   "payment": {
+//     "reference": "REAUTH_12345",
+//     "description": "Modified authorization",
+//     "amount": { "currency": "USD", "total": 15 }
+//   }
+// }
+//
+// The caller must pass the original checkin's `authorization` code back to us
+// via the request's `connector_feature_data` (a JSON string). That field is
+// populated by Hyperswitch from the original authorize response's
+// `connector_metadata`, which for PlacetoPay is set to the authorization code
+// in the Authorize TryFrom below.
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlacetopayIncrementalAuthRequest {
     auth: PlacetopayAuth,
     internal_reference: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    authorization: Option<Secret<String>>,
     action: PlacetopayNextAction,
-    amount: PlacetopayAmount,
+    payment: PlacetopayPayment,
 }
 
 // Response from the /transaction endpoint for incremental authorization.
@@ -621,6 +665,7 @@ pub struct PlacetopayIncrementalAuthRequest {
 pub struct PlacetopayIncrementalAuthResponse {
     status: PlacetopayStatusResponse,
     internal_reference: u64,
+    #[allow(dead_code)]
     authorization: Option<Secret<String>>,
 }
 
@@ -662,16 +707,44 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
-        let action = PlacetopayNextAction::Checkout;
-        let amount = PlacetopayAmount {
-            currency: item.router_data.request.currency,
-            total: item.router_data.request.minor_amount,
+
+        // Pull the original checkin's `authorization` code from
+        // connector_feature_data. PlacetoPay accepts either a raw string or a
+        // JSON string, so handle both serde shapes.
+        let authorization = item
+            .router_data
+            .request
+            .connector_feature_data
+            .clone()
+            .and_then(|v| match v.expose() {
+                serde_json::Value::String(s) => Some(Secret::new(s)),
+                other => other.as_str().map(|s| Secret::new(s.to_string())),
+            });
+
+        let action = PlacetopayNextAction::Reauthorization;
+        let payment = PlacetopayPayment {
+            reference: item
+                .router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
+            description: item
+                .router_data
+                .request
+                .reason
+                .clone()
+                .unwrap_or_else(|| "Incremental authorization".to_string()),
+            amount: PlacetopayAmount {
+                currency: item.router_data.request.currency,
+                total: item.router_data.request.minor_amount,
+            },
         };
         Ok(Self {
             auth,
             internal_reference,
+            authorization,
             action,
-            amount,
+            payment,
         })
     }
 }
