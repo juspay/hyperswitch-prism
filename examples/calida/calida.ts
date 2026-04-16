@@ -6,20 +6,23 @@
 // Run a scenario:  npx tsx calida.ts checkout_autocapture
 
 import { PaymentClient, EventClient, types } from 'hyperswitch-prism';
-const { ConnectorConfig, ConnectorSpecificConfig, SdkOptions, Environment, Currency } = types;
+const { Environment, Currency } = types;
+export const SUPPORTED_FLOWS = ["get"];
 
-const _defaultConfig: ConnectorConfig = {
+const _defaultConfig: types.IConnectorConfig = {
     options: {
         environment: Environment.SANDBOX,
     },
+    connectorConfig: {
+        calida: {
+            apiKey: { value: 'YOUR_API_KEY' },
+            baseUrl: 'YOUR_BASE_URL',
+        }
+    },
 };
-// Standalone credentials (field names depend on connector auth type):
-// _defaultConfig.connectorConfig = {
-//     calida: { apiKey: { value: 'YOUR_API_KEY' } }
-// };
 
 
-function _buildGetRequest(connectorTransactionId: string): PaymentServiceGetRequest {
+function _buildGetRequest(connectorTransactionId: string): types.IPaymentServiceGetRequest {
     return {
         "merchantTransactionId": "probe_merchant_txn_001",  // Identification.
         "connectorTransactionId": connectorTransactionId,
@@ -30,7 +33,7 @@ function _buildGetRequest(connectorTransactionId: string): PaymentServiceGetRequ
     };
 }
 
-function _buildHandleEventRequest(): EventServiceHandleRequest {
+function _buildHandleEventRequest(): types.IEventServiceHandleRequest {
     return {
     };
 }
@@ -38,21 +41,21 @@ function _buildHandleEventRequest(): EventServiceHandleRequest {
 
 // ANCHOR: scenario_functions
 // Flow: PaymentService.Get
-async function get(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<PaymentServiceGetResponse> {
+async function get(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
 
     const getResponse = await paymentClient.get(_buildGetRequest('probe_connector_txn_001'));
 
-    return { status: getResponse.status };
+    return getResponse;
 }
 
 // Flow: EventService.HandleEvent
-async function handleEvent(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<EventServiceHandleResponse> {
+async function handleEvent(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const eventClient = new EventClient(config);
 
     const handleResponse = await eventClient.handleEvent(_buildHandleEventRequest());
 
-    return { status: handleResponse.status };
+    return handleResponse;
 }
 
 // Flow: PaymentService.parse_event

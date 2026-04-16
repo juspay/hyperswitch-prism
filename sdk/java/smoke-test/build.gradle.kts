@@ -20,9 +20,17 @@ dependencies {
 
 sourceSets {
     main {
-        // Include generated connector examples so process* functions are available via reflection
-        // for the FFI smoke test (test-package target). Examples are not needed for gRPC test.
-        kotlin.srcDir(file("../../../examples/stripe"))
+        // Include ALL connector examples directly so process* functions are available via
+        // reflection for the FFI smoke test. Each connector dir becomes a source root.
+        val examplesDir = file("../../../examples")
+        if (examplesDir.exists()) {
+            examplesDir.listFiles()
+                ?.filter { it.isDirectory }
+                ?.forEach { kotlin.srcDir(it) }
+        }
+        // Exclude the legacy generated/ subdirectory to avoid duplicate declarations
+        // (examples/ is already included above as individual source roots).
+        kotlin.exclude("**/generated/**")
         resources.srcDir(file("src/main/resources"))
     }
 }
@@ -47,15 +55,24 @@ tasks.register<JavaExec>("runGrpc") {
     environment("FORCE_COLOR", "1")
 
     // Suppress JNA "restricted method" warning (Java 17+) and protobuf Unsafe warning (Java 21+)
+    // -XX:+IgnoreUnrecognizedVMOptions allows this to work on both Java 17 and 21+
     jvmArgs(
+        "-XX:+IgnoreUnrecognizedVMOptions",
         "--enable-native-access=ALL-UNNAMED",
         "--sun-misc-unsafe-memory-access=allow",
     )
 
     // Pass through all project properties as system properties
     systemProperty("jna.library.path", file("../src/main/resources/native").absolutePath)
+    // Determine library extension based on OS
+    val osName = System.getProperty("os.name").lowercase()
+    val libExt = when {
+        osName.contains("mac") || osName.contains("darwin") -> "dylib"
+        osName.contains("win") -> "dll"
+        else -> "so"
+    }
     systemProperty("hyperswitch.grpc.lib.path",
-        file("src/main/resources/native/libhyperswitch_grpc_ffi.dylib").absolutePath)
+        file("src/main/resources/native/libhyperswitch_grpc_ffi.$libExt").absolutePath)
 
     // Forward any args passed to this task
     args = project.properties["args"]?.toString()?.split(" ") ?: emptyList()
