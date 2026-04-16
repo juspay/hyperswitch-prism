@@ -41,18 +41,29 @@ Hence, **Prism** - to open up payment diversity to the entire world as a simple,
 
 ## What does Prism do well?
 - **One request schema** for every payment. The same authorize call works against Stripe, Adyen and many more without additional lines of code.
-
 - **Stateless. No database, no stored PII.** Credentials are not stored/ logged by the library. It lives only up to the lifetime of your HTTP client.
-
 - **PCI scope reduction.** The card data flowing/ not flowing into the library is your choice. You can choose to leverage any payment processor vault or your own PCI certified vault. Nothing is logged or stored by the library.
 
+
+## Integrations - Status
+
+Prism supports **multiple connectors** with varying levels of payment method and flow coverage. Each connector is continuously tested against real sandbox/ production environments.
+
+**Legend:** ✓ Supported | x Not Supported | ⚠ In Progress | ? Needs Validation
+
+| Status | Description |
+|--------|-------------|
+| ✓ | Fully implemented and tested |
+| x | Not applicable or unsupported by processor |
+| ⚠ | Implementation in progress or partial |
+| ? | Implementation needs validation against live environment |
+
+[View Complete Connector Coverage →](./docs-generated/all_connector.md) to understnad which payment methods (Cards, Wallets, BNPL, Bank Transfers, etc.) and flows (Authorize, Capture, Refund, etc.) are supported for each processor. We will be enhancing the converage on a ongoing basis.
 
 ## What Prism does not do (yet)?
 - **Built-in vault or tokenization service.** This is a design choice. You may bring your own vault, or use the payment processor's vault.
 - **Retry or routing logic.** It lives in [Juspay Hyperswitch](https://github.com/juspay/hyperswitch). Prism is only the transformation layer.
 - **Beyond payments.** The diversity exists beyond payments - in subscriptions, fraud, tax, payouts. And it is our aspiration, to evolve Prism into a stateless commerce library.
-- **Not every payment processor supports every flow, and not every flow could be tested**. Some payment processor sandboxes are flaky and all flows could not be tested. We continuously keep solving such problems to harden (test) maximum possible integrations of Prism.
-
 
 ## Architecture
 A very high level overview of the Prism architecture and components. To understand more [refer docs](https://docs.hyperswitch.io/integrations/prism/architecture)
@@ -123,7 +134,7 @@ For detailed installation instructions, see [Installation Guide](./getting-start
 
 ---
 
-### Create a Payment Order
+### Make a Payment
 
 <!-- tabs:start -->
 
