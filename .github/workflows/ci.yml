@@ -223,7 +223,7 @@ jobs:
         run: cargo +nightly fmt --all
 
       - name: Run Clippy
-        if: needs.changes.outputs.any-rust == 'true' || needs.changes.outputs.proto == 'true' || needs.changes.outputs.ci == 'true'
+        if: needs.changes.outputs.any-rust == 'true' || needs.changes.outputs.proto == 'true'
         env:
           RUSTFLAGS: "-D warnings"
         run: cargo +stable clippy --all-features --all-targets --profile release-fast
