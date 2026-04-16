@@ -43,10 +43,10 @@ use interfaces::{
 use serde::Serialize;
 use std::fmt::Debug;
 use transformers::{
-    self as placetopay, PlacetopayNextActionRequest,
-    PlacetopayNextActionRequest as PlacetopayVoidRequest, PlacetopayPaymentsRequest,
-    PlacetopayPaymentsResponse as PlacetopayPSyncResponse, PlacetopayPaymentsResponse,
-    PlacetopayPaymentsResponse as PlacetopayCaptureResponse,
+    self as placetopay, PlacetopayIncrementalAuthRequest, PlacetopayIncrementalAuthResponse,
+    PlacetopayNextActionRequest, PlacetopayNextActionRequest as PlacetopayVoidRequest,
+    PlacetopayPaymentsRequest, PlacetopayPaymentsResponse as PlacetopayPSyncResponse,
+    PlacetopayPaymentsResponse, PlacetopayPaymentsResponse as PlacetopayCaptureResponse,
     PlacetopayPaymentsResponse as PlacetopayVoidResponse, PlacetopayPsyncRequest,
     PlacetopayRefundRequest, PlacetopayRefundResponse as PlacetopayRSyncResponse,
     PlacetopayRefundResponse, PlacetopayRsyncRequest,
@@ -101,6 +101,12 @@ macros::create_all_prerequisites!(
             request_body: PlacetopayRsyncRequest,
             response_body: PlacetopayRSyncResponse,
             router_data: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        ),
+        (
+            flow: IncrementalAuthorization,
+            request_body: PlacetopayIncrementalAuthRequest,
+            response_body: PlacetopayIncrementalAuthResponse,
+            router_data: RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
         )
     ],
     amount_converters: [],
@@ -138,16 +144,6 @@ macros::create_all_prerequisites!(
 );
 
 // Trait implementations with generic type parameters
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        IncrementalAuthorization,
-        PaymentFlowData,
-        PaymentsIncrementalAuthorizationData,
-        PaymentsResponseData,
-    > for Placetopay<T>
-{
-}
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Placetopay<T>
@@ -540,6 +536,35 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}/query", self.connector_base_url_refunds(req)))
+        }
+    }
+);
+
+// Macro implementation for IncrementalAuthorization flow
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Placetopay,
+    curl_request: Json(PlacetopayIncrementalAuthRequest),
+    curl_response: PlacetopayIncrementalAuthResponse,
+    flow_name: IncrementalAuthorization,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsIncrementalAuthorizationData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}/transaction", self.connector_base_url_payments(req)))
         }
     }
 );
