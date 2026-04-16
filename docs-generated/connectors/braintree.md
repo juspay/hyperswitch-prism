@@ -100,8 +100,10 @@ let config = ConnectorConfig {
 | [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
 | [MerchantAuthenticationService.CreateClientAuthenticationToken](#merchantauthenticationservicecreateclientauthenticationtoken) | Authentication | `MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
+| [PaymentService.ProxySetupRecurring](#paymentserviceproxysetuprecurring) | Payments | `PaymentServiceProxySetupRecurringRequest` |
 | [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
 | [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
+| [PaymentService.SetupRecurring](#paymentservicesetuprecurring) | Payments | `PaymentServiceSetupRecurringRequest` |
 | [PaymentMethodService.Tokenize](#paymentmethodservicetokenize) | Payments | `PaymentMethodServiceTokenizeRequest` |
 | [PaymentService.Void](#paymentservicevoid) | Payments | `PaymentServiceVoidRequest` |
 
@@ -223,7 +225,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/braintree/braintree.py#L124) · [TypeScript](../../examples/braintree/braintree.ts#L108) · [Kotlin](../../examples/braintree/braintree.kt#L76) · [Rust](../../examples/braintree/braintree.rs#L116)
+**Examples:** [Python](../../examples/braintree/braintree.py#L187) · [TypeScript](../../examples/braintree/braintree.ts#L167) · [Kotlin](../../examples/braintree/braintree.kt#L81) · [Rust](../../examples/braintree/braintree.rs#L177)
 
 #### PaymentService.Get
 
@@ -234,7 +236,18 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/braintree/braintree.py#L142) · [TypeScript](../../examples/braintree/braintree.ts#L126) · [Kotlin](../../examples/braintree/braintree.kt#L102) · [Rust](../../examples/braintree/braintree.rs#L130)
+**Examples:** [Python](../../examples/braintree/braintree.py#L205) · [TypeScript](../../examples/braintree/braintree.ts#L185) · [Kotlin](../../examples/braintree/braintree.kt#L107) · [Rust](../../examples/braintree/braintree.rs#L191)
+
+#### PaymentService.ProxySetupRecurring
+
+Setup recurring mandate using vault-aliased card data.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceProxySetupRecurringRequest` |
+| **Response** | `PaymentServiceSetupRecurringResponse` |
+
+**Examples:** [Python](../../examples/braintree/braintree.py#L214) · [TypeScript](../../examples/braintree/braintree.ts#L194) · [Kotlin](../../examples/braintree/braintree.kt#L115) · [Rust](../../examples/braintree/braintree.rs#L198)
 
 #### PaymentService.Refund
 
@@ -245,7 +258,18 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/braintree/braintree.py#L151) · [TypeScript](../../examples/braintree/braintree.ts#L135) · [Kotlin](../../examples/braintree/braintree.kt#L110) · [Rust](../../examples/braintree/braintree.rs#L137)
+**Examples:** [Python](../../examples/braintree/braintree.py#L223) · [TypeScript](../../examples/braintree/braintree.ts#L203) · [Kotlin](../../examples/braintree/braintree.kt#L146) · [Rust](../../examples/braintree/braintree.rs#L205)
+
+#### PaymentService.SetupRecurring
+
+Configure a payment method for recurring billing. Sets up the mandate and payment details needed for future automated charges.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceSetupRecurringRequest` |
+| **Response** | `PaymentServiceSetupRecurringResponse` |
+
+**Examples:** [Python](../../examples/braintree/braintree.py#L241) · [TypeScript](../../examples/braintree/braintree.ts#L221) · [Kotlin](../../examples/braintree/braintree.kt#L169) · [Rust](../../examples/braintree/braintree.rs#L219)
 
 #### PaymentMethodService.Tokenize
 
@@ -256,7 +280,7 @@ Tokenize payment method for secure storage. Replaces raw card details with secur
 | **Request** | `PaymentMethodServiceTokenizeRequest` |
 | **Response** | `PaymentMethodServiceTokenizeResponse` |
 
-**Examples:** [Python](../../examples/braintree/braintree.py#L169) · [TypeScript](../../examples/braintree/braintree.ts#L153) · [Kotlin](../../examples/braintree/braintree.kt#L133) · [Rust](../../examples/braintree/braintree.rs#L151)
+**Examples:** [Python](../../examples/braintree/braintree.py#L250) · [TypeScript](../../examples/braintree/braintree.ts#L230) · [Kotlin](../../examples/braintree/braintree.kt#L208) · [Rust](../../examples/braintree/braintree.rs#L229)
 
 #### PaymentService.Void
 
@@ -267,7 +291,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/braintree/braintree.py#L178) · [TypeScript](../../examples/braintree/braintree.ts) · [Kotlin](../../examples/braintree/braintree.kt#L159) · [Rust](../../examples/braintree/braintree.rs#L158)
+**Examples:** [Python](../../examples/braintree/braintree.py#L259) · [TypeScript](../../examples/braintree/braintree.ts) · [Kotlin](../../examples/braintree/braintree.kt#L234) · [Rust](../../examples/braintree/braintree.rs#L236)
 
 ### Refunds
 
@@ -280,7 +304,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/braintree/braintree.py#L160) · [TypeScript](../../examples/braintree/braintree.ts#L144) · [Kotlin](../../examples/braintree/braintree.kt#L120) · [Rust](../../examples/braintree/braintree.rs#L144)
+**Examples:** [Python](../../examples/braintree/braintree.py#L232) · [TypeScript](../../examples/braintree/braintree.ts#L212) · [Kotlin](../../examples/braintree/braintree.kt#L156) · [Rust](../../examples/braintree/braintree.rs#L212)
 
 ### Authentication
 
@@ -293,4 +317,4 @@ Initialize client-facing SDK sessions for wallets, device fingerprinting, etc. R
 | **Request** | `MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/braintree/braintree.py#L133) · [TypeScript](../../examples/braintree/braintree.ts#L117) · [Kotlin](../../examples/braintree/braintree.kt#L86) · [Rust](../../examples/braintree/braintree.rs#L123)
+**Examples:** [Python](../../examples/braintree/braintree.py#L196) · [TypeScript](../../examples/braintree/braintree.ts#L176) · [Kotlin](../../examples/braintree/braintree.kt#L91) · [Rust](../../examples/braintree/braintree.rs#L184)

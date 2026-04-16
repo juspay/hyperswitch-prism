@@ -8,7 +8,7 @@ use common_utils::{
 use domain_types::{
     connector_flow::{
         Authorize, Capture, ClientAuthenticationToken, PSync, PaymentMethodToken, RSync,
-        RepeatPayment, Void,
+        RepeatPayment, SetupMandate, Void,
     },
     connector_types::{
         self, AmountInfo, ApplePayPaymentRequest, ApplePaySessionResponse,
@@ -22,7 +22,7 @@ use domain_types::{
         PaymentsResponseData, PaymentsSyncData, PaypalClientAuthenticationResponse,
         PaypalTransactionInfo, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
         RepeatPaymentData, ResponseId, SdkNextAction, SecretInfoToInitiateSdk,
-        ThirdPartySdkSessionResponse,
+        SetupMandateRequestData, ThirdPartySdkSessionResponse,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData},
@@ -2927,5 +2927,134 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 })
             }
         }
+    }
+}
+
+// ========================== SetupMandate Types ==========================
+
+/// SetupMandate request for Braintree
+/// Uses the tokenizeCreditCard mutation to vault a card and get a payment method ID
+/// that can be used for future recurring payments
+pub type BraintreeSetupMandateRequest<T> = GenericBraintreeRequest<VariableInput<T>>;
+
+/// SetupMandate response - same as token response since we use the same mutation
+pub type BraintreeSetupMandateResponse = BraintreeTokenResponse;
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        BraintreeRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for BraintreeSetupMandateRequest<T>
+{
+    type Error = Report<IntegrationError>;
+    fn try_from(
+        item: BraintreeRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        match item.router_data.request.payment_method_data.clone() {
+            PaymentMethodData::Card(card_data) => Ok(Self {
+                query: constants::TOKENIZE_CREDIT_CARD.to_string(),
+                variables: VariableInput {
+                    input: InputData {
+                        credit_card: CreditCardData {
+                            number: card_data.card_number,
+                            expiration_year: card_data.card_exp_year,
+                            expiration_month: card_data.card_exp_month,
+                            cvv: card_data.card_cvc,
+                            cardholder_name: item
+                                .router_data
+                                .resource_common_data
+                                .get_optional_billing_full_name()
+                                .unwrap_or(Secret::new("".to_string())),
+                        },
+                    },
+                },
+            }),
+            PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::Wallet(_)
+            | PaymentMethodData::PayLater(_)
+            | PaymentMethodData::BankRedirect(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::BankTransfer(_)
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::Reward
+            | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::MobilePayment(_)
+            | PaymentMethodData::Upi(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::PaymentMethodToken(_)
+            | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+                Err(IntegrationError::not_implemented(
+                    utils::get_unimplemented_payment_method_error_message("braintree"),
+                )
+                .into())
+            }
+        }
+    }
+}
+
+impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<BraintreeSetupMandateResponse, Self>>
+    for RouterDataV2<F, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>
+{
+    type Error = Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<BraintreeSetupMandateResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: match item.response {
+                BraintreeSetupMandateResponse::ErrorResponse(error_response) => {
+                    build_error_response(error_response.errors.as_ref(), item.http_code)
+                        .map_err(|err| *err)
+                }
+                BraintreeSetupMandateResponse::TokenResponse(token_response) => {
+                    let connector_mandate_id = token_response
+                        .data
+                        .tokenize_credit_card
+                        .payment_method
+                        .id
+                        .expose()
+                        .clone();
+                    Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::NoResponseId,
+                        redirection_data: None,
+                        mandate_reference: Some(Box::new(MandateReference {
+                            connector_mandate_id: Some(connector_mandate_id),
+                            payment_method_id: None,
+                            connector_mandate_request_reference_id: None,
+                        })),
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        connector_response_reference_id: None,
+                        incremental_authorization_allowed: None,
+                        status_code: item.http_code,
+                    })
+                }
+            },
+            resource_common_data: PaymentFlowData {
+                status: enums::AttemptStatus::Charged,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
     }
 }
