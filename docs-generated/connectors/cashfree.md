@@ -113,18 +113,18 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 | Payment Method | Supported |
 |----------------|:---------:|
-| Card | x |
+| Card | ⚠ |
 | Bancontact | x |
-| Apple Pay | x |
-| Apple Pay Dec | x |
-| Apple Pay SDK | x |
+| Apple Pay | ⚠ |
+| Apple Pay Dec | ⚠ |
+| Apple Pay SDK | ⚠ |
 | Google Pay | x |
 | Google Pay Dec | x |
 | Google Pay SDK | x |
-| PayPal SDK | x |
-| Amazon Pay | x |
+| PayPal SDK | ⚠ |
+| Amazon Pay | ⚠ |
 | Cash App | x |
-| PayPal | x |
+| PayPal | ⚠ |
 | WeChat Pay | x |
 | Alipay | x |
 | Revolut Pay | x |
@@ -135,9 +135,9 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | MB Way | x |
 | Satispay | x |
 | Wero | x |
-| Affirm | x |
-| Afterpay | x |
-| Klarna | x |
+| Affirm | ⚠ |
+| Afterpay | ⚠ |
+| Klarna | ⚠ |
 | UPI Collect | ✓ |
 | UPI Intent | ✓ |
 | UPI QR | ✓ |
@@ -157,29 +157,29 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Giropay | x |
 | EPS | x |
 | Przelewy24 | x |
-| PSE | x |
+| PSE | ⚠ |
 | BLIK | x |
 | Interac | x |
 | Bizum | x |
 | EFT | x |
 | DuitNow | x |
-| ACH | x |
-| SEPA | x |
-| BACS | x |
-| Multibanco | x |
-| Instant | x |
-| Instant FI | x |
-| Instant PL | x |
-| Pix | x |
-| Permata | x |
-| BCA | x |
-| BNI VA | x |
-| BRI VA | x |
-| CIMB VA | x |
-| Danamon VA | x |
-| Mandiri VA | x |
-| Local | x |
-| Indonesian | x |
+| ACH | ⚠ |
+| SEPA | ⚠ |
+| BACS | ⚠ |
+| Multibanco | ⚠ |
+| Instant | ⚠ |
+| Instant FI | ⚠ |
+| Instant PL | ⚠ |
+| Pix | ⚠ |
+| Permata | ⚠ |
+| BCA | ⚠ |
+| BNI VA | ⚠ |
+| BRI VA | ⚠ |
+| CIMB VA | ⚠ |
+| Danamon VA | ⚠ |
+| Mandiri VA | ⚠ |
+| Local | ⚠ |
+| Indonesian | ⚠ |
 | ACH | x |
 | SEPA | x |
 | BACS | x |

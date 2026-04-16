@@ -8,88 +8,88 @@
     },
     "authorize": {
       "Ach": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "AchBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "Affirm": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "Afterpay": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "Alfamart": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "AliPayRedirect": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "AmazonPayRedirect": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "ApplePay": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "ApplePayDecrypted": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "ApplePayThirdPartySdk": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "Bacs": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "BacsBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "BancontactCard": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "BcaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "Becs": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "Bizum": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "Blik": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "Bluecode": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "BniVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "Boleto": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "BriVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "Card": {
         "status": "supported",
@@ -128,280 +128,280 @@
         }
       },
       "CashappQr": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "CimbVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "ClassicReward": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "Crypto": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "DanamonVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "DuitNow": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "EVoucher": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "Efecty": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "Eft": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "Eps": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "FamilyMart": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "Giropay": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "Givex": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "GooglePay": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "GooglePayDecrypted": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "GooglePayThirdPartySdk": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "Ideal": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "Indomaret": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "IndonesianBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "InstantBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "InstantBankTransferFinland": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "InstantBankTransferPoland": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "Interac": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "Klarna": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "Lawson": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "LocalBankRedirect": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "LocalBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "MandiriVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "MbWay": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "Mifinity": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "MiniStop": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "MultibancoBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "OnlineBankingCzechRepublic": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "OnlineBankingFinland": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "OnlineBankingFpx": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "OnlineBankingPoland": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "OnlineBankingSlovakia": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "OnlineBankingThailand": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "OpenBanking": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "OpenBankingPis": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "OpenBankingUk": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "Oxxo": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "PagoEfectivo": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "PayEasy": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "PaySafeCard": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "PaypalRedirect": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "PaypalSdk": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "Paze": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "PermataBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "Pix": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "Przelewy24": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "Pse": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "RedCompra": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "RedPagos": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "RevolutPay": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "SamsungPay": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "Satispay": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "Seicomart": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "Sepa": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "SepaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "SepaGuaranteedDebit": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "SevenEleven": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "Sofort": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "Trustly": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "UpiCollect": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "UpiIntent": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "UpiQr": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "WeChatPayQr": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "Wero": {
-        "status": "not_supported",
-        "error": "Payment method  is not supported by mollie"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       }
     },
     "capture": {

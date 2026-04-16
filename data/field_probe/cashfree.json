@@ -9,111 +9,111 @@
     "authorize": {
       "Ach": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected payment method is not supported by Cashfree"
       },
       "AchBankTransfer": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank transfer payments are supported by Cashfree, but are not yet implemented for this connector"
       },
       "Affirm": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Pay later and cardless EMI payments are supported by Cashfree, but are not yet implemented for this connector"
       },
       "Afterpay": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Pay later and cardless EMI payments are supported by Cashfree, but are not yet implemented for this connector"
       },
       "Alfamart": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected payment method is not supported by Cashfree"
       },
       "AliPayRedirect": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected wallet payment method is not supported by Cashfree"
       },
       "AmazonPayRedirect": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This wallet payment method is supported by Cashfree, but is not yet implemented for this connector"
       },
       "ApplePay": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This wallet payment method is supported by Cashfree, but is not yet implemented for this connector"
       },
       "ApplePayDecrypted": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This wallet payment method is supported by Cashfree, but is not yet implemented for this connector"
       },
       "ApplePayThirdPartySdk": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This wallet payment method is supported by Cashfree, but is not yet implemented for this connector"
       },
       "Bacs": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected payment method is not supported by Cashfree"
       },
       "BacsBankTransfer": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank transfer payments are supported by Cashfree, but are not yet implemented for this connector"
       },
       "BancontactCard": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected payment method is not supported by Cashfree"
       },
       "BcaBankTransfer": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank transfer payments are supported by Cashfree, but are not yet implemented for this connector"
       },
       "Becs": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected payment method is not supported by Cashfree"
       },
       "Bizum": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected payment method is not supported by Cashfree"
       },
       "Blik": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected payment method is not supported by Cashfree"
       },
       "Bluecode": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected wallet payment method is not supported by Cashfree"
       },
       "BniVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank transfer payments are supported by Cashfree, but are not yet implemented for this connector"
       },
       "Boleto": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected payment method is not supported by Cashfree"
       },
       "BriVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank transfer payments are supported by Cashfree, but are not yet implemented for this connector"
       },
       "Card": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Card payments are supported by Cashfree, but are not yet implemented for this connector"
       },
       "CashappQr": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected wallet payment method is not supported by Cashfree"
       },
       "CimbVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank transfer payments are supported by Cashfree, but are not yet implemented for this connector"
       },
       "ClassicReward": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected payment method is not supported by Cashfree"
       },
       "Crypto": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "DanamonVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank transfer payments are supported by Cashfree, but are not yet implemented for this connector"
       },
       "DuitNow": {
         "status": "not_supported",
@@ -121,27 +121,27 @@
       },
       "EVoucher": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected payment method is not supported by Cashfree"
       },
       "Efecty": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected payment method is not supported by Cashfree"
       },
       "Eft": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected payment method is not supported by Cashfree"
       },
       "Eps": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected payment method is not supported by Cashfree"
       },
       "FamilyMart": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected payment method is not supported by Cashfree"
       },
       "Giropay": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected payment method is not supported by Cashfree"
       },
       "Givex": {
         "status": "not_supported",
@@ -149,107 +149,107 @@
       },
       "GooglePay": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected wallet payment method is not supported by Cashfree"
       },
       "GooglePayDecrypted": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected wallet payment method is not supported by Cashfree"
       },
       "GooglePayThirdPartySdk": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected wallet payment method is not supported by Cashfree"
       },
       "Ideal": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected payment method is not supported by Cashfree"
       },
       "Indomaret": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected payment method is not supported by Cashfree"
       },
       "IndonesianBankTransfer": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank transfer payments are supported by Cashfree, but are not yet implemented for this connector"
       },
       "InstantBankTransfer": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank transfer payments are supported by Cashfree, but are not yet implemented for this connector"
       },
       "InstantBankTransferFinland": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank transfer payments are supported by Cashfree, but are not yet implemented for this connector"
       },
       "InstantBankTransferPoland": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank transfer payments are supported by Cashfree, but are not yet implemented for this connector"
       },
       "Interac": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected payment method is not supported by Cashfree"
       },
       "Klarna": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Pay later and cardless EMI payments are supported by Cashfree, but are not yet implemented for this connector"
       },
       "Lawson": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected payment method is not supported by Cashfree"
       },
       "LocalBankRedirect": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected payment method is not supported by Cashfree"
       },
       "LocalBankTransfer": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank transfer payments are supported by Cashfree, but are not yet implemented for this connector"
       },
       "MandiriVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank transfer payments are supported by Cashfree, but are not yet implemented for this connector"
       },
       "MbWay": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected wallet payment method is not supported by Cashfree"
       },
       "Mifinity": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected wallet payment method is not supported by Cashfree"
       },
       "MiniStop": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected payment method is not supported by Cashfree"
       },
       "MultibancoBankTransfer": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank transfer payments are supported by Cashfree, but are not yet implemented for this connector"
       },
       "OnlineBankingCzechRepublic": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected payment method is not supported by Cashfree"
       },
       "OnlineBankingFinland": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected payment method is not supported by Cashfree"
       },
       "OnlineBankingFpx": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected payment method is not supported by Cashfree"
       },
       "OnlineBankingPoland": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected payment method is not supported by Cashfree"
       },
       "OnlineBankingSlovakia": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected payment method is not supported by Cashfree"
       },
       "OnlineBankingThailand": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected payment method is not supported by Cashfree"
       },
       "OpenBanking": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected payment method is not supported by Cashfree"
       },
       "OpenBankingPis": {
         "status": "not_supported",
@@ -257,99 +257,99 @@
       },
       "OpenBankingUk": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected payment method is not supported by Cashfree"
       },
       "Oxxo": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected payment method is not supported by Cashfree"
       },
       "PagoEfectivo": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected payment method is not supported by Cashfree"
       },
       "PayEasy": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected payment method is not supported by Cashfree"
       },
       "PaySafeCard": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "PaypalRedirect": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This wallet payment method is supported by Cashfree, but is not yet implemented for this connector"
       },
       "PaypalSdk": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This wallet payment method is supported by Cashfree, but is not yet implemented for this connector"
       },
       "Paze": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "PermataBankTransfer": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank transfer payments are supported by Cashfree, but are not yet implemented for this connector"
       },
       "Pix": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank transfer payments are supported by Cashfree, but are not yet implemented for this connector"
       },
       "Przelewy24": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected payment method is not supported by Cashfree"
       },
       "Pse": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank transfer payments are supported by Cashfree, but are not yet implemented for this connector"
       },
       "RedCompra": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected payment method is not supported by Cashfree"
       },
       "RedPagos": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected payment method is not supported by Cashfree"
       },
       "RevolutPay": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected wallet payment method is not supported by Cashfree"
       },
       "SamsungPay": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected wallet payment method is not supported by Cashfree"
       },
       "Satispay": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected wallet payment method is not supported by Cashfree"
       },
       "Seicomart": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected payment method is not supported by Cashfree"
       },
       "Sepa": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected payment method is not supported by Cashfree"
       },
       "SepaBankTransfer": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank transfer payments are supported by Cashfree, but are not yet implemented for this connector"
       },
       "SepaGuaranteedDebit": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected payment method is not supported by Cashfree"
       },
       "SevenEleven": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected payment method is not supported by Cashfree"
       },
       "Sofort": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected payment method is not supported by Cashfree"
       },
       "Trustly": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected payment method is not supported by Cashfree"
       },
       "UpiCollect": {
         "status": "supported",
@@ -451,11 +451,11 @@
       },
       "WeChatPayQr": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected wallet payment method is not supported by Cashfree"
       },
       "Wero": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected wallet payment method is not supported by Cashfree"
       }
     },
     "capture": {
@@ -541,8 +541,8 @@
     },
     "proxy_authorize": {
       "default": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Card payments are supported by Cashfree, but are not yet implemented for this connector"
       }
     },
     "proxy_setup_recurring": {
@@ -583,7 +583,7 @@
     "token_authorize": {
       "default": {
         "status": "not_supported",
-        "error": "Only UPI payment methods are supported for Cashfree V3 is not supported by Cashfree"
+        "error": "Selected payment method is not supported by Cashfree"
       }
     },
     "token_setup_recurring": {

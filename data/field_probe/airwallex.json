@@ -8,68 +8,68 @@
     },
     "authorize": {
       "Ach": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "AchBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "Affirm": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "Afterpay": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "Alfamart": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "AliPayRedirect": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "AmazonPayRedirect": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "ApplePay": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "ApplePayDecrypted": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "ApplePayThirdPartySdk": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "Bacs": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "BacsBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "BancontactCard": {
-        "status": "not_supported",
-        "error": "Bank Redirect Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank Redirect Payment Method"
       },
       "BcaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "Becs": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "Bizum": {
-        "status": "not_supported",
-        "error": "Bank Redirect Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank Redirect Payment Method"
       },
       "Blik": {
         "status": "supported",
@@ -113,20 +113,20 @@
         }
       },
       "Bluecode": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "BniVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "Boleto": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "BriVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "Card": {
         "status": "supported",
@@ -172,68 +172,68 @@
         }
       },
       "CashappQr": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "CimbVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "ClassicReward": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "Crypto": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "DanamonVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "DuitNow": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "EVoucher": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "Efecty": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "Eft": {
-        "status": "not_supported",
-        "error": "Bank Redirect Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank Redirect Payment Method"
       },
       "Eps": {
-        "status": "not_supported",
-        "error": "Bank Redirect Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank Redirect Payment Method"
       },
       "FamilyMart": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "Giropay": {
-        "status": "not_supported",
-        "error": "Bank Redirect Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank Redirect Payment Method"
       },
       "Givex": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "GooglePay": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "GooglePayDecrypted": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "GooglePayThirdPartySdk": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "Ideal": {
         "status": "supported",
@@ -273,188 +273,188 @@
         }
       },
       "Indomaret": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "IndonesianBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "InstantBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "InstantBankTransferFinland": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "InstantBankTransferPoland": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "Interac": {
-        "status": "not_supported",
-        "error": "Bank Redirect Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank Redirect Payment Method"
       },
       "Klarna": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "Lawson": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "LocalBankRedirect": {
-        "status": "not_supported",
-        "error": "Bank Redirect Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank Redirect Payment Method"
       },
       "LocalBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "MandiriVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "MbWay": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "Mifinity": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "MiniStop": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "MultibancoBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "OnlineBankingCzechRepublic": {
-        "status": "not_supported",
-        "error": "Bank Redirect Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank Redirect Payment Method"
       },
       "OnlineBankingFinland": {
-        "status": "not_supported",
-        "error": "Bank Redirect Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank Redirect Payment Method"
       },
       "OnlineBankingFpx": {
-        "status": "not_supported",
-        "error": "Bank Redirect Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank Redirect Payment Method"
       },
       "OnlineBankingPoland": {
-        "status": "not_supported",
-        "error": "Bank Redirect Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank Redirect Payment Method"
       },
       "OnlineBankingSlovakia": {
-        "status": "not_supported",
-        "error": "Bank Redirect Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank Redirect Payment Method"
       },
       "OnlineBankingThailand": {
-        "status": "not_supported",
-        "error": "Bank Redirect Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank Redirect Payment Method"
       },
       "OpenBanking": {
-        "status": "not_supported",
-        "error": "Bank Redirect Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank Redirect Payment Method"
       },
       "OpenBankingPis": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "OpenBankingUk": {
-        "status": "not_supported",
-        "error": "Bank Redirect Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank Redirect Payment Method"
       },
       "Oxxo": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "PagoEfectivo": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "PayEasy": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "PaySafeCard": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "PaypalRedirect": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "PaypalSdk": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "Paze": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "PermataBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "Pix": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "Przelewy24": {
-        "status": "not_supported",
-        "error": "Bank Redirect Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank Redirect Payment Method"
       },
       "Pse": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "RedCompra": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "RedPagos": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "RevolutPay": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "SamsungPay": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "Satispay": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "Seicomart": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "Sepa": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "SepaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "SepaGuaranteedDebit": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "SevenEleven": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "Sofort": {
-        "status": "not_supported",
-        "error": "Bank Redirect Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank Redirect Payment Method"
       },
       "Trustly": {
         "status": "supported",
@@ -497,24 +497,24 @@
         }
       },
       "UpiCollect": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "UpiIntent": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "UpiQr": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "WeChatPayQr": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "Wero": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       }
     },
     "capture": {
@@ -812,8 +812,8 @@
     },
     "token_authorize": {
       "default": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       }
     },
     "token_setup_recurring": {
