@@ -136,6 +136,35 @@ jobs:
         with:
           config: ./.typos.toml
 
+  clippy:
+    name: Clippy check
+    needs: changes
+    if: needs.changes.outputs.any-rust == 'true' || needs.changes.outputs.proto == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          components: clippy
+
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: Swatinem/rust-cache@v2.7.8
+        with:
+          shared-key: "ci-clippy"
+
+      - name: Run Clippy
+        env:
+          RUSTFLAGS: "-D warnings"
+        run: cargo +stable clippy --all-features --all-targets --profile release-fast
+
   # ── Auto-fix (formatting + docs) ─────────────────────────────────────────
   # On PRs: auto-format code and regenerate docs, commit if changes found.
   # If a commit is pushed, remaining jobs skip — the new push triggers fresh CI.
@@ -167,7 +196,6 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
-          components: clippy
 
       - name: Install Rust (nightly for fmt)
         uses: dtolnay/rust-toolchain@master
@@ -221,12 +249,6 @@ jobs:
 
       - name: Format Rust code
         run: cargo +nightly fmt --all
-
-      - name: Run Clippy
-        if: needs.changes.outputs.any-rust == 'true' || needs.changes.outputs.proto == 'true'
-        env:
-          RUSTFLAGS: "-D warnings"
-        run: cargo +stable clippy --all-features --all-targets --profile release-fast
 
       - name: Generate SDK bindings
         if: needs.changes.outputs.docs-trigger == 'true' || needs.changes.outputs.sdk == 'true' || needs.changes.outputs.proto == 'true' || needs.changes.outputs.ci == 'true'
@@ -644,7 +666,7 @@ jobs:
   ci-gate:
     name: CI Result
     if: always()
-    needs: [typos, formatting, auto-fix, check, test, sdk-test]
+    needs: [typos, clippy, formatting, auto-fix, check, test, sdk-test]
     runs-on: ubuntu-latest
     steps:
       - name: Evaluate CI results
