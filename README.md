@@ -270,7 +270,6 @@ If you wish to learn more about routing logic and smart retries, you can checkou
 
 ### Prerequisites
 
-- **Platform**: x86_64 (AMD64) architecture (ARM64 not supported)
 - Rust 1.70+
 - Protocol Buffers (protoc)
 
