@@ -645,7 +645,7 @@
             "v-c-merchant-id": "probe_merchant",
             "via": "HyperSwitch"
           },
-          "body": "{\"processingInformation\":{\"commerceIndicator\":\"internet\",\"capture\":false,\"actionList\":[\"TOKEN_CREATE\"],\"actionTokenTypes\":[\"paymentInstrument\",\"customer\"],\"authorizationOptions\":{\"initiator\":{\"type\":\"customer\",\"credentialStoredOnFile\":true}}},\"paymentInformation\":{\"card\":{\"number\":\"4111111111111111\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"securityCode\":\"123\",\"type\":null,\"typeSelectionIndicator\":\"1\"}},\"orderInformation\":{\"amountDetails\":{\"totalAmount\":\"0\",\"currency\":\"USD\"},\"billTo\":{\"firstName\":\"John\",\"lastName\":\"Doe\",\"address1\":\"123 Main St\",\"locality\":\"Seattle\",\"administrativeArea\":\"WA\",\"postalCode\":\"98101\",\"country\":\"US\",\"email\":\"test@example.com\"}},\"clientReferenceInformation\":{\"code\":\"probe_proxy_mandate_001\"}}"
+          "body": "{\"processingInformation\":{\"commerceIndicator\":\"internet\",\"capture\":false,\"authorizationOptions\":{\"initiator\":{\"type\":\"customer\",\"credentialStoredOnFile\":true}}},\"paymentInformation\":{\"card\":{\"number\":\"4111111111111111\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"securityCode\":\"123\",\"type\":null,\"typeSelectionIndicator\":\"1\"}},\"orderInformation\":{\"amountDetails\":{\"totalAmount\":\"0\",\"currency\":\"USD\"},\"billTo\":{\"firstName\":\"John\",\"lastName\":\"Doe\",\"address1\":\"123 Main St\",\"locality\":\"Seattle\",\"administrativeArea\":\"WA\",\"postalCode\":\"98101\",\"country\":\"US\",\"email\":\"test@example.com\"}},\"clientReferenceInformation\":{\"code\":\"probe_proxy_mandate_001\"}}"
         }
       }
     },
@@ -810,7 +810,7 @@
             "v-c-merchant-id": "probe_merchant",
             "via": "HyperSwitch"
           },
-          "body": "{\"processingInformation\":{\"commerceIndicator\":\"internet\",\"capture\":false,\"actionList\":[\"TOKEN_CREATE\"],\"actionTokenTypes\":[\"paymentInstrument\",\"customer\"],\"authorizationOptions\":{\"initiator\":{\"type\":\"customer\",\"credentialStoredOnFile\":true}}},\"paymentInformation\":{\"card\":{\"number\":\"4111111111111111\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"securityCode\":\"737\",\"type\":null,\"typeSelectionIndicator\":\"1\"}},\"orderInformation\":{\"amountDetails\":{\"totalAmount\":\"0\",\"currency\":\"USD\"},\"billTo\":{\"firstName\":\"John\",\"lastName\":\"Doe\",\"address1\":\"123 Main St\",\"locality\":\"Seattle\",\"administrativeArea\":\"WA\",\"postalCode\":\"98101\",\"country\":\"US\",\"email\":\"test@example.com\"}},\"clientReferenceInformation\":{\"code\":\"probe_mandate_001\"}}"
+          "body": "{\"processingInformation\":{\"commerceIndicator\":\"internet\",\"capture\":false,\"authorizationOptions\":{\"initiator\":{\"type\":\"customer\",\"credentialStoredOnFile\":true}}},\"paymentInformation\":{\"card\":{\"number\":\"4111111111111111\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"securityCode\":\"737\",\"type\":null,\"typeSelectionIndicator\":\"1\"}},\"orderInformation\":{\"amountDetails\":{\"totalAmount\":\"0\",\"currency\":\"USD\"},\"billTo\":{\"firstName\":\"John\",\"lastName\":\"Doe\",\"address1\":\"123 Main St\",\"locality\":\"Seattle\",\"administrativeArea\":\"WA\",\"postalCode\":\"98101\",\"country\":\"US\",\"email\":\"test@example.com\"}},\"clientReferenceInformation\":{\"code\":\"probe_mandate_001\"}}"
         }
       }
     },

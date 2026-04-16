@@ -964,14 +964,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 },
             }));
 
+        // Barclaycard (Smartpay) sandbox does not support Token Management Service (TMS).
+        // Sending `actionList: [TOKEN_CREATE]` returns 502 SERVER_ERROR.
+        // Instead, we perform a zero-dollar Customer-Initiated Transaction (CIT) to obtain a
+        // network transaction id (NTI), which is then used as the mandate reference for
+        // subsequent merchant-initiated transactions (MIT).
         let processing_information = requests::SetupMandateProcessingInformation {
             commerce_indicator: "internet".to_string(),
             capture: Some(false),
-            action_list: Some(vec![requests::BarclaycardActionsList::TokenCreate]),
-            action_token_types: Some(vec![
-                requests::BarclaycardActionsTokenType::PaymentInstrument,
-                requests::BarclaycardActionsTokenType::Customer,
-            ]),
+            action_list: None,
+            action_token_types: None,
             authorization_options: Some(requests::SetupMandateAuthorizationOptions {
                 initiator: Some(requests::SetupMandateInitiator {
                     initiator_type: Some("customer".to_string()),
@@ -1015,17 +1017,28 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         match item.response {
             responses::BarclaycardPaymentsResponse::ClientReferenceInformation(info_response) => {
-                let mandate_reference =
-                    info_response
-                        .token_information
-                        .clone()
-                        .map(|token_info| MandateReference {
-                            connector_mandate_id: token_info
-                                .payment_instrument
-                                .map(|payment_instrument| payment_instrument.id.expose()),
-                            payment_method_id: None,
-                            connector_mandate_request_reference_id: None,
-                        });
+                // Preferred: TMS-provided payment instrument id (when available).
+                // Fallback: the network transaction id (NTI) from processor_information, which
+                // Barclaycard's Smartpay sandbox always returns and is usable as a mandate
+                // reference for subsequent NetworkMandateId-based MIT charges.
+                let connector_mandate_id = info_response
+                    .token_information
+                    .as_ref()
+                    .and_then(|token_info| token_info.payment_instrument.as_ref())
+                    .map(|payment_instrument| payment_instrument.id.clone().expose())
+                    .or_else(|| {
+                        info_response
+                            .processor_information
+                            .as_ref()
+                            .and_then(|pi| pi.network_transaction_id.clone())
+                            .map(|nti| nti.expose())
+                    });
+
+                let mandate_reference = connector_mandate_id.map(|id| MandateReference {
+                    connector_mandate_id: Some(id),
+                    payment_method_id: None,
+                    connector_mandate_request_reference_id: None,
+                });
 
                 let mut status = map_barclaycard_attempt_status((
                     info_response
