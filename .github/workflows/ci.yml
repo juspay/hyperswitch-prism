@@ -173,11 +173,8 @@ jobs:
       
       - uses: Swatinem/rust-cache@v2.7.8
         with:
-          shared-key: "ci-rust"
+          shared-key: "ci-release-fast"
           cache-targets: true
-          cache-directories: |
-            target/x86_64-unknown-linux-gnu/release-fast
-            target/aarch64-unknown-linux-gnu/release-fast
 
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
@@ -532,7 +529,8 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2.7.8
         with:
-          shared-key: "ci-rust"
+          shared-key: "ci-release-fast"
+          cache-targets: true
 
       - name: Create connector credentials
         shell: bash
