@@ -8,7 +8,7 @@ use common_utils::{
 use domain_types::{
     connector_flow::{
         Authorize, Capture, ClientAuthenticationToken, PSync, PaymentMethodToken, RSync,
-        RepeatPayment, Void,
+        RepeatPayment, SetupMandate, Void,
     },
     connector_types::{
         self, AmountInfo, ApplePayPaymentRequest, ApplePaySessionResponse,
@@ -22,7 +22,7 @@ use domain_types::{
         PaymentsResponseData, PaymentsSyncData, PaypalClientAuthenticationResponse,
         PaypalTransactionInfo, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
         RepeatPaymentData, ResponseId, SdkNextAction, SecretInfoToInitiateSdk,
-        ThirdPartySdkSessionResponse,
+        SetupMandateRequestData, ThirdPartySdkSessionResponse,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData},
@@ -52,6 +52,7 @@ pub mod constants {
     pub const AUTHORIZE_AND_VAULT_CREDIT_CARD_MUTATION: &str="mutation authorizeCreditCard($input: AuthorizeCreditCardInput!) { authorizeCreditCard(input: $input) { transaction { id status createdAt paymentMethod { id } } } }";
     pub const CHARGE_AND_VAULT_TRANSACTION_MUTATION: &str ="mutation ChargeCreditCard($input: ChargeCreditCardInput!) { chargeCreditCard(input: $input) { transaction { id status createdAt paymentMethod { id } } } }";
     pub const DELETE_PAYMENT_METHOD_FROM_VAULT_MUTATION: &str = "mutation deletePaymentMethodFromVault($input: DeletePaymentMethodFromVaultInput!) { deletePaymentMethodFromVault(input: $input) { clientMutationId } }";
+    pub const VAULT_CREDIT_CARD_MUTATION: &str = "mutation vaultCreditCard($input: VaultCreditCardInput!) { vaultCreditCard(input: $input) { paymentMethod { id legacyId usage details { ... on CreditCardDetails { brandCode last4 expirationYear expirationMonth } } } verification { status processorResponse { legacyCode message } } } }";
     pub const TRANSACTION_QUERY: &str = "query($input: TransactionSearchInput!) { search { transactions(input: $input) { edges { node { id status } } } } }";
     pub const REFUND_QUERY: &str = "query($input: RefundSearchInput!) { search { refunds(input: $input, first: 1) { edges { node { id status createdAt amount { value currencyCode } orderId } } } } }";
     pub const CHARGE_GOOGLE_PAY_MUTATION: &str = "mutation ChargeGPay($input: ChargePaymentMethodInput!) { chargePaymentMethod(input: $input) { transaction { id status amount { value currencyCode } } } }";
@@ -77,6 +78,9 @@ pub type BraintreeWalletRequest = GenericBraintreeRequest<GenericVariableInput<W
 pub type BraintreeRefundResponse = GenericBraintreeResponse<RefundResponse>;
 pub type BraintreeCaptureResponse = GenericBraintreeResponse<CaptureResponse>;
 pub type BraintreePSyncResponse = GenericBraintreeResponse<PSyncResponse>;
+
+pub type BraintreeSetupMandateRequest = GenericBraintreeRequest<SetupMandateVariableInput>;
+pub type SetupMandateVariableInput = GenericVariableInput<VaultCreditCardInputData>;
 
 pub type VariablePaymentInput = GenericVariableInput<PaymentInput>;
 pub type VariableClientTokenInput = GenericVariableInput<InputClientTokenData>;
@@ -2917,6 +2921,253 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         status_code: item.http_code,
                     })
                 };
+                Ok(Self {
+                    resource_common_data: PaymentFlowData {
+                        status,
+                        ..item.router_data.resource_common_data
+                    },
+                    response,
+                    ..item.router_data
+                })
+            }
+        }
+    }
+}
+
+// === SetupMandate (ZeroDollarAuth) types and transformations ===
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VaultCreditCardInputData {
+    pub payment_method_id: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub customer_id: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub verification: Option<VaultCreditCardVerificationOptions>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VaultCreditCardVerificationOptions {
+    pub merchant_account_id: Secret<String>,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        BraintreeRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for BraintreeSetupMandateRequest
+{
+    type Error = Report<IntegrationError>;
+    fn try_from(
+        item: BraintreeRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let auth = BraintreeAuthType::try_from(&item.router_data.connector_config)?;
+
+        // Try to get merchant_account_id from metadata first, then from auth config
+        let merchant_account_id = extract_metadata_string_field(
+            &item.router_data.request.metadata,
+            "merchant_account_id",
+        )
+        .ok()
+        .or(auth.merchant_account_id)
+        .ok_or(IntegrationError::InvalidConnectorConfig {
+            config: "merchant_account_id",
+            context: Default::default(),
+        })?;
+
+        let payment_method_id = match &item.router_data.request.payment_method_data {
+            PaymentMethodData::PaymentMethodToken(payment_method_token) => {
+                payment_method_token.token.clone()
+            }
+            _ => {
+                return Err(IntegrationError::MissingRequiredField {
+                    field_name: "payment_method_token",
+                    context: Default::default(),
+                }
+                .into())
+            }
+        };
+
+        let customer_id = item
+            .router_data
+            .request
+            .customer_id
+            .as_ref()
+            .map(|id| Secret::new(id.get_string_repr().to_string()));
+
+        Ok(Self {
+            query: constants::VAULT_CREDIT_CARD_MUTATION.to_string(),
+            variables: SetupMandateVariableInput {
+                input: VaultCreditCardInputData {
+                    payment_method_id,
+                    customer_id,
+                    verification: Some(VaultCreditCardVerificationOptions {
+                        merchant_account_id,
+                    }),
+                },
+            },
+        })
+    }
+}
+
+// Response types for SetupMandate (vaultCreditCard response)
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VaultCreditCardResponse {
+    pub data: VaultCreditCardDataResponse,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VaultCreditCardDataResponse {
+    pub vault_credit_card: VaultCreditCardPayload,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VaultCreditCardPayload {
+    pub payment_method: Option<VaultedPaymentMethod>,
+    pub verification: Option<VaultVerification>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VaultedPaymentMethod {
+    pub id: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub legacy_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VaultVerification {
+    pub status: BraintreeVerificationStatus,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub processor_response: Option<ProcessorResponse>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProcessorResponse {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub legacy_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, strum::Display)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum BraintreeVerificationStatus {
+    Verified,
+    Verifying,
+    ProcessorDeclined,
+    GatewayRejected,
+    Failed,
+    Pending,
+}
+
+impl From<BraintreeVerificationStatus> for enums::AttemptStatus {
+    fn from(item: BraintreeVerificationStatus) -> Self {
+        match item {
+            BraintreeVerificationStatus::Verified => Self::Charged,
+            BraintreeVerificationStatus::Pending | BraintreeVerificationStatus::Verifying => {
+                Self::Pending
+            }
+            BraintreeVerificationStatus::ProcessorDeclined
+            | BraintreeVerificationStatus::GatewayRejected
+            | BraintreeVerificationStatus::Failed => Self::Failure,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum BraintreeSetupMandateResponse {
+    VaultResponse(Box<VaultCreditCardResponse>),
+    ErrorResponse(Box<ErrorResponse>),
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<BraintreeSetupMandateResponse, Self>>
+    for RouterDataV2<
+        SetupMandate,
+        PaymentFlowData,
+        SetupMandateRequestData<T>,
+        PaymentsResponseData,
+    >
+{
+    type Error = Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<BraintreeSetupMandateResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        match item.response {
+            BraintreeSetupMandateResponse::ErrorResponse(error_response) => Ok(Self {
+                response: build_error_response(&error_response.errors, item.http_code)
+                    .map_err(|err| *err),
+                ..item.router_data
+            }),
+            BraintreeSetupMandateResponse::VaultResponse(vault_response) => {
+                let vault_data = &vault_response.data.vault_credit_card;
+
+                // Determine status from verification
+                let status = vault_data
+                    .verification
+                    .as_ref()
+                    .map(|v| enums::AttemptStatus::from(v.status.clone()))
+                    .unwrap_or(enums::AttemptStatus::Charged);
+
+                let response = if domain_types::utils::is_payment_failure(status) {
+                    let error_code = vault_data
+                        .verification
+                        .as_ref()
+                        .map(|v| v.status.to_string())
+                        .unwrap_or_else(|| NO_ERROR_CODE.to_string());
+                    Err(create_failure_error_response(
+                        error_code,
+                        vault_data
+                            .payment_method
+                            .as_ref()
+                            .map(|pm| pm.id.clone().expose()),
+                        item.http_code,
+                    ))
+                } else {
+                    let mandate_reference = vault_data.payment_method.as_ref().map(|pm| {
+                        Box::new(MandateReference {
+                            connector_mandate_id: Some(pm.id.clone().expose()),
+                            payment_method_id: None,
+                            connector_mandate_request_reference_id: None,
+                        })
+                    });
+
+                    Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::NoResponseId,
+                        redirection_data: None,
+                        mandate_reference,
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        connector_response_reference_id: None,
+                        incremental_authorization_allowed: None,
+                        status_code: item.http_code,
+                    })
+                };
+
                 Ok(Self {
                     resource_common_data: PaymentFlowData {
                         status,
