@@ -48,11 +48,11 @@ use serde::Serialize;
 use transformers::{
     self as braintree, BraintreeAuthResponse, BraintreeCancelRequest, BraintreeCancelResponse,
     BraintreeCaptureRequest, BraintreeCaptureResponse, BraintreeClientTokenRequest,
-    BraintreePSyncRequest, BraintreePSyncResponse, BraintreePaymentsRequest,
-    BraintreePaymentsResponse, BraintreeRSyncRequest, BraintreeRSyncResponse,
-    BraintreeRefundRequest, BraintreeRefundResponse, BraintreeRepeatPaymentRequest,
-    BraintreeRepeatPaymentResponse, BraintreeSessionResponse, BraintreeTokenRequest,
-    BraintreeTokenResponse,
+    BraintreeIncrementalAuthRequest, BraintreeIncrementalAuthResponse, BraintreePSyncRequest,
+    BraintreePSyncResponse, BraintreePaymentsRequest, BraintreePaymentsResponse,
+    BraintreeRSyncRequest, BraintreeRSyncResponse, BraintreeRefundRequest, BraintreeRefundResponse,
+    BraintreeRepeatPaymentRequest, BraintreeRepeatPaymentResponse, BraintreeSessionResponse,
+    BraintreeTokenRequest, BraintreeTokenResponse,
 };
 
 use super::macros;
@@ -69,16 +69,6 @@ pub(crate) mod headers {
 
 pub const BRAINTREE_VERSION: &str = "Braintree-Version";
 pub const BRAINTREE_VERSION_VALUE: &str = "2019-01-01";
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        IncrementalAuthorization,
-        PaymentFlowData,
-        PaymentsIncrementalAuthorizationData,
-        PaymentsResponseData,
-    > for Braintree<T>
-{
-}
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorCommon
     for Braintree<T>
@@ -368,6 +358,12 @@ macros::create_all_prerequisites!(
             request_body: BraintreeRepeatPaymentRequest,
             response_body: BraintreeRepeatPaymentResponse,
             router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: IncrementalAuthorization,
+            request_body: BraintreeIncrementalAuthRequest,
+            response_body: BraintreeIncrementalAuthResponse,
+            router_data: RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -754,6 +750,37 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
              Ok(self.connector_base_url_refunds(req).to_string())
+        }
+    }
+);
+
+// IncrementalAuthorization via GraphQL updateTransactionAmount mutation.
+// Braintree's GraphQL endpoint is a single POST to `/graphql` for all
+// operations; the mutation itself identifies the transaction and new amount.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Braintree,
+    curl_request: Json(BraintreeIncrementalAuthRequest),
+    curl_response: BraintreeIncrementalAuthResponse,
+    flow_name: IncrementalAuthorization,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsIncrementalAuthorizationData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(self.connector_base_url_payments(req).to_string())
         }
     }
 );
