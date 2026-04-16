@@ -54,11 +54,6 @@ Hence, **Prism** - to open up payment diversity to the entire world as a simple,
 - **Not every payment processor supports every flow, and not every flow could be tested**. Some payment processor sandboxes are flaky and all flows could not be tested. We continuously keep solving such problems to harden (test) maximum possible integrations of Prism.
 
 
-## ✨ Features
-- **Multiple Integrations** — Stripe, Adyen, Braintree, PayPal, Worldpay, and more.
-- **Enterprise Grade** — Prism is extracted from [Juspay Hyperswitch payments platform](https://hyperswitch.io/), actively used by global enterprises.
-- **PCI-scope Reduction** — Offers the flexibility to manage PCI compliance in your own preferred way.
-
 ## Architecture
 A very high level overview of the Prism architecture and components. To understand more [refer docs](https://docs.hyperswitch.io/integrations/prism/architecture)
 
