@@ -1232,3 +1232,211 @@ impl<F, Req, Res> TryFrom<ResponseRouterData<FiservErrorResponse, Self>>
         Ok(router_data_out)
     }
 }
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+#[allow(clippy::expect_used)]
+#[allow(clippy::panic)]
+#[allow(clippy::indexing_slicing)]
+#[allow(clippy::print_stdout)]
+mod tests {
+    pub mod authorize {
+        use std::{marker::PhantomData, str::FromStr};
+
+        use common_utils::{request::RequestContent, types::MinorUnit};
+        use domain_types::{
+            connector_flow::Authorize,
+            connector_types::{
+                ConnectorEnum, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData,
+            },
+            payment_method_data::{DefaultPCIHolder, PaymentMethodData, RawCardNumber},
+            router_data::{ConnectorSpecificConfig, ErrorResponse},
+            router_data_v2::RouterDataV2,
+            types::{ConnectorParams, Connectors},
+        };
+        use hyperswitch_masking::{ExposeInterface, Secret};
+        use interfaces::{
+            connector_integration_v2::BoxedConnectorIntegrationV2,
+            connector_types::BoxedConnector,
+        };
+
+        use crate::{connectors::Fiserv, types::ConnectorData};
+
+        // Regression guard for fiserv Authorize: `merchantDetails.terminalId`
+        // must be sourced from `ConnectorSpecificConfig::Fiserv.terminal_id`
+        // (surfaced via `FiservAuthType::terminal_id`), never from per-payment
+        // `request.metadata`. Pins against a PR-#723-class regression where
+        // `FiservSessionObject` previously read `request.metadata` and emitted
+        // `terminalId: null` whenever metadata was absent in shadow replay.
+        #[test]
+        fn terminal_id_sourced_from_auth_terminal_id() {
+            let terminal_id = "10000001".to_string();
+            let req: RouterDataV2<
+                Authorize,
+                PaymentFlowData,
+                PaymentsAuthorizeData<DefaultPCIHolder>,
+                PaymentsResponseData,
+            > = RouterDataV2 {
+                flow: PhantomData::<Authorize>,
+                resource_common_data: PaymentFlowData {
+                    vault_headers: None,
+                    merchant_id: common_utils::id_type::MerchantId::default(),
+                    customer_id: None,
+                    connector_customer: None,
+                    payment_id: "pay_fiserv_regress".to_string(),
+                    attempt_id: "attempt_fiserv_regress".to_string(),
+                    status: common_enums::AttemptStatus::Pending,
+                    payment_method: common_enums::PaymentMethod::Card,
+                    description: None,
+                    return_url: None,
+                    order_details: None,
+                    address: domain_types::payment_address::PaymentAddress::new(
+                        None, None, None, None,
+                    ),
+                    auth_type: common_enums::AuthenticationType::NoThreeDs,
+                    connector_feature_data: None,
+                    amount_captured: None,
+                    minor_amount_captured: None,
+                    minor_amount_authorized: None,
+                    access_token: None,
+                    session_token: None,
+                    reference_id: None,
+                    connector_order_id: None,
+                    preprocessing_id: None,
+                    connector_api_version: None,
+                    connector_request_reference_id: "conn_ref_fiserv_regress".to_string(),
+                    test_mode: None,
+                    connector_http_status_code: None,
+                    connectors: Connectors {
+                        fiserv: ConnectorParams {
+                            base_url: "https://cert.api.fiservapps.com/".to_string(),
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    },
+                    external_latency: None,
+                    connector_response_headers: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    minor_amount_capturable: None,
+                    amount: None,
+                    connector_response: None,
+                    recurring_mandate_payment_data: None,
+                    l2_l3_data: None,
+                },
+                connector_config: ConnectorSpecificConfig::Fiserv {
+                    api_key: Secret::new("test_api_key".to_string()),
+                    merchant_account: Secret::new("test_merchant_account".to_string()),
+                    api_secret: Secret::new("test_api_secret".to_string()),
+                    base_url: None,
+                    terminal_id: Some(Secret::new(terminal_id.clone())),
+                },
+                request: PaymentsAuthorizeData {
+                    authentication_data: None,
+                    connector_testing_data: None,
+                    access_token: None,
+                    payment_method_data: PaymentMethodData::Card(
+                        domain_types::payment_method_data::Card {
+                            card_number: RawCardNumber(
+                                cards::CardNumber::from_str("4111111111111111").unwrap(),
+                            ),
+                            card_cvc: Secret::new("123".to_string()),
+                            card_exp_month: Secret::new("03".to_string()),
+                            card_exp_year: Secret::new("2030".to_string()),
+                            ..Default::default()
+                        },
+                    ),
+                    amount: MinorUnit::new(1000),
+                    order_tax_amount: None,
+                    email: None,
+                    customer_name: None,
+                    currency: common_enums::Currency::USD,
+                    confirm: true,
+                    capture_method: None,
+                    integrity_object: None,
+                    router_return_url: None,
+                    webhook_url: None,
+                    complete_authorize_url: None,
+                    mandate_id: None,
+                    setup_future_usage: None,
+                    off_session: None,
+                    browser_info: None,
+                    order_category: None,
+                    session_token: None,
+                    enrolled_for_3ds: Some(false),
+                    related_transaction_id: None,
+                    payment_experience: None,
+                    payment_method_type: Some(common_enums::PaymentMethodType::Card),
+                    customer_id: None,
+                    request_incremental_authorization: Some(false),
+                    // Deliberately None to pin that terminalId does NOT depend
+                    // on request.metadata — that was the pre-PR-#723 regression class.
+                    metadata: None,
+                    minor_amount: MinorUnit::new(1000),
+                    merchant_order_id: None,
+                    shipping_cost: None,
+                    merchant_account_id: None,
+                    merchant_config_currency: None,
+                    all_keys_required: None,
+                    customer_acceptance: None,
+                    split_payments: None,
+                    request_extended_authorization: None,
+                    setup_mandate_details: None,
+                    enable_overcapture: None,
+                    connector_feature_data: None,
+                    billing_descriptor: None,
+                    enable_partial_authorization: None,
+                    locale: None,
+                    continue_redirection_url: None,
+                    redirect_response: None,
+                    threeds_method_comp_ind: None,
+                    tokenization: None,
+                    payment_channel: None,
+                },
+                response: Err(ErrorResponse::default()),
+            };
+
+            let connector: BoxedConnector<DefaultPCIHolder> = Box::new(Fiserv::new());
+            let connector_data = ConnectorData {
+                connector,
+                connector_name: ConnectorEnum::Fiserv,
+            };
+
+            let connector_integration: BoxedConnectorIntegrationV2<
+                '_,
+                Authorize,
+                PaymentFlowData,
+                PaymentsAuthorizeData<DefaultPCIHolder>,
+                PaymentsResponseData,
+            > = connector_data.connector.get_connector_integration_v2();
+
+            let request = connector_integration
+                .build_request_v2(&req)
+                .expect("fiserv Authorize build_request_v2 failed")
+                .expect("fiserv Authorize build_request_v2 returned None");
+            let body = request
+                .body
+                .as_ref()
+                .expect("fiserv Authorize request body missing");
+
+            // Use the same serialization path the HTTP layer uses on the wire.
+            // masked_serialize() would render Secret<String> as
+            // "*** alloc::string::String ***" — useless for this contract —
+            // so we read the raw JSON via RequestContent::get_inner_value.
+            let raw_json = match body {
+                RequestContent::Json(_) => body.get_inner_value().expose(),
+                other => panic!("expected JSON body, got {other:?}"),
+            };
+            let parsed: serde_json::Value = serde_json::from_str(&raw_json)
+                .expect("fiserv Authorize body is not valid JSON");
+
+            assert_eq!(
+                parsed["merchantDetails"]["terminalId"], terminal_id,
+                "fiserv Authorize merchantDetails.terminalId must be sourced from \
+                 ConnectorSpecificConfig::Fiserv.terminal_id (auth.terminal_id); \
+                 regressed to: {}",
+                parsed["merchantDetails"]["terminalId"],
+            );
+        }
+    }
+}
