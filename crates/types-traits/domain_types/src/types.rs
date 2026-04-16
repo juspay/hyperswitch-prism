@@ -21,22 +21,7 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use grpc_api_types::payments::{
-    self as grpc_payment_types, ConnectorState, DisputeResponse, DisputeServiceAcceptResponse,
-    DisputeServiceDefendRequest, DisputeServiceDefendResponse,
-    DisputeServiceSubmitEvidenceResponse,
-    MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
-    MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse,
-    MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
-    MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse,
-    PaymentMethodAuthenticationServiceAuthenticateResponse,
-    PaymentMethodAuthenticationServicePostAuthenticateResponse,
-    PaymentMethodAuthenticationServicePreAuthenticateResponse, PaymentServiceAuthorizeRequest,
-    PaymentServiceAuthorizeResponse, PaymentServiceCaptureResponse,
-    PaymentServiceCreateOrderResponse, PaymentServiceGetResponse,
-    PaymentServiceIncrementalAuthorizationRequest, PaymentServiceIncrementalAuthorizationResponse,
-    PaymentServiceReverseResponse, PaymentServiceSetupRecurringRequest,
-    PaymentServiceSetupRecurringResponse, PaymentServiceVoidRequest, PaymentServiceVoidResponse,
-    RecurringPaymentServiceRevokeRequest, RecurringPaymentServiceRevokeResponse, RefundResponse,
+    self as grpc_payment_types, AuthenticationType, ConnectorState, DisputeResponse, DisputeServiceAcceptResponse, DisputeServiceDefendRequest, DisputeServiceDefendResponse, DisputeServiceSubmitEvidenceResponse, MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest, MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse, MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse, MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse, PaymentMethodAuthenticationServiceAuthenticateResponse, PaymentMethodAuthenticationServicePostAuthenticateResponse, PaymentMethodAuthenticationServicePreAuthenticateResponse, PaymentServiceAuthorizeRequest, PaymentServiceAuthorizeResponse, PaymentServiceCaptureResponse, PaymentServiceCreateOrderResponse, PaymentServiceGetResponse, PaymentServiceIncrementalAuthorizationRequest, PaymentServiceIncrementalAuthorizationResponse, PaymentServiceReverseResponse, PaymentServiceSetupRecurringRequest, PaymentServiceSetupRecurringResponse, PaymentServiceVoidRequest, PaymentServiceVoidResponse, RecurringPaymentServiceRevokeRequest, RecurringPaymentServiceRevokeResponse, RefundResponse
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -2453,7 +2438,7 @@ pub struct AuthorizationRequest {
     // Address Information
     pub address: Option<grpc_payment_types::PaymentAddress>,
     // Authentication Details
-    pub auth_type: i32,
+    pub auth_type: AuthenticationType,
     pub enrolled_for_3ds: Option<bool>,
     pub authentication_data: Option<grpc_payment_types::AuthenticationData>,
     // Metadata
@@ -2511,9 +2496,9 @@ pub struct SetupRecurringRequest {
     pub state: Option<grpc_payment_types::ConnectorState>,
     pub setup_mandate_details: Option<grpc_payment_types::SetupMandateDetails>,
     pub customer_acceptance: Option<grpc_payment_types::CustomerAcceptance>,
-    pub auth_type: i32,
+    pub auth_type: AuthenticationType,
     pub authentication_data: Option<grpc_payment_types::AuthenticationData>,
-    pub setup_future_usage: Option<i32>,
+    pub setup_future_usage: grpc_payment_types::FutureUsage,
     pub browser_info: Option<grpc_payment_types::BrowserInformation>,
     pub billing_descriptor: Option<grpc_payment_types::BillingDescriptor>,
     pub locale: Option<String>,
@@ -2544,7 +2529,7 @@ impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationR
             capture_method: req.capture_method(),
             customer: req.customer.clone(),
             address: req.address.clone(),
-            auth_type: req.auth_type,
+            auth_type: req.auth_type(),
             enrolled_for_3ds: req.enrolled_for_3ds,
             authentication_data: req.authentication_data.clone(),
             metadata: req.metadata.clone(),
@@ -2604,7 +2589,7 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
             capture_method: req.capture_method(),
             customer: req.customer.clone(),
             address: req.address.clone(),
-            auth_type: req.auth_type,
+            auth_type: req.auth_type(),
             enrolled_for_3ds: None,
             authentication_data: req.authentication_data.clone(),
             metadata: req.metadata.clone(),
@@ -2646,6 +2631,8 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
 impl From<grpc_payment_types::PaymentServiceSetupRecurringRequest> for SetupRecurringRequest {
     fn from(req: grpc_payment_types::PaymentServiceSetupRecurringRequest) -> Self {
         Self {
+            auth_type: req.auth_type(),
+            setup_future_usage: req.setup_future_usage(),
             merchant_recurring_payment_id: req.merchant_recurring_payment_id,
             amount: req.amount,
             payment_method: req.payment_method,
@@ -2658,9 +2645,7 @@ impl From<grpc_payment_types::PaymentServiceSetupRecurringRequest> for SetupRecu
             state: req.state,
             setup_mandate_details: req.setup_mandate_details,
             customer_acceptance: req.customer_acceptance,
-            auth_type: req.auth_type,
             authentication_data: req.authentication_data,
-            setup_future_usage: req.setup_future_usage,
             browser_info: req.browser_info,
             billing_descriptor: req.billing_descriptor,
             locale: req.locale,
@@ -2681,6 +2666,7 @@ impl From<grpc_payment_types::PaymentServiceProxySetupRecurringRequest> for Setu
         // Convert ProxyCardDetails to PaymentMethod with CardProxy variant
         let payment_method = req
             .card_proxy
+            .clone()
             .map(|card_proxy| grpc_payment_types::PaymentMethod {
                 payment_method: Some(
                     grpc_payment_types::payment_method::PaymentMethod::CardProxy(card_proxy),
@@ -2688,6 +2674,8 @@ impl From<grpc_payment_types::PaymentServiceProxySetupRecurringRequest> for Setu
             });
 
         Self {
+            auth_type: req.auth_type(),
+            setup_future_usage: req.setup_future_usage(),
             merchant_recurring_payment_id: req.merchant_recurring_payment_id,
             amount: req.amount,
             payment_method,
@@ -2700,9 +2688,7 @@ impl From<grpc_payment_types::PaymentServiceProxySetupRecurringRequest> for Setu
             state: req.state,
             setup_mandate_details: req.setup_mandate_details,
             customer_acceptance: req.customer_acceptance,
-            auth_type: req.auth_type,
             authentication_data: req.authentication_data,
-            setup_future_usage: req.setup_future_usage,
             browser_info: req.browser_info,
             billing_descriptor: None,
             locale: None,
@@ -3261,23 +3247,8 @@ impl<
         })?;
 
         let setup_future_usage = match value.setup_future_usage {
-            None => None,
-            Some(future_usage_i32) => {
-                let future_usage = grpc_payment_types::FutureUsage::try_from(future_usage_i32)
-                    .map_err(|_| {
-                        report!(IntegrationError::InvalidDataFormat {
-                            field_name: "setup_future_usage",
-                            context: IntegrationErrorContext {
-                                additional_context: Some("Invalid future usage value".to_string()),
-                                ..Default::default()
-                            },
-                        })
-                    })?;
-                match future_usage {
-                    grpc_payment_types::FutureUsage::Unspecified => None,
-                    _ => Some(FutureUsage::foreign_try_from(future_usage)?),
-                }
-            }
+            grpc_payment_types::FutureUsage::Unspecified => None,
+            _ => Some(FutureUsage::foreign_try_from(value.setup_future_usage)?),
         };
 
         let customer_acceptance = value.customer_acceptance.clone();
