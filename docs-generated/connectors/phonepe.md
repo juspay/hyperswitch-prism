@@ -120,7 +120,12 @@ let config = ConnectorConfig {
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
 | [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
+| [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
+| [EventService.HandleEvent](#eventservicehandleevent) | Events | `EventServiceHandleRequest` |
+| [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
+| [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
+| [PaymentService.Void](#paymentservicevoid) | Payments | `PaymentServiceVoidRequest` |
 
 ### Payments
 
@@ -241,7 +246,18 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/phonepe/phonepe.py) · [TypeScript](../../examples/phonepe/phonepe.ts#L65) · [Kotlin](../../examples/phonepe/phonepe.kt#L77) · [Rust](../../examples/phonepe/phonepe.rs)
+**Examples:** [Python](../../examples/phonepe/phonepe.py) · [TypeScript](../../examples/phonepe/phonepe.ts#L109) · [Kotlin](../../examples/phonepe/phonepe.kt#L110) · [Rust](../../examples/phonepe/phonepe.rs)
+
+#### PaymentService.Capture
+
+Finalize an authorized payment by transferring funds. Captures the authorized amount to complete the transaction and move funds to your merchant account.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceCaptureRequest` |
+| **Response** | `PaymentServiceCaptureResponse` |
+
+**Examples:** [Python](../../examples/phonepe/phonepe.py) · [TypeScript](../../examples/phonepe/phonepe.ts#L118) · [Kotlin](../../examples/phonepe/phonepe.kt#L122) · [Rust](../../examples/phonepe/phonepe.rs)
 
 #### PaymentService.Get
 
@@ -252,4 +268,39 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/phonepe/phonepe.py) · [TypeScript](../../examples/phonepe/phonepe.ts#L74) · [Kotlin](../../examples/phonepe/phonepe.kt#L89) · [Rust](../../examples/phonepe/phonepe.rs)
+**Examples:** [Python](../../examples/phonepe/phonepe.py) · [TypeScript](../../examples/phonepe/phonepe.ts#L127) · [Kotlin](../../examples/phonepe/phonepe.kt#L132) · [Rust](../../examples/phonepe/phonepe.rs)
+
+#### PaymentService.Refund
+
+Process a partial or full refund for a captured payment. Returns funds to the customer when goods are returned or services are cancelled.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceRefundRequest` |
+| **Response** | `RefundResponse` |
+
+**Examples:** [Python](../../examples/phonepe/phonepe.py) · [TypeScript](../../examples/phonepe/phonepe.ts#L145) · [Kotlin](../../examples/phonepe/phonepe.kt#L150) · [Rust](../../examples/phonepe/phonepe.rs)
+
+#### PaymentService.Void
+
+Cancel an authorized payment that has not been captured. Releases held funds back to the customer's payment method when a transaction cannot be completed.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceVoidRequest` |
+| **Response** | `PaymentServiceVoidResponse` |
+
+**Examples:** [Python](../../examples/phonepe/phonepe.py) · [TypeScript](../../examples/phonepe/phonepe.ts) · [Kotlin](../../examples/phonepe/phonepe.kt#L172) · [Rust](../../examples/phonepe/phonepe.rs)
+
+### Refunds
+
+#### RefundService.Get
+
+Retrieve refund status from the payment processor. Tracks refund progress through processor settlement for accurate customer communication.
+
+| | Message |
+|---|---------|
+| **Request** | `RefundServiceGetRequest` |
+| **Response** | `RefundResponse` |
+
+**Examples:** [Python](../../examples/phonepe/phonepe.py) · [TypeScript](../../examples/phonepe/phonepe.ts#L154) · [Kotlin](../../examples/phonepe/phonepe.kt#L160) · [Rust](../../examples/phonepe/phonepe.rs)

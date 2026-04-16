@@ -212,8 +212,8 @@
         "error": "Payment method not supported is not supported by Phonepe"
       },
       "Mifinity": {
-        "status": "error",
-        "error": "Stuck on field: billing.phone.number. PhonePe wallet debit requires a mobile number — Missing required field: billing.phone.number. PhonePe wallet debit requires a mobile number"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Phonepe"
       },
       "MiniStop": {
         "status": "not_supported",
