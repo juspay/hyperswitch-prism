@@ -224,6 +224,7 @@ pub struct Event {
     pub status_code: Option<i32>,
     pub request_data: Option<MaskedSerdeValue>,
     pub response_data: Option<MaskedSerdeValue>,
+    pub error: Option<MaskedSerdeValue>,
     pub headers: HashMap<String, String>,
     #[serde(flatten)]
     pub additional_fields: HashMap<String, MaskedSerdeValue>,
@@ -290,6 +291,10 @@ impl Event {
 
     pub fn set_connector_response<R: Serialize>(&mut self, response: &R) {
         self.response_data = MaskedSerdeValue::from_masked_optional(response, "connector_response");
+    }
+
+    pub fn set_error_response<R: Serialize>(&mut self, error: &R) {
+        self.error = MaskedSerdeValue::from_masked_optional(error, "error_response");
     }
 }
 
@@ -447,7 +452,7 @@ pub fn emit_event_with_config(event: Event, config: &EventConfig) {
 
 /// Process an event by applying masking, transformations, static values, and extractions.
 /// This function does not require Kafka and is used for both logging and publishing.
-pub fn process_event_with_config(
+pub(crate) fn process_event_with_config(
     event: &Event,
     config: &EventConfig,
 ) -> crate::CustomResult<serde_json::Value, EventPublisherError> {
@@ -510,7 +515,7 @@ pub fn process_event_with_config(
     Ok(result)
 }
 
-pub fn extract_from_request(
+pub(crate) fn extract_from_request(
     event_value: &serde_json::Value,
     extraction_path: &str,
 ) -> Option<serde_json::Value> {
@@ -531,7 +536,7 @@ pub fn extract_from_request(
     Some(current.clone())
 }
 
-pub fn set_nested_value(
+pub(crate) fn set_nested_value(
     target: &mut serde_json::Value,
     path: &str,
     value: serde_json::Value,

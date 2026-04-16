@@ -6,9 +6,7 @@ use serde_json;
 use tracing_kafka::{builder::KafkaWriterBuilder, KafkaWriter};
 
 use crate::{
-    events::{
-        extract_from_request, process_event_with_config, set_nested_value, Event, EventConfig,
-    },
+    events::{Event, EventConfig},
     CustomResult, EventPublisherError,
 };
 

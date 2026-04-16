@@ -366,6 +366,7 @@ fn create_and_emit_grpc_event<R>(
         status_code: None,
         request_data: masked_request_data,
         response_data: None,
+        error: None,
         headers: masked_headers,
         additional_fields: HashMap::new(),
         lineage_ids: metadata_payload

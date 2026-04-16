@@ -215,9 +215,14 @@ where
                     }
 
                     let error_response = match body.status_code {
-                        500..=511 => connector.get_5xx_error_response(body.clone(), event)?,
-                        _ => connector.get_error_response_v2(body.clone(), event)?,
+                        500..=511 => {
+                            connector.get_5xx_error_response(body.clone(), event.as_deref_mut())?
+                        }
+                        _ => connector.get_error_response_v2(body.clone(), event.as_deref_mut())?,
                     };
+                    if let Some(evt) = event {
+                        evt.set_error_response(&error_response);
+                    }
                     tracing::Span::current().record(
                         "response.error_message",
                         tracing::field::display(&error_response.message),
@@ -635,6 +640,7 @@ where
                         status_code,
                         request_data: masked_request_data,
                         response_data: None, // Will be set by connector via set_response_body
+                        error: None,         // Will be set on error responses
                         headers: event_headers,
                         additional_fields: HashMap::new(),
                         lineage_ids: event_params.lineage_ids.to_owned(),
