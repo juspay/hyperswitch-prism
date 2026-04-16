@@ -1,0 +1,13 @@
+{
+  "authorize": {
+    "no3ds_auto_capture_ideal": {
+      "grpc_req": {
+        "payment_method": {
+          "ideal": {
+            "bank_name": "Ing"
+          }
+        }
+      }
+    }
+  }
+}

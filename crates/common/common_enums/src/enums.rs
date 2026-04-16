@@ -405,6 +405,22 @@ pub enum BankNames {
     Yoursafe,
     N26,
     NationaleNederlanden,
+    // Indian banks (Netbanking)
+    StateBank,
+    HdfcBank,
+    IciciBank,
+    AxisBank,
+    KotakMahindraBank,
+    PunjabNationalBank,
+    BankOfBaroda,
+    UnionBankOfIndia,
+    CanaraBank,
+    IndusIndBank,
+    YesBank,
+    IdbiBank,
+    FederalBank,
+    IndianOverseasBank,
+    CentralBankOfIndia,
 }
 
 /// Specifies the regulated name for a card network, primarily used for US debit card routing regulations.
@@ -959,6 +975,7 @@ pub enum PaymentMethodType {
     Becs,
     Benefit,
     Bizum,
+    BillDesk,
     Blik,
     Boleto,
     BcaBankTransfer,
@@ -971,10 +988,12 @@ pub enum PaymentMethodType {
     Card,
     CryptoCurrency,
     Cashapp,
+    Cashfree,
     Dana,
     DanamonVa,
     DuitNow,
     Efecty,
+    EaseBuzz,
     Eft,
     Eps,
     Fps,
@@ -992,11 +1011,13 @@ pub enum PaymentMethodType {
     LocalBankRedirect,
     MandiriVa,
     Knet,
+    LazyPay,
     MbWay,
     MobilePay,
     Momo,
     MomoAtm,
     Multibanco,
+    NetworkToken,
     OnlineBankingThailand,
     OnlineBankingCzechRepublic,
     OnlineBankingFinland,
@@ -1010,7 +1031,9 @@ pub enum PaymentMethodType {
     OpenBanking,
     PayBright,
     Paypal,
+    PayU,
     Paze,
+    PhonePe,
     Pix,
     PaySafeCard,
     Przelewy24,
@@ -1036,6 +1059,7 @@ pub enum PaymentMethodType {
     Walley,
     WeChatPay,
     Wero,
+    Netbanking,
     SevenEleven,
     Lawson,
     MiniStop,
@@ -1112,6 +1136,93 @@ pub enum RefundStatus {
     Success,
     #[serde(alias = "TransactionFailure")]
     TransactionFailure,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum PayoutStatus {
+    Success,
+    Failure,
+    Cancelled,
+    Initiated,
+    Expired,
+    Reversed,
+    #[default]
+    Pending,
+    Ineligible,
+    RequiresCreation,
+    RequiresConfirmation,
+    RequiresPayoutMethodData,
+    RequiresFulfillment,
+    RequiresVendorAccountCreation,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Hash,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum PayoutPriority {
+    Instant,
+    Fast,
+    #[default]
+    Regular,
+    Wire,
+    CrossBorder,
+    Internal,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    Hash,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum PayoutRecipientType {
+    /// Adyen
+    #[default]
+    Individual,
+    Company,
+    NonProfit,
+    PublicSector,
+    NaturalPerson,
+
+    /// Wise
+    Business,
+    Personal,
 }
 
 /// The status of the attempt

@@ -160,7 +160,7 @@ use domain_types::{
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
         ResponseId,
     },
-    errors::{self, ConnectorError},
+    errors::{self, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorAuthType, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -223,7 +223,7 @@ macros::create_all_prerequisites!(
         pub fn build_headers<F, FCD, Req, Res>(
             &self,
             req: &RouterDataV2<F, FCD, Req, Res>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let mut header = vec![(
                 headers::CONTENT_TYPE.to_string(),
                 "application/json".to_string().into(),
@@ -260,9 +260,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     fn get_auth_header(
         &self,
         auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
         let auth = transformers::{ConnectorName}AuthType::try_from(auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+            .change_context(errors::IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
 
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
@@ -280,7 +280,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         } else {
             res.response
                 .parse_struct("ErrorResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed { context: Default::default() })?
         };
 
         if let Some(i) = event_builder {
@@ -318,14 +318,14 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
 
         fn get_url(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
-        ) -> CustomResult<String, ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let base_url = self.connector_base_url_payments(req);
             Ok(format!("{base_url}/v1/payments"))
         }
@@ -341,7 +341,7 @@ macros::macro_connector_implementation!(
 use domain_types::{
     connector_flow::Authorize,
     connector_types::{PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, ResponseId},
-    errors::{self, ConnectorError},
+    errors::{self, IntegrationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, UpiData},
     router_data::{ConnectorAuthType, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -371,7 +371,7 @@ impl {ConnectorName}AuthType {
 }
 
 impl TryFrom<&ConnectorAuthType> for {ConnectorName}AuthType {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
@@ -379,7 +379,7 @@ impl TryFrom<&ConnectorAuthType> for {ConnectorName}AuthType {
                 api_key: api_key.to_owned(),
                 api_secret: api_secret.to_owned(),
             }),
-            _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
+            _ => Err(errors::IntegrationError::FailedToObtainAuthType { context: Default::default() }.into()),
         }
     }
 }
@@ -476,7 +476,7 @@ pub struct {ConnectorName}RouterData<T, U> {
 }
 
 impl<T, U> TryFrom<(MinorUnit, T, U)> for {ConnectorName}RouterData<T, U> {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from((amount, router_data, connector): (MinorUnit, T, U)) -> Result<Self, Self::Error> {
         Ok(Self {
@@ -493,7 +493,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         &{ConnectorName}<T>,
     >> for {ConnectorName}AuthorizeRequest<T>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: {ConnectorName}RouterData<
@@ -510,9 +510,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     let vpa_string = collect_data
                         .vpa_id
                         .as_ref()
-                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                        .ok_or(errors::IntegrationError::MissingRequiredField {
                             field_name: "vpa_id",
-                        })?
+                        , context: Default::default() })?
                         .peek()
                         .to_string();
                     (UpiFlowType::Collect, Some(vpa_string))
@@ -520,9 +520,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 UpiData::UpiIntent(_) | UpiData::UpiQr(_) => (UpiFlowType::Intent, None),
             },
             _ => {
-                return Err(errors::ConnectorError::NotSupported {
+                return Err(errors::IntegrationError::NotSupported {
                     message: "Only UPI payment methods are supported".to_string(),
-                    connector: "{ConnectorName}",
+                    connector: "{ConnectorName, context: Default::default() }",
                 }
                 .into())
             }
@@ -855,7 +855,7 @@ pub struct PaytmNativeProcessRequestBody {
 ```rust
 pub fn determine_upi_flow<T: PaymentMethodDataTypes>(
     payment_method_data: &PaymentMethodData<T>,
-) -> CustomResult<UpiFlowType, ConnectorError> {
+) -> CustomResult<UpiFlowType, IntegrationError> {
     match payment_method_data {
         PaymentMethodData::Upi(upi_data) => {
             match upi_data {
@@ -863,18 +863,18 @@ pub fn determine_upi_flow<T: PaymentMethodDataTypes>(
                     if collect_data.vpa_id.is_some() {
                         Ok(UpiFlowType::Collect)
                     } else {
-                        Err(ConnectorError::MissingRequiredField {
+                        Err(IntegrationError::MissingRequiredField {
                             field_name: "vpa_id",
-                        }.into())
+                        , context: Default::default() }.into())
                     }
                 }
                 UpiData::UpiIntent(_) | UpiData::UpiQr(_) => Ok(UpiFlowType::Intent),
             }
         }
-        _ => Err(ConnectorError::NotSupported {
+        _ => Err(IntegrationError::NotSupported {
             message: "Only UPI payment methods are supported".to_string(),
             connector: "Paytm",
-        }.into()),
+        , context: Default::default() }.into()),
     }
 }
 ```
@@ -884,7 +884,7 @@ pub fn determine_upi_flow<T: PaymentMethodDataTypes>(
 ```rust
 pub fn extract_upi_vpa<T: PaymentMethodDataTypes>(
     payment_method_data: &PaymentMethodData<T>,
-) -> CustomResult<Option<String>, ConnectorError> {
+) -> CustomResult<Option<String>, IntegrationError> {
     match payment_method_data {
         PaymentMethodData::Upi(UpiData::UpiCollect(collect_data)) => {
             if let Some(vpa_id) = &collect_data.vpa_id {
@@ -893,14 +893,14 @@ pub fn extract_upi_vpa<T: PaymentMethodDataTypes>(
                 if vpa.contains('@') && vpa.len() > 3 {
                     Ok(Some(vpa))
                 } else {
-                    Err(ConnectorError::RequestEncodingFailedWithReason(
+                    Err(IntegrationError::RequestEncodingFailedWithReason(
                         "Invalid UPI VPA format".to_string(),
                     ).into())
                 }
             } else {
-                Err(ConnectorError::MissingRequiredField {
+                Err(IntegrationError::MissingRequiredField {
                     field_name: "vpa_id",
-                }.into())
+                , context: Default::default() }.into())
             }
         }
         _ => Ok(None),
@@ -914,12 +914,12 @@ pub fn extract_upi_vpa<T: PaymentMethodDataTypes>(
 pub fn generate_paytm_signature(
     payload: &str,
     merchant_key: &str,
-) -> CustomResult<String, ConnectorError> {
+) -> CustomResult<String, IntegrationError> {
     // Step 1: Generate random salt
     let rng = SystemRandom::new();
     let mut salt_bytes = [0u8; 3];
     rng.fill(&mut salt_bytes).map_err(|_| {
-        ConnectorError::RequestEncodingFailedWithReason("Salt generation failed".to_string())
+        IntegrationError::RequestEncodingFailedWithReason("Salt generation failed".to_string())
     })?;
 
     // Step 2: Base64 encode salt
@@ -939,7 +939,7 @@ pub fn generate_paytm_signature(
     aes_encrypt(&checksum, merchant_key)
 }
 
-fn aes_encrypt(data: &str, key: &str) -> CustomResult<String, ConnectorError> {
+fn aes_encrypt(data: &str, key: &str) -> CustomResult<String, IntegrationError> {
     let iv = b"@@@@&&&&####$$$$"; // Fixed IV from Paytm spec
     // ... AES-CBC encryption with PKCS7 padding
 }
@@ -988,10 +988,10 @@ let vpa = collect_data.vpa_id.as_ref().map(|v| v.peek().to_string());
 let vpa = collect_data
     .vpa_id
     .as_ref()
-    .ok_or(ConnectorError::MissingRequiredField { field_name: "vpa_id" })?;
+    .ok_or(IntegrationError::MissingRequiredField { field_name: "vpa_id" , context: Default::default() })?;
 let vpa_str = vpa.peek().to_string();
 if !vpa_str.contains('@') || vpa_str.len() <= 3 {
-    return Err(ConnectorError::RequestEncodingFailedWithReason(
+    return Err(IntegrationError::RequestEncodingFailedWithReason(
         "Invalid VPA format".to_string(),
     ).into());
 }

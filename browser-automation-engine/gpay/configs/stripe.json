@@ -1,0 +1,10 @@
+{
+  "gateway": "stripe",
+  "gatewayMerchantId": "YOUR_STRIPE_PUBLISHABLE_KEY",
+  "merchantName": "Test Merchant",
+  "amount": "10.00",
+  "currency": "USD",
+  "countryCode": "US",
+  "cardNetworks": ["VISA", "MASTERCARD", "AMEX", "DISCOVER"],
+  "authMethods": ["PAN_ONLY", "CRYPTOGRAM_3DS"]
+}

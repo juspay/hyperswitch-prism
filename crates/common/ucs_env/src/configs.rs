@@ -1,11 +1,13 @@
 use std::collections::HashSet;
 use std::path::PathBuf;
 use std::str::FromStr;
+use std::sync::Arc;
 
 use common_utils::{
     consts,
     events::{EventConfig, EventConfigPatch},
     metadata::{HeaderMaskingConfig, HeaderMaskingConfigPatch},
+    SuperpositionConfig,
 };
 use domain_types::{
     connector_types::ConnectorEnum,
@@ -37,6 +39,11 @@ pub struct Config {
     pub api_tags: ApiTagConfig,
     #[serde(default)]
     pub webhook_source_verification_call: WebhookSourceVerificationCall,
+    /// Superposition configuration for connector URL resolution
+    /// This is loaded at startup from config/superposition.toml
+    #[serde(skip)]
+    #[patch(ignore)]
+    pub superposition_config: Option<Arc<SuperpositionConfig>>,
 }
 
 #[derive(Clone, Deserialize, Debug, Default, Serialize, PartialEq, config_patch_derive::Patch)]

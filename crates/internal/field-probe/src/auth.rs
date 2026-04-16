@@ -48,12 +48,34 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             api_key: k(),
             base_url: None,
         },
-        ConnectorEnum::Mifinity => ConnectorSpecificConfig::Mifinity {
-            key: k(),
-            base_url: None,
-            brand_id: None,
-            destination_account_number: None,
-        },
+        ConnectorEnum::Mifinity => {
+            // Load mifinity-specific metadata from connector_metadata
+            let mifinity_meta = crate::config::connector_feature_data_json(connector);
+            let (brand_id, dest_acct) = if let Some(meta_str) = mifinity_meta {
+                // Try to parse the JSON to extract brand_id and destination_account_number
+                if let Ok(meta_json) = serde_json::from_str::<serde_json::Value>(&meta_str) {
+                    let brand = meta_json
+                        .get("brand_id")
+                        .and_then(|v| v.as_str())
+                        .map(|s| Secret::new(s.to_string()));
+                    let dest = meta_json
+                        .get("destination_account_number")
+                        .and_then(|v| v.as_str())
+                        .map(|s| Secret::new(s.to_string()));
+                    (brand, dest)
+                } else {
+                    (None, None)
+                }
+            } else {
+                (None, None)
+            };
+            ConnectorSpecificConfig::Mifinity {
+                key: k(),
+                base_url: None,
+                brand_id,
+                destination_account_number: dest_acct,
+            }
+        }
         ConnectorEnum::Multisafepay => ConnectorSpecificConfig::Multisafepay {
             api_key: k(),
             base_url: None,
@@ -197,13 +219,35 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             tran_key: k(),
             base_url: None,
         },
-        ConnectorEnum::Peachpayments => ConnectorSpecificConfig::Peachpayments {
-            api_key: k(),
-            tenant_id: s(),
-            base_url: None,
-            client_merchant_reference_id: None,
-            merchant_payment_method_route_id: None,
-        },
+        ConnectorEnum::Peachpayments => {
+            // Load peachpayments-specific metadata from connector_metadata
+            let peach_meta = crate::config::connector_feature_data_json(connector);
+            let (client_merchant_ref_id, merchant_route_id) = if let Some(meta_str) = peach_meta {
+                // Try to parse the JSON to extract fields
+                if let Ok(meta_json) = serde_json::from_str::<serde_json::Value>(&meta_str) {
+                    let client_ref = meta_json
+                        .get("client_merchant_reference_id")
+                        .and_then(|v| v.as_str())
+                        .map(|s| Secret::new(s.to_string()));
+                    let route_id = meta_json
+                        .get("merchant_payment_method_route_id")
+                        .and_then(|v| v.as_str())
+                        .map(|s| Secret::new(s.to_string()));
+                    (client_ref, route_id)
+                } else {
+                    (None, None)
+                }
+            } else {
+                (None, None)
+            };
+            ConnectorSpecificConfig::Peachpayments {
+                api_key: k(),
+                tenant_id: s(),
+                base_url: None,
+                client_merchant_reference_id: client_merchant_ref_id,
+                merchant_payment_method_route_id: merchant_route_id,
+            }
+        }
         ConnectorEnum::Ppro => ConnectorSpecificConfig::Ppro {
             api_key: k(),
             merchant_id: m(),
@@ -245,32 +289,87 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             payme_client_key: None,
             base_url: None,
         },
-        ConnectorEnum::Braintree => ConnectorSpecificConfig::Braintree {
-            public_key: k(),
-            private_key: s(),
-            base_url: None,
-            merchant_account_id: None,
-            merchant_config_currency: None,
-            apple_pay_supported_networks: vec![],
-            apple_pay_merchant_capabilities: vec![],
-            apple_pay_label: None,
-            gpay_merchant_name: None,
-            gpay_merchant_id: None,
-            gpay_allowed_auth_methods: vec![],
-            gpay_allowed_card_networks: vec![],
-            paypal_client_id: None,
-            gpay_gateway_merchant_id: None,
-        },
-        ConnectorEnum::Truelayer => ConnectorSpecificConfig::Truelayer {
-            client_id: id(),
-            client_secret: s(),
-            base_url: None,
-            secondary_base_url: None,
-            merchant_account_id: None,
-            account_holder_name: None,
-            private_key: None,
-            kid: None,
-        },
+        ConnectorEnum::Braintree => {
+            // Load braintree-specific metadata from connector_feature_data
+            let braintree_meta = crate::config::connector_feature_data_json(connector);
+            let (merchant_acct_id, merchant_config_currency) =
+                if let Some(meta_str) = braintree_meta {
+                    // Try to parse the JSON to extract fields
+                    if let Ok(meta_json) = serde_json::from_str::<serde_json::Value>(&meta_str) {
+                        let acct_id = meta_json
+                            .get("merchant_account_id")
+                            .and_then(|v| v.as_str())
+                            .map(|s| Secret::new(s.to_string()));
+                        let currency = meta_json
+                            .get("merchant_config_currency")
+                            .and_then(|v| v.as_str())
+                            .map(|s| s.to_string());
+                        (acct_id, currency)
+                    } else {
+                        (None, None)
+                    }
+                } else {
+                    (None, None)
+                };
+            ConnectorSpecificConfig::Braintree {
+                public_key: k(),
+                private_key: s(),
+                base_url: None,
+                merchant_account_id: merchant_acct_id
+                    .or(Some(Secret::new("probe_merchant_account".to_string()))),
+                merchant_config_currency: merchant_config_currency.or(Some("USD".to_string())),
+                apple_pay_supported_networks: vec![],
+                apple_pay_merchant_capabilities: vec![],
+                apple_pay_label: None,
+                gpay_merchant_name: None,
+                gpay_merchant_id: None,
+                gpay_allowed_auth_methods: vec![],
+                gpay_allowed_card_networks: vec![],
+                paypal_client_id: None,
+                gpay_gateway_merchant_id: None,
+            }
+        }
+        ConnectorEnum::Truelayer => {
+            // Load truelayer-specific metadata from connector_metadata
+            let truelayer_meta = crate::config::connector_feature_data_json(connector);
+            let (merchant_acct_id, acct_holder_name, private_key_val, kid_val) =
+                if let Some(meta_str) = truelayer_meta {
+                    // Try to parse the JSON to extract fields
+                    if let Ok(meta_json) = serde_json::from_str::<serde_json::Value>(&meta_str) {
+                        let merchant_id = meta_json
+                            .get("merchant_account_id")
+                            .and_then(|v| v.as_str())
+                            .map(|s| Secret::new(s.to_string()));
+                        let acct_name = meta_json
+                            .get("account_holder_name")
+                            .and_then(|v| v.as_str())
+                            .map(|s| Secret::new(s.to_string()));
+                        let pkey = meta_json
+                            .get("private_key")
+                            .and_then(|v| v.as_str())
+                            .map(|s| Secret::new(s.to_string()));
+                        let kid_value = meta_json
+                            .get("kid")
+                            .and_then(|v| v.as_str())
+                            .map(|s| Secret::new(s.to_string()));
+                        (merchant_id, acct_name, pkey, kid_value)
+                    } else {
+                        (None, None, None, None)
+                    }
+                } else {
+                    (None, None, None, None)
+                };
+            ConnectorSpecificConfig::Truelayer {
+                client_id: id(),
+                client_secret: s(),
+                base_url: None,
+                secondary_base_url: None,
+                merchant_account_id: merchant_acct_id,
+                account_holder_name: acct_holder_name,
+                private_key: private_key_val,
+                kid: kid_val,
+            }
+        }
         ConnectorEnum::Worldpay => ConnectorSpecificConfig::Worldpay {
             username: u(),
             password: p(),
@@ -358,7 +457,7 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             access_token: Secret::new("probe_access_token".to_string()),
             campaign_id: id(),
             base_url: None,
-            site: None,
+            site: Some("probe_site".to_string()),
         },
         ConnectorEnum::Hyperpg => ConnectorSpecificConfig::Hyperpg {
             username: u(),
@@ -518,11 +617,22 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             merchant_id: m(),
             base_url: None,
         },
+        ConnectorEnum::Trustly => ConnectorSpecificConfig::Trustly {
+            username: u(),
+            password: p(),
+            private_key: s(),
+            base_url: None,
+        },
         ConnectorEnum::Fiservcommercehub => ConnectorSpecificConfig::Fiservcommercehub {
             api_key: k(),
             secret: s(),
             merchant_id: m(),
             terminal_id: id(),
+            base_url: None,
+        },
+        ConnectorEnum::Itaubank => ConnectorSpecificConfig::Itaubank {
+            client_id: id(),
+            client_secret: s(),
             base_url: None,
         },
     }

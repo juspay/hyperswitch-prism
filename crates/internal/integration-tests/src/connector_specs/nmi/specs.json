@@ -1,0 +1,12 @@
+{
+  "connector": "nmi",
+  "supported_suites": [
+    "authorize",
+    "capture",
+    "get",
+    "pre_authenticate",
+    "refund",
+    "refund_sync",
+    "void"
+  ]
+}

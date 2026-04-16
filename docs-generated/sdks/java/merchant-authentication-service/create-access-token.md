@@ -1,0 +1,43 @@
+# createAccessToken Method
+
+<!--
+---
+title: createAccessToken (Java SDK)
+description: Generate API access token using the Java SDK
+last_updated: 2026-03-21
+generated_from: backend/grpc-api-types/proto/services.proto
+auto_generated: true
+reviewed_by: ''
+reviewed_at: ''
+approved: false
+sdk_language: java
+---
+-->
+
+## Overview
+
+The `createAccessToken` method generates a short-lived authentication token.
+
+## Request Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `scope` | String | No | Token scope |
+| `expiresIn` | Integer | No | Lifetime in seconds |
+
+## Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `accessToken` | String | Token string |
+| `tokenType` | String | Bearer |
+
+## Example
+
+```java
+Map<String, Object> request = new HashMap<>();
+request.put("scope", "payment:write");
+request.put("expiresIn", 3600);
+
+Map<String, Object> response = authClient.createAccessToken(request);
+```

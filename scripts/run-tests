@@ -1,0 +1,241 @@
+#!/usr/bin/env bash
+# scripts/run-tests
+#
+# First-class CLI for running UCS connector integration tests.
+# Installed on your PATH as `test-prism` by scripts/setup-connector-tests.sh.
+#
+# USAGE
+#   test-prism [FLAGS]
+#
+# FLAGS
+#   -h, --help            Print this help and exit
+#   --interactive         Open the step-by-step searchable TUI wizard
+#   --connector <name>    Run tests for a single connector
+#   --all-connectors      Run tests for all configured connectors (default)
+#   --suite <name>        Run tests for a single suite
+#   --scenario <name>     Run a single scenario (requires --suite)
+#   --interface grpc|sdk  Execution interface (default: grpc)
+#   --endpoint <addr>     Override gRPC endpoint (default: localhost:50051)
+#   --report              Write report.json + markdown test_report/ files
+#   --no-server           Do not start/stop the gRPC server automatically
+#   --setup               Force re-run of the one-time setup wizard
+#   --skip-setup          Skip setup check entirely (assume setup is done)
+#
+# FIRST-RUN BEHAVIOUR
+#   On the very first invocation (no setup sentinel found) the script
+#   automatically runs scripts/setup-connector-tests.sh before testing.
+#   Subsequent runs skip setup entirely. Use --setup to force a re-run.
+#
+# EXAMPLES
+#   test-prism                              # full run, all connectors
+#   test-prism --interactive                # TUI wizard
+#   test-prism --connector stripe           # one connector, all suites
+#   test-prism --connector stripe --suite authorize
+#   test-prism --connector stripe --suite authorize \
+#       --scenario no3ds_auto_capture_credit_card
+#   test-prism --interface sdk              # skip gRPC server
+#   test-prism --setup                      # re-run setup then test
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+# ── Colours ────────────────────────────────────────────────────────────────────
+if [[ -t 1 ]]; then
+  RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
+  BLUE='\033[0;34m'; BOLD='\033[1m'; NC='\033[0m'
+else
+  RED=''; GREEN=''; YELLOW=''; BLUE=''; BOLD=''; NC=''
+fi
+
+info()    { echo -e "${BLUE}[test-prism]${NC} $*"; }
+success() { echo -e "${GREEN}[test-prism]${NC} $*"; }
+warn()    { echo -e "${YELLOW}[test-prism]${NC} $*"; }
+error()   { echo -e "${RED}[test-prism]${NC} $*" >&2; }
+header()  { echo -e "\n${BOLD}$*${NC}"; }
+
+# ── Paths ──────────────────────────────────────────────────────────────────────
+UCS_CONFIG_DIR="${HOME}/.config/integration-tests"
+SETUP_SENTINEL="${UCS_CONFIG_DIR}/setup.done"
+GRPC_PID_FILE="${REPO_ROOT}/.grpc-server.pid"
+GRPC_PORT="${GRPC_PORT:-50051}"
+GRPC_HOST="${GRPC_HOST:-0.0.0.0}"
+
+# ── Parse flags ────────────────────────────────────────────────────────────────
+INTERACTIVE=false
+FORCE_SETUP=false
+SKIP_SETUP=false
+INTERFACE="grpc"
+ENDPOINT=""
+REPORT=false
+NO_SERVER=false
+CARGO_EXTRA_FLAGS=()   # flags forwarded verbatim to test_ucs binary
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help)
+      # Print the comment block from USAGE to the first non-comment line
+      awk '/^# USAGE/{p=1} p && /^[^#]/{exit} p{sub(/^# ?/,""); print}' "$0"
+      exit 0
+      ;;
+    --interactive)
+      INTERACTIVE=true
+      shift
+      ;;
+    --setup)
+      FORCE_SETUP=true
+      shift
+      ;;
+    --skip-setup)
+      SKIP_SETUP=true
+      shift
+      ;;
+    --interface)
+      INTERFACE="${2:?--interface requires a value: grpc or sdk}"
+      shift 2
+      ;;
+    --endpoint)
+      ENDPOINT="${2:?--endpoint requires a value}"
+      shift 2
+      ;;
+    --report)
+      REPORT=true
+      shift
+      ;;
+    --no-server)
+      NO_SERVER=true
+      shift
+      ;;
+    --connector|--suite|--scenario)
+      # forward to cargo binary with their value
+      CARGO_EXTRA_FLAGS+=("$1" "${2:?$1 requires a value}")
+      shift 2
+      ;;
+    --all-connectors)
+      CARGO_EXTRA_FLAGS+=("$1")
+      shift
+      ;;
+    *)
+      error "Unknown flag: $1  (run with --help for usage)"
+      exit 1
+      ;;
+  esac
+done
+
+# ── First-run setup ────────────────────────────────────────────────────────────
+run_setup() {
+  header "First-time setup"
+  info "Running one-time connector test setup..."
+  bash "${SCRIPT_DIR}/setup-connector-tests.sh"
+}
+
+if [[ "${SKIP_SETUP}" == "true" ]]; then
+  info "Skipping setup check (--skip-setup flag)"
+elif [[ "${FORCE_SETUP}" == "true" ]]; then
+  run_setup
+elif [[ ! -f "${SETUP_SENTINEL}" ]]; then
+  warn "Setup sentinel not found — looks like this is your first run."
+  run_setup
+fi
+
+# ── Load .env.connector-tests ─────────────────────────────────────────────────
+if [[ -f "${REPO_ROOT}/.env.connector-tests" ]]; then
+  # shellcheck disable=SC1090
+  set +u
+  source "${REPO_ROOT}/.env.connector-tests" || true
+  set -u
+fi
+
+# ── gRPC server lifecycle ──────────────────────────────────────────────────────
+SERVER_MANAGED=false
+
+start_grpc_server() {
+  info "Building grpc-server (release)..."
+  cargo build -p grpc-server --release \
+    --manifest-path "${REPO_ROOT}/Cargo.toml" 2>&1
+
+  info "Starting grpc-server on ${GRPC_HOST}:${GRPC_PORT}..."
+  CS__SERVER__HOST="${GRPC_HOST}" \
+  CS__SERVER__PORT="${GRPC_PORT}" \
+  CS__COMMON__ENVIRONMENT=development \
+  RUST_LOG=error \
+    "${REPO_ROOT}/target/release/grpc-server" > /dev/null 2>&1 &
+  echo $! > "${GRPC_PID_FILE}"
+
+  info "Waiting for grpc-server to be ready on port ${GRPC_PORT}..."
+  for i in $(seq 1 40); do
+    if nc -z 127.0.0.1 "${GRPC_PORT}" 2>/dev/null; then
+      success "gRPC server is ready (PID $(cat "${GRPC_PID_FILE}"))"
+      SERVER_MANAGED=true
+      return 0
+    fi
+    sleep 0.5
+  done
+  error "gRPC server did not become ready within 20 s"
+  return 1
+}
+
+stop_grpc_server() {
+  if [[ "${SERVER_MANAGED}" != "true" ]]; then
+    return 0
+  fi
+  if [[ -f "${GRPC_PID_FILE}" ]]; then
+    local pid
+    pid="$(cat "${GRPC_PID_FILE}")"
+    info "Stopping gRPC server (PID ${pid})..."
+    kill "${pid}" 2>/dev/null || true
+    rm -f "${GRPC_PID_FILE}"
+    success "gRPC server stopped"
+  fi
+}
+
+# Ensure server is stopped even on error / SIGINT / SIGTERM
+trap 'stop_grpc_server' EXIT INT TERM
+
+if [[ "${INTERFACE}" == "grpc" && "${NO_SERVER}" == "false" ]]; then
+  start_grpc_server
+fi
+
+# ── Build cargo command ────────────────────────────────────────────────────────
+CMD=(cargo run -p integration-tests --bin test_ucs --)
+
+# Interface
+CMD+=(--interface "${INTERFACE}")
+
+# Endpoint
+if [[ -n "${ENDPOINT}" ]]; then
+  CMD+=(--endpoint "${ENDPOINT}")
+fi
+
+# Report
+if [[ "${REPORT}" == "true" ]]; then
+  CMD+=(--report)
+fi
+
+# Interactive
+if [[ "${INTERACTIVE}" == "true" ]]; then
+  CMD+=(--interactive)
+fi
+
+# Extra connector/suite/scenario flags
+CMD+=("${CARGO_EXTRA_FLAGS[@]+"${CARGO_EXTRA_FLAGS[@]}"}")
+
+# ── Print command ──────────────────────────────────────────────────────────────
+header "Running"
+echo "  ${CMD[*]}"
+echo ""
+
+# ── Execute ────────────────────────────────────────────────────────────────────
+EXIT_CODE=0
+(cd "${REPO_ROOT}" && "${CMD[@]}") || EXIT_CODE=$?
+
+# Explicit server stop (trap also fires, stop_grpc_server is idempotent)
+stop_grpc_server
+
+if [[ ${EXIT_CODE} -ne 0 ]]; then
+  error "Test run finished with failures (exit ${EXIT_CODE})"
+  exit "${EXIT_CODE}"
+fi
+
+success "All tests passed."

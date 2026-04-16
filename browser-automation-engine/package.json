@@ -1,0 +1,32 @@
+{
+  "name": "browser-automation-engine",
+  "version": "0.1.0",
+  "private": true,
+  "description": "JSON-DSL browser automation runtime on top of Playwright",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "cli": "tsx src/cli.ts",
+    "gpay": "tsx src/gpay-token-gen.ts",
+    "gpay:login": "tsx src/gpay-login.ts",
+    "apay": "tsx src/applepay-token-gen.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "install:browsers": "playwright install chromium webkit"
+  },
+  "dependencies": {
+    "fastify": "^4.28.1",
+    "netlify": "^24.3.0",
+    "playwright": "^1.53.0",
+    "selenium-webdriver": "^4.41.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "@types/selenium-webdriver": "^4.35.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.8.2"
+  }
+}

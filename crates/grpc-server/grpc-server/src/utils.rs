@@ -5,10 +5,16 @@ pub use ucs_interface_common::flow::*;
 pub use ucs_interface_common::metadata::*;
 
 use common_utils::{
-    consts,
+    consts::{self, Env},
+    errors::CustomResult,
     events::{Event, EventStage, FlowName, MaskedSerdeValue},
     lineage::LineageIds,
+    superposition_config::{get_connector_urls, ConnectorUrls, SuperpositionConfig},
 };
+use domain_types::{
+    connector_types, errors::IntegrationError, router_data::ConnectorSpecificConfig,
+};
+use error_stack::Report;
 use http::request::Request;
 use hyperswitch_masking;
 use serde_json::Value;
@@ -43,10 +49,177 @@ pub fn record_fields_from_header<B: hyper::body::Body>(request: &Request<B>) -> 
     span
 }
 
+pub fn validate_environment(environment: &str) -> Result<Env, String> {
+    let environment_lower = environment.to_lowercase();
+    serde::Deserialize::deserialize(
+        serde::de::value::StrDeserializer::<serde::de::value::Error>::new(&environment_lower),
+    )
+    .map_err(|_| {
+        format!(
+            "Invalid environment '{}'. Valid values are: development, sandbox, production",
+            environment
+        )
+    })
+}
+
+/// Resolves connector configuration with optional superposition URL patching.
+///
+/// This function handles the complete flow for connector configuration:
+/// 1. If environment header is provided, validate and try to resolve URLs from superposition
+/// 2. If URLs are resolved, patch the connector config with them
+/// 3. Apply connector-specific config overrides
+/// 4. Fall back to static config if no environment or superposition resolution fails
+pub fn get_resolved_connectors(
+    config: &configs::Config,
+    connector: &connector_types::ConnectorEnum,
+    connector_config: &ConnectorSpecificConfig,
+    environment: Option<&str>,
+) -> CustomResult<domain_types::types::Connectors, IntegrationError> {
+    use domain_types::errors::IntegrationErrorContext;
+    match environment {
+        Some(env) => {
+            validate_environment(env).map_err(|e| {
+                Report::new(IntegrationError::InvalidDataFormat {
+                    field_name: "x-environment",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(e),
+                        ..Default::default()
+                    },
+                })
+            })?;
+
+            match resolve_connector_urls(
+                config.superposition_config.as_ref().map(|arc| arc.as_ref()),
+                connector,
+                env,
+            ) {
+                Some(urls) => {
+                    tracing::info!("resolved URLs from superposition for environment: {}", env);
+                    let patched_connectors = config
+                        .connectors
+                        .patch_connector_urls(connector, &urls)
+                        .map_err(|e| {
+                            Report::new(IntegrationError::ConfigurationError {
+                                code: "URL_PATCHING_FAILED".to_string(),
+                                message: format!("URL patching failed: {e}"),
+                                context: IntegrationErrorContext::default(),
+                            })
+                        })?;
+                    connectors_with_connector_config_overrides_on_connectors(
+                        connector_config,
+                        patched_connectors,
+                    )
+                }
+                None => {
+                    tracing::info!(
+                        "superposition resolution failed, using static config with overrides"
+                    );
+                    connectors_with_connector_config_overrides(connector_config, config)
+                }
+            }
+        }
+        None => {
+            tracing::info!("no x-environment header, using static config with overrides");
+            connectors_with_connector_config_overrides(connector_config, config)
+        }
+    }
+}
+
+/// Resolve connector URLs from superposition configuration.
+///
+/// This function attempts to resolve connector URLs dynamically based on the
+/// connector name and environment dimensions.
+///
+/// # Arguments
+/// * `superposition_config` - Optional reference to the loaded superposition configuration
+/// * `connector` - The connector enum (e.g., "stripe", "adyen")
+/// * `environment` - The environment dimension (must be one of: "production", "sandbox", "development")
+///
+/// # Returns
+/// * `Some(ConnectorUrls)` - Successfully resolved URLs from superposition (dynamic config)
+/// * `None` - Superposition not configured or resolution failed (caller should fallback to static config)
+///
+/// # Static vs Dynamic Config
+/// - **Static config**: Connector URLs defined in TOML files (development.toml, sandbox.toml, production.toml)
+///   that are loaded at application startup and remain constant for the deployment environment.
+/// - **Dynamic config**: URLs resolved at runtime from the Superposition service, which can vary per-request
+///   based on the `x-environment` header, allowing different URLs for the same connector across requests.
+///
+/// # Note
+/// This function does NOT validate the environment. Call `validate_environment()` first if you need
+/// to reject invalid environment values with an error.
+///
+/// # Example
+/// ```ignore
+/// // First validate if you want to reject invalid environments
+/// validate_environment(environment)?;
+///
+/// let urls = resolve_connector_urls(
+///     config.superposition_config.as_ref(),
+///     &metadata_payload.connector,
+///     environment,
+/// );
+/// ```
+pub fn resolve_connector_urls(
+    superposition_config: Option<&SuperpositionConfig>,
+    connector: &connector_types::ConnectorEnum,
+    environment: &str,
+) -> Option<ConnectorUrls> {
+    let config = superposition_config?;
+
+    let environment_lower = environment.to_lowercase();
+    let connector_str = connector.to_string().to_lowercase();
+
+    match config.resolve(&connector_str, &environment_lower) {
+        Ok(resolved) => {
+            let urls = get_connector_urls(&resolved);
+            if urls.base_url.is_none() {
+                tracing::warn!(
+                    connector = %connector_str,
+                    environment = %environment_lower,
+                    "Superposition resolved but no base_url found, falling back to static config"
+                );
+                return None;
+            }
+            tracing::info!(
+                connector = %connector_str,
+                environment = %environment_lower,
+                base_url = ?urls.base_url,
+                "Resolved connector URLs from superposition"
+            );
+            Some(urls)
+        }
+        Err(e) => {
+            tracing::warn!(
+                connector = %connector_str,
+                environment = %environment_lower,
+                error = %e,
+                "Failed to resolve connector URLs from superposition, falling back to static config"
+            );
+            None
+        }
+    }
+}
+
+pub fn merge_configs(override_val: &Value, base_val: &Value) -> Value {
+    match (base_val, override_val) {
+        (Value::Object(base_map), Value::Object(override_map)) => {
+            let mut merged = base_map.clone();
+            for (key, override_value) in override_map {
+                let base_value = base_map.get(key).unwrap_or(&Value::Null);
+                merged.insert(key.clone(), merge_configs(override_value, base_value));
+            }
+            Value::Object(merged)
+        }
+        // override replaces base for primitive, null, or array
+        (_, override_val) => override_val.clone(),
+    }
+}
+
 pub fn log_before_initialization<T>(
     request_data: &RequestData<T>,
     service_name: &str,
-) -> common_utils::errors::CustomResult<(), domain_types::errors::ApplicationErrorResponse>
+) -> CustomResult<(), IntegrationError>
 where
     T: serde::Serialize,
 {
@@ -255,10 +428,11 @@ macro_rules! implement_connector_operation {
             &self,
             request: $crate::request::RequestData<$request_type>,
         ) -> Result<tonic::Response<$response_type>, tonic::Status> {
+            #[allow(unused_imports)]
+            use ucs_env::error::IntoGrpcStatus;
             tracing::info!(concat!($log_prefix, "_FLOW: initiated"));
             let config = request
                 .extensions
-                // .get::<std::sync::Arc<$crate::configs::Config>>()
                 .get::<std::sync::Arc<ucs_env::configs::Config>>()
                 .cloned()
                 .ok_or_else(|| tonic::Status::internal("Configuration not found in request extensions"))?;
@@ -275,12 +449,7 @@ macro_rules! implement_connector_operation {
                 extensions: _  // unused in macro
             } = request;
 
-            let (connector, request_id, connector_config) = (
-                metadata_payload.connector,
-                metadata_payload.request_id,
-                metadata_payload.connector_config,
-            );
-
+            let (connector, request_id, connector_config) = (metadata_payload.connector, metadata_payload.request_id, metadata_payload.connector_config);
 
             // Get connector data
             let connector_data: ConnectorData<domain_types::payment_method_data::DefaultPCIHolder> = connector_integration::types::ConnectorData::get_connector_by_name(&connector);
@@ -298,9 +467,12 @@ macro_rules! implement_connector_operation {
             let specific_request_data = $request_data_constructor(payload.clone())
                 .into_grpc_status()?;
 
-            let connectors = $crate::utils::connectors_with_connector_config_overrides(
-                &connector_config,
+
+            let connectors = $crate::utils::get_resolved_connectors(
                 &config,
+                &metadata_payload.connector,
+                &connector_config,
+                metadata_payload.environment.as_deref(),
             )
             .into_grpc_status()?;
 
@@ -361,7 +533,6 @@ macro_rules! implement_connector_operation {
                 api_tag,
             )
             .await
-            .switch()
             .into_grpc_status()?;
 
             // Generate response
@@ -371,6 +542,6 @@ macro_rules! implement_connector_operation {
             Ok(tonic::Response::new(final_response))
         }).await;
         result
-    }
-}
+        }
+    };
 }

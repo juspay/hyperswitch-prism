@@ -20,6 +20,7 @@ REPO_ROOT    := $(shell cd $(SDK_ROOT)../.. && pwd)
 endif
 
 FFI_CRATE     := $(REPO_ROOT)/crates/ffi/ffi
+GRPC_FFI_CRATE    := $(REPO_ROOT)/sdk/grpc-ffi
 PROTO_DIR     := $(REPO_ROOT)/crates/types-traits/grpc-api-types/proto
 ARTIFACTS_DIR := $(REPO_ROOT)/artifacts
 
@@ -49,11 +50,21 @@ endif
 # Build profile (release or debug)
 PROFILE ?= release-fast
 
+# Cargo uses 'debug' as the output directory name for the built-in 'dev' profile.
+# All other profiles (release, release-fast, custom) use their name as the directory.
+ifeq ($(PROFILE),dev)
+  _PROFILE_DIR := debug
+else
+  _PROFILE_DIR := $(PROFILE)
+endif
+
 # Pre-built FFI library for the current platform (output of build-ffi-lib).
-LIBRARY := $(REPO_ROOT)/target/$(PLATFORM)/$(PROFILE)/libconnector_service_ffi.$(LIB_EXT)
+LIBRARY          := $(REPO_ROOT)/target/$(PLATFORM)/$(_PROFILE_DIR)/libconnector_service_ffi.$(LIB_EXT)
+# Pre-built gRPC FFI library (output of build-grpc-ffi-lib).
+GRPC_FFI_LIBRARY := $(REPO_ROOT)/target/$(PLATFORM)/$(_PROFILE_DIR)/libhyperswitch_grpc_ffi.$(LIB_EXT)
 
 # UniFFI bindgen binary path (used by Python/Java for code generation)
-BINDGEN := $(REPO_ROOT)/target/$(PLATFORM)/$(PROFILE)/uniffi-bindgen
+BINDGEN := $(REPO_ROOT)/target/$(PLATFORM)/$(_PROFILE_DIR)/uniffi-bindgen
 
 # ---------------------------------------------------------------------------
 # build-ffi-lib
@@ -61,18 +72,26 @@ BINDGEN := $(REPO_ROOT)/target/$(PLATFORM)/$(PROFILE)/uniffi-bindgen
 # Output: target/<PLATFORM>/$(PROFILE)/libconnector_service_ffi.<ext>
 # Using --target consistently means local builds and CI builds share the same
 # directory layout — no special-case LIBRARY= or TARGET_TRIPLE= variables needed.
+# This target is NOT .PHONY - it skips the build if the library already exists
+# to save time when running multiple SDK tests.
 # ---------------------------------------------------------------------------
-.PHONY: build-ffi-lib
 build-ffi-lib:
-	@echo "Building FFI shared library for $(PLATFORM) ($(PROFILE))..."
-	@cd $(FFI_CRATE) && cargo build --no-default-features --features uniffi \
-		--profile $(PROFILE) --target $(PLATFORM)
-	@echo "Build complete: $(LIBRARY)"
+	@if [ -f "$(LIBRARY)" ]; then \
+		echo "FFI library already exists: $(LIBRARY)"; \
+	else \
+		echo "Building FFI shared library for $(PLATFORM) ($(PROFILE))..."; \
+		cd $(FFI_CRATE) && cargo build --no-default-features --features uniffi \
+			--profile $(PROFILE) --target $(PLATFORM); \
+		echo "Build complete: $(LIBRARY)"; \
+	fi
 
 # ---------------------------------------------------------------------------
 # check-cargo
 # Verifies cargo command is installed before attempting builds.
 # ---------------------------------------------------------------------------
+.PHONY: check-cargo
+check-cargo:
+
 .PHONY: check-cargo
 check-cargo:
 	@which cargo > /dev/null 2>&1 || (echo "Error: cargo is not installed" && exit 1)

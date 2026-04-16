@@ -15,7 +15,6 @@ use domain_types::{
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
         RefundsResponseData, ResponseId,
     },
-    errors,
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
@@ -38,7 +37,7 @@ impl FiservemeaAuthType {
         client_request_id: &str,
         timestamp: &str,
         request_body: &str,
-    ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+    ) -> Result<String, error_stack::Report<IntegrationError>> {
         // Raw signature: apiKey + ClientRequestId + time + requestBody
         let raw_signature = format!("{api_key}{client_request_id}{timestamp}{request_body}");
 
@@ -48,7 +47,9 @@ impl FiservemeaAuthType {
                 self.api_secret.clone().expose().as_bytes(),
                 raw_signature.as_bytes(),
             )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?;
 
         // Base64 encode the result
         Ok(general_purpose::STANDARD.encode(signature))
@@ -68,7 +69,7 @@ impl FiservemeaAuthType {
 }
 
 impl TryFrom<&ConnectorSpecificConfig> for FiservemeaAuthType {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(auth_type: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         match auth_type {
@@ -81,7 +82,9 @@ impl TryFrom<&ConnectorSpecificConfig> for FiservemeaAuthType {
                 api_secret: api_secret.to_owned(),
             }),
             _ => Err(error_stack::report!(
-                errors::ConnectorError::FailedToObtainAuthType
+                IntegrationError::FailedToObtainAuthType {
+                    context: Default::default()
+                }
             )),
         }
     }
@@ -219,6 +222,7 @@ pub type FiservemeaRefundSyncResponse = FiservemeaPaymentsResponse;
 
 // The macro creates a FiservemeaRouterData type. We need to provide the use statement.
 use super::FiservemeaRouterData;
+use domain_types::errors::{ConnectorError, IntegrationError};
 
 // Implementations for FiservemeaRouterData - needed for the macro framework
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -234,7 +238,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for FiservemeaPaymentsRequest<T>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: FiservemeaRouterData<
@@ -264,7 +268,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for PostAuthTransaction
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: FiservemeaRouterData<
@@ -285,7 +289,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for VoidTransaction
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: FiservemeaRouterData<
@@ -306,7 +310,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     > for ReturnTransaction
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: FiservemeaRouterData<
@@ -323,7 +327,7 @@ impl<T: PaymentMethodDataTypes>
         &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
     > for FiservemeaPaymentsRequest<T>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: &RouterDataV2<
@@ -337,7 +341,9 @@ impl<T: PaymentMethodDataTypes>
         let converter = StringMajorUnitForConnector;
         let amount_major = converter
             .convert(item.request.minor_amount, item.request.currency)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?;
 
         let transaction_amount = TransactionAmount {
             total: amount_major,
@@ -369,11 +375,9 @@ impl<T: PaymentMethodDataTypes>
                 PaymentMethod { payment_card }
             }
             _ => {
-                return Err(error_stack::report!(
-                    errors::ConnectorError::NotImplemented(
-                        "Only card payments are supported".to_string()
-                    )
-                ))
+                return Err(error_stack::report!(IntegrationError::not_implemented(
+                    "Only card payments are supported".to_string()
+                )))
             }
         };
 
@@ -419,7 +423,7 @@ impl<T: PaymentMethodDataTypes>
 impl TryFrom<&RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>>
     for PostAuthTransaction
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
@@ -428,7 +432,9 @@ impl TryFrom<&RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, Paymen
         let converter = StringMajorUnitForConnector;
         let amount_major = converter
             .convert(item.request.minor_amount_to_capture, item.request.currency)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?;
 
         let transaction_amount = TransactionAmount {
             total: amount_major,
@@ -445,7 +451,7 @@ impl TryFrom<&RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, Paymen
 impl TryFrom<&RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>>
     for ReturnTransaction
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         item: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
@@ -454,7 +460,9 @@ impl TryFrom<&RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseD
         let converter = StringMajorUnitForConnector;
         let amount_major = converter
             .convert(item.request.minor_refund_amount, item.request.currency)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?;
 
         let transaction_amount = TransactionAmount {
             total: amount_major,
@@ -471,7 +479,7 @@ impl TryFrom<&RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseD
 impl TryFrom<&RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>>
     for VoidTransaction
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         _item: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
@@ -704,7 +712,7 @@ pub struct PaymentToken {
 impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<FiservemeaPaymentsResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<FiservemeaPaymentsResponse, Self>,
@@ -758,7 +766,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<FiservemeaPaymentsRes
 impl TryFrom<ResponseRouterData<FiservemeaPaymentsResponse, Self>>
     for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<FiservemeaPaymentsResponse, Self>,
@@ -812,7 +820,7 @@ impl TryFrom<ResponseRouterData<FiservemeaPaymentsResponse, Self>>
 impl TryFrom<ResponseRouterData<FiservemeaPaymentsResponse, Self>>
     for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<FiservemeaPaymentsResponse, Self>,
@@ -866,7 +874,7 @@ impl TryFrom<ResponseRouterData<FiservemeaPaymentsResponse, Self>>
 impl TryFrom<ResponseRouterData<FiservemeaPaymentsResponse, Self>>
     for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<FiservemeaPaymentsResponse, Self>,
@@ -891,7 +899,7 @@ impl TryFrom<ResponseRouterData<FiservemeaPaymentsResponse, Self>>
 impl TryFrom<ResponseRouterData<FiservemeaPaymentsResponse, Self>>
     for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<FiservemeaPaymentsResponse, Self>,
@@ -916,7 +924,7 @@ impl TryFrom<ResponseRouterData<FiservemeaPaymentsResponse, Self>>
 impl TryFrom<ResponseRouterData<FiservemeaPaymentsResponse, Self>>
     for RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<FiservemeaPaymentsResponse, Self>,

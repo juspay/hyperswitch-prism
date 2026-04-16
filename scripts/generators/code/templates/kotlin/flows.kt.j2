@@ -4,6 +4,8 @@
 package payments
 
 import types.Payment.*
+import types.Payouts.*
+import types.PaymentMethods.*
 
 {% for f in flows %}
 import uniffi.connector_service_ffi.{{ to_camel(f.name) }}ReqTransformer
@@ -37,8 +39,6 @@ object FlowRegistry {
 {% endif %}
 }
 
-// Per-service client classes — typed with concrete proto request/response types.
-
 {% for service in all_services %}
 class {{ service_to_client_name(service) }}(
     config: ConnectorConfig,
@@ -59,4 +59,4 @@ class {{ service_to_client_name(service) }}(
 {% endfor %}
 }
 
-{% endfor -%}
+{% endfor %}

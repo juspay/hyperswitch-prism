@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package types;
 
-option go_package = "github.com/juspay/connector-service/backend/grpc-api-types/proto;proto";
+option go_package = "github.com/juspay/connector-service/crates/types-traits/grpc-api-types/proto;proto";
 
 // ============================================================================
 // COMMON MESSAGES
@@ -56,16 +56,34 @@ message PaymentMethod {
     AmazonPayRedirectWallet amazon_pay_redirect = 15;   // Amazon Pay
     CashappQrWallet cashapp_qr = 16;                    // Cash App
     PaypalRedirectWallet paypal_redirect = 17;          // PayPal
-    WeChatPayQrWallet we_chat_pay_qr = 18;              // WeChat Pay
+    WeChatPayQrWallet we_chat_pay_qr = 18;              // WeChat Pay QR
     AliPayRedirectWallet ali_pay_redirect = 19;         // AliPay
     RevolutPayWallet revolut_pay = 20;                  // Revolut Pay
     MifinityWallet mifinity = 21;                       // Mifinity
     Bluecode bluecode = 22;                             // Bluecode
     PazeWallet paze = 23;                               // Paze
-    SamsungWallet samsung_pay = 24;                     //Samsung
-    MBWay mb_way = 25;                                  // MB WAY 
-    Satispay satispay = 26;                             // Satispay 
-    Wero wero = 27;                                     // Wero 
+    SamsungWallet samsung_pay = 24;                     // Samsung
+    MBWay mb_way = 25;                                  // MB WAY
+    Satispay satispay = 26;                             // Satispay
+    Wero wero = 27;                                     // Wero
+    LazyPayRedirectWallet lazypay_redirect = 28;
+    PhonePeRedirectWallet phonepe_redirect = 29;
+    BillDeskRedirectWallet billdesk_redirect = 159;
+    CashfreeRedirectWallet cashfree_redirect = 160;
+    PayURedirectWallet payu_redirect = 161;
+    EaseBuzzRedirectWallet easebuzz_redirect = 162;
+    KakaoPayRedirectWallet kakao_pay_redirect = 163;     // KakaoPay Redirect
+    MbWayRedirectWallet mb_way_redirect = 164;           // MB WAY Redirect
+    MomoRedirectWallet momo_redirect = 165;             // MoMo Redirect
+    TouchNGoRedirectWallet touch_n_go_redirect = 166;   // Touch 'n Go Redirect
+    TwintRedirectWallet twint_redirect = 167;           // TWINT Redirect
+    VippsRedirectWallet vipps_redirect = 168;           // Vipps Redirect
+    WeChatPayRedirectWallet we_chat_pay_redirect = 169; // WeChat Pay Redirect
+    AliPayHKWallet ali_pay_hk = 170;                    // AliPay HK Redirect
+    DanaRedirectWallet dana_redirect = 171;             // Dana Redirect
+    GcashRedirectWallet gcash_redirect = 172;           // GCash Redirect
+    GoPayRedirectWallet go_pay_redirect = 173;          // GoPay Redirect
+    SwishQrWallet swish_qr = 174;                       // Swish QR
 
     // UPI METHODS (30-39) - Direct variants
     UpiCollect upi_collect = 30;                        // UPI Collect
@@ -140,6 +158,7 @@ message PaymentMethod {
     // NETWORK TRANSACTION METHODS (120-129) - For recurring payments with network transaction IDs
     CardDetailsForNetworkTransactionId card_details_for_network_transaction_id = 120; // Card details with network transaction ID
     NetworkTokenData network_token = 121; // Network token data
+    DecryptedWalletTokenDetailsForNetworkTransactionId decrypted_wallet_token_details_for_network_transaction_id = 122; // Network Transaction ID and Decrypted Wallet Token Details
     
     // GIFT CARDS (130-139)
     Givex givex = 137;                                         // Givex gift card
@@ -160,6 +179,9 @@ message PaymentMethod {
     FamilyMart family_mart = 151;                             // FamilyMart - Japanese convenience store payment
     Seicomart seicomart = 152;                                // Seicomart - Japanese convenience store payment
     PayEasy pay_easy = 153;                                    // Pay-easy - Japanese bill payment service
+
+    // NETBANKING - Indian net banking (bank redirect)
+    NetbankingPayment netbanking = 158;                          // Netbanking - Indian online banking (bank redirect)
   }
 }
 
@@ -368,7 +390,7 @@ message SamsungWallet {
     SecretString card_last_four_digits = 5;
     
     // 3DS token data
-    message TokenData {
+    message TokenData {  
       // 3DS type
       optional string type = 1;
       
@@ -487,6 +509,11 @@ message WeChatPayQrWallet {
   // Fields will be added as needed for WeChat Pay QR integration
 }
 
+// WeChat Pay Redirect - WeChat Pay redirect payment service
+message WeChatPayRedirectWallet {
+  // Fields will be added as needed for WeChat Pay redirect integration
+}
+
 // Alipay Redirect - Alipay redirect payment service
 message AliPayRedirectWallet {
   // Fields will be added as needed for Alipay redirect integration
@@ -517,6 +544,74 @@ message Satispay {
 // Wero - European digital wallet payment solution
 message Wero {
   // Fields will be added as needed for Wero integration
+}
+
+// LazyPay - Indian BNPL/wallet service
+message LazyPayRedirectWallet {}
+
+// PhonePe - Indian digital payments platform
+message PhonePeRedirectWallet {}
+
+// BillDesk - Indian payment gateway with wallet support
+message BillDeskRedirectWallet {}
+
+// Cashfree - Indian payment gateway with wallet support
+message CashfreeRedirectWallet {}
+
+// PayU - Indian payment gateway with wallet support
+message PayURedirectWallet {}
+
+// EaseBuzz - Indian payment gateway with wallet support
+message EaseBuzzRedirectWallet {}
+
+// Dana Redirect - Indonesian digital wallet Dana redirect payment
+message DanaRedirectWallet {
+  // Fields will be added as needed for Dana redirect integration
+}
+
+// GCash Redirect - Filipino mobile wallet GCash redirect payment
+message GcashRedirectWallet {
+  // Fields will be added as needed for GCash redirect integration
+}
+
+// GoPay Redirect - Indonesian digital wallet GoPay redirect payment
+message GoPayRedirectWallet {
+  // Fields will be added as needed for GoPay redirect integration
+}
+
+// KakaoPay Redirect - South Korean mobile payment KakaoPay redirect
+message KakaoPayRedirectWallet {
+  // Fields will be added as needed for KakaoPay redirect integration
+}
+
+// MB Way Redirect - Portuguese mobile payment MB WAY redirect
+message MbWayRedirectWallet {
+  // Fields will be added as needed for MB WAY redirect integration
+}
+
+// MoMo Redirect - Vietnamese digital wallet MoMo redirect payment
+message MomoRedirectWallet {
+  // Fields will be added as needed for MoMo redirect integration
+}
+
+// Touch n Go Redirect - Malaysian e-wallet Touch 'n Go redirect payment
+message TouchNGoRedirectWallet {
+  // Fields will be added as needed for Touch 'n Go redirect integration
+}
+
+// Twint Redirect - Swiss mobile payment TWINT redirect
+message TwintRedirectWallet {
+  // Fields will be added as needed for TWINT redirect integration
+}
+
+// Vipps Redirect - Norwegian mobile payment Vipps redirect
+message VippsRedirectWallet {
+  // Fields will be added as needed for Vipps redirect integration
+}
+
+// Swish QR - Swedish mobile payment Swish QR code payment
+message SwishQrWallet {
+  // Fields will be added as needed for Swish QR integration
 }
 
 // Apple Pay Third Party SDK - Apple Pay with token from third-party SDK
@@ -580,6 +675,12 @@ message UpiQr {
 
 message UpiConnectorResponse {
   optional UpiSource upi_mode = 1; // Final UPI source detected from connector response
+}
+
+// Netbanking - Indian online banking payment method (bank redirect)
+message NetbankingPayment {
+  // Bank selection for Indian netbanking
+  BankNames issuer = 1;
 }
 
 // PIX - Brazilian instant payment ecosystem
@@ -1261,6 +1362,22 @@ enum BankNames {
   Yoursafe = 144;
   N26 = 145;
   NationaleNederlanden = 146;
+  // Indian banks (Netbanking)
+  StateBank = 147;
+  HdfcBank = 148;
+  IciciBank = 149;
+  AxisBank = 150;
+  KotakMahindraBank = 151;
+  PunjabNationalBank = 152;
+  BankOfBaroda = 153;
+  UnionBankOfIndia = 154;
+  CanaraBank = 155;
+  IndusIndBank = 156;
+  YesBank = 157;
+  IdbiBank = 158;
+  FederalBank = 159;
+  IndianOverseasBank = 160;
+  CentralBankOfIndia = 161;
 }
 
 // ============================================================================
@@ -1279,6 +1396,23 @@ message CardDetailsForNetworkTransactionId {
     optional string bank_code = 8;
     optional SecretString nick_name = 9;
     optional SecretString card_holder_name = 10;
+}
+
+// Decrypted wallet token details with network transaction ID for recurring payments
+message DecryptedWalletTokenDetailsForNetworkTransactionId {
+    NetworkTokenType decrypted_token = 1;
+    SecretString token_exp_month = 2;
+    SecretString token_exp_year = 3;
+    optional SecretString card_holder_name = 4;
+    optional string eci = 5;
+    optional TokenSource token_source = 6;
+}
+
+/// Source of the token
+enum TokenSource {
+  TOKEN_SOURCE_UNSPECIFIED = 0;
+  GOOGLEPAY = 1;
+  APPLEPAY = 2;
 }
 
 // Network token data for recurring payments

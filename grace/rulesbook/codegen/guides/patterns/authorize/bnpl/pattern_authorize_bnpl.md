@@ -135,7 +135,7 @@ macros::create_all_prerequisites!(
         pub fn build_headers<F, FCD, Req, Res>(
             &self,
             req: &RouterDataV2<F, FCD, Req, Res>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let mut header = vec![(
                 headers::CONTENT_TYPE.to_string(),
                 "application/json".to_string().into(),
@@ -234,8 +234,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 router_data.resource_common_data.get_billing_address()?;
                 Ok(Self::Atome)
             }
-            _ => Err(ConnectorError::NotImplemented(
-                "BNPL variant not supported".to_string()
+            _ => Err(IntegrationError::NotImplemented(
+                "BNPL variant not supported".to_string(, Default::default())
             )),
         }
     }
@@ -405,7 +405,7 @@ pub struct StripePayLaterData {
 
 // Conversion from PayLaterData
 impl TryFrom<&PayLaterData> for StripePaymentMethodType {
-    type Error = ConnectorError;
+    type Error = IntegrationError;
     fn try_from(pay_later_data: &PayLaterData) -> Result<Self, Self::Error> {
         match pay_later_data {
             PayLaterData::KlarnaRedirect { .. } => Ok(Self::Klarna),
@@ -416,8 +416,8 @@ impl TryFrom<&PayLaterData> for StripePaymentMethodType {
             | PayLaterData::PayBrightRedirect {}
             | PayLaterData::WalleyRedirect {}
             | PayLaterData::AlmaRedirect {}
-            | PayLaterData::AtomeRedirect {} => Err(ConnectorError::NotImplemented(
-                get_unimplemented_payment_method_error_message("stripe"),
+            | PayLaterData::AtomeRedirect {} => Err(IntegrationError::NotImplemented(
+                get_unimplemented_payment_method_error_message("stripe", Default::default()),
             )),
         }
     }
@@ -430,7 +430,7 @@ impl TryFrom<&PayLaterData> for StripePaymentMethodType {
 fn validate_shipping_address_against_payment_method(
     shipping_address: &Option<StripeShippingAddress>,
     payment_method: Option<&StripePaymentMethodType>,
-) -> Result<(), error_stack::Report<ConnectorError>> {
+) -> Result<(), error_stack::Report<IntegrationError>> {
     match payment_method {
         Some(StripePaymentMethodType::AfterpayClearpay) => match shipping_address {
             Some(address) => {
@@ -442,17 +442,17 @@ fn validate_shipping_address_against_payment_method(
                 if missing_fields.is_empty() {
                     Ok(())
                 } else {
-                    Err(ConnectorError::MissingRequiredField {
+                    Err(IntegrationError::MissingRequiredField {
                         field_name: format!(
-                            "Missing fields in shipping address: {:?}",
+                            "Missing fields in shipping address: {:?, context: Default::default() }",
                             missing_fields
                         ),
                     })?
                 }
             }
-            None => Err(ConnectorError::MissingRequiredField {
+            None => Err(IntegrationError::MissingRequiredField {
                 field_name: "shipping address",
-            })?,
+            , context: Default::default() })?,
         },
         _ => Ok(()),
     }
@@ -471,7 +471,7 @@ fn validate_shipping_address_against_payment_method(
 // MultiSafepay treats BNPL as Redirect type
 fn get_order_type_from_payment_method<T: PaymentMethodDataTypes>(
     payment_method_data: &PaymentMethodData<T>,
-) -> Result<Type, error_stack::Report<ConnectorError>> {
+) -> Result<Type, error_stack::Report<IntegrationError>> {
     match payment_method_data {
         // ... other variants
         PaymentMethodData::PayLater(_) => Type::Redirect,
@@ -593,9 +593,9 @@ PayLaterData::AfterpayClearpayRedirect { .. } => {
 ```rust
 PayLaterData::KlarnaSdk { token } => {
     if token.is_empty() {
-        return Err(ConnectorError::MissingRequiredField {
+        return Err(IntegrationError::MissingRequiredField {
             field_name: "token",
-        }.into());
+        , context: Default::default() }.into());
     }
     Ok(Self::Klarna)  // Same connector type, different validation
 }
@@ -621,9 +621,9 @@ PayLaterData::KlarnaRedirect { .. } => {
         .resource_common_data
         .customer_id
         .clone()
-        .ok_or_else(|| ConnectorError::MissingRequiredField {
+        .ok_or_else(|| IntegrationError::MissingRequiredField {
             field_name: "customer_id",
-        })?;
+        , context: Default::default() })?;
     Ok(Self::Klarna)
 }
 ```

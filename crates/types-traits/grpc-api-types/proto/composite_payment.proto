@@ -5,7 +5,7 @@ package types;
 import "payment.proto";
 import "payment_methods.proto";
 
-option go_package = "github.com/juspay/connector-service/backend/grpc-api-types/proto;proto";
+option go_package = "github.com/juspay/connector-service/crates/types-traits/grpc-api-types/proto;proto";
 
 // Request message for composite authorize flow.
 message CompositeAuthorizeRequest {
@@ -80,8 +80,6 @@ message CompositeAuthorizeRequest {
   optional string locale = 37; // Locale/language preference for the shopper (e.g., "en-US")
   // Tokenization Configuration
   optional Tokenization tokenization_strategy = 38; // Tokenization strategy for payment processing
-  // Payment Method Token
-  optional SecretString payment_method_token = 39;
 
   // URL for Redirection
   optional string continue_redirection_url = 40; // URL to complete authorization
@@ -98,12 +96,16 @@ message CompositeAuthorizeRequest {
   optional string phone_number = 47;
 
   // Level 2 / Level 3 data for enhanced payment processing
-  optional L2L3Data l2_l3_data = 48; 
+  optional L2L3Data l2_l3_data = 48;
+
+  // Send the connector order identifier here if an order was created before
+  // authorize
+  optional string connector_order_id = 49;
 }
 
 // Response message for composite authorize flow.
 message CompositeAuthorizeResponse {
-  optional MerchantAuthenticationServiceCreateAccessTokenResponse access_token_response = 1; // Access token flow response
+  optional MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse access_token_response = 1; // Access token flow response
   optional CustomerServiceCreateResponse create_customer_response = 2; // Create customer flow response
   optional PaymentServiceAuthorizeResponse authorize_response = 3; // Authorize flow response
 }
@@ -153,7 +155,7 @@ message CompositeGetRequest {
 
 // Response message for composite get flow.
 message CompositeGetResponse {
-  optional MerchantAuthenticationServiceCreateAccessTokenResponse access_token_response = 1; // Access token flow response
+  optional MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse access_token_response = 1; // Access token flow response
   optional PaymentServiceGetResponse get_response = 2; // Get flow response
 }
 
@@ -200,7 +202,7 @@ message CompositeRefundRequest {
 
 // Response message for composite refund flow.
 message CompositeRefundResponse {
-  optional MerchantAuthenticationServiceCreateAccessTokenResponse access_token_response = 1; // Access token flow response
+  optional MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse access_token_response = 1; // Access token flow response
   optional RefundResponse refund_response = 2; // Refund flow response
 }
 
@@ -242,7 +244,7 @@ message CompositeRefundGetRequest {
 
 // Response message for composite refund get/sync flow.
 message CompositeRefundGetResponse {
-  optional MerchantAuthenticationServiceCreateAccessTokenResponse access_token_response = 1; // Access token flow response
+  optional MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse access_token_response = 1; // Access token flow response
   optional RefundResponse refund_response = 2; // Refund get flow response
 }
 
@@ -284,7 +286,7 @@ message CompositeVoidRequest {
 
 // Response message for composite void flow.
 message CompositeVoidResponse {
-  optional MerchantAuthenticationServiceCreateAccessTokenResponse access_token_response = 1;
+  optional MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse access_token_response = 1;
   optional PaymentServiceVoidResponse void_response = 2;
 }
 
@@ -328,6 +330,6 @@ message CompositeCaptureRequest {
 
 // Response message for composite capture flow.
 message CompositeCaptureResponse {
-  optional MerchantAuthenticationServiceCreateAccessTokenResponse access_token_response = 1;
+  optional MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse access_token_response = 1;
   optional PaymentServiceCaptureResponse capture_response = 2;
 }

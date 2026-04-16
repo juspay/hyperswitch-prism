@@ -4,7 +4,7 @@ package types;
 
 import "composite_payment.proto";
 
-option go_package = "github.com/juspay/connector-service/backend/grpc-api-types/proto;proto";
+option go_package = "github.com/juspay/connector-service/crates/types-traits/grpc-api-types/proto;proto";
 
 // Service for composite payment operations.
 service CompositePaymentService {

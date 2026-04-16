@@ -5,7 +5,7 @@
 title: Payment Service
 description: Complete payment lifecycle management - authorize, capture, refund, and void payments across multiple connectors
 last_updated: 2026-03-05
-generated_from: backend/grpc-api-types/proto/services.proto
+generated_from: crates/types-traits/grpc-api-types/proto/services.proto
 auto_generated: false
 reviewed_by: engineering
 reviewed_at: 2026-03-05

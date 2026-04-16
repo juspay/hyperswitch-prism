@@ -89,7 +89,7 @@
   "cybersource": {
     "api_key": { "value": "<REPLACE_WITH_YOUR_VALUE>" },
     "merchant_account": { "value": "<REPLACE_WITH_YOUR_VALUE>" },
-    "api_secret": { "value": "<REPLACE_WITH_YOUR_VALUE>" },
+    "api_secret": { "value": "REPLACE_WITH_YOUR_VALUE" },
     "_comment": "Configuration for cybersource connector"
   },
   "datatrans": {

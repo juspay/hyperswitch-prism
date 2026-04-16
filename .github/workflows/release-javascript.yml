@@ -1,0 +1,318 @@
+name: Release JavaScript SDK
+
+on:
+  workflow_dispatch:
+    inputs:
+      preview_only:
+        description: 'Preview only (do not actually publish)'
+        required: false
+        default: false
+        type: boolean
+      publish_npm:
+        description: 'Publish to npm'
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 1
+  CARGO_NET_RETRY: 10
+  RUSTFLAGS: "-C codegen-units=16"
+
+jobs:
+  build-binaries:
+    name: Build FFI Binaries (${{ matrix.os }} ${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - os: macos
+            arch: aarch64
+            target: aarch64-apple-darwin
+            runner: macos-latest
+          - os: linux
+            arch: x86_64
+            target: x86_64-unknown-linux-gnu
+            runner: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          targets: ${{ matrix.target }}
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "release-js-${{ matrix.target }}"
+          cache-directories: |
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install PostgreSQL (macOS)
+        if: matrix.os == 'macos'
+        run: |
+          brew install libpq
+          echo "LIBRARY_PATH=$(brew --prefix libpq)/lib:$LIBRARY_PATH" >> $GITHUB_ENV
+          echo "PKG_CONFIG_PATH=$(brew --prefix libpq)/lib/pkgconfig:$PKG_CONFIG_PATH" >> $GITHUB_ENV
+
+      - name: Set up Python (for SDK codegen)
+        if: matrix.os == 'macos'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Build FFI binary (${{ matrix.target }})
+        run: make -C sdk/javascript build-ffi-lib PROFILE=release
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: binary-${{ matrix.target }}
+          path: |
+            target/${{ matrix.target }}/release/libconnector_service_ffi.*
+
+      - name: Generate JavaScript SDK (JS proto stubs + native lib)
+        if: matrix.target == 'aarch64-apple-darwin'
+        run: make -C sdk/javascript generate-all PROFILE=release
+
+      - name: Upload JavaScript SDK generated files
+        if: matrix.target == 'aarch64-apple-darwin'
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-javascript
+          path: sdk/javascript/src/payments/generated/
+
+  package-sdk:
+    name: Package JavaScript SDK
+    runs-on: ubuntu-latest
+    needs: [build-binaries]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Download binaries
+        uses: actions/download-artifact@v4
+        with:
+          pattern: binary-*
+          path: target
+      - name: Organize binaries
+        run: |
+          for dir in target/binary-*; do
+            if [ -d "$dir" ]; then
+              target_name=$(basename "$dir" | sed 's/binary-//')
+              mkdir -p "target/$target_name/release"
+              cp "$dir"/* "target/$target_name/release/" 2>/dev/null || true
+            fi
+          done
+      - name: Download JavaScript SDK generated files
+        uses: actions/download-artifact@v4
+        with:
+          name: generated-javascript
+          path: sdk/javascript/src/payments/generated/
+      - name: Package JavaScript SDK
+        run: make -C sdk/javascript pack-archive
+      - name: Upload JavaScript SDK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdk-javascript
+          path: artifacts/sdk-javascript/*.tgz
+
+  preview:
+    name: Preview What Will Be Published
+    runs-on: ubuntu-latest
+    needs: [package-sdk]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download JavaScript SDK artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: sdk-javascript
+          path: artifacts/sdk-javascript
+      - name: Show Preview
+        run: |
+          echo "╔════════════════════════════════════════════════════════════════╗"
+          echo "║        📦 JAVASCRIPT SDK PUBLICATION PREVIEW                   ║"
+          echo "╚════════════════════════════════════════════════════════════════╝"
+          echo ""
+          echo "JavaScript SDK (npm):"
+          echo "  Location: artifacts/sdk-javascript/"
+          ls -la artifacts/sdk-javascript/*.tgz 2>/dev/null || echo "  ❌ No tarball found"
+          echo ""
+          echo "═══════════════════════════════════════════════════════════════════"
+          echo ""
+          if [ "${{ inputs.preview_only }}" == "true" ]; then
+            echo "⚠️  PREVIEW ONLY MODE - Package will not be published"
+          elif [ "${{ inputs.publish_npm }}" == "true" ]; then
+            echo "✅ JavaScript SDK will be published to npm"
+          else
+            echo "ℹ️  Publishing not enabled (publish_npm not checked)"
+          fi
+          echo ""
+          echo "═══════════════════════════════════════════════════════════════════"
+
+  pre-publish-check:
+    name: Pre-Publish Validation
+    runs-on: ubuntu-latest
+    needs: [package-sdk]
+    if: ${{ inputs.preview_only == true || inputs.publish_npm == true }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Download generated artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: generated-javascript
+          path: sdk/javascript/src/payments/generated/
+      - name: Download binaries
+        uses: actions/download-artifact@v4
+        with:
+          pattern: binary-*
+          path: target
+      - name: Organize binaries
+        run: |
+          for dir in target/binary-*; do
+            if [ -d "$dir" ]; then
+              target_name=$(basename "$dir" | sed 's/binary-//')
+              mkdir -p "target/$target_name/release"
+              cp "$dir"/* "target/$target_name/release/" 2>/dev/null || true
+            fi
+          done
+      - name: Install dependencies
+        run: cd sdk/javascript && npm install --silent
+      - name: Check npm auth
+        id: check-js-auth
+        continue-on-error: true
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: make -C sdk/javascript publish-check-auth
+      - name: Check version
+        id: check-js-version
+        continue-on-error: true
+        run: make -C sdk/javascript publish-check-version
+      - name: Dry-run check
+        id: check-js-dryrun
+        continue-on-error: true
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: make -C sdk/javascript publish-check-dry-run
+      - name: Pre-Publish Check Summary
+        run: |
+          echo "=== Pre-Publish Check Summary ==="
+          echo ""
+          FAILED=0
+          js_auth="${{ steps.check-js-auth.outcome }}"
+          js_ver="${{ steps.check-js-version.outcome }}"
+          js_dry="${{ steps.check-js-dryrun.outcome }}"
+          if [ "$js_auth" == "failure" ] || [ "$js_ver" == "failure" ] || [ "$js_dry" == "failure" ]; then
+            echo "  JavaScript: FAILED (auth=$js_auth, version=$js_ver, dry-run=$js_dry)"
+            FAILED=1
+          else
+            echo "  JavaScript: PASSED"
+          fi
+          echo ""
+          if [ "${{ inputs.publish_npm }}" == "true" ] && [ "$FAILED" -eq 1 ]; then
+            echo "One or more pre-publish checks FAILED. Publishing will be blocked."
+            exit 1
+          fi
+
+  publish:
+    name: Publish JavaScript SDK to npm
+    runs-on: ubuntu-latest
+    needs: [preview, pre-publish-check]
+    if: ${{ inputs.publish_npm == true && inputs.preview_only == false }}
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Download SDK artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: sdk-javascript
+          path: artifacts/sdk-javascript
+      - name: Download generated JavaScript files
+        uses: actions/download-artifact@v4
+        with:
+          name: generated-javascript
+          path: sdk/javascript/src/payments/generated/
+      - name: Download Linux binary
+        uses: actions/download-artifact@v4
+        with:
+          name: binary-x86_64-unknown-linux-gnu
+          path: target/x86_64-unknown-linux-gnu/release
+      - name: Download macOS binary
+        uses: actions/download-artifact@v4
+        with:
+          name: binary-aarch64-apple-darwin
+          path: target/aarch64-apple-darwin/release
+      - name: Check what will be published
+        run: |
+          echo "=== JavaScript SDK Publication Preview ==="
+          echo "Package location: artifacts/sdk-javascript/"
+          ls -la artifacts/sdk-javascript/
+          echo ""
+          echo "Package contents preview:"
+          tar -tzf artifacts/sdk-javascript/*.tgz | head -30
+          echo ""
+          echo "package.json:"
+          tar -xzf artifacts/sdk-javascript/*.tgz -O package/package.json | head -30
+          echo ""
+          if [ "${{ inputs.preview_only }}" == "true" ]; then
+            echo "⚠️ PREVIEW ONLY MODE - Skipping actual publish"
+          else
+            echo "✅ Will publish to npm"
+          fi
+      - name: Publish to npm
+        if: ${{ inputs.preview_only == false }}
+        working-directory: sdk/javascript
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          npm ci
+          npm publish artifacts/sdk-javascript/*.tgz --access public
+
+      - name: Add npm package owners
+        if: ${{ inputs.preview_only == false }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          npm owner add titanbot hyperswitch-prism
+          npm owner add georgejames hyperswitch-prism

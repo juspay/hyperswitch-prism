@@ -1,10 +1,10 @@
 use common_utils::StringMinorUnit;
-use domain_types::errors::ConnectorError;
 use error_stack::ResultExt;
 use hyperswitch_masking::Secret;
 use serde::Serialize;
 
 use super::super::macros::GetSoapXml;
+use domain_types::errors::IntegrationError;
 
 #[derive(Debug, Serialize, Clone)]
 #[serde(rename_all = "UPPERCASE")]
@@ -15,9 +15,12 @@ pub enum WorldpayxmlAction {
 }
 fn generate_soap_xml<T: Serialize>(
     request: &T,
-) -> Result<String, error_stack::Report<ConnectorError>> {
-    let xml_body =
-        quick_xml::se::to_string(request).change_context(ConnectorError::RequestEncodingFailed)?;
+) -> Result<String, error_stack::Report<IntegrationError>> {
+    let xml_body = quick_xml::se::to_string(request).change_context(
+        IntegrationError::RequestEncodingFailed {
+            context: Default::default(),
+        },
+    )?;
 
     Ok(format!("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE paymentService PUBLIC \"-//Worldpay//DTD Worldpay PaymentService v1//EN\" \"http://dtd.worldpay.com/paymentService_v1.dtd\">\n{}", xml_body))
 }

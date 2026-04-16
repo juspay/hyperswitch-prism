@@ -2,31 +2,32 @@ mod requests;
 mod responses;
 pub mod transformers;
 
-use requests::*;
-use responses::*;
+use requests::{JpmorganClientAuthRequest, *};
+use responses::{JpmorganClientAuthResponse, *};
 
 use std::fmt::Debug;
 
 use base64::Engine;
+use bytes::Bytes;
 use common_enums::CurrencyUnit;
 use common_utils::{consts, errors::CustomResult, events, ext_traits::ByteSliceExt};
 use domain_types::{
     connector_flow::{
-        Accept, Authorize, Capture, CreateAccessToken, CreateOrder, CreateSessionToken,
-        DefendDispute, IncrementalAuthorization, MandateRevoke, PSync, RSync, Refund,
-        RepeatPayment, SdkSessionToken, SetupMandate, SubmitEvidence, Void,
+        Accept, Authorize, Capture, ClientAuthenticationToken, CreateOrder, DefendDispute,
+        IncrementalAuthorization, MandateRevoke, PSync, RSync, Refund, RepeatPayment,
+        ServerAuthenticationToken, ServerSessionAuthenticationToken, SetupMandate, SubmitEvidence,
+        Void,
     },
     connector_types::{
-        AcceptDisputeData, AccessTokenRequestData, AccessTokenResponseData, DisputeDefendData,
+        AcceptDisputeData, ClientAuthenticationTokenRequestData, DisputeDefendData,
         DisputeFlowData, DisputeResponseData, MandateRevokeRequestData, MandateRevokeResponseData,
         PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentVoidData,
         PaymentsAuthorizeData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
-        PaymentsResponseData, PaymentsSdkSessionTokenData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        SessionTokenRequestData, SessionTokenResponseData, SetupMandateRequestData,
-        SubmitEvidenceData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, RepeatPaymentData, ServerAuthenticationTokenRequestData,
+        ServerAuthenticationTokenResponseData, ServerSessionAuthenticationTokenRequestData,
+        ServerSessionAuthenticationTokenResponseData, SetupMandateRequestData, SubmitEvidenceData,
     },
-    errors,
     payment_method_data::PaymentMethodDataTypes,
     router_data::ErrorResponse,
     router_data_v2::RouterDataV2,
@@ -44,6 +45,8 @@ use transformers as jpmorgan;
 
 use super::macros;
 use crate::{types::ResponseRouterData, with_error_response_body};
+use domain_types::errors::ConnectorError;
+use domain_types::errors::IntegrationError;
 
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 
@@ -56,14 +59,14 @@ pub(crate) mod headers {
 
 // Trait to abstract over PaymentFlowData and RefundFlowData for header building
 pub trait JpmorganResourceData {
-    fn access_token(&self) -> Option<&AccessTokenResponseData>;
+    fn access_token(&self) -> Option<&ServerAuthenticationTokenResponseData>;
     fn connector_request_reference_id(&self) -> String;
     fn merchant_id(&self) -> &common_utils::id_type::MerchantId;
     fn connectors(&self) -> &Connectors;
 }
 
 impl JpmorganResourceData for PaymentFlowData {
-    fn access_token(&self) -> Option<&AccessTokenResponseData> {
+    fn access_token(&self) -> Option<&ServerAuthenticationTokenResponseData> {
         self.access_token.as_ref()
     }
 
@@ -81,7 +84,7 @@ impl JpmorganResourceData for PaymentFlowData {
 }
 
 impl JpmorganResourceData for RefundFlowData {
-    fn access_token(&self) -> Option<&AccessTokenResponseData> {
+    fn access_token(&self) -> Option<&ServerAuthenticationTokenResponseData> {
         self.access_token.as_ref()
     }
 
@@ -113,9 +116,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::SdkSessionTokenV2 for Jpmorgan<T>
+    connector_types::ClientAuthentication for Jpmorgan<T>
 {
 }
+macros::macro_connector_payout_implementation!(
+    connector: Jpmorgan,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize]
+);
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Jpmorgan<T>
 {
@@ -176,7 +184,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentSessionToken for Jpmorgan<T>
+    connector_types::ServerSessionAuthentication for Jpmorgan<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -204,7 +212,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentAccessToken for Jpmorgan<T>
+    connector_types::ServerAuthentication for Jpmorgan<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -213,15 +221,67 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 macros::create_amount_converter_wrapper!(connector_name: Jpmorgan, amount_type: MinorUnit);
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Jpmorgan<T> {
+    /// JPMorgan returns malformed JSON for wallet payments where expiry fields are empty
+    /// e.g. `"month": ,` instead of `"month": null`. This sanitizes those cases.
+    pub fn preprocess_response_bytes<F, FCD, Req, Res>(
+        &self,
+        _req: &RouterDataV2<F, FCD, Req, Res>,
+        response_bytes: Bytes,
+        _status_code: u16,
+    ) -> Result<Bytes, ConnectorError> {
+        let raw = String::from_utf8(response_bytes.to_vec()).map_err(|_| {
+            ConnectorError::ResponseDeserializationFailed {
+                context: Default::default(),
+            }
+        })?;
+        // Replace patterns like `": ,` and `": \r\n` (empty JSON values) with `": null`
+        let sanitized = regex_replace_empty_json_values(&raw);
+        Ok(Bytes::from(sanitized))
+    }
+}
+
+/// Replace bare empty values in JSON (e.g. `"key": ,` or `"key": \n`) with `"key": null`.
+fn regex_replace_empty_json_values(input: &str) -> String {
+    let mut result = String::with_capacity(input.len());
+    let chars: Vec<char> = input.chars().collect();
+    let len = chars.len();
+    let mut i = 0;
+    while i < len {
+        let Some(&c) = chars.get(i) else { break };
+        result.push(c);
+        // After a colon, check if the next non-whitespace char is `,` or `}`
+        if c == ':' {
+            let mut j = i + 1;
+            // consume whitespace
+            while chars
+                .get(j)
+                .is_some_and(|&ch| matches!(ch, ' ' | '\t' | '\r' | '\n'))
+            {
+                j += 1;
+            }
+            if chars.get(j).is_some_and(|&ch| ch == ',' || ch == '}') {
+                // empty value — insert null and advance past the whitespace we consumed
+                result.push_str(" null");
+                i = j; // will push chars[j] on next iteration
+                continue;
+            }
+        }
+        i += 1;
+    }
+    result
+}
+
 macros::create_all_prerequisites!(
     connector_name: Jpmorgan,
     generic_type: T,
     api: [
         (
-            flow: CreateAccessToken,
+            flow: ServerAuthenticationToken,
             request_body: JpmorganTokenRequest,
             response_body: JpmorganAuthUpdateResponse,
-            router_data: RouterDataV2<CreateAccessToken, PaymentFlowData, AccessTokenRequestData, AccessTokenResponseData>,
+            router_data: RouterDataV2<ServerAuthenticationToken, PaymentFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
         ),
         (
             flow: Authorize,
@@ -256,6 +316,12 @@ macros::create_all_prerequisites!(
             flow: RSync,
             response_body: JpmorganRSyncResponse,
             router_data: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        ),
+        (
+            flow: ClientAuthenticationToken,
+            request_body: JpmorganClientAuthRequest,
+            response_body: JpmorganClientAuthResponse,
+            router_data: RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
         )
     ],
     amount_converters: [],
@@ -264,7 +330,7 @@ macros::create_all_prerequisites!(
         pub fn build_headers<F, ResourceData, Req, Res>(
             &self,
             req: &RouterDataV2<F, ResourceData, Req, Res>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError>
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError>
         where
             Self: ConnectorIntegrationV2<F, ResourceData, Req, Res>,
             ResourceData: JpmorganResourceData,
@@ -281,7 +347,7 @@ macros::create_all_prerequisites!(
                     "Bearer {}",
                     &req.resource_common_data
                         .access_token()
-                        .ok_or(errors::ConnectorError::FailedToObtainAuthType)?
+                        .ok_or(IntegrationError::FailedToObtainAuthType { context: Default::default() })?
                         .access_token.peek()
                 )
                 .into_masked(),
@@ -338,11 +404,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: JpmorganErrorResponse = res
             .response
             .parse_struct("JpmorganErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            .change_context(
+                crate::utils::response_deserialization_fail(
+                    res.status_code,
+                "jpmorgan: response body did not match the expected format; confirm API version and connector documentation."),
+            )?;
 
         with_error_response_body!(event_builder, response);
 
@@ -405,10 +475,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
-        CreateSessionToken,
+        ServerSessionAuthenticationToken,
         PaymentFlowData,
-        SessionTokenRequestData,
-        SessionTokenResponseData,
+        ServerSessionAuthenticationTokenRequestData,
+        ServerSessionAuthenticationTokenResponseData,
     > for Jpmorgan<T>
 {
 }
@@ -473,15 +543,74 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        SdkSessionToken,
-        PaymentFlowData,
-        PaymentsSdkSessionTokenData,
-        PaymentsResponseData,
-    > for Jpmorgan<T>
-{
-}
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_error_response_v2],
+    connector: Jpmorgan,
+    curl_request: FormUrlEncoded(JpmorganClientAuthRequest),
+    curl_response: JpmorganClientAuthResponse,
+    flow_name: ClientAuthenticationToken,
+    resource_common_data: PaymentFlowData,
+    flow_request: ClientAuthenticationTokenRequestData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_content_type(&self) -> &'static str {
+            "application/x-www-form-urlencoded"
+        }
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            // ClientAuthenticationToken flow uses Basic auth with client_id:client_secret
+            // to obtain an OAuth2 access token for client-side SDK initialization
+            let auth = jpmorgan::JpmorganAuthType::try_from(&req.connector_config)?;
+            let creds = format!("{}:{}", auth.client_id.peek(), auth.client_secret.peek());
+            let encoded_creds = BASE64_ENGINE.encode(creds);
+            let auth_string = format!("Basic {}", encoded_creds);
+
+            Ok(vec![
+                (
+                    headers::CONTENT_TYPE.to_string(),
+                    "application/x-www-form-urlencoded".to_string().into(),
+                ),
+                (
+                    headers::AUTHORIZATION.to_string(),
+                    auth_string.into_masked(),
+                ),
+            ])
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            use domain_types::errors::IntegrationErrorContext;
+            Ok(format!(
+                "{}/am/oauth2/alpha/access_token",
+                req.resource_common_data.connectors.jpmorgan.secondary_base_url.as_ref()
+                    .ok_or(IntegrationError::FailedToObtainIntegrationUrl {
+                        context: IntegrationErrorContext {
+                            suggested_action: Some(
+                                "Set the 'secondary_base_url' in the JPMorgan connector \
+                                 configuration. This URL points to the OAuth2 token endpoint."
+                                    .to_owned(),
+                            ),
+                            doc_url: Some(
+                                "https://developer.payments.jpmorgan.com/docs/commerce-solutions/online-payments/capabilities/authentication/oauth"
+                                    .to_owned(),
+                            ),
+                            additional_context: Some(
+                                "JPMorgan uses a separate base URL for the OAuth2 token \
+                                 endpoint (secondary_base_url) distinct from the payments API."
+                                    .to_owned(),
+                            ),
+                        },
+                    })?
+            ))
+        }
+    }
+);
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
@@ -508,10 +637,10 @@ macros::macro_connector_implementation!(
     connector: Jpmorgan,
     curl_request: FormUrlEncoded(JpmorganTokenRequest),
     curl_response: JpmorganAuthUpdateResponse,
-    flow_name: CreateAccessToken,
+    flow_name: ServerAuthenticationToken,
     resource_common_data: PaymentFlowData,
-    flow_request: AccessTokenRequestData,
-    flow_response: AccessTokenResponseData,
+    flow_request: ServerAuthenticationTokenRequestData,
+    flow_response: ServerAuthenticationTokenResponseData,
     http_method: Post,
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
@@ -521,8 +650,8 @@ macros::macro_connector_implementation!(
         }
         fn get_headers(
             &self,
-            req: &RouterDataV2<CreateAccessToken, PaymentFlowData, AccessTokenRequestData, AccessTokenResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+            req: &RouterDataV2<ServerAuthenticationToken, PaymentFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let auth = jpmorgan::JpmorganAuthType::try_from(&req.connector_config)?;
             let creds = format!("{}:{}", auth.client_id.peek(), auth.client_secret.peek());
             let encoded_creds = BASE64_ENGINE.encode(creds);
@@ -541,12 +670,12 @@ macros::macro_connector_implementation!(
         }
         fn get_url(
             &self,
-            req: &RouterDataV2<CreateAccessToken, PaymentFlowData, AccessTokenRequestData, AccessTokenResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+            req: &RouterDataV2<ServerAuthenticationToken, PaymentFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
             Ok(format!(
                 "{}/am/oauth2/alpha/access_token",
                 req.resource_common_data.connectors.jpmorgan.secondary_base_url.as_ref()
-                    .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?
+                    .ok_or(IntegrationError::FailedToObtainIntegrationUrl { context: Default::default() })?
             ))
         }
     }
@@ -562,19 +691,20 @@ macros::macro_connector_implementation!(
     flow_request: PaymentsAuthorizeData<T>,
     flow_response: PaymentsResponseData,
     http_method: Post,
+    preprocess_response: true,
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     other_functions: {
         fn get_headers(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
         fn get_url(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}/payments", self.connector_base_url(req)))
         }
     }
@@ -595,16 +725,16 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
         fn get_url(
             &self,
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let transaction_id = req.request.connector_transaction_id
                 .get_connector_transaction_id()
-                .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+                .change_context(IntegrationError::MissingConnectorTransactionID { context: Default::default() })?;
             Ok(format!("{}/payments/{}", self.connector_base_url(req), transaction_id))
         }
     }
@@ -626,16 +756,16 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
         fn get_url(
             &self,
             req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let transaction_id = req.request.connector_transaction_id
                 .get_connector_transaction_id()
-                .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+                .change_context(IntegrationError::MissingConnectorTransactionID { context: Default::default() })?;
             Ok(format!("{}/payments/{}/captures", self.connector_base_url(req), transaction_id))
         }
     }
@@ -657,13 +787,13 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
         fn get_url(
             &self,
             req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}/payments/{}", self.connector_base_url(req), req.request.connector_transaction_id))
         }
     }
@@ -685,13 +815,13 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
         fn get_url(
             &self,
             _req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}/refunds", self.connector_base_url(_req)))
         }
     }
@@ -712,13 +842,13 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
         fn get_url(
             &self,
             req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
-        ) -> CustomResult<String, errors::ConnectorError> {
+        ) -> CustomResult<String, IntegrationError> {
             let refund_id = req.request.connector_refund_id.clone();
             Ok(format!("{}/refunds/{}", self.connector_base_url(req), refund_id))
         }

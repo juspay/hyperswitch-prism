@@ -1,0 +1,41 @@
+{
+  "suite": "complete_authorize",
+  "suite_type": "dependent",
+  "depends_on": [
+    "server_authentication_token",
+    {
+      "suite": "pre_authenticate",
+      "scenario": "threeds_card_pre_authenticate"
+    },
+    {
+      "suite": "authenticate",
+      "scenario": "threeds_card_authenticate",
+      "context_map": {
+        "merchant_order_id": "res.merchant_order_id",
+        "state": "res.state",
+        "authentication_data": "res.authentication_data",
+        "redirection_response.params": "res.redirection_data.form.form_fields.reference_id"
+      }
+    },
+    {
+      "suite": "post_authenticate",
+      "scenario": "threeds_card_post_authenticate",
+      "context_map": {
+        "authentication_data": "res.authentication_data",
+        "authentication_data.connector_transaction_id": "req.redirection_response.payload.paymentId",
+        "redirection_response": "req.redirection_response",
+        "merchant_order_id": "req.merchant_order_id",
+        "state": "req.state"
+      }
+    },
+    {
+      "suite": "authorize",
+      "scenario": "threeds_manual_capture_credit_card",
+      "context_map": {
+        "merchant_order_id": "res.connector_transaction_id",
+        "state": "res.state"
+      }
+    }
+  ],
+  "strict_dependencies": false
+}

@@ -1,5 +1,5 @@
 use common_utils::errors::CustomResult;
-use domain_types::errors::ApplicationErrorResponse;
+use domain_types::errors::IntegrationError;
 use std::sync::Arc;
 use ucs_env::configs::Config;
 
@@ -12,7 +12,7 @@ use crate::config::merge_config_with_override;
 pub fn extract_and_merge_config(
     config_override_header: Option<&str>,
     base_config: &Arc<Config>,
-) -> CustomResult<Arc<Config>, ApplicationErrorResponse> {
+) -> CustomResult<Arc<Config>, IntegrationError> {
     match config_override_header {
         Some(override_str) if !override_str.trim().is_empty() => {
             merge_config_with_override(override_str.to_owned(), (*base_config.as_ref()).clone())

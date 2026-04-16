@@ -5,6 +5,8 @@ edition = "2021"
 
 [dependencies]
 common_enums = { path = "../common_enums", package = "ucs_common_enums" }
+superposition_core = { git = "https://github.com/juspay/superposition", branch = "main", optional = true }
+superposition_types = { git = "https://github.com/juspay/superposition", branch = "main", optional = true }
 config_patch_derive = { path = "../config_patch_derive" }
 anyhow = "1.0"
 rdkafka = { version = "0.36", optional = true }
@@ -48,6 +50,7 @@ openssl = { version = "0.10", features = ["vendored"] }
 default = []
 kafka = ["dep:rdkafka", "dep:tracing-kafka"]
 async_ext = ["dep:async-trait", "dep:futures"]
+superposition = ["dep:superposition_core", "dep:superposition_types"]
 
 [dependencies.async-trait]
 version = "0.1.74"

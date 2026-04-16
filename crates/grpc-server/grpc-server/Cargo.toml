@@ -6,13 +6,14 @@ edition = "2021"
 [dependencies]
 # First-party dependencies
 grpc-api-types = { path = "../../types-traits/grpc-api-types" }
+superposition_core = { workspace = true }
 connector-integration = { path = "../../integrations/connector-integration" }
 external-services = { path = "../../common/external-services" }
 domain_types = { path = "../../types-traits/domain_types" }
 interfaces = { path = "../../types-traits/interfaces" }
 cards = { path = "../../types-traits/cards", package = "ucs_cards" }
 common_enums = { path = "../../common/common_enums", package = "ucs_common_enums" }
-common_utils = { path = "../../common/common_utils", package = "ucs_common_utils" }
+common_utils = { path = "../../common/common_utils", package = "ucs_common_utils", features = ["superposition"] }
 composite-service = { path = "../../internal/composite-service" }
 config_patch_derive = { path = "../../common/config_patch_derive" }
 hyperswitch_masking = { version = "0.0.1", default-features = false, features = ["alloc", "serde", "time"] }
@@ -63,7 +64,7 @@ build_info = { git = "https://github.com/juspay/framework-libs-rs", rev = "24356
     "cargo-workspace",
     "framework-libs-members-env",
 ] }
-uuid = "1.0"
+uuid = { workspace = true }
 chrono = "0.4.31"
 
 [build-dependencies]
@@ -79,7 +80,7 @@ tower = { version = "0.5.2" }
 tempfile = "3.19.1"
 hyper-util = { version = "0.1.3", features = ["tokio"] }
 rand = "0.8.5"
-uuid = { version = "1.0", features = ["v4"] }
+uuid = { workspace = true, features = ["v4"] }
 reqwest = { version = "0.11", features = ["json"] }
 serial_test = "3.2.0"
 

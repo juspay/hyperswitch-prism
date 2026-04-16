@@ -5,7 +5,7 @@
 title: Merchant Authentication Service
 description: Generate access tokens and session credentials for secure payment processing and SDK initiation
 last_updated: 2026-03-05
-generated_from: backend/grpc-api-types/proto/services.proto
+generated_from: crates/types-traits/grpc-api-types/proto/services.proto
 auto_generated: false
 reviewed_by: engineering
 reviewed_at: 2026-03-05

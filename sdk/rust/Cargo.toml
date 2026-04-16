@@ -2,6 +2,13 @@
 name = "hyperswitch-payments-client"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
+keywords = ["hyperswitch", "prism", "payments", "payment-processing", "credit-cards", "juspay", "payment-gateway", "stripe", "adyen", "paypal", "unified-payments"]
+description = "Hyperswitch Payments SDK — Rust client for connector integrations"
+
+[[example]]
+name = "stripe"
+path = "../../examples/stripe/stripe.rs"
 
 [dependencies]
 # Internal crates (path deps)
@@ -14,6 +21,7 @@ domain_types = { path = "../../crates/types-traits/domain_types" }
 cards = { path = "../../crates/types-traits/cards", package = "ucs_cards" }
 
 # Third-party
+tonic = { workspace = true }
 base64 = "0.22"
 serde = { workspace = true }
 thiserror = { workspace = true }

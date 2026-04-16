@@ -122,7 +122,7 @@ impl Address {
 
     pub fn get_phone_with_country_code(
         &self,
-    ) -> Result<Secret<String>, error_stack::Report<crate::errors::ConnectorError>> {
+    ) -> Result<Secret<String>, error_stack::Report<crate::errors::IntegrationError>> {
         self.phone
             .clone()
             .map(|phone_details| phone_details.get_number_with_country_code())

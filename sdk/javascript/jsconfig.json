@@ -4,8 +4,8 @@
     "module": "commonjs",
     "target": "ES2020",
     "paths": {
-      "hs-playlib": ["./src/payments/index.js"],
-      "hs-playlib/*": ["./src/payments/*"]
+      "hyperswitch-prism": ["./src/payments/index.js"],
+      "hyperswitch-prism/*": ["./src/payments/*"]
     }
   },
   "include": ["src/**/*", "*.js", "examples/**/*.js"]

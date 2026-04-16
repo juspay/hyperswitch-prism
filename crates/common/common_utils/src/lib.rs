@@ -15,6 +15,8 @@ pub mod metadata;
 pub mod new_types;
 pub mod pii;
 pub mod request;
+#[cfg(feature = "superposition")]
+pub mod superposition_config;
 pub mod types;
 // Re-export commonly used items
 pub use errors::{CustomResult, EventPublisherError, ParsingError, ValidationError};
@@ -22,9 +24,7 @@ pub use errors::{CustomResult, EventPublisherError, ParsingError, ValidationErro
 pub use event_publisher::{emit_event_with_config, init_event_publisher};
 
 #[cfg(not(feature = "kafka"))]
-pub fn init_event_publisher(_config: &events::EventConfig) -> CustomResult<(), ()> {
-    Ok(())
-}
+pub fn init_event_publisher(_config: &events::EventConfig) {}
 #[cfg(not(feature = "kafka"))]
 pub fn emit_event_with_config(_event: events::Event, _config: &events::EventConfig) {
     // No-op when kafka feature is disabled
@@ -34,6 +34,10 @@ pub use global_id::{CellId, GlobalPaymentId};
 pub use id_type::{CustomerId, MerchantId};
 pub use pii::{Email, SecretSerdeValue};
 pub use request::{Method, Request, RequestContent};
+#[cfg(feature = "superposition")]
+pub use superposition_config::{
+    get_optional_nonempty_string, get_string, SuperpositionConfig, SuperpositionConfigError,
+};
 pub use types::{
     AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, MinorUnit, MinorUnitForConnector,
     StringMajorUnit, StringMajorUnitForConnector, StringMinorUnit,

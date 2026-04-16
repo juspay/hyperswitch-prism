@@ -1,0 +1,12 @@
+{
+  "connector": "bamboraapac",
+  "supported_suites": [
+    "authorize",
+    "capture",
+    "get",
+    "recurring_charge",
+    "refund",
+    "refund_sync",
+    "setup_recurring"
+  ]
+}

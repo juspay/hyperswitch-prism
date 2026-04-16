@@ -1,38 +1,58 @@
 // ── Probe request builders ────────────────────────────────────────────────────
 //
-// RULE: Base requests must contain ONLY fields that are universal to ALL
-// connectors for that flow — i.e. fields that every connector implementation
-// requires to even attempt building a request (e.g. connector_transaction_id,
-// amount). Do NOT add fields that only some connectors need.
+// ⚠️  IMPORTANT: Base requests must contain ONLY fields that are universal to ALL
+// connectors for that flow. DO NOT add connector-specific fields here.
 //
-// Fields that are required by a subset of connectors belong in patching.rs /
-// patch-config.toml, where they are injected lazily only when the connector's
-// transformer reports them as missing.  Adding connector-specific fields to the
-// base request silently hides which fields connectors actually require and
-// pollutes the required_fields list for connectors that don't need them.
+// RULE: Only include fields that EVERY connector implementation requires to
+// attempt building a request (e.g., connector_transaction_id, amount for payments).
 //
-// Good example: `connector_transaction_id` — every capture/void/refund/get
-//   connector needs this.
-// Bad example:  `encoded_data` — only Adyen's PSync transformer reads this;
-//   it belongs in patch_get_request or patch-config.toml [get] section.
+// WHERE TO ADD CONNECTOR-SPECIFIC FIELDS:
+//   - patching.rs (for programmatic patches)
+//   - patch-config.toml (for field injection via config)
+//
+// WHY: Fields required by only SOME connectors must be injected lazily when the
+// connector's transformer reports them missing. Adding them to base requests:
+//   1. Hides which fields connectors ACTUALLY require
+//   2. Pollutes required_fields list for connectors that DON'T need them
+//   3. Makes field-probe less effective at discovering connector requirements
+//
+// EXAMPLES:
+//   ✓ Good: `connector_transaction_id` — every capture/void/refund/get needs this
+//   ✗ Bad:  `merchant_account_id` in metadata — only some connectors (e.g., Braintree) need this;
+//           belongs in patch-config.toml [refund_get.refund_connector_metadata] section
+//   ✗ Bad:  `payment_method_token` — only tokenized flows need this
+//   ✗ Bad:  `refund_connector_metadata` with hardcoded JSON — belongs in patch-config.toml
+//
+// WHEN IN DOUBT: Add to patch-config.toml instead of here!
 // ─────────────────────────────────────────────────────────────────────────────
 
+use cards::CardNumber;
 use grpc_api_types::payments::{
-    self as proto, mandate_reference::MandateIdType, payment_method::PaymentMethod as PmVariant,
-    AcceptanceType, Address, CaptureMethod, ConnectorMandateReferenceId, CustomerAcceptance,
+    self as proto, mandate_reference::MandateIdType,
+    merchant_authentication_service_create_client_authentication_token_request::DomainContext,
+    payment_method::PaymentMethod as PmVariant, AcceptanceType, Address, AuthenticationType,
+    CaptureMethod, CardDetails, ConnectorMandateReferenceId, CustomerAcceptance,
     CustomerServiceCreateRequest, DisputeServiceAcceptRequest, DisputeServiceDefendRequest,
-    DisputeServiceSubmitEvidenceRequest, EvidenceDocument, EvidenceType, MandateReference,
-    MerchantAuthenticationServiceCreateAccessTokenRequest,
-    MerchantAuthenticationServiceCreateSessionTokenRequest, PaymentAddress, PaymentMethod,
+    DisputeServiceSubmitEvidenceRequest, EventServiceHandleRequest, EvidenceDocument, EvidenceType,
+    HttpMethod, MandateReference,
+    MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
+    MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
+    MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest, PaymentAddress,
+    PaymentClientAuthenticationContext, PaymentMethod,
     PaymentMethodAuthenticationServiceAuthenticateRequest,
     PaymentMethodAuthenticationServicePostAuthenticateRequest,
     PaymentMethodAuthenticationServicePreAuthenticateRequest, PaymentMethodServiceTokenizeRequest,
     PaymentServiceAuthorizeRequest, PaymentServiceCaptureRequest, PaymentServiceCreateOrderRequest,
-    PaymentServiceGetRequest, PaymentServiceRefundRequest, PaymentServiceReverseRequest,
-    PaymentServiceSetupRecurringRequest, PaymentServiceVoidRequest,
-    RecurringPaymentServiceChargeRequest,
+    PaymentServiceGetRequest, PaymentServiceIncrementalAuthorizationRequest,
+    PaymentServiceProxyAuthorizeRequest, PaymentServiceProxySetupRecurringRequest,
+    PaymentServiceRefundRequest, PaymentServiceReverseRequest, PaymentServiceSetupRecurringRequest,
+    PaymentServiceTokenAuthorizeRequest, PaymentServiceTokenSetupRecurringRequest,
+    PaymentServiceVerifyRedirectResponseRequest, PaymentServiceVoidRequest,
+    RecurringPaymentServiceChargeRequest, RecurringPaymentServiceRevokeRequest,
+    RefundServiceGetRequest, RequestDetails,
 };
 use hyperswitch_masking::Secret;
+use std::str::FromStr;
 
 use crate::sample_data::{card_payment_method, usd_money};
 
@@ -49,7 +69,7 @@ pub(crate) fn base_authorize_request_with_meta(
         amount: Some(usd_money(1000)),
         payment_method: Some(pm),
         capture_method: Some(CaptureMethod::Automatic as i32),
-        auth_type: proto::AuthenticationType::NoThreeDs as i32,
+        auth_type: AuthenticationType::NoThreeDs as i32,
         merchant_transaction_id: Some("probe_txn_001".to_string()),
         connector_feature_data: connector_meta.map(Secret::new),
         return_url: Some("https://example.com/return".to_string()),
@@ -71,7 +91,7 @@ pub(crate) fn base_authorize_request_with_state(
         amount: Some(usd_money(1000)),
         payment_method: Some(pm),
         capture_method: Some(CaptureMethod::Automatic as i32),
-        auth_type: proto::AuthenticationType::NoThreeDs as i32,
+        auth_type: AuthenticationType::NoThreeDs as i32,
         merchant_transaction_id: Some("probe_txn_001".to_string()),
         connector_feature_data: connector_meta.map(Secret::new),
         return_url: Some("https://example.com/return".to_string()),
@@ -145,7 +165,7 @@ pub(crate) fn base_setup_recurring_request() -> PaymentServiceSetupRecurringRequ
             billing_address: Some(Address::default()),
             shipping_address: None,
         }),
-        auth_type: proto::AuthenticationType::NoThreeDs as i32,
+        auth_type: AuthenticationType::NoThreeDs as i32,
         return_url: Some("https://example.com/mandate-return".to_string()),
         merchant_recurring_payment_id: "probe_mandate_001".to_string(),
         setup_future_usage: Some(proto::FutureUsage::OffSession as i32),
@@ -211,17 +231,36 @@ pub(crate) fn base_tokenize_request() -> PaymentMethodServiceTokenizeRequest {
     }
 }
 
-pub(crate) fn base_create_access_token_request(
-) -> MerchantAuthenticationServiceCreateAccessTokenRequest {
-    MerchantAuthenticationServiceCreateAccessTokenRequest {
+pub(crate) fn base_create_server_authentication_token_request(
+) -> MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
+    MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
         ..Default::default()
     }
 }
 
-pub(crate) fn base_create_session_token_request(
-) -> MerchantAuthenticationServiceCreateSessionTokenRequest {
-    MerchantAuthenticationServiceCreateSessionTokenRequest {
-        amount: Some(usd_money(1000)),
+pub(crate) fn base_create_server_session_authentication_token_request(
+) -> MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest {
+    MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest {
+        domain_context: Some(
+            grpc_api_types::payments::merchant_authentication_service_create_server_session_authentication_token_request::DomainContext::Payment(
+                grpc_api_types::payments::PaymentSessionContext {
+                    amount: Some(usd_money(1000)),
+                    ..Default::default()
+                },
+            ),
+        ),
+        ..Default::default()
+    }
+}
+
+pub(crate) fn base_create_client_authentication_token_request(
+) -> MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest {
+    MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest {
+        merchant_client_session_id: "probe_sdk_session_001".to_string(),
+        domain_context: Some(DomainContext::Payment(PaymentClientAuthenticationContext {
+            amount: Some(usd_money(1000)),
+            ..Default::default()
+        })),
         ..Default::default()
     }
 }
@@ -299,5 +338,160 @@ pub(crate) fn base_defend_dispute_request() -> DisputeServiceDefendRequest {
         connector_transaction_id: "probe_txn_001".to_string(),
         dispute_id: "probe_dispute_id_001".to_string(),
         reason_code: Some("probe_reason".to_string()),
+    }
+}
+
+// ── Non-PCI (Tokenized / Proxy) request builders ──────────────────────────────
+
+fn base_card_proxy() -> CardDetails {
+    CardDetails {
+        card_number: Some(CardNumber::from_str("4111111111111111").unwrap()),
+        card_exp_month: Some(Secret::new("03".to_string())),
+        card_exp_year: Some(Secret::new("2030".to_string())),
+        card_cvc: Some(Secret::new("123".to_string())),
+        card_holder_name: Some(Secret::new("John Doe".to_string())),
+        ..Default::default()
+    }
+}
+
+pub(crate) fn base_tokenized_authorize_request() -> PaymentServiceTokenAuthorizeRequest {
+    PaymentServiceTokenAuthorizeRequest {
+        merchant_transaction_id: Some("probe_tokenized_txn_001".to_string()),
+        amount: Some(usd_money(1000)),
+        connector_token: Some(Secret::new("pm_1AbcXyzStripeTestToken".to_string())),
+        capture_method: Some(CaptureMethod::Automatic as i32),
+        address: Some(PaymentAddress {
+            billing_address: Some(Address::default()),
+            ..Default::default()
+        }),
+        return_url: Some("https://example.com/return".to_string()),
+        ..Default::default()
+    }
+}
+
+pub(crate) fn base_tokenized_setup_recurring_request() -> PaymentServiceTokenSetupRecurringRequest {
+    PaymentServiceTokenSetupRecurringRequest {
+        merchant_recurring_payment_id: "probe_tokenized_mandate_001".to_string(),
+        amount: Some(usd_money(0)),
+        connector_token: Some(Secret::new("pm_1AbcXyzStripeTestToken".to_string())),
+        address: Some(PaymentAddress {
+            billing_address: Some(Address::default()),
+            ..Default::default()
+        }),
+        customer_acceptance: Some(CustomerAcceptance {
+            accepted_at: 0,
+            acceptance_type: AcceptanceType::Online as i32,
+            online_mandate_details: Some(proto::OnlineMandate {
+                ip_address: Some("127.0.0.1".to_string()),
+                user_agent: "Mozilla/5.0".to_string(),
+            }),
+        }),
+        setup_mandate_details: Some(proto::SetupMandateDetails {
+            mandate_type: Some(proto::MandateType {
+                mandate_type: Some(proto::mandate_type::MandateType::MultiUse(
+                    proto::MandateAmountData {
+                        amount: 0,
+                        currency: proto::Currency::Usd as i32,
+                        ..Default::default()
+                    },
+                )),
+            }),
+            ..Default::default()
+        }),
+        setup_future_usage: Some(proto::FutureUsage::OffSession as i32),
+        connector_feature_data: Some(Secret::new("{}".to_string())),
+        ..Default::default()
+    }
+}
+
+pub(crate) fn base_proxied_authorize_request() -> PaymentServiceProxyAuthorizeRequest {
+    PaymentServiceProxyAuthorizeRequest {
+        merchant_transaction_id: Some("probe_proxy_txn_001".to_string()),
+        amount: Some(usd_money(1000)),
+        card_proxy: Some(base_card_proxy()),
+        capture_method: Some(CaptureMethod::Automatic as i32),
+        auth_type: AuthenticationType::NoThreeDs as i32,
+        address: Some(PaymentAddress {
+            billing_address: Some(Address::default()),
+            ..Default::default()
+        }),
+        return_url: Some("https://example.com/return".to_string()),
+        ..Default::default()
+    }
+}
+
+pub(crate) fn base_proxied_setup_recurring_request() -> PaymentServiceProxySetupRecurringRequest {
+    PaymentServiceProxySetupRecurringRequest {
+        merchant_recurring_payment_id: "probe_proxy_mandate_001".to_string(),
+        amount: Some(usd_money(0)),
+        card_proxy: Some(base_card_proxy()),
+        auth_type: AuthenticationType::NoThreeDs as i32,
+        address: Some(PaymentAddress {
+            billing_address: Some(Address::default()),
+            ..Default::default()
+        }),
+        customer_acceptance: Some(CustomerAcceptance {
+            acceptance_type: AcceptanceType::Offline as i32,
+            accepted_at: 0,
+            online_mandate_details: None,
+        }),
+        setup_future_usage: Some(proto::FutureUsage::OffSession as i32),
+        ..Default::default()
+    }
+}
+
+pub(crate) fn base_incremental_authorization_request(
+) -> PaymentServiceIncrementalAuthorizationRequest {
+    PaymentServiceIncrementalAuthorizationRequest {
+        merchant_authorization_id: Some("probe_auth_001".to_string()),
+        connector_transaction_id: "probe_connector_txn_001".to_string(),
+        amount: Some(usd_money(1100)),
+        reason: Some("incremental_auth_probe".to_string()),
+        ..Default::default()
+    }
+}
+
+pub(crate) fn base_refund_get_request() -> RefundServiceGetRequest {
+    RefundServiceGetRequest {
+        merchant_refund_id: Some("probe_refund_001".to_string()),
+        connector_transaction_id: "probe_connector_txn_001".to_string(),
+        refund_id: "probe_refund_id_001".to_string(),
+        ..Default::default()
+    }
+}
+
+pub(crate) fn base_recurring_revoke_request() -> RecurringPaymentServiceRevokeRequest {
+    RecurringPaymentServiceRevokeRequest {
+        merchant_revoke_id: Some("probe_revoke_001".to_string()),
+        mandate_id: "probe_mandate_001".to_string(),
+        connector_mandate_id: Some("probe_connector_mandate_001".to_string()),
+    }
+}
+
+pub(crate) fn base_verify_redirect_request() -> PaymentServiceVerifyRedirectResponseRequest {
+    PaymentServiceVerifyRedirectResponseRequest {
+        merchant_order_id: Some("probe_order_001".to_string()),
+        request_details: Some(RequestDetails {
+            method: HttpMethod::Post as i32,
+            uri: Some("https://example.com/redirect".to_string()),
+            headers: Default::default(),
+            body: b"{}".to_vec(),
+            query_params: None,
+        }),
+        ..Default::default()
+    }
+}
+
+pub(crate) fn base_handle_event_request() -> EventServiceHandleRequest {
+    EventServiceHandleRequest {
+        merchant_event_id: Some("probe_event_001".to_string()),
+        request_details: Some(RequestDetails {
+            method: HttpMethod::Post as i32,
+            uri: Some("https://example.com/webhook".to_string()),
+            headers: Default::default(),
+            body: b"{}".to_vec(),
+            query_params: None,
+        }),
+        ..Default::default()
     }
 }

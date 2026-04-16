@@ -375,14 +375,14 @@ pub struct {ConnectorName}{FlowName}Response {
 impl<T: PaymentMethodDataTypes + ...> TryFrom<{ConnectorName}RouterData<RouterDataV2<{FlowName}, ...>, T>>
     for {ConnectorName}{FlowName}Request<T>
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(item: {ConnectorName}RouterData<...>) -> Result<Self, Self::Error> {
         let router_data = item.router_data;
         // Extract and transform data
         // CRITICAL: Use specific NotSupported errors with exact feature names
-        // WRONG: Err(ConnectorError::NotSupported { message: "Not supported" })
-        // CORRECT: Err(ConnectorError::NotSupported { message: "Apple Pay is not supported" })
+        // WRONG: Err(IntegrationError::NotSupported { message: "Not supported", ... })
+        // CORRECT: Err(IntegrationError::NotSupported { message: "Apple Pay is not supported", ... })
         Ok(Self {
             // Only populate fields that exist in the struct
             // DO NOT set any field to None - remove the field instead
@@ -649,7 +649,7 @@ Files to analyze:
    **ERROR HANDLING QUALITY CHECKS:**
    - ✅ Specific NotSupported errors with exact feature/method names
    - ✅ NO generic error messages - all errors are descriptive
-   - ✅ Proper ConnectorError types used throughout
+   - ✅ Proper IntegrationError/ConnectorError types used throughout
    - ✅ Error types match the situation (NotSupported, InvalidData, etc.)
 
    **VALIDATION QUALITY CHECKS:**
@@ -1009,27 +1009,30 @@ Score: 100 - 40 - 15 - 5 = 40 (Poor ❌ - BLOCK)
 - **Syntax Error Fixes**: Follow Rust syntax rules exactly
 
 ### ERROR TYPE USAGE (CRITICAL)
+- **Error types are split by phase**: request phase uses `IntegrationError`, response phase uses `ConnectorError`
 - **ALWAYS use specific NotSupported errors** for unsupported payment methods:
   ```rust
-  // CORRECT - Specific error message
-  Err(errors::ConnectorError::NotSupported {
+  // CORRECT - Specific error message (request phase)
+  Err(errors::IntegrationError::NotSupported {
       message: "Google Pay is not supported".to_string(),
       connector: "stripe",
+      context: Default::default(),
   })
 
   // WRONG - Generic error
-  Err(errors::ConnectorError::NotSupported {
+  Err(errors::IntegrationError::NotSupported {
       message: "Payment method not supported".to_string(),
       connector: "stripe",
+      context: Default::default(),
   })
   ```
 - **Specify exactly what is not supported**: Don't use vague error messages
-- **Use proper ConnectorError types** from the errors module for all error cases
+- **Use proper error types** from the errors module for all error cases
 - **Match error types to the situation**:
-  - `NotSupported` for unsupported features/methods
-  - `InvalidData` for data validation failures
-  - `MissingRequiredField` for missing required fields
-  - `ResponseDeserializationFailed` for parsing errors
+  - `IntegrationError::NotSupported` for unsupported features/methods (request phase)
+  - `IntegrationError::MissingRequiredField` for missing required fields (request phase)
+  - `ConnectorError::ResponseDeserializationFailed` for parsing errors (response phase)
+  - `ConnectorError::InvalidData` for response data validation failures
 
 ### UCS COMPLIANCE VALIDATION
 - **RouterDataV2**: NEVER use RouterData, always RouterDataV2
@@ -1163,8 +1166,9 @@ Score: 100 - 40 - 15 - 5 = 40 (Poor ❌ - BLOCK)
   // CORRECT - Validation with explanation
   // Stripe requires amount to be at least $0.50 USD or equivalent
   if amount < 50 {
-      return Err(errors::ConnectorError::InvalidData {
+      return Err(errors::IntegrationError::InvalidData {
           message: "Amount must be at least 50 cents".to_string(),
+          context: Default::default(),
       });
   }
   ```

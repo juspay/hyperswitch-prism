@@ -1,0 +1,95 @@
+{
+  "_webhook_config": {
+    "signature_location": "body",
+    "signature_path": "notificationItems[0].NotificationRequestItem.additionalData.hmacSignature",
+    "signature_algorithm": "adyen_hmac_sha256",
+    "signature_encoding": "base64",
+    "webhook_secret_key": "webhook_secret",
+    "secret_format": "hex_encoded"
+  },
+  "payment_succeeded": {
+    "grpc_req": {
+      "request_details": {
+        "headers": {},
+        "body": {
+          "live": "false",
+          "notificationItems": [
+            {
+              "NotificationRequestItem": {
+                "originalReference": "",
+                "pspReference": "8535296650153317",
+                "amount": {
+                  "value": 2000,
+                  "currency": "USD"
+                },
+                "eventCode": "AUTHORISATION",
+                "merchantAccountCode": "TestMerchant",
+                "merchantReference": "test_payment_001",
+                "success": "true",
+                "reason": "",
+                "additionalData": {
+                  "hmacSignature": "vlwmArumJOqhMKowgfCRqlFs6ylOHuUME8+w+np1O0E="
+                }
+              }
+            }
+          ]
+        }
+      },
+      "merchant_event_id": "adyen_webhook_auth_001"
+    }
+  },
+  "refund_succeeded": {
+    "grpc_req": {
+      "request_details": {
+        "headers": {},
+        "body": {
+          "live": "false",
+          "notificationItems": [
+            {
+              "NotificationRequestItem": {
+                "originalReference": "8535296650153317",
+                "pspReference": "8535296650153318",
+                "amount": {
+                  "value": 2000,
+                  "currency": "USD"
+                },
+                "eventCode": "REFUND",
+                "merchantAccountCode": "TestMerchant",
+                "merchantReference": "test_payment_001",
+                "success": "true",
+                "reason": "",
+                "additionalData": {
+                  "hmacSignature": "SHYp789zVIqmb3VgX2lUKspac805jpils5Ud9pan/j4="
+                }
+              }
+            }
+          ]
+        }
+      },
+      "merchant_event_id": "adyen_webhook_refund_001"
+    }
+  },
+  "invalid_signature": {
+    "grpc_req": {
+      "request_details": {
+        "headers": {},
+        "body": {
+          "live": "false",
+          "notificationItems": [
+            {
+              "NotificationRequestItem": {
+                "pspReference": "invalid_ref",
+                "eventCode": "AUTHORISATION",
+                "success": "true",
+                "additionalData": {
+                  "hmacSignature": "INVALID_SIGNATURE_BASE64=="
+                }
+              }
+            }
+          ]
+        }
+      },
+      "merchant_event_id": "adyen_webhook_invalid_sig"
+    }
+  }
+}
