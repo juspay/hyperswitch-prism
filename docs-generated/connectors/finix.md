@@ -99,6 +99,7 @@ let config = ConnectorConfig {
 | [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
 | [CustomerService.Create](#customerservicecreate) | Customers | `CustomerServiceCreateRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
+| [RecurringPaymentService.Charge](#recurringpaymentservicecharge) | Mandates | `RecurringPaymentServiceChargeRequest` |
 | [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
 | [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
 | [PaymentService.TokenAuthorize](#paymentservicetokenauthorize) | Payments | `PaymentServiceTokenAuthorizeRequest` |
@@ -116,7 +117,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/finix/finix.py#L144) · [TypeScript](../../examples/finix/finix.ts#L126) · [Kotlin](../../examples/finix/finix.kt#L78) · [Rust](../../examples/finix/finix.rs#L130)
+**Examples:** [Python](../../examples/finix/finix.py#L170) · [TypeScript](../../examples/finix/finix.ts#L149) · [Kotlin](../../examples/finix/finix.kt#L81) · [Rust](../../examples/finix/finix.rs#L157)
 
 #### PaymentService.Get
 
@@ -127,7 +128,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/finix/finix.py#L162) · [TypeScript](../../examples/finix/finix.ts#L144) · [Kotlin](../../examples/finix/finix.kt#L101) · [Rust](../../examples/finix/finix.rs#L144)
+**Examples:** [Python](../../examples/finix/finix.py#L188) · [TypeScript](../../examples/finix/finix.ts#L167) · [Kotlin](../../examples/finix/finix.kt#L104) · [Rust](../../examples/finix/finix.rs#L171)
 
 #### PaymentService.Refund
 
@@ -138,7 +139,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/finix/finix.py#L171) · [TypeScript](../../examples/finix/finix.ts#L153) · [Kotlin](../../examples/finix/finix.kt#L109) · [Rust](../../examples/finix/finix.rs#L151)
+**Examples:** [Python](../../examples/finix/finix.py#L206) · [TypeScript](../../examples/finix/finix.ts#L185) · [Kotlin](../../examples/finix/finix.kt#L143) · [Rust](../../examples/finix/finix.rs#L185)
 
 #### PaymentService.TokenAuthorize
 
@@ -149,7 +150,7 @@ Authorize using a connector-issued payment method token.
 | **Request** | `PaymentServiceTokenAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/finix/finix.py#L189) · [TypeScript](../../examples/finix/finix.ts#L171) · [Kotlin](../../examples/finix/finix.kt#L131) · [Rust](../../examples/finix/finix.rs#L165)
+**Examples:** [Python](../../examples/finix/finix.py#L224) · [TypeScript](../../examples/finix/finix.ts#L203) · [Kotlin](../../examples/finix/finix.kt#L165) · [Rust](../../examples/finix/finix.rs#L199)
 
 #### PaymentMethodService.Tokenize
 
@@ -160,7 +161,7 @@ Tokenize payment method for secure storage. Replaces raw card details with secur
 | **Request** | `PaymentMethodServiceTokenizeRequest` |
 | **Response** | `PaymentMethodServiceTokenizeResponse` |
 
-**Examples:** [Python](../../examples/finix/finix.py#L198) · [TypeScript](../../examples/finix/finix.ts#L180) · [Kotlin](../../examples/finix/finix.kt#L152) · [Rust](../../examples/finix/finix.rs#L172)
+**Examples:** [Python](../../examples/finix/finix.py#L233) · [TypeScript](../../examples/finix/finix.ts#L212) · [Kotlin](../../examples/finix/finix.kt#L186) · [Rust](../../examples/finix/finix.rs#L206)
 
 #### PaymentService.Void
 
@@ -171,7 +172,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/finix/finix.py#L207) · [TypeScript](../../examples/finix/finix.ts) · [Kotlin](../../examples/finix/finix.kt#L181) · [Rust](../../examples/finix/finix.rs#L179)
+**Examples:** [Python](../../examples/finix/finix.py#L242) · [TypeScript](../../examples/finix/finix.ts) · [Kotlin](../../examples/finix/finix.kt#L215) · [Rust](../../examples/finix/finix.rs#L213)
 
 ### Refunds
 
@@ -184,7 +185,20 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/finix/finix.py#L180) · [TypeScript](../../examples/finix/finix.ts#L162) · [Kotlin](../../examples/finix/finix.kt#L119) · [Rust](../../examples/finix/finix.rs#L158)
+**Examples:** [Python](../../examples/finix/finix.py#L215) · [TypeScript](../../examples/finix/finix.ts#L194) · [Kotlin](../../examples/finix/finix.kt#L153) · [Rust](../../examples/finix/finix.rs#L192)
+
+### Mandates
+
+#### RecurringPaymentService.Charge
+
+Charge using an existing stored recurring payment instruction. Processes repeat payments for subscriptions or recurring billing without collecting payment details.
+
+| | Message |
+|---|---------|
+| **Request** | `RecurringPaymentServiceChargeRequest` |
+| **Response** | `RecurringPaymentServiceChargeResponse` |
+
+**Examples:** [Python](../../examples/finix/finix.py#L197) · [TypeScript](../../examples/finix/finix.ts#L176) · [Kotlin](../../examples/finix/finix.kt#L112) · [Rust](../../examples/finix/finix.rs#L178)
 
 ### Customers
 
@@ -197,4 +211,4 @@ Create customer record in the payment processor system. Stores customer details 
 | **Request** | `CustomerServiceCreateRequest` |
 | **Response** | `CustomerServiceCreateResponse` |
 
-**Examples:** [Python](../../examples/finix/finix.py#L153) · [TypeScript](../../examples/finix/finix.ts#L135) · [Kotlin](../../examples/finix/finix.kt#L88) · [Rust](../../examples/finix/finix.rs#L137)
+**Examples:** [Python](../../examples/finix/finix.py#L179) · [TypeScript](../../examples/finix/finix.ts#L158) · [Kotlin](../../examples/finix/finix.kt#L91) · [Rust](../../examples/finix/finix.rs#L164)

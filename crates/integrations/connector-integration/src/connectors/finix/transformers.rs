@@ -1086,7 +1086,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
 // Treat a 2xx that omits `id` or returns `enabled: false` as a payment failure.
 // Surfaces `disabled_code` / `disabled_message` so the caller can act on it.
-fn disabled_instrument_error(response: &FinixInstrumentResponse, status_code: u16) -> ErrorResponse {
+fn disabled_instrument_error(
+    response: &FinixInstrumentResponse,
+    status_code: u16,
+) -> ErrorResponse {
     let code = response
         .disabled_code
         .clone()
@@ -1177,7 +1180,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             })?;
 
         let tags = Some(build_reference_tags(
-            &item.router_data.resource_common_data.connector_request_reference_id,
+            &item
+                .router_data
+                .resource_common_data
+                .connector_request_reference_id,
         ));
 
         match &mandate_data.payment_method_data {
@@ -1373,7 +1379,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         super::FinixRouterData<
-            RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
             T,
         >,
     > for FinixRepeatPaymentRequest
@@ -1382,7 +1393,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
     fn try_from(
         item: super::FinixRouterData<
-            RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
             T,
         >,
     ) -> Result<Self, Self::Error> {
@@ -1403,9 +1419,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             "Call SetupRecurring first to obtain a Finix Payment Instrument ID."
                                 .to_string(),
                         ),
-                        doc_url: Some(
-                            "https://docs.finix.com/api/payment-instruments".to_string(),
-                        ),
+                        doc_url: Some("https://docs.finix.com/api/payment-instruments".to_string()),
                         additional_context: Some(
                             "Finix RepeatPayment requires the Payment Instrument ID (PI...) \
                              returned by SetupRecurring as the `source` of the new transfer."
@@ -1416,10 +1430,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             MandateReferenceId::NetworkMandateId(_)
             | MandateReferenceId::NetworkTokenWithNTI(_) => {
                 return Err(IntegrationError::NotSupported {
-                    message:
-                        "Finix RepeatPayment only supports connector-mandate references; \
+                    message: "Finix RepeatPayment only supports connector-mandate references; \
                          network mandate id / network token NTI flows are not supported."
-                            .to_string(),
+                        .to_string(),
                     connector: "finix",
                     context: Default::default(),
                 }
