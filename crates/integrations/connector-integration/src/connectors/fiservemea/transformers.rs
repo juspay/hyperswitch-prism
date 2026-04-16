@@ -1078,8 +1078,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 /// duplicating fields.
 pub type FiservemeaIncrementalAuthResponse = FiservemeaPaymentsResponse;
 
-impl
-    TryFrom<ResponseRouterData<FiservemeaIncrementalAuthResponse, Self>>
+impl TryFrom<ResponseRouterData<FiservemeaIncrementalAuthResponse, Self>>
     for RouterDataV2<
         IncrementalAuthorization,
         PaymentFlowData,

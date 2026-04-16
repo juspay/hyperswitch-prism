@@ -108,7 +108,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/fiservemea/fiservemea.py#L139) · [JavaScript](../../examples/fiservemea/fiservemea.js) · [Kotlin](../../examples/fiservemea/fiservemea.kt#L103) · [Rust](../../examples/fiservemea/fiservemea.rs#L131)
+**Examples:** [Python](../../examples/fiservemea/fiservemea.py#L153) · [JavaScript](../../examples/fiservemea/fiservemea.js) · [Kotlin](../../examples/fiservemea/fiservemea.kt#L104) · [Rust](../../examples/fiservemea/fiservemea.rs#L143)
 
 ### Card Payment (Authorize + Capture)
 
@@ -122,25 +122,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/fiservemea/fiservemea.py#L158) · [JavaScript](../../examples/fiservemea/fiservemea.js) · [Kotlin](../../examples/fiservemea/fiservemea.kt#L119) · [Rust](../../examples/fiservemea/fiservemea.rs#L147)
+**Examples:** [Python](../../examples/fiservemea/fiservemea.py#L172) · [JavaScript](../../examples/fiservemea/fiservemea.js) · [Kotlin](../../examples/fiservemea/fiservemea.kt#L120) · [Rust](../../examples/fiservemea/fiservemea.rs#L159)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/fiservemea/fiservemea.py#L183) · [JavaScript](../../examples/fiservemea/fiservemea.js) · [Kotlin](../../examples/fiservemea/fiservemea.kt#L141) · [Rust](../../examples/fiservemea/fiservemea.rs#L170)
+**Examples:** [Python](../../examples/fiservemea/fiservemea.py#L197) · [JavaScript](../../examples/fiservemea/fiservemea.js) · [Kotlin](../../examples/fiservemea/fiservemea.kt#L142) · [Rust](../../examples/fiservemea/fiservemea.rs#L182)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/fiservemea/fiservemea.py#L208) · [JavaScript](../../examples/fiservemea/fiservemea.js) · [Kotlin](../../examples/fiservemea/fiservemea.kt#L163) · [Rust](../../examples/fiservemea/fiservemea.rs#L193)
+**Examples:** [Python](../../examples/fiservemea/fiservemea.py#L222) · [JavaScript](../../examples/fiservemea/fiservemea.js) · [Kotlin](../../examples/fiservemea/fiservemea.kt#L164) · [Rust](../../examples/fiservemea/fiservemea.rs#L205)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/fiservemea/fiservemea.py#L230) · [JavaScript](../../examples/fiservemea/fiservemea.js) · [Kotlin](../../examples/fiservemea/fiservemea.kt#L182) · [Rust](../../examples/fiservemea/fiservemea.rs#L212)
+**Examples:** [Python](../../examples/fiservemea/fiservemea.py#L244) · [JavaScript](../../examples/fiservemea/fiservemea.js) · [Kotlin](../../examples/fiservemea/fiservemea.kt#L183) · [Rust](../../examples/fiservemea/fiservemea.rs#L224)
 
 ## API Reference
 
@@ -149,6 +149,7 @@ Retrieve current payment status from the connector.
 | [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
 | [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
+| [PaymentService.IncrementalAuthorization](#paymentserviceincrementalauthorization) | Payments | `PaymentServiceIncrementalAuthorizationRequest` |
 | [PaymentService.ProxyAuthorize](#paymentserviceproxyauthorize) | Payments | `PaymentServiceProxyAuthorizeRequest` |
 | [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
 | [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
@@ -277,7 +278,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/fiservemea/fiservemea.py#L252) · [TypeScript](../../examples/fiservemea/fiservemea.ts#L240) · [Kotlin](../../examples/fiservemea/fiservemea.kt#L200) · [Rust](../../examples/fiservemea/fiservemea.rs#L230)
+**Examples:** [Python](../../examples/fiservemea/fiservemea.py#L266) · [TypeScript](../../examples/fiservemea/fiservemea.ts#L252) · [Kotlin](../../examples/fiservemea/fiservemea.kt#L201) · [Rust](../../examples/fiservemea/fiservemea.rs#L242)
 
 #### PaymentService.Capture
 
@@ -288,7 +289,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/fiservemea/fiservemea.py#L261) · [TypeScript](../../examples/fiservemea/fiservemea.ts#L249) · [Kotlin](../../examples/fiservemea/fiservemea.kt#L212) · [Rust](../../examples/fiservemea/fiservemea.rs#L242)
+**Examples:** [Python](../../examples/fiservemea/fiservemea.py#L275) · [TypeScript](../../examples/fiservemea/fiservemea.ts#L261) · [Kotlin](../../examples/fiservemea/fiservemea.kt#L213) · [Rust](../../examples/fiservemea/fiservemea.rs#L254)
 
 #### PaymentService.Get
 
@@ -299,7 +300,18 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/fiservemea/fiservemea.py#L270) · [TypeScript](../../examples/fiservemea/fiservemea.ts#L258) · [Kotlin](../../examples/fiservemea/fiservemea.kt#L222) · [Rust](../../examples/fiservemea/fiservemea.rs#L249)
+**Examples:** [Python](../../examples/fiservemea/fiservemea.py#L284) · [TypeScript](../../examples/fiservemea/fiservemea.ts#L270) · [Kotlin](../../examples/fiservemea/fiservemea.kt#L223) · [Rust](../../examples/fiservemea/fiservemea.rs#L261)
+
+#### PaymentService.IncrementalAuthorization
+
+Increase the authorized amount for an existing payment. Enables you to capture additional funds when the transaction amount changes after initial authorization.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceIncrementalAuthorizationRequest` |
+| **Response** | `PaymentServiceIncrementalAuthorizationResponse` |
+
+**Examples:** [Python](../../examples/fiservemea/fiservemea.py#L293) · [TypeScript](../../examples/fiservemea/fiservemea.ts#L279) · [Kotlin](../../examples/fiservemea/fiservemea.kt#L231) · [Rust](../../examples/fiservemea/fiservemea.rs#L268)
 
 #### PaymentService.ProxyAuthorize
 
@@ -310,7 +322,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/fiservemea/fiservemea.py#L279) · [TypeScript](../../examples/fiservemea/fiservemea.ts#L267) · [Kotlin](../../examples/fiservemea/fiservemea.kt#L230) · [Rust](../../examples/fiservemea/fiservemea.rs#L256)
+**Examples:** [Python](../../examples/fiservemea/fiservemea.py#L302) · [TypeScript](../../examples/fiservemea/fiservemea.ts#L288) · [Kotlin](../../examples/fiservemea/fiservemea.kt#L247) · [Rust](../../examples/fiservemea/fiservemea.rs#L275)
 
 #### PaymentService.Refund
 
@@ -321,7 +333,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/fiservemea/fiservemea.py#L288) · [TypeScript](../../examples/fiservemea/fiservemea.ts#L276) · [Kotlin](../../examples/fiservemea/fiservemea.kt#L258) · [Rust](../../examples/fiservemea/fiservemea.rs#L263)
+**Examples:** [Python](../../examples/fiservemea/fiservemea.py#L311) · [TypeScript](../../examples/fiservemea/fiservemea.ts#L297) · [Kotlin](../../examples/fiservemea/fiservemea.kt#L275) · [Rust](../../examples/fiservemea/fiservemea.rs#L282)
 
 #### PaymentService.Void
 
@@ -332,7 +344,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/fiservemea/fiservemea.py#L306) · [TypeScript](../../examples/fiservemea/fiservemea.ts) · [Kotlin](../../examples/fiservemea/fiservemea.kt#L280) · [Rust](../../examples/fiservemea/fiservemea.rs#L277)
+**Examples:** [Python](../../examples/fiservemea/fiservemea.py#L329) · [TypeScript](../../examples/fiservemea/fiservemea.ts) · [Kotlin](../../examples/fiservemea/fiservemea.kt#L297) · [Rust](../../examples/fiservemea/fiservemea.rs#L296)
 
 ### Refunds
 
@@ -345,4 +357,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/fiservemea/fiservemea.py#L297) · [TypeScript](../../examples/fiservemea/fiservemea.ts#L285) · [Kotlin](../../examples/fiservemea/fiservemea.kt#L268) · [Rust](../../examples/fiservemea/fiservemea.rs#L270)
+**Examples:** [Python](../../examples/fiservemea/fiservemea.py#L320) · [TypeScript](../../examples/fiservemea/fiservemea.ts#L306) · [Kotlin](../../examples/fiservemea/fiservemea.kt#L285) · [Rust](../../examples/fiservemea/fiservemea.rs#L289)
