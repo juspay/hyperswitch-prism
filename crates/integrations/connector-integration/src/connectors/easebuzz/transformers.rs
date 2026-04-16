@@ -582,9 +582,15 @@ pub struct EasebuzzCaptureRequest {
 
 /// Compute SHA-512 hash for Easebuzz Capture
 /// Formula: sha512(key|txnid|amount|salt)
-fn compute_easebuzz_capture_hash(key: &str, txnid: &str, amount: &str, salt: &str) -> String {
+fn compute_easebuzz_capture_hash(
+    key: &str,
+    txnid: &str,
+    amount: &str,
+    salt: &Secret<String>,
+) -> String {
     use sha2::{Digest, Sha512};
-    let input = format!("{key}|{txnid}|{amount}|{salt}");
+    let salt_str = salt.peek();
+    let input = format!("{key}|{txnid}|{amount}|{salt_str}");
     let mut hasher = Sha512::new();
     hasher.update(input.as_bytes());
     format!("{:x}", hasher.finalize())
@@ -648,9 +654,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount_for_hash = string_major_unit_to_string(&amount);
 
         let key_str = auth.api_key.peek().to_string();
-        let salt_str = auth.api_salt.peek().to_string();
 
-        let hash = compute_easebuzz_capture_hash(&key_str, &txnid, &amount_for_hash, &salt_str);
+        let hash =
+            compute_easebuzz_capture_hash(&key_str, &txnid, &amount_for_hash, &auth.api_salt);
 
         Ok(Self {
             key: auth.api_key.clone(),
@@ -821,10 +827,11 @@ fn compute_easebuzz_refund_hash(
     merchant_refund_id: &str,
     easebuzz_id: &str,
     refund_amount: &str,
-    salt: &str,
+    salt: &Secret<String>,
 ) -> String {
     use sha2::{Digest, Sha512};
-    let input = format!("{key}|{merchant_refund_id}|{easebuzz_id}|{refund_amount}|{salt}");
+    let salt_str = salt.peek();
+    let input = format!("{key}|{merchant_refund_id}|{easebuzz_id}|{refund_amount}|{salt_str}");
     let mut hasher = Sha512::new();
     hasher.update(input.as_bytes());
     format!("{:x}", hasher.finalize())
@@ -896,14 +903,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let refund_amount_str = string_major_unit_to_string(&refund_amount);
 
         let key_str = auth.api_key.peek().to_string();
-        let salt_str = auth.api_salt.peek().to_string();
 
         let hash = compute_easebuzz_refund_hash(
             &key_str,
             &merchant_refund_id,
             &easebuzz_id,
             &refund_amount_str,
-            &salt_str,
+            &auth.api_salt,
         );
 
         Ok(Self {
@@ -1056,10 +1062,11 @@ fn compute_easebuzz_sync_hash(
     amount: &str,
     email: &str,
     phone: &str,
-    salt: &str,
+    salt: &Secret<String>,
 ) -> String {
     use sha2::{Digest, Sha512};
-    let input = format!("{key}|{txnid}|{amount}|{email}|{phone}|{salt}");
+    let salt_str = salt.peek();
+    let input = format!("{key}|{txnid}|{amount}|{email}|{phone}|{salt_str}");
     let mut hasher = Sha512::new();
     hasher.update(input.as_bytes());
     format!("{:x}", hasher.finalize())
@@ -1134,10 +1141,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .unwrap_or_else(|| "9999999999".to_string());
 
         let key_str = auth.api_key.peek().to_string();
-        let salt_str = auth.api_salt.peek().to_string();
 
-        let hash =
-            compute_easebuzz_sync_hash(&key_str, &txnid, &amount_str, &email, &phone, &salt_str);
+        let hash = compute_easebuzz_sync_hash(
+            &key_str,
+            &txnid,
+            &amount_str,
+            &email,
+            &phone,
+            &auth.api_salt,
+        );
 
         Ok(Self {
             txnid,
@@ -1231,9 +1243,14 @@ impl TryFrom<ResponseRouterData<EasebuzzSyncResponse, Self>>
 
 /// Compute SHA-512 hash for Easebuzz Refund Sync
 /// Formula: sha512(key|easebuzzId|salt)
-fn compute_easebuzz_refund_sync_hash(key: &str, easebuzz_id: &str, salt: &str) -> String {
+fn compute_easebuzz_refund_sync_hash(
+    key: &str,
+    easebuzz_id: &str,
+    salt: &Secret<String>,
+) -> String {
     use sha2::{Digest, Sha512};
-    let input = format!("{key}|{easebuzz_id}|{salt}");
+    let salt_str = salt.peek();
+    let input = format!("{key}|{easebuzz_id}|{salt_str}");
     let mut hasher = Sha512::new();
     hasher.update(input.as_bytes());
     format!("{:x}", hasher.finalize())
@@ -1289,9 +1306,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let merchant_refund_id = router_data.request.connector_refund_id.clone();
 
         let key_str = auth.api_key.peek().to_string();
-        let salt_str = auth.api_salt.peek().to_string();
 
-        let hash = compute_easebuzz_refund_sync_hash(&key_str, &easebuzz_id, &salt_str);
+        let hash = compute_easebuzz_refund_sync_hash(&key_str, &easebuzz_id, &auth.api_salt);
 
         Ok(Self {
             key: auth.api_key,
