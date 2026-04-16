@@ -409,12 +409,38 @@ fn generate_parse_event_probe(f: &mut fs::File) {
     writeln!(f, "        auth: ConnectorSpecificConfig,").unwrap();
     writeln!(f, "        metadata: &MaskedMetadata,").unwrap();
     writeln!(f, "    ) -> FlowResult {{").unwrap();
+    writeln!(f, "        let webhook_body = ffi::services::payments::get_webhook_sample_body(connector.clone());").unwrap();
     writeln!(f, "        let mut req = base_parse_event_request();").unwrap();
     writeln!(
         f,
-        "        req.request_details = req.request_details.map(|mut rd| {{ rd.body = ffi::services::payments::get_webhook_sample_body(connector.clone()).to_vec(); rd }});"
+        "        req.request_details = req.request_details.map(|mut rd| {{ rd.body = webhook_body.to_vec(); rd }});"
     )
     .unwrap();
+    writeln!(
+        f,
+        "        let proto_json = serde_json::to_value(&req).ok()"
+    )
+    .unwrap();
+    writeln!(
+        f,
+        "            .map(|v| crate::json_utils::convert_rust_to_proto_json(&v))"
+    )
+    .unwrap();
+    writeln!(
+        f,
+        "            .map(|v| crate::json_utils::clean_proto_request(&v));"
+    )
+    .unwrap();
+    writeln!(f, "        let webhook_sample = SamplePayload {{").unwrap();
+    writeln!(f, "            url: String::new(),").unwrap();
+    writeln!(f, "            method: \"Post\".to_string(),").unwrap();
+    writeln!(f, "            headers: Default::default(),").unwrap();
+    writeln!(
+        f,
+        "            body: String::from_utf8(webhook_body.to_vec()).ok(),"
+    )
+    .unwrap();
+    writeln!(f, "        }};").unwrap();
     writeln!(
         f,
         "        match ffi::services::payments::parse_event_transformer(req, config, connector.clone(), Some(auth), metadata) {{"
@@ -422,7 +448,7 @@ fn generate_parse_event_probe(f: &mut fs::File) {
     .unwrap();
     writeln!(
         f,
-        "            Ok(_) => FlowResult {{ status: \"supported\".to_string(), ..Default::default() }},"
+        "            Ok(_) => FlowResult {{ status: \"supported\".to_string(), proto_request: proto_json, sample: Some(webhook_sample), ..Default::default() }},"
     )
     .unwrap();
     writeln!(f, "            Err(e) => {{").unwrap();
@@ -441,7 +467,7 @@ fn generate_parse_event_probe(f: &mut fs::File) {
     .unwrap();
     writeln!(
         f,
-        "                    FlowResult {{ status: \"supported\".to_string(), ..Default::default() }}"
+        "                    FlowResult {{ status: \"supported\".to_string(), proto_request: proto_json, sample: Some(webhook_sample), ..Default::default() }}"
     )
     .unwrap();
     writeln!(f, "                }}").unwrap();
@@ -469,12 +495,38 @@ fn generate_handle_event_probe(f: &mut fs::File) {
     writeln!(f, "        auth: ConnectorSpecificConfig,").unwrap();
     writeln!(f, "        metadata: &MaskedMetadata,").unwrap();
     writeln!(f, "    ) -> FlowResult {{").unwrap();
+    writeln!(f, "        let webhook_body = ffi::services::payments::get_webhook_sample_body(connector.clone());").unwrap();
     writeln!(f, "        let mut req = base_handle_event_request();").unwrap();
     writeln!(
         f,
-        "        req.request_details = req.request_details.map(|mut rd| {{ rd.body = ffi::services::payments::get_webhook_sample_body(connector.clone()).to_vec(); rd }});"
+        "        req.request_details = req.request_details.map(|mut rd| {{ rd.body = webhook_body.to_vec(); rd }});"
     )
     .unwrap();
+    writeln!(
+        f,
+        "        let proto_json = serde_json::to_value(&req).ok()"
+    )
+    .unwrap();
+    writeln!(
+        f,
+        "            .map(|v| crate::json_utils::convert_rust_to_proto_json(&v))"
+    )
+    .unwrap();
+    writeln!(
+        f,
+        "            .map(|v| crate::json_utils::clean_proto_request(&v));"
+    )
+    .unwrap();
+    writeln!(f, "        let webhook_sample = SamplePayload {{").unwrap();
+    writeln!(f, "            url: String::new(),").unwrap();
+    writeln!(f, "            method: \"Post\".to_string(),").unwrap();
+    writeln!(f, "            headers: Default::default(),").unwrap();
+    writeln!(
+        f,
+        "            body: String::from_utf8(webhook_body.to_vec()).ok(),"
+    )
+    .unwrap();
+    writeln!(f, "        }};").unwrap();
     writeln!(
         f,
         "        match ffi::services::payments::handle_event_transformer(req, config, connector.clone(), Some(auth), metadata) {{"
@@ -482,7 +534,7 @@ fn generate_handle_event_probe(f: &mut fs::File) {
     .unwrap();
     writeln!(
         f,
-        "            Ok(_) => FlowResult {{ status: \"supported\".to_string(), ..Default::default() }},"
+        "            Ok(_) => FlowResult {{ status: \"supported\".to_string(), proto_request: proto_json, sample: Some(webhook_sample), ..Default::default() }},"
     )
     .unwrap();
     writeln!(f, "            Err(e) => {{").unwrap();
@@ -506,7 +558,7 @@ fn generate_handle_event_probe(f: &mut fs::File) {
     .unwrap();
     writeln!(
         f,
-        "                    FlowResult {{ status: \"supported\".to_string(), ..Default::default() }}"
+        "                    FlowResult {{ status: \"supported\".to_string(), proto_request: proto_json, sample: Some(webhook_sample), ..Default::default() }}"
     )
     .unwrap();
     writeln!(f, "                }}").unwrap();
