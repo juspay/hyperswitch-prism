@@ -387,7 +387,7 @@ connector_id: novalnet
 doc: docs/connectors/novalnet.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Ach, ApplePay, Card, GooglePay, PaypalRedirect, Sepa
-flows: authorize, capture, get, handle_event, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, void
+flows: authorize, capture, get, handle_event, incremental_authorization, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, void
 examples_python: examples/novalnet/novalnet.py
 
 ## Nuvei

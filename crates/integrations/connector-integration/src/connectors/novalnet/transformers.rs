@@ -2681,8 +2681,7 @@ pub struct NovalnetIncrementalAuthResponse {
     pub transaction: Option<NovalnetIncrementalAuthTransactionData>,
 }
 
-impl
-    TryFrom<ResponseRouterData<NovalnetIncrementalAuthResponse, Self>>
+impl TryFrom<ResponseRouterData<NovalnetIncrementalAuthResponse, Self>>
     for RouterDataV2<
         IncrementalAuthorization,
         PaymentFlowData,
