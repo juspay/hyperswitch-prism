@@ -291,7 +291,7 @@ cargo test
 
 ## 💻 Platform Support
 
-The `hyperswitch-prism` SDK contains platform-specific native libraries compiled for **x86_64 (AMD64)** architecture.
+The `hyperswitch-prism` SDK contains platform-specific native libraries compiled for following platforms and architectures.
 
 | Platform | Architecture |
 |----------|--------------|
