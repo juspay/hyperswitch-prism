@@ -1768,39 +1768,18 @@ pub fn get_error_reason(
 /// Sent as a JSON PATCH to `/pts/v2/payments/{id}` to increase the authorized
 /// amount on an existing (uncaptured) payment.
 ///
-/// Per the CyberSource REST client samples (Python/Node/PHP/Ruby), incremental
-/// authorization uses `orderInformation.amountDetails.additionalAmount` (a
-/// *stringified major-unit delta*) plus `processingInformation.authorizationOptions.
-/// initiator.storedCredentialUsed = true`.
-///
-/// Standard docs also accept `totalAmount`, but the Sandbox only approves the
-/// request when the full `authorizationOptions` block is present.
+/// Body shape mirrors the CyberSource implementation (same underlying processor
+/// via `apitest.cybersource.com`). The working cybersource impl (PR #1109,
+/// juspay_us_sandbox) sends `processingInformation` with
+/// `commerceIndicator: "internet"` + `authorizationOptions.initiator.
+/// storedCredentialUsed = true` and `orderInformation.amountDetails.
+/// additionalAmount` + `currency`. No `clientReferenceInformation` is sent —
+/// its presence triggers 400 INVALID_DATA on the Wells Fargo merchant.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WellsfargoIncrementalAuthRequest {
-    client_reference_information: ClientReferenceInformation,
-    processing_information: WellsfargoIncrementalAuthProcessingInformation,
+    processing_information: ProcessingInformation,
     order_information: OrderInformationIncrementalAuthorization,
-}
-
-/// Narrow processing_information used only for incremental authorization — the
-/// Sandbox rejects the full ProcessingInformation (with nulls) used elsewhere.
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct WellsfargoIncrementalAuthProcessingInformation {
-    authorization_options: WellsfargoIncrementalAuthorizationOptions,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct WellsfargoIncrementalAuthorizationOptions {
-    initiator: WellsfargoIncrementalAuthInitiator,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct WellsfargoIncrementalAuthInitiator {
-    stored_credential_used: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -1873,7 +1852,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let request = &router_data.request;
-        let common_data = &router_data.resource_common_data;
 
         // Convert the incremental (additional) amount to the connector's expected
         // StringMajorUnit format (e.g. "10.00").
@@ -1888,19 +1866,26 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 "Failed to convert additional_amount for Wells Fargo incremental authorization",
             )?;
 
-        let client_reference_information = ClientReferenceInformation {
-            code: Some(common_data.connector_request_reference_id.clone()),
-        };
-
-        // CyberSource requires authorizationOptions.initiator.storedCredentialUsed
-        // on incremental auth requests — the Sandbox returns 400 INVALID_DATA
-        // without it even though the field reads as optional in the API docs.
-        let processing_information = WellsfargoIncrementalAuthProcessingInformation {
-            authorization_options: WellsfargoIncrementalAuthorizationOptions {
-                initiator: WellsfargoIncrementalAuthInitiator {
-                    stored_credential_used: true,
-                },
-            },
+        // Mirror the working cybersource incremental-auth body verbatim:
+        //   processingInformation: { commerceIndicator: "internet",
+        //     authorizationOptions: { initiator: { storedCredentialUsed: true }}}
+        // CyberSource sandbox accepts the incremental authorization only when
+        // authorizationOptions.initiator.storedCredentialUsed is explicitly true.
+        let processing_information = ProcessingInformation {
+            action_list: None,
+            action_token_types: None,
+            authorization_options: Some(WellsfargoAuthorizationOptions {
+                initiator: Some(WellsfargoPaymentInitiator {
+                    initiator_type: None,
+                    credential_stored_on_file: None,
+                    stored_credential_used: Some(true),
+                }),
+                merchant_initiated_transaction: None,
+            }),
+            commerce_indicator: CommerceIndicator::Internet,
+            capture: None,
+            capture_options: None,
+            payment_solution: None,
         };
 
         let order_information = OrderInformationIncrementalAuthorization {
@@ -1911,7 +1896,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         };
 
         Ok(Self {
-            client_reference_information,
             processing_information,
             order_information,
         })
