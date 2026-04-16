@@ -53,8 +53,9 @@ pub mod transformers;
 use transformers::{
     FiservCaptureRequest, FiservCaptureResponse, FiservPaymentsRequest, FiservPaymentsResponse,
     FiservRefundRequest, FiservRefundResponse, FiservRefundSyncRequest, FiservRefundSyncResponse,
-    FiservSetupMandateRequest, FiservSetupMandateResponse, FiservSyncRequest, FiservSyncResponse,
-    FiservVoidRequest, FiservVoidResponse,
+    FiservRepeatPaymentRequest, FiservRepeatPaymentResponse, FiservSetupMandateRequest,
+    FiservSetupMandateResponse, FiservSyncRequest, FiservSyncResponse, FiservVoidRequest,
+    FiservVoidResponse,
 };
 
 use super::macros;
@@ -260,6 +261,12 @@ macros::create_all_prerequisites!(
             request_body: FiservSetupMandateRequest<T>,
             response_body: FiservSetupMandateResponse,
             router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: RepeatPayment,
+            request_body: FiservRepeatPaymentRequest<T>,
+            response_body: FiservRepeatPaymentResponse,
+            router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -482,6 +489,40 @@ macros::macro_connector_implementation!(
     }
 );
 
+// RepeatPayment (MIT) reuses the same /charges endpoint as Authorize/SetupMandate.
+// The caller supplies the schemeTransactionId from the prior SetupMandate response;
+// the request transformer translates it into storedCredentials SUBSEQUENT/MERCHANT.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Fiserv,
+    curl_request: Json(FiservRepeatPaymentRequest),
+    curl_response: FiservRepeatPaymentResponse,
+    flow_name: RepeatPayment,
+    resource_common_data: PaymentFlowData,
+    flow_request: RepeatPaymentData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!(
+                "{}ch/payments/v1/charges",
+                self.connector_base_url_payments(req)
+            ))
+        }
+    }
+);
+
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Fiserv,
@@ -693,16 +734,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 }
 
 // We already have an implementation for ValidationTrait above
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        RepeatPayment,
-        PaymentFlowData,
-        RepeatPaymentData<T>,
-        PaymentsResponseData,
-    > for Fiserv<T>
-{
-}
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<

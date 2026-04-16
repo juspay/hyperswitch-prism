@@ -5,11 +5,12 @@ use common_utils::{
     types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund, SetupMandate, Void},
+    connector_flow::{Authorize, Capture, PSync, RSync, Refund, RepeatPayment, SetupMandate, Void},
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId, SetupMandateRequestData,
+        MandateReferenceId, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
+        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
+        SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
@@ -125,6 +126,42 @@ pub struct ChargesPaymentRequest<
     source: Source<T>,
     transaction_interaction: Option<TransactionInteraction>,
     transaction_details: TransactionDetails,
+    // Commerce Hub stored-credential metadata used to link CIT (FIRST) -> MIT (SUBSEQUENT).
+    // Populated on SetupMandate (sequence=FIRST) and RepeatPayment (sequence=SUBSEQUENT).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    stored_credentials: Option<StoredCredentials>,
+}
+
+// storedCredentials object per Fiserv Commerce Hub MIT spec:
+//   sequence:   FIRST      (initial CIT)       | SUBSEQUENT (MIT)
+//   initiator:  CARDHOLDER (initial CIT)       | MERCHANT   (MIT)
+//   scheduled:  always false for unscheduled recurring / CoF MIT
+//   referencedSchemeTransactionId: CIT-returned schemeTransactionId (required for MIT)
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StoredCredentials {
+    pub sequence: StoredCredentialSequence,
+    pub scheduled: bool,
+    pub initiator: StoredCredentialInitiator,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub referenced_scheme_transaction_id: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum StoredCredentialSequence {
+    First,
+    Subsequent,
+}
+
+// Commerce Hub NA expects SCREAMING_SNAKE_CASE for the initiator enum — note the
+// `CARD_HOLDER` underscore. `CARDHOLDER` (single word) is rejected by the gateway
+// with "Invalid or Missing Field Data" on storedCredentials.initiator.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum StoredCredentialInitiator {
+    CardHolder,
+    Merchant,
 }
 
 #[derive(Debug, Serialize)]
@@ -329,6 +366,39 @@ impl From<FiservPaymentStatus> for enums::RefundStatus {
 #[serde(rename_all = "camelCase")]
 pub struct FiservPaymentsResponse {
     pub gateway_response: GatewayResponse,
+    // Present when the charge ran against the card schemes. Optional block;
+    // included for forward compatibility with other Commerce Hub payload shapes.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub payment_receipt: Option<PaymentReceipt>,
+    // Commerce Hub NA exposes the card-network scheme transaction identifier
+    // as `networkDetails.transactionIdentifier`. It is the value we replay on
+    // subsequent MITs as storedCredentials.referencedSchemeTransactionId.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub network_details: Option<NetworkDetails>,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaymentReceipt {
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub processor_response_details: Option<ProcessorResponseDetails>,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProcessorResponseDetails {
+    // Fallback: older Commerce Hub shapes surface schemeTransactionId here.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub scheme_transaction_id: Option<String>,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NetworkDetails {
+    // Visa/MC/Amex scheme transaction identifier — referencedSchemeTransactionId
+    // on the MIT replay points at this value.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub transaction_identifier: Option<String>,
 }
 
 // Create a new response type for Capture that's a clone of the payments response
@@ -447,6 +517,18 @@ pub struct FiservSetupMandateRequest<
 
 pub type FiservSetupMandateResponse = FiservPaymentsResponse;
 
+// RepeatPayment (RecurringPaymentService.Charge) flow types - reuses Authorize
+// charges endpoint with storedCredentials.sequence=SUBSEQUENT referencing the
+// CIT-returned schemeTransactionId. Card data must be re-supplied on the request
+// since Commerce Hub does not maintain server-side card vaulting for MIT.
+#[derive(Debug, Serialize)]
+#[serde(transparent)]
+pub struct FiservRepeatPaymentRequest<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+>(pub FiservPaymentsRequest<T>);
+
+pub type FiservRepeatPaymentResponse = FiservPaymentsResponse;
+
 // Implementations for FiservRouterData - needed for the macro framework
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
@@ -538,6 +620,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             pos_condition_code:
                                 TransactionInteractionPosConditionCode::CardNotPresentEcom,
                         }),
+                        // Authorize flow is a vanilla CIT; no stored-credential metadata.
+                        stored_credentials: None,
                     },
                 ))
             }
@@ -1289,6 +1373,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         pos_condition_code:
                             TransactionInteractionPosConditionCode::CardNotPresentEcom,
                     }),
+                    // Initial CIT: tell Commerce Hub this card is being stored for future
+                    // MITs. The response will include a schemeTransactionId we must retain
+                    // for the referencedSchemeTransactionId on the SUBSEQUENT MIT.
+                    stored_credentials: Some(StoredCredentials {
+                        sequence: StoredCredentialSequence::First,
+                        scheduled: false,
+                        initiator: StoredCredentialInitiator::CardHolder,
+                        referenced_scheme_transaction_id: None,
+                    }),
                 })
             }
             _ => {
@@ -1298,7 +1391,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
         };
 
-        Ok(FiservSetupMandateRequest(FiservPaymentsRequest {
+        Ok(Self(FiservPaymentsRequest {
             amount,
             checkout_charges_request,
             merchant_details,
@@ -1333,22 +1426,54 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let mut router_data_out = router_data;
         router_data_out.resource_common_data.status = status;
 
-        let response_payload = PaymentsResponseData::TransactionResponse {
-            resource_id: ResponseId::ConnectorTransactionId(
+        // Prefer gatewayTransactionId when present; Commerce Hub falls back to
+        // transactionProcessingDetails.transactionId on certain response shapes.
+        let connector_txn_id = gateway_resp
+            .gateway_transaction_id
+            .clone()
+            .unwrap_or_else(|| {
                 gateway_resp
-                    .gateway_transaction_id
+                    .transaction_processing_details
+                    .transaction_id
                     .clone()
-                    .unwrap_or_else(|| {
-                        gateway_resp
-                            .transaction_processing_details
-                            .transaction_id
-                            .clone()
-                    }),
-            ),
+            });
+
+        // Extract schemeTransactionId for future MIT chaining. Fiserv CH returns
+        // this in paymentReceipt.processorResponseDetails when storedCredentials
+        // sequence=FIRST is sent on the CIT.
+        // Commerce Hub NA surfaces the card-network scheme transaction id as
+        // `networkDetails.transactionIdentifier`. Prefer that; fall back to the
+        // older `paymentReceipt.processorResponseDetails.schemeTransactionId`
+        // field shape for compatibility.
+        let scheme_transaction_id = response
+            .network_details
+            .as_ref()
+            .and_then(|nd| nd.transaction_identifier.clone())
+            .or_else(|| {
+                response
+                    .payment_receipt
+                    .as_ref()
+                    .and_then(|pr| pr.processor_response_details.as_ref())
+                    .and_then(|pd| pd.scheme_transaction_id.clone())
+            });
+
+        // mandate_reference.connector_mandate_id holds the schemeTransactionId
+        // (what we need to replay on MIT). Also expose via network_txn_id so
+        // downstream callers can surface it explicitly.
+        let mandate_reference = scheme_transaction_id.clone().map(|stid| {
+            Box::new(domain_types::connector_types::MandateReference {
+                connector_mandate_id: Some(stid),
+                payment_method_id: None,
+                connector_mandate_request_reference_id: None,
+            })
+        });
+
+        let response_payload = PaymentsResponseData::TransactionResponse {
+            resource_id: ResponseId::ConnectorTransactionId(connector_txn_id.clone()),
             redirection_data: None,
-            mandate_reference: None,
+            mandate_reference,
             connector_metadata: None,
-            network_txn_id: None,
+            network_txn_id: scheme_transaction_id,
             connector_response_reference_id: Some(
                 gateway_resp.transaction_processing_details.order_id.clone(),
             ),
@@ -1363,6 +1488,222 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .transaction_id
                     .clone(),
                 message: format!("SetupMandate status: {:?}", gateway_resp.transaction_state),
+                reason: None,
+                status_code: http_code,
+                attempt_status: Some(status),
+                connector_transaction_id: gateway_resp.gateway_transaction_id.clone(),
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+            });
+        } else {
+            router_data_out.response = Ok(response_payload);
+        }
+
+        Ok(router_data_out)
+    }
+}
+
+// RepeatPayment (MIT) request conversion - replays charges with storedCredentials
+// sequence=SUBSEQUENT, initiator=MERCHANT, referencedSchemeTransactionId set to
+// the schemeTransactionId captured during SetupMandate.
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        FiservRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for FiservRepeatPaymentRequest<T>
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        item: FiservRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let auth: FiservAuthType = FiservAuthType::try_from(&item.router_data.connector_config)?;
+
+        let total = item
+            .connector
+            .amount_converter
+            .convert(
+                item.router_data.request.minor_amount,
+                item.router_data.request.currency,
+            )
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: Default::default(),
+            })?;
+        let amount = Amount {
+            total,
+            currency: item.router_data.request.currency.to_string(),
+        };
+        let merchant_details = MerchantDetails {
+            merchant_id: auth.merchant_account,
+            terminal_id: auth.terminal_id,
+        };
+
+        // schemeTransactionId was stashed into mandate_reference.connector_mandate_id
+        // by SetupMandate; for network-mandate-id flows we fall back to that variant.
+        let referenced_scheme_transaction_id = match &item.router_data.request.mandate_reference {
+            MandateReferenceId::ConnectorMandateId(cm) => {
+                cm.get_connector_mandate_id()
+                    .ok_or(IntegrationError::MissingRequiredField {
+                        field_name: "connector_mandate_id",
+                        context: Default::default(),
+                    })?
+            }
+            MandateReferenceId::NetworkMandateId(nmi) => nmi.clone(),
+            MandateReferenceId::NetworkTokenWithNTI(_) => {
+                return Err(error_stack::report!(IntegrationError::not_implemented(
+                    "NetworkTokenWithNTI not supported for fiserv RepeatPayment".to_string(),
+                )))
+            }
+        };
+
+        // Commerce Hub MIT requires the full card source. The gRPC caller supplies
+        // payment_method on the Charge request; without it we cannot construct a
+        // charges request.
+        let checkout_charges_request = match item.router_data.request.payment_method_data.clone() {
+            PaymentMethodData::Card(ref ccard) => {
+                FiservCheckoutChargesRequest::Charges(ChargesPaymentRequest {
+                    source: Source::PaymentCard {
+                        card: CardData {
+                            card_data: ccard.card_number.clone(),
+                            expiration_month: ccard.card_exp_month.clone(),
+                            expiration_year: ccard.get_expiry_year_4_digit(),
+                            security_code: Some(ccard.card_cvc.clone()),
+                        },
+                    },
+                    transaction_details: TransactionDetails {
+                        capture_flag: Some(item.router_data.request.is_auto_capture()),
+                        reversal_reason_code: None,
+                        merchant_transaction_id: Some(
+                            item.router_data
+                                .resource_common_data
+                                .connector_request_reference_id
+                                .clone(),
+                        ),
+                        operation_type: None,
+                    },
+                    transaction_interaction: Some(TransactionInteraction {
+                        origin: TransactionInteractionOrigin::Ecom,
+                        eci_indicator: TransactionInteractionEciIndicator::ChannelEncrypted,
+                        pos_condition_code:
+                            TransactionInteractionPosConditionCode::CardNotPresentEcom,
+                    }),
+                    stored_credentials: Some(StoredCredentials {
+                        sequence: StoredCredentialSequence::Subsequent,
+                        scheduled: false,
+                        initiator: StoredCredentialInitiator::Merchant,
+                        referenced_scheme_transaction_id: Some(referenced_scheme_transaction_id),
+                    }),
+                })
+            }
+            PaymentMethodData::MandatePayment => {
+                // No card re-supplied and Commerce Hub does not maintain a card vault
+                // on the charges API alone. Surface a clear error.
+                return Err(error_stack::report!(
+                    IntegrationError::MissingRequiredField {
+                        field_name: "payment_method.card",
+                        context: Default::default(),
+                    }
+                ));
+            }
+            _ => {
+                return Err(error_stack::report!(IntegrationError::not_implemented(
+                    utils::get_unimplemented_payment_method_error_message("fiserv"),
+                )))
+            }
+        };
+
+        Ok(Self(FiservPaymentsRequest {
+            amount,
+            checkout_charges_request,
+            merchant_details,
+        }))
+    }
+}
+
+// RepeatPayment response conversion - mirrors SetupMandate handling; schemeTransactionId
+// may or may not be re-emitted, and we accept either.
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<FiservRepeatPaymentResponse, Self>>
+    for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<FiservRepeatPaymentResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let ResponseRouterData {
+            response,
+            router_data,
+            http_code,
+        } = item;
+
+        let gateway_resp = &response.gateway_response;
+        let status = enums::AttemptStatus::from(gateway_resp.transaction_state.clone());
+
+        let mut router_data_out = router_data;
+        router_data_out.resource_common_data.status = status;
+
+        let connector_txn_id = gateway_resp
+            .gateway_transaction_id
+            .clone()
+            .unwrap_or_else(|| {
+                gateway_resp
+                    .transaction_processing_details
+                    .transaction_id
+                    .clone()
+            });
+
+        // Commerce Hub NA surfaces the card-network scheme transaction id as
+        // `networkDetails.transactionIdentifier`. Prefer that; fall back to the
+        // older `paymentReceipt.processorResponseDetails.schemeTransactionId`
+        // field shape for compatibility.
+        let scheme_transaction_id = response
+            .network_details
+            .as_ref()
+            .and_then(|nd| nd.transaction_identifier.clone())
+            .or_else(|| {
+                response
+                    .payment_receipt
+                    .as_ref()
+                    .and_then(|pr| pr.processor_response_details.as_ref())
+                    .and_then(|pd| pd.scheme_transaction_id.clone())
+            });
+
+        let response_payload = PaymentsResponseData::TransactionResponse {
+            resource_id: ResponseId::ConnectorTransactionId(connector_txn_id),
+            redirection_data: None,
+            mandate_reference: None,
+            connector_metadata: None,
+            network_txn_id: scheme_transaction_id,
+            connector_response_reference_id: Some(
+                gateway_resp.transaction_processing_details.order_id.clone(),
+            ),
+            incremental_authorization_allowed: None,
+            status_code: http_code,
+        };
+
+        if status == enums::AttemptStatus::Failure || status == enums::AttemptStatus::Voided {
+            router_data_out.response = Err(ErrorResponse {
+                code: gateway_resp
+                    .transaction_processing_details
+                    .transaction_id
+                    .clone(),
+                message: format!("RepeatPayment status: {:?}", gateway_resp.transaction_state),
                 reason: None,
                 status_code: http_code,
                 attempt_status: Some(status),
