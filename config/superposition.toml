@@ -188,6 +188,16 @@ connector_secondary_base_url = "https://sandpay.bluesnap.com"
 _context_ = { connector = "fiserv" }
 connector_base_url = "https://cert.api.fiservapps.com/"
 
+# Fiserv Development
+[[overrides]]
+_context_ = { connector = "fiserv", environment = "development" }
+connector_base_url = "https://cert.api.fiservapps.com/"
+
+# Fiserv Production
+[[overrides]]
+_context_ = { connector = "fiserv", environment = "production" }
+connector_base_url = "https://cert.api.fiservapps.com/"
+
 # TrustPay (special case with bank redirects)
 [[overrides]]
 _context_ = { connector = "trustpay" }
@@ -240,6 +250,11 @@ connector_base_url = "https://sandbox.dlocal.com/"
 # Rapyd
 [[overrides]]
 _context_ = { connector = "rapyd" }
+connector_base_url = "https://sandboxapi.rapyd.net"
+
+# Rapyd Development
+[[overrides]]
+_context_ = { connector = "rapyd", environment = "development" }
 connector_base_url = "https://sandboxapi.rapyd.net"
 
 # ACI
@@ -409,6 +424,11 @@ connector_base_url = "https://payport.novalnet.de/v2"
 # Nexi Nets
 [[overrides]]
 _context_ = { connector = "nexinets" }
+connector_base_url = "https://apitest.payengine.de/v1"
+
+# Nexi Nets Development
+[[overrides]]
+_context_ = { connector = "nexinets", environment = "development" }
 connector_base_url = "https://apitest.payengine.de/v1"
 
 # Noon Payments
