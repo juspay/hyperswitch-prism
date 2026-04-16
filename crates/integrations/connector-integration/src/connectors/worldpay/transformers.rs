@@ -89,6 +89,17 @@ fn fetch_payment_instrument<
                     context: Default::default(),
                 })?;
 
+            // Worldpay requires cardHolderName when tokenCreation is present
+            // (mandate / stored-credential flows). Fall back to the card's own
+            // card_holder_name field when billing_address does not carry a full
+            // name. Keeps existing Authorize behaviour (sending the name when
+            // available is always accepted by Worldpay) while unblocking the
+            // zero-amount SetupMandate path that the billing address alone
+            // could not satisfy.
+            let card_holder_name = billing_address
+                .and_then(|address| address.get_optional_full_name())
+                .or_else(|| card.card_holder_name.clone());
+
             Ok(PaymentInstrument::Card(CardPayment {
                 raw_card_details: RawCardDetails {
                     payment_type: PaymentType::Plain,
@@ -99,8 +110,7 @@ fn fetch_payment_instrument<
                     card_number: card.card_number
 },
                 cvc: card.card_cvc,
-                card_holder_name: billing_address
-                    .and_then(|address| address.get_optional_full_name()),
+                card_holder_name,
                 billing_address: billing_address
                     .and_then(|addr| addr.address.clone())
                     .and_then(|address| {
