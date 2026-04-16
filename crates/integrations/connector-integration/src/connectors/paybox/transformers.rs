@@ -192,7 +192,7 @@ pub struct PayboxPaymentRequest<T: PaymentMethodDataTypes> {
     #[serde(rename = "MONTANT")]
     pub amount: MinorUnit,
     #[serde(rename = "DEVISE")]
-    pub currency: common_enums::Currency,
+    pub currency: String,
     pub reference: String,
     #[serde(rename = "DATEQ")]
     pub date: String,
@@ -278,7 +278,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             key: auth.key,
             paybox_request_number: generate_request_id()?,
             amount,
-            currency: router_data.request.currency,
+            currency: router_data.request.currency.iso_4217().to_string(),
             reference: router_data
                 .resource_common_data
                 .connector_request_reference_id
@@ -538,7 +538,7 @@ pub struct PayboxCaptureRequest {
     #[serde(rename = "MONTANT")]
     pub amount: MinorUnit,
     #[serde(rename = "DEVISE")]
-    pub currency: common_enums::Currency,
+    pub currency: String,
     #[serde(rename = "REFERENCE")]
     pub reference: String,
     #[serde(rename = "DATEQ")]
@@ -613,7 +613,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             key: auth.key,
             paybox_request_number: generate_request_id()?,
             amount,
-            currency: router_data.request.currency,
+            currency: router_data.request.currency.iso_4217().to_string(),
             reference: router_data
                 .resource_common_data
                 .connector_request_reference_id
@@ -695,7 +695,7 @@ pub struct PayboxVoidRequest {
     #[serde(rename = "MONTANT")]
     pub amount: MinorUnit,
     #[serde(rename = "DEVISE")]
-    pub currency: common_enums::Currency,
+    pub currency: String,
     #[serde(rename = "REFERENCE")]
     pub reference: String,
     #[serde(rename = "DATEQ")]
@@ -774,7 +774,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             key: auth.key,
             paybox_request_number: generate_request_id()?,
             amount,
-            currency,
+            currency: currency.iso_4217().to_string(),
             reference: router_data
                 .resource_common_data
                 .connector_request_reference_id
@@ -856,7 +856,7 @@ pub struct PayboxRefundRequest {
     #[serde(rename = "MONTANT")]
     pub amount: MinorUnit,
     #[serde(rename = "DEVISE")]
-    pub currency: common_enums::Currency,
+    pub currency: String,
     #[serde(rename = "REFERENCE")]
     pub reference: String,
     #[serde(rename = "DATEQ")]
@@ -919,7 +919,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             key: auth.key,
             paybox_request_number: generate_request_id()?,
             amount,
-            currency: router_data.request.currency,
+            currency: router_data.request.currency.iso_4217().to_string(),
             reference: router_data
                 .resource_common_data
                 .connector_request_reference_id
@@ -1110,7 +1110,7 @@ pub struct PayboxSetupMandateRequest<T: PaymentMethodDataTypes> {
     #[serde(rename = "MONTANT")]
     pub amount: MinorUnit,
     #[serde(rename = "DEVISE")]
-    pub currency: common_enums::Currency,
+    pub currency: String,
     pub reference: String,
     #[serde(rename = "DATEQ")]
     pub date: String,
@@ -1211,7 +1211,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             key: auth.key,
             paybox_request_number: generate_request_id()?,
             amount,
-            currency: router_data.request.currency,
+            currency: router_data.request.currency.iso_4217().to_string(),
             reference: subscriber_ref.clone(),
             date: generate_date_time()?,
             card_number: card_data.card_number.clone(),
@@ -1242,15 +1242,31 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PayboxSetupMandateRes
                 connector_request_id: item.response.transaction_number.clone()
             });
 
-            // The REFABONNE in response is the subscriber ID used for future MIT payments
-            // Use NUMAPPEL as the connector_mandate_id (the Paybox subscriber reference)
-            let mandate_reference = item.response.customer_id.as_ref().map(|subscriber_id| {
-                Box::new(MandateReference {
-                    connector_mandate_id: Some(subscriber_id.peek().to_string()),
-                    payment_method_id: None,
-                    connector_mandate_request_reference_id: None,
-                })
+            // Pack PORTEUR (stored card token) and card expiry into connector_mandate_id
+            // using "::" delimiter so MIT can extract both PORTEUR and DATEVAL.
+            // REFABONNE (customer_id) = subscriber reference for connector_mandate_request_reference_id.
+            let carrier_with_expiry = item.response.carrier_id.as_ref().map(|carrier| {
+                let card_expiry = match &item.router_data.request.payment_method_data {
+                    PaymentMethodData::Card(card) => card
+                        .get_card_expiry_month_year_2_digit_with_delimiter("".to_owned())
+                        .ok()
+                        .map(|s| s.peek().to_string()),
+                    _ => None,
+                };
+                match card_expiry {
+                    Some(expiry) => format!("{}::{}", carrier.peek(), expiry),
+                    None => carrier.peek().to_string(),
+                }
             });
+            let mandate_reference = Some(Box::new(MandateReference {
+                connector_mandate_id: carrier_with_expiry,
+                payment_method_id: None,
+                connector_mandate_request_reference_id: item
+                    .response
+                    .customer_id
+                    .as_ref()
+                    .map(|id| id.peek().to_string()),
+            }));
 
             Ok(Self {
                 response: Ok(PaymentsResponseData::TransactionResponse {
@@ -1311,7 +1327,7 @@ pub struct PayboxRepeatPaymentRequest {
     #[serde(rename = "MONTANT")]
     pub amount: MinorUnit,
     #[serde(rename = "DEVISE")]
-    pub currency: common_enums::Currency,
+    pub currency: String,
     pub reference: String,
     #[serde(rename = "DATEQ")]
     pub date: String,
@@ -1382,18 +1398,35 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 context: Default::default(),
             })?;
 
-        // Get the connector_mandate_id which is the REFABONNE (subscriber reference)
-        let connector_mandate_id = router_data.request.connector_mandate_id().ok_or(
+        // connector_mandate_id is packed as "PORTEUR::DATEVAL" (e.g. "CMDLpSqLLDS::1228")
+        let packed_mandate_id = router_data.request.connector_mandate_id().ok_or(
             IntegrationError::MissingRequiredField {
                 field_name: "connector_mandate_id",
                 context: Default::default(),
             },
         )?;
 
-        // For subscriber operations (TYPE 00051/00053), PORTEUR is empty
-        // and DATEVAL is not required (Paybox has it stored from registration)
-        // Use a placeholder expiration date
-        let expiration_date = Secret::new("0000".to_string());
+        // Split packed mandate id into PORTEUR (stored card token) and DATEVAL (card expiry)
+        let (porteur, expiry_str) = if let Some(idx) = packed_mandate_id.find("::") {
+            (
+                packed_mandate_id[..idx].to_string(),
+                packed_mandate_id[idx + 2..].to_string(),
+            )
+        } else {
+            (packed_mandate_id.clone(), "0000".to_string())
+        };
+
+        // REFABONNE = connector_mandate_request_reference_id (subscriber reference)
+        let refabonne = match &router_data.request.mandate_reference {
+            MandateReferenceId::ConnectorMandateId(connector_mandate_ids) => {
+                connector_mandate_ids
+                    .get_connector_mandate_request_reference_id()
+                    .unwrap_or_else(|| porteur.clone())
+            }
+            _ => porteur.clone(),
+        };
+
+        let expiration_date = Secret::new(expiry_str);
 
         let transaction_type = get_subscriber_transaction_type(router_data.request.capture_method);
 
@@ -1405,15 +1438,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             key: auth.key,
             paybox_request_number: generate_request_id()?,
             amount,
-            currency: router_data.request.currency,
+            currency: router_data.request.currency.iso_4217().to_string(),
             reference: router_data
                 .resource_common_data
                 .connector_request_reference_id
                 .clone(),
             date: generate_date_time()?,
-            subscriber_number: String::new(),
+            subscriber_number: porteur,
             expiration_date,
-            subscriber_ref: connector_mandate_id,
+            subscriber_ref: refabonne,
             activity: PAY_ORIGIN_RECURRING.to_string(),
         })
     }
