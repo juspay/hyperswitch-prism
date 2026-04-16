@@ -22,6 +22,7 @@ use domain_types::{
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 #[derive(Debug, Clone)]
@@ -991,11 +992,22 @@ impl TryFrom<ResponseRouterData<FiservemeaPaymentsResponse, Self>>
 // approvedAmount.total reflecting the cumulative authorized total.
 
 /// Request body for a Fiserv EMEA IPG preauth secondary transaction with the
-/// incremental flag set.
+/// incremental flag set. Serialised in the order required so the body string
+/// the connector signs matches the body sent on the wire byte-for-byte.
+///
+/// Fiserv IPG error 5003 ("The order already exists in the database") on a
+/// secondary preauth call suggests the gateway treats the incremental request
+/// as if it were attempting to create a new order record. The fix is to
+/// always supply a unique, deterministic `merchantTransactionId` for every
+/// incremental call so the gateway sees a fresh request identifier and the
+/// HMAC body signature (computed by invoking this TryFrom twice -- once for
+/// headers, once for body) stays consistent across the two invocations.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FiservemeaIncrementalAuthRequest {
     pub request_type: FiservemeaRequestType,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub merchant_transaction_id: Option<String>,
     pub incremental_flag: bool,
     pub transaction_amount: TransactionAmount,
 }
@@ -1030,8 +1042,40 @@ impl
                 context: Default::default(),
             })?;
 
+        // Every secondary preauth gets a unique merchantTransactionId so the
+        // Fiserv EMEA IPG sandbox does not treat it as a replay of the
+        // primary transaction (which can otherwise collide with error 5003
+        // "order already exists").
+        //
+        // IMPORTANT: the macro invokes this TryFrom twice (once inside
+        // get_headers to compute the HMAC signature, and once inside
+        // get_request_body to produce the wire body). A freshly-generated
+        // UUID per call would diverge and the server would return 401. We
+        // therefore derive the id deterministically from the request
+        // contents so both invocations agree.
+        let parent_ctx_id = item
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .unwrap_or_default();
+        let mut hasher = Sha256::new();
+        hasher.update(parent_ctx_id.as_bytes());
+        hasher.update(b":");
+        hasher.update(item.request.minor_amount.get_amount_as_i64().to_le_bytes());
+        hasher.update(b":");
+        hasher.update(item.request.currency.to_string().as_bytes());
+        hasher.update(b":");
+        hasher.update(
+            item.resource_common_data
+                .connector_request_reference_id
+                .as_bytes(),
+        );
+        let digest = hasher.finalize();
+        let merchant_transaction_id = format!("inc-{}", hex::encode(&digest[..16]));
+
         Ok(Self {
             request_type: FiservemeaRequestType::PreAuthSecondaryTransaction,
+            merchant_transaction_id: Some(merchant_transaction_id),
             incremental_flag: true,
             transaction_amount: TransactionAmount {
                 total: amount_major,
