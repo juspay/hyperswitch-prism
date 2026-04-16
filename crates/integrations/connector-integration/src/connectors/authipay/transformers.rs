@@ -9,11 +9,11 @@ use common_utils::{
     types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
+    connector_flow::{Authorize, Capture, IncrementalAuthorization, PSync, RSync, Refund, Void},
     connector_types::{
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId,
+        PaymentsIncrementalAuthorizationData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
     router_data::ConnectorSpecificConfig,
@@ -22,6 +22,7 @@ use domain_types::{
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 // ===== AUTHENTICATION STRUCTURE =====
@@ -133,6 +134,7 @@ pub enum AuthipayRequestType {
     PaymentCardSaleTransaction,
     PaymentCardPreAuthTransaction,
     PostAuthTransaction,
+    PreAuthSecondaryTransaction,
     ReturnTransaction,
     VoidPreAuthTransactions,
     VoidTransaction,
@@ -1162,5 +1164,237 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         Self::try_from(&item.router_data)
+    }
+}
+
+// ===== INCREMENTAL AUTHORIZATION =====
+//
+// Authipay (Fiserv IPG payments-gateway v2) supports incremental authorization
+// as a secondary transaction:
+//   POST /payments/{ipgTransactionId}
+//   { "requestType": "PreAuthSecondaryTransaction",
+//     "incrementalFlag": true,
+//     "transactionAmount": { "total": <major>, "currency": "<ISO>" } }
+//
+// On success the response carries transactionType=PREAUTH,
+// transactionResult=APPROVED, transactionState=AUTHORIZED, plus the new
+// approvedAmount.total reflecting the cumulative authorized total.
+
+/// Request body for a Fiserv IPG preauth secondary transaction with the
+/// incremental flag set. Serialised in the order required so the body string
+/// the connector signs matches the body sent on the wire byte-for-byte.
+///
+/// Fiserv IPG error 5003 ("The order already exists in the database") on a
+/// secondary preauth call suggests the gateway treats the incremental request
+/// as if it were attempting to create a new order record. The fix is to
+/// always supply a fresh `merchantTransactionId` (UUID v4) for every
+/// incremental call so the gateway sees a unique request identifier.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthipayIncrementalAuthRequest {
+    pub request_type: AuthipayRequestType,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub merchant_transaction_id: Option<String>,
+    pub incremental_flag: bool,
+    pub transaction_amount: TransactionAmount,
+}
+
+impl
+    TryFrom<
+        &RouterDataV2<
+            IncrementalAuthorization,
+            PaymentFlowData,
+            PaymentsIncrementalAuthorizationData,
+            PaymentsResponseData,
+        >,
+    > for AuthipayIncrementalAuthRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: &RouterDataV2<
+            IncrementalAuthorization,
+            PaymentFlowData,
+            PaymentsIncrementalAuthorizationData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        // Authipay expects the amount in the connector's major-unit float form
+        // (matches the Authorize/Capture/Refund flows). The increment amount is
+        // the additional value to authorise on top of the current total.
+        let converter = FloatMajorUnitForConnector;
+        let amount_major = converter
+            .convert(item.request.minor_amount, item.request.currency)
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?;
+
+        // Every secondary preauth gets a unique merchantTransactionId so the
+        // Fiserv IPG sandbox does not treat it as a replay of the primary
+        // transaction (which can otherwise collide with error 5003 "order
+        // already exists").
+        //
+        // IMPORTANT: the macro invokes this TryFrom twice (once inside
+        // get_headers to compute the HMAC signature, and once inside
+        // get_request_body to produce the wire body). A freshly-generated
+        // UUID per call would diverge and the server would return 401. We
+        // therefore derive the id deterministically from the request
+        // contents so both invocations agree.
+        let parent_ctx_id = item
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .unwrap_or_default();
+        let mut hasher = Sha256::new();
+        hasher.update(parent_ctx_id.as_bytes());
+        hasher.update(b":");
+        hasher.update(item.request.minor_amount.get_amount_as_i64().to_le_bytes());
+        hasher.update(b":");
+        hasher.update(item.request.currency.to_string().as_bytes());
+        hasher.update(b":");
+        hasher.update(
+            item.resource_common_data
+                .connector_request_reference_id
+                .as_bytes(),
+        );
+        let digest = hasher.finalize();
+        let merchant_transaction_id = format!("inc-{}", hex::encode(&digest[..16]));
+
+        Ok(Self {
+            request_type: AuthipayRequestType::PreAuthSecondaryTransaction,
+            merchant_transaction_id: Some(merchant_transaction_id),
+            incremental_flag: true,
+            transaction_amount: TransactionAmount {
+                total: amount_major,
+                currency: item.request.currency,
+            },
+        })
+    }
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        AuthipayRouterData<
+            RouterDataV2<
+                IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for AuthipayIncrementalAuthRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: AuthipayRouterData<
+            RouterDataV2<
+                IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Self::try_from(&item.router_data)
+    }
+}
+
+/// IncrementalAuthorization reuses the canonical AuthipayPaymentsResponse —
+/// the Fiserv IPG `/payments/{transaction-id}` endpoint returns the same
+/// envelope for every secondary transaction (postAuth, void, return, preauth
+/// secondary, etc.). A separate alias keeps the macro system happy without
+/// duplicating fields.
+pub type AuthipayIncrementalAuthResponse = AuthipayPaymentsResponse;
+
+impl TryFrom<ResponseRouterData<AuthipayIncrementalAuthResponse, Self>>
+    for RouterDataV2<
+        IncrementalAuthorization,
+        PaymentFlowData,
+        PaymentsIncrementalAuthorizationData,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<AuthipayIncrementalAuthResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        // Translate Authipay's transaction state/result into the framework's
+        // AuthorizationStatus. Successful incremental auth comes back with
+        // transactionState=AUTHORIZED + transactionResult=APPROVED, while a
+        // declined incremental returns DECLINED/FAILED. Anything still in
+        // flight (WAITING / PENDING) is reported as Processing so callers can
+        // poll PSync.
+        let approved = matches!(
+            item.response.transaction_result,
+            Some(AuthipayPaymentResult::Approved)
+        ) || matches!(
+            item.response.transaction_status,
+            Some(AuthipayPaymentStatus::Approved)
+        );
+        let declined = matches!(
+            item.response.transaction_result,
+            Some(
+                AuthipayPaymentResult::Declined
+                    | AuthipayPaymentResult::Failed
+                    | AuthipayPaymentResult::Fraud
+            )
+        ) || matches!(
+            item.response.transaction_status,
+            Some(
+                AuthipayPaymentStatus::Declined
+                    | AuthipayPaymentStatus::ValidationFailed
+                    | AuthipayPaymentStatus::ProcessingFailed
+            )
+        ) || matches!(
+            item.response.transaction_state,
+            Some(AuthipayTransactionState::Declined)
+        );
+        let pending = matches!(
+            item.response.transaction_result,
+            Some(AuthipayPaymentResult::Waiting | AuthipayPaymentResult::Partial)
+        ) || matches!(
+            item.response.transaction_status,
+            Some(AuthipayPaymentStatus::Waiting | AuthipayPaymentStatus::Partial)
+        ) || matches!(
+            item.response.transaction_state,
+            Some(AuthipayTransactionState::Pending | AuthipayTransactionState::Waiting)
+        );
+
+        let authorization_status = if approved {
+            common_enums::AuthorizationStatus::Success
+        } else if declined {
+            common_enums::AuthorizationStatus::Failure
+        } else if pending {
+            common_enums::AuthorizationStatus::Processing
+        } else {
+            common_enums::AuthorizationStatus::Processing
+        };
+
+        // The original transaction stays AUTHORIZED on a successful increment;
+        // mirror that into the flow data so PSync sees the right status.
+        let attempt_status = if approved {
+            AttemptStatus::Authorized
+        } else if declined {
+            AttemptStatus::Failure
+        } else {
+            AttemptStatus::Pending
+        };
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
+                status: authorization_status,
+                connector_authorization_id: Some(item.response.ipg_transaction_id.clone()),
+                status_code: item.http_code,
+            }),
+            resource_common_data: PaymentFlowData {
+                status: attempt_status,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
     }
 }
