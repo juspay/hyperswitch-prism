@@ -45,9 +45,9 @@ use transformers::{
     RapydCreateOrderRequest, RapydCreateOrderResponse, RapydPaymentsRequest,
     RapydPaymentsResponse as RapydCaptureResponse, RapydPaymentsResponse as RapydPSyncResponse,
     RapydPaymentsResponse, RapydPaymentsResponse as RapydVoidResponse,
-    RapydPaymentsResponse as RapydAuthorizeResponse, RapydRefundRequest,
-    RapydRepeatPaymentRequest, RapydRepeatPaymentResponse, RapydSetupMandateRequest,
-    RapydSetupMandateResponse, RefundResponse, RefundResponse as RapydRSyncResponse,
+    RapydPaymentsResponse as RapydAuthorizeResponse, RapydRefundRequest, RapydRepeatPaymentRequest,
+    RapydRepeatPaymentResponse, RapydSetupMandateRequest, RapydSetupMandateResponse,
+    RefundResponse, RefundResponse as RapydRSyncResponse,
 };
 
 use super::macros;
