@@ -243,7 +243,7 @@ connector_id: forte
 doc: docs/connectors/forte.md
 scenarios: checkout_autocapture, void_payment, get_payment
 payment_methods: Ach, Card
-flows: authorize, get, proxy_authorize, refund_get, void
+flows: authorize, get, proxy_authorize, proxy_setup_recurring, refund_get, setup_recurring, void
 examples_python: examples/forte/forte.py
 
 ## Getnet
