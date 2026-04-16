@@ -18,6 +18,7 @@ pub const SUPPORTED_FLOWS: &[&str] = &[
     "capture",
     "create_customer",
     "get",
+    "recurring_charge",
     "refund",
     "refund_get",
     "token_authorize",
@@ -61,41 +62,45 @@ pub fn build_create_customer_request() -> CustomerServiceCreateRequest {
 }
 
 pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetRequest {
-    serde_json::from_value::<PaymentServiceGetRequest>(serde_json::json!({
-    "merchant_transaction_id": "probe_merchant_txn_001",  // Identification.
-    "connector_transaction_id": connector_transaction_id,
-    "amount": {  // Amount Information.
-        "minor_amount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-        "currency": "USD",  // ISO 4217 currency code (e.g., "USD", "EUR").
-    },
-    })).unwrap_or_default()
+    PaymentServiceGetRequest {
+        merchant_transaction_id: Some("probe_merchant_txn_001".to_string()), // Identification.
+        connector_transaction_id: connector_transaction_id.to_string(),
+        amount: Some(Money {
+            // Amount Information.
+            minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
+            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+        }),
+        ..Default::default()
+    }
 }
 
 pub fn build_recurring_charge_request() -> RecurringPaymentServiceChargeRequest {
-    serde_json::from_value::<RecurringPaymentServiceChargeRequest>(serde_json::json!({
-    "connector_recurring_payment_id": {  // Reference to existing mandate.
-        "mandate_id_type": {
-            "connector_mandate_id": {
-                "connector_mandate_id": "probe-mandate-123",
-            },
-        },
-    },
-    "amount": {  // Amount Information.
-        "minor_amount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-        "currency": "USD",  // ISO 4217 currency code (e.g., "USD", "EUR").
-    },
-    "payment_method": {  // Optional payment Method Information (for network transaction flows).
-        "payment_method": {
-            "token": {  // Payment tokens.
-                "token": "probe_pm_token",  // The token string representing a payment method.
-            },
-        }
-    },
-    "return_url": "https://example.com/recurring-return",
-    "connector_customer_id": "cust_probe_123",
-    "payment_method_type": "PAY_PAL",
-    "off_session": true,  // Behavioral Flags and Preferences.
-    })).unwrap_or_default()
+    RecurringPaymentServiceChargeRequest {
+        connector_recurring_payment_id: Some(MandateReference {
+            // Reference to existing mandate.
+            // mandate_id_type: {"connector_mandate_id": {"connector_mandate_id": "probe-mandate-123"}}
+            ..Default::default()
+        }),
+        amount: Some(Money {
+            // Amount Information.
+            minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
+            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+        }),
+        payment_method: Some(PaymentMethod {
+            // Optional payment Method Information (for network transaction flows).
+            payment_method: Some(payment_method::PaymentMethod::Token(
+                TokenPaymentMethodType {
+                    token: Some(Secret::new("probe_pm_token".to_string())), // The token string representing a payment method.
+                },
+            )),
+            ..Default::default()
+        }),
+        return_url: Some("https://example.com/recurring-return".to_string()),
+        connector_customer_id: Some("cust_probe_123".to_string()),
+        payment_method_type: Some(PaymentMethodType::PayPal.into()),
+        off_session: Some(true), // Behavioral Flags and Preferences.
+        ..Default::default()
+    }
 }
 
 pub fn build_refund_request(connector_transaction_id: &str) -> PaymentServiceRefundRequest {
@@ -213,15 +218,29 @@ pub async fn process_create_customer(
 
 // Flow: PaymentService.Get
 #[allow(dead_code)]
-pub async fn get(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client.get(build_get_request("probe_connector_txn_001"), &HashMap::new(), None).await?;
+pub async fn process_get(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .get(
+            build_get_request("probe_connector_txn_001"),
+            &HashMap::new(),
+            None,
+        )
+        .await?;
     Ok(format!("status: {:?}", response.status()))
 }
 
 // Flow: RecurringPaymentService.Charge
 #[allow(dead_code)]
-pub async fn recurring_charge(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client.recurring_charge(build_recurring_charge_request(), &HashMap::new(), None).await?;
+pub async fn process_recurring_charge(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .recurring_charge(build_recurring_charge_request(), &HashMap::new(), None)
+        .await?;
     Ok(format!("status: {:?}", response.status()))
 }
 
@@ -301,16 +320,19 @@ async fn main() {
         .nth(1)
         .unwrap_or_else(|| "process_capture".to_string());
     let result: Result<String, Box<dyn std::error::Error>> = match flow.as_str() {
-        "capture" => capture(&client, "order_001").await,
-        "create_customer" => create_customer(&client, "order_001").await,
-        "get" => get(&client, "order_001").await,
-        "recurring_charge" => recurring_charge(&client, "order_001").await,
-        "refund" => refund(&client, "order_001").await,
-        "refund_get" => refund_get(&client, "order_001").await,
-        "token_authorize" => token_authorize(&client, "order_001").await,
-        "tokenize" => tokenize(&client, "order_001").await,
-        "void" => void(&client, "order_001").await,
-        _ => { eprintln!("Unknown flow: {}. Available: capture, create_customer, get, recurring_charge, refund, refund_get, token_authorize, tokenize, void", flow); return; }
+        "process_capture" => process_capture(&client, "txn_001").await,
+        "process_create_customer" => process_create_customer(&client, "txn_001").await,
+        "process_get" => process_get(&client, "txn_001").await,
+        "process_recurring_charge" => process_recurring_charge(&client, "txn_001").await,
+        "process_refund" => process_refund(&client, "txn_001").await,
+        "process_refund_get" => process_refund_get(&client, "txn_001").await,
+        "process_token_authorize" => process_token_authorize(&client, "txn_001").await,
+        "process_tokenize" => process_tokenize(&client, "txn_001").await,
+        "process_void" => process_void(&client, "txn_001").await,
+        _ => {
+            eprintln!("Unknown flow: {}. Available: process_capture, process_create_customer, process_get, process_recurring_charge, process_refund, process_refund_get, process_token_authorize, process_tokenize, process_void", flow);
+            return;
+        }
     };
     match result {
         Ok(msg) => println!("✓ {msg}"),

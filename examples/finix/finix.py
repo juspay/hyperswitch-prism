@@ -14,7 +14,7 @@ from payments import RefundClient
 from payments import PaymentMethodClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
-SUPPORTED_FLOWS = ["capture", "create_customer", "get", "refund", "refund_get", "token_authorize", "tokenize", "void"]
+SUPPORTED_FLOWS = ["capture", "create_customer", "get", "recurring_charge", "refund", "refund_get", "token_authorize", "tokenize", "void"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -45,41 +45,35 @@ def _build_create_customer_request():
     )
 
 def _build_get_request(connector_transaction_id: str):
-    return ParseDict(
-        {
-            "merchant_transaction_id": "probe_merchant_txn_001",  # Identification.
-            "connector_transaction_id": connector_transaction_id,
-            "amount": {  # Amount Information.
-                "minor_amount": 1000,  # Amount in minor units (e.g., 1000 = $10.00).
-                "currency": "USD"  # ISO 4217 currency code (e.g., "USD", "EUR").
-            }
-        },
-        payment_pb2.PaymentServiceGetRequest(),
+    return payment_pb2.PaymentServiceGetRequest(
+        merchant_transaction_id="probe_merchant_txn_001",  # Identification.
+        connector_transaction_id=connector_transaction_id,
+        amount=payment_pb2.Money(  # Amount Information.
+            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
+            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        ),
     )
 
 def _build_recurring_charge_request():
-    return ParseDict(
-        {
-            "connector_recurring_payment_id": {  # Reference to existing mandate.
-                "connector_mandate_id": {  # mandate_id sent by the connector.
-                    "connector_mandate_id": "probe-mandate-123"
-                }
-            },
-            "amount": {  # Amount Information.
-                "minor_amount": 1000,  # Amount in minor units (e.g., 1000 = $10.00).
-                "currency": "USD"  # ISO 4217 currency code (e.g., "USD", "EUR").
-            },
-            "payment_method": {  # Optional payment Method Information (for network transaction flows).
-                "token": {  # Payment tokens.
-                    "token": {"value": "probe_pm_token"}  # The token string representing a payment method.
-                }
-            },
-            "return_url": "https://example.com/recurring-return",
-            "connector_customer_id": "cust_probe_123",
-            "payment_method_type": "PAY_PAL",
-            "off_session": True  # Behavioral Flags and Preferences.
-        },
-        payment_pb2.RecurringPaymentServiceChargeRequest(),
+    return payment_pb2.RecurringPaymentServiceChargeRequest(
+        connector_recurring_payment_id=payment_pb2.MandateReference(  # Reference to existing mandate.
+            connector_mandate_id=payment_pb2.ConnectorMandateReferenceId(  # mandate_id sent by the connector.
+                connector_mandate_id="probe-mandate-123",
+            ),
+        ),
+        amount=payment_pb2.Money(  # Amount Information.
+            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
+            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        ),
+        payment_method=payment_methods_pb2.PaymentMethod(  # Optional payment Method Information (for network transaction flows).
+            token=payment_methods_pb2.TokenPaymentMethodType(
+                token=payment_methods_pb2.SecretString(value="probe_pm_token"),  # The token string representing a payment method.
+            ),
+        ),
+        return_url="https://example.com/recurring-return",
+        connector_customer_id="cust_probe_123",
+        payment_method_type=payment_pb2.PaymentMethodType.Value("PAY_PAL"),
+        off_session=True,  # Behavioral Flags and Preferences.
     )
 
 def _build_refund_request(connector_transaction_id: str):
@@ -171,7 +165,7 @@ async def process_get(merchant_transaction_id: str, config: sdk_config_pb2.Conne
     return {"status": get_response.status}
 
 
-async def recurring_charge(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+async def process_recurring_charge(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """Flow: RecurringPaymentService.Charge"""
     recurringpayment_client = RecurringPaymentClient(config)
 
@@ -180,7 +174,7 @@ async def recurring_charge(merchant_transaction_id: str, config: sdk_config_pb2.
     return {"status": recurring_response.status}
 
 
-async def refund(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+async def process_refund(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """Flow: PaymentService.Refund"""
     payment_client = PaymentClient(config)
 

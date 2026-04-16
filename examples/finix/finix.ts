@@ -6,7 +6,8 @@
 // Run a scenario:  npx tsx finix.ts checkout_autocapture
 
 import { PaymentClient, CustomerClient, RecurringPaymentClient, RefundClient, PaymentMethodClient, types } from 'hyperswitch-prism';
-const { ConnectorConfig, ConnectorSpecificConfig, SdkOptions, Environment, CaptureMethod, Currency, PaymentMethodType } = types;
+const { Environment, CaptureMethod, Currency, PaymentMethodType } = types;
+export const SUPPORTED_FLOWS = ["capture", "create_customer", "get", "recurring_charge", "refund", "refund_get", "token_authorize", "tokenize", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -47,12 +48,9 @@ function _buildGetRequest(connectorTransactionId: string): types.IPaymentService
     };
 }
 
-function _buildRecurringChargeRequest(): RecurringPaymentServiceChargeRequest {
+function _buildRecurringChargeRequest(): types.IRecurringPaymentServiceChargeRequest {
     return {
         "connectorRecurringPaymentId": {  // Reference to existing mandate.
-            "connectorMandateId": {  // mandate_id sent by the connector.
-                "connectorMandateId": "probe-mandate-123"
-            }
         },
         "amount": {  // Amount Information.
             "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
@@ -70,7 +68,7 @@ function _buildRecurringChargeRequest(): RecurringPaymentServiceChargeRequest {
     };
 }
 
-function _buildRefundRequest(connectorTransactionId: string): PaymentServiceRefundRequest {
+function _buildRefundRequest(connectorTransactionId: string): types.IPaymentServiceRefundRequest {
     return {
         "merchantRefundId": "probe_refund_001",  // Identification.
         "connectorTransactionId": connectorTransactionId,
@@ -166,16 +164,16 @@ async function get(merchantTransactionId: string, config: types.IConnectorConfig
 
     const getResponse = await paymentClient.get(_buildGetRequest('probe_connector_txn_001'));
 
-    return { status: getResponse.status };
+    return getResponse;
 }
 
 // Flow: RecurringPaymentService.Charge
-async function recurringCharge(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<RecurringPaymentServiceChargeResponse> {
+async function recurringCharge(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const recurringPaymentClient = new RecurringPaymentClient(config);
 
     const recurringResponse = await recurringPaymentClient.charge(_buildRecurringChargeRequest());
 
-    return { status: recurringResponse.status };
+    return recurringResponse;
 }
 
 // Flow: PaymentService.Refund
